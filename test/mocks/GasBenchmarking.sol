@@ -17,13 +17,11 @@ contract ValidatorSimulation {
 
 
 contract GasBenchmarker {
-
     struct Info {
         uint256 hookIndex;
         uint256 startBytes;
         uint256 endBytes;
     }
-
 
     address public validator;
     event SomeStuff(bytes s);
