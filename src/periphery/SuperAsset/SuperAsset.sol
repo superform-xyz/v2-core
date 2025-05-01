@@ -112,7 +112,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 swapFeeOutPercentage_
     ) external {
         // Ensure this can only be called once
-        require(incentiveCalculationContract == address(0), "Already initialized");
+        if (incentiveCalculationContract != address(0)) revert ALREADY_INITIALIZED();
 
         if (icc_ == address(0)) revert ZERO_ADDRESS();
         if (ifc_ == address(0)) revert ZERO_ADDRESS();

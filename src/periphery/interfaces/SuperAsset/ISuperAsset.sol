@@ -298,6 +298,9 @@ interface ISuperAsset is IERC20 {
     /// @notice Thrown when vault is already whitelisted
     error ALREADY_WHITELISTED();
 
+    /// @notice Thrown when contract is already initialized
+    error ALREADY_INITIALIZED();
+
     /// @notice Thrown when vault or token is not whitelisted
     error NOT_WHITELISTED();
 
