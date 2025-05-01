@@ -22,9 +22,7 @@ contract AssetBank is AccessControl, IAssetBank {
         _grantRole(INCENTIVE_FUND_MANAGER, msg.sender);
     }
 
-    /**
-     * @inheritdoc IAssetBank
-     */
+    /// @inheritdoc IAssetBank
     function withdraw(
         address receiver,
         address tokenOut,
@@ -37,8 +35,6 @@ contract AssetBank is AccessControl, IAssetBank {
         emit RebalanceWithdrawal(receiver, tokenOut, amount);
     }
 
-    /**
-     * @notice Allows the contract to receive ETH
-     */
+    /// @notice Allows the contract to receive ETH
     receive() external payable {}
 }

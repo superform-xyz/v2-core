@@ -49,9 +49,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /**
-     * @inheritdoc ISuperAssetFactory
-     */
+    /// @inheritdoc ISuperAssetFactory
     function createSuperAsset(AssetCreationParams calldata params)
         external
         onlyRole(DEPLOYER_ROLE)
