@@ -9,11 +9,14 @@ import {MockERC20} from "../../mocks/MockERC20.sol";
 import {MockSuperAsset} from "../../mocks/MockSuperAsset.sol";
 import {MockAssetBank} from "../../mocks/MockAssetBank.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 
 contract IncentiveFundContractTest is Test {
     // --- Events ---
-    event IncentivePaid(address indexed token, address indexed recipient, uint256 amount);
-    event IncentiveTaken(address indexed token, address indexed from, uint256 amount);
+    event IncentivePaid(address indexed receiver, address indexed tokenOut, uint256 amount);
+    event IncentiveTaken(address indexed sender, address indexed tokenIn, uint256 amount);
+    event SettlementTokenInSet(address indexed token);
+    event SettlementTokenOutSet(address indexed token);
 
     // --- State Variables ---
     IncentiveFundContract public incentiveFund;
@@ -28,11 +31,12 @@ contract IncentiveFundContractTest is Test {
     // --- Setup ---
     function setUp() public {
         // Setup accounts
-        admin = address(this);
+        admin = makeAddr("admin");
         manager = makeAddr("manager");
         user = makeAddr("user");
 
         // Deploy mock contracts
+        vm.startPrank(admin);
         tokenIn = new MockERC20("Token In", "TIN", 18);
         tokenOut = new MockERC20("Token Out", "TOUT", 18);
         superAsset = new MockSuperAsset();
@@ -44,6 +48,7 @@ contract IncentiveFundContractTest is Test {
 
         // Setup roles
         incentiveFund.grantRole(incentiveFund.INCENTIVE_FUND_MANAGER(), manager);
+        vm.stopPrank();
 
         // Setup initial balances
         tokenIn.mint(address(incentiveFund), 1000e18);
@@ -59,34 +64,42 @@ contract IncentiveFundContractTest is Test {
     }
 
     function test_Initialize_RevertIfAlreadyInitialized() public {
+        vm.startPrank(admin);
         vm.expectRevert(IIncentiveFundContract.ALREADY_INITIALIZED.selector);
         incentiveFund.initialize(address(superAsset), address(assetBank));
+        vm.stopPrank();
     }
 
     function test_Initialize_RevertIfZeroAddress() public {
+        vm.startPrank(admin);
         IncentiveFundContract newContract = new IncentiveFundContract();
-        
         vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
         newContract.initialize(address(0), address(assetBank));
 
         vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
         newContract.initialize(address(superAsset), address(0));
+        vm.stopPrank();
     }
 
     // --- Test: Access Control ---
-    function test_OnlyManagerCanSetTokens() public {
-        // Non-manager cannot set tokens
-        vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.INCENTIVE_FUND_MANAGER()));
+    function test_OnlyAdminCanSetTokens() public {
+        // Non-admin cannot set tokens
+        vm.startPrank(user);
+        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.DEFAULT_ADMIN_ROLE()));
         incentiveFund.setTokenInIncentive(address(tokenIn));
 
-        vm.prank(user);
-        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.INCENTIVE_FUND_MANAGER()));
+        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.DEFAULT_ADMIN_ROLE()));
         incentiveFund.setTokenOutIncentive(address(tokenOut));
+        vm.stopPrank();
 
-        // Manager can set tokens
-        vm.startPrank(manager);
+        // Admin can set tokens
+        vm.startPrank(admin);
+        vm.expectEmit(true, false, false, true);
+        emit SettlementTokenInSet(address(tokenIn));
         incentiveFund.setTokenInIncentive(address(tokenIn));
+
+        vm.expectEmit(true, false, false, true);
+        emit SettlementTokenOutSet(address(tokenOut));
         incentiveFund.setTokenOutIncentive(address(tokenOut));
         vm.stopPrank();
 
@@ -94,140 +107,268 @@ contract IncentiveFundContractTest is Test {
         assertEq(incentiveFund.tokenOutIncentive(), address(tokenOut));
     }
 
-    // TODO: Fix this
-    // function test_OnlyAssetBankCanPayIncentive() public {
-    //     // Setup tokens
-    //     vm.prank(manager);
-    //     incentiveFund.setTokenInIncentive(address(tokenIn));
+    function test_OnlyManagerCanPayIncentive() public {
+        // Setup tokens
+        vm.startPrank(admin);
+        incentiveFund.setTokenOutIncentive(address(tokenOut));
+        vm.stopPrank();
 
-    //     // Non-AssetBank cannot pay incentive
-    //     vm.prank(user);
-    //     vm.expectRevert(IIncentiveFundContract.NOT_ASSET_BANK.selector);
-    //     incentiveFund.payIncentive(user, 100e18);
+        // Mock price data
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(tokenOut)),
+            abi.encode(1e18, false, false, false)
+        );
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
+            abi.encode(1e18)
+        );
 
-    //     // AssetBank can pay incentive
-    //     uint256 balanceBefore = tokenIn.balanceOf(user);
+        // Non-manager cannot pay incentive
+        vm.startPrank(user);
+        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.INCENTIVE_FUND_MANAGER()));
+        incentiveFund.payIncentive(user, 100e18);
+        vm.stopPrank();
+
+        // Manager can pay incentive
+        uint256 balanceBefore = tokenOut.balanceOf(user);
         
-    //     vm.prank(address(assetBank));
-    //     incentiveFund.payIncentive(user, 100e18);
+        vm.startPrank(manager);
+        incentiveFund.payIncentive(user, 100e18);
+        vm.stopPrank();
 
-    //     uint256 balanceAfter = tokenIn.balanceOf(user);
-    //     assertEq(balanceAfter - balanceBefore, 100e18);
-    // }
+        uint256 balanceAfter = tokenOut.balanceOf(user);
+        assertEq(balanceAfter - balanceBefore, 100e18);
+    }
 
-    // function test_OnlyAssetBankCanTakeIncentive() public {
-    //     // Setup tokens
-    //     vm.prank(manager);
-    //     incentiveFund.setTokenOutIncentive(address(tokenOut));
+    function test_OnlyManagerCanTakeIncentive() public {
+        // Setup tokens
+        vm.startPrank(admin);
+        incentiveFund.setTokenInIncentive(address(tokenIn));
+        vm.stopPrank();
 
-    //     // Give approval to incentiveFund
-    //     vm.prank(user);
-    //     tokenOut.approve(address(incentiveFund), 100e18);
+        // Mock price data
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(tokenIn)),
+            abi.encode(1e18, false, false, false)
+        );
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
+            abi.encode(1e18)
+        );
 
-    //     // Non-AssetBank cannot take incentive
-    //     vm.prank(user);
-    //     vm.expectRevert(IIncentiveFundContract.NOT_ASSET_BANK.selector);
-    //     incentiveFund.takeIncentive(user, 100e18);
+        // Give approval to incentiveFund
+        vm.startPrank(user);
+        tokenIn.approve(address(incentiveFund), 100e18);
+        vm.stopPrank();
 
-    //     // AssetBank can take incentive
-    //     uint256 balanceBefore = tokenOut.balanceOf(user);
+        // Non-manager cannot take incentive
+        vm.startPrank(user);
+        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.INCENTIVE_FUND_MANAGER()));
+        incentiveFund.takeIncentive(user, 100e18);
+        vm.stopPrank();
+
+        // Manager can take incentive
+        uint256 balanceBefore = tokenIn.balanceOf(user);
         
-    //     vm.prank(address(assetBank));
-    //     incentiveFund.takeIncentive(user, 100e18);
+        vm.startPrank(manager);
+        incentiveFund.takeIncentive(user, 100e18);
+        vm.stopPrank();
 
-    //     uint256 balanceAfter = tokenOut.balanceOf(user);
-    //     assertEq(balanceBefore - balanceAfter, 100e18);
-    // }
+        uint256 balanceAfter = tokenIn.balanceOf(user);
+        assertEq(balanceBefore - balanceAfter, 100e18);
+    }
 
     // --- Test: Core Functionality ---
     function test_PayIncentive() public {
         // Setup token
-        vm.prank(manager);
-        incentiveFund.setTokenInIncentive(address(tokenIn));
+        vm.startPrank(admin);
+        incentiveFund.setTokenOutIncentive(address(tokenOut));
+        vm.stopPrank();
+
+        // Mock price data
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(tokenOut)),
+            abi.encode(1e18, false, false, false)
+        );
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
+            abi.encode(1e18)
+        );
 
         // Pay incentive
-        uint256 amount = 100e18;
-        uint256 balanceBefore = tokenIn.balanceOf(user);
-
-        vm.expectEmit(true, true, false, true);
-        emit IncentivePaid(address(tokenIn), user, amount);
-
-        vm.prank(address(assetBank));
-        incentiveFund.payIncentive(user, amount);
-
-        uint256 balanceAfter = tokenIn.balanceOf(user);
-        assertEq(balanceAfter - balanceBefore, amount);
-    }
-
-    function test_PayIncentive_RevertIfNoTokenSet() public {
-        vm.prank(address(assetBank));
-        vm.expectRevert(IIncentiveFundContract.TOKEN_IN_NOT_SET.selector);
-        incentiveFund.payIncentive(user, 100e18);
-    }
-
-    function test_PayIncentive_RevertIfInsufficientBalance() public {
-        // Setup token
-        vm.prank(manager);
-        incentiveFund.setTokenInIncentive(address(tokenIn));
-
-        // Try to pay more than contract's balance
-        vm.prank(address(assetBank));
-        vm.expectRevert("ERC20: transfer amount exceeds balance");
-        incentiveFund.payIncentive(user, 2000e18);
-    }
-
-    function test_TakeIncentive() public {
-        // Setup token
-        vm.prank(manager);
-        incentiveFund.setTokenOutIncentive(address(tokenOut));
-
-        // Approve transfer
-        vm.prank(user);
-        tokenOut.approve(address(incentiveFund), 100e18);
-
-        // Take incentive
         uint256 amount = 100e18;
         uint256 balanceBefore = tokenOut.balanceOf(user);
 
         vm.expectEmit(true, true, false, true);
-        emit IncentiveTaken(address(tokenOut), user, amount);
+        emit IncentivePaid(user, address(tokenOut), amount);
 
-        vm.prank(address(assetBank));
-        incentiveFund.takeIncentive(user, amount);
+        vm.startPrank(manager);
+        incentiveFund.payIncentive(user, amount);
+        vm.stopPrank();
 
         uint256 balanceAfter = tokenOut.balanceOf(user);
+        assertEq(balanceAfter - balanceBefore, amount);
+    }
+
+    function test_PayIncentive_RevertIfNoTokenSet() public {
+        // Mock price data
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(0)),
+            abi.encode(1e18, false, false, false)
+        );
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
+            abi.encode(1e18)
+        );
+
+        vm.startPrank(manager);
+        vm.expectRevert(IIncentiveFundContract.TOKEN_OUT_NOT_SET.selector);
+        incentiveFund.payIncentive(user, 100e18);
+        vm.stopPrank();
+    }
+
+    function test_PayIncentive_RevertIfInsufficientBalance() public {
+        // Setup token
+        vm.startPrank(admin);
+        incentiveFund.setTokenOutIncentive(address(tokenOut));
+        vm.stopPrank();
+
+        // Mock price data
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(tokenOut)),
+            abi.encode(1e18, false, false, false)
+        );
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
+            abi.encode(1e18)
+        );
+
+        // Try to pay more than contract's balance
+        vm.startPrank(manager);
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, address(incentiveFund), 1000e18, 2000e18));
+        incentiveFund.payIncentive(user, 2000e18);
+        vm.stopPrank();
+    }
+
+    function test_TakeIncentive() public {
+        // Setup token
+        vm.startPrank(admin);
+        incentiveFund.setTokenInIncentive(address(tokenIn));
+        vm.stopPrank();
+
+        // Mock price data
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(tokenIn)),
+            abi.encode(1e18, false, false, false)
+        );
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
+            abi.encode(1e18)
+        );
+
+        // Approve transfer
+        vm.startPrank(user);
+        tokenIn.approve(address(incentiveFund), 100e18);
+        vm.stopPrank();
+
+        // Take incentive
+        uint256 amount = 100e18;
+        uint256 balanceBefore = tokenIn.balanceOf(user);
+
+        vm.expectEmit(true, true, false, true);
+        emit IncentiveTaken(user, address(tokenIn), amount);
+
+        vm.startPrank(manager);
+        incentiveFund.takeIncentive(user, amount);
+        vm.stopPrank();
+
+        uint256 balanceAfter = tokenIn.balanceOf(user);
         assertEq(balanceBefore - balanceAfter, amount);
     }
 
     function test_TakeIncentive_RevertIfNoTokenSet() public {
-        vm.prank(address(assetBank));
-        vm.expectRevert(IIncentiveFundContract.TOKEN_OUT_NOT_SET.selector);
+        // Mock price data
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(0)),
+            abi.encode(1e18, false, false, false)
+        );
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
+            abi.encode(1e18)
+        );
+
+        vm.startPrank(manager);
+        vm.expectRevert(IIncentiveFundContract.TOKEN_IN_NOT_SET.selector);
         incentiveFund.takeIncentive(user, 100e18);
+        vm.stopPrank();
     }
 
     function test_TakeIncentive_RevertIfInsufficientAllowance() public {
         // Setup token
-        vm.prank(manager);
-        incentiveFund.setTokenOutIncentive(address(tokenOut));
+        vm.startPrank(admin);
+        incentiveFund.setTokenInIncentive(address(tokenIn));
+        vm.stopPrank();
+
+        // Mock price data
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(tokenIn)),
+            abi.encode(1e18, false, false, false)
+        );
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
+            abi.encode(1e18)
+        );
 
         // Try to take without approval
-        vm.prank(address(assetBank));
-        vm.expectRevert("ERC20: insufficient allowance");
+        vm.startPrank(manager);
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(incentiveFund), 0, 100e18));
         incentiveFund.takeIncentive(user, 100e18);
+        vm.stopPrank();
     }
 
     function test_TakeIncentive_RevertIfInsufficientBalance() public {
         // Setup token
-        vm.prank(manager);
-        incentiveFund.setTokenOutIncentive(address(tokenOut));
+        vm.startPrank(admin);
+        incentiveFund.setTokenInIncentive(address(tokenIn));
+        vm.stopPrank();
+
+        // Mock price data
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(tokenIn)),
+            abi.encode(1e18, false, false, false)
+        );
+        vm.mockCall(
+            address(superAsset),
+            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
+            abi.encode(1e18)
+        );
 
         // Approve transfer
-        vm.prank(user);
-        tokenOut.approve(address(incentiveFund), 2000e18);
+        vm.startPrank(user);
+        tokenIn.approve(address(incentiveFund), 2000e18);
+        vm.stopPrank();
 
         // Try to take more than user's balance
-        vm.prank(address(assetBank));
-        vm.expectRevert("ERC20: transfer amount exceeds balance");
+        vm.startPrank(manager);
+        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, user, 1000e18, 2000e18));
         incentiveFund.takeIncentive(user, 2000e18);
+        vm.stopPrank();
     }
 }
