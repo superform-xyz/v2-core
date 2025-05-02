@@ -161,6 +161,8 @@ import { INexusFactory } from "../src/vendor/nexus/INexusFactory.sol";
 import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "./mocks/MockRegistry.sol";
 
+import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
+
 import { BaseHook } from "../src/core/hooks/BaseHook.sol";
 import { MockBaseHook } from "./mocks/MockBaseHook.sol";
 
@@ -234,6 +236,7 @@ struct Addresses {
     SuperGovernor superGovernor;
     SuperNativePaymaster superNativePaymaster;
     MockTargetExecutor mockTargetExecutor;
+    SuperVaultAggregator superVaultAggregator;
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser {
@@ -351,6 +354,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         // Deploy hooks
         A = _deployHooks(A);
+
+        _configureGovernor();
 
         _registerHooks(A);
 
@@ -572,6 +577,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             A[i].stakingYieldSourceOracle = new StakingYieldSourceOracle();
             vm.label(address(A[i].stakingYieldSourceOracle), STAKING_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][STAKING_YIELD_SOURCE_ORACLE_KEY] = address(A[i].stakingYieldSourceOracle);
+
+            A[i].superVaultAggregator = new SuperVaultAggregator(address(A[i].superGovernor));
+            vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
         }
         return A;
     }
@@ -1194,11 +1203,25 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return A;
     }
 
+    function _configureGovernor() internal {
+        for (uint256 i = 0; i < chainIds.length; ++i) {
+            vm.selectFork(FORKS[chainIds[i]]);
+
+            SuperGovernor superGovernor = SuperGovernor(_getContract(chainIds[i], SUPER_GOVERNOR_KEY));
+
+            superGovernor.setAddress(
+                superGovernor.SUPER_VAULT_AGGREGATOR(), _getContract(chainIds[i], SUPER_VAULT_AGGREGATOR_KEY)
+            );
+
+            superGovernor.setAddress(superGovernor.TREASURY(), TREASURY);
+        }
+    }
     /**
      * @notice Registers all hooks with the periphery registry
      * @param A Array of Addresses structs containing hook addresses
      * @return A The input Addresses array
      */
+
     function _registerHooks(Addresses[] memory A) internal returns (Addresses[] memory) {
         if (DEBUG) console2.log("---------------- REGISTERING HOOKS ----------------");
         for (uint256 i = 0; i < chainIds.length; ++i) {
