@@ -21,6 +21,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     using SafeERC20 for IERC20;
 
     // --- Constants ---
+    /// @notice Role identifier for incentive fund manager
     bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
 
     // --- State Variables ---
@@ -32,6 +33,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     // --- Constructor ---
     constructor() {
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
+        _grantRole(INCENTIVE_FUND_MANAGER, msg.sender);
     }
 
     /// @inheritdoc IIncentiveFundContract
@@ -130,6 +132,5 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     //////////////////////////////////////////////////////////////*/
     function _validateInput(address user, uint256 amount) internal pure {
         if (user == address(0)) revert ZERO_ADDRESS();
-        if (amount == 0) revert ZERO_AMOUNT();
-    }
+        if (amount == 0) revert ZERO_AMOUNT();    }
 }
