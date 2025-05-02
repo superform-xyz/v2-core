@@ -71,7 +71,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
         uint256 amountUSD
     ) external onlyRole(INCENTIVE_FUND_MANAGER) {
         _validateInput(receiver, amountUSD);
-        if (tokenOutIncentive == address(0)) revert TOKEN_NOT_CONFIGURED();
+        if (tokenOutIncentive == address(0)) revert TOKEN_OUT_NOT_SET();
 
         // Get token price and check circuit breakers
         (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) = 
@@ -95,7 +95,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
         uint256 amountUSD
     ) external onlyRole(INCENTIVE_FUND_MANAGER) {
         _validateInput(sender, amountUSD);
-        if (tokenInIncentive == address(0)) revert TOKEN_NOT_CONFIGURED();
+        if (tokenInIncentive == address(0)) revert TOKEN_IN_NOT_SET();
 
         // Get token price and check circuit breakers
         (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) = 

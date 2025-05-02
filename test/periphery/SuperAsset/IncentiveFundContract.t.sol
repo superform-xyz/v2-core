@@ -159,11 +159,11 @@ contract IncentiveFundContractTest is Test {
         assertEq(balanceAfter - balanceBefore, amount);
     }
 
-    // function test_PayIncentive_RevertIfNoTokenSet() public {
-    //     vm.prank(address(assetBank));
-    //     vm.expectRevert(IIncentiveFundContract.TOKEN_IN_NOT_SET.selector);
-    //     incentiveFund.payIncentive(user, 100e18);
-    // }
+    function test_PayIncentive_RevertIfNoTokenSet() public {
+        vm.prank(address(assetBank));
+        vm.expectRevert(IIncentiveFundContract.TOKEN_IN_NOT_SET.selector);
+        incentiveFund.payIncentive(user, 100e18);
+    }
 
     function test_PayIncentive_RevertIfInsufficientBalance() public {
         // Setup token
@@ -199,11 +199,11 @@ contract IncentiveFundContractTest is Test {
         assertEq(balanceBefore - balanceAfter, amount);
     }
 
-    // function test_TakeIncentive_RevertIfNoTokenSet() public {
-    //     vm.prank(address(assetBank));
-    //     vm.expectRevert(IIncentiveFundContract.TOKEN_OUT_NOT_SET.selector);
-    //     incentiveFund.takeIncentive(user, 100e18);
-    // }
+    function test_TakeIncentive_RevertIfNoTokenSet() public {
+        vm.prank(address(assetBank));
+        vm.expectRevert(IIncentiveFundContract.TOKEN_OUT_NOT_SET.selector);
+        incentiveFund.takeIncentive(user, 100e18);
+    }
 
     function test_TakeIncentive_RevertIfInsufficientAllowance() public {
         // Setup token
