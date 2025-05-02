@@ -113,4 +113,150 @@ contract IncentiveCalculationContractTest is Test {
         // (60-50)^2 * 2 + (40-50)^2 * 1 = 300 * PRECISION
         assertEq(energy, 300 * PRECISION);
     }
+
+    function test_CalculateIncentive_PositiveCase() public {
+        // Initial state: 60-40 split
+        uint256[] memory allocationPreOperation = new uint256[](2);
+        allocationPreOperation[0] = 600e18;
+        allocationPreOperation[1] = 400e18;
+
+        // Final state: 50-50 split (closer to target)
+        uint256[] memory allocationPostOperation = new uint256[](2);
+        allocationPostOperation[0] = 500e18;
+        allocationPostOperation[1] = 500e18;
+
+        // Target state: 50-50 split
+        uint256[] memory allocationTarget = new uint256[](2);
+        allocationTarget[0] = 500e18;
+        allocationTarget[1] = 500e18;
+
+        uint256[] memory weights = new uint256[](2);
+        weights[0] = PRECISION;
+        weights[1] = PRECISION;
+
+        uint256 totalAllocationPreOperation = 1000e18;
+        uint256 totalAllocationPostOperation = 1000e18;
+        uint256 totalAllocationTarget = 1000e18;
+        uint256 energyToUSDExchangeRatio = 2 * PRECISION; // 2 USD per energy unit
+
+        int256 incentive = calculator.calculateIncentive(
+            allocationPreOperation,
+            allocationPostOperation,
+            allocationTarget,
+            weights,
+            totalAllocationPreOperation,
+            totalAllocationPostOperation,
+            totalAllocationTarget,
+            energyToUSDExchangeRatio
+        );
+
+        // Pre-operation energy: (60-50)^2 + (40-50)^2 = 200
+        // Post-operation energy: (50-50)^2 + (50-50)^2 = 0
+        // Energy difference: 200
+        // Incentive: 200 * 2 = 400 USD
+        assertEq(incentive, 400 * int256(PRECISION));
+    }
+
+    function test_CalculateIncentive_NegativeCase() public {
+        // Initial state: 50-50 split (at target)
+        uint256[] memory allocationPreOperation = new uint256[](2);
+        allocationPreOperation[0] = 500e18;
+        allocationPreOperation[1] = 500e18;
+
+        // Final state: 60-40 split (away from target)
+        uint256[] memory allocationPostOperation = new uint256[](2);
+        allocationPostOperation[0] = 600e18;
+        allocationPostOperation[1] = 400e18;
+
+        // Target state: 50-50 split
+        uint256[] memory allocationTarget = new uint256[](2);
+        allocationTarget[0] = 500e18;
+        allocationTarget[1] = 500e18;
+
+        uint256[] memory weights = new uint256[](2);
+        weights[0] = PRECISION;
+        weights[1] = PRECISION;
+
+        uint256 totalAllocationPreOperation = 1000e18;
+        uint256 totalAllocationPostOperation = 1000e18;
+        uint256 totalAllocationTarget = 1000e18;
+        uint256 energyToUSDExchangeRatio = 2 * PRECISION; // 2 USD per energy unit
+
+        int256 incentive = calculator.calculateIncentive(
+            allocationPreOperation,
+            allocationPostOperation,
+            allocationTarget,
+            weights,
+            totalAllocationPreOperation,
+            totalAllocationPostOperation,
+            totalAllocationTarget,
+            energyToUSDExchangeRatio
+        );
+
+        // Pre-operation energy: (50-50)^2 + (50-50)^2 = 0
+        // Post-operation energy: (60-50)^2 + (40-50)^2 = 200
+        // Energy difference: -200
+        // Incentive: -200 * 2 = -400 USD
+        assertEq(incentive, -400 * int256(PRECISION));
+    }
+
+    function test_CalculateIncentive_NoChange() public {
+        // Both pre and post states: 60-40 split
+        uint256[] memory allocationPreOperation = new uint256[](2);
+        allocationPreOperation[0] = 600e18;
+        allocationPreOperation[1] = 400e18;
+
+        uint256[] memory allocationPostOperation = new uint256[](2);
+        allocationPostOperation[0] = 600e18;
+        allocationPostOperation[1] = 400e18;
+
+        // Target state: 50-50 split
+        uint256[] memory allocationTarget = new uint256[](2);
+        allocationTarget[0] = 500e18;
+        allocationTarget[1] = 500e18;
+
+        uint256[] memory weights = new uint256[](2);
+        weights[0] = PRECISION;
+        weights[1] = PRECISION;
+
+        uint256 totalAllocationPreOperation = 1000e18;
+        uint256 totalAllocationPostOperation = 1000e18;
+        uint256 totalAllocationTarget = 1000e18;
+        uint256 energyToUSDExchangeRatio = 2 * PRECISION;
+
+        int256 incentive = calculator.calculateIncentive(
+            allocationPreOperation,
+            allocationPostOperation,
+            allocationTarget,
+            weights,
+            totalAllocationPreOperation,
+            totalAllocationPostOperation,
+            totalAllocationTarget,
+            energyToUSDExchangeRatio
+        );
+
+        // Pre-operation energy equals post-operation energy
+        // Energy difference: 0
+        // Incentive: 0 USD
+        assertEq(incentive, 0);
+    }
+
+    function test_CalculateIncentive_RevertOnMismatchedLengths() public {
+        uint256[] memory allocationPreOperation = new uint256[](2);
+        uint256[] memory allocationPostOperation = new uint256[](3);
+        uint256[] memory allocationTarget = new uint256[](2);
+        uint256[] memory weights = new uint256[](2);
+
+        vm.expectRevert(IIncentiveCalculationContract.INVALID_ARRAY_LENGTH.selector);
+        calculator.calculateIncentive(
+            allocationPreOperation,
+            allocationPostOperation,
+            allocationTarget,
+            weights,
+            1000e18,
+            1000e18,
+            1000e18,
+            PRECISION
+        );
+    }
 }
