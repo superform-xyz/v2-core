@@ -459,12 +459,12 @@ contract DeployV2 is Script, Configuration {
             ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
                 type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
-                abi.encode(configuration.acrossSpokePoolV3s[chainId])
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], _getContract(chainId, SUPER_MERKLE_VALIDATOR_KEY))
             )
         );
         hooks[21] = HookDeployment(
-            DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
-            abi.encodePacked(type(DeBridgeSendOrderAndExecuteOnDstHook).creationCode, abi.encode(DEBRIDGE_DLN_SRC))
+            DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,    
+            abi.encodePacked(type(DeBridgeSendOrderAndExecuteOnDstHook).creationCode, abi.encode(DEBRIDGE_DLN_SRC, _getContract(chainId, SUPER_MERKLE_VALIDATOR_KEY)))
         );
 
         hooks[22] = HookDeployment(FLUID_CLAIM_REWARD_HOOK_KEY, type(FluidClaimRewardHook).creationCode);

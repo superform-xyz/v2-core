@@ -2,22 +2,34 @@
 pragma solidity 0.8.28;
 
 // external
-import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
+// Superform
 import { SuperValidatorBase } from "./SuperValidatorBase.sol";
+import { ISuperSignatureStorage } from "../interfaces/ISuperSignatureStorage.sol";
+
+import "forge-std/console2.sol";
 
 /// @title SuperMerkleValidator
 /// @author Superform Labs
 /// @notice A userOp validator contract
-contract SuperMerkleValidator is SuperValidatorBase {
+contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
+    bytes32 internal constant SIGNATURE_KEY_STORAGE = keccak256("transient.signature.bytes.mapping");
+
+    /*//////////////////////////////////////////////////////////////
+                                 VIEW METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperSignatureStorage
+    function retrieveSignatureData(address account) external view returns (bytes memory) {
+        return _loadSignature(uint256(uint160(account)));
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -29,10 +41,10 @@ contract SuperMerkleValidator is SuperValidatorBase {
         bytes32 _userOpHash
     )
         external
-        view
         override
         returns (ValidationData)
     {
+        console2.log("----------------A");
         if (!_initialized[_userOp.sender]) revert NOT_INITIALIZED();
 
         // Decode signature
@@ -43,6 +55,11 @@ contract SuperMerkleValidator is SuperValidatorBase {
 
         // Validate
         bool isValid = _isSignatureValid(signer, _userOp.sender, sigData.validUntil);
+        if (isValid) {
+            // we check only the signature validity here
+            //    merkle tree was checked already in `_processSignatureAndVerifyLeaf` and reverts if invalid
+            _storeSignature(uint256(uint160(_userOp.sender)), _userOp.signature);
+        }
 
         return _packValidationData(!isValid, sigData.validUntil, 0);
     }
@@ -76,10 +93,6 @@ contract SuperMerkleValidator is SuperValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _namespace() internal pure override returns (string memory) {
-        return "SuperMerkleValidator-v0.0.1";
-    }
-
     function _createLeaf(bytes memory data, uint48 validUntil) internal pure override returns (bytes32) {
         bytes32 userOpHash = abi.decode(data, (bytes32));
         return keccak256(bytes.concat(keccak256(abi.encode(userOpHash, validUntil))));
@@ -96,12 +109,62 @@ contract SuperMerkleValidator is SuperValidatorBase {
         pure
         returns (address signer, bytes32 leaf)
     {
+        console2.log("----------------_processSignatureAndVerifyLeaf A");
+
         leaf = _createLeaf(abi.encode(userOpHash), sigData.validUntil);
-        if (!MerkleProof.verify(sigData.proof, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
+        console2.log("----------------_processSignatureAndVerifyLeaf B");
+        if (!MerkleProof.verify(sigData.proofSrc, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
+        console2.log("----------------_processSignatureAndVerifyLeaf C");
 
         // Get signer
+        console2.log("----------------_processSignatureAndVerifyLeaf D");
         bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
+        console2.log("----------------_processSignatureAndVerifyLeaf E");
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+        console2.log("----------------_processSignatureAndVerifyLeaf F");
         signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
+        console2.log("----------------_processSignatureAndVerifyLeaf G", signer);
+    }
+
+    function _makeKey(uint256 identifier) private pure returns (bytes32) {
+        return keccak256(abi.encodePacked(SIGNATURE_KEY_STORAGE, identifier));
+    }
+
+    function _storeSignature(uint256 identifier, bytes calldata data) private {
+        bytes32 storageKey = _makeKey(identifier);
+        uint256 len = data.length;
+
+        assembly {
+            tstore(storageKey, len)
+        }
+
+        for (uint256 i; i < len; i += 32) {
+            bytes32 word;
+            assembly {
+                word := calldataload(add(data.offset, i))
+                tstore(add(storageKey, div(add(i, 32), 32)), word)
+            }
+        }
+    }
+
+    function _loadSignature(uint256 identifier) private view returns (bytes memory out) {
+        bytes32 storageKey = _makeKey(identifier);
+        uint256 len;
+        assembly {
+            len := tload(storageKey)
+        }
+
+        out = new bytes(len);
+
+        for (uint256 i; i < len; i += 32) {
+            bytes32 word;
+            assembly {
+                word := tload(add(storageKey, div(add(i, 32), 32)))
+            }
+
+            assembly {
+                mstore(add(add(out, 0x20), i), word)
+            }
+        }
     }
 }

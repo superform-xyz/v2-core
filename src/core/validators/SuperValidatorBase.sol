@@ -5,6 +5,8 @@ pragma solidity 0.8.28;
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
+import "forge-std/console2.sol";
+
 /// @title SuperValidatorBase
 /// @author Superform Labs
 /// @notice A base contract for all Superform validators
@@ -15,7 +17,8 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     struct SignatureData {
         uint48 validUntil;
         bytes32 merkleRoot;
-        bytes32[] proof;
+        bytes32[] proofSrc;
+        bytes32[] proofDst;
         bytes signature;
     }
 
@@ -69,13 +72,15 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _namespace() internal pure virtual returns (string memory);
+    function _namespace() internal pure virtual returns (string memory) {
+        return "SuperValidator";
+    }
     function _createLeaf(bytes memory data, uint48 validUntil) internal view virtual returns (bytes32);
 
     function _decodeSignatureData(bytes memory sigDataRaw) internal pure virtual returns (SignatureData memory) {
-        (uint48 validUntil, bytes32 merkleRoot, bytes32[] memory proof, bytes memory signature) =
-            abi.decode(sigDataRaw, (uint48, bytes32, bytes32[], bytes));
-        return SignatureData(validUntil, merkleRoot, proof, signature);
+        (uint48 validUntil, bytes32 merkleRoot, bytes32[] memory proofSrc, bytes32[] memory proofDst, bytes memory signature) =
+            abi.decode(sigDataRaw, (uint48, bytes32, bytes32[], bytes32[], bytes));
+        return SignatureData(validUntil, merkleRoot, proofSrc, proofDst, signature);
     }
 
     function _createMessageHash(bytes32 merkleRoot) internal pure returns (bytes32) {
@@ -92,6 +97,8 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
         virtual
         returns (bool)
     {
+        console2.log("----------------_isSignatureValid signer", signer);
+        console2.log("----------------_isSignatureValid _accountOwners[sender]", _accountOwners[sender]);
         return signer == _accountOwners[sender] && validUntil >= block.timestamp;
     }
 }

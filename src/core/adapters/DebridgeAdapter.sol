@@ -56,7 +56,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
         returns (bool callSucceeded, bytes memory callResult)
     {
         _onlyExternalCallAdapter();
-        (,,, address account,) = _decodeMessage(_payload);
+        (,,address account,,) = _decodeMessage(_payload);
 
         // 1. Transfer received funds to the target account *before* calling the executor.
         //    This ensures the executor can reliably check the balance.
@@ -83,7 +83,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
         returns (bool callSucceeded, bytes memory callResult)
     {
         _onlyExternalCallAdapter();
-        (,,, address account,) = _decodeMessage(_payload);
+        (,,address account,,) = _decodeMessage(_payload);
 
         // 1. Transfer received funds to the target account *before* calling the executor.
         //    This ensures the executor can reliably check the balance.
@@ -112,9 +112,9 @@ contract DebridgeAdapter is IExternalCallExecutor {
         (
             bytes memory initData,
             bytes memory executorCalldata,
-            bytes memory sigData,
             address account,
-            uint256 intentAmount
+            uint256 intentAmount,
+            bytes memory sigData
         ) = _decodeMessage(message);
 
         // 2 . Tokens were already sent on hooks steps
@@ -137,12 +137,12 @@ contract DebridgeAdapter is IExternalCallExecutor {
         returns (
             bytes memory initData,
             bytes memory executorCalldata,
-            bytes memory sigData,
             address account,
-            uint256 intentAmount
+            uint256 intentAmount,
+            bytes memory sigData
         )
     {
-        (initData, executorCalldata, sigData, account, intentAmount) =
-            abi.decode(message, (bytes, bytes, bytes, address, uint256));
+        (initData, executorCalldata, account, intentAmount, sigData) =
+            abi.decode(message, (bytes, bytes, address, uint256, bytes));
     }
 }

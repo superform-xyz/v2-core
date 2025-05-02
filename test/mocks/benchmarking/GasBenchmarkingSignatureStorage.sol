@@ -20,15 +20,17 @@ contract GasBenchmarkingSignatureStorage {
     struct SignatureData {
         uint48 validUntil;
         bytes32 merkleRoot;
-        bytes32[] proof;
+        bytes32[] proofSrc;
+        bytes32[] proofDst;
         bytes signature;
     }
 
     function validateAndExecute(PackedUserOperation calldata userOp, bytes32) external {
-        (uint48 validUntil, bytes32 merkleRoot, bytes32[] memory proof, bytes memory signature) =
-            abi.decode(userOp.signature, (uint48, bytes32, bytes32[], bytes));
-        SignatureData memory sigData = SignatureData(validUntil, merkleRoot, proof, signature);
+        (uint48 validUntil, bytes32 merkleRoot, bytes32[] memory proofSrc, bytes32[] memory proofDst, bytes memory signature) =
+            abi.decode(userOp.signature, (uint48, bytes32, bytes32[], bytes32[], bytes));
+        SignatureData memory sigData = SignatureData(validUntil, merkleRoot, proofSrc, proofDst, signature);
         _processSignatureAndVerifyLeaf(sigData);
+
         _store(SIGNATURE_IDENTIFIER_MOCK, userOp.signature);
     }
 
@@ -45,7 +47,7 @@ contract GasBenchmarkingSignatureStorage {
         returns (address signer, bytes32 leaf)
     {
         leaf = _createLeaf(sigData.validUntil);
-        if (!MerkleProof.verify(sigData.proof, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
+        if (!MerkleProof.verify(sigData.proofSrc, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
         // Get signer
         bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);

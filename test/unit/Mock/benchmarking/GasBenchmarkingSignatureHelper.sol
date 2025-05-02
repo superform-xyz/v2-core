@@ -16,7 +16,7 @@ contract GasBenchmarkingSignatureHelper is BaseTest {
             signerPrivateKey
         );
         signatureData =
-            _createSignatureData_AcrossTargetExecutor(uint48(timestamp), merkleRoot, merkleProof[0], signature);
+            _createSignatureData_AcrossTargetExecutor(uint48(timestamp), merkleRoot, merkleProof[0], merkleProof[0], signature);
 
         return (signatureData, merkleProof, merkleRoot);
     }   

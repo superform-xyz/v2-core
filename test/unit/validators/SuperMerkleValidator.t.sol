@@ -52,16 +52,12 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         validator = SuperMerkleValidator(_getContract(ETH, SUPER_MERKLE_VALIDATOR_KEY));
 
-        (signerAddr, privateKey) = makeAddrAndKey("The signer");
+        signerAddr = validatorSigners[ETH];
+        privateKey = validatorSignerPrivateKeys[ETH];
         vm.label(signerAddr, "The signer");
 
         instance = accountInstances[ETH];
         account = instance.account;
-        instance.installModule({
-            moduleTypeId: MODULE_TYPE_VALIDATOR,
-            module: address(validator),
-            data: abi.encode(address(signerAddr))
-        });
         assertEq(validator.getAccountOwner(account), signerAddr);
 
         approveUserOp = _createDummyApproveUserOp();
@@ -206,7 +202,7 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         bytes memory signature = _getSignature(root);
 
-        validSigData = abi.encode(validUntil, root, proof[0], signature);
+        validSigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
 
         approveUserOp.userOp.signature = validSigData;
         ERC7579ValidatorBase.ValidationData result =
@@ -236,7 +232,7 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         // tamper the merkle root
         bytes32 _prevRoot = root;
         root = keccak256(abi.encode("tampered root"));
-        validSigData = abi.encode(validUntil, root, proof, signature);
+        validSigData = abi.encode(validUntil, root, proof, proof, signature);
 
         approveUserOp.userOp.signature = validSigData;
 
@@ -247,7 +243,7 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         root = _prevRoot;
         bytes32[] memory _proof = new bytes32[](1);
         _proof[0] = keccak256(abi.encode("tampered proof"));
-        validSigData = abi.encode(validUntil, root, _proof, signature);
+        validSigData = abi.encode(validUntil, root, _proof, _proof, signature);
 
         approveUserOp.userOp.signature = validSigData;
 
@@ -279,7 +275,7 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
     )
         private
     {
-        validSigData = abi.encode(validUntil, root, proof, signature);
+        validSigData = abi.encode(validUntil, root, proof, proof, signature);
 
         userOpData.userOp.signature = validSigData;
         ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(userOpData.userOp, userOpData.userOpHash);

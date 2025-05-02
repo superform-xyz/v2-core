@@ -10,6 +10,21 @@ import { IAcrossSpokePoolV3 } from "../../../../../src/vendor/bridges/across/IAc
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 
+contract MockSignatureStorage {
+    function retrieveSignatureData(address) external view returns (bytes memory) {
+        uint48 validUntil = uint48(block.timestamp + 3600);
+        bytes32 merkleRoot = keccak256("test_merkle_root");
+        bytes32[] memory proofSrc = new bytes32[](1);
+        proofSrc[0] = keccak256("src1");
+
+        bytes32[] memory proofDst = new bytes32[](1);
+        proofDst[0] = keccak256("dst1");
+
+        bytes memory signature = hex"abcdef";
+        return abi.encode(validUntil, merkleRoot, proofSrc, proofDst, signature);
+    }
+}
+
 contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
     AcrossSendFundsAndExecuteOnDstHook public hook;
     address public mockSpokePool;
@@ -26,6 +41,7 @@ contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
     uint32 public mockFillDeadlineOffset;
     uint32 public mockExclusivityPeriod;
     bytes public mockMessage;
+    MockSignatureStorage public mockSignatureStorage;
 
     function setUp() public override {
         super.setUp();
@@ -42,9 +58,10 @@ contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
         mockDestinationChainId = 10;
         mockFillDeadlineOffset = 3600;
         mockExclusivityPeriod = 1800;
-        mockMessage = abi.encode("test message");
+        mockSignatureStorage = new MockSignatureStorage();
+        hook = new AcrossSendFundsAndExecuteOnDstHook(mockSpokePool, address(mockSignatureStorage));
 
-        hook = new AcrossSendFundsAndExecuteOnDstHook(mockSpokePool);
+        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), uint256(1));
     }
 
     function test_Constructor() public view {
@@ -54,10 +71,12 @@ contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
 
     function test_Constructor_RevertIf_ZeroAddress() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new AcrossSendFundsAndExecuteOnDstHook(address(0));
+        new AcrossSendFundsAndExecuteOnDstHook(address(0), address(this));
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        new AcrossSendFundsAndExecuteOnDstHook(address(this), address(0));
     }
 
-    function test_Build() public view {
+    function test_Build() public {
         bytes memory data = _encodeData(false);
 
         Execution[] memory executions = hook.build(address(0), mockAccount, data);
@@ -66,6 +85,8 @@ contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
         assertEq(executions[0].target, mockSpokePool);
         assertEq(executions[0].value, mockValue);
 
+        bytes memory sigData = mockSignatureStorage.retrieveSignatureData(address(0));
+        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), uint256(1), sigData);
         bytes memory expectedCallData = abi.encodeCall(
             IAcrossSpokePoolV3.depositV3Now,
             (
@@ -120,6 +141,9 @@ contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
 
         assertEq(executions.length, 1);
 
+
+        bytes memory sigData = mockSignatureStorage.retrieveSignatureData(address(0));
+        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), uint256(1), sigData);
         bytes memory expectedCallData = abi.encodeCall(
             IAcrossSpokePoolV3.depositV3Now,
             (
@@ -136,6 +160,8 @@ contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
                 mockMessage
             )
         );
+
+
 
         assertEq(executions[0].callData, expectedCallData);
     }
