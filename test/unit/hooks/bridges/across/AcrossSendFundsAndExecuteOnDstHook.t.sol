@@ -4,13 +4,13 @@ pragma solidity >=0.8.28;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../../../../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
-import { BaseTest } from "../../../../BaseTest.t.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { IAcrossSpokePoolV3 } from "../../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
-contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
+contract AcrossSendFundsAndExecuteOnDstHookTest is Helpers {
     AcrossSendFundsAndExecuteOnDstHook public hook;
     address public mockSpokePool;
     address public mockAccount;
@@ -27,8 +27,7 @@ contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
     uint32 public mockExclusivityPeriod;
     bytes public mockMessage;
 
-    function setUp() public override {
-        super.setUp();
+    function setUp() public {
         mockSpokePool = makeAddr("spokePool");
         mockAccount = makeAddr("account");
         mockRecipient = makeAddr("recipient");

@@ -16,7 +16,6 @@ import { ISuperHookOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
 
 import { Mock1InchRouter, MockDex } from "../../mocks/Mock1InchRouter.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
-import { MockLockVault } from "../../mocks/MockLockVault.sol";
 import { MockSuperPositionFactory } from "../../mocks/MockSuperPositionFactory.sol";
 import { BaseTest } from "../../BaseTest.t.sol";
 import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";

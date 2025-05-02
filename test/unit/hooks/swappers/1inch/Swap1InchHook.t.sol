@@ -3,13 +3,10 @@ pragma solidity >=0.8.28;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { Swap1InchHook } from "../../../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
-import { BaseTest } from "../../../../BaseTest.t.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
-import { MockHook } from "../../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import "../../../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
-import { console2 } from "forge-std/console2.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
 contract MockUniswapPair {
     address public token0;
@@ -21,7 +18,7 @@ contract MockUniswapPair {
     }
 }
 
-contract Swap1InchHookTest is BaseTest {
+contract Swap1InchHookTest is Helpers {
     Swap1InchHook public hook;
 
     address dstToken;
@@ -34,9 +31,7 @@ contract Swap1InchHookTest is BaseTest {
 
     receive() external payable { }
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public {
         MockERC20 _mockSrcToken = new MockERC20("Source Token", "SRC", 18);
         srcToken = address(_mockSrcToken);
 
