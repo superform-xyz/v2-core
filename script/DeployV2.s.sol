@@ -359,14 +359,17 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, SUPER_VAULT_AGGREGATOR_KEY),
             abi.encodePacked(type(SuperVaultAggregator).creationCode, abi.encode(deployedContracts.superGovernor))
         );
-
         // Deploy Hooks
         HookAddresses memory hookAddresses = _deployHooks(deployer, chainId);
 
         _registerHooks(hookAddresses, SuperGovernor(deployedContracts.superGovernor));
-
+        _configureGovernor(SuperGovernor(deployedContracts.superGovernor), deployedContracts.superVaultAggregator);
         // Deploy Oracles
         _deployOracles(deployer, chainId);
+    }
+
+    function _configureGovernor(SuperGovernor superGovernor, address aggregator) internal {
+        superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), aggregator);
     }
 
     /*//////////////////////////////////////////////////////////////
