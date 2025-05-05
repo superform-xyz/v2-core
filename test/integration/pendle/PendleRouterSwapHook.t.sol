@@ -4,13 +4,15 @@ pragma solidity >=0.8.28;
 // Tests
 import { BaseTest } from "../../BaseTest.t.sol";
 
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
-import { IPendleMarket } from "../../../src/vendor/pendle/IPendleMarket.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { IStandardizedYield } from "../../../src/vendor/pendle/IStandardizedYield.sol";
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
+import { IPendleMarket } from "../../../src/vendor/pendle/IPendleMarket.sol";
+import { PendleRouterSwapHook } from "../../../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
+import { IStandardizedYield } from "../../../src/vendor/pendle/IStandardizedYield.sol";
+import { ApproveERC20Hook } from "../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
-contract PendleRouterSwapHook is BaseTest {
+contract PendleRouterSwapHookTest is BaseTest {
     ISuperExecutor public superExecutor;
     AccountInstance public instance;
     address public account;
@@ -18,6 +20,9 @@ contract PendleRouterSwapHook is BaseTest {
     address public token;
 
     address public pendlePufETHMarket;
+
+    ApproveERC20Hook public approveHook;
+    PendleRouterSwapHook public hook;
 
     function setUp() public override {
         useLatestFork = true;
@@ -31,6 +36,9 @@ contract PendleRouterSwapHook is BaseTest {
 
         token = CHAIN_1_USDC;
         pendlePufETHMarket = 0x58612beB0e8a126735b19BB222cbC7fC2C162D2a;
+
+        approveHook = new ApproveERC20Hook();
+        hook = new PendleRouterSwapHook(PENDLE_ROUTERS[ETH]);
     }
 
     // tx example: https://etherscan.io/tx/0x36b2c58e314e9d9bf73fc0d632ed228e35cd6b840066d12d39f72c633bad27a5
@@ -50,8 +58,8 @@ contract PendleRouterSwapHook is BaseTest {
         assertEq(balance, 0);
 
         address[] memory hookAddresses_ = new address[](2);
-        hookAddresses_[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hookAddresses_[1] = _getHookAddress(ETH, PENDLE_ROUTER_SWAP_HOOK_KEY);
+        hookAddresses_[0] = address(approveHook);
+        hookAddresses_[1] = address(hook);
 
         bytes[] memory hookData = new bytes[](2);
         hookData[0] = _createApproveHookData(token, PENDLE_ROUTERS[ETH], amount, false);

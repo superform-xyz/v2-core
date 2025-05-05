@@ -6,6 +6,7 @@ import { BaseTest } from "../../BaseTest.t.sol";
 
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
 import { IPendleRouterV4, TokenInput, SwapData, SwapType } from "../../../src/vendor/pendle/IPendleRouterV4.sol";
+import { PendleRouterRedeemHook } from "../../../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
@@ -19,6 +20,8 @@ contract PendleRouterRedeemHookTest is BaseTest {
     IERC20 public pt;
 
     uint256 public constant expiry = 22_411_332;
+
+    PendleRouterRedeemHook public redeemHook;
 
     function setUp() public override {
         useLatestFork = true;
@@ -40,6 +43,8 @@ contract PendleRouterRedeemHookTest is BaseTest {
         pt = IERC20(0x917459337CaAC939D41d7493B3999f571D20D667);
 
         deal(address(eUSDe), account, 10e18);
+
+        redeemHook = new PendleRouterRedeemHook(PENDLE_ROUTERS[ETH]);
     }
 
     function test_PendleRouterRedeemHook() public {
@@ -70,10 +75,8 @@ contract PendleRouterRedeemHookTest is BaseTest {
 
         vm.warp(expiry + 1 days);
 
-        address redeemHook = _getHookAddress(ETH, PENDLE_ROUTER_REDEEM_HOOK_KEY);
-
         address[] memory hooks = new address[](1);
-        hooks[0] = redeemHook;
+        hooks[0] = address(redeemHook);
 
         bytes[] memory data = new bytes[](1);
         data[0] =
