@@ -3,16 +3,15 @@ pragma solidity 0.8.28;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
-import { IAcrossSpokePoolV3 } from "../../../../vendor/bridges/across/IAcrossSpokePoolV3.sol";
+import { BytesLib } from "../../src/vendor/BytesLib.sol";
+import { IAcrossSpokePoolV3 } from "../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
-import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../src/core/hooks/BaseHook.sol";
+import { HookSubTypes } from "../../src/core/libraries/HookSubTypes.sol";
+import { ISuperHookResult, ISuperHookContextAware } from "../../src/core/interfaces/ISuperHook.sol";
 
-/// @title AcrossSendFundsAndExecuteOnDstHook
+/// @title MockAcrossHook
 /// @author Superform Labs
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
 /// @dev `message` field won't contain the signature for the destination executor
@@ -31,7 +30,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 216);
 /// @notice         bytes message = BytesLib.slice(data, 217, data.length - 217);
-contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
+contract MockAcrossHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -103,18 +102,6 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
 
         if (acrossV3DepositAndExecuteData.recipient == address(0)) {
             revert ADDRESS_NOT_VALID();
-        }
-
-        // append signature to `message`
-        {
-            bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
-            (
-                bytes memory initData,
-                bytes memory executorCalldata,
-                address _account,
-                uint256 intentAmount
-            ) = abi.decode(acrossV3DepositAndExecuteData.message, (bytes, bytes, address, uint256));
-            acrossV3DepositAndExecuteData.message = abi.encode(initData, executorCalldata, _account, intentAmount, signature);
         }
 
         // build execution
