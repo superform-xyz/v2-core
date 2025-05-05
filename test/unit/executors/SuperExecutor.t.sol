@@ -6,7 +6,6 @@ import { ModuleKitHelpers } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { BaseTest } from "../../BaseTest.t.sol";
 import { SuperExecutor } from "../../../src/core/executors/SuperExecutor.sol";
 import { MaliciousToken } from "../../mocks/MaliciousToken.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";

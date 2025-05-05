@@ -12,8 +12,8 @@ import "forge-std/console.sol";
 abstract contract MerkleReader is StdCheats, Test {
     using stdJson for string;
 
-    string private basePathForRoot = "/test/unit/periphery/up/merkle/target/jsGeneratedRoot0";
-    string private basePathForTreeDump = "/test/unit/periphery/up/merkle/target/jsTreeDump0";
+    string private basePathForRoot = "/test/periphery/unit/up/merkle/target/jsGeneratedRoot0";
+    string private basePathForTreeDump = "/test/periphery/unit/up/merkle/target/jsTreeDump0";
 
     string private prepend = ".values[";
 

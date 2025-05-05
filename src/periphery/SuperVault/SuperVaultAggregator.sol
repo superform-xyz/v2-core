@@ -95,10 +95,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         returns (address superVault, address strategy, address escrow)
     {
         // Input validation
-        if (
-            params.asset == address(0) || params.manager == address(0) || params.mainStrategist == address(0)
-                || params.feeRecipient == address(0)
-        ) {
+        if (params.asset == address(0) || params.mainStrategist == address(0) || params.feeRecipient == address(0)) {
             revert ZERO_ADDRESS();
         }
 
@@ -117,9 +114,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         SuperVaultEscrow(escrow).initialize(superVault, strategy);
 
         // Initialize strategy
-        SuperVaultStrategy(strategy).initialize(
-            superVault, params.manager, address(SUPER_GOVERNOR), params.superVaultCap
-        );
+        SuperVaultStrategy(strategy).initialize(superVault, address(SUPER_GOVERNOR), params.superVaultCap);
 
         // Store vault trio in registry
         _superVaults.add(superVault);
@@ -146,13 +141,18 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
                           PPS UPDATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperVaultAggregator
-    function forwardPPS(address updateAuthority, address strategy, uint256 pps, uint256 timestamp) external
+    function forwardPPS(
+        address updateAuthority,
+        address strategy,
+        uint256 pps,
+        uint256 timestamp
+    )
+        external
         onlyPPSOracle
         validStrategy(strategy)
     {
         // Check if the update is exempt from paying upkeep
         bool isExempt = _isExemptFromUpkeep(strategy, updateAuthority, timestamp);
-
 
         // Forward the PPS update with upkeep cost if not exempt
         _forwardPPS(strategy, isExempt, pps, timestamp, SUPER_GOVERNOR.getUpkeepCostPerUpdate());

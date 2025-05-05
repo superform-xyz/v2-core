@@ -1663,11 +1663,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee, "Fee derivation failed");
     }
 
-    function _bound(uint256 amount_) internal pure returns (uint256) {
-        amount_ = bound(amount_, SMALL, LARGE);
-        return amount_;
-    }
-
     function _createSourceMerkleTree() internal { }
 
     function exec(

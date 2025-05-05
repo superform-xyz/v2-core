@@ -14,16 +14,6 @@ import { ISuperVaultAggregator } from "./interfaces/ISuperVaultAggregator.sol";
 /// @notice Central registry for all deployed contracts in the Superform periphery
 contract SuperGovernor is ISuperGovernor, AccessControl {
     using EnumerableSet for EnumerableSet.AddressSet;
-    /// @inheritdoc ISuperGovernor
-
-    function SUPER_GOVERNOR_ROLE() external pure returns (bytes32) {
-        return _SUPER_GOVERNOR_ROLE;
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function GOVERNOR_ROLE() external pure returns (bytes32) {
-        return _GOVERNOR_ROLE;
-    }
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -388,6 +378,15 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /*//////////////////////////////////////////////////////////////
                          EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperGovernor
+    function SUPER_GOVERNOR_ROLE() external pure returns (bytes32) {
+        return _SUPER_GOVERNOR_ROLE;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function GOVERNOR_ROLE() external pure returns (bytes32) {
+        return _GOVERNOR_ROLE;
+    }
 
     /// @inheritdoc ISuperGovernor
     function getAddress(bytes32 key) external view returns (address) {

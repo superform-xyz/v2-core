@@ -14,6 +14,7 @@ import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 
 abstract contract InternalHelpers {
     using ModuleKitHelpers for *;
+
     // -- Rhinestone
 
     function executeOp(UserOpData memory userOpData) public returns (ExecutionReturnData memory) {

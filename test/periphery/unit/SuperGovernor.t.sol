@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 import { SuperGovernor } from "src/periphery/SuperGovernor.sol";
 import { ISuperGovernor, FeeType } from "src/periphery/interfaces/ISuperGovernor.sol";
-import { BaseTest } from "test/BaseTest.t.sol";
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { ISuperVaultAggregator } from "src/periphery/interfaces/ISuperVaultAggregator.sol";
 import { SuperVaultAggregator } from "src/periphery/SuperVault/SuperVaultAggregator.sol";
@@ -62,7 +61,6 @@ contract SuperGovernorTest is Helpers {
         (, address strategy,) = ISuperVaultAggregator(superVaultAggregator).createVault(
             ISuperVaultAggregator.VaultCreationParams({
                 asset: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
-                manager: address(this),
                 mainStrategist: address(this),
                 feeRecipient: address(this),
                 name: "SUP",
