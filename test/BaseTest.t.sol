@@ -915,8 +915,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY]);
             hooksAddresses[21] = address(A[i].swapOdosHook);
 
-            A[i].acrossSendFundsAndExecuteOnDstHook =
-                new AcrossSendFundsAndExecuteOnDstHook{ salt: SALT }(SPOKE_POOL_V3_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY));
+            A[i].acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook{ salt: SALT }(
+                SPOKE_POOL_V3_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY)
+            );
             vm.label(address(A[i].acrossSendFundsAndExecuteOnDstHook), ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
             hookAddresses[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =
                 address(A[i].acrossSendFundsAndExecuteOnDstHook);
@@ -932,8 +933,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksAddresses[22] = address(A[i].acrossSendFundsAndExecuteOnDstHook);
 
-            A[i].deBridgeSendOrderAndExecuteOnDstHook =
-                new DeBridgeSendOrderAndExecuteOnDstHook{ salt: SALT }(DEBRIDGE_DLN_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY));
+            A[i].deBridgeSendOrderAndExecuteOnDstHook = new DeBridgeSendOrderAndExecuteOnDstHook{ salt: SALT }(
+                DEBRIDGE_DLN_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY)
+            );
             vm.label(
                 address(A[i].deBridgeSendOrderAndExecuteOnDstHook), DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY
             );
@@ -1666,9 +1668,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         internal
         returns (UserOpData memory userOpData)
     {
-        return instance.getExecOps(
-            address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), validator
-        );
+        return instance.getExecOps(address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), validator);
     }
 
     function _getExecOps(
@@ -1883,12 +1883,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             accountToUse = messageData.account;
             accountCreationData = bytes("");
         }
-        return (
-            abi.encode(accountCreationData, executionData, messageData.account, messageData.amount),
-            accountToUse
-        );
+        return (abi.encode(accountCreationData, executionData, messageData.account, messageData.amount), accountToUse);
     }
-    function _createMerkleRootAndSignature(TargetExecutorMessage memory messageData, bytes32 userOpHash, address accountToUse) internal view returns (bytes memory sig) {
+
+    function _createMerkleRootAndSignature(
+        TargetExecutorMessage memory messageData,
+        bytes32 userOpHash,
+        address accountToUse
+    )
+        internal
+        view
+        returns (bytes memory sig)
+    {
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory executionData =
             _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
@@ -1912,7 +1918,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             messageData.signer,
             messageData.signerPrivateKey
         );
-        sig = _createSignatureData_DestinationExecutor(validUntil, merkleRoot, merkleProof[1], merkleProof[0], signature);
+        sig =
+            _createSignatureData_DestinationExecutor(validUntil, merkleRoot, merkleProof[1], merkleProof[0], signature);
     }
 
     function _createSignatureData_DestinationExecutor(
@@ -2987,7 +2994,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address tokenRedeemSy,
         uint256 minTokenOut,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(
             amount,
             yt,
@@ -3003,18 +3014,17 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address tokenOut,
         uint256 minTokenOut,
         address tokenRedeemSy
-    ) internal pure returns (TokenOutput memory) {
+    )
+        internal
+        pure
+        returns (TokenOutput memory)
+    {
         return TokenOutput({
             tokenOut: tokenOut,
             minTokenOut: minTokenOut,
             tokenRedeemSy: tokenRedeemSy,
             pendleSwap: address(0),
-            swapData: SwapData({
-                swapType: SwapType.NONE,
-                extRouter: address(0),
-                extCalldata: bytes(""),
-                needScale: false
-            })
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: bytes(""), needScale: false })
         });
     }
 }
