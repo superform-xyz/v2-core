@@ -87,16 +87,12 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         executions[0] = Execution({
             target: params.PT,
             value: 0,
-            callData: abi.encodeWithSelector(
-                IERC20.approve.selector, address(pendleRouterV4), finalAmount
-            )
+            callData: abi.encodeWithSelector(IERC20.approve.selector, address(pendleRouterV4), finalAmount)
         });
         executions[1] = Execution({
             target: params.YT,
             value: 0,
-            callData: abi.encodeWithSelector(
-                IERC20.approve.selector, address(pendleRouterV4), finalAmount
-            )
+            callData: abi.encodeWithSelector(IERC20.approve.selector, address(pendleRouterV4), finalAmount)
         });
         executions[2] = Execution({
             target: address(pendleRouterV4),
@@ -105,7 +101,6 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
                 IPendleRouterV4.redeemPyToToken.selector, account, params.YT, finalAmount, params.output
             )
         });
-        
     }
 
     /*//////////////////////////////////////////////////////////////
