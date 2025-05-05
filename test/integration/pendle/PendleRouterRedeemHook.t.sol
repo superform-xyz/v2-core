@@ -47,6 +47,8 @@ contract PendleRouterRedeemHookTest is BaseTest {
         redeemHook = new PendleRouterRedeemHook(PENDLE_ROUTERS[ETH]);
     }
 
+    // mintPyFromToken tx example:https://etherscan.io/inputdatadecoder?tx=0xa5af7fe6016b5683f48e36e79bd300728b352fa45262d153426167d0d89862fa
+    // redeemPyToToken tx example: https://etherscan.io/inputdatadecoder?tx=0xca0e4932ecb628b2996ba1f24089f9faa98ccc2451afa14fbb964336fa6351c0
     function test_PendleRouterRedeemHook() public {
         vm.warp(22_384_742);
 
