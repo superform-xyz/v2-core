@@ -126,13 +126,6 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         // Decode sigData to extract merkleRoot
         (, bytes32 merkleRoot,,) = abi.decode(userSignatureData, (uint48, bytes32, bytes32[], bytes));
 
-        // Check if merkleRoot has already been used
-        // Don't keep a nonce system anymore since roots are unique anyway
-        // Without a nonce, bundler doesn't need to query each chain for the latest nonce
-        // Also without a nonce, execution won't be blocked by a previous parallel execution which increased the nonce
-        if (usedMerkleRoots[account][merkleRoot]) revert MERKLE_ROOT_ALREADY_USED();
-        usedMerkleRoots[account][merkleRoot] = true;
-
         // --- Signature Validation ---
         // DestinationData encodes both the adapter (msg.sender) and the executor (address(this))
         //  this is useful to avoid replay attacks on a different group of executor <> sender (adapter)
@@ -163,6 +156,13 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
                 return;
             }
         }
+
+        // Check if merkleRoot has already been used
+        // Don't keep a nonce system anymore since roots are unique anyway
+        // Without a nonce, bundler doesn't need to query each chain for the latest nonce
+        // Also without a nonce, execution won't be blocked by a previous parallel execution which increased the nonce
+        if (usedMerkleRoots[account][merkleRoot]) revert MERKLE_ROOT_ALREADY_USED();
+        usedMerkleRoots[account][merkleRoot] = true;
 
         // --- Execute User Operation ---
         // Check if there's actual execution data to process
