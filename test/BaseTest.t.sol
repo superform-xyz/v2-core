@@ -164,6 +164,7 @@ import { BaseHook } from "../src/core/hooks/BaseHook.sol";
 import { MockSuperExecutor } from "./mocks/MockSuperExecutor.sol";
 import { MockLockVault } from "./mocks/MockLockVault.sol";
 import { MockTargetExecutor } from "./mocks/MockTargetExecutor.sol";
+import { MockBaseHook } from "./mocks/MockBaseHook.sol";
 import "forge-std/console2.sol";
 
 struct Addresses {
@@ -234,6 +235,7 @@ struct Addresses {
     SuperVaultAggregator superVaultAggregator;
     ISuperExecutor superExecutorWithSPLock;
     MockTargetExecutor mockTargetExecutor;
+    MockBaseHook mockBaseHook; // this is needed for all tests which we need to use executeWithoutHookRestrictions
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser, InternalHelpers {
@@ -456,7 +458,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     function _deployContracts(Addresses[] memory A) internal returns (Addresses[] memory) {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-
+            mockBaseHook = address(new MockBaseHook());
+            vm.makePersistent(mockBaseHook);
             address acrossV3Helper = address(new AcrossV3Helper());
             vm.allowCheatcodes(acrossV3Helper);
             vm.makePersistent(acrossV3Helper);
@@ -543,6 +546,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             address[] memory allowedExecutors = new address[](3);
             allowedExecutors[0] = address(A[i].superExecutor);
             allowedExecutors[1] = address(A[i].superDestinationExecutor);
+            allowedExecutors[2] = address(A[i].superExecutorWithSPLock);
+
             A[i].superLedger = ISuperLedger(
                 address(new SuperLedger{ salt: SALT }(address(A[i].superLedgerConfiguration), allowedExecutors))
             );
@@ -1663,8 +1668,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         console2.log("expected fee", feeBalanceBefore + expectedFee);
         assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee, "Fee derivation failed");
     }
-
-    function _createSourceMerkleTree() internal { }
 
     function exec(
         AccountInstance memory instance,
