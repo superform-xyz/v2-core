@@ -43,8 +43,7 @@ contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneM
     function setUp() public {
         validator = new SuperMerkleValidator();
 
-        signerAddr = validatorSigners[ETH];
-        privateKey = validatorSignerPrivateKeys[ETH];
+        (signerAddr, privateKey) = makeAddrAndKey("The signer");
         vm.label(signerAddr, "The signer");
 
         instance = makeAccountInstance(keccak256(abi.encode("EST")));

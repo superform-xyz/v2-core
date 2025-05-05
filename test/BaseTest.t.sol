@@ -229,7 +229,7 @@ struct Addresses {
     SuperGovernor superGovernor;
     SuperNativePaymaster superNativePaymaster;
     SuperVaultAggregator superVaultAggregator;
-å}
+}
 
 contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser, InternalHelpers {
     using ModuleKitHelpers for *;
