@@ -915,7 +915,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksAddresses[21] = address(A[i].swapOdosHook);
 
             A[i].acrossSendFundsAndExecuteOnDstHook =
-                new AcrossSendFundsAndExecuteOnDstHook{ salt: SALT }(SPOKE_POOL_V3_ADDRESSES[chainIds[i]]);
+                new AcrossSendFundsAndExecuteOnDstHook{ salt: SALT }(SPOKE_POOL_V3_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY));
             vm.label(address(A[i].acrossSendFundsAndExecuteOnDstHook), ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
             hookAddresses[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =
                 address(A[i].acrossSendFundsAndExecuteOnDstHook);
@@ -932,7 +932,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksAddresses[22] = address(A[i].acrossSendFundsAndExecuteOnDstHook);
 
             A[i].deBridgeSendOrderAndExecuteOnDstHook =
-                new DeBridgeSendOrderAndExecuteOnDstHook{ salt: SALT }(DEBRIDGE_DLN_ADDRESSES[chainIds[i]]);
+                new DeBridgeSendOrderAndExecuteOnDstHook{ salt: SALT }(DEBRIDGE_DLN_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY));
             vm.label(
                 address(A[i].deBridgeSendOrderAndExecuteOnDstHook), DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY
             );
@@ -1409,6 +1409,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 module: _getContract(chainIds[i], SUPER_DESTINATION_VALIDATOR_KEY),
                 data: abi.encode(validatorSigners[chainIds[i]])
             });
+            instance.installModule({
+                moduleTypeId: MODULE_TYPE_VALIDATOR,
+                module: _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY),
+                data: abi.encode(validatorSigners[chainIds[i]])
+            });
             vm.label(instance.account, accountName);
 
             // create random accounts to be used as users
@@ -1651,6 +1656,20 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     function _createSourceMerkleTree() internal { }
 
+    function _getExecOpsWithValidator(
+        AccountInstance memory instance,
+        ISuperExecutor superExecutor,
+        bytes memory data,
+        address validator
+    )
+        internal
+        returns (UserOpData memory userOpData)
+    {
+        return instance.getExecOps(
+            address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), validator
+        );
+    }
+
     function _getExecOps(
         AccountInstance memory instance,
         ISuperExecutor superExecutor,
@@ -1835,7 +1854,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         internal
         returns (address)
     {
-        (, address account) = _createAccountCreationData_AcrossTargetExecutor(
+        (, address account) = _createAccountCreationData_DestinationExecutor(
             validator, signer, _getContract(chainId, SUPER_DESTINATION_EXECUTOR_KEY), nexusFactory, nexusBootstrap
         );
         return account;
@@ -1845,14 +1864,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         internal
         returns (bytes memory, address)
     {
-        uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory executionData =
-            _createExecutionData_AcrossTargetExecutor(messageData.hooksAddresses, messageData.hooksData);
+            _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
 
         address accountToUse;
         bytes memory accountCreationData;
         if (messageData.account == address(0)) {
-            (accountCreationData, accountToUse) = _createAccountCreationData_AcrossTargetExecutor(
+            (accountCreationData, accountToUse) = _createAccountCreationData_DestinationExecutor(
                 messageData.validator,
                 messageData.signer,
                 _getContract(messageData.chainId, SUPER_DESTINATION_EXECUTOR_KEY),
@@ -1864,8 +1882,17 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             accountToUse = messageData.account;
             accountCreationData = bytes("");
         }
+        return (
+            abi.encode(accountCreationData, executionData, messageData.account, messageData.amount),
+            accountToUse
+        );
+    }
+    function _createMerkleRootAndSignature(TargetExecutorMessage memory messageData, bytes32 userOpHash, address accountToUse) internal view returns (bytes memory sig) {
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+        bytes memory executionData =
+            _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
 
-        bytes32[] memory leaves = new bytes32[](1);
+        bytes32[] memory leaves = new bytes32[](2);
         leaves[0] = _createDestinationValidatorLeaf(
             executionData,
             messageData.chainId,
@@ -1876,38 +1903,32 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             messageData.amount,
             validUntil
         );
-
+        leaves[1] = _createSourceValidatorLeaf(userOpHash, validUntil);
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
-
         bytes memory signature = _createSignature(
             SuperValidatorBase(address(messageData.validator)).namespace(),
             merkleRoot,
             messageData.signer,
             messageData.signerPrivateKey
         );
-        bytes memory signatureData =
-            _createSignatureData_AcrossTargetExecutor(validUntil, merkleRoot, merkleProof[0], signature);
-
-        return (
-            abi.encode(accountCreationData, executionData, signatureData, messageData.account, messageData.amount),
-            accountToUse
-        );
+        sig = _createSignatureData_DestinationExecutor(validUntil, merkleRoot, merkleProof[1], merkleProof[0], signature);
     }
 
-    function _createSignatureData_AcrossTargetExecutor(
+    function _createSignatureData_DestinationExecutor(
         uint48 validUntil,
         bytes32 merkleRoot,
-        bytes32[] memory merkleProof,
+        bytes32[] memory merkleProofSrc,
+        bytes32[] memory merkleProofDst,
         bytes memory signature
     )
         internal
         pure
         returns (bytes memory)
     {
-        return abi.encode(validUntil, merkleRoot, merkleProof, signature);
+        return abi.encode(validUntil, merkleRoot, merkleProofSrc, merkleProofDst, signature);
     }
 
-    function _createExecutionData_AcrossTargetExecutor(
+    function _createCrosschainExecutionData_DestinationExecutor(
         address[] memory hooksAddresses,
         bytes[] memory hooksData
     )
@@ -1924,7 +1945,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
     }
 
-    function _createAccountCreationData_AcrossTargetExecutor(
+    function _createAccountCreationData_DestinationExecutor(
         address validatorOnDestinationChain,
         address theSigner,
         address executorOnDestinationChain,

@@ -119,7 +119,7 @@ contract BaseE2ETest is BaseTest {
         leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil);
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
-        bytes memory sigData = abi.encode(validUntil, root, proof[0], signature);
+        bytes memory sigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
         // -- replace signature with validator signature
         userOp.signature = sigData;
 
