@@ -67,7 +67,6 @@ abstract contract Constants {
     string public constant CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "CancelRedeemRequest7540Hook";
     string public constant CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "ClaimCancelDepositRequest7540Hook";
     string public constant CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "ClaimCancelRedeemRequest7540Hook";
-    string public constant CANCEL_DEPOSIT_HOOK_KEY = "CancelDepositHook";
     string public constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
     string public constant APPROVE_WITH_PERMIT2_HOOK_KEY = "ApproveWithPermit2Hook";
     string public constant PERMIT_WITH_PERMIT2_HOOK_KEY = "PermitWithPermit2Hook";
@@ -121,7 +120,7 @@ abstract contract Constants {
     string public constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
     string public constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
     string public constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
-    string public constant PERIPHERY_REGISTRY_KEY = "PeripheryRegistry";
+    string public constant SUPER_GOVERNOR_KEY = "SuperGovernor";
     string public constant SUPER_NATIVE_PAYMASTER_KEY = "SuperNativePaymaster";
     string public constant SUPER_GAS_TANK_KEY = "SuperGasTank";
 
@@ -245,5 +244,6 @@ abstract contract Constants {
     address public constant CHAIN_10_NEXUS_FACTORY = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address public constant CHAIN_8453_NEXUS_FACTORY = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
 
-    // Yield sources
+    // periphery
+    string public constant SUPER_VAULT_AGGREGATOR_KEY = "SUPER_VAULT_AGGREGATOR";
 }

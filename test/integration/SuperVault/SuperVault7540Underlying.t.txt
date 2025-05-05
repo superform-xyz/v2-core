@@ -84,7 +84,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         vm.selectFork(FORKS[ETH]);
 
         // Deploy factory
-        factory = new SuperVaultFactory(_getContract(ETH, PERIPHERY_REGISTRY_KEY));
+        factory = new SuperVaultFactory(_getContract(ETH, SUPER_GOVERNOR_KEY));
 
         underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
         asset = IERC20Metadata(underlyingETH_USDC);

@@ -5,13 +5,18 @@ pragma solidity >=0.8.28;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { IDlnSource } from "../../../../vendor/bridges/debridge/IDlnSource.sol";
+
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
 import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title DeBridgeSendOrderAndExecuteOnDstHook
 /// @author Superform Labs
+/// @dev `externalCall` field won't contain the signature for the destination executor
+/// @dev      signature is retrieved from the validator contract transient storage
+/// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to sign it
 /// @dev data has the following structure
 /// @notice         bool usePrevHookAmount = _decodeBool(0);
 /// @notice         uint256 value = BytesLib.toUint256(data, 1);
@@ -25,49 +30,44 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         bytes receiverDst = BytesLib.slice(data, 245 + takeTokenAddressLength, receiverDstLength);
 /// @notice         address givePatchAuthoritySrc = BytesLib.toAddress(data, 277 + takeTokenAddressLength +
 /// receiverDstLength);
-/// @notice         uint256 orderAuthorityAddressDstLength = BytesLib.toUint256(data, 329 + takeTokenAddressLength +
+/// @notice         uint256 orderAuthorityAddress_paramLength = BytesLib.toUint256(data, 329 + takeTokenAddressLength +
 /// receiverDstLength);
 /// @notice         bytes orderAuthorityAddressDst = BytesLib.slice(data, 361 + takeTokenAddressLength +
-/// receiverDstLength, orderAuthorityAddressDstLength);
-/// @notice         uint256 allowedTakerDstLength = BytesLib.toUint256(data, 393 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDstLength);
+/// receiverDstLength, orderAuthorityAddress_paramLength);
+/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 393 + takeTokenAddressLength +
+/// receiverDstLength + orderAuthorityAddress_paramLength);
 /// @notice         bytes allowedTakerDst = BytesLib.slice(data, 425 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddressDstLength, allowedTakerDstLength);
-/// @notice         uint256 externalCallLength = BytesLib.toUint256(data, 457 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDstLength + allowedTakerDstLength);
+/// orderAuthorityAddress_paramLength, allowedTakerDst_paramLength);
+/// @notice         uint256 externalCall_paramLength = BytesLib.toUint256(data, 457 + takeTokenAddressLength +
+/// receiverDstLength + orderAuthorityAddress_paramLength + allowedTakerDst_paramLength);
 /// @notice         bytes externalCall = BytesLib.slice(data, 489 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddressDstLength + allowedTakerDstLength, externalCallLength);
-/// @notice         uint256 allowedCancelBeneficiarySrcLength = BytesLib.toUint256(data, 521 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDstLength + allowedTakerDstLength + externalCallLength);
+/// orderAuthorityAddress_paramLength + allowedTakerDst_paramLength, externalCall_paramLength);
+/// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 521 + takeTokenAddressLength +
+/// receiverDstLength + orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength);
 /// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 553 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDstLength + allowedTakerDstLength + externalCallLength,
-/// allowedCancelBeneficiarySrcLength);
-/// @notice         uint256 affiliateFeeLength = BytesLib.toUint256(data, 585 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDstLength + allowedTakerDstLength + externalCallLength +
-/// allowedCancelBeneficiarySrcLength);
+/// receiverDstLength + orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength,
+/// allowedCancelBeneficiarySrc_paramLength);
+/// @notice         uint256 affiliateFee_paramLength = BytesLib.toUint256(data, 585 + takeTokenAddressLength +
+/// receiverDstLength + orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength +
+/// allowedCancelBeneficiarySrc_paramLength);
 /// @notice         bytes affiliateFee = BytesLib.slice(data, 617 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddressDstLength + allowedTakerDstLength + externalCallLength + allowedCancelBeneficiarySrcLength,
-/// affiliateFeeLength);
+/// orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength +
+/// allowedCancelBeneficiarySrc_paramLength, affiliateFee_paramLength);
 /// @notice         uint256 referralCode = BytesLib.toUint256(data, 649 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddressDstLength + allowedTakerDstLength + externalCallLength + allowedCancelBeneficiarySrcLength +
-/// affiliateFeeLength);
-/// @notice         uint256 permitEnvelopeLength = BytesLib.toUint256(data, 681 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDstLength + allowedTakerDstLength + externalCallLength +
-/// allowedCancelBeneficiarySrcLength + affiliateFeeLength + referralCode);
-/// @notice         bytes permitEnvelope = BytesLib.slice(data, 713 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddressDstLength + allowedTakerDstLength + externalCallLength + allowedCancelBeneficiarySrcLength +
-/// affiliateFeeLength + referralCode, permitEnvelopeLength - offset);
+/// orderAuthorityAddress_paramLength + allowedTakerDst_paramLength + externalCall_paramLength +
+/// allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
 contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address public immutable dlnSource;
-
+    address private immutable _validator;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
 
-    constructor(address dlnSource_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
-        if (dlnSource_ == address(0)) revert ADDRESS_NOT_VALID();
+    constructor(address dlnSource_, address validator_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
+        if (dlnSource_ == address(0) || validator_ == address(0)) revert ADDRESS_NOT_VALID();
         dlnSource = dlnSource_;
+        _validator = validator_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -75,7 +75,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     //////////////////////////////////////////////////////////////*/
     function build(
         address prevHook,
-        address,
+        address account,
         bytes memory data
     )
         external
@@ -87,8 +87,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
             IDlnSource.OrderCreation memory orderCreation,
             uint256 value,
             bytes memory affiliateFee,
-            uint32 referralCode,
-            bytes memory permitEnvelope
+            uint32 referralCode
         ) = _createOrder(data);
 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
@@ -102,6 +101,10 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
             }
         }
 
+        // append signature to `orderCreation.externalCall`
+        bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
+        orderCreation.externalCall = _recreateExternalCallEnvelope(orderCreation.externalCall, signature);
+
         // checks
         if (orderCreation.giveAmount == 0) revert AMOUNT_NOT_VALID();
 
@@ -110,7 +113,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         executions[0] = Execution({
             target: dlnSource,
             value: value,
-            callData: abi.encodeCall(IDlnSource.createOrder, (orderCreation, affiliateFee, referralCode, permitEnvelope))
+            callData: abi.encodeCall(IDlnSource.createOrder, (orderCreation, affiliateFee, referralCode, ""))
         });
     }
 
@@ -146,8 +149,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
             IDlnSource.OrderCreation memory orderCreation,
             uint256 value,
             bytes memory affiliateFee,
-            uint32 referralCode,
-            bytes memory permitEnvelope
+            uint32 referralCode
         )
     {
         LocalVars memory vars;
@@ -209,10 +211,6 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         referralCode = BytesLib.toUint32(data, vars.offset);
         vars.offset += 4;
 
-        uint256 permitEnvelopeLength = BytesLib.toUint256(data, vars.offset);
-        vars.offset += 32;
-        permitEnvelope = BytesLib.slice(data, vars.offset, permitEnvelopeLength);
-
         orderCreation = IDlnSource.OrderCreation({
             giveTokenAddress: vars.giveTokenAddress,
             giveAmount: vars.giveAmount,
@@ -231,4 +229,25 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     function _preExecute(address, address, bytes calldata) internal override { }
 
     function _postExecute(address, address, bytes calldata) internal override { }
+
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _recreateExternalCallEnvelope(bytes memory input, bytes memory sigData) private pure returns (bytes memory) {
+        uint8 version = uint8(input[0]);
+        bytes memory encodedStruct = BytesLib.slice(input, 1, input.length - 1); // skip version
+
+        IDlnSource.ExternalCallEnvelopV1 memory envelope = abi.decode(
+            encodedStruct,
+            (IDlnSource.ExternalCallEnvelopV1)
+        );
+        (
+            bytes memory initData,
+            bytes memory executorCalldata,
+            address account,
+            uint256 intentAmount
+        ) = abi.decode(envelope.payload, (bytes, bytes, address, uint256));
+        envelope.payload = abi.encode(initData, executorCalldata, account, intentAmount, sigData);
+        return abi.encodePacked(version, abi.encode(envelope));
+    }
 }
