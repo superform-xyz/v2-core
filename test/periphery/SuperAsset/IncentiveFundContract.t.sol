@@ -71,9 +71,9 @@ contract IncentiveFundContractTest is Test {
 
     // --- Constants ---
     bytes32 public constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
-    bytes32 public constant PROVIDER_1 = bytes32(keccak256("Provider 1"));
-    bytes32 public constant PROVIDER_2 = bytes32(keccak256("Provider 2"));
-    bytes32 public constant PROVIDER_3 = bytes32(keccak256("Provider 3"));
+    bytes32 public constant PROVIDER_1 = keccak256("PROVIDER_1");
+    bytes32 public constant PROVIDER_2 = keccak256("PROVIDER_2");
+    bytes32 public constant PROVIDER_3 = keccak256("PROVIDER_3");
 
     // --- State Variables ---
     IncentiveFundContract public incentiveFund;
@@ -113,51 +113,37 @@ contract IncentiveFundContractTest is Test {
         mockFeed2 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed3 = new MockAggregator(1e8, 8); // Token/USD = $1
 
-        // Configure SuperOracle with initial providers
-        address[] memory bases = new address[](6);
+        // Setup oracle parameters
+        address[] memory bases = new address[](3);
         bases[0] = address(tokenIn);
-        bases[1] = address(tokenIn);
-        bases[2] = address(tokenIn);
-        bases[3] = address(tokenOut);
-        bases[4] = address(tokenOut);
-        bases[5] = address(tokenOut);
+        bases[1] = address(tokenOut);
+        bases[2] = address(usd);
 
-        address[] memory quotes = new address[](6);
+        address[] memory quotes = new address[](3);
         quotes[0] = address(usd);
         quotes[1] = address(usd);
         quotes[2] = address(usd);
-        quotes[3] = address(usd);
-        quotes[4] = address(usd);
-        quotes[5] = address(usd);
 
-        bytes32[] memory providers = new bytes32[](6);
+        bytes32[] memory providers = new bytes32[](3);
         providers[0] = PROVIDER_1;
         providers[1] = PROVIDER_2;
         providers[2] = PROVIDER_3;
-        providers[3] = PROVIDER_1;
-        providers[4] = PROVIDER_2;
-        providers[5] = PROVIDER_3;
 
-        address[] memory feeds = new address[](6);
+        address[] memory feeds = new address[](3);
         feeds[0] = address(mockFeed1);
         feeds[1] = address(mockFeed2);
         feeds[2] = address(mockFeed3);
-        feeds[3] = address(mockFeed1);
-        feeds[4] = address(mockFeed2);
-        feeds[5] = address(mockFeed3);
 
         // Deploy and configure oracle
         oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
         oracle.setMaxStaleness(2 weeks);
         
-        // Deploy AssetBank (automatically sets admin as DEFAULT_ADMIN_ROLE)
+        // Deploy contracts (admin will automatically get DEFAULT_ADMIN_ROLE)
         assetBank = new AssetBank();
-
-        // Deploy IncentiveFundContract
         incentiveFund = new IncentiveFundContract();
-        
-        // Deploy SuperAsset with initial setup
         superAsset = new SuperAsset();
+        
+        // Initialize SuperAsset
         superAsset.initialize(
             "SuperAsset", // name
             "SA", // symbol
@@ -167,11 +153,11 @@ contract IncentiveFundContractTest is Test {
             100, // swapFeeInPercentage (0.1%)
             100 // swapFeeOutPercentage (0.1%)
         );
-        
-        // Grant admin role to admin for SuperAsset management
-        superAsset.grantRole(superAsset.DEFAULT_ADMIN_ROLE(), admin);
-        
-        // Configure oracle and tokens
+
+        // Grant VAULT_MANAGER_ROLE to admin for token management
+        superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), admin);
+
+        // Configure SuperAsset
         superAsset.setSuperOracle(address(oracle));
         superAsset.whitelistERC20(address(tokenIn));
         superAsset.whitelistERC20(address(tokenOut));
@@ -179,10 +165,16 @@ contract IncentiveFundContractTest is Test {
         // Initialize IncentiveFundContract after SuperAsset is set up
         incentiveFund.initialize(address(superAsset), address(assetBank));
 
-        // Setup roles
-        incentiveFund.grantRole(incentiveFund.INCENTIVE_FUND_MANAGER(), manager);
+        // Setup roles for each contract
+        bytes32 INCENTIVE_FUND_MANAGER = incentiveFund.INCENTIVE_FUND_MANAGER();
+
+        // Grant roles to manager and contracts
+        incentiveFund.grantRole(INCENTIVE_FUND_MANAGER, manager);
         assetBank.grantRole(assetBank.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
         superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
+        superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
+        superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
+
         vm.stopPrank();
 
         // Setup initial balances
