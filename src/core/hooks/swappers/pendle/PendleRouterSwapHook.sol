@@ -28,7 +28,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
-/// @notice         uint256 value = BytesLib.toUint256(data, 57);
+/// @notice         uint256 value = BytesLib.toUint256(data, 25);
 /// @notice         bytes txData_ = BytesLib.slice(data, 57, data.length - 57);
 contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
@@ -74,7 +74,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     {
         address pendleMarket = data.extractYieldSource();
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 value = BytesLib.toUint256(data, 57);
+        uint256 value = BytesLib.toUint256(data, 25);
         bytes memory txData_ = data[57:];
 
         bytes memory updatedTxData = _validateTxData(data[57:], account, usePrevHookAmount, prevHook, pendleMarket);
