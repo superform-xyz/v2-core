@@ -16,6 +16,7 @@ contract PendleRouterRedeemHookTest is BaseTest {
     MockHook public prevHook;
     MockERC20 public tokenOut;
     MockERC20 public ytToken;
+    MockERC20 public ptToken;
 
     address public account;
     uint256 public amount = 1500;
@@ -34,6 +35,9 @@ contract PendleRouterRedeemHookTest is BaseTest {
         ytToken = new MockERC20("YT Token", "YT", 18);
         vm.label(address(ytToken), "YT Token");
 
+        ptToken = new MockERC20("PT Token", "PT", 18);
+        vm.label(address(ptToken), "PT Token");
+
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, address(tokenOut));
         hook = new PendleRouterRedeemHook(pendleRouter);
     }
@@ -49,12 +53,16 @@ contract PendleRouterRedeemHookTest is BaseTest {
     }
 
     function test_Build() public view {
-        bytes memory data = _createRedeemData(amount, address(ytToken), address(tokenOut), minTokenOut, false);
+        bytes memory data = _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(pendleRouter));
+        assertEq(executions.length, 3);
+        assertEq(executions[0].target, address(ptToken));
         assertEq(executions[0].value, 0);
+        assertEq(executions[1].target, address(ytToken));
+        assertEq(executions[1].value, 0);
+        assertEq(executions[2].target, address(pendleRouter));
+        assertEq(executions[2].value, 0);
 
         SwapData memory swapData =
             SwapData({ swapType: SwapType.ODOS, extRouter: address(0), extCalldata: "", needScale: false });
@@ -73,16 +81,16 @@ contract PendleRouterRedeemHookTest is BaseTest {
                 swapData: swapData
             })
         );
-        assertEq(executions[0].callData, expectedCallData);
+        assertEq(executions[2].callData, expectedCallData);
     }
 
     function test_Build_WithPrevHookAmount() public {
-        bytes memory data = _createRedeemData(amount, address(ytToken), address(tokenOut), minTokenOut, true);
+        bytes memory data = _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, true);
 
         prevHook.setOutAmount(2500); // Set a different amount in the previous hook
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 1);
+        assertEq(executions.length, 3);
 
         SwapData memory swapData =
             SwapData({ swapType: SwapType.ODOS, extRouter: address(0), extCalldata: "", needScale: false });
@@ -102,11 +110,11 @@ contract PendleRouterRedeemHookTest is BaseTest {
             })
         );
 
-        assertEq(executions[0].callData, expectedCallData);
+        assertEq(executions[2].callData, expectedCallData);
     }
 
     function test_PreExecute() public {
-        bytes memory data = _createRedeemData(amount, address(ytToken), address(tokenOut), minTokenOut, false);
+        bytes memory data = _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
 
         tokenOut.mint(account, 500);
         hook.preExecute(address(0), account, data);
@@ -114,7 +122,7 @@ contract PendleRouterRedeemHookTest is BaseTest {
     }
 
     function test_PostExecute() public {
-        bytes memory data = _createRedeemData(amount, address(ytToken), address(tokenOut), minTokenOut, false);
+        bytes memory data = _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
 
         tokenOut.mint(account, 500);
         hook.preExecute(address(0), account, data);
@@ -128,6 +136,7 @@ contract PendleRouterRedeemHookTest is BaseTest {
         bytes memory data = _createRedeemData(
             amount,
             address(0), // Invalid YT address
+            address(ptToken),
             address(tokenOut),
             minTokenOut,
             false
@@ -141,6 +150,7 @@ contract PendleRouterRedeemHookTest is BaseTest {
         bytes memory data = _createRedeemData(
             amount,
             address(ytToken),
+            address(ptToken),
             address(0), // Invalid token out address
             minTokenOut,
             false
@@ -154,6 +164,7 @@ contract PendleRouterRedeemHookTest is BaseTest {
         bytes memory data = _createRedeemData(
             amount,
             address(ytToken),
+            address(ptToken),
             address(tokenOut),
             0, // Invalid min token out
             false
@@ -167,6 +178,7 @@ contract PendleRouterRedeemHookTest is BaseTest {
         bytes memory data = _createRedeemData(
             0, // Invalid amount
             address(ytToken),
+            address(ptToken),
             address(tokenOut),
             minTokenOut,
             false
@@ -177,12 +189,12 @@ contract PendleRouterRedeemHookTest is BaseTest {
     }
 
     function test_DecodeUsePrevHookAmount() public view {
-        bytes memory data = _createRedeemData(amount, address(ytToken), address(tokenOut), minTokenOut, true);
+        bytes memory data = _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, true);
 
         bool usePrevHookAmount = hook.decodeUsePrevHookAmount(data);
         assertTrue(usePrevHookAmount);
 
-        data = _createRedeemData(amount, address(ytToken), address(tokenOut), minTokenOut, false);
+        data = _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
 
         usePrevHookAmount = hook.decodeUsePrevHookAmount(data);
         assertFalse(usePrevHookAmount);
@@ -191,6 +203,7 @@ contract PendleRouterRedeemHookTest is BaseTest {
     function _createRedeemData(
         uint256 amount_,
         address yt_,
+        address pt_,
         address tokenOut_,
         uint256 minTokenOut_,
         bool usePrevHookAmount_
@@ -211,6 +224,6 @@ contract PendleRouterRedeemHookTest is BaseTest {
                 swapData: swapData
             })
         );
-        return abi.encodePacked(amount_, yt_, tokenOut_, minTokenOut_, usePrevHookAmount_, tokenOutput);
+        return abi.encodePacked(amount_, yt_, pt_, tokenOut_, minTokenOut_, usePrevHookAmount_, tokenOutput);
     }
 }
