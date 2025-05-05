@@ -51,7 +51,7 @@ contract PendleRouterRedeemHookTest is BaseTest {
         vm.warp(22_384_742);
 
         uint256 eUSDeBalance = eUSDe.balanceOf(account);
-        uint256 ptBalance = pt.balanceOf(account);
+        uint256 ptBalance = pt.balanceOf(account); // 0
 
         TokenInput memory tokenInput = TokenInput({
             tokenIn: address(eUSDe),
