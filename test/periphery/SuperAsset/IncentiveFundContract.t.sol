@@ -8,6 +8,7 @@ import {AssetBank} from "../../../src/periphery/SuperAsset/AssetBank.sol";
 import {ISuperAsset} from "../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
 import {IIncentiveFundContract} from "../../../src/periphery/interfaces/SuperAsset/IIncentiveFundContract.sol";
 import {SuperOracle} from "../../../src/periphery/oracles/SuperOracle.sol";
+import {IncentiveCalculationContract} from "../../../src/periphery/SuperAsset/IncentiveCalculationContract.sol";
 import {MockERC20} from "../../mocks/MockERC20.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
@@ -85,6 +86,7 @@ contract IncentiveFundContractTest is Test {
     MockAggregator public mockFeed1;
     MockAggregator public mockFeed2;
     MockAggregator public mockFeed3;
+    IncentiveCalculationContract public icc;
     address public admin;
     address public manager;
     address public user;
@@ -102,6 +104,9 @@ contract IncentiveFundContractTest is Test {
         tokenIn = new MockERC20("Token In", "TIN", 18);
         tokenOut = new MockERC20("Token Out", "TOUT", 18);
         usd = new MockERC20("USD", "USD", 6);
+
+        // Deploy actual ICC
+        icc = new IncentiveCalculationContract();
 
         // Create mock price feeds with different price values (1 token = $1)
         mockFeed1 = new MockAggregator(1e8, 8); // Token/USD = $1
@@ -156,7 +161,7 @@ contract IncentiveFundContractTest is Test {
         superAsset.initialize(
             "SuperAsset", // name
             "SA", // symbol
-            address(0), // icc (IncentiveCalculationContract)
+            address(icc), // icc (IncentiveCalculationContract)
             address(incentiveFund), // ifc (IncentiveFundContract)
             address(assetBank), // assetBank
             100, // swapFeeInPercentage (0.1%)
