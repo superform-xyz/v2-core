@@ -92,9 +92,7 @@ contract PendleRouterHookTests is BaseTest {
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
-        UserOpData memory opData = _getExecOps(
-            instance, superExecutor, abi.encode(entryToExecute)
-        );
+        UserOpData memory opData = _getExecOps(instance, superExecutor, abi.encode(entryToExecute));
 
         executeOp(opData);
 
@@ -102,8 +100,10 @@ contract PendleRouterHookTests is BaseTest {
         assertGt(balance, 0);
     }
 
-    // mintPyFromToken tx example:https://etherscan.io/inputdatadecoder?tx=0xa5af7fe6016b5683f48e36e79bd300728b352fa45262d153426167d0d89862fa
-    // redeemPyToToken tx example: https://etherscan.io/inputdatadecoder?tx=0xca0e4932ecb628b2996ba1f24089f9faa98ccc2451afa14fbb964336fa6351c0
+    // mintPyFromToken tx
+    // example:https://etherscan.io/inputdatadecoder?tx=0xa5af7fe6016b5683f48e36e79bd300728b352fa45262d153426167d0d89862fa
+    // redeemPyToToken tx example:
+    // https://etherscan.io/inputdatadecoder?tx=0xca0e4932ecb628b2996ba1f24089f9faa98ccc2451afa14fbb964336fa6351c0
     function test_PendleRouterRedeemHook() public {
         vm.warp(22_384_742);
 
@@ -136,8 +136,9 @@ contract PendleRouterHookTests is BaseTest {
         hooks[0] = address(redeemHook);
 
         bytes[] memory data = new bytes[](1);
-        data[0] =
-            _createPendleRedeemHookData(1e18, address(yt_eUSDe), address(pt_eUSDe), address(eUSDe), address(eUSDe), 1e17, false);
+        data[0] = _createPendleRedeemHookData(
+            1e18, address(yt_eUSDe), address(pt_eUSDe), address(eUSDe), address(eUSDe), 1e17, false
+        );
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
