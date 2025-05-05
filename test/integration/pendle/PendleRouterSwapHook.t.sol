@@ -3,15 +3,12 @@ pragma solidity >=0.8.28;
 
 // Tests
 import { BaseTest } from "../../BaseTest.t.sol";
-import { console2 } from "forge-std/console2.sol";
 
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { IPendleMarket } from "../../../src/vendor/pendle/IPendleMarket.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IStandardizedYield } from "../../../src/vendor/pendle/IStandardizedYield.sol";
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
-
-import "forge-std/console2.sol";
 
 contract PendleRouterSwapHook is BaseTest {
     ISuperExecutor public superExecutor;
