@@ -23,10 +23,11 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         uint256 outputQuote = BytesLib.toUint256(data, 92);
 /// @notice         uint256 outputMin = BytesLib.toUint256(data, 124);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
-/// @notice         uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 157);
-/// @notice         bytes pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
-/// @notice         address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
-/// @notice         uint32 referralCode = BytesLib.toUint32(data, 189 + pathDefinition_paramLength + 20);
+/// @notice         address spender = BytesLib.toAddress(data, 157);
+/// @notice         uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 177);
+/// @notice         bytes pathDefinition = BytesLib.slice(data, 209, pathDefinition_paramLength);
+/// @notice         address executor = BytesLib.toAddress(data, 209 + pathDefinition_paramLength);
+/// @notice         uint32 referralCode = BytesLib.toUint32(data, 209 + pathDefinition_paramLength + 20);
 contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
     IOdosRouterV2 public immutable odosRouterV2;
 
@@ -50,10 +51,10 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
         override
         returns (Execution[] memory executions)
     {
-        uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 157);
-        bytes memory pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
-        address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
-        uint32 referralCode = BytesLib.toUint32(data, 189 + pathDefinition_paramLength + 20);
+        uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 177);
+        bytes memory pathDefinition = BytesLib.slice(data, 209, pathDefinition_paramLength);
+        address executor = BytesLib.toAddress(data, 209 + pathDefinition_paramLength);
+        uint32 referralCode = BytesLib.toUint32(data, 209 + pathDefinition_paramLength + 20);
 
         address inputToken = BytesLib.toAddress(data, 0);
         uint256 inputAmount = BytesLib.toUint256(data, 20);
@@ -63,16 +64,21 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
             inputAmount = ISuperHookResult(prevHook).outAmount();
         }
 
+        address approveSpender = BytesLib.toAddress(data, 157);
+        if (approveSpender == address(0)) {
+            approveSpender = address(odosRouterV2);
+        }
+
         executions = new Execution[](4);
         executions[0] = Execution({
             target: inputToken,
             value: 0,
-            callData: abi.encodeCall(IERC20.approve, (address(odosRouterV2), 0))
+            callData: abi.encodeCall(IERC20.approve, (approveSpender, 0))
         });
         executions[1] = Execution({
             target: inputToken,
             value: 0,
-            callData: abi.encodeCall(IERC20.approve, (address(odosRouterV2), inputAmount))
+            callData: abi.encodeCall(IERC20.approve, (approveSpender, inputAmount))
         });
         executions[2] = Execution({
             target: address(odosRouterV2),
@@ -84,7 +90,7 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
         executions[3] = Execution({
             target: inputToken,
             value: 0,
-            callData: abi.encodeCall(IERC20.approve, (address(odosRouterV2), 0))
+            callData: abi.encodeCall(IERC20.approve, (approveSpender, 0))
         });
     }
 

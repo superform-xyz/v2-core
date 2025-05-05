@@ -14,6 +14,7 @@ import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { BootstrapConfig, INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
 import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "../mocks/MockRegistry.sol";
+import { MockAcrossHook } from "../mocks/MockAcrossHook.sol";
 import { MockTargetExecutor } from "../mocks/MockTargetExecutor.sol";
 
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
@@ -34,6 +35,8 @@ contract CrossChainNexusAccountCreation is BaseTest {
 
     AccountInstance public instanceOnBase;
     address public accountBase;
+
+    MockAcrossHook public mockAcrossHook;
 
     uint256 public constant WARP_START_TIME = 1_740_137_231;
 
@@ -89,12 +92,15 @@ contract CrossChainNexusAccountCreation is BaseTest {
         // BASE IS SRC
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
 
+        mockAcrossHook = new MockAcrossHook(SPOKE_POOL_V3_ADDRESSES[BASE], _getContract(BASE, SUPER_MERKLE_VALIDATOR_KEY));
+        vm.label(address(mockAcrossHook), "MockAcrossHook");
+
         deal(underlyingBase_USDC, accountBase, 1e18);
 
         // PREPARE BASE DATA
         address[] memory srcHooksAddresses = new address[](2);
         srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
-        srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+        srcHooksAddresses[1] = address(mockAcrossHook);
 
         bytes[] memory srcHooksData = new bytes[](2);
         srcHooksData[0] = _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], 1e18, false);

@@ -63,10 +63,10 @@ contract AcrossV3Adapter is IAcrossV3Receiver {
         (
             bytes memory initData,
             bytes memory executorCalldata,
-            bytes memory sigData,
             address account,
-            uint256 intentAmount
-        ) = abi.decode(message, (bytes, bytes, bytes, address, uint256));
+            uint256 intentAmount,
+            bytes memory sigData
+        ) = abi.decode(message, (bytes, bytes, address, uint256, bytes));
 
         // 3. Transfer received funds to the target account *before* calling the executor.
         //    This ensures the executor can reliably check the balance.
@@ -83,6 +83,5 @@ contract AcrossV3Adapter is IAcrossV3Receiver {
             executorCalldata,
             sigData // User signature + validation payload
         );
-
     }
 }
