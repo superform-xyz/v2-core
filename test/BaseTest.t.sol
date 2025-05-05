@@ -1670,53 +1670,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     function _createSourceMerkleTree() internal { }
 
-    function _getExecOpsWithValidator(
-        AccountInstance memory instance,
-        ISuperExecutor superExecutor,
-        bytes memory data,
-        address validator
-    )
-        internal
-        returns (UserOpData memory userOpData)
-    {
-        return instance.getExecOps(address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), validator);
-    }
-
-    function _getExecOps(
-        AccountInstance memory instance,
-        ISuperExecutor superExecutor,
-        bytes memory data
-    )
-        internal
-        returns (UserOpData memory userOpData)
-    {
-        return instance.getExecOps(
-            address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), address(instance.defaultValidator)
-        );
-    }
-
-    function _getExecOps(
-        AccountInstance memory instance,
-        ISuperExecutor superExecutor,
-        bytes memory data,
-        address paymaster
-    )
-        internal
-        returns (UserOpData memory userOpData)
-    {
-        if (paymaster == address(0)) revert("NO_PAYMASTER_SUPPLIED");
-        userOpData = instance.getExecOps(
-            address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), address(instance.defaultValidator)
-        );
-        uint128 paymasterVerificationGasLimit = 2e6;
-        uint128 postOpGasLimit = 1e6;
-        bytes memory paymasterData = abi.encode(uint128(2e6), uint128(10)); // paymasterData {
-            // maxGasLimit = 200000, nodeOperatorPremium = 10 % }
-        userOpData.userOp.paymasterAndData =
-            abi.encodePacked(paymaster, paymasterVerificationGasLimit, postOpGasLimit, paymasterData);
-        return userOpData;
-    }
-
     function exec(
         AccountInstance memory instance,
         ISuperExecutor superExecutor,
@@ -1726,10 +1679,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         returns (UserOpData memory)
     {
         return instance.exec(address(superExecutor), abi.encodeCall(superExecutor.execute, (data)));
-    }
-
-    function executeOp(UserOpData memory userOpData) public returns (ExecutionReturnData memory) {
-        return userOpData.execUserOps();
     }
 
     enum RELAYER_TYPE {

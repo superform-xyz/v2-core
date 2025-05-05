@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 import { ModuleKitHelpers } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -69,7 +67,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers {
         assertFalse(superExecutor.isModuleType(1234));
     }
 
-    function test_OnInstall() public {
+    function test_OnInstall() public view {
         assertTrue(superExecutor.isInitialized(account));
     }
 
