@@ -107,6 +107,7 @@ import {
     LimitOrderData,
     FillOrderParams,
     TokenInput,
+    TokenOutput,
     ApproxParams,
     SwapType,
     SwapData
@@ -2954,5 +2955,44 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         returns (bytes memory data)
     {
         data = abi.encodePacked(token, to, amount, usePrevHookAmount);
+    }
+
+    function _createPendleRedeemHookData(
+        uint256 amount,
+        address yt,
+        address pt,
+        address tokenOut,
+        address tokenRedeemSy,
+        uint256 minTokenOut,
+        bool usePrevHookAmount
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            amount,
+            yt,
+            pt,
+            tokenOut,
+            minTokenOut,
+            usePrevHookAmount,
+            abi.encode(_createPendleRedeemTokenOutput(tokenOut, minTokenOut, tokenRedeemSy))
+        );
+    }
+
+    function _createPendleRedeemTokenOutput(
+        address tokenOut,
+        uint256 minTokenOut,
+        address tokenRedeemSy
+    ) internal pure returns (TokenOutput memory) {
+        return TokenOutput({
+            tokenOut: tokenOut,
+            minTokenOut: minTokenOut,
+            tokenRedeemSy: tokenRedeemSy,
+            pendleSwap: address(0),
+            swapData: SwapData({
+                swapType: SwapType.NONE,
+                extRouter: address(0),
+                extCalldata: bytes(""),
+                needScale: false
+            })
+        });
     }
 }
