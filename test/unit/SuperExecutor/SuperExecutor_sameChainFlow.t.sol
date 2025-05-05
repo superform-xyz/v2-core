@@ -2,7 +2,6 @@
 pragma solidity >=0.8.28;
 
 // external
-import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
@@ -16,29 +15,39 @@ import { ISuperHookOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
 
 import { Mock1InchRouter, MockDex } from "../../mocks/Mock1InchRouter.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
-import { MockLockVault } from "../../mocks/MockLockVault.sol";
 import { MockSuperPositionFactory } from "../../mocks/MockSuperPositionFactory.sol";
-import { BaseTest } from "../../BaseTest.t.sol";
-import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 import "forge-std/console.sol";
 
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
-import { ExecLib } from "modulekit/accounts/kernel/lib/ExecLib.sol";
-import { ModeLib, ModeCode } from "modulekit/accounts/common/lib/ModeLib.sol";
-import { CallType, ExecType, ExecMode, ExecLib } from "modulekit/accounts/kernel/lib/ExecLib.sol";
+import { ModeLib } from "modulekit/accounts/common/lib/ModeLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import "modulekit/test/RhinestoneModuleKit.sol";
 import { ERC7579Precompiles } from "modulekit/deployment/precompiles/ERC7579Precompiles.sol";
 import "modulekit/accounts/erc7579/ERC7579Factory.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
+import { Helpers } from "../../utils/Helpers.sol";
+import { InternalHelpers } from "../../InternalHelpers.sol";
+import {
+    RhinestoneModuleKit,
+    ModuleKitHelpers,
+    AccountInstance,
+    UserOpData,
+    PackedUserOperation
+} from "modulekit/ModuleKit.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import { ERC4626YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { SuperLedgerConfiguration } from "../../../src/core/accounting/SuperLedgerConfiguration.sol";
+import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ApproveERC20Hook } from "../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { Deposit4626VaultHook } from "../../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { Redeem4626VaultHook } from "../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { SuperLedger } from "../../../src/core/accounting/SuperLedger.sol";
+import { MockSwapOdosHook } from "../../mocks/unused-hooks/MockSwapOdosHook.sol";
+import { MockOdosRouterV2 } from "../../mocks/MockOdosRouterV2.sol";
 
-import { ECDSA } from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
-
-import { Vm } from "forge-std/Test.sol";
-
-contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
+contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHelpers, ERC7579Precompiles {
     using BytesLib for bytes;
     using AddressLib for Address;
     using ModuleKitHelpers for *;
@@ -51,6 +60,8 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
     address public account;
     AccountInstance public instance;
     ISuperExecutor public superExecutor;
+    address ledgerConfig;
+    ISuperLedger public ledger;
     MockSuperPositionFactory public mockSuperPositionFactory;
 
     uint256 eoaKey;
@@ -58,20 +69,43 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
     ERC7579Factory erc7579factory;
     IERC7579Account erc7579account;
     IERC7579Bootstrap bootstrapDefault;
-    address ledgerConfig;
 
-    function setUp() public override {
-        super.setUp();
-        vm.selectFork(FORKS[ETH]);
-        underlying = existingUnderlyingTokens[1][USDC_KEY];
+    address approveHook;
+    address deposit4626Hook;
+    address redeem4626Hook;
+    address mockSwapOdosHook;
+    address mockOdosRouter;
 
-        yieldSourceAddress = realVaultAddresses[1][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY];
-        yieldSourceOracle = _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY);
+    function setUp() public {
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
+        underlying = CHAIN_1_USDC;
+
+        yieldSourceAddress = CHAIN_1_MorphoVault;
+        yieldSourceOracle = address(new ERC4626YieldSourceOracle());
         vaultInstance = IERC4626(yieldSourceAddress);
-        account = accountInstances[ETH].account;
-        instance = accountInstances[ETH];
-        superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
-        ledgerConfig = _getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY);
+        instance = makeAccountInstance(keccak256(abi.encode("acc1")));
+        account = instance.account;
+        _getTokens(underlying, account, 1e18);
+
+        ledgerConfig = address(new SuperLedgerConfiguration());
+
+        superExecutor = ISuperExecutor(new SuperExecutor(address(ledgerConfig)));
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
+
+        address[] memory allowedExecutors = new address[](1);
+        allowedExecutors[0] = address(superExecutor);
+        ledger = ISuperLedger(address(new SuperLedger(address(ledgerConfig), allowedExecutors)));
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceOracle: yieldSourceOracle,
+            feePercent: 100,
+            feeRecipient: makeAddr("feeRecipient"),
+            ledger: address(ledger)
+        });
+        ISuperLedgerConfiguration(ledgerConfig).setYieldSourceOracles(configs);
         mockSuperPositionFactory = new MockSuperPositionFactory(address(this));
         vm.label(address(mockSuperPositionFactory), "MockSuperPositionFactory");
 
@@ -87,6 +121,12 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
 
         bootstrapDefault = deployERC7579Bootstrap();
         vm.label(address(bootstrapDefault), "ERC7579Bootstrap");
+
+        approveHook = address(new ApproveERC20Hook());
+        deposit4626Hook = address(new Deposit4626VaultHook());
+        redeem4626Hook = address(new Redeem4626VaultHook());
+        mockOdosRouter = address(new MockOdosRouterV2());
+        mockSwapOdosHook = address(new MockSwapOdosHook(mockOdosRouter));
     }
 
     function test_ShouldExecuteAll(uint256 amount) external {
@@ -95,8 +135,8 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         _getTokens(underlying, account, amount);
 
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = address(approveHook);
+        hooksAddresses[1] = address(deposit4626Hook);
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
@@ -120,7 +160,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, SMALL, false, false
         );
 
-        address hook = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        address hook = address(redeem4626Hook);
         bytes memory replacedData = ISuperHookOutflow(hook).replaceCalldataAmount(hookData, amount);
         uint256 finalAmount = BytesLib.toUint256(BytesLib.slice(replacedData, 44, 32), 0);
         assertEq(finalAmount, amount);
@@ -131,9 +171,9 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
     {
         amount = _bound(amount);
         address[] memory hooksAddresses = new address[](3);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-        hooksAddresses[2] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = address(approveHook);
+        hooksAddresses[1] = address(deposit4626Hook);
+        hooksAddresses[2] = address(redeem4626Hook);
 
         bytes[] memory hooksData = new bytes[](3);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
@@ -261,22 +301,14 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         MockERC20 inputToken = new MockERC20("A", "A", 18);
         MockERC20 outputToken = new MockERC20("B", "B", 18);
 
-        address swapHook;
-        swapHook = _getHookAddress(ETH, MOCK_SWAP_ODOS_HOOK_KEY);
-
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = swapHook;
+        hooksAddresses[0] = address(approveHook);
+        hooksAddresses[1] = mockSwapOdosHook;
 
         _getTokens(address(inputToken), account, amount);
-        _getTokens(address(outputToken), mockOdosRouters[ETH], amount);
+        _getTokens(address(outputToken), mockOdosRouter, amount);
 
-        bytes memory approveData;
-        if (useRealOdosRouter) {
-            approveData = _createApproveHookData(address(inputToken), mockOdosRouters[ETH], amount, false);
-        } else {
-            approveData = _createApproveHookData(address(inputToken), mockOdosRouters[ETH], amount, false);
-        }
+        bytes memory approveData = _createApproveHookData(address(inputToken), mockOdosRouter, amount, false);
 
         bytes memory odosCallData;
         odosCallData = _createMockOdosSwapHookData(
@@ -307,9 +339,9 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         uint256 amount = 1 ether;
 
         address[] memory hooksAddresses = new address[](3);
-        hooksAddresses[0] = _getHookAddress(ETH, MOCK_SWAP_ODOS_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[2] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = address(mockSwapOdosHook);
+        hooksAddresses[1] = address(approveHook);
+        hooksAddresses[2] = address(deposit4626Hook);
 
         bytes[] memory hooksData = new bytes[](3);
         hooksData[0] = _createOdosSwapHookData(
@@ -328,8 +360,8 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         hooksData[2] = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
         );
-        uint256 routerEthBalanceBefore = address(mockOdosRouters[ETH]).balance;
-        _getTokens(address(underlying), mockOdosRouters[ETH], amount);
+        uint256 routerEthBalanceBefore = address(mockOdosRouter).balance;
+        _getTokens(address(underlying), mockOdosRouter, amount);
 
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
@@ -338,7 +370,7 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
         executeOp(userOpData);
 
-        uint256 routerEthBalanceAfter = address(mockOdosRouters[ETH]).balance;
+        uint256 routerEthBalanceAfter = address(mockOdosRouter).balance;
         assertEq(routerEthBalanceAfter, routerEthBalanceBefore + amount);
 
         uint256 accSharesAfter = vaultInstance.balanceOf(account);
@@ -348,18 +380,18 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
     function test_SwapUnderlyingToNativeAndThenUnderlying() external {
         uint256 amount = 1 ether;
 
-        _getTokens(address(underlying), mockOdosRouters[ETH], amount);
-        vm.deal(address(mockOdosRouters[ETH]), amount);
+        _getTokens(address(underlying), mockOdosRouter, amount);
+        vm.deal(address(mockOdosRouter), amount);
 
         address[] memory hooksAddresses = new address[](5);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, MOCK_SWAP_ODOS_HOOK_KEY);
-        hooksAddresses[2] = _getHookAddress(ETH, MOCK_SWAP_ODOS_HOOK_KEY);
-        hooksAddresses[3] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[4] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = address(approveHook);
+        hooksAddresses[1] = mockSwapOdosHook;
+        hooksAddresses[2] = mockSwapOdosHook;
+        hooksAddresses[3] = address(approveHook);
+        hooksAddresses[4] = address(deposit4626Hook);
 
         bytes[] memory hooksData = new bytes[](5);
-        hooksData[0] = _createApproveHookData(underlying, mockOdosRouters[ETH], amount, false);
+        hooksData[0] = _createApproveHookData(underlying, mockOdosRouter, amount, false);
         hooksData[1] = _createOdosSwapHookData(
             address(underlying),
             amount,
@@ -400,70 +432,6 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
         assertApproxEqRel(accSharesAfter, sharesPreviewed, 0.05e18);
     }
 
-    function test_MockedSuperPositionFlow(uint256 amount) external {
-        amount = _bound(amount);
-
-        _getTokens(underlying, account, amount);
-
-        superExecutor = SuperExecutor(_getContract(ETH, SUPER_EXECUTOR_WITH_SP_LOCK_KEY));
-
-        // hooks list
-        address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-
-        // hooks data with lockSP true for the deposit hook
-        bytes[] memory hooksData = new bytes[](2);
-        hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, true
-        );
-
-        // execute
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        ExecutionReturnData memory executionReturnData =
-            executeOp(_getExecOps(instance, superExecutor, abi.encode(entry)));
-
-        // assert shares location
-        {
-            //uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
-            //uint256 accSharesAfter = vaultInstance.balanceOf(address(lockVault));
-            //assertEq(accSharesAfter, sharesPreviewed);
-        }
-
-        // retrieve logs and mint SP
-        {
-            for (uint256 i; i < executionReturnData.logs.length; ++i) {
-                if (executionReturnData.logs[i].emitter == address(superExecutor)) {
-                    if (address(uint160(uint256((executionReturnData.logs[i].topics[1])))) == account) {
-                        console.log("\n SuperExecutor logs");
-
-                        // mint SuperPositionMock to account
-                        // should also create SP
-                        uint256 precomputedId = mockSuperPositionFactory.getSPId(
-                            yieldSourceAddress, bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), uint64(ETH)
-                        );
-
-                        uint256 spCountBefore = mockSuperPositionFactory.spCount();
-                        mockSuperPositionFactory.mintSuperPosition(
-                            uint64(ETH),
-                            yieldSourceAddress,
-                            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-                            address(vaultInstance),
-                            account,
-                            amount
-                        );
-                        uint256 spCountAfter = mockSuperPositionFactory.spCount();
-                        assertEq(spCountAfter, spCountBefore + 1);
-
-                        assertNotEq(mockSuperPositionFactory.createdSPs(precomputedId), address(0));
-                    }
-                }
-            }
-        }
-    }
-
     struct Test7579MethodsVars {
         uint256 amount;
         AccountInstance instance;
@@ -489,8 +457,8 @@ contract SuperExecutor_sameChainFlow is BaseTest, ERC7579Precompiles {
 
         // prepare useOp
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = address(approveHook);
+        hooksAddresses[1] = address(deposit4626Hook);
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);

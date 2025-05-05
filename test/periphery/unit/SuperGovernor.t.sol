@@ -3,12 +3,12 @@ pragma solidity 0.8.28;
 
 import { SuperGovernor } from "src/periphery/SuperGovernor.sol";
 import { ISuperGovernor, FeeType } from "src/periphery/interfaces/ISuperGovernor.sol";
-import { BaseTest } from "test/BaseTest.t.sol";
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { ISuperVaultAggregator } from "src/periphery/interfaces/ISuperVaultAggregator.sol";
 import { SuperVaultAggregator } from "src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { Helpers } from "../../utils/Helpers.sol";
 
-contract SuperGovernorTest is BaseTest {
+contract SuperGovernorTest is Helpers {
     SuperGovernor internal superGovernor;
 
     // Roles & Addresses
@@ -41,9 +41,7 @@ contract SuperGovernorTest is BaseTest {
     uint256 internal constant BPS_MAX = 10_000;
 
     /// @notice Sets up the test environment before each test case.
-    function setUp() public override {
-        super.setUp();
-        vm.selectFork(FORKS[ETH]);
+    function setUp() public {
         sGovernor = _deployAccount(0x1, "SuperGovernor");
         governor = _deployAccount(0x2, "Governor");
         treasury = _deployAccount(0x3, "Treasury");
@@ -62,8 +60,7 @@ contract SuperGovernorTest is BaseTest {
         superVaultAggregator = address(new SuperVaultAggregator(address(superGovernor)));
         (, address strategy,) = ISuperVaultAggregator(superVaultAggregator).createVault(
             ISuperVaultAggregator.VaultCreationParams({
-                asset: existingUnderlyingTokens[ETH][USDC_KEY],
-                manager: address(this),
+                asset: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
                 mainStrategist: address(this),
                 feeRecipient: address(this),
                 name: "SUP",

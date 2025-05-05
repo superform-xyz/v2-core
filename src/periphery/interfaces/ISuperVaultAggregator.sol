@@ -39,7 +39,6 @@ interface ISuperVaultAggregator {
     /// @param asset Address of the underlying asset
     /// @param name Name of the vault token
     /// @param symbol Symbol of the vault token
-    /// @param manager Address of the vault manager
     /// @param mainStrategist Address of the vault mainStrategist
     /// @param feeRecipient Address that will receive fees
     /// @param superVaultCap Maximum cap for the vault (in underlying asset)
@@ -49,7 +48,6 @@ interface ISuperVaultAggregator {
         address asset;
         string name;
         string symbol;
-        address manager;
         address mainStrategist;
         address feeRecipient;
         uint256 superVaultCap;
@@ -257,6 +255,7 @@ interface ISuperVaultAggregator {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Adds a secondary strategist to a strategy
+    /// @notice A strategist can either be secondary or primary
     /// @param strategy Address of the strategy
     /// @param strategist Address of the strategist to add
     function addSecondaryStrategist(address strategy, address strategist) external;
@@ -267,11 +266,13 @@ interface ISuperVaultAggregator {
     function removeSecondaryStrategist(address strategy, address strategist) external;
 
     /// @notice Changes the primary strategist of a strategy immediately (only callable by SuperGovernor)
+    /// @notice A strategist can either be secondary or primary
     /// @param strategy Address of the strategy
     /// @param newStrategist Address of the new primary strategist
     function changePrimaryStrategist(address strategy, address newStrategist) external;
 
     /// @notice Proposes a change to the primary strategist (callable by secondary strategists)
+    /// @notice A strategist can either be secondary or primary
     /// @param strategy Address of the strategy
     /// @param newStrategist Address of the proposed new primary strategist
     function proposeChangePrimaryStrategist(address strategy, address newStrategist) external;

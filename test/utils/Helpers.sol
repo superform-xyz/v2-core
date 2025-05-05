@@ -59,6 +59,11 @@ abstract contract Helpers is Test, Constants {
     /*//////////////////////////////////////////////////////////////
                                  GENERIC HELPER METHODS
     //////////////////////////////////////////////////////////////*/
+    function _bound(uint256 amount_) internal pure returns (uint256) {
+        amount_ = bound(amount_, SMALL, LARGE);
+        return amount_;
+    }
+
     function _resetCaller(address from_) internal {
         vm.stopPrank();
         vm.startPrank(from_);

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { console2 } from "forge-std/console2.sol";
-import { BaseTest } from "../../../BaseTest.t.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
@@ -11,6 +9,7 @@ import { IMorphoBase } from "../../../../src/vendor/morpho/IMorpho.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ISuperHook, ISuperHookResult } from "../../../../src/core/interfaces/ISuperHook.sol";
 import { MorphoBorrowHook } from "../../../../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
 
 struct MarketParams {
     address loanToken;
@@ -26,7 +25,7 @@ contract MockOracle is IOracle {
     }
 }
 
-contract MorphoBorrowHookTest is BaseTest {
+contract MorphoBorrowHookTest is Helpers {
     MorphoBorrowHook public hook;
     MockERC20 public loanToken;
     MockERC20 public collateralToken;
@@ -39,9 +38,7 @@ contract MorphoBorrowHookTest is BaseTest {
 
     IMorphoBase public morphoBase;
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public {
         // Deploy mock contracts
         loanToken = new MockERC20("Loan Token", "LOAN", 18);
         collateralToken = new MockERC20("Collateral Token", "COLL", 18);

@@ -3,7 +3,6 @@ pragma solidity 0.8.28;
 
 // External
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 import { ReentrancyGuard } from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
@@ -42,10 +41,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     uint256 private constant BPS_PRECISION = 10_000; // For PPS deviation check
     uint256 private constant TOLERANCE_CONSTANT = 10 wei;
 
-    // Role identifiers
-    bytes32 private constant MANAGER_ROLE = keccak256("MANAGER_ROLE");
-    bytes32 private constant EMERGENCY_ADMIN_ROLE = keccak256("EMERGENCY_ADMIN_ROLE");
-
     // Slippage tolerance in BPS (1%)
     uint256 private constant SV_SLIPPAGE_TOLERANCE_BPS = 100;
 
@@ -68,18 +63,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     // Core contracts
     ISuperGovernor private superGovernor;
 
-    // Hook root configuration
-    bytes32 private hookRoot;
-    bytes32 private proposedHookRoot;
-    uint256 private hookRootEffectiveTime;
-
     // Emergency withdrawable configuration
     bool public emergencyWithdrawable;
     bool public proposedEmergencyWithdrawable;
     uint256 public emergencyWithdrawableEffectiveTime;
-
-    // Role-based access control
-    mapping(bytes32 role => address roleAddress) public addresses;
 
     // Yield source configuration
     mapping(address source => YieldSource sourceConfig) private yieldSources;
@@ -92,18 +79,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     // --- Redeem Request State ---
     mapping(address controller => SuperVaultState state) private superVaultState;
 
-    modifier onlyRole(bytes32 role) {
-        if (msg.sender != addresses[role]) revert ACCESS_DENIED();
-        _;
-    }
-
     /*//////////////////////////////////////////////////////////////
                             INITIALIZATION
     //////////////////////////////////////////////////////////////*/
-    function initialize(address vault_, address manager_, address superGovernor_, uint256 superVaultCap_) external {
+    function initialize(address vault_, address superGovernor_, uint256 superVaultCap_) external {
         if (_initialized) revert ALREADY_INITIALIZED();
         if (vault_ == address(0)) revert INVALID_VAULT();
-        if (manager_ == address(0)) revert INVALID_MANAGER();
         if (superGovernor_ == address(0)) revert ZERO_ADDRESS();
         if (superVaultCap_ == 0) revert INVALID_SUPER_VAULT_CAP();
 
@@ -112,9 +93,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         superGovernor = ISuperGovernor(superGovernor_);
         superVaultCap = superVaultCap_;
 
-        _initializeRoles(manager_);
-
-        emit Initialized(_vault, manager_, superGovernor_, superVaultCap_);
+        emit Initialized(_vault, superGovernor_, superVaultCap_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -148,14 +127,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
         uint256 hooksLength = args.hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
-        if (args.hookProofs.length != hooksLength) revert INVALID_ARRAY_LENGTH();
         if (args.expectedAssetsOrSharesOut.length != hooksLength) revert INVALID_ARRAY_LENGTH();
 
         address prevHook;
 
         for (uint256 i; i < hooksLength; ++i) {
             address hook = args.hooks[i];
-            if (!isHookAllowed(hook, args.hookProofs[i])) revert INVALID_HOOK();
+            if (!_isRegisteredHook(hook)) revert INVALID_HOOK();
             prevHook =
                 _processSingleHookExecution(hook, prevHook, args.hookCalldata[i], args.expectedAssetsOrSharesOut[i]);
         }
@@ -205,8 +183,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         bool isAsync
     )
         external
-        onlyRole(MANAGER_ROLE)
     {
+        _isPrimaryStrategist(msg.sender);
+
         if (actionType == 0) {
             _addYieldSource(source, oracle, isAsync);
         } else if (actionType == 1) {
@@ -218,35 +197,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         }
     }
 
-    function updateSuperVaultCap(uint256 superVaultCap_) external onlyRole(MANAGER_ROLE) {
+    function updateSuperVaultCap(uint256 superVaultCap_) external {
+        _isPrimaryStrategist(msg.sender);
         if (superVaultCap_ == 0) revert INVALID_SUPER_VAULT_CAP();
         superVaultCap = superVaultCap_;
         emit SuperVaultCapUpdated(superVaultCap_);
     }
 
-    function proposeOrExecuteHookRoot(bytes32 newRoot) external {
-        if (newRoot == bytes32(0)) {
-            if (block.timestamp < hookRootEffectiveTime) revert INVALID_TIMESTAMP();
-            if (proposedHookRoot == bytes32(0)) revert INVALID_HOOK_ROOT();
-            hookRoot = proposedHookRoot;
-            proposedHookRoot = bytes32(0);
-            hookRootEffectiveTime = 0;
-            emit HookRootUpdated(hookRoot);
-        } else {
-            _requireRole(MANAGER_ROLE);
-            proposedHookRoot = newRoot;
-            hookRootEffectiveTime = block.timestamp + ONE_WEEK;
-            emit HookRootProposed(newRoot, hookRootEffectiveTime);
-        }
-    }
-
-    function proposeVaultFeeConfigUpdate(
-        uint256 performanceFeeBps,
-        address recipient
-    )
-        external
-        onlyRole(MANAGER_ROLE)
-    {
+    function proposeVaultFeeConfigUpdate(uint256 performanceFeeBps, address recipient) external {
+        _isPrimaryStrategist(msg.sender);
         if (performanceFeeBps > ONE_HUNDRED_PERCENT) revert INVALID_PERFORMANCE_FEE_BPS();
         if (recipient == address(0)) revert ZERO_ADDRESS();
         proposedFeeConfig = FeeConfig({ performanceFeeBps: performanceFeeBps, recipient: recipient });
@@ -261,12 +220,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         delete proposedFeeConfig;
         feeConfigEffectiveTime = 0;
         emit VaultFeeConfigUpdated(feeConfig.performanceFeeBps, feeConfig.recipient);
-    }
-
-    function setAddress(bytes32 role, address account) external onlyRole(MANAGER_ROLE) {
-        if (account == address(0)) revert ZERO_ADDRESS();
-        if (role == MANAGER_ROLE && account != msg.sender) revert ACCESS_DENIED();
-        addresses[role] = account;
     }
 
     function manageEmergencyWithdraw(uint8 action, address recipient, uint256 amount) external {
@@ -294,16 +247,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         vaultDecimals_ = _vaultDecimals;
     }
 
-    function getHookInfo()
-        external
-        view
-        returns (bytes32 hookRoot_, bytes32 proposedHookRoot_, uint256 hookRootEffectiveTime_)
-    {
-        hookRoot_ = hookRoot;
-        proposedHookRoot_ = proposedHookRoot;
-        hookRootEffectiveTime_ = hookRootEffectiveTime;
-    }
-
     function getConfigInfo() external view returns (uint256 superVaultCap_, FeeConfig memory feeConfig_) {
         superVaultCap_ = superVaultCap;
         feeConfig_ = feeConfig;
@@ -319,12 +262,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
     function getYieldSourcesList() external view returns (address[] memory) {
         return yieldSourcesList;
-    }
-
-    function isHookAllowed(address hook, bytes32[] memory proof) public view returns (bool) {
-        if (hookRoot == bytes32(0)) return false;
-        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(hook))));
-        return MerkleProof.verify(proof, hookRoot, leaf);
     }
 
     function pendingRedeemRequest(address controller) external view returns (uint256 pendingShares) {
@@ -344,11 +281,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
-    // --- Internal Initialization Helpers ---
-    function _initializeRoles(address manager_) internal {
-        addresses[MANAGER_ROLE] = manager_;
-    }
 
     // --- Hook Execution ---
 
@@ -616,7 +548,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     }
 
     function _isStrategist(address strategist_) internal view {
-        if (!_getSuperVaultAggregator().isSecondaryStrategist(strategist_, address(this))) {
+        if (!_getSuperVaultAggregator().isAnyStrategist(strategist_, address(this))) {
+            revert STRATEGIST_NOT_AUTHORIZED();
+        }
+    }
+
+    function _isPrimaryStrategist(address strategist_) internal view {
+        if (!_getSuperVaultAggregator().isMainStrategist(strategist_, address(this))) {
             revert STRATEGIST_NOT_AUTHORIZED();
         }
     }
@@ -667,7 +605,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     }
 
     function _proposeEmergencyWithdraw() internal {
-        _isStrategist(msg.sender);
+        _isPrimaryStrategist(msg.sender);
 
         proposedEmergencyWithdrawable = true;
         emergencyWithdrawableEffectiveTime = block.timestamp + ONE_WEEK;
@@ -682,7 +620,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         emit EmergencyWithdrawableUpdated(emergencyWithdrawable);
     }
 
-    function _performEmergencyWithdraw(address recipient, uint256 amount) internal onlyRole(EMERGENCY_ADMIN_ROLE) {
+    function _performEmergencyWithdraw(address recipient, uint256 amount) internal {
+        _isPrimaryStrategist(msg.sender);
+
         if (!emergencyWithdrawable) revert INVALID_EMERGENCY_WITHDRAWAL();
         if (recipient == address(0)) revert ZERO_ADDRESS();
         uint256 freeAssets = _getTokenBalance(address(_asset), address(this));
@@ -693,6 +633,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
     function _isFulfillRequestsHook(address hook) private view returns (bool) {
         return superGovernor.isFulfillRequestsHookRegistered(hook);
+    }
+
+    function _isRegisteredHook(address hook) private view returns (bool) {
+        return superGovernor.isHookRegistered(hook);
     }
 
     function _decodeHookAmount(address hook, bytes memory hookCalldata) private pure returns (uint256 amount) {
@@ -791,9 +735,5 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
     function _requireVault() internal view {
         if (msg.sender != _vault) revert ACCESS_DENIED();
-    }
-
-    function _requireRole(bytes32 role) internal view {
-        if (msg.sender != addresses[role]) revert ACCESS_DENIED();
     }
 }
