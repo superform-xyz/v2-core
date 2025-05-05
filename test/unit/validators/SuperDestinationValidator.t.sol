@@ -278,7 +278,7 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
 
         bytes memory signature = _getSignature(root);
 
-        bytes memory sigDataRaw = abi.encode(validUntil, root, proof[0], signature);
+        bytes memory sigDataRaw = abi.encode(validUntil, root, proof[0], proof[0], signature);
 
         bytes memory destinationDataRaw = abi.encode(
             approveDestinationData.callData,
@@ -324,7 +324,7 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
         private
         view
     {
-        bytes memory sigDataRaw = abi.encode(validUntil, root, proof, signature);
+        bytes memory sigDataRaw = abi.encode(validUntil, root, proof, proof, signature);
 
         bytes memory destinationDataRaw = abi.encode(
             destinationData.callData,

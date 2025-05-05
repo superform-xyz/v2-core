@@ -77,10 +77,6 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _namespace() internal pure override returns (string memory) {
-        return "SuperDestinationValidator-v0.0.1";
-    }
-
     function _createLeaf(bytes memory data, uint48 validUntil) internal pure override returns (bytes32) {
         DestinationData memory destinationData = abi.decode(data, (DestinationData));
         /// @dev `executor` is included in the leaf to ensure that the leaf is unique for each executor
@@ -130,7 +126,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
     {
         // Verify leaf and root are valid
         leaf = _createLeaf(abi.encode(destinationData), sigData.validUntil);
-        if (!MerkleProof.verify(sigData.proof, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
+        if (!MerkleProof.verify(sigData.proofDst, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
         // Get signer
         bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
