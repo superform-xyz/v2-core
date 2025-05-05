@@ -4,13 +4,13 @@ pragma solidity >=0.8.28;
 // Tests
 import { BaseTest } from "../../BaseTest.t.sol";
 
-import { SpectraExchangeSwapHook } from "../../../src/core/hooks/swappers/spectra/SpectraExchangeSwapHook.sol";
+import { SpectraExchangeHook } from "../../../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
 import { ApproveERC20Hook } from "../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
 
-contract SpectraExchangeSwapHookTest is BaseTest {
+contract SpectraExchangeHookTest is BaseTest {
     ISuperExecutor public superExecutor;
     AccountInstance public instance;
     address public account;
@@ -20,7 +20,7 @@ contract SpectraExchangeSwapHookTest is BaseTest {
     address public ptToken;
 
     ApproveERC20Hook public approveHook;
-    SpectraExchangeSwapHook public hook;
+    SpectraExchangeHook public hook;
 
     function setUp() public override {
         useLatestFork = true;
@@ -40,7 +40,7 @@ contract SpectraExchangeSwapHookTest is BaseTest {
         vm.label(ptToken, "PT-IPOR-USDC");
 
         approveHook = new ApproveERC20Hook();
-        hook = new SpectraExchangeSwapHook(SPECTRA_ROUTERS[ETH]);
+        hook = new SpectraExchangeHook(SPECTRA_ROUTERS[ETH]);
     }
 
     function test_SpectraExchangeSwapHook_DepositAssetInPT() public {
