@@ -2,6 +2,7 @@
 pragma solidity 0.8.28;
 
 // external
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
@@ -73,7 +74,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     {
         address pendleMarket = data.extractYieldSource();
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 value = abi.decode(data[25:57], (uint256));
+        uint256 value = BytesLib.toUint256(data, 57);
         bytes memory txData_ = data[57:];
 
         bytes memory updatedTxData = _validateTxData(data[57:], account, usePrevHookAmount, prevHook, pendleMarket);
