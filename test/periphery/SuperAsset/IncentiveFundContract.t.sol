@@ -3,13 +3,63 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {IncentiveFundContract} from "../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
+import {SuperAsset} from "../../../src/periphery/SuperAsset/SuperAsset.sol";
+import {AssetBank} from "../../../src/periphery/SuperAsset/AssetBank.sol";
 import {ISuperAsset} from "../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
 import {IIncentiveFundContract} from "../../../src/periphery/interfaces/SuperAsset/IIncentiveFundContract.sol";
+import {SuperOracle} from "../../../src/periphery/oracles/SuperOracle.sol";
 import {MockERC20} from "../../mocks/MockERC20.sol";
-import {MockSuperAsset} from "../../mocks/MockSuperAsset.sol";
-import {MockAssetBank} from "../../mocks/MockAssetBank.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import {AggregatorV3Interface} from "../../../src/vendor/chainlink/AggregatorV3Interface.sol";
+
+contract MockAggregator is AggregatorV3Interface {
+    int256 private _answer;
+    uint256 private _updatedAt;
+    uint8 private immutable _decimals;
+
+    constructor(int256 answer_, uint8 decimals_) {
+        _answer = answer_;
+        _decimals = decimals_;
+        _updatedAt = block.timestamp;
+    }
+
+    function setAnswer(int256 answer_) external {
+        _answer = answer_;
+    }
+
+    function setUpdatedAt(uint256 updatedAt_) external {
+        _updatedAt = updatedAt_;
+    }
+
+    function decimals() external view returns (uint8) {
+        return _decimals;
+    }
+
+    function description() external pure returns (string memory) {
+        return "Mock Aggregator";
+    }
+
+    function version() external pure returns (uint256) {
+        return 1;
+    }
+
+    function getRoundData(uint80)
+        external
+        view
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
+    {
+        return (1, _answer, block.timestamp, _updatedAt, 1);
+    }
+
+    function latestRoundData()
+        external
+        view
+        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
+    {
+        return (1, _answer, block.timestamp, _updatedAt, 1);
+    }
+}
 
 contract IncentiveFundContractTest is Test {
     // --- Events ---
@@ -18,12 +68,23 @@ contract IncentiveFundContractTest is Test {
     event SettlementTokenInSet(address indexed token);
     event SettlementTokenOutSet(address indexed token);
 
+    // --- Constants ---
+    bytes32 public constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
+    bytes32 public constant PROVIDER_1 = bytes32(keccak256("Provider 1"));
+    bytes32 public constant PROVIDER_2 = bytes32(keccak256("Provider 2"));
+    bytes32 public constant PROVIDER_3 = bytes32(keccak256("Provider 3"));
+
     // --- State Variables ---
     IncentiveFundContract public incentiveFund;
-    MockSuperAsset public superAsset;
-    MockAssetBank public assetBank;
+    SuperAsset public superAsset;
+    AssetBank public assetBank;
+    SuperOracle public oracle;
     MockERC20 public tokenIn;
     MockERC20 public tokenOut;
+    MockERC20 public usd;
+    MockAggregator public mockFeed1;
+    MockAggregator public mockFeed2;
+    MockAggregator public mockFeed3;
     address public admin;
     address public manager;
     address public user;
@@ -35,19 +96,88 @@ contract IncentiveFundContractTest is Test {
         manager = makeAddr("manager");
         user = makeAddr("user");
 
-        // Deploy mock contracts
         vm.startPrank(admin);
+        
+        // Deploy mock tokens
         tokenIn = new MockERC20("Token In", "TIN", 18);
         tokenOut = new MockERC20("Token Out", "TOUT", 18);
-        superAsset = new MockSuperAsset();
-        assetBank = new MockAssetBank();
+        usd = new MockERC20("USD", "USD", 6);
 
-        // Deploy and initialize IncentiveFundContract
+        // Create mock price feeds with different price values (1 token = $1)
+        mockFeed1 = new MockAggregator(1e8, 8); // Token/USD = $1
+        mockFeed2 = new MockAggregator(1e8, 8); // Token/USD = $1
+        mockFeed3 = new MockAggregator(1e8, 8); // Token/USD = $1
+
+        // Configure SuperOracle with initial providers
+        address[] memory bases = new address[](6);
+        bases[0] = address(tokenIn);
+        bases[1] = address(tokenIn);
+        bases[2] = address(tokenIn);
+        bases[3] = address(tokenOut);
+        bases[4] = address(tokenOut);
+        bases[5] = address(tokenOut);
+
+        address[] memory quotes = new address[](6);
+        quotes[0] = address(usd);
+        quotes[1] = address(usd);
+        quotes[2] = address(usd);
+        quotes[3] = address(usd);
+        quotes[4] = address(usd);
+        quotes[5] = address(usd);
+
+        bytes32[] memory providers = new bytes32[](6);
+        providers[0] = PROVIDER_1;
+        providers[1] = PROVIDER_2;
+        providers[2] = PROVIDER_3;
+        providers[3] = PROVIDER_1;
+        providers[4] = PROVIDER_2;
+        providers[5] = PROVIDER_3;
+
+        address[] memory feeds = new address[](6);
+        feeds[0] = address(mockFeed1);
+        feeds[1] = address(mockFeed2);
+        feeds[2] = address(mockFeed3);
+        feeds[3] = address(mockFeed1);
+        feeds[4] = address(mockFeed2);
+        feeds[5] = address(mockFeed3);
+
+        // Deploy and configure oracle
+        oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
+        oracle.setMaxStaleness(2 weeks);
+        
+        // Deploy AssetBank (automatically sets admin as DEFAULT_ADMIN_ROLE)
+        assetBank = new AssetBank();
+
+        // Deploy IncentiveFundContract
         incentiveFund = new IncentiveFundContract();
+        
+        // Deploy SuperAsset with initial setup
+        superAsset = new SuperAsset();
+        superAsset.initialize(
+            "SuperAsset", // name
+            "SA", // symbol
+            address(0), // icc (IncentiveCalculationContract)
+            address(incentiveFund), // ifc (IncentiveFundContract)
+            address(assetBank), // assetBank
+            100, // swapFeeInPercentage (0.1%)
+            100 // swapFeeOutPercentage (0.1%)
+        );
+        
+        // Grant admin role to admin for SuperAsset management
+        superAsset.grantRole(superAsset.DEFAULT_ADMIN_ROLE(), admin);
+        
+        // Configure oracle and tokens
+        superAsset.setSuperOracle(address(oracle));
+        superAsset.whitelistERC20(address(tokenIn));
+        superAsset.whitelistERC20(address(tokenOut));
+
+        // Initialize IncentiveFundContract after SuperAsset is set up
         incentiveFund.initialize(address(superAsset), address(assetBank));
 
         // Setup roles
         incentiveFund.grantRole(incentiveFund.INCENTIVE_FUND_MANAGER(), manager);
+        assetBank.grantRole(assetBank.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
+        superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
         vm.stopPrank();
 
         // Setup initial balances
@@ -113,18 +243,6 @@ contract IncentiveFundContractTest is Test {
         incentiveFund.setTokenOutIncentive(address(tokenOut));
         vm.stopPrank();
 
-        // Mock price data
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(tokenOut)),
-            abi.encode(1e18, false, false, false)
-        );
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
-            abi.encode(1e18)
-        );
-
         // Non-manager cannot pay incentive
         vm.startPrank(user);
         vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.INCENTIVE_FUND_MANAGER()));
@@ -147,18 +265,6 @@ contract IncentiveFundContractTest is Test {
         vm.startPrank(admin);
         incentiveFund.setTokenInIncentive(address(tokenIn));
         vm.stopPrank();
-
-        // Mock price data
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(tokenIn)),
-            abi.encode(1e18, false, false, false)
-        );
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
-            abi.encode(1e18)
-        );
 
         // Give approval to incentiveFund
         vm.startPrank(user);
@@ -189,46 +295,19 @@ contract IncentiveFundContractTest is Test {
         incentiveFund.setTokenOutIncentive(address(tokenOut));
         vm.stopPrank();
 
-        // Mock price data
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(tokenOut)),
-            abi.encode(1e18, false, false, false)
-        );
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
-            abi.encode(1e18)
-        );
-
-        // Pay incentive
-        uint256 amount = 100e18;
-        uint256 balanceBefore = tokenOut.balanceOf(user);
-
-        vm.expectEmit(true, true, false, true);
-        emit IncentivePaid(user, address(tokenOut), amount);
-
+        // Manager pays incentive
         vm.startPrank(manager);
-        incentiveFund.payIncentive(user, amount);
+        vm.expectEmit(true, true, false, true);
+        emit IncentivePaid(user, address(tokenOut), 100e18);
+        incentiveFund.payIncentive(user, 100e18);
         vm.stopPrank();
 
-        uint256 balanceAfter = tokenOut.balanceOf(user);
-        assertEq(balanceAfter - balanceBefore, amount);
+        // Check balances
+        assertEq(tokenOut.balanceOf(user), 1100e18);
+        assertEq(tokenOut.balanceOf(address(incentiveFund)), 900e18);
     }
 
     function test_PayIncentive_RevertIfNoTokenSet() public {
-        // Mock price data
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(0)),
-            abi.encode(1e18, false, false, false)
-        );
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
-            abi.encode(1e18)
-        );
-
         vm.startPrank(manager);
         vm.expectRevert(IIncentiveFundContract.TOKEN_OUT_NOT_SET.selector);
         incentiveFund.payIncentive(user, 100e18);
@@ -240,18 +319,6 @@ contract IncentiveFundContractTest is Test {
         vm.startPrank(admin);
         incentiveFund.setTokenOutIncentive(address(tokenOut));
         vm.stopPrank();
-
-        // Mock price data
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(tokenOut)),
-            abi.encode(1e18, false, false, false)
-        );
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
-            abi.encode(1e18)
-        );
 
         // Try to pay more than contract's balance
         vm.startPrank(manager);
@@ -266,51 +333,24 @@ contract IncentiveFundContractTest is Test {
         incentiveFund.setTokenInIncentive(address(tokenIn));
         vm.stopPrank();
 
-        // Mock price data
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(tokenIn)),
-            abi.encode(1e18, false, false, false)
-        );
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
-            abi.encode(1e18)
-        );
-
-        // Approve transfer
+        // Give approval to incentiveFund
         vm.startPrank(user);
         tokenIn.approve(address(incentiveFund), 100e18);
         vm.stopPrank();
 
-        // Take incentive
-        uint256 amount = 100e18;
-        uint256 balanceBefore = tokenIn.balanceOf(user);
-
-        vm.expectEmit(true, true, false, true);
-        emit IncentiveTaken(user, address(tokenIn), amount);
-
+        // Manager takes incentive
         vm.startPrank(manager);
-        incentiveFund.takeIncentive(user, amount);
+        vm.expectEmit(true, true, false, true);
+        emit IncentiveTaken(user, address(tokenIn), 100e18);
+        incentiveFund.takeIncentive(user, 100e18);
         vm.stopPrank();
 
-        uint256 balanceAfter = tokenIn.balanceOf(user);
-        assertEq(balanceBefore - balanceAfter, amount);
+        // Check balances
+        assertEq(tokenIn.balanceOf(user), 900e18);
+        assertEq(tokenIn.balanceOf(address(incentiveFund)), 1100e18);
     }
 
     function test_TakeIncentive_RevertIfNoTokenSet() public {
-        // Mock price data
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(0)),
-            abi.encode(1e18, false, false, false)
-        );
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
-            abi.encode(1e18)
-        );
-
         vm.startPrank(manager);
         vm.expectRevert(IIncentiveFundContract.TOKEN_IN_NOT_SET.selector);
         incentiveFund.takeIncentive(user, 100e18);
@@ -322,18 +362,6 @@ contract IncentiveFundContractTest is Test {
         vm.startPrank(admin);
         incentiveFund.setTokenInIncentive(address(tokenIn));
         vm.stopPrank();
-
-        // Mock price data
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(tokenIn)),
-            abi.encode(1e18, false, false, false)
-        );
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
-            abi.encode(1e18)
-        );
 
         // Try to take without approval
         vm.startPrank(manager);
@@ -347,18 +375,6 @@ contract IncentiveFundContractTest is Test {
         vm.startPrank(admin);
         incentiveFund.setTokenInIncentive(address(tokenIn));
         vm.stopPrank();
-
-        // Mock price data
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPriceWithCircuitBreakers.selector, address(tokenIn)),
-            abi.encode(1e18, false, false, false)
-        );
-        vm.mockCall(
-            address(superAsset),
-            abi.encodeWithSelector(ISuperAsset.getPrecision.selector),
-            abi.encode(1e18)
-        );
 
         // Approve transfer
         vm.startPrank(user);
