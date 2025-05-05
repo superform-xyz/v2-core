@@ -18,7 +18,13 @@ import { MockLedger, MockLedgerConfiguration } from "../../mocks/MockLedger.sol"
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 
-contract SuperExecutorTest is BaseTest {
+import { Helpers } from "../../utils/Helpers.sol";
+
+import { InternalHelpers } from "../../InternalHelpers.sol";
+
+import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance } from "modulekit/ModuleKit.sol";
+
+contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
@@ -30,12 +36,12 @@ contract SuperExecutorTest is BaseTest {
     MockLedger public ledger;
     MockLedgerConfiguration public ledgerConfig;
     address public feeRecipient;
+    AccountInstance public instance;
 
-    function setUp() public override {
-        super.setUp();
-        vm.selectFork(FORKS[ETH]);
+    function setUp() public {
+        instance = makeAccountInstance(keccak256(abi.encode("TEST")));
+        account = instance.account;
 
-        account = makeAddr("account");
         token = new MockERC20("Mock Token", "MTK", 18);
         feeRecipient = makeAddr("feeRecipient");
 
@@ -46,11 +52,8 @@ contract SuperExecutorTest is BaseTest {
         ledgerConfig = new MockLedgerConfiguration(address(ledger), feeRecipient, address(token), 100, account);
 
         superExecutor = new SuperExecutor(address(ledgerConfig));
-        accountInstances[ETH].installModule({
-            moduleTypeId: MODULE_TYPE_EXECUTOR,
-            module: address(superExecutor),
-            data: ""
-        });
+
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
     }
 
     function test_Name() public view {
@@ -67,16 +70,14 @@ contract SuperExecutorTest is BaseTest {
     }
 
     function test_OnInstall() public {
-        vm.startPrank(account);
-        superExecutor.onInstall("");
-        vm.stopPrank();
-
         assertTrue(superExecutor.isInitialized(account));
     }
 
     function test_OnInstall_RevertIf_AlreadyInitialized() public {
-        vm.startPrank(account);
-        superExecutor.onInstall("");
+        AccountInstance memory newInstance = makeAccountInstance(keccak256(abi.encode("TEST")));
+        address newAccount = newInstance.account;
+
+        vm.startPrank(newAccount);
 
         vm.expectRevert(ISuperExecutor.ALREADY_INITIALIZED.selector);
         superExecutor.onInstall("");
@@ -85,7 +86,6 @@ contract SuperExecutorTest is BaseTest {
 
     function test_OnUninstall() public {
         vm.startPrank(account);
-        superExecutor.onInstall("");
         superExecutor.onUninstall("");
         vm.stopPrank();
 
@@ -93,14 +93,14 @@ contract SuperExecutorTest is BaseTest {
     }
 
     function test_OnUninstall_RevertIf_NotInitialized() public {
-        vm.startPrank(account);
+        vm.startPrank(makeAddr("account"));
         vm.expectRevert(ISuperExecutor.NOT_INITIALIZED.selector);
         superExecutor.onUninstall("");
         vm.stopPrank();
     }
 
     function test_Execute_RevertIf_NotInitialized() public {
-        vm.startPrank(account);
+        vm.startPrank(makeAddr("account"));
         vm.expectRevert(ISuperExecutor.NOT_INITIALIZED.selector);
         superExecutor.execute("");
         vm.stopPrank();
@@ -119,7 +119,6 @@ contract SuperExecutorTest is BaseTest {
         );
 
         vm.startPrank(account);
-        superExecutor.onInstall("");
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -144,7 +143,6 @@ contract SuperExecutorTest is BaseTest {
             _createDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), 1, false, false);
 
         vm.startPrank(account);
-        superExecutor.onInstall("");
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -154,7 +152,6 @@ contract SuperExecutorTest is BaseTest {
     }
 
     function test_UpdateAccounting_Outflow_WithFee() public {
-        account = accountInstances[ETH].account;
         vm.startPrank(account);
 
         outflowHook.setOutAmount(1000);
@@ -196,7 +193,7 @@ contract SuperExecutorTest is BaseTest {
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
         );
 
-        vm.startPrank(account);
+        vm.startPrank(makeAddr("account"));
         superExecutor.onInstall("");
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -220,7 +217,6 @@ contract SuperExecutorTest is BaseTest {
         );
 
         vm.startPrank(account);
-        superExecutor.onInstall("");
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -231,7 +227,6 @@ contract SuperExecutorTest is BaseTest {
     }
 
     function test_UpdateAccounting_Outflow_RevertIf_FeeNotTransferred() public {
-        account = accountInstances[ETH].account;
         MaliciousToken maliciousToken = new MaliciousToken();
 
         maliciousToken.blacklist(feeRecipient);
@@ -245,11 +240,7 @@ contract SuperExecutorTest is BaseTest {
         MockLedgerConfiguration maliciousConfig =
             new MockLedgerConfiguration(address(ledger), feeRecipient, address(maliciousToken), 100, account);
         superExecutor = new SuperExecutor(address(maliciousConfig));
-        accountInstances[ETH].installModule({
-            moduleTypeId: MODULE_TYPE_EXECUTOR,
-            module: address(superExecutor),
-            data: ""
-        });
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
 
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(maliciousHook);

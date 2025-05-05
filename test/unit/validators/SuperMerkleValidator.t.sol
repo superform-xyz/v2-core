@@ -46,8 +46,14 @@ contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneM
         (signerAddr, privateKey) = makeAddrAndKey("The signer");
         vm.label(signerAddr, "The signer");
 
-        instance = makeAccountInstance(keccak256(abi.encode("EST")));
+        instance = makeAccountInstance(keccak256(abi.encode("TEST")));
         account = instance.account;
+
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(address(signerAddr))
+        });
         assertEq(validator.getAccountOwner(account), signerAddr);
 
         approveUserOp = _createDummyApproveUserOp();

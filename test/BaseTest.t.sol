@@ -160,7 +160,9 @@ import { MockRegistry } from "./mocks/MockRegistry.sol";
 import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
 
 import { BaseHook } from "../src/core/hooks/BaseHook.sol";
-
+import { MockSuperExecutor } from "./mocks/MockSuperExecutor.sol";
+import { MockLockVault } from "./mocks/MockLockVault.sol";
+import { MockTargetExecutor } from "./mocks/MockTargetExecutor.sol";
 import "forge-std/console2.sol";
 
 struct Addresses {
@@ -229,6 +231,8 @@ struct Addresses {
     SuperGovernor superGovernor;
     SuperNativePaymaster superNativePaymaster;
     SuperVaultAggregator superVaultAggregator;
+    ISuperExecutor superExecutorWithSPLock;
+    MockTargetExecutor mockTargetExecutor;
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser, InternalHelpers {
@@ -498,6 +502,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 ISuperExecutor(address(new SuperExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration))));
             vm.label(address(A[i].superExecutor), SUPER_EXECUTOR_KEY);
             contractAddresses[chainIds[i]][SUPER_EXECUTOR_KEY] = address(A[i].superExecutor);
+
+            MockLockVault lockVault = new MockLockVault();
+            vm.label(address(lockVault), "MockLockVault");
+            A[i].superExecutorWithSPLock = ISuperExecutor(
+                address(new MockSuperExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration), address(lockVault)))
+            );
+            vm.label(address(A[i].superExecutorWithSPLock), SUPER_EXECUTOR_WITH_SP_LOCK_KEY);
+            contractAddresses[chainIds[i]][SUPER_EXECUTOR_WITH_SP_LOCK_KEY] = address(A[i].superExecutorWithSPLock);
+
+            A[i].mockTargetExecutor =
+                new MockTargetExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration), address(lockVault));
+            vm.label(address(A[i].mockTargetExecutor), MOCK_TARGET_EXECUTOR_KEY);
+            contractAddresses[chainIds[i]][MOCK_TARGET_EXECUTOR_KEY] = address(A[i].mockTargetExecutor);
 
             A[i].superDestinationExecutor = ISuperExecutor(
                 address(
@@ -890,8 +907,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY]);
             hooksAddresses[21] = address(A[i].swapOdosHook);
 
-            A[i].acrossSendFundsAndExecuteOnDstHook =
-                new AcrossSendFundsAndExecuteOnDstHook{ salt: SALT }(SPOKE_POOL_V3_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY));
+            A[i].acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook{ salt: SALT }(
+                SPOKE_POOL_V3_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY)
+            );
             vm.label(address(A[i].acrossSendFundsAndExecuteOnDstHook), ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
             hookAddresses[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =
                 address(A[i].acrossSendFundsAndExecuteOnDstHook);
@@ -907,8 +925,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksAddresses[22] = address(A[i].acrossSendFundsAndExecuteOnDstHook);
 
-            A[i].deBridgeSendOrderAndExecuteOnDstHook =
-                new DeBridgeSendOrderAndExecuteOnDstHook{ salt: SALT }(DEBRIDGE_DLN_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY));
+            A[i].deBridgeSendOrderAndExecuteOnDstHook = new DeBridgeSendOrderAndExecuteOnDstHook{ salt: SALT }(
+                DEBRIDGE_DLN_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY)
+            );
             vm.label(
                 address(A[i].deBridgeSendOrderAndExecuteOnDstHook), DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY
             );
@@ -1375,6 +1394,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 module: _getContract(chainIds[i], SUPER_DESTINATION_EXECUTOR_KEY),
                 data: ""
             });
+
             instance.installModule({
                 moduleTypeId: MODULE_TYPE_EXECUTOR,
                 module: _getContract(chainIds[i], SUPER_EXECUTOR_WITH_SP_LOCK_KEY),
@@ -1659,9 +1679,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         internal
         returns (UserOpData memory userOpData)
     {
-        return instance.getExecOps(
-            address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), validator
-        );
+        return instance.getExecOps(address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), validator);
     }
 
     function _getExecOps(
@@ -1858,12 +1876,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             accountToUse = messageData.account;
             accountCreationData = bytes("");
         }
-        return (
-            abi.encode(accountCreationData, executionData, messageData.account, messageData.amount),
-            accountToUse
-        );
+        return (abi.encode(accountCreationData, executionData, messageData.account, messageData.amount), accountToUse);
     }
-    function _createMerkleRootAndSignature(TargetExecutorMessage memory messageData, bytes32 userOpHash, address accountToUse) internal view returns (bytes memory sig) {
+
+    function _createMerkleRootAndSignature(
+        TargetExecutorMessage memory messageData,
+        bytes32 userOpHash,
+        address accountToUse
+    )
+        internal
+        view
+        returns (bytes memory sig)
+    {
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory executionData =
             _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
@@ -1887,7 +1911,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             messageData.signer,
             messageData.signerPrivateKey
         );
-        sig = _createSignatureData_DestinationExecutor(validUntil, merkleRoot, merkleProof[1], merkleProof[0], signature);
+        sig =
+            _createSignatureData_DestinationExecutor(validUntil, merkleRoot, merkleProof[1], merkleProof[0], signature);
     }
 
     function _createSignatureData_DestinationExecutor(
