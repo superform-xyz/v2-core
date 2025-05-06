@@ -174,15 +174,15 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
             if (_registeredFulfillRequestsHooks.contains(hook_)) {
                 revert FULFILL_REQUESTS_HOOK_ALREADY_REGISTERED();
             }
+
             _registeredFulfillRequestsHooks.add(hook_);
             emit FulfillRequestsHookRegistered(hook_);
-        } else {
-            if (_registeredHooks.contains(hook_)) {
-                revert HOOK_ALREADY_APPROVED();
-            }
-            _registeredHooks.add(hook_);
-            emit HookApproved(hook_);
         }
+        if (_registeredHooks.contains(hook_)) {
+            revert HOOK_ALREADY_APPROVED();
+        }
+        _registeredHooks.add(hook_);
+        emit HookApproved(hook_);
     }
 
     /// @inheritdoc ISuperGovernor
@@ -493,6 +493,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         }
         _registeredFulfillRequestsHooks.remove(hook_);
         emit FulfillRequestsHookUnregistered(hook_);
+        _unregisterRegularHook(hook_);
     }
 
     /// @dev Internal function to unregister a regular hook

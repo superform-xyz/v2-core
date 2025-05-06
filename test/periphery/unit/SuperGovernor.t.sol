@@ -284,7 +284,7 @@ contract SuperGovernorTest is Helpers {
             superGovernor.isFulfillRequestsHookRegistered(fulfillHook1),
             "Hook should be registered as fulfill requests hook"
         );
-        assertFalse(superGovernor.isHookRegistered(fulfillHook1), "Hook should not be registered as regular hook");
+        assertTrue(superGovernor.isHookRegistered(fulfillHook1));
     }
 
     /// @notice Tests reverting when registering a hook with zero address
@@ -344,6 +344,7 @@ contract SuperGovernorTest is Helpers {
         vm.expectEmit(true, false, false, false);
         emit ISuperGovernor.FulfillRequestsHookUnregistered(fulfillHook1);
         superGovernor.unregisterHook(fulfillHook1, true);
+        assertFalse(superGovernor.isHookRegistered(fulfillHook1), "Hook should be unregistered");
 
         assertFalse(superGovernor.isFulfillRequestsHookRegistered(fulfillHook1), "Fulfill hook should be unregistered");
     }
