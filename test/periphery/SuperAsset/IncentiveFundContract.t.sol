@@ -221,13 +221,36 @@ contract IncentiveFundContractTest is Test {
     }
 
 
-    function test_SuperOracleGetQuote() public view {
+    function test_SuperOracleGetQuote1() public view {
         uint256 baseAmount = 1e18;
         uint256 expectedQuote = 1e6;
 
         uint256 quoteAmount = oracle.getQuote(baseAmount, address(tokenIn), address(usd));
         assertEq(quoteAmount, expectedQuote, "Quote amount should match expected value");
     }
+
+    function test_SuperOracleGetQuoteFromProvider() public view {
+        uint256 baseAmount = 1e18; // 1 ETH
+
+        // Test getting quote from Provider 1 (mockFeed1)
+        (uint256 quoteAmount1, uint256 deviation1, uint256 totalProviders1, uint256 availableProviders1) =
+            oracle.getQuoteFromProvider(baseAmount, address(tokenIn), address(usd), PROVIDER_1);
+
+        // assertEq(quoteAmount1, 1e6, "Quote from provider 1 should be $1100");
+        // assertEq(deviation1, 0, "Deviation should be 0 for single provider");
+        // assertEq(totalProviders1, 1, "Total providers should be 1");
+        // assertEq(availableProviders1, 1, "Available providers should be 1");
+
+        // Test getting average quote from all providers
+        (uint256 quoteAmountAvg, uint256 deviationAvg, uint256 totalProvidersAvg, uint256 availableProvidersAvg) =
+            oracle.getQuoteFromProvider(baseAmount, address(tokenIn), address(usd), AVERAGE_PROVIDER);
+
+        assertEq(quoteAmountAvg, 1e6, "Average quote should be $1000");
+        // assertGt(deviationAvg, 0, "Deviation should be greater than 0 for multiple providers");
+        // assertEq(totalProvidersAvg, 3, "Total providers should be 3");
+        // assertEq(availableProvidersAvg, 3, "Available providers should be 3");
+    }
+
 
 
     // --- Test: Initialization ---
