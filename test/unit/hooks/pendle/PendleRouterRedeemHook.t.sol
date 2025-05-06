@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { BaseTest } from "../../../BaseTest.t.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
 import { PendleRouterRedeemHook } from "../../../../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
 import { IPendleRouterV4, TokenOutput, SwapData, SwapType } from "../../../../src/vendor/pendle/IPendleRouterV4.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
@@ -10,7 +10,7 @@ import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
 
-contract PendleRouterRedeemHookTest is BaseTest {
+contract PendleRouterRedeemHookTest is Helpers {
     PendleRouterRedeemHook public hook;
     address public pendleRouter;
     MockHook public prevHook;
@@ -22,13 +22,10 @@ contract PendleRouterRedeemHookTest is BaseTest {
     uint256 public amount = 1500;
     uint256 public minTokenOut = 1000;
 
-    function setUp() public override {
-        super.setUp();
-        vm.selectFork(FORKS[ETH]);
-
+    function setUp() public {
         account = address(this);
 
-        pendleRouter = PENDLE_ROUTERS[ETH];
+        pendleRouter = CHAIN_1_PendleRouter;
         tokenOut = new MockERC20("Output Token", "OUT", 18);
         vm.label(address(tokenOut), "Output Token");
 
@@ -53,7 +50,8 @@ contract PendleRouterRedeemHookTest is BaseTest {
     }
 
     function test_Build() public view {
-        bytes memory data = _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
+        bytes memory data =
+            _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
         assertEq(executions.length, 3);
@@ -85,7 +83,8 @@ contract PendleRouterRedeemHookTest is BaseTest {
     }
 
     function test_Build_WithPrevHookAmount() public {
-        bytes memory data = _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, true);
+        bytes memory data =
+            _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, true);
 
         prevHook.setOutAmount(2500); // Set a different amount in the previous hook
 
@@ -114,7 +113,8 @@ contract PendleRouterRedeemHookTest is BaseTest {
     }
 
     function test_PreExecute() public {
-        bytes memory data = _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
+        bytes memory data =
+            _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
 
         tokenOut.mint(account, 500);
         hook.preExecute(address(0), account, data);
@@ -122,7 +122,8 @@ contract PendleRouterRedeemHookTest is BaseTest {
     }
 
     function test_PostExecute() public {
-        bytes memory data = _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
+        bytes memory data =
+            _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
 
         tokenOut.mint(account, 500);
         hook.preExecute(address(0), account, data);
@@ -189,7 +190,8 @@ contract PendleRouterRedeemHookTest is BaseTest {
     }
 
     function test_DecodeUsePrevHookAmount() public view {
-        bytes memory data = _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, true);
+        bytes memory data =
+            _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, true);
 
         bool usePrevHookAmount = hook.decodeUsePrevHookAmount(data);
         assertTrue(usePrevHookAmount);
