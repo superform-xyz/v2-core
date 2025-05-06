@@ -6,6 +6,7 @@ import { ISuperGovernor, FeeType } from "src/periphery/interfaces/ISuperGovernor
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { ISuperVaultAggregator } from "src/periphery/interfaces/ISuperVaultAggregator.sol";
 import { SuperVaultAggregator } from "src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { ISuperVaultStrategy } from "src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { Helpers } from "../../utils/Helpers.sol";
 
 contract SuperGovernorTest is Helpers {
@@ -62,12 +63,12 @@ contract SuperGovernorTest is Helpers {
             ISuperVaultAggregator.VaultCreationParams({
                 asset: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
                 mainStrategist: address(this),
-                feeRecipient: address(this),
                 name: "SUP",
                 symbol: "SUP",
                 minUpdateInterval: 5,
                 maxStaleness: 300,
-                superVaultCap: 1e9
+                superVaultCap: 1e9,
+                feeConfig: ISuperVaultStrategy.FeeConfig({ performanceFeeBps: 1000, recipient: address(this) })
             })
         );
         strategy1 = strategy;

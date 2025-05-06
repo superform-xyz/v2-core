@@ -6,6 +6,9 @@ import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { ReentrancyGuard } from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+
 // Core Interfaces
 import {
     ISuperHook,
@@ -82,16 +85,27 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                             INITIALIZATION
     //////////////////////////////////////////////////////////////*/
-    function initialize(address vault_, address superGovernor_, uint256 superVaultCap_) external {
+    function initialize(
+        address vault_,
+        address superGovernor_,
+        uint256 superVaultCap_,
+        FeeConfig memory feeConfig_
+    )
+        external
+    {
         if (_initialized) revert ALREADY_INITIALIZED();
         if (vault_ == address(0)) revert INVALID_VAULT();
         if (superGovernor_ == address(0)) revert ZERO_ADDRESS();
         if (superVaultCap_ == 0) revert INVALID_SUPER_VAULT_CAP();
+        if (feeConfig.performanceFeeBps > 0 && feeConfig.recipient == address(0)) revert ZERO_ADDRESS();
 
         _initialized = true;
         _vault = vault_;
+        _asset = IERC20(IERC4626(vault_).asset());
+        _vaultDecimals = IERC20Metadata(vault_).decimals();
         superGovernor = ISuperGovernor(superGovernor_);
         superVaultCap = superVaultCap_;
+        feeConfig = feeConfig_;
 
         emit Initialized(_vault, superGovernor_, superVaultCap_);
     }
