@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { BaseE2ETest } from "../../../BaseE2ETest.t.sol";
-import { MockERC20 } from "../../../mocks/MockERC20.sol";
-import { Mock7540Vault } from "../../../mocks/Mock7540Vault.sol";
-import { ERC7540YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { BaseE2ETest } from "../../BaseE2ETest.t.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { Mock7540Vault } from "../../mocks/Mock7540Vault.sol";
+import { ERC7540YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { Helpers } from "../../utils/Helpers.sol";
 
-contract ERC7540YieldSourceOracleTest is BaseE2ETest {
+contract ERC7540YieldSourceOracleTest is Helpers {
     ERC7540YieldSourceOracle public oracle;
     MockERC20 public underlying;
     Mock7540Vault public vault;
 
-    function setUp() public virtual override {
-        super.setUp();
-        vm.selectFork(FORKS[ETH]);
+    function setUp() public {
         oracle = new ERC7540YieldSourceOracle();
         underlying = new MockERC20("Underlying", "UND", 18);
         vault = new Mock7540Vault(IERC20(address(underlying)), "Vault", "VAULT");

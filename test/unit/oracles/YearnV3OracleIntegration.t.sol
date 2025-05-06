@@ -3,19 +3,16 @@ pragma solidity >=0.8.28;
 
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
-import { ERC4626YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC4626YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 
-import { BaseE2ETest } from "../../../BaseE2ETest.t.sol";
+import { Helpers } from "../../utils/Helpers.sol";
 
-contract YearnYieldSourceOracleIntegration is BaseE2ETest {
+contract YearnYieldSourceOracleIntegration is Helpers {
     ERC4626YieldSourceOracle public oracle;
     IERC4626 public yieldSource;
     address public underlying;
 
-    function setUp() public virtual override {
-        super.setUp();
-        vm.selectFork(FORKS[ETH]);
-
+    function setUp() public {
         oracle = new ERC4626YieldSourceOracle();
         yieldSource = IERC4626(CHAIN_1_YearnVault);
         underlying = yieldSource.asset();

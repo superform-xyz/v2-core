@@ -77,7 +77,7 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
     address mockOdosRouter;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), 21_929_476);
         underlying = CHAIN_1_USDC;
 
         yieldSourceAddress = CHAIN_1_MorphoVault;
