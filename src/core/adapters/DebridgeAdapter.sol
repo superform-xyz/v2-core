@@ -56,7 +56,13 @@ contract DebridgeAdapter is IExternalCallExecutor {
         returns (bool callSucceeded, bytes memory callResult)
     {
         _onlyExternalCallAdapter();
-        (,,address account,,) = _decodeMessage(_payload);
+        (
+            bytes memory initData,
+            bytes memory executorCalldata,
+            address account,
+            uint256 intentAmount,
+            bytes memory sigData
+        ) = _decodeMessage(_payload);
 
         // 1. Transfer received funds to the target account *before* calling the executor.
         //    This ensures the executor can reliably check the balance.
@@ -66,7 +72,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
         if (!success) revert ON_ETHER_RECEIVED_FAILED();
 
         // 2. Call the core executor's standardized function
-        _handleMessageReceived(address(0), _payload);
+        _handleMessageReceived(address(0), initData, executorCalldata, account, intentAmount, sigData);
 
         return (true, "");
     }
@@ -83,7 +89,13 @@ contract DebridgeAdapter is IExternalCallExecutor {
         returns (bool callSucceeded, bytes memory callResult)
     {
         _onlyExternalCallAdapter();
-        (,,address account,,) = _decodeMessage(_payload);
+        (
+            bytes memory initData,
+            bytes memory executorCalldata,
+            address account,
+            uint256 intentAmount,
+            bytes memory sigData
+        ) = _decodeMessage(_payload);
 
         // 1. Transfer received funds to the target account *before* calling the executor.
         //    This ensures the executor can reliably check the balance.
@@ -92,7 +104,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
         IERC20(_token).safeTransfer(account, _transferredAmount);
 
         // 2. Call the core executor's standardized function
-        _handleMessageReceived(_token, _payload);
+        _handleMessageReceived(_token, initData, executorCalldata, account, intentAmount, sigData);
 
         return (true, "");
     }
@@ -105,22 +117,8 @@ contract DebridgeAdapter is IExternalCallExecutor {
         if (msg.sender != externalCallAdapter) revert ONLY_EXTERNAL_CALL_ADAPTER();
     }
 
-    function _handleMessageReceived(address tokenSent, bytes memory message) private {
-        // 1. Decode Debridge-specific message payload
-        //      sigData contains: uint48 validUntil, bytes32 merkleRoot, bytes32[] proof, bytes signature
-        //      executorCalldata is the ExecutorEntry (hooksAddresses, hooksData)
-        (
-            bytes memory initData,
-            bytes memory executorCalldata,
-            address account,
-            uint256 intentAmount,
-            bytes memory sigData
-        ) = _decodeMessage(message);
-
-        // 2 . Tokens were already sent on hooks steps
-        // nothing to do here
-
-        // 3. Call the core executor's standardized function
+    function _handleMessageReceived(address tokenSent, bytes memory initData, bytes memory executorCalldata, address account, uint256 intentAmount, bytes memory sigData) private {
+        // Call the core executor's standardized function
         superDestinationExecutor.processBridgedExecution(
             tokenSent,
             account,
