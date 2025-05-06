@@ -146,6 +146,7 @@ contract IncentiveFundContractTest is Test {
 
         // Deploy and configure oracle with regular providers only
         oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
+        oracle.setMaxStaleness(2 weeks);
         console.log("Oracle deployed");
 
         // Set staleness for each feed
@@ -155,12 +156,12 @@ contract IncentiveFundContractTest is Test {
         oracle.setFeedMaxStaleness(address(mockFeed3), 1 days);
         vm.stopPrank();
         console.log("Feed staleness set");
-
+        
+        vm.startPrank(admin);
         // Deploy contracts (admin will automatically get DEFAULT_ADMIN_ROLE)
         assetBank = new AssetBank();
         console.log("AssetBank deployed");
-        
-        vm.startPrank(admin);
+
         incentiveFund = new IncentiveFundContract();
         console.log("IncentiveFund deployed");
         vm.stopPrank();
@@ -168,9 +169,9 @@ contract IncentiveFundContractTest is Test {
         superAsset = new SuperAsset();
         console.log("SuperAsset deployed");
 
+        vm.startPrank(admin);
         // Initialize SuperAsset
         console.log("About to initialize SuperAsset");
-        vm.startPrank(admin);  // Ensure we're the admin for initialization
         superAsset.initialize(
             "SuperAsset", // name
             "SA", // symbol
@@ -203,27 +204,31 @@ contract IncentiveFundContractTest is Test {
         // Grant roles to manager and contracts
         incentiveFund.grantRole(INCENTIVE_FUND_MANAGER, manager);
         console.log("Setup of roles in Incentive Fund Completed");
-
+        assetBank.grantRole(assetBank.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
+        superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
+        superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
+        superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
         vm.stopPrank();
         console.log("Incentive Fund Initialization Completed");
 
-
-        assetBank.grantRole(assetBank.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
-        console.log("T10");
-        // superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
-        console.log("T11");
-        // superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
-        console.log("T12");
-        // superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
-        console.log("T15");
-
         // Set up initial token balances for testing
+        vm.startPrank(admin);
         tokenIn.mint(user, 1000e18);
         tokenIn.mint(address(incentiveFund), 1000e18);
         tokenOut.mint(user, 1000e18);
         tokenOut.mint(address(incentiveFund), 1000e18);
         vm.stopPrank();
     }
+
+
+    function test_SuperOracleGetQuote() public view {
+        uint256 baseAmount = 1e18;
+        uint256 expectedQuote = 1e6;
+
+        uint256 quoteAmount = oracle.getQuote(baseAmount, address(tokenIn), address(usd));
+        assertEq(quoteAmount, expectedQuote, "Quote amount should match expected value");
+    }
+
 
     // --- Test: Initialization ---
     function test_Initialize() public {
