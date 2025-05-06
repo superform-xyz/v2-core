@@ -12,6 +12,8 @@ contract StakingYieldSourceOracleIntegration is Helpers {
     address public underlying;
 
     function setUp() public {
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), 21_929_476);
+
         oracle = new StakingYieldSourceOracle();
         yieldSource = IStakingVault(CHAIN_1_FluidVault);
         underlying = yieldSource.stakingToken();
