@@ -75,6 +75,9 @@ contract IncentiveFundContractTest is Test {
     bytes32 public constant PROVIDER_1 = keccak256("PROVIDER_1");
     bytes32 public constant PROVIDER_2 = keccak256("PROVIDER_2");
     bytes32 public constant PROVIDER_3 = keccak256("PROVIDER_3");
+    bytes32 public constant PROVIDER_4 = keccak256("PROVIDER_4");
+    bytes32 public constant PROVIDER_5 = keccak256("PROVIDER_5");
+    bytes32 public constant PROVIDER_6 = keccak256("PROVIDER_6");
 
     // --- State Variables ---
     IncentiveFundContract public incentiveFund;
@@ -87,6 +90,9 @@ contract IncentiveFundContractTest is Test {
     MockAggregator public mockFeed1;
     MockAggregator public mockFeed2;
     MockAggregator public mockFeed3;
+    MockAggregator public mockFeed4;
+    MockAggregator public mockFeed5;
+    MockAggregator public mockFeed6;
     IncentiveCalculationContract public icc;
     address public admin;
     address public manager;
@@ -117,34 +123,53 @@ contract IncentiveFundContractTest is Test {
         mockFeed1 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed2 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed3 = new MockAggregator(1e8, 8); // Token/USD = $1
+        mockFeed4 = new MockAggregator(1e8, 8); // Token/USD = $1
+        mockFeed5 = new MockAggregator(1e8, 8); // Token/USD = $1
+        mockFeed6 = new MockAggregator(1e8, 8); // Token/USD = $1
         console.log("Mock feeds deployed");
 
         // Update timestamps to ensure prices are fresh
         mockFeed1.setUpdatedAt(block.timestamp);
         mockFeed2.setUpdatedAt(block.timestamp);
         mockFeed3.setUpdatedAt(block.timestamp);
+        mockFeed4.setUpdatedAt(block.timestamp);
+        mockFeed5.setUpdatedAt(block.timestamp);
+        mockFeed6.setUpdatedAt(block.timestamp);
         console.log("Feed timestamps updated");
 
         // Setup oracle parameters with regular providers
-        address[] memory bases = new address[](3);
+        address[] memory bases = new address[](6);
         bases[0] = address(tokenIn);
-        bases[1] = address(tokenOut);
-        bases[2] = USD;
+        bases[1] = address(tokenIn);
+        bases[2] = address(tokenIn);
+        bases[3] = address(tokenOut);
+        bases[4] = address(tokenOut);
+        bases[5] = address(tokenOut);
 
-        address[] memory quotes = new address[](3);
+
+        address[] memory quotes = new address[](6);
         quotes[0] = USD;
         quotes[1] = USD;
         quotes[2] = USD;
+        quotes[3] = USD;
+        quotes[4] = USD;
+        quotes[5] = USD;
 
-        bytes32[] memory providers = new bytes32[](3);
+        bytes32[] memory providers = new bytes32[](6);
         providers[0] = PROVIDER_1;
         providers[1] = PROVIDER_2;
         providers[2] = PROVIDER_3;
+        providers[3] = PROVIDER_4;
+        providers[4] = PROVIDER_5;
+        providers[5] = PROVIDER_6;
 
-        address[] memory feeds = new address[](3);
+        address[] memory feeds = new address[](6);
         feeds[0] = address(mockFeed1);
         feeds[1] = address(mockFeed2);
         feeds[2] = address(mockFeed3);
+        feeds[3] = address(mockFeed4);
+        feeds[4] = address(mockFeed5);
+        feeds[5] = address(mockFeed6);
 
         // Deploy and configure oracle with regular providers only
         oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
@@ -156,6 +181,9 @@ contract IncentiveFundContractTest is Test {
         oracle.setFeedMaxStaleness(address(mockFeed1), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed2), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed3), 1 days);
+        oracle.setFeedMaxStaleness(address(mockFeed4), 1 days);
+        oracle.setFeedMaxStaleness(address(mockFeed5), 1 days);
+        oracle.setFeedMaxStaleness(address(mockFeed6), 1 days);
         vm.stopPrank();
         console.log("Feed staleness set");
         
@@ -249,8 +277,9 @@ contract IncentiveFundContractTest is Test {
             oracle.getQuoteFromProvider(baseAmount, address(tokenIn), USD, AVERAGE_PROVIDER);
 
         // assertGt(deviationAvg, 0, "Deviation should be greater than 0 for multiple providers");
-        // assertEq(totalProvidersAvg, 3, "Total providers should be 3");
-        // assertEq(availableProvidersAvg, 3, "Available providers should be 3");
+        // NOTE: Should not this be 3 instead of 6, since there are 3 price feeds for this specific base asset
+        assertEq(totalProvidersAvg, 6, "Total providers should be 3");
+        assertEq(availableProvidersAvg, 3, "Available providers should be 3");
     }
 
 
