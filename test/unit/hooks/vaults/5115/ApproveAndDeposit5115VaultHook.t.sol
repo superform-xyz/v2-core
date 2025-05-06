@@ -11,7 +11,7 @@ import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { SuperExecutor } from "../../../../../src/core/executors/SuperExecutor.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
-import { InternalHelpers } from "../../../../InternalHelpers.sol";
+import { InternalHelpers } from "../../../../utils/InternalHelpers.sol";
 import { ISuperExecutor } from "../../../../../src/core/interfaces/ISuperExecutor.sol";
 import { IStandardizedYield } from "../../../../../src/vendor/pendle/IStandardizedYield.sol";
 import { MockLedger, MockLedgerConfiguration } from "../../../../mocks/MockLedger.sol";
@@ -42,7 +42,7 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
     MockLedgerConfiguration public ledgerConfig;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), 21_929_476);
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), ETH_BLOCK);
         instanceOnETH = makeAccountInstance(keccak256(abi.encode("TEST")));
         accountETH = instanceOnETH.account;
         feeRecipient = makeAddr("feeRecipient");

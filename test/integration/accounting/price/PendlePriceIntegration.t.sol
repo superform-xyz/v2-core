@@ -5,50 +5,33 @@ pragma solidity >=0.8.28;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-import { BaseE2ETest } from "../../../BaseE2ETest.t.sol";
+import { MinimalBaseNexusIntegrationTest } from "../../MinimalBaseNexusIntegrationTest.t.sol";
 import { MockRegistry } from "../../../mocks/MockRegistry.sol";
-import { SuperLedger } from "../../../../src/core/accounting/SuperLedger.sol";
-import { ERC5115Ledger } from "../../../../src/core/accounting/ERC5115Ledger.sol";
-import { SuperExecutor } from "../../../../src/core/executors/SuperExecutor.sol";
-import { SuperLedgerConfiguration } from "../../../../src/core/accounting/SuperLedgerConfiguration.sol";
 import { ISuperExecutor } from "../../../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedger } from "../../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { IStandardizedYield } from "../../../../src/vendor/pendle/IStandardizedYield.sol";
 
 import { ERC5115YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import { Deposit5115VaultHook } from "../../../../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
+import { Redeem5115VaultHook } from "../../../../src/core/hooks/vaults/5115/Redeem5115VaultHook.sol";
 
-import { console2 } from "forge-std/console2.sol";
-// 5115 vault
+contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
+    MockRegistry public nexusRegistry;
+    address[] public attesters;
+    uint8 public threshold;
 
-contract PendlePriceIntegration is BaseE2ETest {
-    MockRegistry nexusRegistry;
-    address[] attesters;
-    uint8 threshold;
-
-    ERC5115YieldSourceOracle oracle;
-    SuperExecutor superExecutor;
-    ERC5115Ledger pendleLedger;
-    SuperLedgerConfiguration superLedgerConfiguration;
-
-    IStandardizedYield pendleVault;
-    address underlying;
+    IStandardizedYield public pendleVault;
+    address public underlying;
 
     function setUp() public override {
+        blockNumber = ETH_BLOCK;
         super.setUp();
-        vm.selectFork(FORKS[ETH]);
 
         nexusRegistry = new MockRegistry();
         attesters = new address[](1);
 
         attesters[0] = address(MANAGER);
         threshold = 1;
-
-        oracle = new ERC5115YieldSourceOracle();
-
-        superExecutor = SuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
-        superLedgerConfiguration = SuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY));
-        pendleLedger = ERC5115Ledger(_getContract(ETH, ERC1155_LEDGER_KEY));
 
         pendleVault = IStandardizedYield(CHAIN_1_PendleEthena);
         underlying = CHAIN_1_SUSDE;
@@ -67,8 +50,8 @@ contract PendlePriceIntegration is BaseE2ETest {
         // create SuperExecutor data
         address[] memory hooksAddresses = new address[](2);
         bytes[] memory hooksData = new bytes[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_5115_VAULT_HOOK_KEY);
+        hooksAddresses[0] = approveHook;
+        hooksAddresses[1] = address(new Deposit5115VaultHook());
         hooksData[0] = _createApproveHookData(underlying, address(pendleVault), amount, false);
         hooksData[1] = _create5115DepositHookData(
             bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
@@ -90,7 +73,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         uint256 amount = SMALL; // fixed amount to test the fee and consumed entries easily
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            superLedgerConfiguration.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
         assertEq(config.feePercent, 100); //1%
 
         // create and fund
@@ -127,7 +110,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         uint256 amount = 1e18;
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            superLedgerConfiguration.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
         assertEq(config.feePercent, 100);
 
         address nexusAccount = _setupNexusAccount(amount);
@@ -142,9 +125,9 @@ contract PendlePriceIntegration is BaseE2ETest {
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
         assertEq(feeBalanceBefore, 0);
 
-        uint256 ppsBefore = oracle.getPricePerShare(address(pendleVault));
+        uint256 ppsBefore = ERC5115YieldSourceOracle(yieldSourceOracle5115).getPricePerShare(address(pendleVault));
         _performMultipleDeposits(underlying, IERC4626(underlying).asset(), 50, SMALL);
-        uint256 ppsAfter = oracle.getPricePerShare(address(pendleVault));
+        uint256 ppsAfter = ERC5115YieldSourceOracle(yieldSourceOracle5115).getPricePerShare(address(pendleVault));
         assertGt(ppsAfter, ppsBefore, "pps after should be higher");
 
         uint256 availableShares = pendleVault.balanceOf(nexusAccount);
@@ -158,7 +141,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         uint256 amount = 1e18;
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            superLedgerConfiguration.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
         assertEq(config.feePercent, 100);
 
         address nexusAccount = _setupNexusAccount(amount);
@@ -170,7 +153,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
         assertEq(feeBalanceBefore, 0);
 
-        uint256 ppsBefore = oracle.getPricePerShare(address(pendleVault));
+        uint256 ppsBefore = ERC5115YieldSourceOracle(yieldSourceOracle5115).getPricePerShare(address(pendleVault));
         for (uint256 i; i < 50; ++i) {
             _getTokens(CHAIN_1_USDE, address(this), SMALL);
             IERC20(CHAIN_1_USDE).approve(address(pendleVault), SMALL);
@@ -178,7 +161,7 @@ contract PendlePriceIntegration is BaseE2ETest {
         }
         vm.warp(block.timestamp + (86_400 * 365));
 
-        uint256 ppsAfter = oracle.getPricePerShare(address(pendleVault));
+        uint256 ppsAfter = ERC5115YieldSourceOracle(yieldSourceOracle5115).getPricePerShare(address(pendleVault));
 
         assertGt(ppsAfter, ppsBefore);
 
@@ -217,15 +200,11 @@ contract PendlePriceIntegration is BaseE2ETest {
         _getTokens(underlying, nexusAccount, amount);
     }
 
-    function _prepareDepositExecutorEntry(uint256 amount)
-        private
-        view
-        returns (ISuperExecutor.ExecutorEntry memory entry)
-    {
+    function _prepareDepositExecutorEntry(uint256 amount) private returns (ISuperExecutor.ExecutorEntry memory entry) {
         address[] memory hooksAddresses = new address[](2);
         bytes[] memory hooksData = new bytes[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_5115_VAULT_HOOK_KEY);
+        hooksAddresses[0] = approveHook;
+        hooksAddresses[1] = address(new Deposit5115VaultHook());
         hooksData[0] = _createApproveHookData(underlying, address(pendleVault), amount, false);
         hooksData[1] = _create5115DepositHookData(
             bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
@@ -235,12 +214,11 @@ contract PendlePriceIntegration is BaseE2ETest {
 
     function _prepareWithdrawExecutorEntry(uint256 amount)
         private
-        view
         returns (ISuperExecutor.ExecutorEntry memory entry)
     {
         address[] memory hooksAddresses = new address[](1);
         bytes[] memory hooksData = new bytes[](1);
-        hooksAddresses[0] = _getHookAddress(ETH, REDEEM_5115_VAULT_HOOK_KEY);
+        hooksAddresses[0] = address(new Redeem5115VaultHook());
         hooksData[0] = _create5115RedeemHookData(
             bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
         );

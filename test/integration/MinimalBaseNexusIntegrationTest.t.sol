@@ -7,32 +7,56 @@ import "modulekit/accounts/common/lib/ModeLib.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
-import { INexus } from "../src/vendor/nexus/INexus.sol";
-import { INexusFactory } from "../src/vendor/nexus/INexusFactory.sol";
-import { BootstrapConfig, INexusBootstrap } from "../src/vendor/nexus/INexusBootstrap.sol";
-import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
+import { Helpers } from "../utils/Helpers.sol";
+import { MerkleTreeHelper } from "../utils/MerkleTreeHelper.sol";
+import { InternalHelpers } from "../utils/InternalHelpers.sol";
+
+import { INexus } from "../../src/vendor/nexus/INexus.sol";
+import { INexusFactory } from "../../src/vendor/nexus/INexusFactory.sol";
+import { BootstrapConfig, INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
+import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
 
 // Superform
-import { IMinimalEntryPoint, PackedUserOperation } from "../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
-import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
+import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
+import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { SuperMerkleValidator } from "../../src/core/validators/SuperMerkleValidator.sol";
+import { SuperLedgerConfiguration } from "../../src/core/accounting/SuperLedgerConfiguration.sol";
+import { SuperExecutor } from "../../src/core/executors/SuperExecutor.sol";
+import { ERC4626YieldSourceOracle } from "../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC5115YieldSourceOracle } from "../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import { ERC7540YieldSourceOracle } from "../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { SuperLedger } from "../../src/core/accounting/SuperLedger.sol";
+import { ERC5115Ledger } from "../../src/core/accounting/ERC5115Ledger.sol";
+import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ApproveERC20Hook } from "../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { Deposit4626VaultHook } from "../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { Redeem4626VaultHook } from "../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
 
-import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
-import "./BaseTest.t.sol";
+abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, InternalHelpers {
+    SuperMerkleValidator public superMerkleValidator;
+    INexusFactory public nexusFactory;
+    INexusBootstrap public nexusBootstrap;
+    SuperExecutor public superExecutorModule;
+    ISuperLedgerConfiguration public ledgerConfig;
+    ISuperLedger public ledger;
+    bytes32 public initSalt;
 
-contract BaseE2ETest is BaseTest {
-    SuperMerkleValidator superMerkleValidator;
-    INexusFactory nexusFactory;
-    INexusBootstrap nexusBootstrap;
-    SuperExecutor superExecutorModule;
+    address public signer;
+    uint256 public signerPrvKey;
+    uint256 public blockNumber;
+    address public approveHook;
+    address public deposit4626Hook;
+    address public redeem4626Hook;
+    address public yieldSourceOracle4626;
+    address public yieldSourceOracle5115;
+    address public yieldSourceOracle7540;
 
-    bytes32 initSalt;
-
-    address signer;
-    uint256 signerPrvKey;
-
-    function setUp() public virtual override {
-        super.setUp();
-        vm.selectFork(FORKS[ETH]);
+    function setUp() public virtual {
+        blockNumber != 0
+            ? vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), blockNumber)
+            : vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
+        MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
 
         (signer, signerPrvKey) = makeAddrAndKey("signer");
 
@@ -44,8 +68,47 @@ contract BaseE2ETest is BaseTest {
         vm.label(address(nexusFactory), "NexusFactory");
         nexusBootstrap = INexusBootstrap(CHAIN_1_NEXUS_BOOTSTRAP);
         vm.label(address(nexusBootstrap), "NexusBootstrap");
+        ledgerConfig = ISuperLedgerConfiguration(new SuperLedgerConfiguration());
 
-        superExecutorModule = SuperExecutor(_getContract(ETH, "SuperExecutor"));
+        superExecutorModule = new SuperExecutor(address(ledgerConfig));
+
+        address[] memory allowedExecutors = new address[](1);
+        allowedExecutors[0] = address(superExecutorModule);
+
+        ledger = ISuperLedger(address(new SuperLedger(address(ledgerConfig), allowedExecutors)));
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
+        yieldSourceOracle4626 = address(new ERC4626YieldSourceOracle());
+        yieldSourceOracle5115 = address(new ERC5115YieldSourceOracle());
+        yieldSourceOracle7540 = address(new ERC7540YieldSourceOracle());
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceOracle: yieldSourceOracle4626,
+            feePercent: 100,
+            feeRecipient: makeAddr("feeRecipient"),
+            ledger: address(ledger)
+        });
+        configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceOracle: yieldSourceOracle7540,
+            feePercent: 100,
+            feeRecipient: makeAddr("feeRecipient"),
+            ledger: address(ledger)
+        });
+
+        configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceOracle: yieldSourceOracle5115,
+            feePercent: 100,
+            feeRecipient: makeAddr("feeRecipient"),
+            ledger: address(new ERC5115Ledger(address(ledgerConfig), allowedExecutors))
+        });
+        ledgerConfig.setYieldSourceOracles(configs);
+
+        approveHook = address(new ApproveERC20Hook());
+        deposit4626Hook = address(new Deposit4626VaultHook());
+        redeem4626Hook = address(new Redeem4626VaultHook());
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -27,7 +27,7 @@ import { ERC7579Precompiles } from "modulekit/deployment/precompiles/ERC7579Prec
 import "modulekit/accounts/erc7579/ERC7579Factory.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 import { Helpers } from "../../utils/Helpers.sol";
-import { InternalHelpers } from "../../InternalHelpers.sol";
+import { InternalHelpers } from "../../utils/InternalHelpers.sol";
 import {
     RhinestoneModuleKit,
     ModuleKitHelpers,
@@ -77,7 +77,7 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
     address mockOdosRouter;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), 21_929_476);
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), ETH_BLOCK);
         underlying = CHAIN_1_USDC;
 
         yieldSourceAddress = CHAIN_1_MorphoVault;
