@@ -100,18 +100,6 @@ import { GearboxClaimRewardHook } from "../src/core/hooks/claim/gearbox/GearboxC
 // --- Yearn
 import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
 
-// --- Pendle
-import {
-    IPendleRouterV4,
-    LimitOrderData,
-    FillOrderParams,
-    TokenInput,
-    TokenOutput,
-    ApproxParams,
-    SwapType,
-    SwapData
-} from "../src/vendor/pendle/IPendleRouterV4.sol";
-
 // --- Ethena
 import { EthenaCooldownSharesHook } from "../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
 import { EthenaUnstakeHook } from "../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
@@ -142,7 +130,6 @@ import { DebridgeDlnHelper } from "pigeon/debridge/DebridgeDlnHelper.sol";
 import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
 import { AcrossV3Adapter } from "../src/core/adapters/AcrossV3Adapter.sol";
 import { DebridgeAdapter } from "../src/core/adapters/DebridgeAdapter.sol";
-import { IOdosRouterV2 } from "../src/vendor/odos/IOdosRouterV2.sol";
 import { SuperGovernor } from "../src/periphery/SuperGovernor.sol";
 
 // SuperformNativePaymaster
@@ -165,6 +152,9 @@ import { MockSuperExecutor } from "./mocks/MockSuperExecutor.sol";
 import { MockLockVault } from "./mocks/MockLockVault.sol";
 import { MockTargetExecutor } from "./mocks/MockTargetExecutor.sol";
 import { MockBaseHook } from "./mocks/MockBaseHook.sol";
+
+import { DlnExternalCallLib } from "../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
+
 import "forge-std/console2.sol";
 
 struct Addresses {
@@ -1680,6 +1670,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return instance.exec(address(superExecutor), abi.encodeCall(superExecutor.execute, (data)));
     }
 
+    /*//////////////////////////////////////////////////////////////
+                    BRIDGE AND DST EXECUTION HELPERS
+    //////////////////////////////////////////////////////////////*/
     enum RELAYER_TYPE {
         NOT_ENOUGH_BALANCE,
         ENOUGH_BALANCE,
@@ -1758,18 +1751,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
     }
 
-    struct FeeParams {
-        ISuperLedger.LedgerEntry[] entries;
-        uint256 unconsumedEntries;
-        uint256 amountAssets;
-        uint256 usedShares;
-        uint256 feePercent;
-        uint256 decimals;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 ACROSS TARGET EXECUTOR HELPERS
-    //////////////////////////////////////////////////////////////*/
     struct TargetExecutorMessage {
         address[] hooksAddresses;
         bytes[] hooksData;
@@ -1927,10 +1908,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return (abi.encode(initData, initSalt), precomputedAddress);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                 HOOK DATA CREATORS
-    //////////////////////////////////////////////////////////////*/
-
     function _createAcrossV3ReceiveFundsAndExecuteHookData(
         address inputToken,
         address outputToken,
@@ -1989,205 +1966,101 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
     }
 
-    function _createPendleRouterSwapHookDataWithOdos(
-        address market,
-        address account,
-        bool usePrevHookAmount,
-        uint256 value,
-        bool ptToToken,
-        uint256 amount,
-        address tokenIn,
-        address tokenMint,
-        uint64 chainId
-    )
-        internal
-        returns (bytes memory)
-    {
-        bytes memory pendleTxData;
-        if (!ptToToken) {
-            // call Odos swapAPI to get the calldata
-            // note, odos swap receiver has to be pendle router
-            bytes memory odosCalldata =
-                _createOdosSwapCalldataRequest(tokenIn, tokenMint, amount, PENDLE_ROUTERS[chainId]);
-
-            decodeOdosSwapCalldata(odosCalldata);
-
-            pendleTxData = _createTokenToPtPendleTxDataWithOdos(
-                market, account, tokenIn, 1, amount, tokenMint, odosCalldata, chainId
-            );
-        } else {
-            //TODO: fill with the other
-            revert("Not implemented");
-        }
-        return abi.encodePacked(
-            /**
-             * yieldSourceOracleId
-             */
-            bytes4(bytes("")),
-            /**
-             * yieldSource
-             */
-            market,
-            usePrevHookAmount,
-            value,
-            pendleTxData
-        );
-    }
-
-    function _createOdosSwapCalldataRequest(
-        address _tokenIn,
-        address _tokenOut,
-        uint256 _amount,
-        address _receiver
-    )
-        internal
-        returns (bytes memory)
-    {
-        // get pathId
-        QuoteInputToken[] memory inputTokens = new QuoteInputToken[](1);
-        inputTokens[0] = QuoteInputToken({ tokenAddress: _tokenIn, amount: _amount });
-        QuoteOutputToken[] memory outputTokens = new QuoteOutputToken[](1);
-        outputTokens[0] = QuoteOutputToken({ tokenAddress: _tokenOut, proportion: 1 });
-        string memory pathId = surlCallQuoteV2(inputTokens, outputTokens, _receiver, ETH, true);
-
-        // get assemble data
-        string memory swapCompactData = surlCallAssemble(pathId, _receiver);
-        return fromHex(swapCompactData);
-    }
-
-    function _createTokenToPtPendleTxDataWithOdos(
-        address _market,
-        address _receiver,
-        address _tokenIn,
-        uint256 _minPtOut,
-        uint256 _amount,
-        address _tokenMintSY,
-        bytes memory _odosCalldata,
-        uint64 chainId
-    )
-        internal
-        view
-        returns (bytes memory pendleTxData)
-    {
-        // no limit order needed
-        LimitOrderData memory limit = LimitOrderData({
-            limitRouter: address(0),
-            epsSkipMarket: 0,
-            normalFills: new FillOrderParams[](0),
-            flashFills: new FillOrderParams[](0),
-            optData: "0x"
-        });
-
-        // TokenInput
-        TokenInput memory input = TokenInput({
-            tokenIn: _tokenIn,
-            netTokenIn: _amount,
-            tokenMintSy: _tokenMintSY, //CHAIN_1_cUSDO,
-            pendleSwap: PENDLE_SWAP[chainId],
-            swapData: SwapData({
-                extRouter: ODOS_ROUTER[chainId],
-                extCalldata: _odosCalldata,
-                needScale: false,
-                swapType: SwapType.ODOS
-            })
-        });
-        /*
-        The guessMax and guessOffchain are being set based on the initial USDC _amount (1e6). However, these guesses are
-        used for the internal Pendle swap which involves SY and PT tokens, likely with 18 decimals and completely
-        different magnitudes. A guessMax of 2e6 wei for an 18-decimal token is extremely small and likely far below the
-        actual expected PT output amount. The true value falls outside the provided [guessMin, guessMax] range, causing
-        the approximation to fail.
-        We need to provide more realistic bounds for the expected PT output. Since 1 USDC is roughly $1 and the PT is
-        likely near par, a reasonable very rough guess for the PT amount (18 decimals) might be around 1e18. Let's widen
-        the approximation bounds significantly.*/
-        ApproxParams memory guessPtOut = ApproxParams({
-            guessMin: 1,
-            guessMax: 1e24,
-            guessOffchain: 1e18,
-            maxIteration: 30,
-            eps: 10_000_000_000_000
-        });
-
-        pendleTxData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactTokenForPt.selector, _receiver, _market, _minPtOut, guessPtOut, input, limit
-        );
-    }
-
-    function _createOdosCallData(
-        address inputToken,
-        uint256 amount,
-        address outputToken,
-        address account
-    )
-        internal
-        returns (bytes memory)
-    {
-        QuoteInputToken[] memory quoteInputTokens = new QuoteInputToken[](1);
-        quoteInputTokens[0] = QuoteInputToken({ tokenAddress: inputToken, amount: amount });
-
-        QuoteOutputToken[] memory quoteOutputTokens = new QuoteOutputToken[](1);
-        quoteOutputTokens[0] = QuoteOutputToken({ tokenAddress: outputToken, proportion: 1 });
-
-        string memory path = surlCallQuoteV2(quoteInputTokens, quoteOutputTokens, account, ETH, false);
-        string memory requestBody = surlCallAssemble(path, account);
-
-        OdosDecodedSwap memory odosDecodedSwap = decodeOdosSwapCalldata(fromHex(requestBody));
-
-        bytes memory odosCallData = _createOdosSwapHookData(
-            odosDecodedSwap.tokenInfo.inputToken,
-            odosDecodedSwap.tokenInfo.inputAmount,
-            odosDecodedSwap.tokenInfo.inputReceiver,
-            odosDecodedSwap.tokenInfo.outputToken,
-            odosDecodedSwap.tokenInfo.outputQuote,
-            odosDecodedSwap.tokenInfo.outputMin,
-            odosDecodedSwap.pathDefinition,
-            odosDecodedSwap.executor,
-            odosDecodedSwap.referralCode,
-            false
-        );
-
-        return odosCallData;
-    }
-
-    function _createPendleRedeemHookData(
-        uint256 amount,
-        address yt,
-        address pt,
-        address tokenOut,
-        address tokenRedeemSy,
-        uint256 minTokenOut,
-        bool usePrevHookAmount
+    /**
+     * @notice Creates the external call envelope for Debridge DLN V1.
+     * @param executorAddress The address of the contract to execute the payload on the destination chain.
+     * @param executionFee Fee for the executor.
+     * @param fallbackAddress Address to receive funds if execution fails.
+     * @param payload The actual data to be executed by the executorAddress.
+     * @param allowDelayedExecution Whether delayed execution is allowed.
+     * @param requireSuccessfulExecution Whether the external call must succeed.
+     * @return The encoded external call envelope V1, prefixed with version byte.
+     */
+    function _createDebridgeExternalCallEnvelope(
+        address executorAddress,
+        uint160 executionFee,
+        address fallbackAddress,
+        bytes memory payload,
+        bool allowDelayedExecution,
+        bool requireSuccessfulExecution // Note: Keep typo from library 'requireSuccessfullExecution'
     )
         internal
         pure
         returns (bytes memory)
     {
+        DlnExternalCallLib.ExternalCallEnvelopV1 memory dataEnvelope = DlnExternalCallLib.ExternalCallEnvelopV1({
+            executorAddress: executorAddress,
+            executionFee: executionFee,
+            fallbackAddress: fallbackAddress,
+            payload: payload,
+            allowDelayedExecution: allowDelayedExecution,
+            requireSuccessfullExecution: requireSuccessfulExecution
+        });
+
+        // Prepend version byte (1) to the encoded envelope
+        return abi.encodePacked(uint8(1), abi.encode(dataEnvelope));
+    }
+
+    struct DebridgeOrderData {
+        bool usePrevHookAmount;
+        uint256 value;
+        address giveTokenAddress;
+        uint256 giveAmount;
+        address takeTokenAddress;
+        uint256 takeAmount;
+        uint256 takeChainId;
+        address receiverDst;
+        address givePatchAuthoritySrc;
+        bytes orderAuthorityAddressDst;
+        bytes allowedTakerDst;
+        bytes externalCall;
+        bytes allowedCancelBeneficiarySrc;
+        bytes affiliateFee;
+        uint32 referralCode;
+    }
+
+    function _createDebridgeSendFundsAndExecuteHookData(DebridgeOrderData memory d)
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        bytes memory part1 = _encodeDebridgePart1(d);
+        bytes memory part2 = _encodeDebridgePart2(d);
+        hookData = bytes.concat(part1, part2);
+    }
+
+    function _encodeDebridgePart1(DebridgeOrderData memory d) internal pure returns (bytes memory) {
+        bytes memory takeTokenAddressBytes = abi.encodePacked(d.takeTokenAddress);
+        bytes memory receiverDstBytes = abi.encodePacked(d.receiverDst);
+
         return abi.encodePacked(
-            amount,
-            yt,
-            pt,
-            tokenOut,
-            minTokenOut,
-            usePrevHookAmount,
-            abi.encode(_createPendleRedeemTokenOutput(tokenOut, minTokenOut, tokenRedeemSy))
+            d.usePrevHookAmount,
+            d.value,
+            d.giveTokenAddress,
+            d.giveAmount,
+            takeTokenAddressBytes.length,
+            takeTokenAddressBytes,
+            d.takeAmount,
+            d.takeChainId,
+            receiverDstBytes.length,
+            receiverDstBytes,
+            d.givePatchAuthoritySrc,
+            d.orderAuthorityAddressDst.length,
+            d.orderAuthorityAddressDst
         );
     }
 
-    function _createPendleRedeemTokenOutput(
-        address tokenOut,
-        uint256 minTokenOut,
-        address tokenRedeemSy
-    )
-        internal
-        pure
-        returns (TokenOutput memory)
-    {
-        return TokenOutput({
-            tokenOut: tokenOut,
-            minTokenOut: minTokenOut,
-            tokenRedeemSy: tokenRedeemSy,
-            pendleSwap: address(0),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: bytes(""), needScale: false })
-        });
+    function _encodeDebridgePart2(DebridgeOrderData memory d) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            d.allowedTakerDst.length,
+            d.allowedTakerDst,
+            d.externalCall.length,
+            d.externalCall,
+            d.allowedCancelBeneficiarySrc.length,
+            d.allowedCancelBeneficiarySrc,
+            d.affiliateFee.length,
+            d.affiliateFee,
+            d.referralCode
+        );
     }
 }

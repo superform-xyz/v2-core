@@ -3,9 +3,7 @@ pragma solidity >=0.8.28;
 
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import "../src/vendor/1inch/I1InchAggregationRouterV6.sol";
-import { IOdosRouterV2 } from "../src/vendor/odos/IOdosRouterV2.sol";
 import { SpectraCommands } from "../src/vendor/spectra/SpectraCommands.sol";
-import { DlnExternalCallLib } from "../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
 import { console2 } from "forge-std/console2.sol";
 import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
 import { UserOpData, AccountInstance, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
@@ -68,35 +66,197 @@ abstract contract InternalHelpers {
         return userOpData;
     }
 
-    // -- Hooks
-    function _createSignatureData_AcrossTargetExecutor(
-        uint48 validUntil,
-        bytes32 merkleRoot,
-        bytes32[] memory merkleProof,
-        bytes memory signature
+    /*//////////////////////////////////////////////////////////////
+                                 SWAPPERS
+    //////////////////////////////////////////////////////////////*/
+
+    function _create1InchGenericRouterSwapHookData(
+        address dstReceiver,
+        address dstToken,
+        address executor,
+        I1InchAggregationRouterV6.SwapDescription memory desc,
+        bytes memory data,
+        bool usePrevHookAmount
     )
         internal
         pure
         returns (bytes memory)
     {
-        return abi.encode(validUntil, merkleRoot, merkleProof, signature);
+        bytes memory _calldata =
+            abi.encodeWithSelector(I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, data);
+
+        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
     }
 
-    function _createExecutionData_AcrossTargetExecutor(
-        address[] memory hooksAddresses,
-        bytes[] memory hooksData
+    function _create1InchUnoswapToHookData(
+        address dstReceiver,
+        address dstToken,
+        Address receiverUint256,
+        Address fromTokenUint256,
+        uint256 decodedFromAmount,
+        uint256 minReturn,
+        Address dex,
+        bool usePrevHookAmount
     )
         internal
         pure
         returns (bytes memory)
     {
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        console2.log(
-            "length of execution ",
-            (abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute))).length
+        bytes memory _calldata = abi.encodeWithSelector(
+            I1InchAggregationRouterV6.unoswapTo.selector,
+            receiverUint256,
+            fromTokenUint256,
+            decodedFromAmount,
+            minReturn,
+            dex
         );
-        return abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
+
+        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
+    }
+
+    function _create1InchClipperSwapToHookData(
+        address dstReceiver,
+        address dstToken,
+        address exchange,
+        Address srcToken,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory _calldata = abi.encodeWithSelector(
+            I1InchAggregationRouterV6.clipperSwapTo.selector,
+            exchange,
+            payable(dstReceiver),
+            srcToken,
+            dstToken,
+            amount,
+            amount,
+            0,
+            bytes32(0),
+            bytes32(0)
+        );
+
+        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
+    }
+
+    function _createOdosSwapHookData(
+        address inputToken,
+        uint256 inputAmount,
+        address inputReceiver,
+        address outputToken,
+        uint256 outputQuote,
+        uint256 outputMin,
+        bytes memory pathDefinition,
+        address executor,
+        uint32 referralCode,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(
+            inputToken,
+            inputAmount,
+            inputReceiver,
+            outputToken,
+            outputQuote,
+            outputMin,
+            usePrevHookAmount,
+            pathDefinition.length,
+            pathDefinition,
+            executor,
+            referralCode
+        );
+    }
+
+    function _createSpectraExchangeSwapHookData(
+        bool usePrevHookAmount,
+        uint256 value,
+        address ptToken,
+        address tokenIn,
+        uint256 amount,
+        address account
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory txData = _createSpectraExchangeSimpleCommandTxData(ptToken, tokenIn, amount, account);
+        return abi.encodePacked(
+            /**
+             * yieldSourceOracleId
+             */
+            bytes4(bytes("")),
+            /**
+             * yieldSource
+             */
+            ptToken,
+            usePrevHookAmount,
+            value,
+            txData
+        );
+    }
+
+    function _createSpectraExchangeSimpleCommandTxData(
+        address ptToken_,
+        address tokenIn_,
+        uint256 amount_,
+        address account_
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory commandsData = new bytes(2);
+        commandsData[0] = bytes1(uint8(SpectraCommands.TRANSFER_FROM));
+        commandsData[1] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
+
+        /// https://dev.spectra.finance/technical-reference/contract-functions/router#deposit_asset_in_pt-command
+        // ptToken
+        // amount
+        // ptRecipient
+        // ytRecipient
+        // minShares
+        bytes[] memory inputs = new bytes[](2);
+        inputs[0] = abi.encode(tokenIn_, amount_);
+        inputs[1] = abi.encode(ptToken_, amount_, account_, account_, 1);
+
+        return abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
+    }
+
+    function _createMockOdosSwapHookData(
+        address inputToken,
+        uint256 inputAmount,
+        address inputReceiver,
+        address outputToken,
+        uint256 outputQuote,
+        uint256 outputMin,
+        bytes memory pathDefinition,
+        address executor,
+        uint32 referralCode,
+        bool usePrevHookAmount
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            inputToken,
+            inputAmount,
+            inputReceiver,
+            outputToken,
+            outputQuote,
+            outputMin,
+            usePrevHookAmount,
+            pathDefinition.length,
+            pathDefinition,
+            executor,
+            referralCode
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -239,88 +399,6 @@ abstract contract InternalHelpers {
         );
     }
 
-    struct DebridgeOrderData {
-        bool usePrevHookAmount;
-        uint256 value;
-        address giveTokenAddress;
-        uint256 giveAmount;
-        address takeTokenAddress;
-        uint256 takeAmount;
-        uint256 takeChainId;
-        address receiverDst;
-        address givePatchAuthoritySrc;
-        bytes orderAuthorityAddressDst;
-        bytes allowedTakerDst;
-        bytes externalCall;
-        bytes allowedCancelBeneficiarySrc;
-        bytes affiliateFee;
-        uint32 referralCode;
-    }
-
-    function _createDebridgeSendFundsAndExecuteHookData(DebridgeOrderData memory d)
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        bytes memory part1 = _encodeDebridgePart1(d);
-        bytes memory part2 = _encodeDebridgePart2(d);
-        hookData = bytes.concat(part1, part2);
-    }
-
-    function _encodeDebridgePart1(DebridgeOrderData memory d) internal pure returns (bytes memory) {
-        bytes memory takeTokenAddressBytes = abi.encodePacked(d.takeTokenAddress);
-        bytes memory receiverDstBytes = abi.encodePacked(d.receiverDst);
-
-        return abi.encodePacked(
-            d.usePrevHookAmount,
-            d.value,
-            d.giveTokenAddress,
-            d.giveAmount,
-            takeTokenAddressBytes.length,
-            takeTokenAddressBytes,
-            d.takeAmount,
-            d.takeChainId,
-            receiverDstBytes.length,
-            receiverDstBytes,
-            d.givePatchAuthoritySrc,
-            d.orderAuthorityAddressDst.length,
-            d.orderAuthorityAddressDst
-        );
-    }
-
-    function _encodeDebridgePart2(DebridgeOrderData memory d) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            d.allowedTakerDst.length,
-            d.allowedTakerDst,
-            d.externalCall.length,
-            d.externalCall,
-            d.allowedCancelBeneficiarySrc.length,
-            d.allowedCancelBeneficiarySrc,
-            d.affiliateFee.length,
-            d.affiliateFee,
-            d.referralCode
-        );
-    }
-
-    function _encodeUserOp(UserOpData memory userOpData, uint256 intentAmount) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            userOpData.userOp.sender, // account
-            intentAmount,
-            userOpData.userOp.sender, // sender
-            userOpData.userOp.nonce,
-            userOpData.userOp.initCode.length,
-            userOpData.userOp.initCode,
-            userOpData.userOp.callData.length,
-            userOpData.userOp.callData,
-            userOpData.userOp.accountGasLimits,
-            userOpData.userOp.preVerificationGas,
-            userOpData.userOp.gasFees,
-            userOpData.userOp.paymasterAndData.length,
-            userOpData.userOp.paymasterAndData,
-            userOpData.userOp.signature
-        );
-    }
-
     function _createRequestDeposit7540VaultHookData(
         bytes4 yieldSourceOracleId,
         address yieldSource,
@@ -420,142 +498,6 @@ abstract contract InternalHelpers {
     {
         return abi.encodePacked(
             yieldSourceOracleId, yieldSource, tokenIn, amount, minSharesOut, usePrevHookAmount, lockForSP
-        );
-    }
-
-    function _createPermitHookData(
-        address token,
-        address spender,
-        uint256 amount,
-        uint256 expiration,
-        uint256 sigDeadline,
-        uint256 nonce
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(token, uint160(amount), uint48(expiration), uint48(nonce), spender, sigDeadline);
-    }
-
-    function _create1InchGenericRouterSwapHookData(
-        address dstReceiver,
-        address dstToken,
-        address executor,
-        I1InchAggregationRouterV6.SwapDescription memory desc,
-        bytes memory data,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory _calldata =
-            abi.encodeWithSelector(I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, data);
-
-        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
-    }
-
-    function _create1InchUnoswapToHookData(
-        address dstReceiver,
-        address dstToken,
-        Address receiverUint256,
-        Address fromTokenUint256,
-        uint256 decodedFromAmount,
-        uint256 minReturn,
-        Address dex,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory _calldata = abi.encodeWithSelector(
-            I1InchAggregationRouterV6.unoswapTo.selector,
-            receiverUint256,
-            fromTokenUint256,
-            decodedFromAmount,
-            minReturn,
-            dex
-        );
-
-        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
-    }
-
-    function _create1InchClipperSwapToHookData(
-        address dstReceiver,
-        address dstToken,
-        address exchange,
-        Address srcToken,
-        uint256 amount,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory _calldata = abi.encodeWithSelector(
-            I1InchAggregationRouterV6.clipperSwapTo.selector,
-            exchange,
-            payable(dstReceiver),
-            srcToken,
-            dstToken,
-            amount,
-            amount,
-            0,
-            bytes32(0),
-            bytes32(0)
-        );
-
-        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
-    }
-
-    function _createOdosSwap(
-        address inputToken,
-        uint256 inputAmount,
-        address inputReceiver,
-        address outputToken,
-        uint256 outputQuote,
-        uint256 outputMin,
-        address account
-    )
-        internal
-        pure
-        returns (IOdosRouterV2.swapTokenInfo memory)
-    {
-        return IOdosRouterV2.swapTokenInfo(
-            inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, account
-        );
-    }
-
-    function _createOdosSwapHookData(
-        address inputToken,
-        uint256 inputAmount,
-        address inputReceiver,
-        address outputToken,
-        uint256 outputQuote,
-        uint256 outputMin,
-        bytes memory pathDefinition,
-        address executor,
-        uint32 referralCode,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(
-            inputToken,
-            inputAmount,
-            inputReceiver,
-            outputToken,
-            outputQuote,
-            outputMin,
-            usePrevHookAmount,
-            pathDefinition.length,
-            pathDefinition,
-            executor,
-            referralCode
         );
     }
 
@@ -693,160 +635,6 @@ abstract contract InternalHelpers {
     {
         return
             abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment);
-    }
-
-    function _createSpectraExchangeSwapHookData(
-        bool usePrevHookAmount,
-        uint256 value,
-        address ptToken,
-        address tokenIn,
-        uint256 amount,
-        address account
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory txData = _createSpectraExchangeSimpleCommandTxData(ptToken, tokenIn, amount, account);
-        return abi.encodePacked(
-            /**
-             * yieldSourceOracleId
-             */
-            bytes4(bytes("")),
-            /**
-             * yieldSource
-             */
-            ptToken,
-            usePrevHookAmount,
-            value,
-            txData
-        );
-    }
-
-    function _createSpectraExchangeSimpleCommandTxData(
-        address ptToken_,
-        address tokenIn_,
-        uint256 amount_,
-        address account_
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory commandsData = new bytes(2);
-        commandsData[0] = bytes1(uint8(SpectraCommands.TRANSFER_FROM));
-        commandsData[1] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
-
-        /// https://dev.spectra.finance/technical-reference/contract-functions/router#deposit_asset_in_pt-command
-        // ptToken
-        // amount
-        // ptRecipient
-        // ytRecipient
-        // minShares
-        bytes[] memory inputs = new bytes[](2);
-        inputs[0] = abi.encode(tokenIn_, amount_);
-        inputs[1] = abi.encode(ptToken_, amount_, account_, account_, 1);
-
-        return abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
-    }
-
-    function _createApproveAndSwapOdosHookData(
-        address inputToken,
-        uint256 inputAmount,
-        address inputReceiver,
-        address outputToken,
-        uint256 outputQuote,
-        uint256 outputMin,
-        bytes memory pathDefinition,
-        address executor,
-        uint32 referralCode,
-        bool usePrevHookAmount,
-        address approveSpender
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(
-            inputToken,
-            inputAmount,
-            inputReceiver,
-            outputToken,
-            outputQuote,
-            outputMin,
-            usePrevHookAmount,
-            approveSpender,
-            pathDefinition.length,
-            pathDefinition,
-            executor,
-            referralCode
-        );
-    }
-
-    function _createMockOdosSwapHookData(
-        address inputToken,
-        uint256 inputAmount,
-        address inputReceiver,
-        address outputToken,
-        uint256 outputQuote,
-        uint256 outputMin,
-        bytes memory pathDefinition,
-        address executor,
-        uint32 referralCode,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(
-            inputToken,
-            inputAmount,
-            inputReceiver,
-            outputToken,
-            outputQuote,
-            outputMin,
-            usePrevHookAmount,
-            pathDefinition.length,
-            pathDefinition,
-            executor,
-            referralCode
-        );
-    }
-
-    /**
-     * @notice Creates the external call envelope for Debridge DLN V1.
-     * @param executorAddress The address of the contract to execute the payload on the destination chain.
-     * @param executionFee Fee for the executor.
-     * @param fallbackAddress Address to receive funds if execution fails.
-     * @param payload The actual data to be executed by the executorAddress.
-     * @param allowDelayedExecution Whether delayed execution is allowed.
-     * @param requireSuccessfulExecution Whether the external call must succeed.
-     * @return The encoded external call envelope V1, prefixed with version byte.
-     */
-    function _createDebridgeExternalCallEnvelope(
-        address executorAddress,
-        uint160 executionFee,
-        address fallbackAddress,
-        bytes memory payload,
-        bool allowDelayedExecution,
-        bool requireSuccessfulExecution // Note: Keep typo from library 'requireSuccessfullExecution'
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        DlnExternalCallLib.ExternalCallEnvelopV1 memory dataEnvelope = DlnExternalCallLib.ExternalCallEnvelopV1({
-            executorAddress: executorAddress,
-            executionFee: executionFee,
-            fallbackAddress: fallbackAddress,
-            payload: payload,
-            allowDelayedExecution: allowDelayedExecution,
-            requireSuccessfullExecution: requireSuccessfulExecution
-        });
-
-        // Prepend version byte (1) to the encoded envelope
-        return abi.encodePacked(uint8(1), abi.encode(dataEnvelope));
     }
 
     function _createBatchTransferFromHookData(
