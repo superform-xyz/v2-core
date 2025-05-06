@@ -42,6 +42,11 @@ contract DebridgeAdapter is IExternalCallExecutor {
         externalCallAdapter = _externalCallAdapter;
     }
 
+    modifier onlyExternalCallAdapter() {
+        if (msg.sender != externalCallAdapter) revert ONLY_EXTERNAL_CALL_ADAPTER();
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -53,9 +58,9 @@ contract DebridgeAdapter is IExternalCallExecutor {
     )
         external
         payable
+        onlyExternalCallAdapter
         returns (bool callSucceeded, bytes memory callResult)
     {
-        _onlyExternalCallAdapter();
         (
             bytes memory initData,
             bytes memory executorCalldata,
@@ -86,9 +91,9 @@ contract DebridgeAdapter is IExternalCallExecutor {
         bytes memory _payload
     )
         external
+        onlyExternalCallAdapter
         returns (bool callSucceeded, bytes memory callResult)
     {
-        _onlyExternalCallAdapter();
         (
             bytes memory initData,
             bytes memory executorCalldata,
@@ -112,11 +117,6 @@ contract DebridgeAdapter is IExternalCallExecutor {
     /*//////////////////////////////////////////////////////////////
                                 PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-
-    function _onlyExternalCallAdapter() private view {
-        if (msg.sender != externalCallAdapter) revert ONLY_EXTERNAL_CALL_ADAPTER();
-    }
-
     function _handleMessageReceived(address tokenSent, bytes memory initData, bytes memory executorCalldata, address account, uint256 intentAmount, bytes memory sigData) private {
         // Call the core executor's standardized function
         superDestinationExecutor.processBridgedExecution(
