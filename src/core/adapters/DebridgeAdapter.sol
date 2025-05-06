@@ -5,6 +5,8 @@ pragma solidity 0.8.28;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IDlnDestination } from "../../vendor/debridge/IDlnDestination.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 
 // Superform Interfaces
 import { ISuperDestinationExecutor } from "../interfaces/ISuperDestinationExecutor.sol";
@@ -14,7 +16,7 @@ import { IExternalCallExecutor } from "../../vendor/bridges/debridge/IExternalCa
 /// @author Superform Labs
 /// @notice Receives messages from the Debridge protocol and forwards them to the SuperDestinationExecutor.
 /// @notice This contract acts as a translator between the Debridge protocol and the core Superform execution logic.
-contract DebridgeAdapter is IExternalCallExecutor {
+contract DebridgeAdapter is IExternalCallExecutor, ReentrancyGuard {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
@@ -53,6 +55,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
     )
         external
         payable
+        nonReentrant
         returns (bool callSucceeded, bytes memory callResult)
     {
         _onlyExternalCallAdapter();
@@ -80,6 +83,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
         bytes memory _payload
     )
         external
+        nonReentrant
         returns (bool callSucceeded, bytes memory callResult)
     {
         _onlyExternalCallAdapter();
