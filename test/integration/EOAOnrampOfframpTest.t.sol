@@ -1,24 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import { BaseTest } from "../BaseTest.t.sol";
-import { AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
+import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
+import { UserOpData } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { IAllowanceTransfer } from "../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
 import { TrustedForwarder } from "modulekit/module-bases/utils/TrustedForwarder.sol";
 import { IPermit2Batch } from "../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
+import { BatchTransferFromHook } from "../../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
+import { TransferERC20Hook } from "../../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
 
-contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
+contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
     address public eoa;
-
-    AccountInstance public instance;
-    address public account;
 
     IAllowanceTransfer public permit2;
     IPermit2Batch public permit2Batch;
-
-    ISuperExecutor public superExecutor;
 
     address public usdc;
     address public weth;
@@ -37,14 +34,12 @@ contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
         keccak256("PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)");
 
     function setUp() public override {
-        useLatestFork = true;
+        blockNumber = 0;
         super.setUp();
 
-        vm.selectFork(FORKS[ETH]);
-
-        usdc = existingUnderlyingTokens[ETH][USDC_KEY];
-        weth = existingUnderlyingTokens[ETH][WETH_KEY];
-        dai = existingUnderlyingTokens[ETH][DAI_KEY];
+        usdc = CHAIN_1_USDC;
+        weth = CHAIN_1_WETH;
+        dai = CHAIN_1_DAI;
 
         tokens = new address[](3);
         tokens[0] = usdc;
@@ -63,21 +58,14 @@ contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
         deal(weth, eoa, 1e18);
         deal(dai, eoa, 1e18);
 
-        instance = accountInstances[ETH];
-        account = instance.account;
-
         permit2 = IAllowanceTransfer(PERMIT2);
         permit2Batch = IPermit2Batch(PERMIT2);
-
-        superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
     }
 
     function test_EOAOnrampOfframp() public {
-        vm.selectFork(FORKS[ETH]);
-
-        uint256 usdcBalanceBefore = IERC20(usdc).balanceOf(account);
-        uint256 wethBalanceBefore = IERC20(weth).balanceOf(account);
-        uint256 daiBalanceBefore = IERC20(dai).balanceOf(account);
+        uint256 usdcBalanceBefore = IERC20(usdc).balanceOf(accountEth);
+        uint256 wethBalanceBefore = IERC20(weth).balanceOf(accountEth);
+        uint256 daiBalanceBefore = IERC20(dai).balanceOf(accountEth);
 
         vm.startPrank(eoa);
         IERC20(usdc).approve(PERMIT2, 10e18);
@@ -94,7 +82,7 @@ contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
         permit2Batch.permit(eoa, permitBatch, sig);
 
         address[] memory hooks = new address[](1);
-        hooks[0] = _getHookAddress(ETH, BATCH_TRANSFER_FROM_HOOK_KEY);
+        hooks[0] = address(new BatchTransferFromHook(PERMIT2));
 
         bytes[] memory hookData = new bytes[](1);
         hookData[0] = _createBatchTransferFromHookData(eoa, 3, tokens, amounts);
@@ -102,22 +90,23 @@ contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookData });
 
-        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
         executeOp(userOpData);
 
-        assertEq(IERC20(usdc).balanceOf(account), usdcBalanceBefore + 1e18);
-        assertEq(IERC20(weth).balanceOf(account), wethBalanceBefore + 1e18);
-        assertEq(IERC20(dai).balanceOf(account), daiBalanceBefore + 1e18);
+        assertEq(IERC20(usdc).balanceOf(accountEth), usdcBalanceBefore + 1e18);
+        assertEq(IERC20(weth).balanceOf(accountEth), wethBalanceBefore + 1e18);
+        assertEq(IERC20(dai).balanceOf(accountEth), daiBalanceBefore + 1e18);
 
         uint256 usdcBalanceEOABefore = IERC20(usdc).balanceOf(eoa);
         uint256 wethBalanceEOABefore = IERC20(weth).balanceOf(eoa);
         uint256 daiBalanceEOABefore = IERC20(dai).balanceOf(eoa);
 
         address[] memory offrampHooks = new address[](3);
-        offrampHooks[0] = _getHookAddress(ETH, TRANSFER_ERC20_HOOK_KEY);
-        offrampHooks[1] = _getHookAddress(ETH, TRANSFER_ERC20_HOOK_KEY);
-        offrampHooks[2] = _getHookAddress(ETH, TRANSFER_ERC20_HOOK_KEY);
+        address transferHook = address(new TransferERC20Hook());
+        offrampHooks[0] = transferHook;
+        offrampHooks[1] = transferHook;
+        offrampHooks[2] = transferHook;
 
         bytes[] memory offrampHookData = new bytes[](3);
         offrampHookData[0] = _createTransferERC20HookData(usdc, eoa, 1e18, false);
@@ -127,7 +116,7 @@ contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
         ISuperExecutor.ExecutorEntry memory offrampEntry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: offrampHooks, hooksData: offrampHookData });
 
-        UserOpData memory offrampUserOpData = _getExecOps(instance, superExecutor, abi.encode(offrampEntry));
+        UserOpData memory offrampUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(offrampEntry));
 
         executeOp(offrampUserOpData);
 
@@ -159,7 +148,7 @@ contract EOAOnrampOfframpTest is BaseTest, TrustedForwarder {
 
         return IAllowanceTransfer.PermitBatch({
             details: details,
-            spender: account,
+            spender: accountEth,
             sigDeadline: block.timestamp + 1 weeks
         });
     }

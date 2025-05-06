@@ -12,7 +12,7 @@ import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { ISuperExecutor } from "../../../../../src/core/interfaces/ISuperExecutor.sol";
 import { SuperExecutor } from "../../../../../src/core/executors/SuperExecutor.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
-import { InternalHelpers } from "../../../../InternalHelpers.sol";
+import { InternalHelpers } from "../../../../utils/InternalHelpers.sol";
 import { MockLedger, MockLedgerConfiguration } from "../../../../mocks/MockLedger.sol";
 import { RhinestoneModuleKit, AccountInstance, UserOpData, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
@@ -43,7 +43,7 @@ contract ApproveAndRequestDeposit7540VaultHookTest is Helpers, RhinestoneModuleK
     MockLedgerConfiguration public ledgerConfig;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), 21_929_476);
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), ETH_BLOCK);
         instanceOnETH = makeAccountInstance(keccak256(abi.encode("TEST")));
         accountETH = instanceOnETH.account;
         feeRecipient = makeAddr("feeRecipient");

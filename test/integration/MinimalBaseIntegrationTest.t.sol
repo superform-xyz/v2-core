@@ -7,7 +7,7 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 // Superform
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { Helpers } from "../utils/Helpers.sol";
-import { InternalHelpers } from "../InternalHelpers.sol";
+import { InternalHelpers } from "../utils/InternalHelpers.sol";
 import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance } from "modulekit/ModuleKit.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 import { ERC4626YieldSourceOracle } from "../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -16,6 +16,7 @@ import { ERC7540YieldSourceOracle } from "../../src/core/accounting/oracles/ERC7
 import { SuperLedgerConfiguration } from "../../src/core/accounting/SuperLedgerConfiguration.sol";
 import { SuperExecutor } from "../../src/core/executors/SuperExecutor.sol";
 import { SuperLedger } from "../../src/core/accounting/SuperLedger.sol";
+import { ERC5115Ledger } from "../../src/core/accounting/ERC5115Ledger.sol";
 import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ApproveERC20Hook } from "../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
@@ -36,7 +37,7 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
     address public accountEth;
     AccountInstance public instanceOnEth;
     ISuperExecutor public superExecutorOnEth;
-    address public ledgerConfig;
+    ISuperLedgerConfiguration public ledgerConfig;
     ISuperLedger public ledger;
     address public approveHook;
     address public deposit4626Hook;
@@ -57,13 +58,14 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
         accountEth = instanceOnEth.account;
         _getTokens(underlyingEth_USDC, accountEth, 1e18);
 
-        ledgerConfig = address(new SuperLedgerConfiguration());
+        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
 
         superExecutorOnEth = ISuperExecutor(new SuperExecutor(address(ledgerConfig)));
         instanceOnEth.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorOnEth), data: "" });
 
         address[] memory allowedExecutors = new address[](1);
         allowedExecutors[0] = address(superExecutorOnEth);
+
         ledger = ISuperLedger(address(new SuperLedger(address(ledgerConfig), allowedExecutors)));
 
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
@@ -87,9 +89,9 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
             yieldSourceOracle: address(new ERC5115YieldSourceOracle()),
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
-            ledger: address(ledger)
+            ledger: address(new ERC5115Ledger(address(ledgerConfig), allowedExecutors))
         });
-        ISuperLedgerConfiguration(ledgerConfig).setYieldSourceOracles(configs);
+        ledgerConfig.setYieldSourceOracles(configs);
 
         approveHook = address(new ApproveERC20Hook());
         deposit4626Hook = address(new Deposit4626VaultHook());

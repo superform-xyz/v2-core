@@ -15,7 +15,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
     using ModuleKitHelpers for *;
 
     function setUp() public override {
-        blockNumber = 0;
+        blockNumber = ETH_BLOCK;
         super.setUp();
     }
 

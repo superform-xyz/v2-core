@@ -17,7 +17,7 @@ import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 
 import { Helpers } from "../../utils/Helpers.sol";
 
-import { InternalHelpers } from "../../InternalHelpers.sol";
+import { InternalHelpers } from "../../utils/InternalHelpers.sol";
 
 import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance } from "modulekit/ModuleKit.sol";
 
