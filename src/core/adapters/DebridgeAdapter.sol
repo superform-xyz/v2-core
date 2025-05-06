@@ -42,6 +42,11 @@ contract DebridgeAdapter is IExternalCallExecutor {
         externalCallAdapter = _externalCallAdapter;
     }
 
+    modifier onlyExternalCallAdapter() {
+        if (msg.sender != externalCallAdapter) revert ONLY_EXTERNAL_CALL_ADAPTER();
+        _;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -53,9 +58,9 @@ contract DebridgeAdapter is IExternalCallExecutor {
     )
         external
         payable
+        onlyExternalCallAdapter
         returns (bool callSucceeded, bytes memory callResult)
     {
-        _onlyExternalCallAdapter();
         (,,address account,,) = _decodeMessage(_payload);
 
         // 1. Transfer received funds to the target account *before* calling the executor.
@@ -80,9 +85,9 @@ contract DebridgeAdapter is IExternalCallExecutor {
         bytes memory _payload
     )
         external
+        onlyExternalCallAdapter
         returns (bool callSucceeded, bytes memory callResult)
     {
-        _onlyExternalCallAdapter();
         (,,address account,,) = _decodeMessage(_payload);
 
         // 1. Transfer received funds to the target account *before* calling the executor.
@@ -100,11 +105,6 @@ contract DebridgeAdapter is IExternalCallExecutor {
     /*//////////////////////////////////////////////////////////////
                                 PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-
-    function _onlyExternalCallAdapter() private view {
-        if (msg.sender != externalCallAdapter) revert ONLY_EXTERNAL_CALL_ADAPTER();
-    }
-
     function _handleMessageReceived(address tokenSent, bytes memory message) private {
         // 1. Decode Debridge-specific message payload
         //      sigData contains: uint48 validUntil, bytes32 merkleRoot, bytes32[] proof, bytes signature
