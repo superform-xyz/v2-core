@@ -113,6 +113,11 @@ contract IncentiveFundContractTest is Test {
         mockFeed2 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed3 = new MockAggregator(1e8, 8); // Token/USD = $1
 
+        // Update timestamps to ensure prices are fresh
+        mockFeed1.setUpdatedAt(block.timestamp);
+        mockFeed2.setUpdatedAt(block.timestamp);
+        mockFeed3.setUpdatedAt(block.timestamp);
+
         // Setup oracle parameters
         address[] memory bases = new address[](3);
         bases[0] = address(tokenIn);
@@ -136,8 +141,12 @@ contract IncentiveFundContractTest is Test {
 
         // Deploy and configure oracle
         oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
-        oracle.setMaxStaleness(2 weeks);
-        
+
+        // Set staleness for each feed
+        oracle.setFeedMaxStaleness(address(mockFeed1), 1 days);
+        oracle.setFeedMaxStaleness(address(mockFeed2), 1 days);
+        oracle.setFeedMaxStaleness(address(mockFeed3), 1 days);
+
         // Deploy contracts (admin will automatically get DEFAULT_ADMIN_ROLE)
         assetBank = new AssetBank();
         incentiveFund = new IncentiveFundContract();
@@ -175,13 +184,15 @@ contract IncentiveFundContractTest is Test {
         superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
         superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
 
+        // Set up initial token balances for testing
+        tokenIn.mint(user, 1000e18);
+        tokenIn.mint(address(incentiveFund), 1000e18);
+        tokenOut.mint(user, 1000e18);
+        tokenOut.mint(address(incentiveFund), 1000e18);
         vm.stopPrank();
 
-        // Setup initial balances
-        tokenIn.mint(address(incentiveFund), 1000e18);
-        tokenOut.mint(address(incentiveFund), 1000e18);
-        tokenIn.mint(user, 1000e18);
-        tokenOut.mint(user, 1000e18);
+        vm.startPrank(admin);
+        vm.stopPrank();
     }
 
     // --- Test: Initialization ---
