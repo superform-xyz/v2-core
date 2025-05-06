@@ -239,10 +239,10 @@ contract IncentiveFundContractTest is Test {
         (uint256 quoteAmount1, uint256 deviation1, uint256 totalProviders1, uint256 availableProviders1) =
             oracle.getQuoteFromProvider(baseAmount, address(tokenIn), USD, PROVIDER_1);
 
-        // assertEq(quoteAmount1, 1e6, "Quote from provider 1 should be $1100");
-        // assertEq(deviation1, 0, "Deviation should be 0 for single provider");
-        // assertEq(totalProviders1, 1, "Total providers should be 1");
-        // assertEq(availableProviders1, 1, "Available providers should be 1");
+        assertEq(quoteAmount1, 1e18, "Quote from provider 1 should be $1100");
+        assertEq(deviation1, 0, "Deviation should be 0 for single provider");
+        assertEq(totalProviders1, 1, "Total providers should be 1");
+        assertEq(availableProviders1, 1, "Available providers should be 1");
 
         // Test getting average quote from all providers
         (uint256 quoteAmountAvg, uint256 deviationAvg, uint256 totalProvidersAvg, uint256 availableProvidersAvg) =
