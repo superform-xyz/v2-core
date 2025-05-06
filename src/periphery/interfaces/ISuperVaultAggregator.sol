@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import { EnumerableSet } from "openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
+import { ISuperVaultStrategy } from "../interfaces/ISuperVaultStrategy.sol";
 
 /// @title ISuperVaultAggregator
 /// @author Superform Labs
@@ -40,19 +41,19 @@ interface ISuperVaultAggregator {
     /// @param name Name of the vault token
     /// @param symbol Symbol of the vault token
     /// @param mainStrategist Address of the vault mainStrategist
-    /// @param feeRecipient Address that will receive fees
     /// @param superVaultCap Maximum cap for the vault (in underlying asset)
     /// @param minUpdateInterval Minimum time interval between PPS updates
     /// @param maxStaleness Maximum time allowed between PPS updates before staleness
+    /// @param feeConfig Fee configuration for the vault
     struct VaultCreationParams {
         address asset;
         string name;
         string symbol;
         address mainStrategist;
-        address feeRecipient;
         uint256 superVaultCap;
         uint256 minUpdateInterval;
         uint256 maxStaleness;
+        ISuperVaultStrategy.FeeConfig feeConfig;
     }
 
     /*//////////////////////////////////////////////////////////////

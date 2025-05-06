@@ -95,7 +95,10 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         returns (address superVault, address strategy, address escrow)
     {
         // Input validation
-        if (params.asset == address(0) || params.mainStrategist == address(0) || params.feeRecipient == address(0)) {
+        if (
+            params.asset == address(0) || params.mainStrategist == address(0)
+                || params.feeConfig.recipient == address(0)
+        ) {
             revert ZERO_ADDRESS();
         }
 
@@ -114,7 +117,9 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         SuperVaultEscrow(escrow).initialize(superVault, strategy);
 
         // Initialize strategy
-        SuperVaultStrategy(strategy).initialize(superVault, address(SUPER_GOVERNOR), params.superVaultCap);
+        SuperVaultStrategy(strategy).initialize(
+            superVault, address(SUPER_GOVERNOR), params.superVaultCap, params.feeConfig
+        );
 
         // Store vault trio in registry
         _superVaults.add(superVault);

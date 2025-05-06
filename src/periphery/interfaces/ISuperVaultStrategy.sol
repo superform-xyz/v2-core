@@ -168,7 +168,14 @@ interface ISuperVaultStrategy {
     /// @param vault_ Address of the associated SuperVault
     /// @param superGovernor_ Address of the SuperGovernor contract
     /// @param superVaultCap_ Maximum cap for the vault in underlying asset units
-    function initialize(address vault_, address superGovernor_, uint256 superVaultCap_) external;
+    /// @param feeConfig_ Fee configuration
+    function initialize(
+        address vault_,
+        address superGovernor_,
+        uint256 superVaultCap_,
+        FeeConfig memory feeConfig_
+    )
+        external;
 
     /// @notice Handles asynchronous redeem operations initiated by the Vault.
     /// @param controller Controller address for the redeem operation.
@@ -220,8 +227,6 @@ interface ISuperVaultStrategy {
 
     /// @notice Execute the proposed vault fee configuration update after timelock
     function executeVaultFeeConfigUpdate() external;
-
-
 
     /// @notice Manage emergency withdrawals
     /// @param action Type of action: 1=Propose, 2=ExecuteActivation, 3=Withdraw
