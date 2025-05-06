@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
+import "forge-std/console.sol";
 import {IncentiveFundContract} from "../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
 import {SuperAsset} from "../../../src/periphery/SuperAsset/SuperAsset.sol";
 import {AssetBank} from "../../../src/periphery/SuperAsset/AssetBank.sol";
@@ -104,21 +105,25 @@ contract IncentiveFundContractTest is Test {
         tokenIn = new MockERC20("Token In", "TIN", 18);
         tokenOut = new MockERC20("Token Out", "TOUT", 18);
         usd = new MockERC20("USD", "USD", 6);
+        console.log("Mock tokens deployed");
 
         // Deploy actual ICC
         icc = new IncentiveCalculationContract();
+        console.log("ICC deployed");
 
         // Create mock price feeds with different price values (1 token = $1)
         mockFeed1 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed2 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed3 = new MockAggregator(1e8, 8); // Token/USD = $1
+        console.log("Mock feeds deployed");
 
         // Update timestamps to ensure prices are fresh
         mockFeed1.setUpdatedAt(block.timestamp);
         mockFeed2.setUpdatedAt(block.timestamp);
         mockFeed3.setUpdatedAt(block.timestamp);
+        console.log("Feed timestamps updated");
 
-        // Setup oracle parameters
+        // Setup oracle parameters with regular providers
         address[] memory bases = new address[](3);
         bases[0] = address(tokenIn);
         bases[1] = address(tokenOut);
@@ -139,20 +144,33 @@ contract IncentiveFundContractTest is Test {
         feeds[1] = address(mockFeed2);
         feeds[2] = address(mockFeed3);
 
-        // Deploy and configure oracle
+        // Deploy and configure oracle with regular providers only
         oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
+        console.log("Oracle deployed");
 
         // Set staleness for each feed
+        vm.startPrank(admin);
         oracle.setFeedMaxStaleness(address(mockFeed1), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed2), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed3), 1 days);
+        vm.stopPrank();
+        console.log("Feed staleness set");
 
         // Deploy contracts (admin will automatically get DEFAULT_ADMIN_ROLE)
         assetBank = new AssetBank();
-        incentiveFund = new IncentiveFundContract();
-        superAsset = new SuperAsset();
+        console.log("AssetBank deployed");
         
+        vm.startPrank(admin);
+        incentiveFund = new IncentiveFundContract();
+        console.log("IncentiveFund deployed");
+        vm.stopPrank();
+        
+        superAsset = new SuperAsset();
+        console.log("SuperAsset deployed");
+
         // Initialize SuperAsset
+        console.log("About to initialize SuperAsset");
+        vm.startPrank(admin);  // Ensure we're the admin for initialization
         superAsset.initialize(
             "SuperAsset", // name
             "SA", // symbol
@@ -162,7 +180,9 @@ contract IncentiveFundContractTest is Test {
             100, // swapFeeInPercentage (0.1%)
             100 // swapFeeOutPercentage (0.1%)
         );
+        console.log("Initialized SuperAsset");
 
+        console.log("Setup of Roles and Whitelists in SuperAsset");
         // Grant VAULT_MANAGER_ROLE to admin for token management
         superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), admin);
 
@@ -170,28 +190,38 @@ contract IncentiveFundContractTest is Test {
         superAsset.setSuperOracle(address(oracle));
         superAsset.whitelistERC20(address(tokenIn));
         superAsset.whitelistERC20(address(tokenOut));
+        console.log("Setup of Roles and Whitelists in SuperAsset completed");
 
+        console.log("Incentive Fund Initialization");
         // Initialize IncentiveFundContract after SuperAsset is set up
         incentiveFund.initialize(address(superAsset), address(assetBank));
 
         // Setup roles for each contract
         bytes32 INCENTIVE_FUND_MANAGER = incentiveFund.INCENTIVE_FUND_MANAGER();
 
+        console.log("Setup of roles in Incentive Fund");
         // Grant roles to manager and contracts
         incentiveFund.grantRole(INCENTIVE_FUND_MANAGER, manager);
+        console.log("Setup of roles in Incentive Fund Completed");
+
+        vm.stopPrank();
+        console.log("Incentive Fund Initialization Completed");
+
+
         assetBank.grantRole(assetBank.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
-        superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
-        superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
-        superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
+        console.log("T10");
+        // superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
+        console.log("T11");
+        // superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
+        console.log("T12");
+        // superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
+        console.log("T15");
 
         // Set up initial token balances for testing
         tokenIn.mint(user, 1000e18);
         tokenIn.mint(address(incentiveFund), 1000e18);
         tokenOut.mint(user, 1000e18);
         tokenOut.mint(address(incentiveFund), 1000e18);
-        vm.stopPrank();
-
-        vm.startPrank(admin);
         vm.stopPrank();
     }
 
@@ -246,16 +276,19 @@ contract IncentiveFundContractTest is Test {
     }
 
     function test_OnlyManagerCanPayIncentive() public {
+        console.log("test_OnlyManagerCanPayIncentive() Start");
         // Setup tokens
         vm.startPrank(admin);
         incentiveFund.setTokenOutIncentive(address(tokenOut));
         vm.stopPrank();
+        console.log("T1");
 
         // Non-manager cannot pay incentive
         vm.startPrank(user);
         vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.INCENTIVE_FUND_MANAGER()));
         incentiveFund.payIncentive(user, 100e18);
         vm.stopPrank();
+        console.log("T2");
 
         // Manager can pay incentive
         uint256 balanceBefore = tokenOut.balanceOf(user);
@@ -263,6 +296,7 @@ contract IncentiveFundContractTest is Test {
         vm.startPrank(manager);
         incentiveFund.payIncentive(user, 100e18);
         vm.stopPrank();
+        console.log("T3");
 
         uint256 balanceAfter = tokenOut.balanceOf(user);
         assertEq(balanceAfter - balanceBefore, 100e18);
