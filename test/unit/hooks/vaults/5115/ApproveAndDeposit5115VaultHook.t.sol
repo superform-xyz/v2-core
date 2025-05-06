@@ -42,7 +42,7 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
     MockLedgerConfiguration public ledgerConfig;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), 21_929_476);
         instanceOnETH = makeAccountInstance(keccak256(abi.encode("TEST")));
         accountETH = instanceOnETH.account;
         feeRecipient = makeAddr("feeRecipient");

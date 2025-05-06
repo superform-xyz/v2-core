@@ -16,7 +16,7 @@ abstract contract Constants {
     string internal constant POLYGON_KEY = "Polygon";
 
     // keys
-    string internal constant SUPER_GOVERNOR_KEY = "PeripheryRegistry";
+    string internal constant SUPER_GOVERNOR_KEY = "SuperGovernor";
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string internal constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string internal constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";

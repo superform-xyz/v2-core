@@ -22,9 +22,9 @@ ftest-vvv :; forge test -vvv
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_RevertIfStaleData -vvvvv
+test-vvv :; forge test --match-test test_MultiVault_Deposit_Flow -vvvvv
 
-test-integration :; forge test --match-test test_ETH_Bridge_Deposit_Partial_Redeem_Bridge_Flow -vvv
+test-integration :; forge test --match-contract StakingYieldSourceOracleIntegration -vvvvvv
 
 
 test-gas-report-user :; forge test --match-test test_gasReport --gas-report
