@@ -2,7 +2,6 @@
 pragma solidity >=0.8.28;
 
 // external
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ExcessivelySafeCall } from "excessivelySafeCall/ExcessivelySafeCall.sol";
@@ -17,18 +16,17 @@ abstract contract VaultBankSource is IVaultBankSource {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    // Rewards merkle roots
-    mapping(bytes32 => bool) internal _registeredMerkleRoots;
-
     // locked assets
     mapping(address account => mapping(uint64 dstChainId => address[] tokens)) internal _lockedAssets;
     mapping(address account => mapping(uint64 dstChainId => mapping(address token => uint256 amount))) internal
         _lockedAmounts;
     mapping(address account => mapping(address token => uint256 amount)) internal _totalLocked;
 
-    // rewards
-    mapping(address account => mapping(address token => mapping(bytes32 merkleRoot => bool))) internal
-        _hasBeenDistributed;
+    uint64 internal immutable _chainId;
+
+    constructor() {
+        _chainId = uint64(block.chainid);
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -46,28 +44,6 @@ abstract contract VaultBankSource is IVaultBankSource {
     /// @inheritdoc IVaultBankSource
     function viewTotalLockedAsset(address account, address token) external view returns (uint256) {
         return _totalLocked[account][token];
-    }
-
-    /// @inheritdoc IVaultBankSource
-    function isMerkleRootRegistered(bytes32 merkleRoot) external view returns (bool) {
-        return _registeredMerkleRoots[merkleRoot];
-    }
-
-    /// @inheritdoc IVaultBankSource
-    function canClaim(
-        bytes32 merkleRoot,
-        address account,
-        address rewardToken,
-        uint256 amount,
-        bytes32[] calldata proof
-    )
-        public
-        view
-        returns (bool)
-    {
-        if (!_registeredMerkleRoots[merkleRoot]) revert MERKLE_ROOT_NOT_REGISTERED();
-        bytes32 leaf = keccak256(abi.encodePacked(account, rewardToken, amount));
-        return MerkleProof.verify(proof, merkleRoot, leaf);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -91,7 +67,7 @@ abstract contract VaultBankSource is IVaultBankSource {
         _totalLocked[account][token] += amount;
 
         IERC20(token).safeTransferFrom(account, address(this), amount);
-        emit SharesLocked(account, token, amount, uint64(block.chainid), toChainId, nonce);
+        emit SharesLocked(account, token, amount, _chainId, toChainId, nonce);
     }
 
     function _releaseAssetFromChain(
@@ -112,7 +88,6 @@ abstract contract VaultBankSource is IVaultBankSource {
 
         IERC20(token).safeTransfer(account, amount);
 
-        uint64 _chainId = uint64(block.chainid);
         emit SharesUnlocked(account, token, amount, _chainId, fromChainId, nonce);
     }
     // ------------------ MANAGE REWARDS ------------------
@@ -142,8 +117,8 @@ abstract contract VaultBankSource is IVaultBankSource {
         if (len == 0) revert NO_LOCKED_ASSETS();
 
         uint256 index;
-        bool found = false;
-        for (uint256 i = 0; i < len; ++i) {
+        bool found;
+        for (uint256 i; i < len; ++i) {
             if (_lockedAssets[account][dstChainId][i] == token) {
                 index = i;
                 found = true;

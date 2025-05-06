@@ -15,12 +15,14 @@ interface ISuperHookResult {
     function outAmount() external view returns (uint256);
     /// @notice The type of hook
     function hookType() external view returns (ISuperHook.HookType);
-    /// @notice The lock flag of the hook
-    function lockForSP() external view returns (bool);
     /// @notice The lock token of the hook
     function spToken() external view returns (address);
     /// @notice The asset token being withdrawn or deposited
     function asset() external view returns (address);
+    /// @notice The vault bank address used to lock `spToken`
+    function vaultBank() external view returns (address);
+    /// @notice The destination chain id to receive super positions on
+    function dstChainId() external view returns (uint256);
 }
 
 /// @title ISuperHookContextAware
@@ -33,6 +35,7 @@ interface ISuperHookContextAware {
 /// @author Superform Labs
 interface ISuperHookInflowOutflow {
     function decodeAmount(bytes memory data) external pure returns (uint256);
+
 }
 
 /// @title ISuperHookOutflow

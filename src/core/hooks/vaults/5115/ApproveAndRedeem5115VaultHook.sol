@@ -31,7 +31,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 96);
 /// @notice         bool burnFromInternalBalance = _decodeBool(data, 128);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 129);
-/// @notice         bool lockForSP = _decodeBool(data, 130);
+/// @notice         address vaultBank = BytesLib.toAddress(data, 130);
+/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 150);
 contract ApproveAndRedeem5115VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
@@ -117,7 +118,8 @@ contract ApproveAndRedeem5115VaultHook is
         asset = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
-        lockForSP = _decodeBool(data, 130);
+        vaultBank = BytesLib.toAddress(data, 130);
+        dstChainId = BytesLib.toUint256(data, 150);
         spToken = data.extractYieldSource();
     }
 

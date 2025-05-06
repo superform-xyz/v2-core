@@ -74,6 +74,14 @@ interface ISuperGovernor {
     error NO_PROPOSED_MERKLE_ROOT();
     /// @notice Thrown when no proposed upkeep cost exists but one is expected
     error NO_PROPOSED_UPKEEP_COST();
+    /// @notice Thrown when a relayer is not registered
+    error RELAYER_NOT_REGISTERED();
+    /// @notice Thrown when a relayer is already registered
+    error RELAYER_ALREADY_REGISTERED();
+    /// @notice Thrown when an executor is not registered
+    error EXECUTOR_NOT_REGISTERED();
+    /// @notice Thrown when an executor is already registered
+    error EXECUTOR_ALREADY_REGISTERED();
 
     /*//////////////////////////////////////////////////////////////
                                   EVENTS
@@ -171,6 +179,23 @@ interface ISuperGovernor {
     /// @notice Emitted when the upkeep cost per update is changed
     /// @param newCost The new upkeep cost
     event UpkeepCostPerUpdateChanged(uint256 newCost);
+    
+    /// @notice Emitted when a relayer is added
+    /// @param relayer The address of the added relayer
+    event RelayerAdded(address indexed relayer);
+
+    /// @notice Emitted when a relayer is removed
+    /// @param relayer The address of the removed relayer
+    event RelayerRemoved(address indexed relayer);
+
+    /// @notice Emitted when an executor is added
+    /// @param executor The address of the added executor
+    event ExecutorAdded(address indexed executor);
+
+    /// @notice Emitted when an executor is removed
+    /// @param executor The address of the removed executor
+    event ExecutorRemoved(address indexed executor);
+
 
     /*//////////////////////////////////////////////////////////////
                                    ROLES
@@ -215,6 +240,29 @@ interface ISuperGovernor {
     /// @param hook The address of the hook to unregister
     /// @param isFulfillRequestsHook Whether the hook is a fulfill requests hook
     function unregisterHook(address hook, bool isFulfillRequestsHook) external;
+
+    /*//////////////////////////////////////////////////////////////
+                        EXECUTOR MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Adds an executor to the approved list
+    /// @param executor The address of the executor to add
+    function addExecutor(address executor) external;
+
+    /// @notice Removes an executor from the approved list
+    /// @param executor The address of the executor to remove
+    function removeExecutor(address executor) external;
+
+    /*//////////////////////////////////////////////////////////////
+                      RELAYER MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Adds a relayer to the approved list
+    /// @param relayer The address of the relayer to add
+    function addRelayer(address relayer) external;
+
+    /// @notice Removes a relayer from the approved list
+    /// @param relayer The address of the relayer to remove
+    function removeRelayer(address relayer) external;
 
     /*//////////////////////////////////////////////////////////////
                       VALIDATOR MANAGEMENT
@@ -318,6 +366,16 @@ interface ISuperGovernor {
     /// @param validator The address to check
     /// @return True if the address is an approved validator, false otherwise
     function isValidator(address validator) external view returns (bool);
+
+    /// @notice Checks if an address is an approved relayer
+    /// @param relayer The address to check
+    /// @return True if the address is an approved relayer, false otherwise
+    function isRelayer(address relayer) external view returns (bool);
+
+    /// @notice Checks if an address is an approved executor
+    /// @param executor The address to check
+    /// @return True if the address is an approved executor, false otherwise
+    function isExecutor(address executor) external view returns (bool);
 
     /// @notice Returns all registered validators
     /// @return List of validator addresses

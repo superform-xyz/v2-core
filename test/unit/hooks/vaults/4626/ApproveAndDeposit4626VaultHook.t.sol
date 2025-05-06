@@ -35,7 +35,7 @@ contract ApproveAndDeposit4626VaultHookTest is BaseTest {
     }
 
     function test_Build() public view {
-        bytes memory data = _encodeData(false, false);
+        bytes memory data = _encodeData(false);
         Execution[] memory executions = hook.build(address(0), address(this), data);
         assertEq(executions.length, 4);
         assertEq(executions[0].target, token);
@@ -60,7 +60,7 @@ contract ApproveAndDeposit4626VaultHookTest is BaseTest {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
-        bytes memory data = _encodeData(true, false);
+        bytes memory data = _encodeData(true);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
 
         assertEq(executions.length, 4);
@@ -86,22 +86,22 @@ contract ApproveAndDeposit4626VaultHookTest is BaseTest {
 
         yieldSource = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(0), address(this), _encodeData(false, false));
+        hook.build(address(0), address(this), _encodeData(false));
 
         yieldSource = _yieldSource;
         token = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(0), address(this), _encodeData(false, false));
+        hook.build(address(0), address(this), _encodeData(false));
     }
 
     function test_Build_RevertIf_AmountZero() public {
         amount = 0;
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-        hook.build(address(0), address(this), _encodeData(false, false));
+        hook.build(address(0), address(this), _encodeData(false));
     }
 
     function test_DecodeAmount() public view {
-        bytes memory data = _encodeData(false, false);
+        bytes memory data = _encodeData(false);
         uint256 decodedAmount = hook.decodeAmount(data);
         assertEq(decodedAmount, amount);
     }
@@ -109,7 +109,7 @@ contract ApproveAndDeposit4626VaultHookTest is BaseTest {
     function test_PreAndPostExecute() public {
         yieldSource = token; // for the .balanceOf call
         _getTokens(token, address(this), amount);
-        bytes memory data = _encodeData(false, false);
+        bytes memory data = _encodeData(false);
         hook.preExecute(address(0), address(this), data);
         assertEq(hook.outAmount(), amount);
 
@@ -117,7 +117,7 @@ contract ApproveAndDeposit4626VaultHookTest is BaseTest {
         assertEq(hook.outAmount(), 0);
     }
 
-    function _encodeData(bool usePrevHook, bool lockForSp) internal view returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHook, lockForSp);
+    function _encodeData(bool usePrevHook) internal view returns (bytes memory) {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHook, address(0), uint256(0));
     }
 }

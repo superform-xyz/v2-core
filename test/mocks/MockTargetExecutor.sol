@@ -164,7 +164,7 @@ contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
     }
 
     function _lockForSuperPositions(address account, address hook) private {
-        bool lockForSP = ISuperHookResult(address(hook)).lockForSP();
+        bool lockForSP = ISuperHookResult(address(hook)).vaultBank() != address(0);
         if (lockForSP) {
             address spToken = ISuperHookResult(hook).spToken();
             uint256 amount = ISuperHookResult(hook).outAmount();
@@ -183,7 +183,7 @@ contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
 
                 vault.lock(account, spToken, amount);
 
-                emit SuperPositionLocked(account, spToken, amount);
+                emit SuperPositionMintRequested(account, spToken, amount, 0);
             }
         }
     }

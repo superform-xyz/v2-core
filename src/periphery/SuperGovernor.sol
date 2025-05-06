@@ -55,6 +55,14 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     mapping(address validator => bool isValidator) private _isValidator;
     address[] private _validatorsList;
 
+    // Relayer registry
+    mapping(address relayer => bool isRelayer) private _isRelayer;
+    address[] private _relayersList;
+
+    // Executor registry
+    mapping(address executor => bool isExecutor) private _isExecutor;
+    address[] private _executorsList;
+
     // Fee management
     // Current fee values
     mapping(FeeType => uint256) private _feeValues;
@@ -138,6 +146,11 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        RELAYER MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+
+
+    /*//////////////////////////////////////////////////////////////
                         SUPER VAULT AGGREGATOR MANAGEMENT
     //////////////////////////////////////////////////////////////*/
 
@@ -202,6 +215,70 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         } else {
             _unregisterRegularHook(hook_);
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      EXECUTORS MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperGovernor
+    function addExecutor(address executor_) external onlyRole(_GOVERNOR_ROLE) {
+        if (executor_ == address(0)) revert INVALID_ADDRESS();
+        if (_isExecutor[executor_]) revert EXECUTOR_ALREADY_REGISTERED();
+
+        _isExecutor[executor_] = true;
+        _executorsList.push(executor_);
+        emit ExecutorAdded(executor_);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function removeExecutor(address executor_) external onlyRole(_GOVERNOR_ROLE) {
+        if (!_isExecutor[executor_]) revert EXECUTOR_NOT_REGISTERED();
+
+        _isExecutor[executor_] = false;
+
+        // Remove from executors array
+        uint256 length = _executorsList.length;
+        for (uint256 i; i < length; i++) {
+            if (_executorsList[i] == executor_) {
+                _executorsList[i] = _executorsList[_executorsList.length - 1];
+                _executorsList.pop();
+                break;
+            }
+        }
+
+        emit ExecutorRemoved(executor_);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      RELAYER MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperGovernor
+    function addRelayer(address relayer_) external onlyRole(_GOVERNOR_ROLE) {
+        if (relayer_ == address(0)) revert INVALID_ADDRESS();
+        if (_isRelayer[relayer_]) revert RELAYER_ALREADY_REGISTERED();
+
+        _isRelayer[relayer_] = true;
+        _relayersList.push(relayer_);
+        emit RelayerAdded(relayer_);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function removeRelayer(address relayer_) external onlyRole(_GOVERNOR_ROLE) {
+        if (!_isRelayer[relayer_]) revert RELAYER_NOT_REGISTERED();
+
+        _isRelayer[relayer_] = false;
+
+        // Remove from relayers array
+        uint256 length = _relayersList.length;
+        for (uint256 i; i < length; i++) {
+            if (_relayersList[i] == relayer_) {
+                _relayersList[i] = _relayersList[_relayersList.length - 1];
+                _relayersList.pop();
+                break;
+            }
+        }
+
+        emit RelayerRemoved(relayer_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -424,6 +501,16 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function isValidator(address validator) external view returns (bool) {
         return _isValidator[validator];
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function isRelayer(address relayer) external view returns (bool) {
+        return _isRelayer[relayer];
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function isExecutor(address executor) external view returns (bool) {
+        return _isExecutor[executor];
     }
 
     /// @inheritdoc ISuperGovernor

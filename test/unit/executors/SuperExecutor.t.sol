@@ -113,9 +113,9 @@ contract SuperExecutorTest is BaseTest {
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] =
-            _createDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), 1, false, false);
+            _createDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), 1, false, address(0), 0);
         hooksData[1] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
         );
 
         vm.startPrank(account);
@@ -141,7 +141,7 @@ contract SuperExecutorTest is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] =
-            _createDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), 1, false, false);
+            _createDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), 1, false, address(0), 0);
 
         vm.startPrank(account);
         superExecutor.onInstall("");
@@ -166,7 +166,7 @@ contract SuperExecutorTest is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
         );
 
         _getTokens(address(token), account, 1000);
@@ -193,7 +193,7 @@ contract SuperExecutorTest is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
         );
 
         vm.startPrank(account);
@@ -216,7 +216,7 @@ contract SuperExecutorTest is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
         );
 
         vm.startPrank(account);
@@ -256,7 +256,7 @@ contract SuperExecutorTest is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
         );
 
         vm.startPrank(address(this));

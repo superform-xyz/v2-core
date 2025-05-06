@@ -18,14 +18,10 @@ interface IVaultBankSource {
     error TOKEN_NOT_FOUND();
     error NO_LOCKED_ASSETS();
     error INVALID_CLAIM_TARGET();
-    error MERKLE_ROOT_NOT_REGISTERED();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Check if a merkle root is registered
-    /// @param merkleRoot The merkle root to check
-    function isMerkleRootRegistered(bytes32 merkleRoot) external view returns (bool);
     /// @notice Get the locked amount of an account for a token
     /// @param account The account to get the locked amount for
     /// @param token The token to get the locked amount for
@@ -39,22 +35,6 @@ interface IVaultBankSource {
     /// @param account The account to get the locked assets for
     /// @param dstChainId The destination chain ID
     function viewAllLockedAssets(address account, uint64 dstChainId) external view returns (address[] memory);
-    /// @notice Check if an account can claim any reward
-    /// @param merkleRoot The merkle root to check
-    /// @param account The account to check
-    /// @param rewardToken The reward token to check
-    /// @param amount The amount to check
-    /// @param proof The proof to check
-    function canClaim(
-        bytes32 merkleRoot,
-        address account,
-        address rewardToken,
-        uint256 amount,
-        bytes32[] calldata proof
-    )
-        external
-        view
-        returns (bool);
 }
 
 interface IVaultBankDestination {
@@ -74,18 +54,14 @@ interface IVaultBankDestination {
     /// @notice Get the synthetic asset for a source asset
     /// @param srcChainId The source chain ID
     /// @param srcAsset The source asset
-    function getSpForAsset(uint64 srcChainId, address srcAsset) external view returns (address);
+    function getSuperPositionForAsset(uint64 srcChainId, address srcAsset) external view returns (address);
     /// @notice Get the source asset for a synthetic asset
     /// @param srcChainId The source chain ID
-    /// @param syntheticAsset The synthetic asset
-    function getAssetForSp(uint64 srcChainId, address syntheticAsset) external view returns (address);
+    /// @param superPosition The synthetic asset
+    function getAssetForSuperPosition(uint64 srcChainId, address superPosition) external view returns (address);
     /// @notice Check if a synthetic asset exists
-    /// @param syntheticAsset The synthetic asset
-    function isSpCreated(address syntheticAsset) external view returns (bool);
-    /// @notice Get the balance of a synthetic asset for an account
-    /// @param syntheticAsset The synthetic asset
-    /// @param account The account
-    function getBalance(address syntheticAsset, address account) external view returns (uint256);
+    /// @param superPosition The synthetic asset
+    function isSuperPositionCreated(address superPosition) external view returns (bool);
 }
 
 interface IVaultBank {
@@ -109,8 +85,8 @@ interface IVaultBank {
     error INVALID_RELAYER();
     error INVALID_EXECUTOR();
     error NOTHING_TO_CLAIM();
+    error NONCE_ALREADY_USED();
     error ALREADY_DISTRIBUTED();
-    error INVALID_MERKLE_ROOT();
     error INVALID_PROOF_CHAIN();
     error INVALID_PROOF_EVENT();
     error INVALID_PROOF_TOKEN();
@@ -127,36 +103,11 @@ interface IVaultBank {
     event SuperpositionsBurned(address indexed account, address indexed spAddress, address indexed srcTokenAddress, uint256 amount, uint64 srcChain, uint256 nonce);
     event ClaimRewards(address indexed target, bytes result);
     event BatchClaimRewards(address[] targets);
-    event DistributeRewards(
-        bytes32 indexed merkleRoot, address indexed account, address indexed rewardToken, uint256 amount
-    );
+    event BatchDistributeRewardsToSuperBank(address[] indexed rewards, uint256[] amounts);
 
-    event MerkleRootUpdated(bytes32 indexed merkleRoot, bool status);
     event DestinationChainUpdated(uint64 indexed dstChainId, bool status);
     event RelayerUpdated(address indexed relayer, bool status);
     event ProverUpdated(address indexed prover);
-
-    /*//////////////////////////////////////////////////////////////
-                                 OWNER METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Update the merkle root
-    /// @param merkleRoot The merkle root to update
-    /// @param status The status of the merkle root (true: active, false: inactive)
-    function updateMerkleRoot(bytes32 merkleRoot, bool status) external;
-
-    /// @notice Update the status of a destination chain
-    /// @param dstChainId_ The destination chain ID
-    /// @param status_ The status of the destination chain (true: active, false: inactive)
-    function updateChainStatus(uint64 dstChainId_, bool status_) external;
-
-    /// @notice Update the status of a relayer
-    /// @param relayer_ The relayer to update
-    /// @param status_ The status of the relayer (true: active, false: inactive)
-    function updateRelayerStatus(address relayer_, bool status_) external;
-
-    /// @notice Update the prover
-    /// @param prover_ The prover to update
-    function updateProver(address prover_) external;
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -212,18 +163,9 @@ interface IVaultBank {
     )
         external
         payable;
-    /// @notice Distribute rewards to an account
-    /// @param merkleRoot The merkle root to distribute the rewards from
-    /// @param account The account to distribute the rewards to
-    /// @param rewardToken The reward token to distribute
-    /// @param amount The amount to distribute
-    /// @param proof The proof to distribute the rewards
-    function distributeRewards(
-        bytes32 merkleRoot,
-        address account,
-        address rewardToken,
-        uint256 amount,
-        bytes32[] calldata proof
-    )
-        external;
+    
+    /// @notice Batch distribute rewards to the super bank
+    /// @param rewards The rewards to distribute
+    /// @param amounts The amounts of the rewards
+    function batchDistributeRewardsToSuperBank(address[] memory rewards, uint256[] memory amounts) external;
 }

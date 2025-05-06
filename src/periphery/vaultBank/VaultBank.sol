@@ -10,9 +10,13 @@ import { BytesLib } from "../../vendor/BytesLib.sol";
 
 // Superform
 import { IVaultBank, IVaultBankSource } from "../interfaces/IVaultBank.sol";
-import { VaultBankSource } from "./VaultBankSource.sol";
+import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { VaultBankDestination } from "./VaultBankDestination.sol";
+import { VaultBankSource } from "./VaultBankSource.sol";
 
+/// @title VaultBank
+/// @author Superform Labs
+/// @notice Locks assets and mints SuperPositions
 contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination {
     using SafeERC20 for IERC20;
     using BytesLib for bytes;
@@ -20,82 +24,33 @@ contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    address public prover;
+    address public immutable prover;
+    address public immutable governor;
 
-    //TODO: check with Sish if we need a different nonce mechanism
-    mapping(address account => mapping(uint64 chainId => uint256 nonce)) public nonces;
-    mapping(address => bool) private _allowedExecutors;
-    mapping(uint64 => bool) private _allowedChains;
-    mapping(address => bool) private _allowedRelayers;
+    mapping(address account => mapping(uint64 toChainId => uint256 nonce)) public nonces;
+    mapping(address account => mapping(uint64 fromChainId => mapping(uint256 nonce => bool isUsed))) public noncesUsed;
 
     constructor(
         address owner_,
         address prover_,
-        address[] memory allowedExecutors_,
-        uint64[] memory allowedChains_,
-        address[] memory allowedRelayers_
+        address governor_
     )
         Ownable(owner_)
     {
-        uint256 len = allowedExecutors_.length;
-        for (uint256 i = 0; i < len; i++) {
-            _allowedExecutors[allowedExecutors_[i]] = true;
-        }
-
-        len = allowedChains_.length;
-        for (uint256 i = 0; i < len; i++) {
-            _allowedChains[allowedChains_[i]] = true;
-        }
-
-        len = allowedRelayers_.length;
-        for (uint256 i = 0; i < len; i++) {
-            _allowedRelayers[allowedRelayers_[i]] = true;
-        }
+        if (prover_ == address(0) || governor_ == address(0)) revert INVALID_VALUE();
 
         prover = prover_;
+        governor = governor_;
     }
 
     modifier onlyExecutor() {
-        if (!_allowedExecutors[msg.sender]) revert INVALID_EXECUTOR();
-        _;
-    }
-
-    // TODO: should be free for all? maybe we can remove this to avoid managing dst chains
-    modifier onlyAllowedDestination(uint64 chainId_) {
-        if (!_allowedChains[chainId_]) revert INVALID_CHAIN();
+        if (!ISuperGovernor(governor).isExecutor(msg.sender)) revert INVALID_EXECUTOR();
         _;
     }
 
     modifier onlyRelayer() {
-        if (!_allowedRelayers[msg.sender]) revert INVALID_RELAYER();
+        if (!ISuperGovernor(governor).isRelayer(msg.sender)) revert INVALID_RELAYER();
         _;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 OWNER METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc IVaultBank
-    function updateMerkleRoot(bytes32 merkleRoot_, bool status) external onlyOwner {
-        _registeredMerkleRoots[merkleRoot_] = status;
-        emit MerkleRootUpdated(merkleRoot_, status);
-    }
-
-    /// @inheritdoc IVaultBank
-    function updateChainStatus(uint64 dstChainId_, bool status_) external onlyOwner {
-        _allowedChains[dstChainId_] = status_;
-        emit DestinationChainUpdated(dstChainId_, status_);
-    }
-
-    /// @inheritdoc IVaultBank
-    function updateRelayerStatus(address relayer_, bool status_) external onlyOwner {
-        _allowedRelayers[relayer_] = status_;
-        emit RelayerUpdated(relayer_, status_);
-    }
-
-    /// @inheritdoc IVaultBank
-    function updateProver(address prover_) external onlyOwner {
-        prover = prover_;
-        emit ProverUpdated(prover_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -111,9 +66,10 @@ contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination
     )
         external
         onlyExecutor
-        onlyAllowedDestination(toChainId)
-    {
-        _lockAssetForChain(account, token, amount, toChainId, nonces[account][toChainId]++);
+    {   
+        uint256 _nonce = nonces[account][toChainId];
+        nonces[account][toChainId]++;
+        _lockAssetForChain(account, token, amount, toChainId, _nonce);
     }
 
     /// @inheritdoc IVaultBank
@@ -126,41 +82,19 @@ contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination
     )
         external
         onlyRelayer
-    {
+    {   
+        // validate and mark `proof.nonce[fromChainId]` as used
         _validateUnlockAssetProof(account, token, amount, fromChainId, proof);
-        _releaseAssetFromChain(account, token, amount, fromChainId, nonces[account][fromChainId]++);
+
+        //`toChainId` is current chain
+        uint256 _nonce = nonces[account][uint64(block.chainid)];
+        nonces[account][uint64(block.chainid)]++;
+        _releaseAssetFromChain(account, token, amount, fromChainId, _nonce);
     }
 
-    function _validateUnlockAssetProof(
-        address account,
-        address token,
-        uint256 amount,
-        uint64 fromChainId,
-        bytes calldata proof
-    )
-        internal
-        view
-    {
-        (uint32 chainId, address emittingContract, bytes memory topics, bytes memory unindexedData) =
-            ICrossL2ProverV2(prover).validateEvent(proof);
-        if (uint64(chainId) != fromChainId) revert INVALID_PROOF_CHAIN();
-        if (emittingContract != address(this)) revert INVALID_PROOF_EMITTER();
-
-        bytes32 eventSelector = topics.toBytes32(0); // event signature
-        bytes32 eventAccount = topics.toBytes32(32); // account
-        bytes32 eventSrcTokenAddress = topics.toBytes32(96); // srcTokenAddress
-
-        if (eventSelector != IVaultBank.SuperpositionsBurned.selector) revert INVALID_PROOF_EVENT();
-        if (eventAccount != keccak256(abi.encodePacked(account))) revert INVALID_PROOF_ACCOUNT();
-        if (eventSrcTokenAddress != keccak256(abi.encodePacked(token))) revert INVALID_PROOF_TOKEN();
-
-        (uint256 eventAmount, uint64 eventChainId,) = abi.decode(unindexedData, (uint256, uint64, uint256));
-        if (eventAmount != amount) revert INVALID_PROOF_AMOUNT();
-        if (eventChainId != uint64(block.chainid)) revert INVALID_PROOF_TARGETED_CHAIN();
-    }
 
     /// @inheritdoc IVaultBank
-    function claim(address target, uint256 gasLimit, uint16 maxReturnDataCopy, bytes calldata data) external payable {
+    function claim(address target, uint256 gasLimit, uint16 maxReturnDataCopy, bytes calldata data) external payable onlyRelayer {
         bytes memory result = _claimRewards(target, gasLimit, msg.value, maxReturnDataCopy, data);
         emit ClaimRewards(target, result);
     }
@@ -175,6 +109,7 @@ contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination
     )
         external
         payable
+        onlyRelayer
     {
         uint256 totalValue;
         uint256 len = targets.length;
@@ -192,29 +127,15 @@ contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination
     }
 
     /// @inheritdoc IVaultBank
-    function distributeRewards(
-        bytes32 merkleRoot,
-        address account,
-        address rewardToken,
-        uint256 amount,
-        bytes32[] calldata proof
-    )
-        external
-    {
-        if (account == address(0)) revert INVALID_ACCOUNT();
-        if (amount == 0) revert INVALID_AMOUNT();
-        if (rewardToken == address(0)) revert INVALID_TOKEN();
-        if (!_registeredMerkleRoots[merkleRoot]) revert INVALID_MERKLE_ROOT();
-        if (!canClaim(merkleRoot, account, rewardToken, amount, proof)) revert NOTHING_TO_CLAIM();
-        if (_hasBeenDistributed[account][rewardToken][merkleRoot]) revert ALREADY_DISTRIBUTED();
-
-        IERC20(rewardToken).safeTransfer(account, amount);
-        _hasBeenDistributed[account][rewardToken][merkleRoot] = true;
-        emit DistributeRewards(merkleRoot, account, rewardToken, amount);
+    function batchDistributeRewardsToSuperBank(address[] memory rewards, uint256[] memory amounts) external onlyRelayer {
+        uint256 len = rewards.length;
+        for (uint256 i; i < len; ++i) {
+            _distributeRewardsToSuperBank(rewards[i], amounts[i]);
+        }
+        emit BatchDistributeRewardsToSuperBank(rewards, amounts);
     }
 
     // ------------------ DESTINATION VAULTBANK METHODS ------------------
-
     /// @inheritdoc IVaultBank
     function distributeSuperPosition(
         address account_,
@@ -226,19 +147,58 @@ contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination
         override
         onlyRelayer
     {
+        // validate and mark `proof.nonce[sourceAsset_.chainId]` as used
         _validateDistributeSPProof(account_, sourceAsset_.asset, amount_, sourceAsset_.chainId, proof_);
-        address spAddress = _retrieveSyntheticAsset(
+
+        address spAddress = _retrieveSuperPosition(
             sourceAsset_.chainId, sourceAsset_.asset, sourceAsset_.name, sourceAsset_.symbol, sourceAsset_.decimals
         );
         _mintSP(account_, spAddress, amount_);
+
+        //`toChainId` is current chain
+        uint256 _nonce = nonces[account_][uint64(block.chainid)];
+        nonces[account_][uint64(block.chainid)]++;
         emit SuperpositionsMinted(
             account_,
             spAddress,
             sourceAsset_.asset,
             amount_,
             sourceAsset_.chainId,
-            nonces[account_][uint64(block.chainid)]++
+            _nonce
         );
+    }
+    
+    /// @inheritdoc IVaultBank
+    function burnSuperPosition(uint256 amount_, address spAddress_, uint64 forChainId_) external override {
+        _burnSP(msg.sender, spAddress_, amount_);
+        uint256 _nonce = nonces[msg.sender][forChainId_];
+        nonces[msg.sender][forChainId_]++;
+        emit SuperpositionsBurned(
+            msg.sender,
+            spAddress_,
+            _superPositionToToken[spAddress_][forChainId_],
+            amount_,
+            forChainId_,
+            _nonce
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 INTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _distributeRewardsToSuperBank(address token, uint256 amount) internal {
+        // get SuperBank address
+        ISuperGovernor governorContract = ISuperGovernor(governor);
+        address superBank = governorContract.getAddress(governorContract.SUPER_BANK());
+        
+        if (token == address(0)) {
+            // distribute ETH
+            (bool success, ) = superBank.call{value: amount}('');
+            if (!success) revert INVALID_VALUE();
+        } else {
+            // distribute ERC20
+            IERC20(token).safeTransfer(superBank, amount);
+        }
     }
 
     function _validateDistributeSPProof(
@@ -249,13 +209,16 @@ contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination
         bytes calldata proof
     )
         internal
-        view
     {
         (uint32 chainId, address emittingContract, bytes memory topics, bytes memory unindexedData) =
             ICrossL2ProverV2(prover).validateEvent(proof);
 
         if (emittingContract != address(this)) revert INVALID_PROOF_EMITTER();
 
+        _validateSPTopics(account, token, topics);
+        _validateSPData(account, amount, fromChainId, chainId, unindexedData);
+    }
+    function _validateSPTopics(address account, address token, bytes memory topics) private pure {
         bytes32 eventSelector = topics.toBytes32(0); // event signature
         bytes32 eventAccount = topics.toBytes32(32); // account
         bytes32 eventSrcTokenAddress = topics.toBytes32(96); // srcTokenAddress
@@ -263,25 +226,60 @@ contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination
         if (eventSelector != IVaultBankSource.SharesLocked.selector) revert INVALID_PROOF_EVENT();
         if (eventAccount != keccak256(abi.encodePacked(account))) revert INVALID_PROOF_ACCOUNT();
         if (eventSrcTokenAddress != keccak256(abi.encodePacked(token))) revert INVALID_PROOF_TOKEN();
-
-        (uint256 eventAmount, uint64 eventSrcChainId, uint64 eventDstChainId,) =
+    }
+    function _validateSPData(
+        address account,
+        uint256 amount,
+        uint64 fromChainId,
+        uint32 chainId,
+        bytes memory unindexedData
+    ) private {
+        (uint256 eventAmount, uint64 eventSrcChainId, uint64 eventDstChainId, uint256 eventNonce) =
             abi.decode(unindexedData, (uint256, uint64, uint64, uint256));
 
         if (eventAmount != amount) revert INVALID_PROOF_AMOUNT();
         if (eventSrcChainId != fromChainId || uint64(chainId) != fromChainId) revert INVALID_PROOF_SOURCE_CHAIN();
-        if (eventDstChainId != uint64(block.chainid)) revert INVALID_PROOF_TARGETED_CHAIN();
+        if (eventDstChainId != _chainId) revert INVALID_PROOF_TARGETED_CHAIN();
+        if (noncesUsed[account][fromChainId][eventNonce]) revert NONCE_ALREADY_USED();
+        noncesUsed[account][fromChainId][eventNonce] = true;
     }
 
-    /// @inheritdoc IVaultBank
-    function burnSuperPosition(uint256 amount_, address spAddress_, uint64 forChainId_) external override {
-        _burnSP(msg.sender, spAddress_, amount_);
-        emit SuperpositionsBurned(
-            msg.sender,
-            spAddress_,
-            _syntheticAssetsToToken[spAddress_][forChainId_],
-            amount_,
-            forChainId_,
-            nonces[msg.sender][forChainId_]++
-        );
+    function _validateUnlockAssetProof(
+        address account,
+        address token,
+        uint256 amount,
+        uint64 fromChainId,
+        bytes calldata proof
+    )
+        internal
+    {
+        (uint32 chainId, address emittingContract, bytes memory topics, bytes memory unindexedData) =
+            ICrossL2ProverV2(prover).validateEvent(proof);
+
+        if (uint64(chainId) != fromChainId) revert INVALID_PROOF_CHAIN();
+        if (emittingContract != address(this)) revert INVALID_PROOF_EMITTER();
+
+        _validateUnlockTopics(account, token, topics);
+        _validateUnlockData(account, amount, fromChainId, unindexedData);
     }
+    function _validateUnlockTopics(address account, address token, bytes memory topics) private pure {
+        if (topics.toBytes32(0) != IVaultBank.SuperpositionsBurned.selector) revert INVALID_PROOF_EVENT();
+        if (topics.toBytes32(32) != keccak256(abi.encodePacked(account))) revert INVALID_PROOF_ACCOUNT();
+        if (topics.toBytes32(96) != keccak256(abi.encodePacked(token))) revert INVALID_PROOF_TOKEN();
+    }
+    function _validateUnlockData(
+        address account,
+        uint256 amount,
+        uint64 fromChainId,
+        bytes memory unindexedData
+    ) private {
+        (uint256 eventAmount, uint64 eventChainId, uint256 eventNonce) =
+            abi.decode(unindexedData, (uint256, uint64, uint256));
+
+        if (eventAmount != amount) revert INVALID_PROOF_AMOUNT();
+        if (eventChainId != _chainId) revert INVALID_PROOF_TARGETED_CHAIN();
+        if (noncesUsed[account][fromChainId][eventNonce]) revert NONCE_ALREADY_USED();
+        noncesUsed[account][fromChainId][eventNonce] = true;
+    }
+
 }

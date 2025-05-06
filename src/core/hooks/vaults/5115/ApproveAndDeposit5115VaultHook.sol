@@ -24,7 +24,8 @@ import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } fro
 /// @notice         uint256 amount = BytesLib.toUint256(data, 44);
 /// @notice         uint256 minSharesOut = BytesLib.toUint256(data, 76);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 108);
-/// @notice         bool lockForSP = _decodeBool(data, 109);
+/// @notice         address vaultBank = BytesLib.toAddress(data, 109);
+/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 129);
 contract ApproveAndDeposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
@@ -92,7 +93,8 @@ contract ApproveAndDeposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, IS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 109);
+        vaultBank = BytesLib.toAddress(data, 109);
+        dstChainId = BytesLib.toUint256(data, 129);
         spToken = data.extractYieldSource();
         asset = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
     }

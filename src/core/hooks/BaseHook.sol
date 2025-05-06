@@ -17,10 +17,12 @@ abstract contract BaseHook is ISuperHook {
     // forgefmt: disable-start
     uint256 public transient outAmount;
     uint256 public transient usedShares;
-    bool public transient lockForSP;
     address public transient spToken;
     address public transient asset;
     address public transient lastExecutionCaller;
+
+    address public transient vaultBank;
+    uint256 public transient dstChainId;
 
     // forgefmt: disable-end
 

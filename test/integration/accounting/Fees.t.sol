@@ -71,7 +71,7 @@ contract FeesTest is BaseTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
         );
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
@@ -98,7 +98,7 @@ contract FeesTest is BaseTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -127,7 +127,8 @@ contract FeesTest is BaseTest {
             account,
             sharesToWithdraw,
             false,
-            false
+            address(0),
+            0
         );
 
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(address(this));
@@ -156,7 +157,7 @@ contract FeesTest is BaseTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -186,7 +187,8 @@ contract FeesTest is BaseTest {
             account,
             sharesToWithdraw,
             false,
-            false
+            address(0),
+            0
         );
 
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(address(this));
@@ -215,7 +217,7 @@ contract FeesTest is BaseTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+            bytes4(bytes(MOCKACCOUNTINGVAULT_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -243,7 +245,8 @@ contract FeesTest is BaseTest {
             account,
             sharesToWithdraw,
             false,
-            false
+            address(0),
+            0
         );
 
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(address(this));

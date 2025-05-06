@@ -95,7 +95,8 @@ contract MultiVaultDepositFlow is BaseTest {
             amountPerVault,
             0,
             true,
-            false
+            address(0),
+            0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =

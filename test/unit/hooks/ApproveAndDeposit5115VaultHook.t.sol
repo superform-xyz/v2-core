@@ -65,7 +65,8 @@ contract ApproveAndDeposit5115VaultHook is BaseTest {
             amount,
             0,
             false,
-            false
+            address(0),
+            0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
