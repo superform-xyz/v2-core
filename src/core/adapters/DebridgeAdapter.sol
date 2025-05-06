@@ -60,7 +60,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
 
         // 1. Transfer received funds to the target account *before* calling the executor.
         //    This ensures the executor can reliably check the balance.
-        //    Requires this adapter contract to hold the funds temporarily from Across.
+        //    Requires this adapter contract to hold the funds temporarily from Debridge.
         //    Account is encoded in the merkle tree and validated by the destination executor
         (bool success,) = account.call{ value: address(this).balance }("");
         if (!success) revert ON_ETHER_RECEIVED_FAILED();
@@ -87,7 +87,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
 
         // 1. Transfer received funds to the target account *before* calling the executor.
         //    This ensures the executor can reliably check the balance.
-        //    Requires this adapter contract to hold the funds temporarily from Across.
+        //    Requires this adapter contract to hold the funds temporarily from Debridge.
         //    Account is encoded in the merkle tree and validated by the destination executor
         IERC20(_token).safeTransfer(account, _transferredAmount);
 
