@@ -208,7 +208,7 @@ contract SuperAssetTest is Test {
             abi.encodeWithSelector(
                 IAccessControl.AccessControlUnauthorizedAccount.selector,
                 user,
-                superAsset.DEFAULT_ADMIN_ROLE()
+                keccak256("DEFAULT_ADMIN_ROLE")  // DEFAULT_ADMIN_ROLE is a special role in AccessControl
             )
         );
         superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), newManager);
