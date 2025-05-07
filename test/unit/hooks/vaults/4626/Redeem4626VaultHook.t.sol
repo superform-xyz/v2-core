@@ -3,14 +3,13 @@ pragma solidity >=0.8.28;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { Redeem4626VaultHook } from "../../../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
-import { BaseTest } from "../../../../BaseTest.t.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { console2 } from "forge-std/console2.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
-contract Redeem4626VaultHookTest is BaseTest {
+contract Redeem4626VaultHookTest is Helpers {
     Redeem4626VaultHook public hook;
 
     bytes4 yieldSourceOracleId;
@@ -19,9 +18,7 @@ contract Redeem4626VaultHookTest is BaseTest {
     uint256 amount;
     address owner;
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public {
         yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
         yieldSource = address(this);
         token = address(new MockERC20("Token", "TKN", 18));

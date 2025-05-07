@@ -8,16 +8,14 @@ import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { AccountInstance } from "modulekit/ModuleKit.sol";
 
 // Superform
-import { BaseTest } from "../../BaseTest.t.sol";
-import { ISuperNativePaymaster } from "../../../src/core/interfaces/ISuperNativePaymaster.sol";
 import { SuperNativePaymaster } from "../../../src/core/paymaster/SuperNativePaymaster.sol";
 import { MockEntryPoint } from "../../mocks/MockEntryPoint.sol";
+import { Helpers } from "../../utils/Helpers.sol";
 
-contract SuperNativePaymasterTest is BaseTest {
+contract SuperNativePaymasterTest is Helpers {
     using UserOperationLib for PackedUserOperation;
 
     SuperNativePaymaster public paymaster;
-    AccountInstance public instance;
     MockEntryPoint public mockEntryPoint;
     address public sender;
     uint256 public maxFeePerGas;
@@ -26,12 +24,7 @@ contract SuperNativePaymasterTest is BaseTest {
 
     receive() external payable { }
 
-    function setUp() public override {
-        super.setUp();
-
-        vm.selectFork(FORKS[ETH]);
-        instance = accountInstances[ETH];
-
+    function setUp() public {
         mockEntryPoint = new MockEntryPoint();
         paymaster = new SuperNativePaymaster(IEntryPoint(address(mockEntryPoint)));
 

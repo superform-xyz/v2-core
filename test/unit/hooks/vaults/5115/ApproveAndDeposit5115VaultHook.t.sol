@@ -1,26 +1,64 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ApproveAndDeposit5115VaultHook } from
     "../../../../../src/core/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
-import { BaseTest } from "../../../../BaseTest.t.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { console2 } from "forge-std/console2.sol";
+import { SuperExecutor } from "../../../../../src/core/executors/SuperExecutor.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
+import { InternalHelpers } from "../../../../utils/InternalHelpers.sol";
+import { ISuperExecutor } from "../../../../../src/core/interfaces/ISuperExecutor.sol";
+import { IStandardizedYield } from "../../../../../src/vendor/pendle/IStandardizedYield.sol";
+import { MockLedger, MockLedgerConfiguration } from "../../../../mocks/MockLedger.sol";
+import { RhinestoneModuleKit, AccountInstance, UserOpData, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
 
-contract ApproveAndDeposit5115VaultHookTest is BaseTest {
+import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
+
+contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, InternalHelpers {
     ApproveAndDeposit5115VaultHook public hook;
+
+    using ModuleKitHelpers for *;
 
     bytes4 yieldSourceOracleId;
     address yieldSource;
     address token;
     uint256 amount;
 
-    function setUp() public override {
-        super.setUp();
+    IStandardizedYield public vaultInstance5115ETH;
+
+    address public underlyingETH_sUSDe;
+    address public yieldSource5115AddressSUSDe;
+    address public accountETH;
+    address public feeRecipient;
+
+    AccountInstance public instanceOnETH;
+    ISuperExecutor public superExecutorOnETH;
+    MockLedger public ledger;
+    MockLedgerConfiguration public ledgerConfig;
+
+    function setUp() public {
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), ETH_BLOCK);
+        instanceOnETH = makeAccountInstance(keccak256(abi.encode("TEST")));
+        accountETH = instanceOnETH.account;
+        feeRecipient = makeAddr("feeRecipient");
+
+        underlyingETH_sUSDe = 0x9D39A5DE30e57443BfF2A8307A4256c8797A3497;
+        _getTokens(underlyingETH_sUSDe, accountETH, 100e6);
+
+        yieldSource5115AddressSUSDe = 0x3Ee118EFC826d30A29645eAf3b2EaaC9E8320185;
+
+        vaultInstance5115ETH = IStandardizedYield(yieldSource5115AddressSUSDe);
+
+        ledger = new MockLedger();
+        ledgerConfig = new MockLedgerConfiguration(address(ledger), feeRecipient, address(token), 100, accountETH);
+
+        superExecutorOnETH = new SuperExecutor(address(ledgerConfig));
+        instanceOnETH.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorOnETH), data: "" });
 
         yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
         yieldSource = address(this);
@@ -28,6 +66,41 @@ contract ApproveAndDeposit5115VaultHookTest is BaseTest {
         amount = 1000;
 
         hook = new ApproveAndDeposit5115VaultHook();
+    }
+
+    function test_ApproveAndDeposit5115VaultHook() public {
+        amount = 1e8;
+
+        uint256 accountSUSDEStartBalance = IERC20(underlyingETH_sUSDe).balanceOf(accountETH);
+
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(hook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveAndDeposit5115VaultHookData(
+            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSource5115AddressSUSDe,
+            underlyingETH_sUSDe,
+            amount,
+            0,
+            false,
+            address(0),
+            0
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instanceOnETH, superExecutorOnETH, abi.encode(entry));
+
+        vm.expectEmit(true, true, true, false);
+        emit IStandardizedYield.Deposit(accountETH, accountETH, underlyingETH_sUSDe, amount, amount);
+        executeOp(userOpData);
+
+        // Check asset balances
+        assertEq(IERC20(underlyingETH_sUSDe).balanceOf(accountETH), accountSUSDEStartBalance - amount);
+
+        // Check vault shares balances
+        assertEq(vaultInstance5115ETH.balanceOf(accountETH), amount);
     }
 
     function test_Constructor() public view {

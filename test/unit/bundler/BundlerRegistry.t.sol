@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { BaseTest } from "../../BaseTest.t.sol";
 import { BundlerRegistry } from "../../../src/periphery/BundlerRegistry.sol";
 import { IBundlerRegistry } from "../../../src/periphery/interfaces/IBundlerRegistry.sol";
+import { Helpers } from "../../utils/Helpers.sol";
 
-contract BundlerRegistryTest is BaseTest {
+contract BundlerRegistryTest is Helpers {
     BundlerRegistry public bundlerRegistry;
     address public BUNDLER;
     bytes public constant EXTRA_DATA = "test_data";
@@ -17,8 +17,7 @@ contract BundlerRegistryTest is BaseTest {
     event BundlerExtraDataUpdated(uint256 indexed id, address indexed bundlerAddress, bytes extraData);
     event BundlerStatusChanged(uint256 indexed id, address indexed bundlerAddress, bool isActive);
 
-    function setUp() public override {
-        super.setUp();
+    function setUp() public {
         // Deploy BundlerRegistry with owner as this contract
         bundlerRegistry = new BundlerRegistry(address(this));
         BUNDLER = address(this);
@@ -26,17 +25,17 @@ contract BundlerRegistryTest is BaseTest {
 
     function test_RegisterBundler() public {
         bundlerRegistry.registerBundler(EXTRA_DATA);
-        
+
         // Get the bundler data
         IBundlerRegistry.Bundler memory bundler = bundlerRegistry.getBundlerByAddress(BUNDLER);
-        
+
         // Verify registration
         assertTrue(bundlerRegistry.isBundlerRegistered(BUNDLER), "Bundler should be registered");
         assertTrue(bundlerRegistry.isBundlerActive(BUNDLER), "Bundler should be active");
         assertEq(bundler.bundlerAddress, BUNDLER, "Bundler address mismatch");
         assertEq(bundler.extraData, EXTRA_DATA, "Extra data mismatch");
         assertTrue(bundler.isActive, "Bundler should be active");
-        
+
         vm.stopPrank();
     }
 
@@ -49,7 +48,7 @@ contract BundlerRegistryTest is BaseTest {
         // Update bundler address
         vm.expectEmit(true, true, true, true);
         emit BundlerAddressUpdated(bundlerId, BUNDLER, NEW_BUNDLER_ADDRESS);
-        
+
         bundlerRegistry.updateBundlerAddress(bundlerId, NEW_BUNDLER_ADDRESS);
 
         IBundlerRegistry.Bundler memory updatedBundler = bundlerRegistry.getBundler(bundlerId);
@@ -71,7 +70,7 @@ contract BundlerRegistryTest is BaseTest {
         // Update extra data
         vm.expectEmit(true, true, false, true);
         emit BundlerExtraDataUpdated(bundlerId, BUNDLER, NEW_EXTRA_DATA);
-        
+
         bundlerRegistry.updateBundlerExtraData(bundlerId, NEW_EXTRA_DATA);
 
         // Verify update
@@ -88,7 +87,7 @@ contract BundlerRegistryTest is BaseTest {
         // Update status to inactive
         vm.expectEmit(true, true, false, true);
         emit BundlerStatusChanged(bundlerId, BUNDLER, false);
-        
+
         bundlerRegistry.updateBundlerStatus(bundlerId, false);
 
         // Verify update

@@ -3,23 +3,20 @@ pragma solidity >=0.8.28;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { TransferERC20Hook } from "../../../../../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
-import { BaseTest } from "../../../../BaseTest.t.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { console2 } from "forge-std/console2.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
-contract TransferERC20HookTest is BaseTest {
+contract TransferERC20HookTest is Helpers {
     TransferERC20Hook public hook;
 
     address token;
     address to;
     uint256 amount;
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public {
         MockERC20 _mockToken = new MockERC20("Mock Token", "MTK", 18);
         token = address(_mockToken);
 

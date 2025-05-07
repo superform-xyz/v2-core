@@ -3,14 +3,13 @@ pragma solidity >=0.8.28;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { GearboxStakeHook } from "../../../../../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
-import { BaseTest } from "../../../../BaseTest.t.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { console2 } from "forge-std/console2.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
-contract GearboxStakeHookTest is BaseTest {
+contract GearboxStakeHookTest is Helpers {
     GearboxStakeHook public hook;
 
     bytes4 yieldSourceOracleId;
@@ -18,9 +17,7 @@ contract GearboxStakeHookTest is BaseTest {
     address token;
     uint256 amount;
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public {
         MockERC20 _mockToken = new MockERC20("Mock Token", "MTK", 18);
         token = address(_mockToken);
 

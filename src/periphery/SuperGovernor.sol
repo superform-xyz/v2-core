@@ -14,16 +14,6 @@ import { ISuperVaultAggregator } from "./interfaces/ISuperVaultAggregator.sol";
 /// @notice Central registry for all deployed contracts in the Superform periphery
 contract SuperGovernor is ISuperGovernor, AccessControl {
     using EnumerableSet for EnumerableSet.AddressSet;
-    /// @inheritdoc ISuperGovernor
-
-    function SUPER_GOVERNOR_ROLE() external pure returns (bytes32) {
-        return _SUPER_GOVERNOR_ROLE;
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function GOVERNOR_ROLE() external pure returns (bytes32) {
-        return _GOVERNOR_ROLE;
-    }
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -209,15 +199,15 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
             if (_registeredFulfillRequestsHooks.contains(hook_)) {
                 revert FULFILL_REQUESTS_HOOK_ALREADY_REGISTERED();
             }
+
             _registeredFulfillRequestsHooks.add(hook_);
             emit FulfillRequestsHookRegistered(hook_);
-        } else {
-            if (_registeredHooks.contains(hook_)) {
-                revert HOOK_ALREADY_APPROVED();
-            }
-            _registeredHooks.add(hook_);
-            emit HookApproved(hook_);
         }
+        if (_registeredHooks.contains(hook_)) {
+            revert HOOK_ALREADY_APPROVED();
+        }
+        _registeredHooks.add(hook_);
+        emit HookApproved(hook_);
     }
 
     /// @inheritdoc ISuperGovernor
@@ -512,6 +502,15 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /*//////////////////////////////////////////////////////////////
                          EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperGovernor
+    function SUPER_GOVERNOR_ROLE() external pure returns (bytes32) {
+        return _SUPER_GOVERNOR_ROLE;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function GOVERNOR_ROLE() external pure returns (bytes32) {
+        return _GOVERNOR_ROLE;
+    }
 
     /// @inheritdoc ISuperGovernor
     function getAddress(bytes32 key) external view returns (address) {
@@ -650,6 +649,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         }
         _registeredFulfillRequestsHooks.remove(hook_);
         emit FulfillRequestsHookUnregistered(hook_);
+        _unregisterRegularHook(hook_);
     }
 
     /// @dev Internal function to unregister a regular hook

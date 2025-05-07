@@ -4,11 +4,11 @@ pragma solidity >=0.8.28;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../../../../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
-import { BaseTest } from "../../../../BaseTest.t.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { IAcrossSpokePoolV3 } from "../../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
 contract MockSignatureStorage {
     function retrieveSignatureData(address) external view returns (bytes memory) {
@@ -25,7 +25,7 @@ contract MockSignatureStorage {
     }
 }
 
-contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
+contract AcrossSendFundsAndExecuteOnDstHookTest is Helpers {
     AcrossSendFundsAndExecuteOnDstHook public hook;
     address public mockSpokePool;
     address public mockAccount;
@@ -43,8 +43,7 @@ contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
     bytes public mockMessage;
     MockSignatureStorage public mockSignatureStorage;
 
-    function setUp() public override {
-        super.setUp();
+    function setUp() public {
         mockSpokePool = makeAddr("spokePool");
         mockAccount = makeAddr("account");
         mockRecipient = makeAddr("recipient");
@@ -86,7 +85,6 @@ contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
         assertEq(executions[0].target, mockSpokePool);
         assertEq(executions[0].value, mockValue);
 
-        
         bytes memory sigData = mockSignatureStorage.retrieveSignatureData(address(0));
         mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), uint256(1), sigData);
 
@@ -144,7 +142,6 @@ contract AcrossSendFundsAndExecuteOnDstHookTest is BaseTest {
 
         assertEq(executions.length, 1);
 
-        
         bytes memory sigData = mockSignatureStorage.retrieveSignatureData(address(0));
         mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), uint256(1), sigData);
 

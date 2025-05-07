@@ -3,15 +3,14 @@ pragma solidity >=0.8.28;
 
 import { ApproveAndRedeem5115VaultHook } from
     "../../../../../src/core/hooks/vaults/5115/ApproveAndRedeem5115VaultHook.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
-import { BaseTest } from "../../../../BaseTest.t.sol";
-import { console2 } from "forge-std/console2.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
-contract ApproveAndRedeem5115VaultHookTest is BaseTest {
+contract ApproveAndRedeem5115VaultHookTest is Helpers {
     ApproveAndRedeem5115VaultHook public hook;
 
     bytes4 yieldSourceOracleId;
@@ -24,9 +23,7 @@ contract ApproveAndRedeem5115VaultHookTest is BaseTest {
     bool usePrevHook;
     bool lockForSp;
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public {
         yieldSourceOracleId = bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY));
         yieldSource = address(this);
         tokenIn = address(new MockERC20("TokenIn", "TIN", 18));

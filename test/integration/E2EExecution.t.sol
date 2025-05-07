@@ -5,21 +5,20 @@ pragma solidity >=0.8.28;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-import { BaseE2ETest } from "../BaseE2ETest.t.sol";
+import { MinimalBaseNexusIntegrationTest } from "./MinimalBaseNexusIntegrationTest.t.sol";
 import { INexus } from "../../src/vendor/nexus/INexus.sol";
 import { MockRegistry } from "../mocks/MockRegistry.sol";
-import { SuperExecutor } from "../../src/core/executors/SuperExecutor.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 
-contract E2EExecutionTest is BaseE2ETest {
-    MockRegistry nexusRegistry;
-    address[] attesters;
-    uint8 threshold;
+contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
+    MockRegistry public nexusRegistry;
+    address[] public attesters;
+    uint8 public threshold;
 
-    SuperExecutor superExecutor;
-    bytes mockSignature;
+    bytes public mockSignature;
 
     function setUp() public override {
+        blockNumber = ETH_BLOCK;
         super.setUp();
         nexusRegistry = new MockRegistry();
         attesters = new address[](1);
@@ -27,8 +26,6 @@ contract E2EExecutionTest is BaseE2ETest {
         threshold = 1;
 
         mockSignature = abi.encodePacked(hex"41414141");
-
-        superExecutor = SuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
     }
 
     function test_AccountCreation_WithNexus() public {
@@ -84,7 +81,7 @@ contract E2EExecutionTest is BaseE2ETest {
         // create SuperExecutor data
         address[] memory hooksAddresses = new address[](1);
         bytes[] memory hooksData = new bytes[](1);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[0] = approveHook;
         hooksData[0] = _createApproveHookData(CHAIN_1_WETH, address(MANAGER), amount, false);
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -115,7 +112,7 @@ contract E2EExecutionTest is BaseE2ETest {
         // create SuperExecutor data
         address[] memory hooksAddresses = new address[](1);
         bytes[] memory hooksData = new bytes[](1);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[0] = approveHook;
         hooksData[0] = _createApproveHookData(CHAIN_1_WETH, address(MANAGER), amount, false);
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -129,8 +126,8 @@ contract E2EExecutionTest is BaseE2ETest {
 
     function test_Deposit_To_Morpho_And_TransferShares(uint256 amount) public {
         amount = _bound(amount);
-        address underlyingToken = existingUnderlyingTokens[ETH][USDC_KEY];
-        address morphoVault = realVaultAddresses[ETH][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY];
+        address underlyingToken = CHAIN_1_USDC;
+        address morphoVault = CHAIN_1_MorphoVault;
 
         // create account
         address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
@@ -143,8 +140,8 @@ contract E2EExecutionTest is BaseE2ETest {
 
         // create SuperExecutor data
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = approveHook;
+        hooksAddresses[1] = deposit4626Hook;
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingToken, morphoVault, amount, false);
@@ -175,7 +172,7 @@ contract E2EExecutionTest is BaseE2ETest {
     //////////////////////////////////////////////////////////////*/
 
     function _assertExecutorIsInitialized(address nexusAccount) internal view {
-        bool isSuperExecutorInitialized = superExecutor.isInitialized(nexusAccount);
+        bool isSuperExecutorInitialized = superExecutorModule.isInitialized(nexusAccount);
         assertTrue(isSuperExecutorInitialized, "SuperExecutor should be initialized");
     }
 
