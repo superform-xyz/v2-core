@@ -5,8 +5,9 @@ import {Test} from "forge-std/Test.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 import {IncentiveCalculationContract} from "src/periphery/SuperAsset/IncentiveCalculationContract.sol";
 import {IIncentiveCalculationContract} from "src/periphery/interfaces/SuperAsset/IIncentiveCalculationContract.sol";
+import {Helpers} from "../../../utils/Helpers.sol";
 
-contract IncentiveCalculationContractTest is Test {
+contract IncentiveCalculationContractTest is Helpers {
     IncentiveCalculationContract public calculator;
     uint256 constant PRECISION = 1e18;
     uint256 constant PERC = 100e18;

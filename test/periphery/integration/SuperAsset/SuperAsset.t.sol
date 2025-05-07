@@ -12,9 +12,9 @@ import {SuperOracle} from "../../../../src/periphery/oracles/SuperOracle.sol";
 import {MockERC20} from "../../../mocks/MockERC20.sol";
 import {MockAggregator} from "../../mocks/MockAggregator.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {Helpers} from "../../../utils/Helpers.sol";
 
-
-contract SuperAssetTest is Test {
+contract SuperAssetTest is Helpers {
     // --- Constants ---
     bytes32 public constant PROVIDER_1 = keccak256("PROVIDER_1");
     bytes32 public constant PROVIDER_2 = keccak256("PROVIDER_2");

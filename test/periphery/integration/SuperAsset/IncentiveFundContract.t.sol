@@ -14,8 +14,9 @@ import {MockERC20} from "../../../mocks/MockERC20.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import {MockAggregator} from "../../mocks/MockAggregator.sol";
+import {Helpers} from "../../../utils/Helpers.sol";
 
-contract IncentiveFundContractTest is Test {
+contract IncentiveFundContractTest is Helpers {
     // --- Events ---
     event IncentivePaid(address indexed receiver, address indexed tokenOut, uint256 amount);
     event IncentiveTaken(address indexed sender, address indexed tokenIn, uint256 amount);
