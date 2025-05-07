@@ -150,6 +150,17 @@ interface ISuperGovernor {
     /// @param newRoot The new Merkle root.
     event SuperBankHookMerkleRootUpdated(address indexed hook, bytes32 newRoot);
 
+    /// @notice Emitted when the VaultBank hook Merkle root is proposed
+    /// @param hook The hook address for which the Merkle root is being proposed
+    /// @param newRoot The new Merkle root
+    /// @param effectiveTime The timestamp when the new root will be effective
+    event VaultBankHookMerkleRootProposed(address indexed hook, bytes32 newRoot, uint256 effectiveTime);
+
+    /// @notice Emitted when the VaultBank hook Merkle root is updated.
+    /// @param hook The address of the hook for which the Merkle root was updated.
+    /// @param newRoot The new Merkle root.
+    event VaultBankHookMerkleRootUpdated(address indexed hook, bytes32 newRoot);
+
     /// @notice Emitted when the active PPS Oracle's quorum requirement is updated
     /// @param quorum The new quorum value
     event PPSOracleQuorumUpdated(uint256 quorum);
@@ -196,6 +207,10 @@ interface ISuperGovernor {
     /// @param executor The address of the removed executor
     event ExecutorRemoved(address indexed executor);
 
+    /// @notice Emitted when a prover is set
+    /// @param prover The address of the prover
+    event ProverSet(address indexed prover);
+
 
     /*//////////////////////////////////////////////////////////////
                                    ROLES
@@ -214,6 +229,13 @@ interface ISuperGovernor {
     /// @param key The key to associate with the address
     /// @param value The address value
     function setAddress(bytes32 key, address value) external;
+
+    /*//////////////////////////////////////////////////////////////
+                        PROVER
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Sets the prover address
+    /// @param prover_ The address of the prover
+    function setProver(address prover_) external;
 
     /*//////////////////////////////////////////////////////////////
                         SUPER VAULT AGGREGATOR MANAGEMENT
@@ -320,6 +342,19 @@ interface ISuperGovernor {
     function executeUpkeepCostPerUpdateChange() external;
 
     /*//////////////////////////////////////////////////////////////
+                           VAULT HOOKS MGMT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Proposes a new Merkle root for a specific hook's allowed targets.
+    /// @param hook The address of the hook to update the Merkle root for.
+    /// @param proposedRoot The proposed new Merkle root.
+    function proposeVaultBankHookMerkleRoot(address hook, bytes32 proposedRoot) external;
+
+    /// @notice Executes a previously proposed Merkle root update for a specific hook if the effective time has passed.
+    /// @param hook The address of the hook to execute the update for.
+    function executeVaultBankHookMerkleRootUpdate(address hook) external;
+
+    /*//////////////////////////////////////////////////////////////
                            SUPERBANK HOOKS MGMT
     //////////////////////////////////////////////////////////////*/
     /// @notice Proposes a new Merkle root for a specific hook's allowed targets.
@@ -418,6 +453,11 @@ interface ISuperGovernor {
     /// @return The Merkle root for the hook's allowed targets.
     function getSuperBankHookMerkleRoot(address hook) external view returns (bytes32);
 
+    /// @notice Returns the current Merkle root for a specific hook's allowed targets.
+    /// @param hook The address of the hook to get the Merkle root for.
+    /// @return The Merkle root for the hook's allowed targets.
+    function getVaultBankHookMerkleRoot(address hook) external view returns (bytes32);
+
     /// @notice Gets the proposed Merkle root and its effective time for a specific hook.
     /// @param hook The address of the hook to get the proposed Merkle root for.
     /// @return proposedRoot The proposed Merkle root.
@@ -426,6 +466,19 @@ interface ISuperGovernor {
         external
         view
         returns (bytes32 proposedRoot, uint256 effectiveTime);
+
+    /// @notice Gets the proposed Merkle root and its effective time for a specific hook.
+    /// @param hook The address of the hook to get the proposed Merkle root for.
+    /// @return proposedRoot The proposed Merkle root.
+    /// @return effectiveTime The timestamp when the proposed root will become effective.
+    function getProposedVaultBankHookMerkleRoot(address hook)
+        external
+        view
+        returns (bytes32 proposedRoot, uint256 effectiveTime);
+
+    /// @notice Gets the prover address
+    /// @return The address of the prover
+    function getProver() external view returns (address);
 
     /// @notice Gets the SUP ID
     /// @return The ID of the SUP token

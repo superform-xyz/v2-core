@@ -48,6 +48,9 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     // SuperBank Hook Target validation
     mapping(address hook => ISuperGovernor.HookMerkleRootData merkleData) private superBankHooksMerkleRoots;
 
+    // VaultBank Hook Target validation
+    mapping(address hook => ISuperGovernor.HookMerkleRootData merkleData) private vaultBankHooksMerkleRoots;
+
     // Global freeze for strategist takeovers
     bool private _strategistTakeoversFrozen;
 
@@ -62,6 +65,9 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     // Executor registry
     mapping(address executor => bool isExecutor) private _isExecutor;
     address[] private _executorsList;
+
+    // Polymer prover
+    address private _prover;
 
     // Fee management
     // Current fee values
@@ -146,9 +152,15 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        RELAYER MANAGEMENT
+                        PROVER
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperGovernor
+    function setProver(address prover_) external onlyRole(_SUPER_GOVERNOR_ROLE) {
+        if (prover_ == address(0)) revert INVALID_ADDRESS();
 
+        _prover = prover_;
+        emit ProverSet(prover_);
+    }
 
     /*//////////////////////////////////////////////////////////////
                         SUPER VAULT AGGREGATOR MANAGEMENT
@@ -440,6 +452,18 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /// @inheritdoc ISuperGovernor
+    function proposeVaultBankHookMerkleRoot(address hook, bytes32 proposedRoot) external onlyRole(_GOVERNOR_ROLE) {
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
+
+        uint256 effectiveTime = block.timestamp + TIMELOCK;
+        ISuperGovernor.HookMerkleRootData storage data = vaultBankHooksMerkleRoots[hook];
+        data.proposedRoot = proposedRoot;
+        data.effectiveTime = effectiveTime;
+
+        emit VaultBankHookMerkleRootProposed(hook, proposedRoot, effectiveTime);
+    }
+
+    /// @inheritdoc ISuperGovernor
     function executeSuperBankHookMerkleRootUpdate(address hook) external {
         if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
 
@@ -460,6 +484,29 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         data.effectiveTime = 0;
 
         emit SuperBankHookMerkleRootUpdated(hook, proposedRoot);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function executeVaultBankHookMerkleRootUpdate(address hook) external {
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
+
+        ISuperGovernor.HookMerkleRootData storage data = vaultBankHooksMerkleRoots[hook];
+
+        // Check if there's a proposed update
+        bytes32 proposedRoot = data.proposedRoot;
+        if (proposedRoot == bytes32(0)) revert NO_PROPOSED_MERKLE_ROOT();
+
+        // Check if the effective time has passed
+        if (block.timestamp < data.effectiveTime) revert TIMELOCK_NOT_EXPIRED();
+
+        // Update the Merkle root
+        data.currentRoot = proposedRoot;
+
+        // Reset the proposal
+        data.proposedRoot = bytes32(0);
+        data.effectiveTime = 0;
+
+        emit VaultBankHookMerkleRootUpdated(hook, proposedRoot);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -561,6 +608,12 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /// @inheritdoc ISuperGovernor
+    function getVaultBankHookMerkleRoot(address hook) external view returns (bytes32) {
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
+        return vaultBankHooksMerkleRoots[hook].currentRoot;
+    }
+
+    /// @inheritdoc ISuperGovernor
     function getProposedSuperBankHookMerkleRoot(address hook)
         external
         view
@@ -569,6 +622,22 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
         ISuperGovernor.HookMerkleRootData storage data = superBankHooksMerkleRoots[hook];
         return (data.proposedRoot, data.effectiveTime);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getProposedVaultBankHookMerkleRoot(address hook)
+        external
+        view
+        returns (bytes32 proposedRoot, uint256 effectiveTime)
+    {
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
+        ISuperGovernor.HookMerkleRootData storage data = vaultBankHooksMerkleRoots[hook];
+        return (data.proposedRoot, data.effectiveTime);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getProver() external view returns (address) {
+        return _prover;
     }
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS

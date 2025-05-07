@@ -2,13 +2,15 @@
 pragma solidity >=0.8.28;
 
 // external
+import { BytesLib } from "../../vendor/BytesLib.sol";
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ICrossL2ProverV2 } from "../../vendor/polymer/ICrossL2ProverV2.sol";
-import { BytesLib } from "../../vendor/BytesLib.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
+import { ISuperHook, Execution } from "../../core/interfaces/ISuperHook.sol";
 import { IVaultBank, IVaultBankSource } from "../interfaces/IVaultBank.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { VaultBankDestination } from "./VaultBankDestination.sol";
@@ -24,7 +26,6 @@ contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    address public immutable prover;
     address public immutable governor;
 
     mapping(address account => mapping(uint64 toChainId => uint256 nonce)) public nonces;
@@ -32,14 +33,12 @@ contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination
 
     constructor(
         address owner_,
-        address prover_,
         address governor_
     )
         Ownable(owner_)
     {
-        if (prover_ == address(0) || governor_ == address(0)) revert INVALID_VALUE();
+        if (governor_ == address(0)) revert INVALID_VALUE();
 
-        prover = prover_;
         governor = governor_;
     }
 
@@ -87,43 +86,65 @@ contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination
         _validateUnlockAssetProof(account, token, amount, fromChainId, proof);
 
         //`toChainId` is current chain
-        uint256 _nonce = nonces[account][uint64(block.chainid)];
-        nonces[account][uint64(block.chainid)]++;
+        uint256 _nonce = nonces[account][uint64(_chainId)];
+        nonces[account][uint64(_chainId)]++;
         _releaseAssetFromChain(account, token, amount, fromChainId, _nonce);
     }
-
-
+    
     /// @inheritdoc IVaultBank
-    function claim(address target, uint256 gasLimit, uint16 maxReturnDataCopy, bytes calldata data) external payable onlyRelayer {
-        bytes memory result = _claimRewards(target, gasLimit, msg.value, maxReturnDataCopy, data);
-        emit ClaimRewards(target, result);
-    }
+    function executeHooks(IVaultBank.HookExecutionData calldata executionData) external onlyRelayer {
+        uint256 hooksLength = executionData.hooks.length;
+        if (hooksLength == 0) revert ZERO_LENGTH_ARRAY();
 
-    /// @inheritdoc IVaultBank
-    function batchClaim(
-        address[] calldata targets,
-        uint256[] calldata gasLimit,
-        uint256[] calldata val,
-        uint16 maxReturnDataCopy,
-        bytes calldata data
-    )
-        external
-        payable
-        onlyRelayer
-    {
-        uint256 totalValue;
-        uint256 len = targets.length;
-        for (uint256 i = 0; i < len; ++i) {
-            totalValue += val[i];
+        // Validate arrays have matching lengths
+        if (hooksLength != executionData.data.length || hooksLength != executionData.merkleProofs.length) {
+            revert INVALID_ARRAY_LENGTH();
         }
-        if (msg.value < totalValue) revert INVALID_VALUE();
+        
+        address prevHook;
 
-        for (uint256 i = 0; i < len; ++i) {
-            bytes memory result = _claimRewards(targets[i], gasLimit[i], val[i], maxReturnDataCopy, data);
-            emit ClaimRewards(targets[i], result);
+        for (uint256 i; i < hooksLength; ++i) {
+            address hookAddress = executionData.hooks[i];
+            bytes memory hookData = executionData.data[i];
+            bytes32[] memory merkleProof = executionData.merkleProofs[i];
+
+            ISuperHook hook = ISuperHook(hookAddress);
+
+            // 1. Get the Merkle root specific to this hook
+            bytes32 merkleRoot = ISuperGovernor(governor).getVaultBankHookMerkleRoot(hookAddress);
+            
+            // 2. Pre-Execute Hook
+            hook.preExecute(prevHook, address(this), hookData);
+
+            // 3. Build Execution Steps
+            Execution[] memory executions = hook.build(prevHook, address(this), hookData);
+
+            // 4. Execute Target Calls and verify each target
+            for (uint256 j; j < executions.length; ++j) {
+                Execution memory executionStep = executions[j];
+
+                // Verify that this target is allowed for this hook using the Merkle proof
+                // The leaf is the hash of the target address
+                bytes32 targetLeaf = keccak256(bytes.concat(keccak256(abi.encodePacked(executionStep.target))));
+
+                // Verify this target is allowed using the corresponding Merkle proof
+                if (!MerkleProof.verify(merkleProof, merkleRoot, targetLeaf)) {
+                    revert INVALID_MERKLE_PROOF();
+                }
+
+                // Execute the call after verification
+                (bool success,) = executionStep.target.call{ value: executionStep.value }(executionStep.callData);
+                if (!success) {
+                    revert HOOK_EXECUTION_FAILED();
+                }
+            }
+
+            // 5. Post-Execute Hook
+            hook.postExecute(prevHook, address(this), hookData);
+
+            prevHook = hookAddress;
         }
-
-        emit BatchClaimRewards(targets);
+        emit HooksExecuted(executionData.hooks, executionData.data);
     }
 
     /// @inheritdoc IVaultBank
@@ -156,8 +177,8 @@ contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination
         _mintSP(account_, spAddress, amount_);
 
         //`toChainId` is current chain
-        uint256 _nonce = nonces[account_][uint64(block.chainid)];
-        nonces[account_][uint64(block.chainid)]++;
+        uint256 _nonce = nonces[account_][uint64(_chainId)];
+        nonces[account_][uint64(_chainId)]++;
         emit SuperpositionsMinted(
             account_,
             spAddress,
@@ -211,7 +232,7 @@ contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination
         internal
     {
         (uint32 chainId, address emittingContract, bytes memory topics, bytes memory unindexedData) =
-            ICrossL2ProverV2(prover).validateEvent(proof);
+            ICrossL2ProverV2(ISuperGovernor(governor).getProver()).validateEvent(proof);
 
         if (emittingContract != address(this)) revert INVALID_PROOF_EMITTER();
 
@@ -254,7 +275,7 @@ contract VaultBank is Ownable, IVaultBank, VaultBankSource, VaultBankDestination
         internal
     {
         (uint32 chainId, address emittingContract, bytes memory topics, bytes memory unindexedData) =
-            ICrossL2ProverV2(prover).validateEvent(proof);
+            ICrossL2ProverV2(ISuperGovernor(governor).getProver()).validateEvent(proof);
 
         if (uint64(chainId) != fromChainId) revert INVALID_PROOF_CHAIN();
         if (emittingContract != address(this)) revert INVALID_PROOF_EMITTER();

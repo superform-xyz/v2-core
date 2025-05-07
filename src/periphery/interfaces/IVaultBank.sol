@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
+import {IHookExecutionData} from "./IHookExecutionData.sol";
+
 interface IVaultBankSource {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -64,7 +66,7 @@ interface IVaultBankDestination {
     function isSuperPositionCreated(address superPosition) external view returns (bool);
 }
 
-interface IVaultBank {
+interface IVaultBank is IHookExecutionData {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -84,13 +86,16 @@ interface IVaultBank {
     error NOT_AUTHORIZED();
     error INVALID_RELAYER();
     error INVALID_EXECUTOR();
-    error NOTHING_TO_CLAIM();
+    error ZERO_LENGTH_ARRAY();
     error NONCE_ALREADY_USED();
     error ALREADY_DISTRIBUTED();
     error INVALID_PROOF_CHAIN();
     error INVALID_PROOF_EVENT();
     error INVALID_PROOF_TOKEN();
     error INVALID_PROOF_AMOUNT();
+    error INVALID_ARRAY_LENGTH();
+    error INVALID_MERKLE_PROOF();
+    error HOOK_EXECUTION_FAILED();
     error INVALID_PROOF_ACCOUNT();
     error INVALID_PROOF_EMITTER();
     error INVALID_PROOF_SOURCE_CHAIN();
@@ -99,11 +104,11 @@ interface IVaultBank {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
+    event HooksExecuted(address[] hooks, bytes[] data);
+    event BatchDistributeRewardsToSuperBank(address[] indexed rewards, uint256[] amounts);
+    
     event SuperpositionsMinted(address indexed account, address indexed spAddress, address indexed srcTokenAddress, uint256 amount, uint64 srcChain, uint256 nonce);
     event SuperpositionsBurned(address indexed account, address indexed spAddress, address indexed srcTokenAddress, uint256 amount, uint64 srcChain, uint256 nonce);
-    event ClaimRewards(address indexed target, bytes result);
-    event BatchClaimRewards(address[] targets);
-    event BatchDistributeRewardsToSuperBank(address[] indexed rewards, uint256[] amounts);
 
     event DestinationChainUpdated(uint64 indexed dstChainId, bool status);
     event RelayerUpdated(address indexed relayer, bool status);
@@ -142,28 +147,11 @@ interface IVaultBank {
     function unlockAsset(address account, address token, uint256 amount, uint64 fromChainId, bytes calldata proof_) external;
  
     // ------------------ MANAGE REWARDS ------------------
-    /// @notice Claim rewards for an account
-    /// @param target The target to claim rewards from
-    /// @param gasLimit The gas limit for the claim
-    /// @param maxReturnDataCopy The maximum return data copy
-    /// @param data The data to pass to the target
-    function claim(address target, uint256 gasLimit, uint16 maxReturnDataCopy, bytes calldata data) external payable;
-    /// @notice Batch claim rewards for multiple accounts
-    /// @param targets The targets to claim rewards from
-    /// @param gasLimit The gas limit for the claim
-    /// @param val The values to claim
-    /// @param maxReturnDataCopy The maximum return data copy
-    /// @param data The data to pass to the targets
-    function batchClaim(
-        address[] calldata targets,
-        uint256[] calldata gasLimit,
-        uint256[] calldata val,
-        uint16 maxReturnDataCopy,
-        bytes calldata data
-    )
-        external
-        payable;
-    
+    /// @notice Execute hooks
+    /// @dev Used to claim rewards
+    /// @param executionData The execution data
+    function executeHooks(IVaultBank.HookExecutionData calldata executionData) external;
+
     /// @notice Batch distribute rewards to the super bank
     /// @param rewards The rewards to distribute
     /// @param amounts The amounts of the rewards

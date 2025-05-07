@@ -5,6 +5,7 @@ pragma solidity >=0.8.28;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ExcessivelySafeCall } from "excessivelySafeCall/ExcessivelySafeCall.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 // Superform
 import { IVaultBankSource } from "../interfaces/IVaultBank.sol";
@@ -12,12 +13,13 @@ import { IVaultBankSource } from "../interfaces/IVaultBank.sol";
 abstract contract VaultBankSource is IVaultBankSource {
     using SafeERC20 for IERC20;
     using ExcessivelySafeCall for address;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     // locked assets
-    mapping(address account => mapping(uint64 dstChainId => address[] tokens)) internal _lockedAssets;
+    mapping(address => mapping(uint64 => EnumerableSet.AddressSet)) internal _lockedAssets;
     mapping(address account => mapping(uint64 dstChainId => mapping(address token => uint256 amount))) internal
         _lockedAmounts;
     mapping(address account => mapping(address token => uint256 amount)) internal _totalLocked;
@@ -38,7 +40,7 @@ abstract contract VaultBankSource is IVaultBankSource {
 
     /// @inheritdoc IVaultBankSource
     function viewAllLockedAssets(address account, uint64 dstChainId) external view returns (address[] memory) {
-        return _lockedAssets[account][dstChainId];
+        return _lockedAssets[account][dstChainId].values();
     }
 
     /// @inheritdoc IVaultBankSource
@@ -63,7 +65,7 @@ abstract contract VaultBankSource is IVaultBankSource {
         if (token == address(0)) revert INVALID_TOKEN();
         if (account == address(0)) revert INVALID_ACCOUNT();
         _lockedAmounts[account][toChainId][token] += amount;
-        _lockedAssets[account][toChainId].push(token);
+        _lockedAssets[account][toChainId].add(token);
         _totalLocked[account][token] += amount;
 
         IERC20(token).safeTransferFrom(account, address(this), amount);
@@ -84,7 +86,7 @@ abstract contract VaultBankSource is IVaultBankSource {
         if (amount == 0 || amount > _lockedAmounts[account][fromChainId][token]) revert INVALID_AMOUNT();
         _lockedAmounts[account][fromChainId][token] -= amount;
         _totalLocked[account][token] -= amount;
-        _removeFromLockedAssets(account, token, fromChainId);
+        _lockedAssets[account][fromChainId].remove(token);
 
         IERC20(token).safeTransfer(account, amount);
 
@@ -106,31 +108,5 @@ abstract contract VaultBankSource is IVaultBankSource {
         (bool success, bytes memory result) = target.excessivelySafeCall(gasLimit, value, maxReturnDataCopy, data);
         if (!success) revert CLAIM_FAILED();
         return result;
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-    // ------------------ SYNTHETIC ASSETS ------------------
-    function _removeFromLockedAssets(address account, address token, uint64 dstChainId) private {
-        uint256 len = _lockedAssets[account][dstChainId].length;
-        if (len == 0) revert NO_LOCKED_ASSETS();
-
-        uint256 index;
-        bool found;
-        for (uint256 i; i < len; ++i) {
-            if (_lockedAssets[account][dstChainId][i] == token) {
-                index = i;
-                found = true;
-                break;
-            }
-        }
-
-        if (!found) revert TOKEN_NOT_FOUND();
-
-        if (index != len - 1) {
-            _lockedAssets[account][dstChainId][index] = _lockedAssets[account][dstChainId][len - 1];
-        }
-        _lockedAssets[account][dstChainId].pop();
     }
 }

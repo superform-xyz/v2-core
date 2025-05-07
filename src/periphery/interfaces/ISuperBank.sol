@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import {IHookExecutionData} from "./IHookExecutionData.sol";
+
 /// @title ISuperBank
 /// @author SuperForm Labs
 /// @notice Interface for SuperBank, which compounds protocol revenue into sUP by executing registered hooks.
-interface ISuperBank {
+interface ISuperBank is IHookExecutionData {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -45,20 +47,6 @@ interface ISuperBank {
         uint256 supAmount,
         uint256 treasuryAmount
     );
-
-    /*//////////////////////////////////////////////////////////////
-                                STRUCTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Data required for executing hooks with Merkle proof verification.
-    /// @param hooks Array of addresses of hooks to execute.
-    /// @param data Array of arbitrary data to pass to each hook.
-    /// @param merkleProofs Double array of Merkle proofs verifying each hook's allowed targets.
-    struct HookExecutionData {
-        address[] hooks;
-        bytes[] data;
-        bytes32[][] merkleProofs;
-    }
 
     /*//////////////////////////////////////////////////////////////
                               FUNCTIONS
