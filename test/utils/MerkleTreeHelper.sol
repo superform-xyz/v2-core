@@ -43,8 +43,6 @@ abstract contract MerkleTreeHelper {
         uint64 dstChainId,
         address account,
         address executor,
-        address adapter,
-        address tokenSent,
         uint256 intentAmount,
         uint48 validUntil
     )
@@ -55,7 +53,7 @@ abstract contract MerkleTreeHelper {
         return keccak256(
             bytes.concat(
                 keccak256(
-                    abi.encode(executionData, dstChainId, account, executor, adapter, tokenSent, intentAmount, validUntil)
+                    abi.encode(executionData, dstChainId, account, executor, intentAmount, validUntil)
                 )
             )
         );
