@@ -204,11 +204,13 @@ contract SuperAssetTest is Test {
         
         // Non-admin cannot grant roles
         vm.startPrank(user);
+        console.log("User = ", user);
+        // NOTE: This test is not passing, but not sure why since according to the logs it should pass
         vm.expectRevert(
             abi.encodeWithSelector(
                 IAccessControl.AccessControlUnauthorizedAccount.selector,
                 user,
-                keccak256("DEFAULT_ADMIN_ROLE")  // DEFAULT_ADMIN_ROLE is a special role in AccessControl
+                superAsset.DEFAULT_ADMIN_ROLE()
             )
         );
         superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), newManager);
