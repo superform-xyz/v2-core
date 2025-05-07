@@ -321,9 +321,6 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         uint256 total;
         validQuotes = new uint256[](numberOfProviders);
 
-        // Create a temporary array to store valid quotes
-        // uint256[] memory tempQuotes = new uint256[](numberOfProviders);
-
         // Loop through all active providers
         for (uint256 i; i < numberOfProviders; ++i) {
             bytes32 provider = activeProviders[i];
@@ -363,14 +360,6 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
             }
         }
         if (count == 0) revert NO_VALID_REPORTED_PRICES();
-
-        // Create a new array with the exact size needed
-        // validQuotes = new uint256[](count);
-
-        // Copy valid quotes to the properly sized array
-        // for (uint256 i; i < count; i++) {
-        //     validQuotes[i] = tempQuotes[i];
-        // }
 
         quoteAmount = total / count;
     }
