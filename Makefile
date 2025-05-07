@@ -22,7 +22,7 @@ ftest-vvv :; forge test -vvv
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_MaxWithdraw -vvv
+test-vvv :; forge test --match-test test_MaxRedeem -vvv
 
 test-integration :; forge test --match-contract SuperVaultTest -vv
 

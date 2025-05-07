@@ -199,7 +199,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         uint256 shares = strategy.pendingRedeemRequest(controller);
         if (shares == 0) revert REQUEST_NOT_FOUND();
 
-        // Forward to strategy
+        // Forward to strategyr
         strategy.handleOperation(controller, 0, 0, ISuperVaultStrategy.Operation.CancelRedeem);
 
         // Return shares to user
@@ -350,7 +350,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
 
     /// @inheritdoc IERC4626
     function maxRedeem(address owner) public view override returns (uint256) {
-        return maxWithdraw(owner).mulDiv(strategy.getAverageWithdrawPrice(owner), PRECISION, Math.Rounding.Floor);
+        return maxWithdraw(owner).mulDiv(strategy.getAverageWithdrawPrice(owner), PRECISION, Math.Rounding.Ceil);
     }
 
     /// @inheritdoc IERC4626
