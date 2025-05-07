@@ -306,4 +306,220 @@ contract SuperAssetTest is Helpers {
         superAsset.setSwapFeeInPercentage(tooHighFee);
         vm.stopPrank();
     }
+
+    // --- Test: Deposit ---
+    function test_BasicDeposit() public {
+        uint256 depositAmount = 100e18;
+        uint256 minSharesOut = 99e18; // Allowing for 1% slippage
+
+        // Approve tokens
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), depositAmount);
+
+        // Deposit tokens
+        (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) = 
+            superAsset.deposit(user, address(tokenIn), depositAmount, minSharesOut);
+        vm.stopPrank();
+
+        // Verify results
+        assertGt(amountSharesMinted, 0, "Should mint shares");
+        assertEq(swapFee, (depositAmount * superAsset.swapFeeInPercentage()) / superAsset.SWAP_FEE_PERC(), "Incorrect swap fee");
+        assertTrue(superAsset.balanceOf(user) > 0, "User should have shares");
+    }
+
+    function test_DepositWithZeroAmount() public {
+        vm.startPrank(user);
+        vm.expectRevert(ISuperAsset.ZERO_AMOUNT.selector);
+        superAsset.deposit(user, address(tokenIn), 0, 0);
+        vm.stopPrank();
+    }
+
+    function test_DepositWithUnsupportedToken() public {
+        address unsupportedToken = makeAddr("unsupportedToken");
+        vm.startPrank(user);
+        vm.expectRevert(ISuperAsset.NOT_SUPPORTED_TOKEN.selector);
+        superAsset.deposit(user, unsupportedToken, 100e18, 0);
+        vm.stopPrank();
+    }
+
+    function test_DepositWithZeroAddress() public {
+        vm.startPrank(user);
+        vm.expectRevert(ISuperAsset.ZERO_ADDRESS.selector);
+        superAsset.deposit(address(0), address(tokenIn), 100e18, 0);
+        vm.stopPrank();
+    }
+
+    function test_DepositSlippageProtection() public {
+        uint256 depositAmount = 100e18;
+        uint256 tooHighMinSharesOut = 101e18; // Requiring more shares than possible
+
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), depositAmount);
+
+        vm.expectRevert(ISuperAsset.SLIPPAGE_PROTECTION.selector);
+        superAsset.deposit(user, address(tokenIn), depositAmount, tooHighMinSharesOut);
+        vm.stopPrank();
+    }
+
+    // --- Test: Redeem ---
+    function test_BasicRedeem() public {
+        // First deposit to get some shares
+        uint256 depositAmount = 100e18;
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), depositAmount);
+        (uint256 sharesMinted,,) = superAsset.deposit(user, address(tokenIn), depositAmount, 0);
+
+        // Now redeem the shares
+        uint256 minTokenOut = 99e18; // Allowing for 1% slippage
+        (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem) = 
+            superAsset.redeem(user, sharesMinted, address(tokenIn), minTokenOut);
+        vm.stopPrank();
+
+        // Verify results
+        assertGt(amountTokenOutAfterFees, 0, "Should receive tokens");
+        assertEq(swapFee, (amountTokenOutAfterFees * superAsset.swapFeeOutPercentage()) / superAsset.SWAP_FEE_PERC(), "Incorrect swap fee");
+        assertEq(superAsset.balanceOf(user), 0, "User should have no shares left");
+    }
+
+    function test_RedeemWithZeroAmount() public {
+        vm.startPrank(user);
+        vm.expectRevert(ISuperAsset.ZERO_AMOUNT.selector);
+        superAsset.redeem(user, 0, address(tokenIn), 0);
+        vm.stopPrank();
+    }
+
+    function test_RedeemWithUnsupportedToken() public {
+        address unsupportedToken = makeAddr("unsupportedToken");
+        vm.startPrank(user);
+        vm.expectRevert(ISuperAsset.NOT_SUPPORTED_TOKEN.selector);
+        superAsset.redeem(user, 100e18, unsupportedToken, 0);
+        vm.stopPrank();
+    }
+
+    function test_RedeemWithZeroAddress() public {
+        vm.startPrank(user);
+        vm.expectRevert(ISuperAsset.ZERO_ADDRESS.selector);
+        superAsset.redeem(address(0), 100e18, address(tokenIn), 0);
+        vm.stopPrank();
+    }
+
+    function test_RedeemSlippageProtection() public {
+        // First deposit to get some shares
+        uint256 depositAmount = 100e18;
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), depositAmount);
+        (uint256 sharesMinted,,) = superAsset.deposit(user, address(tokenIn), depositAmount, 0);
+
+        // Try to redeem with too high minimum output requirement
+        uint256 tooHighMinTokenOut = 101e18; // Requiring more tokens than possible
+        vm.expectRevert(ISuperAsset.SLIPPAGE_PROTECTION.selector);
+        superAsset.redeem(user, sharesMinted, address(tokenIn), tooHighMinTokenOut);
+        vm.stopPrank();
+    }
+
+    // --- Test: Incentive Handling ---
+    // function test_DepositWithIncentives() public {
+    //     uint256 depositAmount = 100e18;
+
+    //     // Approve tokens
+    //     vm.startPrank(user);
+    //     tokenIn.approve(address(superAsset), depositAmount);
+
+    //     // Deposit tokens and check incentive calculation
+    //     (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) = 
+    //         superAsset.deposit(user, address(tokenIn), depositAmount, 0);
+    //     vm.stopPrank();
+
+    //     // Verify incentive calculation
+    //     assertTrue(amountIncentiveUSDDeposit != 0, "Should calculate incentives");
+
+    //     // Check if incentives were settled with IncentiveFund
+    //     // This would require mocking/checking the IncentiveFund contract's state
+    //     // For now we just verify the event was emitted
+    //     vm.expectEmit(true, true, true, true);
+    //     emit Deposit(user, address(tokenIn), depositAmount, amountSharesMinted, swapFee, amountIncentiveUSDDeposit);
+    // }
+
+    // function test_RedeemWithIncentives() public {
+    //     // First deposit to get shares
+    //     uint256 depositAmount = 100e18;
+    //     vm.startPrank(user);
+    //     tokenIn.approve(address(superAsset), depositAmount);
+    //     (uint256 sharesMinted,,) = superAsset.deposit(user, address(tokenIn), depositAmount, 0);
+
+    //     // Redeem shares and check incentive calculation
+    //     (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem) = 
+    //         superAsset.redeem(user, address(tokenIn), sharesMinted, 0);
+    //     vm.stopPrank();
+
+    //     // Verify incentive calculation
+    //     assertTrue(amountIncentiveUSDRedeem != 0, "Should calculate incentives");
+
+    //     // Check if incentives were settled with IncentiveFund
+    //     vm.expectEmit(true, true, true, true);
+    //     emit Redeem(user, address(tokenIn), sharesMinted, amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem);
+    // }
+
+    // --- Test: Swap ---
+    function test_BasicSwap() public {
+        uint256 swapAmount = 100e18;
+        uint256 minTokenOut = 99e18; // 1% slippage allowance
+
+        // Approve tokens
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), swapAmount);
+
+        // Perform swap
+        (uint256 amountSharesIntermediateStep, 
+         uint256 amountTokenOutAfterFees, 
+         uint256 swapFeeIn, 
+         uint256 swapFeeOut, 
+         int256 amountIncentivesIn, 
+         int256 amountIncentivesOut) = 
+            superAsset.swap(user, address(tokenIn), swapAmount, address(tokenOut), minTokenOut);
+
+        vm.stopPrank();
+
+        // Verify results
+        assertGt(amountSharesIntermediateStep, 0, "Should create intermediate shares");
+        assertGt(amountTokenOutAfterFees, 0, "Should receive output tokens");
+        assertGt(swapFeeIn, 0, "Should charge deposit fee");
+        assertGt(swapFeeOut, 0, "Should charge redeem fee");
+        assertTrue(amountIncentivesIn != 0, "Should calculate deposit incentives");
+        assertTrue(amountIncentivesOut != 0, "Should calculate redeem incentives");
+    }
+
+    function test_SwapWithZeroAmount() public {
+        vm.startPrank(user);
+        vm.expectRevert(ISuperAsset.ZERO_AMOUNT.selector);
+        superAsset.swap(user, address(tokenIn), 0, address(tokenOut), 0);
+        vm.stopPrank();
+    }
+
+    function test_SwapWithUnsupportedToken() public {
+        address unsupportedToken = makeAddr("unsupportedToken");
+        vm.startPrank(user);
+        vm.expectRevert(ISuperAsset.NOT_SUPPORTED_TOKEN.selector);
+        superAsset.swap(user, unsupportedToken, 100e18, address(tokenOut), 0);
+        vm.stopPrank();
+    }
+
+    function test_SwapWithZeroAddress() public {
+        vm.startPrank(user);
+        vm.expectRevert(ISuperAsset.ZERO_ADDRESS.selector);
+        superAsset.swap(address(0), address(tokenIn), 100e18, address(tokenOut), 0);
+        vm.stopPrank();
+    }
+
+    function test_SwapSlippageProtection() public {
+        uint256 swapAmount = 100e18;
+        uint256 tooHighMinTokenOut = 101e18; // Requiring more output than possible
+
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), swapAmount);
+
+        vm.expectRevert(ISuperAsset.SLIPPAGE_PROTECTION.selector);
+        superAsset.swap(user, address(tokenIn), swapAmount, address(tokenOut), tooHighMinTokenOut);
+        vm.stopPrank();
+    }
 }
