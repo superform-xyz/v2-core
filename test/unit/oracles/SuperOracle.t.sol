@@ -656,7 +656,7 @@ contract SuperOracleTest is BaseTest {
         );
 
         // Even though we have 4 active providers, only 3 have ETH/USD oracles
-        assertEq(totalProviders, 4, "Total providers should be 4");
+        assertEq(totalProviders, 3, "Total providers should be 3");
         assertEq(availableProviders, 3, "Only 3 providers should be available for ETH/USD");
         assertEq(quoteAmount, 1e6, "Average quote should still be $1000 from the 3 ETH/USD providers");
 
@@ -670,7 +670,7 @@ contract SuperOracleTest is BaseTest {
         );
 
         // Only 1 provider (BTC_ONLY_PROVIDER) has BTC/USD oracle
-        assertEq(btcTotalProviders, 4, "Total providers should be 4");
+        assertEq(btcTotalProviders, 1, "Total providers should be 1");
         assertEq(btcAvailableProviders, 1, "Only 1 provider should be available for BTC/USD");
         assertEq(btcQuoteAmount, 2e6, "Quote should be $20000 from the only BTC/USD provider");
     }

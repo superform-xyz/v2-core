@@ -214,10 +214,10 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
             uint256 length = activeProviders.length;
             uint256[] memory validQuotes = new uint256[](length);
             uint256 count;
-            (quoteAmount, validQuotes, count) = _getAverageQuote(base, quote, baseAmount, length);
-            totalProviders = length;
+            (quoteAmount, validQuotes, totalProviders, count) = _getAverageQuote(base, quote, baseAmount, length);
+            // totalProviders = length;
             availableProviders = count;
-            deviation = _calculateStdDev(validQuotes);
+            deviation = _calculateStdDev(validQuotes, count);
         } else {
             quoteAmount = _getQuoteFromOracle(oracles[base][quote][oracleProvider], baseAmount, base, quote, true);
             deviation = 0;
@@ -316,11 +316,13 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         internal
         view
         virtual
-        returns (uint256 quoteAmount, uint256[] memory validQuotes, uint256 count)
+        returns (uint256 quoteAmount, uint256[] memory validQuotes, uint256 totalCount, uint256 count)
     {
         uint256 total;
+        validQuotes = new uint256[](numberOfProviders);
+
         // Create a temporary array to store valid quotes
-        uint256[] memory tempQuotes = new uint256[](numberOfProviders);
+        // uint256[] memory tempQuotes = new uint256[](numberOfProviders);
 
         // Loop through all active providers
         for (uint256 i; i < numberOfProviders; ++i) {
@@ -344,11 +346,17 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
             */
             if (providerOracle == address(0)) continue;
 
+            // We have one more registered oracle for this base asset
+            unchecked {
+                ++totalCount;
+            }
+
             uint256 quote_ = _getQuoteFromOracle(providerOracle, baseAmount, base, quote, false);
             /// @dev we don't revert on error, we just skip the oracle value
             if (quote_ > 0) {
                 total += quote_;
-                tempQuotes[count] = quote_;
+                validQuotes[count] = quote_;
+                // This oracle is available
                 unchecked {
                     ++count;
                 }
@@ -357,12 +365,12 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         if (count == 0) revert NO_VALID_REPORTED_PRICES();
 
         // Create a new array with the exact size needed
-        validQuotes = new uint256[](count);
+        // validQuotes = new uint256[](count);
 
         // Copy valid quotes to the properly sized array
-        for (uint256 i; i < count; i++) {
-            validQuotes[i] = tempQuotes[i];
-        }
+        // for (uint256 i; i < count; i++) {
+        //     validQuotes[i] = tempQuotes[i];
+        // }
 
         quoteAmount = total / count;
     }
@@ -371,8 +379,8 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         return oracle_.decimals();
     }
 
-    function _calculateStdDev(uint256[] memory values) internal pure virtual returns (uint256 stddev) {
-        uint256 length = values.length;
+    function _calculateStdDev(uint256[] memory values, uint256 length) internal pure virtual returns (uint256 stddev) {
+        //uint256 length = values.length;
         uint256 sum = 0;
         uint256 count = 0;
         for (uint256 i; i < length; ++i) {
