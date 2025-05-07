@@ -12,6 +12,8 @@ import "../interfaces/SuperAsset/IAssetBank.sol";
 import "../interfaces/SuperAsset/ISuperAsset.sol";
 import "../interfaces/ISuperOracle.sol";
 
+import "forge-std/console.sol";
+
 /**
  * @author Superform Labs
  * @title SuperAsset
@@ -218,13 +220,18 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 amountTokenToDeposit,
         uint256 minSharesOut            // Slippage Protection
     ) public returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) {
+        console.log("deposit() Starts");
         // First all the non state changing functions 
         if (amountTokenToDeposit == 0) revert ZERO_AMOUNT();
+        console.log("deposit() T1");
         if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
+        console.log("deposit() T2");
         if (receiver == address(0)) revert ZERO_ADDRESS();
+        console.log("deposit() T3");
 
         // Calculate and settle incentives
         (amountSharesMinted, swapFee, amountIncentiveUSDDeposit) = previewDeposit(tokenIn, amountTokenToDeposit);
+        console.log("deposit() T5");
         if (amountSharesMinted == 0) revert ZERO_AMOUNT();
         // Slippage Check
         if (amountSharesMinted < minSharesOut) revert SLIPPAGE_PROTECTION();
@@ -233,7 +240,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Settle Incentives
         _settleIncentive(msg.sender, amountIncentiveUSDDeposit);
-
+        console.log("deposit() T6");
         // Transfer the tokenIn from the sender to this contract
         // For now, assuming shares are held in this contract, maybe they will have to be held in another contract balance sheet
         IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountTokenToDeposit);
@@ -383,15 +390,20 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     view
     returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD)
     {
+        console.log("previewDeposit() Start");
         if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
+        console.log("T1");
 
         // Calculate swap fees (example: 0.1% fee)
         swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
         uint256 amountTokenInAfterFees = amountTokenToDeposit - swapFee;
+        console.log("T3");
 
         // Get price of underlying vault shares in USD
         (uint256 priceUSDTokenIn, , , ) = getPriceWithCircuitBreakers(tokenIn);
+        console.log("T5");
         (uint256 priceUSDThisShares, , , ) = getPriceWithCircuitBreakers(address(this));
+        console.log("T6");
 
         if (priceUSDTokenIn == 0 || priceUSDThisShares == 0) revert PRICE_USD_ZERO();
 

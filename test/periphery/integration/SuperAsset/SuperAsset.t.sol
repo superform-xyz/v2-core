@@ -22,6 +22,7 @@ contract SuperAssetTest is Helpers {
     bytes32 public constant PROVIDER_4 = keccak256("PROVIDER_4");
     bytes32 public constant PROVIDER_5 = keccak256("PROVIDER_5");
     bytes32 public constant PROVIDER_6 = keccak256("PROVIDER_6");
+    bytes32 public constant PROVIDER_SUPERASSET = keccak256("PROVIDER_SUPERASSET");
     address public constant USD = address(840);
 
     // --- State Variables ---
@@ -30,6 +31,7 @@ contract SuperAssetTest is Helpers {
     SuperOracle public oracle;
     MockERC20 public tokenIn;
     MockERC20 public tokenOut;
+    MockAggregator public mockFeedSuperAssetShares1;
     MockAggregator public mockFeed1;
     MockAggregator public mockFeed2;
     MockAggregator public mockFeed3;
@@ -50,7 +52,10 @@ contract SuperAssetTest is Helpers {
         user = makeAddr("user");
 
         vm.startPrank(admin);
-        
+        // Deploy and initialize SuperAsset
+        superAsset = new SuperAsset();
+        console.log("SuperAsset deployed");
+
         // Deploy mock tokens
         tokenIn = new MockERC20("Token In", "TIN", 18);
         tokenOut = new MockERC20("Token Out", "TOUT", 18);
@@ -61,6 +66,7 @@ contract SuperAssetTest is Helpers {
         console.log("ICC deployed");
 
         // Create mock price feeds with different price values (1 token = $1)
+        mockFeedSuperAssetShares1 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed1 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed2 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed3 = new MockAggregator(1e8, 8); // Token/USD = $1
@@ -70,6 +76,7 @@ contract SuperAssetTest is Helpers {
         console.log("Mock feeds deployed");
 
         // Update timestamps to ensure prices are fresh
+        mockFeedSuperAssetShares1.setUpdatedAt(block.timestamp);
         mockFeed1.setUpdatedAt(block.timestamp);
         mockFeed2.setUpdatedAt(block.timestamp);
         mockFeed3.setUpdatedAt(block.timestamp);
@@ -79,37 +86,41 @@ contract SuperAssetTest is Helpers {
         console.log("Feed timestamps updated");
 
         // Setup oracle parameters with regular providers
-        address[] memory bases = new address[](6);
+        address[] memory bases = new address[](7);
         bases[0] = address(tokenIn);
         bases[1] = address(tokenIn);
         bases[2] = address(tokenIn);
         bases[3] = address(tokenOut);
         bases[4] = address(tokenOut);
         bases[5] = address(tokenOut);
+        bases[6] = address(superAsset);
 
-        address[] memory quotes = new address[](6);
+        address[] memory quotes = new address[](7);
         quotes[0] = USD;
         quotes[1] = USD;
         quotes[2] = USD;
         quotes[3] = USD;
         quotes[4] = USD;
         quotes[5] = USD;
+        quotes[6] = USD;
 
-        bytes32[] memory providers = new bytes32[](6);
+        bytes32[] memory providers = new bytes32[](7);
         providers[0] = PROVIDER_1;
         providers[1] = PROVIDER_2;
         providers[2] = PROVIDER_3;
         providers[3] = PROVIDER_4;
         providers[4] = PROVIDER_5;
         providers[5] = PROVIDER_6;
+        providers[6] = PROVIDER_SUPERASSET;
 
-        address[] memory feeds = new address[](6);
+        address[] memory feeds = new address[](7);
         feeds[0] = address(mockFeed1);
         feeds[1] = address(mockFeed2);
         feeds[2] = address(mockFeed3);
         feeds[3] = address(mockFeed4);
         feeds[4] = address(mockFeed5);
         feeds[5] = address(mockFeed6);
+        feeds[6] = address(mockFeedSuperAssetShares1);
 
         // Deploy and configure oracle with regular providers only
         oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
@@ -123,17 +134,19 @@ contract SuperAssetTest is Helpers {
         oracle.setFeedMaxStaleness(address(mockFeed4), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed5), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed6), 1 days);
+        oracle.setFeedMaxStaleness(address(mockFeedSuperAssetShares1), 1 days);
         console.log("Feed staleness set");
 
         // Deploy contracts
+        vm.startPrank(admin);
+        
+        // Deploy and initialize AssetBank
         assetBank = new AssetBank();
         console.log("AssetBank deployed");
 
+        // Deploy and initialize IncentiveFund
         incentiveFund = new IncentiveFundContract();
         console.log("IncentiveFund deployed");
-
-        superAsset = new SuperAsset();
-        console.log("SuperAsset deployed");
 
         // Initialize SuperAsset
         console.log("About to initialize SuperAsset");
@@ -148,14 +161,18 @@ contract SuperAssetTest is Helpers {
         );
         console.log("SuperAsset initialized");
 
+        // Initialize IncentiveFund after SuperAsset is initialized
+        incentiveFund.initialize(address(superAsset), address(assetBank));
+
         // Setup roles and configuration
         superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), admin);
         superAsset.setSuperOracle(address(oracle));
         superAsset.whitelistERC20(address(tokenIn));
+        assertEq(superAsset.isSupportedERC20(address(tokenIn)), true, "Token In should be whitelisted");
         superAsset.whitelistERC20(address(tokenOut));
-
-        // Initialize IncentiveFund
-        incentiveFund.initialize(address(superAsset), address(assetBank));
+        assertEq(superAsset.isSupportedERC20(address(tokenOut)), true, "Token Out should be whitelisted");
+        superAsset.whitelistERC20(address(superAsset));
+        assertEq(superAsset.isSupportedERC20(address(superAsset)), true, "SuperAsset should be whitelisted");
 
         // Grant necessary roles
         bytes32 INCENTIVE_FUND_MANAGER = incentiveFund.INCENTIVE_FUND_MANAGER();
@@ -311,15 +328,19 @@ contract SuperAssetTest is Helpers {
     function test_BasicDeposit() public {
         uint256 depositAmount = 100e18;
         uint256 minSharesOut = 99e18; // Allowing for 1% slippage
+        assertEq(superAsset.isSupportedERC20(address(tokenIn)), true, "Token In should be whitelisted");
+        assertEq(superAsset.isSupportedERC20(address(tokenOut)), true, "Token Out should be whitelisted");
 
         // Approve tokens
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
+        console.log("T1");
 
         // Deposit tokens
         (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) = 
             superAsset.deposit(user, address(tokenIn), depositAmount, minSharesOut);
         vm.stopPrank();
+        console.log("T2");
 
         // Verify results
         assertGt(amountSharesMinted, 0, "Should mint shares");
