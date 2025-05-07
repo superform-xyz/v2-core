@@ -215,7 +215,6 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
             uint256[] memory validQuotes = new uint256[](length);
             uint256 count;
             (quoteAmount, validQuotes, totalProviders, count) = _getAverageQuote(base, quote, baseAmount, length);
-            // totalProviders = length;
             availableProviders = count;
             deviation = _calculateStdDev(validQuotes, count);
         } else {
@@ -369,7 +368,6 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
     }
 
     function _calculateStdDev(uint256[] memory values, uint256 length) internal pure virtual returns (uint256 stddev) {
-        //uint256 length = values.length;
         uint256 sum = 0;
         uint256 count = 0;
         for (uint256 i; i < length; ++i) {
