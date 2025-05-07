@@ -806,7 +806,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 yieldSource4626AddressOP_USDCe,
                 amountPerVault,
                 true,
-                false
+                address(0),
+                0
             );
 
             messageData = TargetExecutorMessage({
@@ -885,7 +886,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             accountOP,
             userBalanceSharesBefore,
             false,
-            false
+            address(0),
+            0
         );
         opHooksData[1] = _createApproveHookData(underlyingOP_USDCe, SPOKE_POOL_V3_ADDRESSES[OP], amountPerVault, true);
 
@@ -1039,7 +1041,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, maxDeposit, false, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, maxDeposit, false, address(0), 0
         );
 
         UserOpData memory depositOpData = _createUserOpData(hooksAddresses, hooksData, ETH, false);
@@ -1095,7 +1097,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             yieldSource7540AddressETH_USDC,
             userExpectedAssets,
             false,
-            false
+            address(0),
+            0
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -1151,7 +1154,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             yieldSource7540AddressETH_USDC,
             userExpectedAssets,
             false,
-            false
+            address(0),
+            0
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -1208,7 +1212,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             yieldSource7540AddressETH_USDC,
             userExpectedAssets,
             false,
-            false
+            address(0),
+            0
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -1252,7 +1257,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             accountOP,
             userBalanceSharesBefore,
             false,
-            false
+            address(0),
+            0
         );
 
         UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP, false);
