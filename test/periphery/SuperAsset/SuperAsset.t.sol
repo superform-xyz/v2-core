@@ -10,7 +10,7 @@ import {IncentiveFundContract} from "../../../src/periphery/SuperAsset/Incentive
 import {IncentiveCalculationContract} from "../../../src/periphery/SuperAsset/IncentiveCalculationContract.sol";
 import {SuperOracle} from "../../../src/periphery/oracles/SuperOracle.sol";
 import {MockERC20} from "../../mocks/MockERC20.sol";
-import {MockAggregator} from "./MockAggregator.sol";
+import {MockAggregator} from "../mocks/MockAggregator.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 

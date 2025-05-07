@@ -13,7 +13,7 @@ import {IncentiveCalculationContract} from "../../../src/periphery/SuperAsset/In
 import {MockERC20} from "../../mocks/MockERC20.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
-import {MockAggregator} from "./MockAggregator.sol";
+import {MockAggregator} from "../mocks/MockAggregator.sol";
 
 contract IncentiveFundContractTest is Test {
     // --- Events ---
