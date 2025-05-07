@@ -15,7 +15,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
-/// @dev `message` field won't contain the signature for the destination executor
+/// @dev `destinationMessage` field won't contain the signature for the destination executor
 /// @dev      signature is retrieved from the validator contract transient storage
 /// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to sign it
 /// @dev data has the following structure
@@ -30,7 +30,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         uint32 fillDeadlineOffset = BytesLib.toUint32(data, 208);
 /// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 216);
-/// @notice         bytes message = BytesLib.slice(data, 217, data.length - 217);
+/// @notice         bytes destinationMessage = BytesLib.slice(data, 217, data.length - 217);
 contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -51,7 +51,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
         uint32 fillDeadlineOffset;
         uint32 exclusivityPeriod;
         bool usePrevHookAmount;
-        bytes message;
+        bytes destinationMessage;
     }
 
     constructor(address spokePoolV3_, address validator_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
@@ -85,7 +85,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
         acrossV3DepositAndExecuteData.fillDeadlineOffset = BytesLib.toUint32(data, 208);
         acrossV3DepositAndExecuteData.exclusivityPeriod = BytesLib.toUint32(data, 212);
         acrossV3DepositAndExecuteData.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        acrossV3DepositAndExecuteData.message = BytesLib.slice(data, 217, data.length - 217);
+        acrossV3DepositAndExecuteData.destinationMessage = BytesLib.slice(data, 217, data.length - 217);
 
         if (acrossV3DepositAndExecuteData.usePrevHookAmount) {
             uint256 outAmount = ISuperHookResult(prevHook).outAmount();
@@ -105,7 +105,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
             revert ADDRESS_NOT_VALID();
         }
 
-        // append signature to `message`
+        // append signature to `destinationMessage`
         {
             bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
             (
@@ -113,8 +113,8 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
                 bytes memory executorCalldata,
                 address _account,
                 uint256 intentAmount
-            ) = abi.decode(acrossV3DepositAndExecuteData.message, (bytes, bytes, address, uint256));
-            acrossV3DepositAndExecuteData.message = abi.encode(initData, executorCalldata, _account, intentAmount, signature);
+            ) = abi.decode(acrossV3DepositAndExecuteData.destinationMessage, (bytes, bytes, address, uint256));
+            acrossV3DepositAndExecuteData.destinationMessage = abi.encode(initData, executorCalldata, _account, intentAmount, signature);
         }
 
         // build execution
@@ -135,7 +135,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
                     acrossV3DepositAndExecuteData.exclusiveRelayer,
                     acrossV3DepositAndExecuteData.fillDeadlineOffset,
                     acrossV3DepositAndExecuteData.exclusivityPeriod,
-                    acrossV3DepositAndExecuteData.message
+                    acrossV3DepositAndExecuteData.destinationMessage
                 )
             )
         });

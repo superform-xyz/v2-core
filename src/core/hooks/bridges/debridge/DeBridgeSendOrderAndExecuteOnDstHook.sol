@@ -22,40 +22,30 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         uint256 value = BytesLib.toUint256(data, 1);
 /// @notice         address giveTokenAddress = BytesLib.toAddress(data, 33);
 /// @notice         uint256 giveAmount = BytesLib.toUint256(data, 53);
-/// @notice         uint256 takeTokenAddressLength = BytesLib.toUint256(data, 85);
-/// @notice         bytes takeTokenAddress = BytesLib.slice(data, 117, takeTokenAddressLength);
-/// @notice         uint256 takeAmount = BytesLib.toUint256(data, 149 + takeTokenAddressLength);
-/// @notice         uint256 takeChainId = BytesLib.toUint256(data, 181 + takeTokenAddressLength);
-/// @notice         uint256 receiverDstLength = BytesLib.toUint256(data, 213 + takeTokenAddressLength);
-/// @notice         bytes receiverDst = BytesLib.slice(data, 245 + takeTokenAddressLength, receiverDstLength);
-/// @notice         address givePatchAuthoritySrc = BytesLib.toAddress(data, 277 + takeTokenAddressLength +
-/// receiverDstLength);
-/// @notice         uint256 orderAuthorityAddressDst_paramLength = BytesLib.toUint256(data, 329 + takeTokenAddressLength +
-/// receiverDstLength);
-/// @notice         bytes orderAuthorityAddressDst = BytesLib.slice(data, 361 + takeTokenAddressLength +
-/// receiverDstLength, orderAuthorityAddressDst_paramLength);
-/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 393 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDst_paramLength);
-/// @notice         bytes allowedTakerDst = BytesLib.slice(data, 425 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddressDst_paramLength, allowedTakerDst_paramLength);
-/// @notice         uint256 externalCall_paramLength = BytesLib.toUint256(data, 457 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength);
-/// @notice         bytes externalCall = BytesLib.slice(data, 489 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength, externalCall_paramLength);
-/// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 521 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + externalCall_paramLength);
-/// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 553 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + externalCall_paramLength,
-/// allowedCancelBeneficiarySrc_paramLength);
-/// @notice         uint256 affiliateFee_paramLength = BytesLib.toUint256(data, 585 + takeTokenAddressLength +
-/// receiverDstLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + externalCall_paramLength +
-/// allowedCancelBeneficiarySrc_paramLength);
-/// @notice         bytes affiliateFee = BytesLib.slice(data, 617 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + externalCall_paramLength +
-/// allowedCancelBeneficiarySrc_paramLength, affiliateFee_paramLength);
-/// @notice         uint256 referralCode = BytesLib.toUint256(data, 649 + takeTokenAddressLength + receiverDstLength +
-/// orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + externalCall_paramLength +
-/// allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
+/// @notice         uint8 version = BytesLib.toUint8(data, 85);
+/// @notice         address fallbackAddress = BytesLib.toAddress(data, 86);
+/// @notice         address executorAddress = BytesLib.toAddress(data, 106);
+/// @notice         uint256 executionFee = BytesLib.toUint256(data, 126);
+/// @notice         bool allowDelayedExecution = _decodeBool(data, 158);
+/// @notice         bool requireSuccessfullExecution = _decodeBool(data, 159);
+/// @notice         uint256 destinationMessage_paramLength = BytesLib.toUint256(data, 160);
+/// @notice         bytes destinationMessage = BytesLib.slice(data, 192, destinationMessage_paramLength);
+/// @notice         uint256 takeTokenAddress_paramLength = BytesLib.toUint256(data, 192 + destinationMessage_paramLength);
+/// @notice         bytes takeTokenAddress = BytesLib.slice(data, 224 + destinationMessage_paramLength, takeTokenAddress_paramLength);
+/// @notice         uint256 takeAmount = BytesLib.toUint256(data, 256 + destinationMessage_paramLength + takeTokenAddress_paramLength);
+/// @notice         uint256 takeChainId = BytesLib.toUint256(data, 288 + destinationMessage_paramLength + takeTokenAddress_paramLength);
+/// @notice         uint256 receiverDst_paramLength = BytesLib.toUint256(data, 320 + destinationMessage_paramLength + takeTokenAddress_paramLength);
+/// @notice         bytes receiverDst = BytesLib.slice(data, 352 + destinationMessage_paramLength + takeTokenAddress_paramLength, receiverDst_paramLength);
+/// @notice         address givePatchAuthoritySrc = BytesLib.toAddress(data, 352 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength);
+/// @notice         uint256 orderAuthorityAddressDst_paramLength = BytesLib.toUint256(data, 372 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength);
+/// @notice         bytes orderAuthorityAddressDst = BytesLib.slice(data, 404 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength, orderAuthorityAddressDst_paramLength);
+/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 436 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength);
+/// @notice         bytes allowedTakerDst = BytesLib.slice(data, 468 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength, allowedTakerDst_paramLength);
+/// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 498 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength);
+/// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 530 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength, allowedCancelBeneficiarySrc_paramLength);
+/// @notice         uint256 affiliateFee_paramLength = BytesLib.toUint256(data, 562 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength);
+/// @notice         bytes affiliateFee = BytesLib.slice(data, 594 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength, affiliateFee_paramLength);
+/// @notice         uint256 referralCode = BytesLib.toUint256(data, 626 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
 contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -83,12 +73,13 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         override
         returns (Execution[] memory executions)
     {
+        bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
         (
             IDlnSource.OrderCreation memory orderCreation,
             uint256 value,
             bytes memory affiliateFee,
             uint32 referralCode
-        ) = _createOrder(data);
+        ) = _createOrder(data, signature);
 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         if (usePrevHookAmount) {
@@ -100,10 +91,6 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
                 value += outAmount;
             }
         }
-
-        // append signature to `orderCreation.externalCall`
-        bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
-        orderCreation.externalCall = _recreateExternalCallEnvelope(orderCreation.externalCall, signature);
 
         // checks
         if (orderCreation.giveAmount == 0) revert AMOUNT_NOT_VALID();
@@ -129,8 +116,15 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     struct LocalVars {
         uint256 offset;
         uint256 len;
+        uint8 version;
         address giveTokenAddress;
         uint256 giveAmount;
+        address fallbackAddress;
+        address executorAddress;
+        uint256 executionFee;
+        bool allowDelayedExecution;
+        bool requireSuccessfulExecution;
+        bytes destinationMessage;
         bytes takeTokenAddress;
         uint256 takeAmount;
         uint256 takeChainId;
@@ -138,11 +132,10 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         address givePatchAuthoritySrc;
         bytes orderAuthorityAddressDst;
         bytes allowedTakerDst;
-        bytes externalCall;
         bytes allowedCancelBeneficiarySrc;
     }
 
-    function _createOrder(bytes memory data)
+    function _createOrder(bytes memory data, bytes memory sigData)
         internal
         pure
         returns (
@@ -163,6 +156,29 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
 
         vars.giveAmount = BytesLib.toUint256(data, vars.offset);
         vars.offset += 32;
+
+        vars.version = BytesLib.toUint8(data, vars.offset);
+        vars.offset += 1;
+
+        vars.fallbackAddress = BytesLib.toAddress(data, vars.offset);
+        vars.offset += 20;
+
+        vars.executorAddress = BytesLib.toAddress(data, vars.offset);
+        vars.offset += 20;
+
+        vars.executionFee = BytesLib.toUint256(data, vars.offset);
+        vars.offset += 32;
+
+        vars.allowDelayedExecution = _decodeBool(data, vars.offset);
+        vars.offset += 1;
+
+        vars.requireSuccessfulExecution = _decodeBool(data, vars.offset);
+        vars.offset += 1;
+
+        vars.len = BytesLib.toUint256(data, vars.offset);
+        vars.offset += 32;
+        vars.destinationMessage = BytesLib.slice(data, vars.offset, vars.len);
+        vars.offset += vars.len;
 
         vars.len = BytesLib.toUint256(data, vars.offset);
         vars.offset += 32;
@@ -195,11 +211,6 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
 
         vars.len = BytesLib.toUint256(data, vars.offset);
         vars.offset += 32;
-        vars.externalCall = BytesLib.slice(data, vars.offset, vars.len);
-        vars.offset += vars.len;
-
-        vars.len = BytesLib.toUint256(data, vars.offset);
-        vars.offset += 32;
         vars.allowedCancelBeneficiarySrc = BytesLib.slice(data, vars.offset, vars.len);
         vars.offset += vars.len;
 
@@ -211,6 +222,21 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         referralCode = BytesLib.toUint32(data, vars.offset);
         vars.offset += 4;
 
+        // create externalCall
+        IDlnSource.ExternalCallEnvelopV1 memory envelope;
+        (
+            bytes memory initData,
+            bytes memory executorCalldata,
+            address account,
+            uint256 intentAmount
+        ) = abi.decode(vars.destinationMessage, (bytes, bytes, address, uint256));
+        envelope.payload = abi.encode(initData, executorCalldata, account, intentAmount, sigData);
+        envelope.fallbackAddress = vars.fallbackAddress;
+        envelope.executorAddress = vars.executorAddress;
+        envelope.executionFee = uint160(vars.executionFee);
+        envelope.allowDelayedExecution = vars.allowDelayedExecution;
+        envelope.requireSuccessfullExecution = vars.requireSuccessfulExecution;
+
         orderCreation = IDlnSource.OrderCreation({
             giveTokenAddress: vars.giveTokenAddress,
             giveAmount: vars.giveAmount,
@@ -221,7 +247,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
             givePatchAuthoritySrc: vars.givePatchAuthoritySrc,
             orderAuthorityAddressDst: vars.orderAuthorityAddressDst,
             allowedTakerDst: vars.allowedTakerDst,
-            externalCall: vars.externalCall,
+            externalCall: abi.encodePacked(vars.version, abi.encode(envelope)),
             allowedCancelBeneficiarySrc: vars.allowedCancelBeneficiarySrc
         });
     }
@@ -229,25 +255,4 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     function _preExecute(address, address, bytes calldata) internal override { }
 
     function _postExecute(address, address, bytes calldata) internal override { }
-
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-    function _recreateExternalCallEnvelope(bytes memory input, bytes memory sigData) private pure returns (bytes memory) {
-        uint8 version = uint8(input[0]);
-        bytes memory encodedStruct = BytesLib.slice(input, 1, input.length - 1); // skip version
-
-        IDlnSource.ExternalCallEnvelopV1 memory envelope = abi.decode(
-            encodedStruct,
-            (IDlnSource.ExternalCallEnvelopV1)
-        );
-        (
-            bytes memory initData,
-            bytes memory executorCalldata,
-            address account,
-            uint256 intentAmount
-        ) = abi.decode(envelope.payload, (bytes, bytes, address, uint256));
-        envelope.payload = abi.encode(initData, executorCalldata, account, intentAmount, sigData);
-        return abi.encodePacked(version, abi.encode(envelope));
-    }
 }
