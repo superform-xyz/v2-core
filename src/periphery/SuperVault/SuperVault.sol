@@ -199,7 +199,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         uint256 shares = strategy.pendingRedeemRequest(controller);
         if (shares == 0) revert REQUEST_NOT_FOUND();
 
-        // Forward to strategyr
+        // Forward to strategy
         strategy.handleOperation(controller, 0, 0, ISuperVaultStrategy.Operation.CancelRedeem);
 
         // Return shares to user
