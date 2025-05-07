@@ -9,10 +9,15 @@ import { IAcrossSpokePoolV3 } from "../../../../vendor/bridges/across/IAcrossSpo
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
 import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
+/// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
+/// @dev `message` field won't contain the signature for the destination executor
+/// @dev      signature is retrieved from the validator contract transient storage
+/// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to sign it
 /// @dev data has the following structure
 /// @notice         uint256 value = BytesLib.toUint256(data, 0);
 /// @notice         address recipient = BytesLib.toAddress(data, 32);
@@ -26,12 +31,12 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 216);
 /// @notice         bytes message = BytesLib.slice(data, 217, data.length - 217);
-/// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
 contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     address public immutable spokePoolV3;
+    address private immutable _validator;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 216;
 
     struct AcrossV3DepositAndExecuteData {
@@ -49,9 +54,10 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
         bytes message;
     }
 
-    constructor(address spokePoolV3_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
-        if (spokePoolV3_ == address(0)) revert ADDRESS_NOT_VALID();
+    constructor(address spokePoolV3_, address validator_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
+        if (spokePoolV3_ == address(0) || validator_ == address(0)) revert ADDRESS_NOT_VALID();
         spokePoolV3 = spokePoolV3_;
+        _validator = validator_;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -97,6 +103,18 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
 
         if (acrossV3DepositAndExecuteData.recipient == address(0)) {
             revert ADDRESS_NOT_VALID();
+        }
+
+        // append signature to `message`
+        {
+            bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
+            (
+                bytes memory initData,
+                bytes memory executorCalldata,
+                address _account,
+                uint256 intentAmount
+            ) = abi.decode(acrossV3DepositAndExecuteData.message, (bytes, bytes, address, uint256));
+            acrossV3DepositAndExecuteData.message = abi.encode(initData, executorCalldata, _account, intentAmount, signature);
         }
 
         // build execution

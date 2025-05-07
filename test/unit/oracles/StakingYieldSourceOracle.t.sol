@@ -1,19 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { StakingYieldSourceOracle } from "../../../../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
-import { IStakingVault } from "../../../../src/vendor/staking/IStakingVault.sol";
+import { StakingYieldSourceOracle } from "../../../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
+import { IStakingVault } from "../../../src/vendor/staking/IStakingVault.sol";
 
-import { BaseE2ETest } from "../../../BaseE2ETest.t.sol";
+import { Helpers } from "../../utils/Helpers.sol";
 
-contract StakingYieldSourceOracleIntegration is BaseE2ETest {
+contract StakingYieldSourceOracleIntegration is Helpers {
     StakingYieldSourceOracle public oracle;
     IStakingVault public yieldSource;
     address public underlying;
 
-    function setUp() public virtual override {
-        super.setUp();
-        vm.selectFork(FORKS[ETH]);
+    function setUp() public {
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), ETH_BLOCK);
 
         oracle = new StakingYieldSourceOracle();
         yieldSource = IStakingVault(CHAIN_1_FluidVault);

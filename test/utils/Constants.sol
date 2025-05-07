@@ -18,6 +18,7 @@ abstract contract Constants {
     uint256 public constant FEE_RECIPIENT_KEY = 0x7;
     uint256 public constant TREASURY_KEY = 0x8;
     uint256 public constant SUPER_BUNDLER_KEY = 0x9;
+    uint256 public constant BANK_MANAGER_KEY = 0x10;
 
     // RBAC ids
     bytes32 public constant ROLES_ID = keccak256("ROLES");
@@ -30,6 +31,10 @@ abstract contract Constants {
     uint64 public constant ETH = 1;
     uint64 public constant OP = 10;
     uint64 public constant BASE = 8453;
+
+    uint256 public constant ETH_BLOCK = 21_929_476;
+    uint256 public constant OP_BLOCK = 132_481_010;
+    uint256 public constant BASE_BLOCK = 26_885_730;
 
     uint256 public constant ACCOUNT_COUNT = 30; //should be divisible by 2
 
@@ -215,6 +220,10 @@ abstract contract Constants {
     address public constant CHAIN_8453_PendleRouter = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address public constant CHAIN_8453_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
     address public constant CHAIN_8453_SpectraRouter = 0x0FC2fbd3E8391744426C8bE5228b668481C59532;
+
+    address public constant CHAIN_1_POLYMER_PROVER = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76;
+    address public constant CHAIN_10_POLYMER_PROVER = address(0); // not available
+    address public constant CHAIN_8453_POLYMER_PROVER = address(0); // not available
 
     // staking protocols
     string public constant GEARBOX_STAKING_KEY = "GearboxStaking";

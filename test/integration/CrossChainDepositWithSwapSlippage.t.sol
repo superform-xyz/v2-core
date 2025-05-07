@@ -70,6 +70,10 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
     IValidator public validatorOnETH;
     IValidator public validatorOnOP;
 
+    IValidator public sourceValidatorOnBase;
+    IValidator public sourceValidatorOnETH;
+    IValidator public sourceValidatorOnOP;
+
     address public validatorSigner;
     uint256 public validatorSignerPrivateKey;
 
@@ -143,6 +147,11 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         validatorOnETH = IValidator(_getContract(ETH, SUPER_DESTINATION_VALIDATOR_KEY));
         validatorOnOP = IValidator(_getContract(OP, SUPER_DESTINATION_VALIDATOR_KEY));
 
+        // Set up the source validators
+        sourceValidatorOnBase = IValidator(_getContract(BASE, SUPER_MERKLE_VALIDATOR_KEY));
+        sourceValidatorOnETH = IValidator(_getContract(ETH, SUPER_MERKLE_VALIDATOR_KEY));
+        sourceValidatorOnOP = IValidator(_getContract(OP, SUPER_MERKLE_VALIDATOR_KEY));
+
         // base is the destination
         vm.selectFork(FORKS[BASE]);
 
@@ -169,6 +178,8 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         SELECT_FORK_AND_WARP(BASE, block.timestamp);
 
         bytes memory targetExecutorMessage;
+        TargetExecutorMessage memory messageData;
+        address accountToUse;
         {
             // PREPARE DST DATA
             address[] memory dstHooksAddresses = new address[](2);
@@ -183,10 +194,11 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 yieldSourceAddressBase,
                 previewRedeemAmount,
                 false,
-                false
+                address(0),
+                0
             );
 
-            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+            messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
                 hooksData: dstHooksData,
                 validator: address(validatorOnBase),
@@ -202,7 +214,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 tokenSent: underlyingBase_USDC
             });
 
-            (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
         }
 
         // ETH is SRC
@@ -217,7 +229,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         bytes[] memory srcHooksData = new bytes[](4);
         srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceAddressEth, amount, false);
         srcHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, address(0), 0
         );
         srcHooksData[2] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 0, true);
 
@@ -234,7 +246,9 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
 
-        UserOpData memory srcUserOpData = _getExecOps(instanceOnETH, superExecutorOnETH, abi.encode(entry));
+        UserOpData memory srcUserOpData = _getExecOpsWithValidator(instanceOnETH, superExecutorOnETH, abi.encode(entry), address(sourceValidatorOnETH));
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        srcUserOpData.userOp.signature = signatureData;
 
         _processAcrossV3Message(
             ETH, BASE, block.timestamp, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
@@ -257,6 +271,8 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         IERC20(underlyingBase_USDC).transfer(address(this), amountToRemove);
 
         bytes memory targetExecutorMessage;
+        TargetExecutorMessage memory messageData;
+        address accountToUse;
         {
             // PREPARE DST DATA
             address[] memory dstHooksAddresses = new address[](2);
@@ -271,10 +287,11 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 yieldSource4626AddressBase_USDC,
                 intentAmount / 2,
                 false,
-                false
+                address(0),
+                0
             );
 
-            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+            messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
                 hooksData: dstHooksData,
                 validator: address(validatorOnBase),
@@ -290,7 +307,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 tokenSent: underlyingBase_USDC
             });
 
-            (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
         }
 
         // OP IS SRC1
@@ -314,7 +331,10 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
             targetExecutorMessage
         );
 
-        UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, OP);
+        UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, OP, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, src1UserOpData.userOpHash, accountToUse);
+        src1UserOpData.userOp.signature = signatureData;
 
         console2.log("sending from op to base");
         // not enough balance is received
@@ -330,6 +350,8 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         SELECT_FORK_AND_WARP(BASE, block.timestamp);
 
         bytes memory targetExecutorMessage;
+        address accountToUse;
+        TargetExecutorMessage memory messageData;
         // PREPARE DST DATA
         {
             address[] memory dstHooksAddresses = new address[](4);
@@ -360,10 +382,11 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 yieldSource4626AddressBase_WETH,
                 intentAmount / 2,
                 true,
-                false
+                address(0),
+                0
             );
 
-            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+            messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
                 hooksData: dstHooksData,
                 validator: address(validatorOnBase),
@@ -379,7 +402,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 tokenSent: underlyingBase_USDC
             });
 
-            (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
         }
 
         // ETH IS SRC1
@@ -402,8 +425,11 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
             targetExecutorMessage
         );
 
-        UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, ETH);
+        UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, ETH, true);
         console2.log("sending from eth to base");
+
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, src1UserOpData.userOpHash, accountToUse);
+        src1UserOpData.userOp.signature = signatureData;
 
         // enough balance is received
         _processAcrossV3Message(
@@ -427,7 +453,8 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
     function _createUserOpData(
         address[] memory hooksAddresses,
         bytes[] memory hooksData,
-        uint64 chainId
+        uint64 chainId,
+        bool withValidator
     )
         internal
         returns (UserOpData memory)
@@ -435,10 +462,16 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         if (chainId == ETH) {
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            if (withValidator) {
+                return _getExecOpsWithValidator(instanceOnETH, superExecutorOnETH, abi.encode(entryToExecute), address(sourceValidatorOnETH));
+            }
             return _getExecOps(instanceOnETH, superExecutorOnETH, abi.encode(entryToExecute));
         } else if (chainId == OP) {
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            if (withValidator) {
+                return _getExecOpsWithValidator(instanceOnOP, superExecutorOnOP, abi.encode(entryToExecute), address(sourceValidatorOnOP));
+            }
             return _getExecOps(instanceOnOP, superExecutorOnOP, abi.encode(entryToExecute));
         } else {
             /// @dev only base requires a paymaster for across execution

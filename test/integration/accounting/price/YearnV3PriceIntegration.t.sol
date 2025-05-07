@@ -5,34 +5,27 @@ pragma solidity >=0.8.28;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-import { BaseE2ETest } from "../../../BaseE2ETest.t.sol";
+import { MinimalBaseNexusIntegrationTest } from "../../MinimalBaseNexusIntegrationTest.t.sol";
 import { MockRegistry } from "../../../mocks/MockRegistry.sol";
-import { SuperLedger } from "../../../../src/core/accounting/SuperLedger.sol";
-import { SuperLedgerConfiguration } from "../../../../src/core/accounting/SuperLedgerConfiguration.sol";
-import { SuperExecutor } from "../../../../src/core/executors/SuperExecutor.sol";
 import { ISuperExecutor } from "../../../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedger } from "../../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 import { ERC4626YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 
 // 4626 vault
-contract YearnV3PriceIntegration is BaseE2ETest {
-    MockRegistry nexusRegistry;
-    address[] attesters;
-    uint8 threshold;
+contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
+    MockRegistry public nexusRegistry;
+    address[] public attesters;
+    uint8 public threshold;
 
-    ERC4626YieldSourceOracle oracle;
-    SuperExecutor superExecutor;
-    SuperLedger superLedger;
-    SuperLedgerConfiguration superLedgerConfiguration;
+    ERC4626YieldSourceOracle public oracle;
 
-    IERC4626 yearnVault;
-    address underlying;
+    IERC4626 public yearnVault;
+    address public underlying;
 
     function setUp() public override {
+        blockNumber = ETH_BLOCK;
         super.setUp();
-        vm.selectFork(FORKS[ETH]);
 
         nexusRegistry = new MockRegistry();
         attesters = new address[](1);
@@ -41,10 +34,6 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         threshold = 1;
 
         oracle = new ERC4626YieldSourceOracle();
-
-        superExecutor = SuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
-        superLedgerConfiguration = SuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY));
-        superLedger = SuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
 
         yearnVault = IERC4626(CHAIN_1_YearnVault);
         underlying = yearnVault.asset();
@@ -63,11 +52,11 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         // create SuperExecutor data
         address[] memory hooksAddresses = new address[](2);
         bytes[] memory hooksData = new bytes[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = approveHook;
+        hooksAddresses[1] = deposit4626Hook;
         hooksData[0] = _createApproveHookData(underlying, address(yearnVault), amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), amount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), amount, false, address(0), 0
         );
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -85,7 +74,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         uint256 amount = SMALL; // fixed amount to test the fee and consumed entries easily
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            superLedgerConfiguration.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
         assertEq(config.feePercent, 100); //1%
 
         // create and fund
@@ -128,7 +117,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         uint256 amount = SMALL; // fixed amount to test the fee and consumed entries easily
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            superLedgerConfiguration.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
         assertEq(config.feePercent, 100); //1%
 
         // create and fund
@@ -175,7 +164,7 @@ contract YearnV3PriceIntegration is BaseE2ETest {
         uint256 amount = SMALL; // fixed amount to test the fee and consumed entries easily
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            superLedgerConfiguration.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
         assertEq(config.feePercent, 100); //1%
 
         // create and fund
@@ -226,11 +215,11 @@ contract YearnV3PriceIntegration is BaseE2ETest {
     {
         address[] memory hooksAddresses = new address[](2);
         bytes[] memory hooksData = new bytes[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = approveHook;
+        hooksAddresses[1] = deposit4626Hook;
         hooksData[0] = _createApproveHookData(underlying, address(yearnVault), amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), amount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), amount, false, address(0), 0
         );
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
     }
@@ -245,9 +234,9 @@ contract YearnV3PriceIntegration is BaseE2ETest {
     {
         address[] memory hooksAddresses = new address[](1);
         bytes[] memory hooksData = new bytes[](1);
-        hooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = redeem4626Hook;
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), account, amount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), account, amount, false, address(0), 0
         );
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
     }

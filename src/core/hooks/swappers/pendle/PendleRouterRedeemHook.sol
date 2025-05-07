@@ -12,29 +12,30 @@ import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
-import { console } from "forge-std/console.sol";
 
 /// @title PendleRouterRedeemHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         uint256 amount = BytesLib.toUint256(data, 0);
 /// @notice         address YT = BytesLib.toAddress(data, 32);
-/// @notice         address tokenOut = BytesLib.toAddress(data, 52);
-/// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 72);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
-/// @notice         bytes output = BytesLib.slice(data, 105, data.length - 105);
+/// @notice         address PT = BytesLib.toAddress(data, 52);
+/// @notice         address tokenOut = BytesLib.toAddress(data, 72);
+/// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 92);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
+/// @notice         bytes output = BytesLib.slice(data, 125, data.length - 125);
 contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     // Offset for bool usePrevHookAmount (after packed amount, YT, tokenOut, minTokenOut)
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 104; // 0+32+20+20+32
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 124; // 0+32+20+20+32+20
     // Offset for abi.encoded TokenOutput struct (after packed bool)
-    uint256 private constant TOKEN_OUTPUT_OFFSET = 105; // USE_PREV_HOOK_AMOUNT_POSITION + 1
+    uint256 private constant TOKEN_OUTPUT_OFFSET = 125; // USE_PREV_HOOK_AMOUNT_POSITION + 1
 
     // Struct for decoded parameters
     struct DecodedParams {
         uint256 amountFromData;
         address YT;
+        address PT;
         address tokenOut;
         uint256 minTokenOut;
         bool usePrevHookAmount;
@@ -82,8 +83,18 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
 
         uint256 finalAmount = _determineFinalAmount(params.amountFromData, params.usePrevHookAmount, prevHook);
 
-        executions = new Execution[](1);
+        executions = new Execution[](3);
         executions[0] = Execution({
+            target: params.PT,
+            value: 0,
+            callData: abi.encodeWithSelector(IERC20.approve.selector, address(pendleRouterV4), finalAmount)
+        });
+        executions[1] = Execution({
+            target: params.YT,
+            value: 0,
+            callData: abi.encodeWithSelector(IERC20.approve.selector, address(pendleRouterV4), finalAmount)
+        });
+        executions[2] = Execution({
             target: address(pendleRouterV4),
             value: 0,
             callData: abi.encodeWithSelector(
@@ -125,9 +136,10 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         // Decode fixed-size parameters using BytesLib and packed offsets
         params.amountFromData = BytesLib.toUint256(data, 0); // Offset 0, size 32
         params.YT = BytesLib.toAddress(data, 32); // Offset 32, size 20
-        params.tokenOut = BytesLib.toAddress(data, 52); // Offset 52, size 20
-        params.minTokenOut = BytesLib.toUint256(data, 72); // Offset 72, size 32
-        params.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION); // Offset 104, size 1
+        params.PT = BytesLib.toAddress(data, 52); // Offset 52, size 20
+        params.tokenOut = BytesLib.toAddress(data, 72); // Offset 72, size 20
+        params.minTokenOut = BytesLib.toUint256(data, 92); // Offset 92, size 32
+        params.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION); // Offset 124, size 1
 
         // Basic validation of decoded fixed params (excluding amount check for now)
         if (params.YT == address(0)) revert YT_NOT_VALID();
@@ -163,11 +175,11 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
 
     /// @dev Gets the balance of the output token for the receiver.
     function _getBalance(bytes calldata data, address receiver) private view returns (uint256) {
-        // Need offset 52 (start of tokenOut) + 20 bytes = 72
-        uint256 endOfTokenOutOffset = 72;
+        // Need offset 72 (start of tokenOut) + 20 bytes = 92
+        uint256 endOfTokenOutOffset = 92;
         if (data.length < endOfTokenOutOffset) revert INVALID_DATA_LENGTH();
-        // Decode tokenOut from its correct packed offset [52:72]
-        address tokenOut = BytesLib.toAddress(data, 52);
+        // Decode tokenOut from its correct packed offset [72:92]
+        address tokenOut = BytesLib.toAddress(data, 72);
 
         if (tokenOut == address(0)) {
             return receiver.balance;

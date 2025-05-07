@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { BaseTest } from "../../../BaseTest.t.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
 import { PendleRouterSwapHook } from "../../../../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
 import {
     IPendleRouterV4,
@@ -23,7 +23,7 @@ import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
 
-contract PendleRouterSwapHookTest is BaseTest {
+contract PendleRouterSwapHookTest is Helpers {
     PendleRouterSwapHook public hook;
     MockPendleRouter public pendleRouter;
     MockHook public prevHook;
@@ -40,10 +40,7 @@ contract PendleRouterSwapHookTest is BaseTest {
     uint256 public exactPtIn = 2000;
     uint256 public inputAmount = 1500;
 
-    function setUp() public override {
-        super.setUp();
-        vm.selectFork(FORKS[ETH]);
-
+    function setUp() public {
         account = address(this);
         receiver = account;
 

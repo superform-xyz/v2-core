@@ -2,12 +2,9 @@
 pragma solidity >=0.8.28;
 
 // external
-import {
-    RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
-} from "modulekit/ModuleKit.sol";
+import { ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
-import { AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -15,22 +12,20 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
-import { BaseTest } from "../../BaseTest.t.sol";
 import { SuperMerkleValidator } from "../../../src/core/validators/SuperMerkleValidator.sol";
 import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
-
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 
 import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
+import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 
-contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
+contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
     IERC4626 public vaultInstance;
-    ISuperExecutor public superExecutor;
     AccountInstance public instance;
     address public account;
 
@@ -45,18 +40,15 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
     uint256 privateKey;
     address signerAddr;
 
-    function setUp() public override {
-        super.setUp();
-        vm.selectFork(FORKS[ETH]);
-        superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
-
-        validator = SuperMerkleValidator(_getContract(ETH, SUPER_MERKLE_VALIDATOR_KEY));
+    function setUp() public {
+        validator = new SuperMerkleValidator();
 
         (signerAddr, privateKey) = makeAddrAndKey("The signer");
         vm.label(signerAddr, "The signer");
 
-        instance = accountInstances[ETH];
+        instance = makeAccountInstance(keccak256(abi.encode("TEST")));
         account = instance.account;
+
         instance.installModule({
             moduleTypeId: MODULE_TYPE_VALIDATOR,
             module: address(validator),
@@ -193,6 +185,8 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
     }
 
     function test_ExpiredSignature() public {
+        vm.warp(block.timestamp + 2 hours);
+
         uint48 validUntil = uint48(block.timestamp - 1 hours);
 
         // simulate a merkle tree with 4 leaves (4 user ops)
@@ -206,7 +200,7 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
 
         bytes memory signature = _getSignature(root);
 
-        validSigData = abi.encode(validUntil, root, proof[0], signature);
+        validSigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
 
         approveUserOp.userOp.signature = validSigData;
         ERC7579ValidatorBase.ValidationData result =
@@ -236,7 +230,7 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         // tamper the merkle root
         bytes32 _prevRoot = root;
         root = keccak256(abi.encode("tampered root"));
-        validSigData = abi.encode(validUntil, root, proof, signature);
+        validSigData = abi.encode(validUntil, root, proof, proof, signature);
 
         approveUserOp.userOp.signature = validSigData;
 
@@ -247,7 +241,7 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
         root = _prevRoot;
         bytes32[] memory _proof = new bytes32[](1);
         _proof[0] = keccak256(abi.encode("tampered proof"));
-        validSigData = abi.encode(validUntil, root, _proof, signature);
+        validSigData = abi.encode(validUntil, root, _proof, _proof, signature);
 
         approveUserOp.userOp.signature = validSigData;
 
@@ -279,7 +273,7 @@ contract SuperMerkleValidatorTest is BaseTest, MerkleReader {
     )
         private
     {
-        validSigData = abi.encode(validUntil, root, proof, signature);
+        validSigData = abi.encode(validUntil, root, proof, proof, signature);
 
         userOpData.userOp.signature = validSigData;
         ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(userOpData.userOp, userOpData.userOpHash);

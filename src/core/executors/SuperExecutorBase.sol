@@ -14,6 +14,7 @@ import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
+import { IVaultBank } from "../../periphery/interfaces/IVaultBank.sol";
 
 /// @title SuperExecutorBase
 /// @author Superform Labs
@@ -178,7 +179,34 @@ abstract contract SuperExecutorBase is
         }
         // run hook postExecute
         hook.postExecute(prevHook, account, hookData);
-        // update accounting
+
+        // update accounting1
         _updateAccounting(account, address(hook), hookData);
+
+        // VaultBank interaction
+        _checkAndLockForSuperPosition(account, address(hook));
+    }
+
+    function _checkAndLockForSuperPosition(address account, address hook) internal virtual {
+        address vaultBank = ISuperHookResult(address(hook)).vaultBank();
+        uint256 dstChainId = ISuperHookResult(address(hook)).dstChainId();
+        if (vaultBank != address(0)) {
+            address spToken = ISuperHookResult(hook).spToken();
+            uint256 amount = ISuperHookResult(hook).outAmount();
+
+            // forge approval for vault
+            Execution[] memory execs = new Execution[](1);
+            execs[0] = Execution({
+                target: spToken,
+                value: 0,
+                callData: abi.encodeCall(IERC20.approve, (address(vaultBank), amount))
+            });
+            _execute(account, execs);
+
+            if (dstChainId == block.chainid) revert INVALID_CHAIN_ID();
+            IVaultBank(vaultBank).lockAsset(account, spToken, amount, uint64(dstChainId));
+
+            emit SuperPositionMintRequested(account, spToken, amount, dstChainId);
+        }
     }
 }
