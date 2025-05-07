@@ -278,7 +278,7 @@ contract IncentiveFundContractTest is Test {
 
         // assertGt(deviationAvg, 0, "Deviation should be greater than 0 for multiple providers");
         // NOTE: Should not this be 3 instead of 6, since there are 3 price feeds for this specific base asset
-        assertEq(totalProvidersAvg, 6, "Total providers should be 3");
+        assertEq(totalProvidersAvg, 3, "Total providers should be 3");
         assertEq(availableProvidersAvg, 3, "Available providers should be 3");
     }
 
