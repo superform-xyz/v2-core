@@ -384,17 +384,24 @@ contract SuperAssetTest is Helpers {
 
     // --- Test: Redeem ---
     function test_BasicRedeem() public {
+        console.log("test_BasicRedeem() Start");
         // First deposit to get some shares
         uint256 depositAmount = 100e18;
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
-        (uint256 sharesMinted,,) = superAsset.deposit(user, address(tokenIn), depositAmount, 0);
+        (uint256 sharesMinted, uint256 swapFee, int256 amountIncentiveUSD) = superAsset.deposit(user, address(tokenIn), depositAmount, 0);
+        console.log("test_BasicRedeem() Deposit");
+        assertEq(tokenIn.balanceOf(address(superAsset)), depositAmount - swapFee);
 
         // Now redeem the shares
-        uint256 minTokenOut = 99e18; // Allowing for 1% slippage
-        (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem) = 
-            superAsset.redeem(user, sharesMinted, address(tokenIn), minTokenOut);
+        uint256 amountTokenOutAfterFees;
+        int256 amountIncentiveUSDRedeem;
+        uint256 sharesToRedeeem = sharesMinted / 2;
+        uint256 minTokenOut = sharesToRedeeem * 99 / 100; // Allowing for 1% slippage
+        (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem) = 
+            superAsset.redeem(user, sharesToRedeeem, address(tokenIn), minTokenOut);
         vm.stopPrank();
+        console.log("test_BasicRedeem() Redeem");
 
         // Verify results
         assertGt(amountTokenOutAfterFees, 0, "Should receive tokens");
