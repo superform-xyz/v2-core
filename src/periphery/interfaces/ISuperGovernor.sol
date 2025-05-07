@@ -222,6 +222,9 @@ interface ISuperGovernor {
     /// @notice The identifier of the role that grants access to daily operations like hooks and validators
     function GOVERNOR_ROLE() external view returns (bytes32);
 
+    /// @notice The identifier of the role that grants access to bank management functions
+    function BANK_MANAGER_ROLE() external view returns (bytes32);
+
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
     //////////////////////////////////////////////////////////////*/

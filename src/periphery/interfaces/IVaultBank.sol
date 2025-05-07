@@ -86,16 +86,13 @@ interface IVaultBank is IHookExecutionData {
     error NOT_AUTHORIZED();
     error INVALID_RELAYER();
     error INVALID_EXECUTOR();
-    error ZERO_LENGTH_ARRAY();
     error NONCE_ALREADY_USED();
     error ALREADY_DISTRIBUTED();
     error INVALID_PROOF_CHAIN();
     error INVALID_PROOF_EVENT();
     error INVALID_PROOF_TOKEN();
     error INVALID_PROOF_AMOUNT();
-    error INVALID_ARRAY_LENGTH();
-    error INVALID_MERKLE_PROOF();
-    error HOOK_EXECUTION_FAILED();
+    error INVALID_BANK_MANAGER();
     error INVALID_PROOF_ACCOUNT();
     error INVALID_PROOF_EMITTER();
     error INVALID_PROOF_SOURCE_CHAIN();
@@ -104,9 +101,8 @@ interface IVaultBank is IHookExecutionData {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event HooksExecuted(address[] hooks, bytes[] data);
     event BatchDistributeRewardsToSuperBank(address[] indexed rewards, uint256[] amounts);
-    
+
     event SuperpositionsMinted(address indexed account, address indexed spAddress, address indexed srcTokenAddress, uint256 amount, uint64 srcChain, uint256 nonce);
     event SuperpositionsBurned(address indexed account, address indexed spAddress, address indexed srcTokenAddress, uint256 amount, uint64 srcChain, uint256 nonce);
 

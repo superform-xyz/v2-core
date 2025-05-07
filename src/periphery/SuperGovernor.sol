@@ -81,6 +81,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     // Role definitions
     bytes32 private constant _SUPER_GOVERNOR_ROLE = keccak256("SUPER_GOVERNOR_ROLE");
     bytes32 private constant _GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
+    bytes32 private constant _BANK_MANAGER_ROLE = keccak256("BANK_MANAGER_ROLE");
 
     // Common contract keys
     bytes32 public constant TREASURY = keccak256("TREASURY");
@@ -91,6 +92,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bytes32 public constant UP = keccak256("UP");
     bytes32 public constant SUP = keccak256("SUP");
     bytes32 public constant SUPER_BANK = keccak256("SUPER_BANK");
+    bytes32 public constant BANK_MANAGER = keccak256("BANK_MANAGER");
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -99,18 +101,22 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @notice Initializes the SuperGovernor contract
     /// @param superGovernor Address of the default admin (will have SUPER_GOVERNOR_ROLE)
     /// @param governor Address that will have the GOVERNOR_ROLE for daily operations
+    /// @param bankManager Address that will have the BANK_MANAGER_ROLE for daily operations
     /// @param treasury_ Address of the treasury
-    constructor(address superGovernor, address governor, address treasury_) {
-        if (superGovernor == address(0) || treasury_ == address(0) || governor == address(0)) revert INVALID_ADDRESS();
+    /// @param prover_ Address of the prover
+    constructor(address superGovernor, address governor, address bankManager, address treasury_, address prover_) {
+        if (superGovernor == address(0) || treasury_ == address(0) || governor == address(0) || bankManager == address(0)) revert INVALID_ADDRESS();
 
         // Set up roles
         _grantRole(DEFAULT_ADMIN_ROLE, superGovernor);
         _grantRole(_SUPER_GOVERNOR_ROLE, superGovernor);
         _grantRole(_GOVERNOR_ROLE, governor);
+        _grantRole(_BANK_MANAGER_ROLE, bankManager);
 
         // Set role admins
         _setRoleAdmin(_GOVERNOR_ROLE, DEFAULT_ADMIN_ROLE);
         _setRoleAdmin(_SUPER_GOVERNOR_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(_BANK_MANAGER_ROLE, DEFAULT_ADMIN_ROLE);
 
         // Initialize with default fees
         _feeValues[FeeType.REVENUE_SHARE] = 2000; // 20% revenue share
@@ -128,6 +134,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         _upkeepCostPerUpdate = 1e18; // 1 UP token
 
         emit UpkeepCostPerUpdateChanged(_upkeepCostPerUpdate);
+
+        // Initialize prover
+        _prover = prover_;
+        emit ProverSet(prover_);
     }
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
@@ -510,6 +520,11 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function GOVERNOR_ROLE() external pure returns (bytes32) {
         return _GOVERNOR_ROLE;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function BANK_MANAGER_ROLE() external pure returns (bytes32) {
+        return _BANK_MANAGER_ROLE;
     }
 
     /// @inheritdoc ISuperGovernor
