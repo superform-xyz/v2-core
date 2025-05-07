@@ -250,33 +250,6 @@ contract SuperAssetTest is Helpers {
         assertTrue(superAsset.isSupportedERC20(newToken));
     }
 
-    // function test_OnlyVaultManagerCanBlacklistTokens() public {
-    //     // First whitelist a token
-    //     address newToken = makeAddr("newToken");
-    //     vm.startPrank(admin);
-    //     superAsset.whitelistERC20(newToken);
-    //     vm.stopPrank();
-
-    //     // Non-manager cannot blacklist
-    //     vm.startPrank(user);
-    //     vm.expectRevert(
-    //         abi.encodeWithSelector(
-    //             IAccessControl.AccessControlUnauthorizedAccount.selector,
-    //             user,
-    //             superAsset.VAULT_MANAGER_ROLE()
-    //         )
-    //     );
-    //     superAsset.blacklistERC20(newToken);
-    //     vm.stopPrank();
-
-    //     // Manager can blacklist
-    //     vm.startPrank(admin);
-    //     superAsset.blacklistERC20(newToken);
-    //     vm.stopPrank();
-
-    //     assertFalse(superAsset.isSupportedERC20(newToken));
-    // }
-
     // --- Test: Oracle Integration ---
     function test_OnlyAdminCanSetOracle() public {
         address newOracle = makeAddr("newOracle");
