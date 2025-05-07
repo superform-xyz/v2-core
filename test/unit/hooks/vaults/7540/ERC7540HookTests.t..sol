@@ -290,7 +290,7 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
         assertGt(executions[0].callData.length, 0);
     }
 
-    function test_ClaimCancelRedeemRequestHook_Build() public {
+    function test_ClaimCancelRedeemRequestHook_Build() public view {
         bytes memory data = _encodeData();
         Execution[] memory executions = claimCancelRedeemRequestHook.build(address(0), address(this), data);
 
