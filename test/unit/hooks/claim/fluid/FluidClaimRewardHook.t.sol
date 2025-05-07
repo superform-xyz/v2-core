@@ -3,21 +3,19 @@ pragma solidity >=0.8.28;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { FluidClaimRewardHook } from "../../../../../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
-import { BaseTest } from "../../../../BaseTest.t.sol";
 import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
-contract FluidClaimRewardHookTest is BaseTest {
+contract FluidClaimRewardHookTest is Helpers {
     FluidClaimRewardHook public hook;
     address public stakingRewards;
     address public rewardToken;
     address public account;
     uint256 public amount;
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public {
         MockERC20 _mockToken = new MockERC20("Mock Token", "MTK", 18);
         rewardToken = address(_mockToken);
 

@@ -4,10 +4,10 @@ pragma solidity ^0.8.23;
 import "forge-std/StdJson.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
-import { BaseTest } from "../../../BaseTest.t.sol";
-import { console } from "forge-std/console.sol";
 
-abstract contract MerkleReader is StdCheats, BaseTest {
+import { Helpers } from "../../Helpers.sol";
+
+abstract contract MerkleReader is StdCheats, Helpers {
     using stdJson for string;
 
     string private basePathForRoot = "/test/utils/merkle/target/jsGeneratedRoot";

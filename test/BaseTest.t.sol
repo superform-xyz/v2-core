@@ -2,6 +2,8 @@
 pragma solidity >=0.8.28;
 
 import { Helpers } from "./utils/Helpers.sol";
+
+import { InternalHelpers } from "./utils/InternalHelpers.sol";
 import { SignatureHelper } from "./utils/SignatureHelper.sol";
 import { MerkleTreeHelper } from "./utils/MerkleTreeHelper.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -77,8 +79,6 @@ import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
 import { MockApproveAndSwapOdosHook } from "../test/mocks/unused-hooks/MockApproveAndSwapOdosHook.sol";
 import { ApproveAndSwapOdosHook } from "../src/core/hooks/swappers/odos/ApproveAndSwapOdosHook.sol";
 import { MockSwapOdosHook } from "../test/mocks/unused-hooks/MockSwapOdosHook.sol";
-// --- Spectra
-import { SpectraCommands } from "../src/vendor/spectra/SpectraCommands.sol";
 
 // Stake hooks
 // --- Gearbox
@@ -100,25 +100,12 @@ import { GearboxClaimRewardHook } from "../src/core/hooks/claim/gearbox/GearboxC
 // --- Yearn
 import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
 
-// --- Pendle
-import {
-    IPendleRouterV4,
-    LimitOrderData,
-    FillOrderParams,
-    TokenInput,
-    ApproxParams,
-    SwapType,
-    SwapData
-} from "../src/vendor/pendle/IPendleRouterV4.sol";
-
 // --- Ethena
 import { EthenaCooldownSharesHook } from "../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
 import { EthenaUnstakeHook } from "../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
 import { SpectraExchangeHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
 import { PendleRouterSwapHook } from "../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
 import { PendleRouterRedeemHook } from "../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
-import { MockLockVault } from "./mocks/MockLockVault.sol";
-import { MockSuperExecutor } from "./mocks/MockSuperExecutor.sol";
 
 // --- Onramp
 import { BatchTransferFromHook } from "../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
@@ -141,11 +128,8 @@ import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
 import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 import { DebridgeDlnHelper } from "pigeon/debridge/DebridgeDlnHelper.sol";
 import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
-import { MockTargetExecutor } from "./mocks/MockTargetExecutor.sol";
 import { AcrossV3Adapter } from "../src/core/adapters/AcrossV3Adapter.sol";
 import { DebridgeAdapter } from "../src/core/adapters/DebridgeAdapter.sol";
-import "../src/vendor/1inch/I1InchAggregationRouterV6.sol";
-import { IOdosRouterV2 } from "../src/vendor/odos/IOdosRouterV2.sol";
 import { SuperGovernor } from "../src/periphery/SuperGovernor.sol";
 
 // SuperformNativePaymaster
@@ -161,11 +145,17 @@ import { INexusFactory } from "../src/vendor/nexus/INexusFactory.sol";
 import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "./mocks/MockRegistry.sol";
 
+import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
+
 import { BaseHook } from "../src/core/hooks/BaseHook.sol";
+import { MockSuperExecutor } from "./mocks/MockSuperExecutor.sol";
+import { MockLockVault } from "./mocks/MockLockVault.sol";
+import { MockTargetExecutor } from "./mocks/MockTargetExecutor.sol";
 import { MockBaseHook } from "./mocks/MockBaseHook.sol";
 
-import "forge-std/console2.sol";
 import { DlnExternalCallLib } from "../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
+
+import "forge-std/console2.sol";
 
 struct Addresses {
     ISuperLedger superLedger;
@@ -173,7 +163,6 @@ struct Addresses {
     ISuperLedgerConfiguration superLedgerConfiguration;
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
-    ISuperExecutor superExecutorWithSPLock;
     ISuperExecutor superDestinationExecutor;
     AcrossV3Adapter acrossV3Adapter;
     DebridgeAdapter debridgeAdapter;
@@ -233,10 +222,13 @@ struct Addresses {
     SuperDestinationValidator superDestinationValidator;
     SuperGovernor superGovernor;
     SuperNativePaymaster superNativePaymaster;
+    SuperVaultAggregator superVaultAggregator;
+    ISuperExecutor superExecutorWithSPLock;
     MockTargetExecutor mockTargetExecutor;
+    MockBaseHook mockBaseHook; // this is needed for all tests which we need to use executeWithoutHookRestrictions
 }
 
-contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser {
+contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser, InternalHelpers {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
@@ -278,6 +270,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     mapping(uint64 chainId => address) public DEBRIDGE_DLN_ADDRESSES;
     mapping(uint64 chainId => address) public DEBRIDGE_DLN_ADDRESSES_DST;
     mapping(uint64 chainId => address) public NEXUS_FACTORY_ADDRESSES;
+    mapping(uint64 chainId => address) public POLYMER_PROVER;
 
     /// @dev mappings
 
@@ -351,6 +344,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         // Deploy hooks
         A = _deployHooks(A);
+
+        _configureGovernor();
 
         _registerHooks(A);
 
@@ -456,7 +451,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.selectFork(FORKS[chainIds[i]]);
             mockBaseHook = address(new MockBaseHook());
             vm.makePersistent(mockBaseHook);
-
             address acrossV3Helper = address(new AcrossV3Helper());
             vm.allowCheatcodes(acrossV3Helper);
             vm.makePersistent(acrossV3Helper);
@@ -472,7 +466,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.makePersistent(debridgeDlnHelper);
             contractAddresses[chainIds[i]][DEBRIDGE_DLN_HELPER_KEY] = debridgeDlnHelper;
 
-            A[i].superGovernor = new SuperGovernor{ salt: SALT }(address(this), address(this), TREASURY);
+            A[i].superGovernor = new SuperGovernor{ salt: SALT }(address(this), address(this), address(this), TREASURY, CHAIN_1_POLYMER_PROVER);
             vm.label(address(A[i].superGovernor), SUPER_GOVERNOR_KEY);
             contractAddresses[chainIds[i]][SUPER_GOVERNOR_KEY] = address(A[i].superGovernor);
 
@@ -544,6 +538,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             allowedExecutors[0] = address(A[i].superExecutor);
             allowedExecutors[1] = address(A[i].superDestinationExecutor);
             allowedExecutors[2] = address(A[i].superExecutorWithSPLock);
+
             A[i].superLedger = ISuperLedger(
                 address(new SuperLedger{ salt: SALT }(address(A[i].superLedgerConfiguration), allowedExecutors))
             );
@@ -572,6 +567,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             A[i].stakingYieldSourceOracle = new StakingYieldSourceOracle();
             vm.label(address(A[i].stakingYieldSourceOracle), STAKING_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][STAKING_YIELD_SOURCE_ORACLE_KEY] = address(A[i].stakingYieldSourceOracle);
+
+            A[i].superVaultAggregator = new SuperVaultAggregator(address(A[i].superGovernor));
+            vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
         }
         return A;
     }
@@ -905,8 +904,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY]);
             hooksAddresses[21] = address(A[i].swapOdosHook);
 
-            A[i].acrossSendFundsAndExecuteOnDstHook =
-                new AcrossSendFundsAndExecuteOnDstHook{ salt: SALT }(SPOKE_POOL_V3_ADDRESSES[chainIds[i]]);
+            A[i].acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook{ salt: SALT }(
+                SPOKE_POOL_V3_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY)
+            );
             vm.label(address(A[i].acrossSendFundsAndExecuteOnDstHook), ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
             hookAddresses[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY] =
                 address(A[i].acrossSendFundsAndExecuteOnDstHook);
@@ -922,8 +922,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksAddresses[22] = address(A[i].acrossSendFundsAndExecuteOnDstHook);
 
-            A[i].deBridgeSendOrderAndExecuteOnDstHook =
-                new DeBridgeSendOrderAndExecuteOnDstHook{ salt: SALT }(DEBRIDGE_DLN_ADDRESSES[chainIds[i]]);
+            A[i].deBridgeSendOrderAndExecuteOnDstHook = new DeBridgeSendOrderAndExecuteOnDstHook{ salt: SALT }(
+                DEBRIDGE_DLN_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY)
+            );
             vm.label(
                 address(A[i].deBridgeSendOrderAndExecuteOnDstHook), DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY
             );
@@ -1194,11 +1195,25 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return A;
     }
 
+    function _configureGovernor() internal {
+        for (uint256 i = 0; i < chainIds.length; ++i) {
+            vm.selectFork(FORKS[chainIds[i]]);
+
+            SuperGovernor superGovernor = SuperGovernor(_getContract(chainIds[i], SUPER_GOVERNOR_KEY));
+
+            superGovernor.setAddress(
+                superGovernor.SUPER_VAULT_AGGREGATOR(), _getContract(chainIds[i], SUPER_VAULT_AGGREGATOR_KEY)
+            );
+
+            superGovernor.setAddress(superGovernor.TREASURY(), TREASURY);
+        }
+    }
     /**
      * @notice Registers all hooks with the periphery registry
      * @param A Array of Addresses structs containing hook addresses
      * @return A The input Addresses array
      */
+
     function _registerHooks(Addresses[] memory A) internal returns (Addresses[] memory) {
         if (DEBUG) console2.log("---------------- REGISTERING HOOKS ----------------");
         for (uint256 i = 0; i < chainIds.length; ++i) {
@@ -1376,6 +1391,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 module: _getContract(chainIds[i], SUPER_DESTINATION_EXECUTOR_KEY),
                 data: ""
             });
+
             instance.installModule({
                 moduleTypeId: MODULE_TYPE_EXECUTOR,
                 module: _getContract(chainIds[i], SUPER_EXECUTOR_WITH_SP_LOCK_KEY),
@@ -1384,6 +1400,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             instance.installModule({
                 moduleTypeId: MODULE_TYPE_VALIDATOR,
                 module: _getContract(chainIds[i], SUPER_DESTINATION_VALIDATOR_KEY),
+                data: abi.encode(validatorSigners[chainIds[i]])
+            });
+            instance.installModule({
+                moduleTypeId: MODULE_TYPE_VALIDATOR,
+                module: _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY),
                 data: abi.encode(validatorSigners[chainIds[i]])
             });
             vm.label(instance.account, accountName);
@@ -1410,9 +1431,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             forks[OP] = vm.createFork(OPTIMISM_RPC_URL);
             forks[BASE] = vm.createFork(BASE_RPC_URL);
         } else {
-            forks[ETH] = vm.createFork(ETHEREUM_RPC_URL, 21_929_476);
-            forks[OP] = vm.createFork(OPTIMISM_RPC_URL, 132_481_010);
-            forks[BASE] = vm.createFork(BASE_RPC_URL, 26_885_730);
+            forks[ETH] = vm.createFork(ETHEREUM_RPC_URL, ETH_BLOCK);
+            forks[OP] = vm.createFork(OPTIMISM_RPC_URL, OP_BLOCK);
+            forks[BASE] = vm.createFork(BASE_RPC_URL, BASE_BLOCK);
         }
 
         mapping(uint64 => string) storage rpcURLs = RPC_URLS;
@@ -1483,6 +1504,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         vm.label(nexusFactoryAddressesMap[OP], "NexusFactoryOP");
         nexusFactoryAddressesMap[BASE] = CHAIN_8453_NEXUS_FACTORY;
         vm.label(nexusFactoryAddressesMap[BASE], "NexusFactoryBASE");
+
+        mapping(uint64 => address) storage polymerProvers = POLYMER_PROVER;
+        polymerProvers[ETH] = CHAIN_1_POLYMER_PROVER;
+        vm.label(polymerProvers[ETH], "PolymerProverETH");
+        polymerProvers[OP] = CHAIN_10_POLYMER_PROVER;
+        vm.label(polymerProvers[OP], "PolymerProverOP");
+        polymerProvers[BASE] = CHAIN_8453_POLYMER_PROVER;
+        vm.label(polymerProvers[BASE], "PolymerProverBASE");
 
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
@@ -1626,41 +1655,17 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                          HELPERS
     //////////////////////////////////////////////////////////////*/
 
-    function _createSourceMerkleTree() internal { }
-
-    function _getExecOps(
-        AccountInstance memory instance,
-        ISuperExecutor superExecutor,
-        bytes memory data
+    function _assertFeeDerivation(
+        uint256 expectedFee,
+        uint256 feeBalanceBefore,
+        uint256 feeBalanceAfter
     )
         internal
-        returns (UserOpData memory userOpData)
+        pure
     {
-        return instance.getExecOps(
-            address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), address(instance.defaultValidator)
-        );
-    }
-
-    function _getExecOps(
-        AccountInstance memory instance,
-        ISuperExecutor superExecutor,
-        bytes memory data,
-        address paymaster
-    )
-        internal
-        returns (UserOpData memory userOpData)
-    {
-        if (paymaster == address(0)) revert("NO_PAYMASTER_SUPPLIED");
-        userOpData = instance.getExecOps(
-            address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), address(instance.defaultValidator)
-        );
-        uint128 paymasterVerificationGasLimit = 2e6;
-        uint128 postOpGasLimit = 1e6;
-        bytes memory paymasterData = abi.encode(uint128(2e6), uint128(10)); // paymasterData {
-            // maxGasLimit = 200000, nodeOperatorPremium = 10 % }
-        userOpData.userOp.paymasterAndData =
-            abi.encodePacked(paymaster, paymasterVerificationGasLimit, postOpGasLimit, paymasterData);
-        return userOpData;
+        console2.log("feeBalanceAfter", feeBalanceAfter);
+        console2.log("expected fee", feeBalanceBefore + expectedFee);
+        assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee, "Fee derivation failed");
     }
 
     function exec(
@@ -1674,15 +1679,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return instance.exec(address(superExecutor), abi.encodeCall(superExecutor.execute, (data)));
     }
 
-    function executeOp(UserOpData memory userOpData) public returns (ExecutionReturnData memory) {
-        return userOpData.execUserOps();
-    }
-
-    function _bound(uint256 amount_) internal pure returns (uint256) {
-        amount_ = bound(amount_, SMALL, LARGE);
-        return amount_;
-    }
-
+    /*//////////////////////////////////////////////////////////////
+                    BRIDGE AND DST EXECUTION HELPERS
+    //////////////////////////////////////////////////////////////*/
     enum RELAYER_TYPE {
         NOT_ENOUGH_BALANCE,
         ENOUGH_BALANCE,
@@ -1761,31 +1760,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
     }
 
-    struct FeeParams {
-        ISuperLedger.LedgerEntry[] entries;
-        uint256 unconsumedEntries;
-        uint256 amountAssets;
-        uint256 usedShares;
-        uint256 feePercent;
-        uint256 decimals;
-    }
-
-    function _assertFeeDerivation(
-        uint256 expectedFee,
-        uint256 feeBalanceBefore,
-        uint256 feeBalanceAfter
-    )
-        internal
-        pure
-    {
-        console2.log("feeBalanceAfter", feeBalanceAfter);
-        console2.log("expected fee", feeBalanceBefore + expectedFee);
-        assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee, "Fee derivation failed");
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                                 ACROSS TARGET EXECUTOR HELPERS
-    //////////////////////////////////////////////////////////////*/
     struct TargetExecutorMessage {
         address[] hooksAddresses;
         bytes[] hooksData;
@@ -1812,7 +1786,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         internal
         returns (address)
     {
-        (, address account) = _createAccountCreationData_AcrossTargetExecutor(
+        (, address account) = _createAccountCreationData_DestinationExecutor(
             validator, signer, _getContract(chainId, SUPER_DESTINATION_EXECUTOR_KEY), nexusFactory, nexusBootstrap
         );
         return account;
@@ -1822,14 +1796,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         internal
         returns (bytes memory, address)
     {
-        uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory executionData =
-            _createExecutionData_AcrossTargetExecutor(messageData.hooksAddresses, messageData.hooksData);
+            _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
 
         address accountToUse;
         bytes memory accountCreationData;
         if (messageData.account == address(0)) {
-            (accountCreationData, accountToUse) = _createAccountCreationData_AcrossTargetExecutor(
+            (accountCreationData, accountToUse) = _createAccountCreationData_DestinationExecutor(
                 messageData.validator,
                 messageData.signer,
                 _getContract(messageData.chainId, SUPER_DESTINATION_EXECUTOR_KEY),
@@ -1841,8 +1814,23 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             accountToUse = messageData.account;
             accountCreationData = bytes("");
         }
+        return (abi.encode(accountCreationData, executionData, messageData.account, messageData.amount), accountToUse);
+    }
 
-        bytes32[] memory leaves = new bytes32[](1);
+    function _createMerkleRootAndSignature(
+        TargetExecutorMessage memory messageData,
+        bytes32 userOpHash,
+        address accountToUse
+    )
+        internal
+        view
+        returns (bytes memory sig)
+    {
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+        bytes memory executionData =
+            _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
+
+        bytes32[] memory leaves = new bytes32[](2);
         leaves[0] = _createDestinationValidatorLeaf(
             executionData,
             messageData.chainId,
@@ -1853,38 +1841,33 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             messageData.amount,
             validUntil
         );
-
+        leaves[1] = _createSourceValidatorLeaf(userOpHash, validUntil);
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
-
         bytes memory signature = _createSignature(
             SuperValidatorBase(address(messageData.validator)).namespace(),
             merkleRoot,
             messageData.signer,
             messageData.signerPrivateKey
         );
-        bytes memory signatureData =
-            _createSignatureData_AcrossTargetExecutor(validUntil, merkleRoot, merkleProof[0], signature);
-
-        return (
-            abi.encode(accountCreationData, executionData, signatureData, messageData.account, messageData.amount),
-            accountToUse
-        );
+        sig =
+            _createSignatureData_DestinationExecutor(validUntil, merkleRoot, merkleProof[1], merkleProof[0], signature);
     }
 
-    function _createSignatureData_AcrossTargetExecutor(
+    function _createSignatureData_DestinationExecutor(
         uint48 validUntil,
         bytes32 merkleRoot,
-        bytes32[] memory merkleProof,
+        bytes32[] memory merkleProofSrc,
+        bytes32[] memory merkleProofDst,
         bytes memory signature
     )
         internal
         pure
         returns (bytes memory)
     {
-        return abi.encode(validUntil, merkleRoot, merkleProof, signature);
+        return abi.encode(validUntil, merkleRoot, merkleProofSrc, merkleProofDst, signature);
     }
 
-    function _createExecutionData_AcrossTargetExecutor(
+    function _createCrosschainExecutionData_DestinationExecutor(
         address[] memory hooksAddresses,
         bytes[] memory hooksData
     )
@@ -1901,7 +1884,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
     }
 
-    function _createAccountCreationData_AcrossTargetExecutor(
+    function _createAccountCreationData_DestinationExecutor(
         address validatorOnDestinationChain,
         address theSigner,
         address executorOnDestinationChain,
@@ -1934,144 +1917,97 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return (abi.encode(initData, initSalt), precomputedAddress);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                                 HOOK DATA CREATORS
-    //////////////////////////////////////////////////////////////*/
-
-    function _createApproveHookData(
-        address token,
-        address spender,
-        uint256 amount,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(token, spender, amount, usePrevHookAmount);
-    }
-
-    function _createDeposit4626HookData(
-        bytes4 yieldSourceOracleId,
-        address vault,
-        uint256 amount,
+    function _createAcrossV3ReceiveFundsAndExecuteHookData(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint64 destinationChainId,
         bool usePrevHookAmount,
-        bool lockSP
+        bytes memory data
     )
         internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(yieldSourceOracleId, vault, amount, usePrevHookAmount, lockSP);
-    }
-
-    function _createApproveAndDeposit4626HookData(
-        bytes4 yieldSourceOracleId,
-        address vault,
-        address token,
-        uint256 amount,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(yieldSourceOracleId, vault, token, amount, usePrevHookAmount, lockForSP);
-    }
-
-    function _create5115DepositHookData(
-        bytes4 yieldSourceOracleId,
-        address vault,
-        address tokenIn,
-        uint256 amount,
-        uint256 minSharesOut,
-        bool usePrevHookAmount,
-        bool lockSP
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData =
-            abi.encodePacked(yieldSourceOracleId, vault, tokenIn, amount, minSharesOut, usePrevHookAmount, lockSP);
-    }
-
-    function _createRedeem4626HookData(
-        bytes4 yieldSourceOracleId,
-        address vault,
-        address owner,
-        uint256 shares,
-        bool usePrevHookAmount,
-        bool lockSP
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(yieldSourceOracleId, vault, owner, shares, usePrevHookAmount, lockSP);
-    }
-
-    function _createApproveAndRedeem4626HookData(
-        bytes4 yieldSourceOracleId,
-        address vault,
-        address token,
-        address owner,
-        uint256 amount,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(yieldSourceOracleId, vault, token, owner, amount, usePrevHookAmount, lockForSP);
-    }
-
-    function _create5115RedeemHookData(
-        bytes4 yieldSourceOracleId,
-        address vault,
-        address tokenOut,
-        uint256 shares,
-        uint256 minTokenOut,
-        bool usePrevHookAmount,
-        bool lockSP
-    )
-        internal
-        pure
+        view
         returns (bytes memory hookData)
     {
         hookData = abi.encodePacked(
-            yieldSourceOracleId, vault, tokenOut, shares, minTokenOut, false, usePrevHookAmount, lockSP
-        );
-    }
-
-    function _createApproveAndRedeem5115VaultHookData(
-        bytes4 yieldSourceOracleId,
-        address vault,
-        address tokenIn,
-        address tokenOut,
-        uint256 shares,
-        uint256 minTokenOut,
-        bool burnFromInternalBalance,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(
-            yieldSourceOracleId,
-            vault,
-            tokenIn,
-            tokenOut,
-            shares,
-            minTokenOut,
-            burnFromInternalBalance,
+            uint256(0),
+            _getContract(destinationChainId, ACROSS_V3_ADAPTER_KEY),
+            inputToken,
+            outputToken,
+            inputAmount,
+            outputAmount,
+            uint256(destinationChainId),
+            address(0),
+            uint32(10 minutes), // this can be a max of 360 minutes
+            uint32(0),
             usePrevHookAmount,
-            lockForSP
+            data
         );
+    }
+
+    function _createAcrossV3ReceiveFundsAndCreateAccount(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint64 destinationChainId,
+        bool usePrevHookAmount,
+        bytes memory data //the message to be sent to the target executor
+    )
+        internal
+        view
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(
+            uint256(0),
+            _getContract(destinationChainId, MOCK_TARGET_EXECUTOR_KEY),
+            inputToken,
+            outputToken,
+            inputAmount,
+            outputAmount,
+            uint256(destinationChainId),
+            address(0),
+            uint32(10 minutes), // this can be a max of 360 minutes
+            uint32(0),
+            usePrevHookAmount,
+            data
+        );
+    }
+
+    /**
+     * @notice Creates the external call envelope for Debridge DLN V1.
+     * @param executorAddress The address of the contract to execute the payload on the destination chain.
+     * @param executionFee Fee for the executor.
+     * @param fallbackAddress Address to receive funds if execution fails.
+     * @param payload The actual data to be executed by the executorAddress.
+     * @param allowDelayedExecution Whether delayed execution is allowed.
+     * @param requireSuccessfulExecution Whether the external call must succeed.
+     * @return The encoded external call envelope V1, prefixed with version byte.
+     */
+    function _createDebridgeExternalCallEnvelope(
+        address executorAddress,
+        uint160 executionFee,
+        address fallbackAddress,
+        bytes memory payload,
+        bool allowDelayedExecution,
+        bool requireSuccessfulExecution // Note: Keep typo from library 'requireSuccessfullExecution'
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        DlnExternalCallLib.ExternalCallEnvelopV1 memory dataEnvelope = DlnExternalCallLib.ExternalCallEnvelopV1({
+            executorAddress: executorAddress,
+            executionFee: executionFee,
+            fallbackAddress: fallbackAddress,
+            payload: payload,
+            allowDelayedExecution: allowDelayedExecution,
+            requireSuccessfullExecution: requireSuccessfulExecution
+        });
+
+        // Prepend version byte (1) to the encoded envelope
+        return abi.encodePacked(uint8(1), abi.encode(dataEnvelope));
     }
 
     struct DebridgeOrderData {
@@ -2135,802 +2071,5 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             d.affiliateFee,
             d.referralCode
         );
-    }
-
-    function _createAcrossV3ReceiveFundsAndExecuteHookData(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        uint256 outputAmount,
-        uint64 destinationChainId,
-        bool usePrevHookAmount,
-        bytes memory data
-    )
-        internal
-        view
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(
-            uint256(0),
-            _getContract(destinationChainId, ACROSS_V3_ADAPTER_KEY),
-            inputToken,
-            outputToken,
-            inputAmount,
-            outputAmount,
-            uint256(destinationChainId),
-            address(0),
-            uint32(10 minutes), // this can be a max of 360 minutes
-            uint32(0),
-            usePrevHookAmount,
-            data
-        );
-    }
-
-    function _createAcrossV3ReceiveFundsAndCreateAccount(
-        address inputToken,
-        address outputToken,
-        uint256 inputAmount,
-        uint256 outputAmount,
-        uint64 destinationChainId,
-        bool usePrevHookAmount,
-        bytes memory data //the message to be sent to the target executor
-    )
-        internal
-        view
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(
-            uint256(0),
-            _getContract(destinationChainId, MOCK_TARGET_EXECUTOR_KEY),
-            inputToken,
-            outputToken,
-            inputAmount,
-            outputAmount,
-            uint256(destinationChainId),
-            address(0),
-            uint32(10 minutes), // this can be a max of 360 minutes
-            uint32(0),
-            usePrevHookAmount,
-            data
-        );
-    }
-
-    function _encodeUserOp(UserOpData memory userOpData, uint256 intentAmount) internal pure returns (bytes memory) {
-        return abi.encodePacked(
-            userOpData.userOp.sender, // account
-            intentAmount,
-            userOpData.userOp.sender, // sender
-            userOpData.userOp.nonce,
-            userOpData.userOp.initCode.length,
-            userOpData.userOp.initCode,
-            userOpData.userOp.callData.length,
-            userOpData.userOp.callData,
-            userOpData.userOp.accountGasLimits,
-            userOpData.userOp.preVerificationGas,
-            userOpData.userOp.gasFees,
-            userOpData.userOp.paymasterAndData.length,
-            userOpData.userOp.paymasterAndData,
-            userOpData.userOp.signature
-        );
-    }
-
-    function _createRequestDeposit7540VaultHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource,
-        uint256 amount,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
-    }
-
-    function _createDeposit7540VaultHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource,
-        uint256 amount,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, lockForSP);
-    }
-
-    function _createRequestRedeem7540VaultHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource,
-        uint256 amount,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
-    }
-
-    function _createWithdraw7540VaultHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource,
-        uint256 amount,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, lockForSP);
-    }
-
-    function _createApproveAndWithdraw7540VaultHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource,
-        address token,
-        uint256 amount,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount, lockForSP);
-    }
-
-    function _createApproveAndRedeem7540VaultHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource,
-        address token,
-        uint256 shares,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, shares, usePrevHookAmount, lockForSP);
-    }
-
-    function _createDeposit5115VaultHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource,
-        address tokenIn,
-        uint256 amount,
-        uint256 minSharesOut,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(
-            yieldSourceOracleId, yieldSource, tokenIn, amount, minSharesOut, usePrevHookAmount, lockForSP
-        );
-    }
-
-    function _createPermitHookData(
-        address token,
-        address spender,
-        uint256 amount,
-        uint256 expiration,
-        uint256 sigDeadline,
-        uint256 nonce
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(token, uint160(amount), uint48(expiration), uint48(nonce), spender, sigDeadline);
-    }
-
-    function _create1InchGenericRouterSwapHookData(
-        address dstReceiver,
-        address dstToken,
-        address executor,
-        I1InchAggregationRouterV6.SwapDescription memory desc,
-        bytes memory data,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory _calldata =
-            abi.encodeWithSelector(I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, data);
-
-        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
-    }
-
-    function _create1InchUnoswapToHookData(
-        address dstReceiver,
-        address dstToken,
-        Address receiverUint256,
-        Address fromTokenUint256,
-        uint256 decodedFromAmount,
-        uint256 minReturn,
-        Address dex,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory _calldata = abi.encodeWithSelector(
-            I1InchAggregationRouterV6.unoswapTo.selector,
-            receiverUint256,
-            fromTokenUint256,
-            decodedFromAmount,
-            minReturn,
-            dex
-        );
-
-        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
-    }
-
-    function _create1InchClipperSwapToHookData(
-        address dstReceiver,
-        address dstToken,
-        address exchange,
-        Address srcToken,
-        uint256 amount,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory _calldata = abi.encodeWithSelector(
-            I1InchAggregationRouterV6.clipperSwapTo.selector,
-            exchange,
-            payable(dstReceiver),
-            srcToken,
-            dstToken,
-            amount,
-            amount,
-            0,
-            bytes32(0),
-            bytes32(0)
-        );
-
-        return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrevHookAmount, _calldata);
-    }
-
-    function _createOdosSwap(
-        address inputToken,
-        uint256 inputAmount,
-        address inputReceiver,
-        address outputToken,
-        uint256 outputQuote,
-        uint256 outputMin,
-        address account
-    )
-        internal
-        pure
-        returns (IOdosRouterV2.swapTokenInfo memory)
-    {
-        return IOdosRouterV2.swapTokenInfo(
-            inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, account
-        );
-    }
-
-    function _createOdosSwapHookData(
-        address inputToken,
-        uint256 inputAmount,
-        address inputReceiver,
-        address outputToken,
-        uint256 outputQuote,
-        uint256 outputMin,
-        bytes memory pathDefinition,
-        address executor,
-        uint32 referralCode,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(
-            inputToken,
-            inputAmount,
-            inputReceiver,
-            outputToken,
-            outputQuote,
-            outputMin,
-            usePrevHookAmount,
-            pathDefinition.length,
-            pathDefinition,
-            executor,
-            referralCode
-        );
-    }
-
-    function _createApproveAndGearboxStakeHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource,
-        address token,
-        uint256 amount,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount, lockForSP);
-    }
-
-    function _createGearboxStakeHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource,
-        uint256 amount,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, lockForSP);
-    }
-
-    function _createGearboxUnstakeHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource,
-        uint256 amount,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, lockForSP);
-    }
-
-    function _createApproveAndDeposit5115VaultHookData(
-        bytes4 yieldSourceOracleId,
-        address yieldSource,
-        address tokenIn,
-        uint256 amount,
-        uint256 minSharesOut,
-        bool usePrevHookAmount,
-        bool lockForSP
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(
-            yieldSourceOracleId, yieldSource, tokenIn, amount, minSharesOut, usePrevHookAmount, lockForSP
-        );
-    }
-
-    function _createApproveAndRequestDeposit7540HookData(
-        address yieldSource,
-        address token,
-        uint256 amount,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(bytes4(bytes("")), yieldSource, token, amount, usePrevHookAmount);
-    }
-
-    function _createCancelHookData(address yieldSource) internal pure returns (bytes memory) {
-        return abi.encodePacked(bytes4(bytes("")), yieldSource);
-    }
-
-    function _createClaimCancelHookData(address yieldSource, address receiver) internal pure returns (bytes memory) {
-        return abi.encodePacked(bytes4(bytes("")), yieldSource, receiver);
-    }
-
-    function _createMorphoBorrowHookData(
-        address loanToken,
-        address collateralToken,
-        address oracle,
-        address irm,
-        uint256 amount,
-        uint256 ltvRatio,
-        bool usePrevHookAmount,
-        uint256 lltv
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, ltvRatio, usePrevHookAmount, lltv, false);
-    }
-
-    function _createMorphoRepayHookData(
-        address loanToken,
-        address collateralToken,
-        address oracle,
-        address irm,
-        uint256 amount,
-        uint256 lltv,
-        bool usePrevHookAmount,
-        bool isFullRepayment
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment);
-    }
-
-    function _createMorphoRepayAndWithdrawHookData(
-        address loanToken,
-        address collateralToken,
-        address oracle,
-        address irm,
-        uint256 amount,
-        uint256 lltv,
-        bool usePrevHookAmount,
-        bool isFullRepayment
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return
-            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment);
-    }
-
-    function _createSpectraExchangeSwapHookData(
-        bool usePrevHookAmount,
-        uint256 value,
-        address ptToken,
-        address tokenIn,
-        uint256 amount,
-        address account
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory txData = _createSpectraExchangeSimpleCommandTxData(ptToken, tokenIn, amount, account);
-        return abi.encodePacked(
-            /**
-             * yieldSourceOracleId
-             */
-            bytes4(bytes("")),
-            /**
-             * yieldSource
-             */
-            ptToken,
-            usePrevHookAmount,
-            value,
-            txData
-        );
-    }
-
-    function _createSpectraExchangeSimpleCommandTxData(
-        address ptToken_,
-        address tokenIn_,
-        uint256 amount_,
-        address account_
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes memory commandsData = new bytes(2);
-        commandsData[0] = bytes1(uint8(SpectraCommands.TRANSFER_FROM));
-        commandsData[1] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
-
-        /// https://dev.spectra.finance/technical-reference/contract-functions/router#deposit_asset_in_pt-command
-        // ptToken
-        // amount
-        // ptRecipient
-        // ytRecipient
-        // minShares
-        bytes[] memory inputs = new bytes[](2);
-        inputs[0] = abi.encode(tokenIn_, amount_);
-        inputs[1] = abi.encode(ptToken_, amount_, account_, account_, 1);
-
-        return abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
-    }
-
-    function _createPendleRouterSwapHookDataWithOdos(
-        address market,
-        address account,
-        bool usePrevHookAmount,
-        uint256 value,
-        bool ptToToken,
-        uint256 amount,
-        address tokenIn,
-        address tokenMint,
-        uint64 chainId
-    )
-        internal
-        returns (bytes memory)
-    {
-        bytes memory pendleTxData;
-        if (!ptToToken) {
-            // call Odos swapAPI to get the calldata
-            // note, odos swap receiver has to be pendle router
-            bytes memory odosCalldata =
-                _createOdosSwapCalldataRequest(tokenIn, tokenMint, amount, PENDLE_ROUTERS[chainId]);
-
-            decodeOdosSwapCalldata(odosCalldata);
-
-            pendleTxData = _createTokenToPtPendleTxDataWithOdos(
-                market, account, tokenIn, 1, amount, tokenMint, odosCalldata, chainId
-            );
-        } else {
-            //TODO: fill with the other
-            revert("Not implemented");
-        }
-        return abi.encodePacked(
-            /**
-             * yieldSourceOracleId
-             */
-            bytes4(bytes("")),
-            /**
-             * yieldSource
-             */
-            market,
-            usePrevHookAmount,
-            value,
-            pendleTxData
-        );
-    }
-
-    function _createOdosSwapCalldataRequest(
-        address _tokenIn,
-        address _tokenOut,
-        uint256 _amount,
-        address _receiver
-    )
-        internal
-        returns (bytes memory)
-    {
-        // get pathId
-        QuoteInputToken[] memory inputTokens = new QuoteInputToken[](1);
-        inputTokens[0] = QuoteInputToken({ tokenAddress: _tokenIn, amount: _amount });
-        QuoteOutputToken[] memory outputTokens = new QuoteOutputToken[](1);
-        outputTokens[0] = QuoteOutputToken({ tokenAddress: _tokenOut, proportion: 1 });
-        string memory pathId = surlCallQuoteV2(inputTokens, outputTokens, _receiver, ETH, true);
-
-        // get assemble data
-        string memory swapCompactData = surlCallAssemble(pathId, _receiver);
-        return fromHex(swapCompactData);
-    }
-
-    function _createTokenToPtPendleTxDataWithOdos(
-        address _market,
-        address _receiver,
-        address _tokenIn,
-        uint256 _minPtOut,
-        uint256 _amount,
-        address _tokenMintSY,
-        bytes memory _odosCalldata,
-        uint64 chainId
-    )
-        internal
-        view
-        returns (bytes memory pendleTxData)
-    {
-        // no limit order needed
-        LimitOrderData memory limit = LimitOrderData({
-            limitRouter: address(0),
-            epsSkipMarket: 0,
-            normalFills: new FillOrderParams[](0),
-            flashFills: new FillOrderParams[](0),
-            optData: "0x"
-        });
-
-        // TokenInput
-        TokenInput memory input = TokenInput({
-            tokenIn: _tokenIn,
-            netTokenIn: _amount,
-            tokenMintSy: _tokenMintSY, //CHAIN_1_cUSDO,
-            pendleSwap: PENDLE_SWAP[chainId],
-            swapData: SwapData({
-                extRouter: ODOS_ROUTER[chainId],
-                extCalldata: _odosCalldata,
-                needScale: false,
-                swapType: SwapType.ODOS
-            })
-        });
-        /*
-        The guessMax and guessOffchain are being set based on the initial USDC _amount (1e6). However, these guesses are
-        used for the internal Pendle swap which involves SY and PT tokens, likely with 18 decimals and completely
-        different magnitudes. A guessMax of 2e6 wei for an 18-decimal token is extremely small and likely far below the
-        actual expected PT output amount. The true value falls outside the provided [guessMin, guessMax] range, causing
-        the approximation to fail.
-        We need to provide more realistic bounds for the expected PT output. Since 1 USDC is roughly $1 and the PT is
-        likely near par, a reasonable very rough guess for the PT amount (18 decimals) might be around 1e18. Let's widen
-        the approximation bounds significantly.*/
-        ApproxParams memory guessPtOut = ApproxParams({
-            guessMin: 1,
-            guessMax: 1e24,
-            guessOffchain: 1e18,
-            maxIteration: 30,
-            eps: 10_000_000_000_000
-        });
-
-        pendleTxData = abi.encodeWithSelector(
-            IPendleRouterV4.swapExactTokenForPt.selector, _receiver, _market, _minPtOut, guessPtOut, input, limit
-        );
-    }
-
-    function _createApproveAndSwapOdosHookData(
-        address inputToken,
-        uint256 inputAmount,
-        address inputReceiver,
-        address outputToken,
-        uint256 outputQuote,
-        uint256 outputMin,
-        bytes memory pathDefinition,
-        address executor,
-        uint32 referralCode,
-        bool usePrevHookAmount,
-        address approveSpender
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(
-            inputToken,
-            inputAmount,
-            inputReceiver,
-            outputToken,
-            outputQuote,
-            outputMin,
-            usePrevHookAmount,
-            approveSpender,
-            pathDefinition.length,
-            pathDefinition,
-            executor,
-            referralCode
-        );
-    }
-
-    function _createMockOdosSwapHookData(
-        address inputToken,
-        uint256 inputAmount,
-        address inputReceiver,
-        address outputToken,
-        uint256 outputQuote,
-        uint256 outputMin,
-        bytes memory pathDefinition,
-        address executor,
-        uint32 referralCode,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        return abi.encodePacked(
-            inputToken,
-            inputAmount,
-            inputReceiver,
-            outputToken,
-            outputQuote,
-            outputMin,
-            usePrevHookAmount,
-            pathDefinition.length,
-            pathDefinition,
-            executor,
-            referralCode
-        );
-    }
-
-    function _createOdosCallData(
-        address inputToken,
-        uint256 amount,
-        address outputToken,
-        address account
-    )
-        internal
-        returns (bytes memory)
-    {
-        QuoteInputToken[] memory quoteInputTokens = new QuoteInputToken[](1);
-        quoteInputTokens[0] = QuoteInputToken({ tokenAddress: inputToken, amount: amount });
-
-        QuoteOutputToken[] memory quoteOutputTokens = new QuoteOutputToken[](1);
-        quoteOutputTokens[0] = QuoteOutputToken({ tokenAddress: outputToken, proportion: 1 });
-
-        string memory path = surlCallQuoteV2(quoteInputTokens, quoteOutputTokens, account, ETH, false);
-        string memory requestBody = surlCallAssemble(path, account);
-
-        OdosDecodedSwap memory odosDecodedSwap = decodeOdosSwapCalldata(fromHex(requestBody));
-
-        bytes memory odosCallData = _createOdosSwapHookData(
-            odosDecodedSwap.tokenInfo.inputToken,
-            odosDecodedSwap.tokenInfo.inputAmount,
-            odosDecodedSwap.tokenInfo.inputReceiver,
-            odosDecodedSwap.tokenInfo.outputToken,
-            odosDecodedSwap.tokenInfo.outputQuote,
-            odosDecodedSwap.tokenInfo.outputMin,
-            odosDecodedSwap.pathDefinition,
-            odosDecodedSwap.executor,
-            odosDecodedSwap.referralCode,
-            false
-        );
-
-        return odosCallData;
-    }
-
-    /**
-     * @notice Creates the external call envelope for Debridge DLN V1.
-     * @param executorAddress The address of the contract to execute the payload on the destination chain.
-     * @param executionFee Fee for the executor.
-     * @param fallbackAddress Address to receive funds if execution fails.
-     * @param payload The actual data to be executed by the executorAddress.
-     * @param allowDelayedExecution Whether delayed execution is allowed.
-     * @param requireSuccessfulExecution Whether the external call must succeed.
-     * @return The encoded external call envelope V1, prefixed with version byte.
-     */
-    function _createDebridgeExternalCallEnvelope(
-        address executorAddress,
-        uint160 executionFee,
-        address fallbackAddress,
-        bytes memory payload,
-        bool allowDelayedExecution,
-        bool requireSuccessfulExecution // Note: Keep typo from library 'requireSuccessfullExecution'
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        DlnExternalCallLib.ExternalCallEnvelopV1 memory dataEnvelope = DlnExternalCallLib.ExternalCallEnvelopV1({
-            executorAddress: executorAddress,
-            executionFee: executionFee,
-            fallbackAddress: fallbackAddress,
-            payload: payload,
-            allowDelayedExecution: allowDelayedExecution,
-            requireSuccessfullExecution: requireSuccessfulExecution
-        });
-
-        // Prepend version byte (1) to the encoded envelope
-        return abi.encodePacked(uint8(1), abi.encode(dataEnvelope));
-    }
-
-    function _createBatchTransferFromHookData(
-        address from,
-        uint256 arrayLength,
-        address[] memory tokens,
-        uint256[] memory amounts
-    )
-        internal
-        pure
-        returns (bytes memory data)
-    {
-        data = abi.encodePacked(from, arrayLength);
-        for (uint256 i = 0; i < arrayLength; i++) {
-            data = bytes.concat(data, bytes20(tokens[i]));
-        }
-        for (uint256 i = 0; i < arrayLength; i++) {
-            data = bytes.concat(data, abi.encodePacked(amounts[i]));
-        }
-    }
-
-    function _createTransferERC20HookData(
-        address token,
-        address to,
-        uint256 amount,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory data)
-    {
-        data = abi.encodePacked(token, to, amount, usePrevHookAmount);
     }
 }

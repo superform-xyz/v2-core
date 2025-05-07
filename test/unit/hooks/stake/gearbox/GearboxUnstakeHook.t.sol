@@ -3,14 +3,13 @@ pragma solidity >=0.8.28;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { GearboxUnstakeHook } from "../../../../../src/core/hooks/stake/gearbox/GearboxUnstakeHook.sol";
-import { BaseTest } from "../../../../BaseTest.t.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { console2 } from "forge-std/console2.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
-contract GearboxUnstakeHookTest is BaseTest {
+contract GearboxUnstakeHookTest is Helpers {
     GearboxUnstakeHook public hook;
 
     bytes4 yieldSourceOracleId;
@@ -18,9 +17,7 @@ contract GearboxUnstakeHookTest is BaseTest {
     address token;
     uint256 amount;
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public {
         MockERC20 _mockToken = new MockERC20("Mock Token", "MTK", 18);
         token = address(_mockToken);
 
@@ -36,14 +33,14 @@ contract GearboxUnstakeHookTest is BaseTest {
     }
 
     function test_Build() public view {
-        bytes memory data = _encodeData(false, false);
+        bytes memory data = _encodeData(false);
         Execution[] memory executions = hook.build(address(0), address(this), data);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, yieldSource);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
 
-        data = _encodeData(false, true);
+        data = _encodeData(false);
         executions = hook.build(address(0), address(this), data);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, yieldSource);
@@ -54,7 +51,7 @@ contract GearboxUnstakeHookTest is BaseTest {
     function test_Build_RevertIf_AddressZero() public {
         yieldSource = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(0), address(this), _encodeData(false, false));
+        hook.build(address(0), address(this), _encodeData(false));
     }
 
     function test_Build_WithPrevHook() public {
@@ -62,7 +59,7 @@ contract GearboxUnstakeHookTest is BaseTest {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
-        bytes memory data = _encodeData(true, false);
+        bytes memory data = _encodeData(true);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, yieldSource);
@@ -72,13 +69,12 @@ contract GearboxUnstakeHookTest is BaseTest {
 
     function test_PreAndPostExecute() public {
         yieldSource = address(this); // to allow stakingToken call
-        bytes memory data = _encodeData(false, false);
+        bytes memory data = _encodeData(false);
 
         _getTokens(token, address(this), amount);
 
         hook.preExecute(address(0), address(this), data);
         assertEq(hook.outAmount(), amount);
-        assertEq(hook.lockForSP(), false);
 
         hook.postExecute(address(0), address(this), data);
         assertEq(hook.outAmount(), 0);
@@ -88,7 +84,7 @@ contract GearboxUnstakeHookTest is BaseTest {
         return token;
     }
 
-    function _encodeData(bool usePrevHook, bool lockForSp) internal view returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHook, lockForSp);
+    function _encodeData(bool usePrevHook) internal view returns (bytes memory) {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHook);
     }
 }

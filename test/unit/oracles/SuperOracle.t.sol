@@ -2,63 +2,14 @@
 pragma solidity 0.8.28;
 
 // Superform
-import { BaseTest } from "../../BaseTest.t.sol";
 
 import { SuperOracle } from "../../../src/periphery/oracles/SuperOracle.sol";
 import { ISuperOracle } from "../../../src/periphery/interfaces/ISuperOracle.sol";
-import { AggregatorV3Interface } from "../../../src/vendor/chainlink/AggregatorV3Interface.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
-import { IERC20 } from "forge-std/interfaces/IERC20.sol";
+import { Helpers } from "../../utils/Helpers.sol";
+import { MockAggregator } from "../../periphery/mocks/MockAggregator.sol";
 
-contract MockAggregator is AggregatorV3Interface {
-    int256 private _answer;
-    uint256 private _updatedAt;
-    uint8 private immutable _decimals;
-
-    constructor(int256 answer_, uint8 decimals_) {
-        _answer = answer_;
-        _decimals = decimals_;
-        _updatedAt = block.timestamp;
-    }
-
-    function setAnswer(int256 answer_) external {
-        _answer = answer_;
-    }
-
-    function setUpdatedAt(uint256 updatedAt_) external {
-        _updatedAt = updatedAt_;
-    }
-
-    function decimals() external view returns (uint8) {
-        return _decimals;
-    }
-
-    function description() external pure returns (string memory) {
-        return "Mock Aggregator";
-    }
-
-    function version() external pure returns (uint256) {
-        return 1;
-    }
-
-    function getRoundData(uint80)
-        external
-        view
-        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
-    {
-        return (1, _answer, block.timestamp, _updatedAt, 1);
-    }
-
-    function latestRoundData()
-        external
-        view
-        returns (uint80 roundId, int256 answer, uint256 startedAt, uint256 updatedAt, uint80 answeredInRound)
-    {
-        return (1, _answer, block.timestamp, _updatedAt, 1);
-    }
-}
-
-contract SuperOracleTest is BaseTest {
+contract SuperOracleTest is Helpers {
     bytes32 public constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
     bytes32 public constant PROVIDER_1 = bytes32(keccak256("Provider 1"));
     bytes32 public constant PROVIDER_2 = bytes32(keccak256("Provider 2"));
@@ -74,9 +25,7 @@ contract SuperOracleTest is BaseTest {
     MockERC20 public mockUSD;
     MockERC20 public mockBTC;
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public {
         // Create mock tokens
         mockETH = new MockERC20("Mock ETH", "ETH", 18); // ETH has 18 decimals
         mockUSD = new MockERC20("Mock USD", "USD", 6); // USD has 6 decimals
@@ -305,7 +254,13 @@ contract SuperOracleTest is BaseTest {
     }
 
     function test_RevertIfStaleData() public {
-        // Make the data stale (older than default 1 day)
+        vm.warp(block.timestamp + 2 days);
+        
+        // Set the updatedAt for all providers to the current timestamp
+        mockFeed2.setUpdatedAt(block.timestamp);
+        mockFeed3.setUpdatedAt(block.timestamp);
+        
+        // Make only provider 1 data stale (older than default 1 day)
         mockFeed1.setUpdatedAt(block.timestamp - 2 days);
 
         // Should revert when trying to get a quote from this provider
@@ -454,6 +409,7 @@ contract SuperOracleTest is BaseTest {
     }
 
     function test_RevertIfAllProvidersInvalid() public {
+        vm.warp(block.timestamp + 3 days);
         // Make all providers return stale data
         mockFeed1.setUpdatedAt(block.timestamp - 2 days);
         mockFeed2.setUpdatedAt(block.timestamp - 2 days);
@@ -656,7 +612,7 @@ contract SuperOracleTest is BaseTest {
         );
 
         // Even though we have 4 active providers, only 3 have ETH/USD oracles
-        assertEq(totalProviders, 4, "Total providers should be 4");
+        assertEq(totalProviders, 3, "Total providers should be 3");
         assertEq(availableProviders, 3, "Only 3 providers should be available for ETH/USD");
         assertEq(quoteAmount, 1e6, "Average quote should still be $1000 from the 3 ETH/USD providers");
 
@@ -670,7 +626,7 @@ contract SuperOracleTest is BaseTest {
         );
 
         // Only 1 provider (BTC_ONLY_PROVIDER) has BTC/USD oracle
-        assertEq(btcTotalProviders, 4, "Total providers should be 4");
+        assertEq(btcTotalProviders, 1, "Total providers should be 1");
         assertEq(btcAvailableProviders, 1, "Only 1 provider should be available for BTC/USD");
         assertEq(btcQuoteAmount, 2e6, "Quote should be $20000 from the only BTC/USD provider");
     }

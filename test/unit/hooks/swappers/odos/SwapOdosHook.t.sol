@@ -3,14 +3,12 @@ pragma solidity >=0.8.28;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MockSwapOdosHook } from "../../../../mocks/unused-hooks/MockSwapOdosHook.sol";
-import { BaseTest } from "../../../../BaseTest.t.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 import { IOdosRouterV2 } from "../../../../../src/vendor/odos/IOdosRouterV2.sol";
-import { console2 } from "forge-std/console2.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
 contract MockOdosRouter is IOdosRouterV2 {
     function swap(
@@ -47,7 +45,7 @@ contract MockOdosRouter is IOdosRouterV2 {
     }
 }
 
-contract SwapOdosHookTest is BaseTest {
+contract SwapOdosHookTest is Helpers {
     MockSwapOdosHook public hook;
     MockOdosRouter public odosRouter;
     MockHook public prevHook;
@@ -67,9 +65,7 @@ contract SwapOdosHookTest is BaseTest {
 
     receive() external payable { }
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public {
         account = address(this);
         executor = makeAddr("executor");
         inputReceiver = makeAddr("inputReceiver");

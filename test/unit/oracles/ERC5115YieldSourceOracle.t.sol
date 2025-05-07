@@ -1,21 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { BaseE2ETest } from "../../../BaseE2ETest.t.sol";
-import { MockERC20 } from "../../../mocks/MockERC20.sol";
-import { Mock5115Vault } from "../../../mocks/Mock5115Vault.sol";
-import { ERC5115YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { Mock5115Vault } from "../../mocks/Mock5115Vault.sol";
+import { ERC5115YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { Helpers } from "../../utils/Helpers.sol";
 
-contract ERC5115YieldSourceOracleTest is BaseE2ETest {
+contract ERC5115YieldSourceOracleTest is Helpers {
     ERC5115YieldSourceOracle oracle;
     MockERC20 underlying;
     Mock5115Vault vault;
 
-    function setUp() public virtual override {
-        super.setUp();
-        vm.selectFork(FORKS[ETH]);
+    function setUp() public {
         oracle = new ERC5115YieldSourceOracle();
         underlying = new MockERC20("Underlying", "UND", 18);
         vault = new Mock5115Vault(IERC20(address(underlying)), "Vault", "VAULT");

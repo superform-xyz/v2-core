@@ -4,23 +4,60 @@ pragma solidity >=0.8.28;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ApproveAndRequestDeposit7540VaultHook } from
     "../../../../../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
-import { BaseTest } from "../../../../BaseTest.t.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { IERC7540 } from "../../../../../src/vendor/vaults/7540/IERC7540.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { console2 } from "forge-std/console2.sol";
+import { ISuperExecutor } from "../../../../../src/core/interfaces/ISuperExecutor.sol";
+import { SuperExecutor } from "../../../../../src/core/executors/SuperExecutor.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
+import { InternalHelpers } from "../../../../utils/InternalHelpers.sol";
+import { MockLedger, MockLedgerConfiguration } from "../../../../mocks/MockLedger.sol";
+import { RhinestoneModuleKit, AccountInstance, UserOpData, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
+import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 
-contract ApproveAndRequestDeposit7540VaultHookTest is BaseTest {
+interface IRoot {
+    function endorsed(address user) external view returns (bool);
+}
+
+contract ApproveAndRequestDeposit7540VaultHookTest is Helpers, RhinestoneModuleKit, InternalHelpers {
     ApproveAndRequestDeposit7540VaultHook public hook;
+
+    using ModuleKitHelpers for *;
 
     bytes4 yieldSourceOracleId;
     address yieldSource;
     address token;
     uint256 amount;
 
-    function setUp() public override {
-        super.setUp();
+    IERC7540 public vaultInstance7540ETH;
+    address public underlyingETH_USDC;
+    address public yieldSource7540AddressUSDC;
+    address public accountETH;
+    address public feeRecipient;
+
+    AccountInstance public instanceOnETH;
+    ISuperExecutor public superExecutorOnETH;
+    MockLedger public ledger;
+    MockLedgerConfiguration public ledgerConfig;
+
+    function setUp() public {
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), ETH_BLOCK);
+        instanceOnETH = makeAccountInstance(keccak256(abi.encode("TEST")));
+        accountETH = instanceOnETH.account;
+        feeRecipient = makeAddr("feeRecipient");
+
+        underlyingETH_USDC = CHAIN_1_USDC;
+        _getTokens(underlyingETH_USDC, accountETH, 1e18);
+
+        yieldSource7540AddressUSDC = CHAIN_1_CentrifugeUSDC;
+
+        ledger = new MockLedger();
+        ledgerConfig = new MockLedgerConfiguration(address(ledger), feeRecipient, address(token), 100, accountETH);
+
+        superExecutorOnETH = new SuperExecutor(address(ledgerConfig));
+        instanceOnETH.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorOnETH), data: "" });
 
         yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
         yieldSource = address(this);
@@ -28,6 +65,33 @@ contract ApproveAndRequestDeposit7540VaultHookTest is BaseTest {
         amount = 1000;
 
         hook = new ApproveAndRequestDeposit7540VaultHook();
+    }
+
+    function test_ApproveAndRequestDeposit7540Hook() public {
+        amount = 1e8;
+
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(hook);
+
+        vm.mockCall(
+            0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC,
+            abi.encodeWithSelector(IRoot.endorsed.selector, accountETH),
+            abi.encode(true)
+        );
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] =
+            _createApproveAndRequestDeposit7540HookData(yieldSource7540AddressUSDC, underlyingETH_USDC, amount, false);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instanceOnETH, superExecutorOnETH, abi.encode(entry));
+
+        vm.expectEmit(true, true, true, false);
+        emit IERC7540.DepositRequest(accountETH, accountETH, 0, accountETH, amount);
+        executeOp(userOpData);
+
+        vm.clearMockedCalls();
     }
 
     function test_Constructor() public view {

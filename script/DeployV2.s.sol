@@ -359,14 +359,17 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, SUPER_VAULT_AGGREGATOR_KEY),
             abi.encodePacked(type(SuperVaultAggregator).creationCode, abi.encode(deployedContracts.superGovernor))
         );
-
         // Deploy Hooks
         HookAddresses memory hookAddresses = _deployHooks(deployer, chainId);
 
         _registerHooks(hookAddresses, SuperGovernor(deployedContracts.superGovernor));
-
+        _configureGovernor(SuperGovernor(deployedContracts.superGovernor), deployedContracts.superVaultAggregator);
         // Deploy Oracles
         _deployOracles(deployer, chainId);
+    }
+
+    function _configureGovernor(SuperGovernor superGovernor, address aggregator) internal {
+        superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), aggregator);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -459,12 +462,12 @@ contract DeployV2 is Script, Configuration {
             ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
                 type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
-                abi.encode(configuration.acrossSpokePoolV3s[chainId])
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], _getContract(chainId, SUPER_MERKLE_VALIDATOR_KEY))
             )
         );
         hooks[21] = HookDeployment(
-            DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
-            abi.encodePacked(type(DeBridgeSendOrderAndExecuteOnDstHook).creationCode, abi.encode(DEBRIDGE_DLN_SRC))
+            DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,    
+            abi.encodePacked(type(DeBridgeSendOrderAndExecuteOnDstHook).creationCode, abi.encode(DEBRIDGE_DLN_SRC, _getContract(chainId, SUPER_MERKLE_VALIDATOR_KEY)))
         );
 
         hooks[22] = HookDeployment(FLUID_CLAIM_REWARD_HOOK_KEY, type(FluidClaimRewardHook).creationCode);

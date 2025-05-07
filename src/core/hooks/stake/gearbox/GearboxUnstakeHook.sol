@@ -20,7 +20,6 @@ import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 24);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-/// @notice         bool lockForSP = _decodeBool(data, 57);
 contract GearboxUnstakeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
@@ -75,8 +74,6 @@ contract GearboxUnstakeHook is BaseHook, ISuperHookContextAware {
         /// @dev in Gearbox, the staking token is the asset
         asset = IGearboxFarmingPool(yieldSource).stakingToken();
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 57);
-        spToken = yieldSource;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
