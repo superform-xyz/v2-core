@@ -116,8 +116,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.executor,
-            approveDestinationData.adapter,
-            approveDestinationData.tokenSent,
             approveDestinationData.intentAmount,
             validUntil
         );
@@ -126,8 +124,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             transferDestinationData.chainId,
             transferDestinationData.sender,
             transferDestinationData.executor,
-            transferDestinationData.adapter,
-            transferDestinationData.tokenSent,
             transferDestinationData.intentAmount,
             validUntil
         );
@@ -136,8 +132,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             depositDestinationData.chainId,
             depositDestinationData.sender,
             depositDestinationData.executor,
-            depositDestinationData.adapter,
-            depositDestinationData.tokenSent,
             depositDestinationData.intentAmount,
             validUntil
         );
@@ -146,8 +140,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             withdrawDestinationData.chainId,
             withdrawDestinationData.sender,
             withdrawDestinationData.executor,
-            withdrawDestinationData.adapter,
-            withdrawDestinationData.tokenSent,
             withdrawDestinationData.intentAmount,
             validUntil
         );
@@ -169,8 +161,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.executor,
-            approveDestinationData.adapter,
-            approveDestinationData.tokenSent,
             approveDestinationData.intentAmount,
             validUntil
         );
@@ -179,8 +169,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             transferDestinationData.chainId,
             transferDestinationData.sender,
             transferDestinationData.executor,
-            transferDestinationData.adapter,
-            transferDestinationData.tokenSent,
             transferDestinationData.intentAmount,
             validUntil
         );
@@ -189,8 +177,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             depositDestinationData.chainId,
             depositDestinationData.sender,
             depositDestinationData.executor,
-            depositDestinationData.adapter,
-            depositDestinationData.tokenSent,
             depositDestinationData.intentAmount,
             validUntil
         );
@@ -199,8 +185,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             withdrawDestinationData.chainId,
             withdrawDestinationData.sender,
             withdrawDestinationData.executor,
-            withdrawDestinationData.adapter,
-            withdrawDestinationData.tokenSent,
             withdrawDestinationData.intentAmount,
             validUntil
         );
@@ -226,7 +210,7 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
         vm.stopPrank();
     }
 
-    function test_ExpiredSignatureX() public {
+    function test_ExpiredSignature() public {
         vm.warp(block.timestamp + 2 hours);
         uint48 validUntil = uint48(block.timestamp - 1 hours);
 
@@ -238,8 +222,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.executor,
-            approveDestinationData.adapter,
-            approveDestinationData.tokenSent,
             approveDestinationData.intentAmount,
             validUntil
         );
@@ -248,8 +230,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             transferDestinationData.chainId,
             transferDestinationData.sender,
             transferDestinationData.executor,
-            transferDestinationData.adapter,
-            transferDestinationData.tokenSent,
             transferDestinationData.intentAmount,
             validUntil
         );
@@ -258,8 +238,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             depositDestinationData.chainId,
             depositDestinationData.sender,
             depositDestinationData.executor,
-            depositDestinationData.adapter,
-            depositDestinationData.tokenSent,
             depositDestinationData.intentAmount,
             validUntil
         );
@@ -268,8 +246,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             withdrawDestinationData.chainId,
             withdrawDestinationData.sender,
             withdrawDestinationData.executor,
-            withdrawDestinationData.adapter,
-            withdrawDestinationData.tokenSent,
             withdrawDestinationData.intentAmount,
             validUntil
         );
@@ -285,8 +261,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.executor,
-            approveDestinationData.adapter,
-            approveDestinationData.tokenSent,
             approveDestinationData.intentAmount
         );
 
@@ -331,8 +305,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             destinationData.chainId,
             destinationData.sender,
             destinationData.executor,
-            destinationData.adapter,
-            destinationData.tokenSent,
             destinationData.intentAmount
         );
 
@@ -358,7 +330,6 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
                         destinationData.sender,
                         destinationData.nonce,
                         destinationData.executor,
-                        destinationData.tokenSent,
                         destinationData.intentAmount,
                         validUntil
                     )

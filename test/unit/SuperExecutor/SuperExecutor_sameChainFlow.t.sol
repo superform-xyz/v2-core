@@ -141,7 +141,7 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
         );
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
@@ -157,7 +157,7 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
     function test_ReplaceCalldataAmount() public view {
         uint256 amount = LARGE;
         bytes memory hookData = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, SMALL, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, SMALL, false, address(0), 0
         );
 
         address hook = address(redeem4626Hook);
@@ -178,10 +178,10 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         bytes[] memory hooksData = new bytes[](3);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
         );
         hooksData[2] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, amount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, amount, false, address(0), 0
         );
         // assure account has tokens
         _getTokens(underlying, account, amount);
@@ -358,7 +358,7 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         );
         hooksData[1] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[2] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
         );
         uint256 routerEthBalanceBefore = address(mockOdosRouter).balance;
         _getTokens(address(underlying), mockOdosRouter, amount);
@@ -418,7 +418,7 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         );
         hooksData[3] = _createApproveHookData(underlying, yieldSourceAddress, amount, true);
         hooksData[4] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, true, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, true, address(0), 0
         );
 
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
@@ -463,7 +463,7 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
         );
 
         // assure account has tokens

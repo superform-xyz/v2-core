@@ -131,7 +131,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         //  this is useful to avoid replay attacks on a different group of executor <> sender (adapter)
         // Note: the msgs.sender doesn't necessarily match an adapter address
         bytes memory destinationData = abi.encode(
-            executorCalldata, uint64(block.chainid), account, address(this), msg.sender, tokenSent, intentAmount
+            executorCalldata, uint64(block.chainid), account, address(this), intentAmount
         );
 
         // The userSignatureData is passed directly from the adapter

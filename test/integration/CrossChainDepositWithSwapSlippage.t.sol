@@ -194,7 +194,8 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 yieldSourceAddressBase,
                 previewRedeemAmount,
                 false,
-                false
+                address(0),
+                0
             );
 
             messageData = TargetExecutorMessage({
@@ -228,7 +229,7 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
         bytes[] memory srcHooksData = new bytes[](4);
         srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceAddressEth, amount, false);
         srcHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, address(0), 0
         );
         srcHooksData[2] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 0, true);
 
@@ -286,7 +287,8 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 yieldSource4626AddressBase_USDC,
                 intentAmount / 2,
                 false,
-                false
+                address(0),
+                0
             );
 
             messageData = TargetExecutorMessage({
@@ -380,7 +382,8 @@ contract CrossChainDepositWithSwapSlippage is BaseTest {
                 yieldSource4626AddressBase_WETH,
                 intentAmount / 2,
                 true,
-                false
+                address(0),
+                0
             );
 
             messageData = TargetExecutorMessage({

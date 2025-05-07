@@ -54,7 +54,7 @@ contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
         hooksAddresses[1] = address(new Deposit5115VaultHook());
         hooksData[0] = _createApproveHookData(underlying, address(pendleVault), amount, false);
         hooksData[1] = _create5115DepositHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
+            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -207,7 +207,7 @@ contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
         hooksAddresses[1] = address(new Deposit5115VaultHook());
         hooksData[0] = _createApproveHookData(underlying, address(pendleVault), amount, false);
         hooksData[1] = _create5115DepositHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
+            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, address(0), 0
         );
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
     }
@@ -220,7 +220,7 @@ contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
         bytes[] memory hooksData = new bytes[](1);
         hooksAddresses[0] = address(new Redeem5115VaultHook());
         hooksData[0] = _create5115RedeemHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, false
+            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false, address(0), 0
         );
 
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });

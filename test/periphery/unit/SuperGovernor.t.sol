@@ -57,7 +57,7 @@ contract SuperGovernorTest is Helpers {
         ppsOracle2 = _deployAccount(0xC, "PPSOracle2");
         newStrategist = _deployAccount(0xF, "NewStrategist");
 
-        superGovernor = new SuperGovernor(sGovernor, governor, treasury);
+        superGovernor = new SuperGovernor(sGovernor, governor, governor, treasury, address(this));
         superVaultAggregator = address(new SuperVaultAggregator(address(superGovernor)));
         (, address strategy,) = ISuperVaultAggregator(superVaultAggregator).createVault(
             ISuperVaultAggregator.VaultCreationParams({
@@ -88,19 +88,19 @@ contract SuperGovernorTest is Helpers {
     /// @notice Tests constructor revert on zero address superGovernor.
     function test_constructor_Revert_ZeroAdmin() public {
         vm.expectRevert(ISuperGovernor.INVALID_ADDRESS.selector);
-        new SuperGovernor(address(0), governor, treasury);
+        new SuperGovernor(address(0), governor, governor, treasury, address(this));
     }
 
     /// @notice Tests constructor revert on zero address governor.
     function test_constructor_Revert_ZeroGovernor() public {
         vm.expectRevert(ISuperGovernor.INVALID_ADDRESS.selector);
-        new SuperGovernor(sGovernor, address(0), treasury);
+        new SuperGovernor(sGovernor, address(0), governor, treasury, address(this));
     }
 
     /// @notice Tests constructor revert on zero address treasury.
     function test_constructor_Revert_ZeroTreasury() public {
         vm.expectRevert(ISuperGovernor.INVALID_ADDRESS.selector);
-        new SuperGovernor(sGovernor, governor, address(0));
+        new SuperGovernor(sGovernor, governor, governor, address(0), address(this));
     }
 
     // =============================================================
