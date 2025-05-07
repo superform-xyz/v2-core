@@ -2,7 +2,8 @@
 pragma solidity =0.8.28;
 
 // testing
-import { BaseTest } from "../../BaseTest.t.sol";
+import { BaseTest } from "../../../BaseTest.t.sol";
+import { TotalAssetHelper } from "./TotalAssetHelper.sol";
 
 // external
 import { console2 } from "forge-std/console2.sol";
@@ -13,19 +14,19 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 import { ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 
 // superform
-import { SuperVault } from "../../../src/periphery/SuperVault.sol";
-import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
-import { PeripheryRegistry } from "../../../src/periphery/PeripheryRegistry.sol";
-import { SuperVaultEscrow } from "../../../src/periphery/SuperVaultEscrow.sol";
-import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
-import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
-import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
+import { SuperVault } from "../../../../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultStrategy } from "../../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
+import { SuperVaultAggregator } from "../../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { SuperGovernor } from "../../../../src/periphery/SuperGovernor.sol";
+import { ISuperVaultStrategy } from "../../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
+import { ISuperLedgerConfiguration } from "../../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperExecutor } from "../../../../src/core/interfaces/ISuperExecutor.sol";
+import { FeeType } from "../../../../src/periphery/interfaces/ISuperGovernor.sol";
 
-import { ISuperVaultFactory } from "../../../src/periphery/interfaces/ISuperVaultFactory.sol";
+import { ISuperVaultAggregator } from "../../../../src/periphery/interfaces/ISuperVaultAggregator.sol";
 
-contract BaseSuperVaultTest is BaseTest, MerkleReader {
+contract BaseSuperVaultTest is BaseTest {
     using ModuleKitHelpers for *;
     using Math for uint256;
 
@@ -38,9 +39,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     // Core contracts
     SuperVault public vault;
     SuperVaultEscrow public escrow;
-    SuperVaultFactory public factory;
+    SuperVaultAggregator public aggregator;
     SuperVaultStrategy public strategy;
-    PeripheryRegistry public peripheryRegistry;
+    SuperGovernor public superGovernor;
+
+    // Helper contracts
+    TotalAssetHelper public totalAssetHelper;
 
     // Tokens and yield sources
     IERC20Metadata public asset;
@@ -70,7 +74,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.selectFork(FORKS[ETH]);
         accInstances = randomAccountInstances[ETH];
         assertEq(accInstances.length, ACCOUNT_COUNT);
-        peripheryRegistry = PeripheryRegistry(_getContract(ETH, SUPER_GOVERNOR_KEY));
+        superGovernor = SuperGovernor(_getContract(ETH, SUPER_GOVERNOR_KEY));
 
         // Set up accounts
         accountEth = accountInstances[ETH].account;
@@ -81,8 +85,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         // Set up super executor
         superExecutorOnEth = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
 
-        // Deploy factory
-        factory = new SuperVaultFactory(_getContract(ETH, SUPER_GOVERNOR_KEY));
+        // Get aggregator
+        aggregator = SuperVaultAggregator(_getContract(ETH, SUPER_VAULT_AGGREGATOR_KEY));
 
         // Get USDC from fork
         asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
@@ -104,9 +108,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         strategy = SuperVaultStrategy(strategyAddr);
         escrow = SuperVaultEscrow(escrowAddr);
 
+        // Deploy TotalAssetHelper
+        totalAssetHelper = new TotalAssetHelper();
+
         _setFeeConfig(100, TREASURY);
 
-        vm.startPrank(SV_MANAGER);
+        vm.startPrank(STRATEGIST);
         strategy.manageYieldSource(
             address(fluidVault),
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
@@ -122,9 +129,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             false
         );
 
-        strategy.proposeOrExecuteHookRoot(hookRootPerChain[ETH]);
-        vm.warp(block.timestamp + 7 days);
-        strategy.proposeOrExecuteHookRoot(bytes32(0));
         vm.stopPrank();
     }
 
@@ -156,16 +160,16 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.startPrank(SV_MANAGER);
 
         // Deploy the vault trio
-        (vaultAddr, strategyAddr, escrowAddr) = factory.createVault(
-            ISuperVaultFactory.VaultCreationParams({
+        (vaultAddr, strategyAddr, escrowAddr) = aggregator.createVault(
+            ISuperVaultAggregator.VaultCreationParams({
                 asset: _asset,
                 name: "SuperVault",
                 symbol: _superVaultSymbol,
-                manager: SV_MANAGER,
-                strategist: STRATEGIST,
-                emergencyAdmin: EMERGENCY_ADMIN,
-                feeRecipient: TREASURY,
-                superVaultCap: _superVaultCap
+                mainStrategist: STRATEGIST,
+                minUpdateInterval: 5,
+                maxStaleness: 300,
+                superVaultCap: _superVaultCap,
+                feeConfig: ISuperVaultStrategy.FeeConfig({ performanceFeeBps: 1000, recipient: address(this) })
             })
         );
 
@@ -193,12 +197,34 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         return _deployVault(address(asset), SUPER_VAULT_CAP, _superVaultSymbol);
     }
 
+    function __deposit(AccountInstance memory accInst, uint256 depositAmount) internal {
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(vault),
+            address(asset),
+            depositAmount,
+            false,
+            address(0),
+            0
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(entry));
+        executeOp(userOpData);
+    }
+    /*
+    Leaving commented for now
     function __requestDeposit(AccountInstance memory accInst, uint256 depositAmount) internal {
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createApproveAndRequestDeposit7540HookData(address(vault), address(asset), depositAmount, false);
+    hooksData[0] = _createApproveAndRequestDeposit7540HookData(address(vault), address(asset), depositAmount, false);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -220,6 +246,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
     }
+    */
 
     function __requestRedeem(AccountInstance memory accInst, uint256 redeemShares, bool shouldRevert) internal {
         address[] memory redeemHooksAddresses = new address[](1);
@@ -246,7 +273,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), assets, false, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), assets, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
@@ -255,21 +282,23 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         executeOp(claimUserOpData);
     }
 
-    function _requestDeposit(uint256 depositAmount) internal {
-        __requestDeposit(instanceOnEth, depositAmount);
+    function _deposit(uint256 depositAmount) internal {
+        __deposit(instanceOnEth, depositAmount);
     }
 
-    function _requestDepositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
-        __requestDeposit(accInst, depositAmount);
+    function _depositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
+        __deposit(accInst, depositAmount);
     }
 
-    function _requestDepositForAllUsers(uint256 depositAmount) internal {
+    function _depositForAllUsers(uint256 depositAmount) internal {
         for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             _getTokens(address(asset), accInstances[i].account, depositAmount);
-            _requestDepositForAccount(accInstances[i], depositAmount);
-            assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmount);
+            _depositForAccount(accInstances[i], depositAmount);
         }
     }
+
+    /*
+        Leaving commented for now
 
     function _claimDeposit(uint256 depositAmount) internal {
         __claimDeposit(instanceOnEth, depositAmount);
@@ -278,6 +307,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     function _claimDepositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
         __claimDeposit(accInst, depositAmount);
     }
+    */
 
     function _requestRedeem(uint256 redeemShares) internal {
         __requestRedeem(instanceOnEth, redeemShares, false);
@@ -306,9 +336,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         __claimWithdraw(instanceOnEth, assets);
     }
 
-    function _fulfillDeposit(uint256 depositAmount, address userAccount, address vault1, address vault2) internal {
-        address[] memory requestingUsers = new address[](1);
-        requestingUsers[0] = userAccount;
+    function _depositFreeAssetsFromSingleAmount(uint256 depositAmount, address vault1, address vault2) internal {
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
@@ -320,7 +348,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         // Split the deposit between two hooks
         uint256 halfAmount = depositAmount / 2;
         fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(asset), halfAmount, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(asset), halfAmount, false, address(0), 0
         );
 
         fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
@@ -329,7 +357,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             address(asset),
             depositAmount - halfAmount,
             false,
-            false
+            address(0),
+            0
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
@@ -339,10 +368,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.startPrank(STRATEGIST);
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
-                users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -394,7 +421,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             address(strategy),
             vars.fluidSharesOut,
             false,
-            false
+            address(0),
+            0
         );
 
         vars.fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
@@ -404,10 +432,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             address(strategy),
             vars.aaveSharesOut,
             false,
-            false
+            address(0),
+            0
         );
 
-        (vars.totalSvAssets,) = strategy.totalAssets();
+        (vars.totalSvAssets,) = totalAssetHelper.totalAssets(address(strategy));
         vars.pricePerShare = vars.totalSvAssets.mulDiv(PRECISION, vault.totalSupply(), Math.Rounding.Floor);
 
         vars.amountForVault1 = vars.fluidSharesOut * 1e18 / vars.pricePerShare;
@@ -421,20 +450,18 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vars.expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToAssets(vars.underlyingSharesForVault2);
 
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(
-            ISuperVaultStrategy.ExecuteArgs({
-                users: vars.requestingUsers,
+        strategy.fulfillRedeemRequests(
+            ISuperVaultStrategy.FulfillArgs({
+                controllers: vars.requestingUsers,
                 hooks: vars.fulfillHooksAddresses,
                 hookCalldata: vars.fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(ETH, vars.fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: vars.expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
     }
 
-    function _fulfillDepositForUsers(
-        address[] memory requestingUsers,
+    function _depositFreeAssets(
         uint256 allocationAmountVault1,
         uint256 allocationAmountVault2,
         address vault1,
@@ -451,10 +478,22 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         bytes[] memory fulfillHooksData = new bytes[](2);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(asset), allocationAmountVault1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault1,
+            address(asset),
+            allocationAmountVault1,
+            false,
+            address(0),
+            0
         );
         fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(asset), allocationAmountVault2, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault2,
+            address(asset),
+            allocationAmountVault2,
+            false,
+            address(0),
+            0
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
@@ -464,18 +503,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.startPrank(STRATEGIST);
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
-                users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
     }
 
-    function _fulfillDepositForUsers(
-        address[] memory requestingUsers,
+    function _depositFreeAssets(
         uint256 allocationAmountVault1,
         uint256 allocationAmountVault2,
         address vault1,
@@ -493,10 +529,22 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         bytes[] memory fulfillHooksData = new bytes[](2);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(asset), allocationAmountVault1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault1,
+            address(asset),
+            allocationAmountVault1,
+            false,
+            address(0),
+            0
         );
         fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(asset), allocationAmountVault2, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault2,
+            address(asset),
+            allocationAmountVault2,
+            false,
+            address(0),
+            0
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
@@ -509,18 +557,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         }
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
-                users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
     }
 
-    function _fulfillDepositForUsers(
-        address[] memory requestingUsers,
+    function _depositFreeAssets(
         uint256 allocationAmountVault1,
         uint256 allocationAmountVault2,
         address vault1,
@@ -539,10 +584,22 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         bytes[] memory fulfillHooksData = new bytes[](2);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(asset), allocationAmountVault1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault1,
+            address(asset),
+            allocationAmountVault1,
+            false,
+            address(0),
+            0
         );
         fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(asset), allocationAmountVault2, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault2,
+            address(asset),
+            allocationAmountVault2,
+            false,
+            address(0),
+            0
         );
 
         vm.startPrank(STRATEGIST);
@@ -551,18 +608,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         }
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
-                users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
         vm.stopPrank();
     }
 
-    function _fulfillDepositForUsers(
-        address[] memory requestingUsers,
+    function _depositFreeAssets(
         address vault1,
         address vault2,
         address vault3,
@@ -582,13 +636,31 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         bytes[] memory fulfillHooksData = new bytes[](3);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, address(asset), allocationAmountVault1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault1,
+            address(asset),
+            allocationAmountVault1,
+            false,
+            address(0),
+            0
         );
         fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, address(asset), allocationAmountVault2, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault2,
+            address(asset),
+            allocationAmountVault2,
+            false,
+            address(0),
+            0
         );
         fulfillHooksData[2] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault3, address(asset), allocationAmountVault3, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            vault3,
+            address(asset),
+            allocationAmountVault3,
+            false,
+            address(0),
+            0
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](3);
@@ -598,10 +670,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         vm.startPrank(STRATEGIST);
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
-                users: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -632,7 +702,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             address(strategy),
             redeemSharesVault1,
             false,
-            false
+            address(0),
+            0
         );
         fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
@@ -641,12 +712,13 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             address(strategy),
             redeemSharesVault2,
             false,
-            false
+            address(0),
+            0
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
         {
-            (uint256 totalSvAssets,) = strategy.totalAssets();
+            (uint256 totalSvAssets,) = totalAssetHelper.totalAssets(address(strategy));
             uint256 pricePerShare = totalSvAssets.mulDiv(PRECISION, vault.totalSupply(), Math.Rounding.Floor);
 
             uint256 amountForVault1 = redeemSharesVault1 * 1e18 / pricePerShare;
@@ -661,12 +733,11 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         console2.log("----requestingUsersLength", requestingUsers.length);
         vm.startPrank(STRATEGIST);
-        strategy.executeHooks(
-            ISuperVaultStrategy.ExecuteArgs({
-                users: requestingUsers,
+        strategy.fulfillRedeemRequests(
+            ISuperVaultStrategy.FulfillArgs({
+                controllers: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -699,7 +770,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             address(strategy),
             redeemSharesVault1,
             false,
-            false
+            address(0),
+            0
         );
         fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
@@ -708,19 +780,19 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             address(strategy),
             redeemSharesVault2,
             false,
-            false
+            address(0),
+            0
         );
 
         vm.startPrank(STRATEGIST);
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        strategy.executeHooks(
-            ISuperVaultStrategy.ExecuteArgs({
-                users: requestingUsers,
+        strategy.fulfillRedeemRequests(
+            ISuperVaultStrategy.FulfillArgs({
+                controllers: requestingUsers,
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
-                hookProofs: _getMerkleProofsForAddresses(ETH, fulfillHooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -729,26 +801,15 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
     function _completeDepositFlow(uint256 depositAmount) internal {
         // create deposit requests for all users
-        _requestDepositForAllUsers(depositAmount);
+        _depositForAllUsers(depositAmount);
 
         // create fullfillment data
         uint256 totalAmount = depositAmount * ACCOUNT_COUNT;
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
-        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
-            requestingUsers[i] = accInstances[i].account;
-        }
 
         // fulfill deposits
-        _fulfillDepositForUsers(
-            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
-        );
-
-        // claim deposits
-        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
-            _claimDepositForAccount(accInstances[i], depositAmount);
-        }
+        _depositFreeAssets(allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault));
     }
 
     function _completeDepositFlowWithVaryingAmounts(uint256[] memory depositAmounts) internal {
@@ -758,28 +819,16 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         uint256 totalAmount;
         for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             _getTokens(address(asset), accInstances[i].account, depositAmounts[i]);
-            _requestDepositForAccount(accInstances[i], depositAmounts[i]);
-            assertEq(strategy.pendingDepositRequest(accInstances[i].account), depositAmounts[i]);
+            _depositForAccount(accInstances[i], depositAmounts[i]);
             totalAmount += depositAmounts[i];
         }
 
         // create fullfillment data
         uint256 allocationAmountVault1 = totalAmount / 2;
         uint256 allocationAmountVault2 = totalAmount - allocationAmountVault1;
-        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
-            requestingUsers[i] = accInstances[i].account;
-        }
 
         // fulfill deposits
-        _fulfillDepositForUsers(
-            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
-        );
-
-        // claim deposits
-        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
-            _claimDepositForAccount(accInstances[i], depositAmounts[i]);
-        }
+        _depositFreeAssets(allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault));
     }
 
     /**
@@ -964,7 +1013,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                             address(strategy),
                             vars.sharesToRedeem,
                             false,
-                            false
+                            address(0),
+                            0
                         );
                         hookIndex++;
 
@@ -976,7 +1026,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                             address(asset),
                             vars.amountToMove,
                             true,
-                            false
+                            address(0),
+                            0
                         );
                         expectedAssetsOrSharesOut[hookIndex] =
                             IERC4626(vars.sources[i]).previewRedeem(vars.sharesToRedeem);
@@ -1007,16 +1058,12 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 finalExpectedAssetsOrSharesOut[i] = expectedAssetsOrSharesOut[i];
             }
 
-            address[] memory users = new address[](0);
-
             // Execute all hooks in a single transaction
             vm.startPrank(STRATEGIST);
             strategy.executeHooks(
                 ISuperVaultStrategy.ExecuteArgs({
-                    users: users,
                     hooks: finalHooksAddresses,
                     hookCalldata: finalHooksData,
-                    hookProofs: _getMerkleProofsForAddresses(ETH, finalHooksAddresses),
                     expectedAssetsOrSharesOut: finalExpectedAssetsOrSharesOut
                 })
             );
@@ -1119,38 +1166,6 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
                 ? ((vars.firstDepositSharePrice - vars.secondDepositSharePrice) * 100 / vars.firstDepositSharePrice)
                 : ((vars.secondDepositSharePrice - vars.firstDepositSharePrice) * 100 / vars.firstDepositSharePrice)
         );
-    }
-
-    function _verifySharesAndAssets(DepositVerificationVars memory vars) internal {
-        uint256[] memory initialUserShareBalances = new uint256[](ACCOUNT_COUNT);
-        uint256[] memory maxDepositAmounts = new uint256[](ACCOUNT_COUNT);
-        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
-            initialUserShareBalances[i] = vault.balanceOf(accInstances[i].account);
-            maxDepositAmounts[i] = vault.maxDeposit(accInstances[i].account);
-            _claimDepositForAccount(accInstances[i], maxDepositAmounts[i]);
-        }
-
-        vars.totalSharesMinted = 0;
-        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
-            console2.log("initialUserShareBalances", initialUserShareBalances[i]);
-            console2.log("i", i);
-            uint256 userSharesReceived = vault.balanceOf(accInstances[i].account) - initialUserShareBalances[i];
-            vars.totalSharesMinted += userSharesReceived;
-
-            // Verify user can convert shares back to approximately the original deposit amount
-            uint256 assetsFromShares = vault.convertToAssets(userSharesReceived);
-            console2.log("totalSupply test", vault.totalSupply());
-            console2.log("totalAssets test", vault.totalAssets());
-            console2.log("pps", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
-            console2.log("userSharesReceived", userSharesReceived);
-            console2.log("assetsFromShares", assetsFromShares);
-            console2.log("maxDepositAmounts", maxDepositAmounts[i]);
-            assertApproxEqRel(assetsFromShares, maxDepositAmounts[i], 0.01e18); // Allow 1% deviation
-            console2.log("--------------------------------");
-        }
-
-        vars.totalAssetsFromShares = vault.convertToAssets(vars.totalSharesMinted);
-        assertApproxEqRel(vars.totalAssetsFromShares, vars.totalAmount, 0.01e18); // Allow 1% deviation
     }
 
     struct RedeemVerificationVars {
@@ -1257,7 +1272,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
     }
 
     function _setFeeConfig(uint256 feePercent, address feeRecipient) internal {
-        vm.startPrank(MANAGER);
+        vm.startPrank(STRATEGIST);
         strategy.proposeVaultFeeConfigUpdate(feePercent, feeRecipient);
         vm.warp(block.timestamp + 1 weeks);
         strategy.executeVaultFeeConfigUpdate();
@@ -1283,10 +1298,17 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             address(strategy),
             sharesToRedeem,
             false,
-            false
+            address(0),
+            0
         );
         hooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), targetVault, address(asset), assetsToMove, true, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            targetVault,
+            address(asset),
+            assetsToMove,
+            true,
+            address(0),
+            0
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
@@ -1295,10 +1317,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
 
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
-                users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                hookProofs: _getMerkleProofsForAddresses(ETH, hooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -1326,7 +1346,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             address(strategy),
             sharesToRedeem,
             false,
-            false
+            address(0),
+            0
         );
         hooksData[1] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY)),
@@ -1334,7 +1355,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             address(asset),
             assetsToMove,
             true,
-            false
+            address(0),
+            0
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
@@ -1342,10 +1364,8 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
         expectedAssetsOrSharesOut[1] = IERC4626(sourceVault).previewRedeem(sharesToRedeem);
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
-                users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                hookProofs: _getMerkleProofsForAddresses(ETH, hooksAddresses),
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut
             })
         );
@@ -1409,9 +1429,9 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             uint256 totalFee = profit.mulDiv(performanceFeeBps, ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
 
             if (totalFee > 0) {
+                uint256 superVaultFeePercent = superGovernor.getFee(FeeType.SUPER_VAULT_PERFORMANCE_FEE);
                 // Calculate Superform's portion of the fee
-                superformFee =
-                    totalFee.mulDiv(peripheryRegistry.getSuperformFeeSplit(), ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
+                superformFee = totalFee.mulDiv(superVaultFeePercent, ONE_HUNDRED_PERCENT, Math.Rounding.Floor);
                 recipientFee = totalFee - superformFee;
             }
         }
@@ -1425,7 +1445,7 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             pricePerShare = PRECISION;
         } else {
             // Calculate current PPS in price decimals
-            (uint256 totalAssetsVault,) = strategy.totalAssets();
+            (uint256 totalAssetsVault,) = totalAssetHelper.totalAssets(address(strategy));
             pricePerShare = totalAssetsVault.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
         }
     }
@@ -1486,32 +1506,5 @@ contract BaseSuperVaultTest is BaseTest, MerkleReader {
             newArray[i] = array[i];
         }
         return newArray;
-    }
-
-    function _getMerkleProofsForAddresses(
-        uint64 chainId,
-        address[] memory hookAddresses_
-    )
-        internal
-        view
-        returns (bytes32[][] memory)
-    {
-        uint256[] memory indexes = new uint256[](hookAddresses_.length);
-        for (uint256 i = 0; i < hookAddresses_.length; i++) {
-            for (uint256 j = 0; j < hookListPerChain[chainId].length; j++) {
-                if (hookListPerChain[chainId][j] == hookAddresses_[i]) {
-                    indexes[i] = j;
-                    break;
-                }
-            }
-        }
-
-        bytes32[][] memory proofs = new bytes32[][](hookAddresses_.length);
-        for (uint256 i = 0; i < hookAddresses_.length; i++) {
-            uint256 idx = indexes[i];
-            proofs[i] = hookProofsPerChain[chainId][idx];
-        }
-
-        return proofs;
     }
 }
