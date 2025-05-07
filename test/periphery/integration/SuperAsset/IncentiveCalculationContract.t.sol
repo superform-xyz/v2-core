@@ -3,8 +3,8 @@ pragma solidity ^0.8.28;
 
 import {Test} from "forge-std/Test.sol";
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {IncentiveCalculationContract} from "../../../src/periphery/SuperAsset/IncentiveCalculationContract.sol";
-import {IIncentiveCalculationContract} from "../../../src/periphery/interfaces/SuperAsset/IIncentiveCalculationContract.sol";
+import {IncentiveCalculationContract} from "src/periphery/SuperAsset/IncentiveCalculationContract.sol";
+import {IIncentiveCalculationContract} from "src/periphery/interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 
 contract IncentiveCalculationContractTest is Test {
     IncentiveCalculationContract public calculator;
