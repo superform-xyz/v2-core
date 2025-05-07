@@ -3,22 +3,19 @@ pragma solidity >=0.8.28;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { GearboxClaimRewardHook } from "../../../../../src/core/hooks/claim/gearbox/GearboxClaimRewardHook.sol";
-import { BaseTest } from "../../../../BaseTest.t.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { console2 } from "forge-std/console2.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
-contract GearboxClaimRewardHookTest is BaseTest {
+contract GearboxClaimRewardHookTest is Helpers {
     GearboxClaimRewardHook public hook;
     address public mockFarmingPool;
     address public mockRewardToken;
     address public mockAccount;
     uint256 public mockAmount;
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public {
         MockERC20 _mockToken = new MockERC20("Mock Token", "MTK", 18);
         mockRewardToken = address(_mockToken);
 

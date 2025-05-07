@@ -77,6 +77,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     IValidator public validatorOnETH;
     IValidator public validatorOnOP;
 
+    IValidator public sourceValidatorOnBase;
+    IValidator public sourceValidatorOnETH;
+    IValidator public sourceValidatorOnOP;
+
+
     IRoot public root;
     IPoolManager public poolManager;
 
@@ -174,6 +179,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         validatorOnETH = IValidator(_getContract(ETH, SUPER_DESTINATION_VALIDATOR_KEY));
         validatorOnOP = IValidator(_getContract(OP, SUPER_DESTINATION_VALIDATOR_KEY));
 
+        sourceValidatorOnBase = IValidator(_getContract(BASE, SUPER_MERKLE_VALIDATOR_KEY));
+        sourceValidatorOnETH = IValidator(_getContract(ETH, SUPER_MERKLE_VALIDATOR_KEY));
+        sourceValidatorOnOP = IValidator(_getContract(OP, SUPER_MERKLE_VALIDATOR_KEY));
+
         superLedgerETH = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         superLedgerOP = ISuperLedger(_getContract(OP, SUPER_LEDGER_KEY));
 
@@ -226,6 +235,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         // PREPARE ETH DATA (This becomes the *payload* for the Debridge external call)
         bytes memory innerExecutorPayload;
+        TargetExecutorMessage memory messageData;
+        address accountToUse;
         {
             address[] memory eth7540HooksAddresses = new address[](2);
             eth7540HooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -238,7 +249,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
             );
 
-            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+            messageData = TargetExecutorMessage({
                 hooksAddresses: eth7540HooksAddresses,
                 hooksData: eth7540HooksData,
                 validator: address(validatorOnETH),
@@ -254,7 +265,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 tokenSent: underlyingETH_USDC
             });
 
-            (innerExecutorPayload,) = _createTargetExecutorMessage(messageData);
+            (innerExecutorPayload, accountToUse) = _createTargetExecutorMessage(messageData);
         }
 
         // Create the Debridge External Call Envelope V1 using the helper
@@ -305,7 +316,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         );
         srcHooksData[1] = debridgeData;
 
-        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE BASE
         _processDebridgeDlnMessage(BASE, ETH, executeOp(srcUserOpData));
@@ -364,11 +378,12 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // PREPARE ETH DATA
         bytes memory targetExecutorMessage;
         address accountToUse;
+        TargetExecutorMessage memory messageData;
         {
             address[] memory dstHookAddresses = new address[](0);
             bytes[] memory dstHookData = new bytes[](0);
 
-            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+            messageData = TargetExecutorMessage({
                 hooksAddresses: dstHookAddresses,
                 hooksData: dstHookData,
                 validator: address(validatorOnETH),
@@ -402,7 +417,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, true, targetExecutorMessage
         );
 
-        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE BASE
         _processAcrossV3Message(
@@ -419,6 +437,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // PREPARE ETH DATA
         bytes memory targetExecutorMessage;
         address accountToUse;
+        TargetExecutorMessage memory messageData;
         {
             address[] memory eth7540HooksAddresses = new address[](2);
             eth7540HooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -431,7 +450,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(0), 0, false
             );
 
-            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+            messageData = TargetExecutorMessage({
                 hooksAddresses: eth7540HooksAddresses,
                 hooksData: eth7540HooksData,
                 validator: address(validatorOnETH),
@@ -485,7 +504,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             targetExecutorMessage
         );
 
-        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE ETH
         _processAcrossV3Message(
@@ -502,6 +524,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         // PREPARE ETH DATA
         bytes memory targetExecutorMessage;
         address accountToUse;
+        TargetExecutorMessage memory messageData;
         {
             address[] memory eth7540HooksAddresses = new address[](2);
             eth7540HooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -514,7 +537,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault / 2, true
             );
 
-            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+            messageData = TargetExecutorMessage({
                 hooksAddresses: eth7540HooksAddresses,
                 hooksData: eth7540HooksData,
                 validator: address(validatorOnETH),
@@ -568,7 +591,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             targetExecutorMessage
         );
 
-        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE ETH
         _processAcrossV3Message(
@@ -590,6 +616,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         // PREPARE ETH DATA
         bytes memory targetExecutorMessage;
+        TargetExecutorMessage memory messageData;
+        address accountToUse;
         {
             address[] memory eth7540HooksAddresses = new address[](2);
             eth7540HooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -602,7 +630,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
             );
 
-            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+            messageData = TargetExecutorMessage({
                 hooksAddresses: eth7540HooksAddresses,
                 hooksData: eth7540HooksData,
                 validator: address(validatorOnETH),
@@ -618,7 +646,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 tokenSent: underlyingETH_USDC
             });
 
-            (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
         }
 
         // BASE IS SRC
@@ -636,7 +664,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, true, targetExecutorMessage
         );
 
-        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE);
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+        
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE ETH
         _processAcrossV3Message(
@@ -678,7 +709,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             account: accountBase,
             tokenSent: underlyingBase_USDC
         });
-        (bytes memory targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
+        (bytes memory targetExecutorMessage, address accountToUse) = _createTargetExecutorMessage(messageData);
 
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
@@ -732,7 +763,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         uint256 pricePerShare = yieldSourceOracleETH.getPricePerShare(address(vaultInstance7540ETH));
         assertNotEq(pricePerShare, 1);
 
-        UserOpData memory ethUserOpData = _createUserOpData(ethHooksAddresses, ethHooksData, ETH);
+        UserOpData memory ethUserOpData = _createUserOpData(ethHooksAddresses, ethHooksData, ETH, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, ethUserOpData.userOpHash, accountToUse);
+        ethUserOpData.userOp.signature = signatureData;
 
         _processAcrossV3Message(
             ETH, BASE, WARP_START_TIME + 10 seconds, executeOp(ethUserOpData), RELAYER_TYPE.NO_HOOKS, accountBase
@@ -756,6 +790,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
 
         bytes memory targetExecutorMessage;
+        TargetExecutorMessage memory messageData;
+        address accountToUse;
         {
             // PREPARE OP DATA
             address[] memory opHooksAddresses = new address[](2);
@@ -770,10 +806,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 yieldSource4626AddressOP_USDCe,
                 amountPerVault,
                 true,
-                false
+                address(0),
+                0
             );
 
-            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+            messageData = TargetExecutorMessage({
                 hooksAddresses: opHooksAddresses,
                 hooksData: opHooksData,
                 validator: address(validatorOnOP),
@@ -789,7 +826,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 tokenSent: underlyingOP_USDCe
             });
 
-            (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
         }
 
         uint256 previewDepositAmountOP = vaultInstance4626OP.previewDeposit(amountPerVault);
@@ -811,7 +848,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             underlyingBase_USDC, underlyingOP_USDCe, amountPerVault, amountPerVault, OP, true, targetExecutorMessage
         );
 
-        UserOpData memory srcUserOpDataOP = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE);
+        UserOpData memory srcUserOpDataOP = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpDataOP.userOpHash, accountToUse);
+        srcUserOpDataOP.userOp.signature = signatureData;
 
         // EXECUTE OP
         _processAcrossV3Message(
@@ -846,11 +886,12 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             accountOP,
             userBalanceSharesBefore,
             false,
-            false
+            address(0),
+            0
         );
         opHooksData[1] = _createApproveHookData(underlyingOP_USDCe, SPOKE_POOL_V3_ADDRESSES[OP], amountPerVault, true);
 
-        UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
+        UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP, false);
 
         executeOp(opUserOpData);
 
@@ -871,12 +912,14 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME);
 
         bytes memory targetExecutorMessage;
+        TargetExecutorMessage memory messageData;
+        address accountToUse;
         {
             // PREPARE BASE DATA
             address[] memory baseHooksAddresses = new address[](0);
             bytes[] memory baseHooksData = new bytes[](0);
 
-            TargetExecutorMessage memory messageData = TargetExecutorMessage({
+            messageData = TargetExecutorMessage({
                 hooksAddresses: baseHooksAddresses,
                 hooksData: baseHooksData,
                 validator: address(validatorOnBase),
@@ -892,7 +935,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 tokenSent: underlyingBase_USDC
             });
 
-            (targetExecutorMessage,) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
         }
 
         uint256 user_Base_USDC_Balance_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
@@ -939,7 +982,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             targetExecutorMessage
         );
 
-        UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
+        UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, opUserOpData.userOpHash, accountToUse);
+        opUserOpData.userOp.signature = signatureData;
 
         _processAcrossV3Message(OP, BASE, WARP_START_TIME, executeOp(opUserOpData), RELAYER_TYPE.NO_HOOKS, accountBase);
 
@@ -995,10 +1041,10 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, maxDeposit, false, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, maxDeposit, false, address(0), 0
         );
 
-        UserOpData memory depositOpData = _createUserOpData(hooksAddresses, hooksData, ETH);
+        UserOpData memory depositOpData = _createUserOpData(hooksAddresses, hooksData, ETH, false);
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedgerData.AccountingInflow(
@@ -1051,10 +1097,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             yieldSource7540AddressETH_USDC,
             userExpectedAssets,
             false,
-            false
+            address(0),
+            0
         );
 
-        UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH);
+        UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
 
         uint256 feeBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(TREASURY);
 
@@ -1107,10 +1154,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             yieldSource7540AddressETH_USDC,
             userExpectedAssets,
             false,
-            false
+            address(0),
+            0
         );
 
-        UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH);
+        UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
 
         uint256 feeBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(TREASURY);
 
@@ -1164,10 +1212,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             yieldSource7540AddressETH_USDC,
             userExpectedAssets,
             false,
-            false
+            address(0),
+            0
         );
 
-        UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH);
+        UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
 
         ISuperLedger ledger = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
         uint256 expectedFee = ledger.previewFees(
@@ -1208,10 +1257,11 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             accountOP,
             userBalanceSharesBefore,
             false,
-            false
+            address(0),
+            0
         );
 
-        UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP);
+        UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP, false);
 
         // CHECK ACCOUNTING
         uint256 feeBalanceBefore = IERC20(underlyingOP_USDCe).balanceOf(TREASURY);
@@ -1242,7 +1292,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
     function _createUserOpData(
         address[] memory hooksAddresses,
         bytes[] memory hooksData,
-        uint64 chainId
+        uint64 chainId,
+        bool withValidator
     )
         internal
         returns (UserOpData memory)
@@ -1250,14 +1301,23 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
         if (chainId == ETH) {
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            if (withValidator) {
+                return _getExecOpsWithValidator(instanceOnETH, superExecutorOnETH, abi.encode(entryToExecute), address(sourceValidatorOnETH));
+            } 
             return _getExecOps(instanceOnETH, superExecutorOnETH, abi.encode(entryToExecute));
         } else if (chainId == OP) {
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            if (withValidator) {
+                return _getExecOpsWithValidator(instanceOnOP, superExecutorOnOP, abi.encode(entryToExecute), address(sourceValidatorOnOP));
+            } 
             return _getExecOps(instanceOnOP, superExecutorOnOP, abi.encode(entryToExecute));
         } else {
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            if (withValidator) {
+                return _getExecOpsWithValidator(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute), address(sourceValidatorOnBase));
+            }        
             return _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
         }
     }

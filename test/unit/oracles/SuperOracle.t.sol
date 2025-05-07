@@ -2,13 +2,12 @@
 pragma solidity 0.8.28;
 
 // Superform
-import { BaseTest } from "../../BaseTest.t.sol";
 
 import { SuperOracle } from "../../../src/periphery/oracles/SuperOracle.sol";
 import { ISuperOracle } from "../../../src/periphery/interfaces/ISuperOracle.sol";
 import { AggregatorV3Interface } from "../../../src/vendor/chainlink/AggregatorV3Interface.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
-import { IERC20 } from "forge-std/interfaces/IERC20.sol";
+import { Helpers } from "../../utils/Helpers.sol";
 
 contract MockAggregator is AggregatorV3Interface {
     int256 private _answer;
@@ -58,7 +57,7 @@ contract MockAggregator is AggregatorV3Interface {
     }
 }
 
-contract SuperOracleTest is BaseTest {
+contract SuperOracleTest is Helpers {
     bytes32 public constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
     bytes32 public constant PROVIDER_1 = bytes32(keccak256("Provider 1"));
     bytes32 public constant PROVIDER_2 = bytes32(keccak256("Provider 2"));
@@ -74,9 +73,7 @@ contract SuperOracleTest is BaseTest {
     MockERC20 public mockUSD;
     MockERC20 public mockBTC;
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public {
         // Create mock tokens
         mockETH = new MockERC20("Mock ETH", "ETH", 18); // ETH has 18 decimals
         mockUSD = new MockERC20("Mock USD", "USD", 6); // USD has 6 decimals
@@ -305,7 +302,13 @@ contract SuperOracleTest is BaseTest {
     }
 
     function test_RevertIfStaleData() public {
-        // Make the data stale (older than default 1 day)
+        vm.warp(block.timestamp + 2 days);
+        
+        // Set the updatedAt for all providers to the current timestamp
+        mockFeed2.setUpdatedAt(block.timestamp);
+        mockFeed3.setUpdatedAt(block.timestamp);
+        
+        // Make only provider 1 data stale (older than default 1 day)
         mockFeed1.setUpdatedAt(block.timestamp - 2 days);
 
         // Should revert when trying to get a quote from this provider
@@ -454,6 +457,7 @@ contract SuperOracleTest is BaseTest {
     }
 
     function test_RevertIfAllProvidersInvalid() public {
+        vm.warp(block.timestamp + 3 days);
         // Make all providers return stale data
         mockFeed1.setUpdatedAt(block.timestamp - 2 days);
         mockFeed2.setUpdatedAt(block.timestamp - 2 days);

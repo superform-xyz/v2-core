@@ -24,7 +24,6 @@ import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol
 /// @notice         bytes32 r = BytesLib.toBytes32(BytesLib.slice(data, 89, 32), 0);
 /// @notice         bytes32 s = BytesLib.toBytes32(BytesLib.slice(data, 121, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 153);
-/// @notice         bool lockForSP = _decodeBool(data, 154);
 contract FluidStakeWithPermitHook is BaseHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
@@ -81,7 +80,6 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHookInflowOutflow {
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 154);
         /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 

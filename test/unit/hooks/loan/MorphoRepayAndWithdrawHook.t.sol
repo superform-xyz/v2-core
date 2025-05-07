@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { BaseTest } from "../../../BaseTest.t.sol";
-
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
 import { IOracle } from "../../../../src/vendor/morpho/IOracle.sol";
 import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
 import { Id, MarketParams } from "../../../../src/vendor/morpho/IMorpho.sol";
 import { MarketParamsLib } from "../../../../src/vendor/morpho/MarketParamsLib.sol";
 import { MorphoRepayAndWithdrawHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
 
 contract MockOracle is IOracle {
     function price() external pure returns (uint256) {
@@ -16,7 +15,7 @@ contract MockOracle is IOracle {
     }
 }
 
-contract MorphoRepayHookTest is BaseTest {
+contract MorphoRepayHookTest is Helpers {
     using MarketParamsLib for MarketParams;
 
     MorphoRepayAndWithdrawHook public hook;
@@ -27,14 +26,12 @@ contract MorphoRepayHookTest is BaseTest {
     address public loanToken;
     address public collateralToken;
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public {
         // Initialize hook
         hook = new MorphoRepayAndWithdrawHook(MORPHO);
 
-        loanToken = existingUnderlyingTokens[BASE][WETH_KEY];
-        collateralToken = existingUnderlyingTokens[BASE][USDC_KEY];
+        loanToken = 0x4200000000000000000000000000000000000006;
+        collateralToken = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
     }
 
     function test_RepayHook_Constructor() public view {
@@ -62,14 +59,7 @@ contract MorphoRepayHookTest is BaseTest {
         hook.build(address(0), address(this), hookData);
     }
 
-    function _encodeData(
-        bool usePrevHook,
-        bool isFullRepayment
-    )
-        internal
-        view
-        returns (bytes memory)
-    {
+    function _encodeData(bool usePrevHook, bool isFullRepayment) internal view returns (bytes memory) {
         return abi.encodePacked(
             loanToken,
             collateralToken,

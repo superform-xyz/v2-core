@@ -1,33 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
-import { console2 } from "forge-std/console2.sol";
-import { BaseTest } from "../../../BaseTest.t.sol";
-import { IIrm } from "../../../../src/vendor/morpho/IIrm.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
-import { IOracle } from "../../../../src/vendor/morpho/IOracle.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
 import { MarketParamsLib } from "../../../../src/vendor/morpho/MarketParamsLib.sol";
 import { MorphoRepayHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
-import {
-    IMorphoBase,
-    IMorphoStaticTyping,
-    Id,
-    MarketParams,
-    Position,
-    Market,
-    IMorpho
-} from "../../../../src/vendor/morpho/IMorpho.sol";
+import { IMorphoBase, IMorphoStaticTyping, Id, MarketParams, IMorpho } from "../../../../src/vendor/morpho/IMorpho.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
 
-contract MorphoRepayHookTest is BaseTest {
+contract MorphoRepayHookTest is Helpers {
     using MarketParamsLib for MarketParams;
 
     MorphoRepayHook public hook;
-    ERC20 public loanToken;
-    ERC20 public collateralToken;
+    address public loanToken;
+    address public collateralToken;
     address public oracleAddress;
     address public irmAddress;
     address public morphoAddress;
@@ -42,14 +29,12 @@ contract MorphoRepayHookTest is BaseTest {
     IMorpho public morphoInterface;
     IMorphoStaticTyping public morphoStaticTyping;
 
-    function setUp() public override {
-        super.setUp();
-
+    function setUp() public {
         // Initialize hook
         hook = new MorphoRepayHook(MORPHO);
 
-        loanToken = ERC20(existingUnderlyingTokens[BASE][WETH_KEY]);
-        collateralToken = ERC20(existingUnderlyingTokens[BASE][USDC_KEY]);
+        loanToken = 0x4200000000000000000000000000000000000006;
+        collateralToken = 0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913;
 
         oracleAddress = MORPHO_ORACLE;
         irmAddress = MORPHO_IRM;
@@ -76,13 +61,17 @@ contract MorphoRepayHookTest is BaseTest {
     function test_Build_RevertIf_InvalidAddressesInParams() public {
         // Test invalid loan token (address(0))
         address invalidLoanToken = address(0);
-        bytes memory dataInvalidLoan = _encodeData(invalidLoanToken, address(collateralToken), oracleAddress, irmAddress, amount, lltv, false, false);
+        bytes memory dataInvalidLoan = _encodeData(
+            invalidLoanToken, address(collateralToken), oracleAddress, irmAddress, amount, lltv, false, false
+        );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(0), address(this), dataInvalidLoan);
 
         // Test invalid collateral token (address(0))
         address invalidCollateralToken = address(0);
-        bytes memory dataInvalidCollateral = _encodeData(address(loanToken), invalidCollateralToken, oracleAddress, irmAddress, amount, lltv, false, false);
+        bytes memory dataInvalidCollateral = _encodeData(
+            address(loanToken), invalidCollateralToken, oracleAddress, irmAddress, amount, lltv, false, false
+        );
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(0), address(this), dataInvalidCollateral);
     }
@@ -104,7 +93,9 @@ contract MorphoRepayHookTest is BaseTest {
         pure
         returns (bytes memory)
     {
-        return _encodeDataWithParams(_loanToken, _collateralToken, _oracle, _irm, _amount, _lltv, usePrevHook, isFullRepayment);
+        return _encodeDataWithParams(
+            _loanToken, _collateralToken, _oracle, _irm, _amount, _lltv, usePrevHook, isFullRepayment
+        );
     }
 
     /// @dev Encodes data for the MorphoRepayHook using specific MarketParams.

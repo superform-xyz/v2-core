@@ -16,7 +16,7 @@ abstract contract Constants {
     string internal constant POLYGON_KEY = "Polygon";
 
     // keys
-    string internal constant SUPER_GOVERNOR_KEY = "PeripheryRegistry";
+    string internal constant SUPER_GOVERNOR_KEY = "SuperGovernor";
     string internal constant SUPER_EXECUTOR_KEY = "SuperExecutor";
     string internal constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string internal constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
@@ -109,6 +109,14 @@ abstract contract Constants {
     address internal constant NEXUS_FACTORY_ARB_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address internal constant NEXUS_FACTORY_BASE_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address internal constant NEXUS_FACTORY_OP_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
+
+    // Polymer Prover addresses per chain
+    address internal constant POLYMER_PROVER_MAINNET = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76;
+    address internal constant POLYMER_PROVER_BASE = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available 
+    address internal constant POLYMER_PROVER_OPTIMISM = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available 
+    address internal constant POLYMER_PROVER_ARB_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available 
+    address internal constant POLYMER_PROVER_BASE_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available 
+    address internal constant POLYMER_PROVER_OP_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available 
 
     address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
 

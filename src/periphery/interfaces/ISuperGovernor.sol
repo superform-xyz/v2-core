@@ -74,6 +74,14 @@ interface ISuperGovernor {
     error NO_PROPOSED_MERKLE_ROOT();
     /// @notice Thrown when no proposed upkeep cost exists but one is expected
     error NO_PROPOSED_UPKEEP_COST();
+    /// @notice Thrown when a relayer is not registered
+    error RELAYER_NOT_REGISTERED();
+    /// @notice Thrown when a relayer is already registered
+    error RELAYER_ALREADY_REGISTERED();
+    /// @notice Thrown when an executor is not registered
+    error EXECUTOR_NOT_REGISTERED();
+    /// @notice Thrown when an executor is already registered
+    error EXECUTOR_ALREADY_REGISTERED();
 
     /*//////////////////////////////////////////////////////////////
                                   EVENTS
@@ -142,6 +150,17 @@ interface ISuperGovernor {
     /// @param newRoot The new Merkle root.
     event SuperBankHookMerkleRootUpdated(address indexed hook, bytes32 newRoot);
 
+    /// @notice Emitted when the VaultBank hook Merkle root is proposed
+    /// @param hook The hook address for which the Merkle root is being proposed
+    /// @param newRoot The new Merkle root
+    /// @param effectiveTime The timestamp when the new root will be effective
+    event VaultBankHookMerkleRootProposed(address indexed hook, bytes32 newRoot, uint256 effectiveTime);
+
+    /// @notice Emitted when the VaultBank hook Merkle root is updated.
+    /// @param hook The address of the hook for which the Merkle root was updated.
+    /// @param newRoot The new Merkle root.
+    event VaultBankHookMerkleRootUpdated(address indexed hook, bytes32 newRoot);
+
     /// @notice Emitted when the active PPS Oracle's quorum requirement is updated
     /// @param quorum The new quorum value
     event PPSOracleQuorumUpdated(uint256 quorum);
@@ -171,6 +190,27 @@ interface ISuperGovernor {
     /// @notice Emitted when the upkeep cost per update is changed
     /// @param newCost The new upkeep cost
     event UpkeepCostPerUpdateChanged(uint256 newCost);
+    
+    /// @notice Emitted when a relayer is added
+    /// @param relayer The address of the added relayer
+    event RelayerAdded(address indexed relayer);
+
+    /// @notice Emitted when a relayer is removed
+    /// @param relayer The address of the removed relayer
+    event RelayerRemoved(address indexed relayer);
+
+    /// @notice Emitted when an executor is added
+    /// @param executor The address of the added executor
+    event ExecutorAdded(address indexed executor);
+
+    /// @notice Emitted when an executor is removed
+    /// @param executor The address of the removed executor
+    event ExecutorRemoved(address indexed executor);
+
+    /// @notice Emitted when a prover is set
+    /// @param prover The address of the prover
+    event ProverSet(address indexed prover);
+
 
     /*//////////////////////////////////////////////////////////////
                                    ROLES
@@ -182,6 +222,9 @@ interface ISuperGovernor {
     /// @notice The identifier of the role that grants access to daily operations like hooks and validators
     function GOVERNOR_ROLE() external view returns (bytes32);
 
+    /// @notice The identifier of the role that grants access to bank management functions
+    function BANK_MANAGER_ROLE() external view returns (bytes32);
+
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -189,6 +232,13 @@ interface ISuperGovernor {
     /// @param key The key to associate with the address
     /// @param value The address value
     function setAddress(bytes32 key, address value) external;
+
+    /*//////////////////////////////////////////////////////////////
+                        PROVER
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Sets the prover address
+    /// @param prover_ The address of the prover
+    function setProver(address prover_) external;
 
     /*//////////////////////////////////////////////////////////////
                         SUPER VAULT AGGREGATOR MANAGEMENT
@@ -215,6 +265,29 @@ interface ISuperGovernor {
     /// @param hook The address of the hook to unregister
     /// @param isFulfillRequestsHook Whether the hook is a fulfill requests hook
     function unregisterHook(address hook, bool isFulfillRequestsHook) external;
+
+    /*//////////////////////////////////////////////////////////////
+                        EXECUTOR MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Adds an executor to the approved list
+    /// @param executor The address of the executor to add
+    function addExecutor(address executor) external;
+
+    /// @notice Removes an executor from the approved list
+    /// @param executor The address of the executor to remove
+    function removeExecutor(address executor) external;
+
+    /*//////////////////////////////////////////////////////////////
+                      RELAYER MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Adds a relayer to the approved list
+    /// @param relayer The address of the relayer to add
+    function addRelayer(address relayer) external;
+
+    /// @notice Removes a relayer from the approved list
+    /// @param relayer The address of the relayer to remove
+    function removeRelayer(address relayer) external;
 
     /*//////////////////////////////////////////////////////////////
                       VALIDATOR MANAGEMENT
@@ -272,6 +345,19 @@ interface ISuperGovernor {
     function executeUpkeepCostPerUpdateChange() external;
 
     /*//////////////////////////////////////////////////////////////
+                           VAULT HOOKS MGMT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Proposes a new Merkle root for a specific hook's allowed targets.
+    /// @param hook The address of the hook to update the Merkle root for.
+    /// @param proposedRoot The proposed new Merkle root.
+    function proposeVaultBankHookMerkleRoot(address hook, bytes32 proposedRoot) external;
+
+    /// @notice Executes a previously proposed Merkle root update for a specific hook if the effective time has passed.
+    /// @param hook The address of the hook to execute the update for.
+    function executeVaultBankHookMerkleRootUpdate(address hook) external;
+
+    /*//////////////////////////////////////////////////////////////
                            SUPERBANK HOOKS MGMT
     //////////////////////////////////////////////////////////////*/
     /// @notice Proposes a new Merkle root for a specific hook's allowed targets.
@@ -319,6 +405,16 @@ interface ISuperGovernor {
     /// @return True if the address is an approved validator, false otherwise
     function isValidator(address validator) external view returns (bool);
 
+    /// @notice Checks if an address is an approved relayer
+    /// @param relayer The address to check
+    /// @return True if the address is an approved relayer, false otherwise
+    function isRelayer(address relayer) external view returns (bool);
+
+    /// @notice Checks if an address is an approved executor
+    /// @param executor The address to check
+    /// @return True if the address is an approved executor, false otherwise
+    function isExecutor(address executor) external view returns (bool);
+
     /// @notice Returns all registered validators
     /// @return List of validator addresses
     function getValidators() external view returns (address[] memory);
@@ -360,6 +456,11 @@ interface ISuperGovernor {
     /// @return The Merkle root for the hook's allowed targets.
     function getSuperBankHookMerkleRoot(address hook) external view returns (bytes32);
 
+    /// @notice Returns the current Merkle root for a specific hook's allowed targets.
+    /// @param hook The address of the hook to get the Merkle root for.
+    /// @return The Merkle root for the hook's allowed targets.
+    function getVaultBankHookMerkleRoot(address hook) external view returns (bytes32);
+
     /// @notice Gets the proposed Merkle root and its effective time for a specific hook.
     /// @param hook The address of the hook to get the proposed Merkle root for.
     /// @return proposedRoot The proposed Merkle root.
@@ -368,6 +469,19 @@ interface ISuperGovernor {
         external
         view
         returns (bytes32 proposedRoot, uint256 effectiveTime);
+
+    /// @notice Gets the proposed Merkle root and its effective time for a specific hook.
+    /// @param hook The address of the hook to get the proposed Merkle root for.
+    /// @return proposedRoot The proposed Merkle root.
+    /// @return effectiveTime The timestamp when the proposed root will become effective.
+    function getProposedVaultBankHookMerkleRoot(address hook)
+        external
+        view
+        returns (bytes32 proposedRoot, uint256 effectiveTime);
+
+    /// @notice Gets the prover address
+    /// @return The address of the prover
+    function getProver() external view returns (address);
 
     /// @notice Gets the SUP ID
     /// @return The ID of the SUP token

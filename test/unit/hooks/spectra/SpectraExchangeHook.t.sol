@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.28;
 
-import { BaseTest } from "../../../BaseTest.t.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
 import { SpectraExchangeHook } from "../../../../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
 import { SpectraCommands } from "../../../../src/vendor/spectra/SpectraCommands.sol";
 import { ISpectraRouter } from "../../../../src/vendor/spectra/ISpectraRouter.sol";
@@ -14,17 +14,14 @@ import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
 
 import { MockSpectraRouter } from "../../../mocks/MockSpectraRouter.sol";
 
-contract SpectraExchangeHookTest is BaseTest {
+contract SpectraExchangeHookTest is Helpers {
     SpectraExchangeHook public hook;
     MockSpectraRouter public router;
     MockERC20 public token;
     MockHook public prevHook;
     address public account;
 
-    function setUp() public override {
-        super.setUp();
-        vm.selectFork(FORKS[ETH]);
-
+    function setUp() public {
         router = new MockSpectraRouter();
         hook = new SpectraExchangeHook(address(router));
         token = new MockERC20("Test Token", "TEST", 18);

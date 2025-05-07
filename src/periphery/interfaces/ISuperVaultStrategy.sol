@@ -56,7 +56,7 @@ interface ISuperVaultStrategy {
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Initialized(address indexed vault, address indexed manager, address superGovernor, uint256 superVaultCap);
+    event Initialized(address indexed vault, address indexed superGovernor, uint256 superVaultCap);
     event YieldSourceAdded(address indexed source, address indexed oracle);
     event YieldSourceDeactivated(address indexed source);
     event YieldSourceOracleUpdated(address indexed source, address indexed oldOracle, address indexed newOracle);
@@ -101,7 +101,6 @@ interface ISuperVaultStrategy {
     struct ExecuteArgs {
         address[] hooks;
         bytes[] hookCalldata;
-        bytes32[][] hookProofs;
         uint256[] expectedAssetsOrSharesOut;
     }
 
@@ -167,10 +166,16 @@ interface ISuperVaultStrategy {
 
     /// @notice Initializes the strategy with required parameters
     /// @param vault_ Address of the associated SuperVault
-    /// @param manager_ Address of the strategy manager
     /// @param superGovernor_ Address of the SuperGovernor contract
     /// @param superVaultCap_ Maximum cap for the vault in underlying asset units
-    function initialize(address vault_, address manager_, address superGovernor_, uint256 superVaultCap_) external;
+    /// @param feeConfig_ Fee configuration
+    function initialize(
+        address vault_,
+        address superGovernor_,
+        uint256 superVaultCap_,
+        FeeConfig memory feeConfig_
+    )
+        external;
 
     /// @notice Handles asynchronous redeem operations initiated by the Vault.
     /// @param controller Controller address for the redeem operation.
@@ -215,9 +220,6 @@ interface ISuperVaultStrategy {
         external;
 
     /// @notice Propose or execute a hook root update
-    /// @param newRoot New hook root to propose or 0 to execute proposed root.
-    function proposeOrExecuteHookRoot(bytes32 newRoot) external;
-
     /// @notice Propose changes to vault-specific fee configuration
     /// @param performanceFeeBps New performance fee in basis points
     /// @param recipient New fee recipient
@@ -225,9 +227,6 @@ interface ISuperVaultStrategy {
 
     /// @notice Execute the proposed vault fee configuration update after timelock
     function executeVaultFeeConfigUpdate() external;
-
-    /// @notice Set an address for a given role
-    function setAddress(bytes32 role, address account) external;
 
     /// @notice Manage emergency withdrawals
     /// @param action Type of action: 1=Propose, 2=ExecuteActivation, 3=Withdraw
@@ -245,12 +244,6 @@ interface ISuperVaultStrategy {
     /// @notice Get the vault info
     function getVaultInfo() external view returns (address vault, address asset, uint8 vaultDecimals);
 
-    /// @notice Get the hook info
-    function getHookInfo()
-        external
-        view
-        returns (bytes32 hookRoot, bytes32 proposedHookRoot, uint256 hookRootEffectiveTime);
-
     /// @notice Get the super vault cap and fee configurations
     function getConfigInfo() external view returns (uint256 superVaultCap, FeeConfig memory feeConfig);
 
@@ -267,9 +260,6 @@ interface ISuperVaultStrategy {
     /// @param controller The controller address
     /// @return averageWithdrawPrice The average withdraw price
     function getAverageWithdrawPrice(address controller) external view returns (uint256 averageWithdrawPrice);
-
-    /// @notice Check if a hook is allowed via merkle proof
-    function isHookAllowed(address hook, bytes32[] calldata proof) external view returns (bool);
 
     /// @notice Get the pending redeem request amount (shares) for a controller
     /// @param controller The controller address
