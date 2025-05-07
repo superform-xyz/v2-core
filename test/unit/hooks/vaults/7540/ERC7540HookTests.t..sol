@@ -518,8 +518,36 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
-        bytes memory data = _encodeData(true);
+        bytes memory data = _encodeCancelDepositRequestZeroAddressData();
         vm.expectRevert();
+        cancelDepositRequestHook.build(mockPrevHook, address(0), data);
+    }
+
+    function test_CancelRedeemRequestHook_Build_Reverting() public {
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+
+        bytes memory data = _encodeCancelRedeemRequestZeroAddressData();
+        vm.expectRevert();
+        cancelRedeemRequestHook.build(mockPrevHook, address(0), data);
+    }
+    
+    function test_ClaimCancelDepositRequestHook_Build_Reverting() public {
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+
+        bytes memory data = _encodeClaimCancelDepositRequestZeroAddressData();
+        vm.expectRevert();
+        claimCancelDepositRequestHook.build(mockPrevHook, address(0), data);
+    }
+
+    function test_ClaimCancelRedeemRequestHook_Build_Reverting() public {
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);    
+
+        bytes memory data = _encodeClaimCancelRedeemRequestZeroAddressData();
+        vm.expectRevert();
+        claimCancelRedeemRequestHook.build(mockPrevHook, address(0), data);
     }
 
     /*//////////////////////////////////////////////////////////////
