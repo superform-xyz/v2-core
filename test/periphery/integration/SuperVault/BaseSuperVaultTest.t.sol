@@ -113,7 +113,7 @@ contract BaseSuperVaultTest is BaseTest {
 
         _setFeeConfig(100, TREASURY);
 
-        vm.startPrank(SV_MANAGER);
+        vm.startPrank(STRATEGIST);
         strategy.manageYieldSource(
             address(fluidVault),
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
@@ -1203,7 +1203,7 @@ contract BaseSuperVaultTest is BaseTest {
     }
 
     function _setFeeConfig(uint256 feePercent, address feeRecipient) internal {
-        vm.startPrank(MANAGER);
+        vm.startPrank(STRATEGIST);
         strategy.proposeVaultFeeConfigUpdate(feePercent, feeRecipient);
         vm.warp(block.timestamp + 1 weeks);
         strategy.executeVaultFeeConfigUpdate();

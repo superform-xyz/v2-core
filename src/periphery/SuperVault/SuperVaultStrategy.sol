@@ -725,6 +725,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         SuperVaultState storage state = superVaultState[controller];
         if (state.maxWithdraw < assetsToClaim) revert INVALID_REDEEM_CLAIM();
         state.maxWithdraw -= assetsToClaim;
+        _asset.safeTransfer(controller, assetsToClaim);
         emit RedeemRequestFulfilled(controller, controller, assetsToClaim, 0);
         if (state.maxWithdraw == 0 && state.pendingRedeemRequest == 0) {
             delete superVaultState[controller];

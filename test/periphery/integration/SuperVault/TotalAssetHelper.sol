@@ -3,6 +3,7 @@ pragma solidity 0.8.28;
 
 // External
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 // Core Interfaces
 import { IYieldSourceOracle } from "../../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
@@ -46,6 +47,12 @@ contract TotalAssetHelper {
         // Initialize array to track TVLs
         sourceTVLs = new YieldSourceTVL[](length);
         uint256 activeSourceCount;
+
+        // Hack to get total free assets. Assumes nothing is manually transferred to the vault
+        // off chain this must be tracked via *Handled events in Strategy
+        (, address asset,) = ISuperVaultStrategy(strategy).getVaultInfo();
+
+        totalAssets_ += IERC20(asset).balanceOf(strategy);
 
         // Calculate total assets by summing TVLs across all active yield sources
         for (uint256 i; i < length; ++i) {
