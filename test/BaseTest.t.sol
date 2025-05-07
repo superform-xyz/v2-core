@@ -1836,8 +1836,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             messageData.chainId,
             accountToUse,
             messageData.targetExecutor,
-            messageData.targetAdapter,
-            messageData.tokenSent,
             messageData.amount,
             validUntil
         );
