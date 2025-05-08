@@ -170,13 +170,14 @@ OUTPUT_BASE_DIR="script/output"
 # Authentication Setup
 ###################################################################################
 
-if is_local_run; then
-    log "INFO" "Running in local environment"
-    # For local runs, get TENDERLY_ACCESS_KEY from 1Password
+# Check if we're in a local run and if the op command is available
+if is_local_run && command -v op >/dev/null 2>&1; then
+    log "INFO" "Running in local environment with 1Password CLI available"
+    # For local runs with op available, get TENDERLY_ACCESS_KEY from 1Password
     TENDERLY_ACCESS_KEY=$(op read "op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY/credential")
 else
-    log "INFO" "Running in CI environment"
-    # Only source .env if any required variable is missing
+    
+    # Source .env if any required variable is missing
     if [ -z "${GITHUB_REF_NAME:-}" ] || [ -z "${TENDERLY_ACCESS_KEY:-}" ]; then
         if [ ! -f .env ]; then
             log "ERROR" ".env file is required when environment variables are missing"
@@ -673,8 +674,7 @@ deploy_contracts() {
         --rpc-url $ETH_MAINNET \
         --etherscan-api-key $TENDERLY_ACCESS_KEY \
         --broadcast \
-        -vvv \
-        --slow; then
+        -vvv; then
         deploy_error_handler "Ethereum"
     fi
     wait
@@ -688,8 +688,7 @@ deploy_contracts() {
         --rpc-url $BASE_MAINNET \
         --etherscan-api-key $TENDERLY_ACCESS_KEY \
         --broadcast \
-        -vvv \
-        --slow; then
+        -vvv; then
         deploy_error_handler "Base"
     fi
     wait
@@ -703,8 +702,7 @@ deploy_contracts() {
         --rpc-url $OPTIMISM_MAINNET \
         --etherscan-api-key $TENDERLY_ACCESS_KEY \
         --broadcast \
-        -vvv \
-        --slow; then
+        -vvv; then
         deploy_error_handler "Optimism"
     fi
     wait
