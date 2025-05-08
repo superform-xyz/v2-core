@@ -1249,14 +1249,11 @@ contract CrosschainTests is BaseTest {
         address accountToUse;
         {
             // PREPARE DST DATA
-            address[] memory dstHooksAddresses = new address[](2);
-            dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
-            dstHooksAddresses[1] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
+            address[] memory dstHooksAddresses = new address[](1);
+            dstHooksAddresses[0] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
 
-            bytes[] memory dstHooksData = new bytes[](2);
-            dstHooksData[0] =
-                _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, previewRedeemAmount, false);
-            dstHooksData[1] = _createDeposit4626HookData(
+            bytes[] memory dstHooksData = new bytes[](1);
+            dstHooksData[0] = _createDeposit4626HookData(
                 bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceMorphoUsdcAddressBase,
                 previewRedeemAmount,
@@ -1318,7 +1315,7 @@ contract CrosschainTests is BaseTest {
         srcUserOpData.userOp.signature = signatureData;
 
         _processAcrossV3Message(
-            ETH, BASE, block.timestamp, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
+            ETH, BASE, block.timestamp, executeOp(srcUserOpData), RELAYER_TYPE.FAILED, accountBase
         );
     }
 
@@ -1948,7 +1945,7 @@ contract CrosschainTests is BaseTest {
             ETH, BASE, block.timestamp, executeOp(src1UserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
         );
         
-        SELECT_FORK_AND_WARP(BASE, block.timestamp + 1 days);
+        SELECT_FORK_AND_WARP(BASE, block.timestamp + 1 hours);
 
         uint256 sharesExpectedWETH =
             vaultInstance4626Base_WETH.convertToShares((intentAmount / 2) - ((intentAmount / 2) * 50 / 10_000));
