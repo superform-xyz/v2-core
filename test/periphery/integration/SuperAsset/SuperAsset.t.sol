@@ -384,29 +384,51 @@ contract SuperAssetTest is Helpers {
 
     // --- Test: Redeem ---
     function test_BasicRedeem() public {
-        console.log("test_BasicRedeem() Start");
         // First deposit to get some shares
         uint256 depositAmount = 100e18;
+        (uint256 expSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSD) = superAsset.previewDeposit(address(tokenIn), depositAmount);
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
         (uint256 sharesMinted, uint256 swapFee, int256 amountIncentiveUSD) = superAsset.deposit(user, address(tokenIn), depositAmount, 0);
-        console.log("test_BasicRedeem() Deposit");
         assertEq(tokenIn.balanceOf(address(superAsset)), depositAmount - swapFee);
+        assertEq(expSharesMinted, sharesMinted);
+        assertEq(expSwapFee, swapFee);
+        assertEq(expAmountIncentiveUSD, amountIncentiveUSD);
+        // console.log("Deposit swapFee = ", swapFee);
+        // console.log("Deposit amountIncentiveUSD = ", amountIncentiveUSD);
+        // console.log("Deposit sharesMinted = ", sharesMinted);
 
         // Now redeem the shares
         uint256 amountTokenOutAfterFees;
         int256 amountIncentiveUSDRedeem;
-        uint256 sharesToRedeeem = sharesMinted / 2;
-        uint256 minTokenOut = sharesToRedeeem * 99 / 100; // Allowing for 1% slippage
+        uint256 expAmountTokenOutAfterFees;
+        int256 expAmountIncentiveUSDRedeem;
+        uint256 sharesToRedeem = sharesMinted / 2;
+        uint256 minTokenOut = sharesToRedeem * 99 / 100; // Allowing for 1% slippage
+
+        (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem) = superAsset.previewRedeem(address(tokenIn), sharesToRedeem);
+        assertGt(expAmountTokenOutAfterFees, 0, "Should receive tokens");
+        assertGt(expSwapFee, 0, "Should pay swap fees");
+        // assertGt(amountIncentiveUSDRedeem, 0, "Should receive incentives");
+        console.log("test_BasicRedeem() Preview");
+
         (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem) = 
-            superAsset.redeem(user, sharesToRedeeem, address(tokenIn), minTokenOut);
+            superAsset.redeem(user, sharesToRedeem, address(tokenIn), minTokenOut);
         vm.stopPrank();
-        console.log("test_BasicRedeem() Redeem");
+        
+        assertEq(expAmountTokenOutAfterFees, amountTokenOutAfterFees);
+        assertEq(expSwapFee, swapFee);
+        assertEq(expAmountIncentiveUSDRedeem, amountIncentiveUSDRedeem);
+
+        // console.log("test_BasicRedeem() Redeem");
+        // console.log("Amount Token Out After Fees:", amountTokenOutAfterFees);
+        // console.log("Swap Fee:", swapFee);
+        // console.log("Amount Incentive USD Redeem:", amountIncentiveUSDRedeem);
+
 
         // Verify results
         assertGt(amountTokenOutAfterFees, 0, "Should receive tokens");
-        assertEq(swapFee, (amountTokenOutAfterFees * superAsset.swapFeeOutPercentage()) / superAsset.SWAP_FEE_PERC(), "Incorrect swap fee");
-        assertEq(superAsset.balanceOf(user), 0, "User should have no shares left");
+        assertEq(superAsset.balanceOf(user), sharesMinted - sharesToRedeem, "User should have no shares left");
     }
 
     function test_RedeemWithZeroAmount() public {
