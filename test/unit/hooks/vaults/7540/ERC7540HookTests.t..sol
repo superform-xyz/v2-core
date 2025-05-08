@@ -715,7 +715,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         yieldSource = token; // for the .balanceOf call
         _getTokens(token, address(this), amount);
 
-        bytes memory data = _encodeData(false, false);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false, address(this), uint256(1));
         depositHook.preExecute(address(0), address(this), data);
         assertEq(depositHook.outAmount(), amount);
 
@@ -727,7 +727,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         yieldSource = token; // for the .balanceOf call
         _getTokens(token, address(this), amount);
 
-        bytes memory data = _encodeRequestData(false);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false, address(this), uint256(1));
         reqRedeemHook.preExecute(address(0), address(this), data);
         assertEq(reqRedeemHook.outAmount(), amount);
 
@@ -739,7 +739,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         yieldSource = token; // for the .balanceOf call
         _getTokens(token, address(this), amount);
 
-        bytes memory data = _encodeApproveAndRequestRedeemData(false, 1000, false);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false, address(this), uint256(1));
         redeemHook.preExecute(address(0), address(this), data);
         assertEq(redeemHook.outAmount(), 1000000000);
 
@@ -751,7 +751,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         yieldSource = token; // for the .balanceOf call
         _getTokens(token, address(this), amount);
 
-        bytes memory data = _encodeData(false, false);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false, address(this), uint256(1));
         withdrawHook.preExecute(address(0), address(this), data);
         assertEq(withdrawHook.outAmount(), amount);
 
@@ -763,7 +763,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         yieldSource = token; // for the .balanceOf call
         _getTokens(token, address(this), amount);
 
-        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false, false);
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false, address(this), uint256(1));
 
         approveAndWithdrawHook.preExecute(address(0), address(this), data);
         assertEq(approveAndWithdrawHook.outAmount(), 1000000000);
