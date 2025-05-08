@@ -10,7 +10,7 @@ import { IStakedUSDeCooldown } from "../../../../vendor/ethena/IStakedUSDeCooldo
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHookResultOutflow, ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title EthenaUnstakeHook
@@ -21,7 +21,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
 /// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 56, 20), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
-/// @notice         bool lockForSP = _decodeBool(data, 77);
+/// @notice         address vaultBank = BytesLib.toAddress(data, 77);
+/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 97);
 contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow {
     using HookDataDecoder for bytes;
 
@@ -84,7 +85,8 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
         asset = IERC4626(yieldSource).asset();
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
-        lockForSP = _decodeBool(data, 57);
+        vaultBank = BytesLib.toAddress(data, 77);
+        dstChainId = BytesLib.toUint256(data, 97);
         spToken = yieldSource;
     }
 

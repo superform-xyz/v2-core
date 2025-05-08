@@ -270,6 +270,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     mapping(uint64 chainId => address) public DEBRIDGE_DLN_ADDRESSES;
     mapping(uint64 chainId => address) public DEBRIDGE_DLN_ADDRESSES_DST;
     mapping(uint64 chainId => address) public NEXUS_FACTORY_ADDRESSES;
+    mapping(uint64 chainId => address) public POLYMER_PROVER;
 
     /// @dev mappings
 
@@ -465,7 +466,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.makePersistent(debridgeDlnHelper);
             contractAddresses[chainIds[i]][DEBRIDGE_DLN_HELPER_KEY] = debridgeDlnHelper;
 
-            A[i].superGovernor = new SuperGovernor{ salt: SALT }(address(this), address(this), TREASURY);
+            A[i].superGovernor = new SuperGovernor{ salt: SALT }(address(this), address(this), address(this), TREASURY, CHAIN_1_POLYMER_PROVER);
             vm.label(address(A[i].superGovernor), SUPER_GOVERNOR_KEY);
             contractAddresses[chainIds[i]][SUPER_GOVERNOR_KEY] = address(A[i].superGovernor);
 
@@ -1504,6 +1505,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         nexusFactoryAddressesMap[BASE] = CHAIN_8453_NEXUS_FACTORY;
         vm.label(nexusFactoryAddressesMap[BASE], "NexusFactoryBASE");
 
+        mapping(uint64 => address) storage polymerProvers = POLYMER_PROVER;
+        polymerProvers[ETH] = CHAIN_1_POLYMER_PROVER;
+        vm.label(polymerProvers[ETH], "PolymerProverETH");
+        polymerProvers[OP] = CHAIN_10_POLYMER_PROVER;
+        vm.label(polymerProvers[OP], "PolymerProverOP");
+        polymerProvers[BASE] = CHAIN_8453_POLYMER_PROVER;
+        vm.label(polymerProvers[BASE], "PolymerProverBASE");
+
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
         existingUnderlyingTokens[ETH][DAI_KEY] = CHAIN_1_DAI;
@@ -1827,8 +1836,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             messageData.chainId,
             accountToUse,
             messageData.targetExecutor,
-            messageData.targetAdapter,
-            messageData.tokenSent,
             messageData.amount,
             validUntil
         );
@@ -2006,6 +2013,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint256 value;
         address giveTokenAddress;
         uint256 giveAmount;
+        uint8 version;
+        address fallbackAddress;
+        address executorAddress;
+        uint256 executionFee;
+        bool allowDelayedExecution;
+        bool requireSuccessfulExecution;
+        bytes payload;
         address takeTokenAddress;
         uint256 takeAmount;
         uint256 takeChainId;
@@ -2013,7 +2027,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address givePatchAuthoritySrc;
         bytes orderAuthorityAddressDst;
         bytes allowedTakerDst;
-        bytes externalCall;
         bytes allowedCancelBeneficiarySrc;
         bytes affiliateFee;
         uint32 referralCode;
@@ -2026,36 +2039,45 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     {
         bytes memory part1 = _encodeDebridgePart1(d);
         bytes memory part2 = _encodeDebridgePart2(d);
-        hookData = bytes.concat(part1, part2);
+        bytes memory part3 = _encodeDebridgePart3(d);
+        hookData = bytes.concat(part1, part2, part3);
     }
 
     function _encodeDebridgePart1(DebridgeOrderData memory d) internal pure returns (bytes memory) {
-        bytes memory takeTokenAddressBytes = abi.encodePacked(d.takeTokenAddress);
-        bytes memory receiverDstBytes = abi.encodePacked(d.receiverDst);
-
         return abi.encodePacked(
             d.usePrevHookAmount,
             d.value,
             d.giveTokenAddress,
             d.giveAmount,
-            takeTokenAddressBytes.length,
-            takeTokenAddressBytes,
-            d.takeAmount,
-            d.takeChainId,
-            receiverDstBytes.length,
-            receiverDstBytes,
-            d.givePatchAuthoritySrc,
-            d.orderAuthorityAddressDst.length,
-            d.orderAuthorityAddressDst
+            d.version,
+            d.fallbackAddress,
+            d.executorAddress
         );
     }
 
     function _encodeDebridgePart2(DebridgeOrderData memory d) internal pure returns (bytes memory) {
         return abi.encodePacked(
+            d.executionFee,
+            d.allowDelayedExecution,
+            d.requireSuccessfulExecution,
+            d.payload.length,
+            d.payload,
+            abi.encodePacked(d.takeTokenAddress).length,
+            abi.encodePacked(d.takeTokenAddress),
+            d.takeAmount,
+            d.takeChainId
+        );
+    }
+
+    function _encodeDebridgePart3(DebridgeOrderData memory d) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            abi.encodePacked(d.receiverDst).length,
+            abi.encodePacked(d.receiverDst),
+            d.givePatchAuthoritySrc,
+            d.orderAuthorityAddressDst.length,
+            d.orderAuthorityAddressDst,
             d.allowedTakerDst.length,
             d.allowedTakerDst,
-            d.externalCall.length,
-            d.externalCall,
             d.allowedCancelBeneficiarySrc.length,
             d.allowedCancelBeneficiarySrc,
             d.affiliateFee.length,

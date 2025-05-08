@@ -223,7 +223,13 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, SUPER_GOVERNOR_KEY),
             abi.encodePacked(
                 type(SuperGovernor).creationCode,
-                abi.encode(configuration.owner, configuration.owner, configuration.treasury)
+                abi.encode(
+                    configuration.owner,
+                    configuration.owner,
+                    configuration.owner,
+                    configuration.treasury,
+                    configuration.polymerProvers[chainId]
+                )
             )
         );
 
@@ -389,6 +395,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (address)
     {
+        console2.log("[!] Deploying %s...", contractName);
         address expectedAddr = deployer.getDeployed(salt);
         if (expectedAddr.code.length > 0) {
             console2.log("[!] %s already deployed at:", contractName, expectedAddr);
@@ -466,8 +473,11 @@ contract DeployV2 is Script, Configuration {
             )
         );
         hooks[21] = HookDeployment(
-            DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,    
-            abi.encodePacked(type(DeBridgeSendOrderAndExecuteOnDstHook).creationCode, abi.encode(DEBRIDGE_DLN_SRC, _getContract(chainId, SUPER_MERKLE_VALIDATOR_KEY)))
+            DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
+            abi.encodePacked(
+                type(DeBridgeSendOrderAndExecuteOnDstHook).creationCode,
+                abi.encode(DEBRIDGE_DLN_SRC, _getContract(chainId, SUPER_MERKLE_VALIDATOR_KEY))
+            )
         );
 
         hooks[22] = HookDeployment(FLUID_CLAIM_REWARD_HOOK_KEY, type(FluidClaimRewardHook).creationCode);

@@ -1,37 +1,27 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import {IHookExecutionData} from "./IHookExecutionData.sol";
+
 /// @title ISuperBank
 /// @author SuperForm Labs
 /// @notice Interface for SuperBank, which compounds protocol revenue into sUP by executing registered hooks.
-interface ISuperBank {
+interface ISuperBank is IHookExecutionData {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Error thrown when an array of length 0 is provided.
-    error ZERO_LENGTH_ARRAY();
-    /// @notice Error thrown when an array of incorrect length is provided.
-    error INVALID_ARRAY_LENGTH();
     /// @notice Error thrown when an invalid address is provided.
     error INVALID_ADDRESS();
-    /// @notice Error thrown when an invalid Merkle proof is provided.
-    error INVALID_MERKLE_PROOF();
-    /// @notice Error thrown when a hook execution fails.
-    error HOOK_EXECUTION_FAILED();
     /// @notice Error thrown when a transfer fails.
     error TRANSFER_FAILED();
     /// @notice Error thrown when an invalid UP amount is provided.
     error INVALID_UP_AMOUNT_TO_DISTRIBUTE();
+    /// @notice Error thrown when an invalid bank manager is provided.
+    error INVALID_BANK_MANAGER();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice Emitted when hooks are executed.
-    /// @param hooks The addresses of the hooks that were executed.
-    /// @param data The data passed to each hook.
-    event HooksExecuted(address[] hooks, bytes[] data);
-
     /// @notice Emitted when revenue is distributed to sUP and Treasury.
     /// @param upToken The address of the UP token.
     /// @param supToken The address of the sUP token.
@@ -45,20 +35,6 @@ interface ISuperBank {
         uint256 supAmount,
         uint256 treasuryAmount
     );
-
-    /*//////////////////////////////////////////////////////////////
-                                STRUCTS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Data required for executing hooks with Merkle proof verification.
-    /// @param hooks Array of addresses of hooks to execute.
-    /// @param data Array of arbitrary data to pass to each hook.
-    /// @param merkleProofs Double array of Merkle proofs verifying each hook's allowed targets.
-    struct HookExecutionData {
-        address[] hooks;
-        bytes[] data;
-        bytes32[][] merkleProofs;
-    }
 
     /*//////////////////////////////////////////////////////////////
                               FUNCTIONS

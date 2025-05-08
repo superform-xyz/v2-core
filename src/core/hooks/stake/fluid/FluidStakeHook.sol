@@ -10,7 +10,7 @@ import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLend
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookContextAware, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 
 /// @title FluidStakeHook
 /// @author Superform Labs
@@ -19,7 +19,6 @@ import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../i
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 24);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-/// @notice         bool lockForSP = _decodeBool(data, 57);
 contract FluidStakeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
@@ -74,7 +73,6 @@ contract FluidStakeHook is BaseHook, ISuperHookContextAware {
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 57);
         /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 

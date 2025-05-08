@@ -38,12 +38,26 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     // SuperBank Hook Target validation
     mapping(address hook => ISuperGovernor.HookMerkleRootData merkleData) private superBankHooksMerkleRoots;
 
+    // VaultBank Hook Target validation
+    mapping(address hook => ISuperGovernor.HookMerkleRootData merkleData) private vaultBankHooksMerkleRoots;
+
     // Global freeze for strategist takeovers
     bool private _strategistTakeoversFrozen;
 
     // Validator registry
     mapping(address validator => bool isValidator) private _isValidator;
     address[] private _validatorsList;
+
+    // Relayer registry
+    mapping(address relayer => bool isRelayer) private _isRelayer;
+    address[] private _relayersList;
+
+    // Executor registry
+    mapping(address executor => bool isExecutor) private _isExecutor;
+    address[] private _executorsList;
+
+    // Polymer prover
+    address private _prover;
 
     // Fee management
     // Current fee values
@@ -67,6 +81,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     // Role definitions
     bytes32 private constant _SUPER_GOVERNOR_ROLE = keccak256("SUPER_GOVERNOR_ROLE");
     bytes32 private constant _GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
+    bytes32 private constant _BANK_MANAGER_ROLE = keccak256("BANK_MANAGER_ROLE");
 
     // Common contract keys
     bytes32 public constant TREASURY = keccak256("TREASURY");
@@ -77,6 +92,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bytes32 public constant UP = keccak256("UP");
     bytes32 public constant SUP = keccak256("SUP");
     bytes32 public constant SUPER_BANK = keccak256("SUPER_BANK");
+    bytes32 public constant BANK_MANAGER = keccak256("BANK_MANAGER");
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -85,18 +101,22 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @notice Initializes the SuperGovernor contract
     /// @param superGovernor Address of the default admin (will have SUPER_GOVERNOR_ROLE)
     /// @param governor Address that will have the GOVERNOR_ROLE for daily operations
+    /// @param bankManager Address that will have the BANK_MANAGER_ROLE for daily operations
     /// @param treasury_ Address of the treasury
-    constructor(address superGovernor, address governor, address treasury_) {
-        if (superGovernor == address(0) || treasury_ == address(0) || governor == address(0)) revert INVALID_ADDRESS();
+    /// @param prover_ Address of the prover
+    constructor(address superGovernor, address governor, address bankManager, address treasury_, address prover_) {
+        if (superGovernor == address(0) || treasury_ == address(0) || governor == address(0) || bankManager == address(0)) revert INVALID_ADDRESS();
 
         // Set up roles
         _grantRole(DEFAULT_ADMIN_ROLE, superGovernor);
         _grantRole(_SUPER_GOVERNOR_ROLE, superGovernor);
         _grantRole(_GOVERNOR_ROLE, governor);
+        _grantRole(_BANK_MANAGER_ROLE, bankManager);
 
         // Set role admins
         _setRoleAdmin(_GOVERNOR_ROLE, DEFAULT_ADMIN_ROLE);
         _setRoleAdmin(_SUPER_GOVERNOR_ROLE, DEFAULT_ADMIN_ROLE);
+        _setRoleAdmin(_BANK_MANAGER_ROLE, DEFAULT_ADMIN_ROLE);
 
         // Initialize with default fees
         _feeValues[FeeType.REVENUE_SHARE] = 2000; // 20% revenue share
@@ -114,6 +134,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         _upkeepCostPerUpdate = 1e18; // 1 UP token
 
         emit UpkeepCostPerUpdateChanged(_upkeepCostPerUpdate);
+
+        // Initialize prover
+        _prover = prover_;
+        emit ProverSet(prover_);
     }
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
@@ -125,6 +149,17 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
 
         _addressRegistry[key] = value;
         emit AddressSet(key, value);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        PROVER
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperGovernor
+    function setProver(address prover_) external onlyRole(_SUPER_GOVERNOR_ROLE) {
+        if (prover_ == address(0)) revert INVALID_ADDRESS();
+
+        _prover = prover_;
+        emit ProverSet(prover_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -192,6 +227,70 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         } else {
             _unregisterRegularHook(hook_);
         }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      EXECUTORS MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperGovernor
+    function addExecutor(address executor_) external onlyRole(_GOVERNOR_ROLE) {
+        if (executor_ == address(0)) revert INVALID_ADDRESS();
+        if (_isExecutor[executor_]) revert EXECUTOR_ALREADY_REGISTERED();
+
+        _isExecutor[executor_] = true;
+        _executorsList.push(executor_);
+        emit ExecutorAdded(executor_);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function removeExecutor(address executor_) external onlyRole(_GOVERNOR_ROLE) {
+        if (!_isExecutor[executor_]) revert EXECUTOR_NOT_REGISTERED();
+
+        _isExecutor[executor_] = false;
+
+        // Remove from executors array
+        uint256 length = _executorsList.length;
+        for (uint256 i; i < length; i++) {
+            if (_executorsList[i] == executor_) {
+                _executorsList[i] = _executorsList[_executorsList.length - 1];
+                _executorsList.pop();
+                break;
+            }
+        }
+
+        emit ExecutorRemoved(executor_);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      RELAYER MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperGovernor
+    function addRelayer(address relayer_) external onlyRole(_GOVERNOR_ROLE) {
+        if (relayer_ == address(0)) revert INVALID_ADDRESS();
+        if (_isRelayer[relayer_]) revert RELAYER_ALREADY_REGISTERED();
+
+        _isRelayer[relayer_] = true;
+        _relayersList.push(relayer_);
+        emit RelayerAdded(relayer_);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function removeRelayer(address relayer_) external onlyRole(_GOVERNOR_ROLE) {
+        if (!_isRelayer[relayer_]) revert RELAYER_NOT_REGISTERED();
+
+        _isRelayer[relayer_] = false;
+
+        // Remove from relayers array
+        uint256 length = _relayersList.length;
+        for (uint256 i; i < length; i++) {
+            if (_relayersList[i] == relayer_) {
+                _relayersList[i] = _relayersList[_relayersList.length - 1];
+                _relayersList.pop();
+                break;
+            }
+        }
+
+        emit RelayerRemoved(relayer_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -353,6 +452,18 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /// @inheritdoc ISuperGovernor
+    function proposeVaultBankHookMerkleRoot(address hook, bytes32 proposedRoot) external onlyRole(_GOVERNOR_ROLE) {
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
+
+        uint256 effectiveTime = block.timestamp + TIMELOCK;
+        ISuperGovernor.HookMerkleRootData storage data = vaultBankHooksMerkleRoots[hook];
+        data.proposedRoot = proposedRoot;
+        data.effectiveTime = effectiveTime;
+
+        emit VaultBankHookMerkleRootProposed(hook, proposedRoot, effectiveTime);
+    }
+
+    /// @inheritdoc ISuperGovernor
     function executeSuperBankHookMerkleRootUpdate(address hook) external {
         if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
 
@@ -375,6 +486,29 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         emit SuperBankHookMerkleRootUpdated(hook, proposedRoot);
     }
 
+    /// @inheritdoc ISuperGovernor
+    function executeVaultBankHookMerkleRootUpdate(address hook) external {
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
+
+        ISuperGovernor.HookMerkleRootData storage data = vaultBankHooksMerkleRoots[hook];
+
+        // Check if there's a proposed update
+        bytes32 proposedRoot = data.proposedRoot;
+        if (proposedRoot == bytes32(0)) revert NO_PROPOSED_MERKLE_ROOT();
+
+        // Check if the effective time has passed
+        if (block.timestamp < data.effectiveTime) revert TIMELOCK_NOT_EXPIRED();
+
+        // Update the Merkle root
+        data.currentRoot = proposedRoot;
+
+        // Reset the proposal
+        data.proposedRoot = bytes32(0);
+        data.effectiveTime = 0;
+
+        emit VaultBankHookMerkleRootUpdated(hook, proposedRoot);
+    }
+
     /*//////////////////////////////////////////////////////////////
                          EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -386,6 +520,11 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function GOVERNOR_ROLE() external pure returns (bytes32) {
         return _GOVERNOR_ROLE;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function BANK_MANAGER_ROLE() external pure returns (bytes32) {
+        return _BANK_MANAGER_ROLE;
     }
 
     /// @inheritdoc ISuperGovernor
@@ -423,6 +562,16 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function isValidator(address validator) external view returns (bool) {
         return _isValidator[validator];
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function isRelayer(address relayer) external view returns (bool) {
+        return _isRelayer[relayer];
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function isExecutor(address executor) external view returns (bool) {
+        return _isExecutor[executor];
     }
 
     /// @inheritdoc ISuperGovernor
@@ -473,6 +622,12 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /// @inheritdoc ISuperGovernor
+    function getVaultBankHookMerkleRoot(address hook) external view returns (bytes32) {
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
+        return vaultBankHooksMerkleRoots[hook].currentRoot;
+    }
+
+    /// @inheritdoc ISuperGovernor
     function getProposedSuperBankHookMerkleRoot(address hook)
         external
         view
@@ -481,6 +636,22 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
         ISuperGovernor.HookMerkleRootData storage data = superBankHooksMerkleRoots[hook];
         return (data.proposedRoot, data.effectiveTime);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getProposedVaultBankHookMerkleRoot(address hook)
+        external
+        view
+        returns (bytes32 proposedRoot, uint256 effectiveTime)
+    {
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
+        ISuperGovernor.HookMerkleRootData storage data = vaultBankHooksMerkleRoots[hook];
+        return (data.proposedRoot, data.effectiveTime);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getProver() external view returns (address) {
+        return _prover;
     }
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
