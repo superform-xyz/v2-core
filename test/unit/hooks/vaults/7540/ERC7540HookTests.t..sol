@@ -24,22 +24,11 @@ import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { IERC7540 } from "../../../../../src/vendor/vaults/7540/IERC7540.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { ISuperExecutor } from "../../../../../src/core/interfaces/ISuperExecutor.sol";
-import { SuperExecutor } from "../../../../../src/core/executors/SuperExecutor.sol";
 import { Helpers } from "../../../../../test/utils/Helpers.sol";
+import { HookSubTypes } from "../../../../../src/core/libraries/HookSubTypes.sol";
 import { InternalHelpers } from "../../../../../test/utils/InternalHelpers.sol";
-import { MockLedger, MockLedgerConfiguration } from "../../../../mocks/MockLedger.sol";
-import { RhinestoneModuleKit, AccountInstance, UserOpData, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
-import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 
-interface IRoot {
-    function endorsed(address user) external view returns (bool);
-}
-
-contract ERC7540VaultHookTests is Helpers, RhinestoneModuleKit, InternalHelpers {
-    using ModuleKitHelpers for *;
-
+contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     RequestDeposit7540VaultHook public requestDepositHook;
     ApproveAndRequestDeposit7540VaultHook public approveAndRequestDepositHook;
     Deposit7540VaultHook public depositHook;
@@ -60,32 +49,19 @@ contract ERC7540VaultHookTests is Helpers, RhinestoneModuleKit, InternalHelpers 
     IERC7540 public vaultInstance7540ETH;
     address public underlyingETH_USDC;
     address public yieldSource7540AddressUSDC;
-    address public accountETH;
     address public feeRecipient;
-
-    AccountInstance public instanceOnETH;
-    ISuperExecutor public superExecutorOnETH;
-    MockLedger public ledger;
-    MockLedgerConfiguration public ledgerConfig;
 
     uint256 public prevHookAmount;
 
     function setUp() public {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), 21_929_476);
-        instanceOnETH = makeAccountInstance(keccak256(abi.encode("TEST")));
-        accountETH = instanceOnETH.account;
+        accountETH = makeAddr("accountETH");
         feeRecipient = makeAddr("feeRecipient");
 
         underlyingETH_USDC = CHAIN_1_USDC;
         _getTokens(underlyingETH_USDC, accountETH, 1e18);
 
         yieldSource7540AddressUSDC = CHAIN_1_CentrifugeUSDC;
-
-        ledger = new MockLedger();
-        ledgerConfig = new MockLedgerConfiguration(address(ledger), feeRecipient, address(token), 100, accountETH);
-
-        superExecutorOnETH = new SuperExecutor(address(ledgerConfig));
-        instanceOnETH.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorOnETH), data: "" });
 
         yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
         yieldSource = address(this);
@@ -798,6 +774,14 @@ contract ERC7540VaultHookTests is Helpers, RhinestoneModuleKit, InternalHelpers 
 
         approveAndWithdrawHook.postExecute(address(0), address(this), data);
         assertEq(approveAndWithdrawHook.outAmount(), 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        ASYNC HOOK TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_CancelRedeemRequestHook_AsyncHook() public {
+        
+        
     }
     
     /*//////////////////////////////////////////////////////////////
