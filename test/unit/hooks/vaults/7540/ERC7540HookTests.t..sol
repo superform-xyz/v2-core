@@ -15,8 +15,7 @@ import { Deposit7540VaultHook } from "../../../../../src/core/hooks/vaults/7540/
 import { RequestRedeem7540VaultHook } from "../../../../../src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
 import { CancelDepositRequest7540Hook } from
     "../../../../../src/core/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
-import { CancelRedeemRequest7540Hook } from
-    "../../../../../src/core/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
+import { CancelRedeemRequest7540Hook } from "../../../../../src/core/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
 import { ClaimCancelDepositRequest7540Hook } from
     "../../../../../src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
 import { ClaimCancelRedeemRequest7540Hook } from
@@ -38,7 +37,7 @@ interface IRoot {
     function endorsed(address user) external view returns (bool);
 }
 
-contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers {
+contract ERC7540VaultHookTests is Helpers, RhinestoneModuleKit, InternalHelpers {
     using ModuleKitHelpers for *;
 
     RequestDeposit7540VaultHook public requestDepositHook;
@@ -386,7 +385,7 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
-        bytes memory data = _encodeApproveAndRequestRedeemData(true, 1000);
+        bytes memory data = _encodeApproveAndRequestRedeemData(true, 1000, false);
         Execution[] memory executions = redeemHook.build(mockPrevHook, address(this), data);
 
         assertEq(executions.length, 4);
@@ -414,7 +413,7 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
-        bytes memory data = _encodeApproveAndRequestRedeemData(true, 1000);
+        bytes memory data = _encodeApproveAndRequestRedeemData(true, 1000, false);
         Execution[] memory executions = approveAndWithdrawHook.build(mockPrevHook, address(this), data);
 
         assertEq(executions.length, 4);
@@ -460,7 +459,8 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
     /*//////////////////////////////////////////////////////////////
                       BUILD REVERTING TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_ApproveAndRequestDepositHook_Build_Reverting() public {
+    // --- ZERO ADDRESS TESTS ---
+    function test_ApproveAndRequestDepositHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
@@ -469,7 +469,7 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
         approveAndRequestDepositHook.build(mockPrevHook, address(0), data);
     }
 
-    function test_RequestDepositHook_Build_Reverting() public {
+    function test_RequestDepositHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
@@ -478,7 +478,7 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
         requestDepositHook.build(mockPrevHook, address(0), data);
     }
 
-    function test_DepositHook_Build_Reverting() public {
+    function test_DepositHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
@@ -487,7 +487,7 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
         depositHook.build(mockPrevHook, address(0), data);
     }
 
-    function test_RequestRedeemHook_Build_Reverting() public {
+    function test_RequestRedeemHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
@@ -496,16 +496,16 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
         reqRedeemHook.build(mockPrevHook, address(0), data);
     }
 
-    function test_ApproveAndRedeemHook_Build_Reverting() public {
+    function test_ApproveAndRedeemHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
-        bytes memory data = _encodeApproveAndRequestRedeemData(true, 1000);
+        bytes memory data = _encodeApproveAndRequestRedeemData(true, 1000, false);
         vm.expectRevert();
         redeemHook.build(mockPrevHook, address(0), data);
     }
 
-    function test_WithdrawHook_Build_Reverting() public {
+    function test_WithdrawHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
@@ -514,7 +514,7 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
         withdrawHook.build(mockPrevHook, address(0), data);
     }
 
-    function test_CancelDepositRequestHook_Build_Reverting() public {
+    function test_CancelDepositRequestHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
@@ -523,7 +523,7 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
         cancelDepositRequestHook.build(mockPrevHook, address(0), data);
     }
 
-    function test_CancelRedeemRequestHook_Build_Reverting() public {
+    function test_CancelRedeemRequestHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
@@ -531,8 +531,8 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
         vm.expectRevert();
         cancelRedeemRequestHook.build(mockPrevHook, address(0), data);
     }
-    
-    function test_ClaimCancelDepositRequestHook_Build_Reverting() public {
+
+    function test_ClaimCancelDepositRequestHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
@@ -541,13 +541,78 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
         claimCancelDepositRequestHook.build(mockPrevHook, address(0), data);
     }
 
-    function test_ClaimCancelRedeemRequestHook_Build_Reverting() public {
+    function test_ClaimCancelRedeemRequestHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);    
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
         bytes memory data = _encodeClaimCancelRedeemRequestZeroAddressData();
         vm.expectRevert();
         claimCancelRedeemRequestHook.build(mockPrevHook, address(0), data);
+    }
+
+    // --- ZERO AMOUNT TESTS ---
+
+    function test_ApproveAndRequestDepositHook_Build_Revert_AmountZero() public {
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, uint256(0), false);
+        vm.expectRevert();
+        approveAndRequestDepositHook.build(mockPrevHook, address(this), data);
+    }
+
+    function test_RequestDepositHook_Build_Revert_AmountZero() public {
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, uint256(0), false);
+        vm.expectRevert();
+        requestDepositHook.build(mockPrevHook, address(this), data);
+    }
+
+    function test_DepositHook_Build_Revert_AmountZero() public {
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, uint256(0), false);
+        vm.expectRevert();
+        depositHook.build(mockPrevHook, address(this), data);
+    }
+
+    function test_RequestRedeemHook_Build_Revert_AmountZero() public {
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, uint256(0), false);
+        vm.expectRevert();
+        reqRedeemHook.build(mockPrevHook, address(this), data);
+    }
+
+    function test_ApproveAndRedeemHook_Build_Revert_AmountZero() public {
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, uint256(0), false);
+        vm.expectRevert();
+        redeemHook.build(mockPrevHook, address(this), data);
+    }
+
+    function test_WithdrawHook_Build_Revert_AmountZero() public {
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, uint256(0), false);
+        vm.expectRevert();
+        withdrawHook.build(mockPrevHook, address(this), data);
+    }
+
+    function test_ApproveAndWithdrawHook_Build_Revert_AmountZero() public {
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, uint256(0), false);
+        vm.expectRevert();
+        approveAndWithdrawHook.build(mockPrevHook, address(this), data);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -559,7 +624,7 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
         assertEq(decodedAmount, amount);
     }
 
-    function test_RequestDepositHook_DecodeAmount() public view{
+    function test_RequestDepositHook_DecodeAmount() public view {
         bytes memory data = _encodeRequestData(false);
         uint256 decodedAmount = requestDepositHook.decodeAmount(data);
         assertEq(decodedAmount, amount);
@@ -578,7 +643,7 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
     }
 
     function test_ApproveAndRedeemHook_DecodeAmount() public view {
-        bytes memory data = _encodeApproveAndRequestRedeemData(false, 1000);
+        bytes memory data = _encodeApproveAndRequestRedeemData(false, 1000, false);
         uint256 decodedAmount = redeemHook.decodeAmount(data);
         assertEq(decodedAmount, 1000);
     }
@@ -590,7 +655,7 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
     }
 
     function test_ApproveAndWithdrawHook_DecodeAmount() public view {
-        bytes memory data = _encodeApproveAndRequestRedeemData(false, 1000);
+        bytes memory data = _encodeApproveAndRequestRedeemData(false, 1000, false);
         uint256 decodedAmount = approveAndWithdrawHook.decodeAmount(data);
         assertEq(decodedAmount, 1000);
     }
@@ -598,14 +663,144 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
     /*//////////////////////////////////////////////////////////////
                         REPLACE CALLDATA TESTS
     //////////////////////////////////////////////////////////////*/
-    // function test_ApproveAndRedeemHook_ReplaceCallData() public {
-    //     bytes memory data = _encodeRedeemData(false);
-        
-    //     bytes memory replacedData = redeemHook.replaceCalldataAmount(data, 1);
+    function test_ApproveAndRedeemHook_ReplaceCallData() public view {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false, false);
 
-    //     uint256 replacedAmount = redeemHook.decodeAmount(replacedData);
-    //     assertEq(replacedAmount, 1);
-    // }
+        bytes memory replacedData = redeemHook.replaceCalldataAmount(data, 1);
+        assertEq(replacedData.length, data.length);
+
+        uint256 replacedAmount = redeemHook.decodeAmount(replacedData);
+        assertEq(replacedAmount, 1);
+    }
+
+    function test_ApproveAndWithdrawHook_ReplaceCallData() public view {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false, false);
+
+        bytes memory replacedData = approveAndWithdrawHook.replaceCalldataAmount(data, 1);
+        assertEq(replacedData.length, data.length);
+
+        uint256 replacedAmount = approveAndWithdrawHook.decodeAmount(replacedData);
+        assertEq(replacedAmount, 1);
+    }
+
+    function test_WithdrawHook_ReplaceCallData() public view {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false, false);
+
+        bytes memory replacedData = withdrawHook.replaceCalldataAmount(data, 1);
+        assertEq(replacedData.length, data.length);
+
+        uint256 replacedAmount = withdrawHook.decodeAmount(replacedData);
+        assertEq(replacedAmount, 1);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      USED ASSETS OR SHARES TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_ApproveAndRequestDepositHook_UsedAssetsOrShares() public view {
+        (uint256 usedAssets, bool isShares) = approveAndRequestDepositHook.getUsedAssetsOrShares();
+        assertEq(usedAssets, 0);
+        assertEq(isShares, false);
+    }
+    
+    function test_RequestDepositHook_UsedAssetsOrShares() public view {
+        (uint256 usedAssets, bool isShares) = requestDepositHook.getUsedAssetsOrShares();
+        assertEq(usedAssets, 0);
+        assertEq(isShares, false);
+    }
+
+    function test_RequestRedeemHook_UsedAssetsOrShares() public view {
+        (uint256 usedAssets, bool isShares) = reqRedeemHook.getUsedAssetsOrShares();
+        assertEq(usedAssets, 0);
+        assertEq(isShares, true);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      PRE/POST EXECUTE TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_ApproveAndRequestDepositHook_PreAndPostExecute() public {
+        yieldSource = token; // for the .balanceOf call
+        _getTokens(token, address(this), amount);
+
+        bytes memory data = _encodeData(false);
+        approveAndRequestDepositHook.preExecute(address(0), address(this), data);
+        assertEq(approveAndRequestDepositHook.outAmount(), amount);
+
+        approveAndRequestDepositHook.postExecute(address(0), address(this), data);
+        assertEq(approveAndRequestDepositHook.outAmount(), 0);
+    }
+
+    function test_RequestDepositHook_PreAndPostExecute() public {
+        yieldSource = token; // for the .balanceOf call
+        _getTokens(token, address(this), amount);
+
+        bytes memory data = _encodeRequestData(false);
+        requestDepositHook.preExecute(address(0), address(this), data);
+        assertEq(requestDepositHook.outAmount(), amount);
+
+        requestDepositHook.postExecute(address(0), address(this), data);
+        assertEq(requestDepositHook.outAmount(), 0);
+    }
+
+    function test_DepositHook_PreAndPostExecute() public {
+        yieldSource = token; // for the .balanceOf call
+        _getTokens(token, address(this), amount);
+
+        bytes memory data = _encodeData(false, false);
+        depositHook.preExecute(address(0), address(this), data);
+        assertEq(depositHook.outAmount(), amount);
+
+        depositHook.postExecute(address(0), address(this), data);
+        assertEq(depositHook.outAmount(), 0);
+    }
+
+    function test_RequestRedeemHook_PreAndPostExecute() public {
+        yieldSource = token; // for the .balanceOf call
+        _getTokens(token, address(this), amount);
+
+        bytes memory data = _encodeRequestData(false);
+        reqRedeemHook.preExecute(address(0), address(this), data);
+        assertEq(reqRedeemHook.outAmount(), amount);
+
+        reqRedeemHook.postExecute(address(0), address(this), data);
+        assertEq(reqRedeemHook.outAmount(), 0);
+    }
+
+    function test_ApproveAndRedeemHook_PreAndPostExecute() public {
+        yieldSource = token; // for the .balanceOf call
+        _getTokens(token, address(this), amount);
+
+        bytes memory data = _encodeApproveAndRequestRedeemData(false, 1000, false);
+        redeemHook.preExecute(address(0), address(this), data);
+        assertEq(redeemHook.outAmount(), 1000000000);
+
+        redeemHook.postExecute(address(0), address(this), data);
+        assertEq(redeemHook.outAmount(), 0);
+    }
+
+    function test_WithdrawHook_PreAndPostExecute() public {
+        yieldSource = token; // for the .balanceOf call
+        _getTokens(token, address(this), amount);
+
+        bytes memory data = _encodeData(false, false);
+        withdrawHook.preExecute(address(0), address(this), data);
+        assertEq(withdrawHook.outAmount(), amount);
+
+        withdrawHook.postExecute(address(0), address(this), data);
+        assertEq(withdrawHook.outAmount(), 0);
+    }
+
+    function test_ApproveAndWithdrawHook_PreAndPostExecute() public {
+        yieldSource = token; // for the .balanceOf call
+        _getTokens(token, address(this), amount);
+
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false, false);
+
+        approveAndWithdrawHook.preExecute(address(0), address(this), data);
+        assertEq(approveAndWithdrawHook.outAmount(), 1000000000);
+
+        approveAndWithdrawHook.postExecute(address(0), address(this), data);
+        assertEq(approveAndWithdrawHook.outAmount(), 0);
+    }
     
     /*//////////////////////////////////////////////////////////////
                                 HELPERS
@@ -613,7 +808,7 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
     function _encodeData() internal view returns (bytes memory) {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, address(this));
     }
-    
+
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHook);
     }
@@ -632,13 +827,14 @@ contract HooksFor7540VaultTest is Helpers, RhinestoneModuleKit, InternalHelpers 
 
     function _encodeApproveAndRequestRedeemData(
         bool usePrevHook,
-        uint256 shares
+        uint256 shares,
+        bool lockForSp
     )
         internal
         view
         returns (bytes memory)
     {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, shares, usePrevHook);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, shares, usePrevHook, lockForSp);
     }
 
     function _encodeCancelDepositRequestZeroAddressData() internal view returns (bytes memory) {
