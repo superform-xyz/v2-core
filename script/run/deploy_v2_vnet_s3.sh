@@ -738,7 +738,8 @@ deploy_contracts() {
         --rpc-url $ETH_MAINNET \
         --etherscan-api-key $TENDERLY_ACCESS_KEY \
         --broadcast \
-        -vvv; then
+        -vvv \
+        --slow; then
         deploy_error_handler "Ethereum"
     fi
     wait
@@ -752,7 +753,8 @@ deploy_contracts() {
         --rpc-url $BASE_MAINNET \
         --etherscan-api-key $TENDERLY_ACCESS_KEY \
         --broadcast \
-        -vvv; then
+        -vvv \
+        --slow; then
         deploy_error_handler "Base"
     fi
     wait
@@ -766,7 +768,8 @@ deploy_contracts() {
         --rpc-url $OPTIMISM_MAINNET \
         --etherscan-api-key $TENDERLY_ACCESS_KEY \
         --broadcast \
-        -vvv; then
+        -vvv \
+        --slow; then
         deploy_error_handler "Optimism"
     fi
     wait
