@@ -10,9 +10,12 @@ import {IncentiveFundContract} from "../../../../src/periphery/SuperAsset/Incent
 import {IncentiveCalculationContract} from "../../../../src/periphery/SuperAsset/IncentiveCalculationContract.sol";
 import {SuperOracle} from "../../../../src/periphery/oracles/SuperOracle.sol";
 import {MockERC20} from "../../../mocks/MockERC20.sol";
+import {Mock4626Vault} from "../../../mocks/Mock4626Vault.sol";
 import {MockAggregator} from "../../mocks/MockAggregator.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {Helpers} from "../../../utils/Helpers.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+
 
 contract SuperAssetTest is Helpers {
     // --- Constants ---
@@ -29,7 +32,8 @@ contract SuperAssetTest is Helpers {
     SuperAsset public superAsset;
     AssetBank public assetBank;
     SuperOracle public oracle;
-    MockERC20 public tokenIn;
+    Mock4626Vault public tokenIn;
+    MockERC20 public underlyingToken;
     MockERC20 public tokenOut;
     MockAggregator public mockFeedSuperAssetShares1;
     MockAggregator public mockFeed1;
@@ -58,8 +62,13 @@ contract SuperAssetTest is Helpers {
         superAsset = new SuperAsset();
         console.log("SuperAsset deployed");
 
-        // Deploy mock tokens
-        tokenIn = new MockERC20("Token In", "TIN", 18);
+        // Deploy mock tokens and vault
+        underlyingToken = new MockERC20("Underlying Token", "UTKN", 18);
+        tokenIn = new Mock4626Vault(
+            IERC20(address(underlyingToken)),
+            "Vault Token",
+            "vTKN"
+        );
         tokenOut = new MockERC20("Token Out", "TOUT", 18);
         console.log("Mock tokens deployed");
 
@@ -185,13 +194,43 @@ contract SuperAssetTest is Helpers {
         superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
 
         // Set up initial token balances
-        tokenIn.mint(user, 1000e18);
-        tokenIn.mint(address(incentiveFund), 1000e18);
-        tokenOut.mint(user, 1000e18);
-        tokenOut.mint(address(incentiveFund), 1000e18);
+        // tokenIn.mint(user, 1000e18);
+        // tokenIn.mint(address(incentiveFund), 1000e18);
+        // tokenOut.mint(user, 1000e18);
+        // tokenOut.mint(address(incentiveFund), 1000e18);
 
-        tokenIn.mint(user11, 1000e18);
+        // tokenIn.mint(user11, 1000e18);
+        // tokenOut.mint(user11, 1000e18);
+
+        console.log("Start Minting");
+
+        underlyingToken.mint(user, 1000e18);
+        vm.startPrank(user);
+        underlyingToken.approve(address(tokenIn), 1000e18);
+        tokenIn.deposit(1000e18, user);
+        vm.stopPrank();
+        assertGt(tokenIn.balanceOf(user), 0);
+        // tokenIn.mint(1000e18, user);
+        console.log("Start Minting T1");
+        // tokenIn.mint(1000e18, address(incentiveFund));
+        tokenOut.mint(user, 1000e18);
+
+        console.log("Start Minting T2");
+
+        tokenOut.mint(address(incentiveFund), 1000e18);
+        console.log("Start Minting T3");
+
+
+        underlyingToken.mint(user11, 1000e18);
+        vm.startPrank(user11);
+        underlyingToken.approve(address(tokenIn), 1000e18);
+        tokenIn.deposit(1000e18, user11);
+        vm.stopPrank();
+        assertGt(tokenIn.balanceOf(user11), 0);
+        // tokenIn.mint(1000e18, user11);
         tokenOut.mint(user11, 1000e18);
+        console.log("Start Minting T5");
+
         vm.stopPrank();
     }
 
