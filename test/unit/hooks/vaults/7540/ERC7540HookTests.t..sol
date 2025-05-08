@@ -775,9 +775,20 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     /*//////////////////////////////////////////////////////////////
                         ASYNC HOOK TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_CancelRedeemRequestHook_AsyncHook() public {
-        
-        
+    function test_CancelRedeemRequestHook_AsyncHook() public view {
+        assertEq(cancelRedeemRequestHook.subType(), HookSubTypes.CANCEL_REDEEM_REQUEST);
+    }
+
+    function test_CancelDepositRequestHook_AsyncHook() public view {
+        assertEq(cancelDepositRequestHook.subType(), HookSubTypes.CANCEL_DEPOSIT_REQUEST);
+    }
+
+    function test_ClaimCancelRedeemRequestHook_AsyncHook() public view {
+        assertEq(claimCancelRedeemRequestHook.subType(), HookSubTypes.CLAIM_CANCEL_REDEEM_REQUEST);
+    }
+
+    function test_ClaimCancelDepositRequestHook_AsyncHook() public view {
+        assertEq(claimCancelDepositRequestHook.subType(), HookSubTypes.CLAIM_CANCEL_DEPOSIT_REQUEST);
     }
     
     /*//////////////////////////////////////////////////////////////
