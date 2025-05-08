@@ -189,14 +189,14 @@ contract ERC4626VaultHooksTest is Helpers {
   function test_DepositHook_ZeroAmount() public {
     amount = 0;
     vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-    bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, uint256(0), false);
+    bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), uint256(0), false);
     depositHook.build(address(0), address(this), data);
   }
 
   function test_RedeemHook_ZeroAmount() public {
     amount = 0;
     vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-    bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, uint256(0), false);
+    bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), uint256(0), false);
     redeemHook.build(address(0), address(this), data);
   }
 
