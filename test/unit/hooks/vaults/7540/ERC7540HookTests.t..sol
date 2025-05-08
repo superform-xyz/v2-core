@@ -49,17 +49,13 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     IERC7540 public vaultInstance7540ETH;
     address public underlyingETH_USDC;
     address public yieldSource7540AddressUSDC;
-    address public feeRecipient;
 
     uint256 public prevHookAmount;
 
     function setUp() public {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), 21_929_476);
-        accountETH = makeAddr("accountETH");
-        feeRecipient = makeAddr("feeRecipient");
 
         underlyingETH_USDC = CHAIN_1_USDC;
-        _getTokens(underlyingETH_USDC, accountETH, 1e18);
 
         yieldSource7540AddressUSDC = CHAIN_1_CentrifugeUSDC;
 
