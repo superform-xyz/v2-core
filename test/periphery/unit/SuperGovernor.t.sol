@@ -6,6 +6,7 @@ import { ISuperGovernor, FeeType } from "src/periphery/interfaces/ISuperGovernor
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { ISuperVaultAggregator } from "src/periphery/interfaces/ISuperVaultAggregator.sol";
 import { SuperVaultAggregator } from "src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { ISuperVaultStrategy } from "src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { Helpers } from "../../utils/Helpers.sol";
 
 contract SuperGovernorTest is Helpers {
@@ -56,18 +57,18 @@ contract SuperGovernorTest is Helpers {
         ppsOracle2 = _deployAccount(0xC, "PPSOracle2");
         newStrategist = _deployAccount(0xF, "NewStrategist");
 
-        superGovernor = new SuperGovernor(sGovernor, governor, treasury);
+        superGovernor = new SuperGovernor(sGovernor, governor, governor, treasury, address(this));
         superVaultAggregator = address(new SuperVaultAggregator(address(superGovernor)));
         (, address strategy,) = ISuperVaultAggregator(superVaultAggregator).createVault(
             ISuperVaultAggregator.VaultCreationParams({
                 asset: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
                 mainStrategist: address(this),
-                feeRecipient: address(this),
                 name: "SUP",
                 symbol: "SUP",
                 minUpdateInterval: 5,
                 maxStaleness: 300,
-                superVaultCap: 1e9
+                superVaultCap: 1e9,
+                feeConfig: ISuperVaultStrategy.FeeConfig({ performanceFeeBps: 1000, recipient: address(this) })
             })
         );
         strategy1 = strategy;
@@ -87,19 +88,19 @@ contract SuperGovernorTest is Helpers {
     /// @notice Tests constructor revert on zero address superGovernor.
     function test_constructor_Revert_ZeroAdmin() public {
         vm.expectRevert(ISuperGovernor.INVALID_ADDRESS.selector);
-        new SuperGovernor(address(0), governor, treasury);
+        new SuperGovernor(address(0), governor, governor, treasury, address(this));
     }
 
     /// @notice Tests constructor revert on zero address governor.
     function test_constructor_Revert_ZeroGovernor() public {
         vm.expectRevert(ISuperGovernor.INVALID_ADDRESS.selector);
-        new SuperGovernor(sGovernor, address(0), treasury);
+        new SuperGovernor(sGovernor, address(0), governor, treasury, address(this));
     }
 
     /// @notice Tests constructor revert on zero address treasury.
     function test_constructor_Revert_ZeroTreasury() public {
         vm.expectRevert(ISuperGovernor.INVALID_ADDRESS.selector);
-        new SuperGovernor(sGovernor, governor, address(0));
+        new SuperGovernor(sGovernor, governor, governor, address(0), address(this));
     }
 
     // =============================================================
@@ -284,7 +285,7 @@ contract SuperGovernorTest is Helpers {
             superGovernor.isFulfillRequestsHookRegistered(fulfillHook1),
             "Hook should be registered as fulfill requests hook"
         );
-        assertFalse(superGovernor.isHookRegistered(fulfillHook1), "Hook should not be registered as regular hook");
+        assertTrue(superGovernor.isHookRegistered(fulfillHook1));
     }
 
     /// @notice Tests reverting when registering a hook with zero address
@@ -344,6 +345,7 @@ contract SuperGovernorTest is Helpers {
         vm.expectEmit(true, false, false, false);
         emit ISuperGovernor.FulfillRequestsHookUnregistered(fulfillHook1);
         superGovernor.unregisterHook(fulfillHook1, true);
+        assertFalse(superGovernor.isHookRegistered(fulfillHook1), "Hook should be unregistered");
 
         assertFalse(superGovernor.isFulfillRequestsHookRegistered(fulfillHook1), "Fulfill hook should be unregistered");
     }

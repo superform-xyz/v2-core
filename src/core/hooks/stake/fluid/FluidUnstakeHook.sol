@@ -19,7 +19,6 @@ import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLend
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 24);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-/// @notice         bool lockForSP = _decodeBool(data, 57);
 contract FluidUnstakeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
@@ -75,7 +74,6 @@ contract FluidUnstakeHook is BaseHook, ISuperHookContextAware {
     function _preExecute(address, address account, bytes calldata data) internal override {
         asset = IFluidLendingStakingRewards(data.extractYieldSource()).stakingToken();
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 57);
         /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 

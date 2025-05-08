@@ -11,7 +11,7 @@ import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { SuperExecutor } from "../../../../../src/core/executors/SuperExecutor.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
-import { InternalHelpers } from "../../../../InternalHelpers.sol";
+import { InternalHelpers } from "../../../../utils/InternalHelpers.sol";
 import { ISuperExecutor } from "../../../../../src/core/interfaces/ISuperExecutor.sol";
 import { IStandardizedYield } from "../../../../../src/vendor/pendle/IStandardizedYield.sol";
 import { MockLedger, MockLedgerConfiguration } from "../../../../mocks/MockLedger.sol";
@@ -42,7 +42,7 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
     MockLedgerConfiguration public ledgerConfig;
 
     function setUp() public {
-        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), 21_929_476);
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), ETH_BLOCK);
         instanceOnETH = makeAccountInstance(keccak256(abi.encode("TEST")));
         accountETH = instanceOnETH.account;
         feeRecipient = makeAddr("feeRecipient");
@@ -84,7 +84,8 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
             amount,
             0,
             false,
-            false
+            address(0),
+            0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -107,7 +108,7 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
     }
 
     function test_Build() public view {
-        bytes memory data = _encodeData(false, false);
+        bytes memory data = _encodeData(false);
         Execution[] memory executions = hook.build(address(0), address(this), data);
         assertEq(executions.length, 4);
         assertEq(executions[0].target, token);
@@ -132,7 +133,7 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
-        bytes memory data = _encodeData(true, false);
+        bytes memory data = _encodeData(true);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
 
         assertEq(executions.length, 4);
@@ -158,21 +159,21 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
 
         yieldSource = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(0), address(this), _encodeData(false, false));
+        hook.build(address(0), address(this), _encodeData(false));
 
         yieldSource = _yieldSource;
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(0), address(0), _encodeData(false, false));
+        hook.build(address(0), address(0), _encodeData(false));
     }
 
     function test_Build_RevertIf_AmountZero() public {
         amount = 0;
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-        hook.build(address(0), address(this), _encodeData(false, false));
+        hook.build(address(0), address(this), _encodeData(false));
     }
 
     function test_DecodeAmount() public view {
-        bytes memory data = _encodeData(false, false);
+        bytes memory data = _encodeData(false);
         uint256 decodedAmount = hook.decodeAmount(data);
         assertEq(decodedAmount, amount);
     }
@@ -180,7 +181,7 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
     function test_PreAndPostExecute() public {
         yieldSource = token; // for the .balanceOf call
         _getTokens(token, address(this), amount);
-        bytes memory data = _encodeData(false, false);
+        bytes memory data = _encodeData(false);
         hook.preExecute(address(0), address(this), data);
         assertEq(hook.outAmount(), amount);
 
@@ -188,7 +189,7 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
         assertEq(hook.outAmount(), 0);
     }
 
-    function _encodeData(bool usePrevHook, bool lockForSp) internal view returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, amount, usePrevHook, lockForSp);
+    function _encodeData(bool usePrevHook) internal view returns (bytes memory) {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, amount, usePrevHook, address(0), uint256(0));
     }
 }

@@ -17,7 +17,7 @@ import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 
 import { Helpers } from "../../utils/Helpers.sol";
 
-import { InternalHelpers } from "../../InternalHelpers.sol";
+import { InternalHelpers } from "../../utils/InternalHelpers.sol";
 
 import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance } from "modulekit/ModuleKit.sol";
 
@@ -110,9 +110,9 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers {
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] =
-            _createDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), 1, false, false);
+            _createDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), 1, false, address(0), 0);
         hooksData[1] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
         );
 
         vm.startPrank(account);
@@ -137,7 +137,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] =
-            _createDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), 1, false, false);
+            _createDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), 1, false, address(0), 0);
 
         vm.startPrank(account);
 
@@ -160,7 +160,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
         );
 
         _getTokens(address(token), account, 1000);
@@ -187,7 +187,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
         );
 
         vm.startPrank(makeAddr("account"));
@@ -210,7 +210,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
         );
 
         vm.startPrank(account);
@@ -244,7 +244,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
         );
 
         vm.startPrank(address(this));

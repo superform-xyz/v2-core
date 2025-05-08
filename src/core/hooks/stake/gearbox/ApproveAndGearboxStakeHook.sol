@@ -10,7 +10,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookContextAware, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingPool.sol";
 
 /// @title ApproveAndGearboxStakeHook
@@ -21,7 +21,6 @@ import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingP
 /// @notice         address token = BytesLib.toAddress(data, 24);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 44);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
-/// @notice         bool lockForSP = _decodeBool(data, 77);
 contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
@@ -84,8 +83,6 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware {
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
-        lockForSP = _decodeBool(data, 77);
-        spToken = data.extractYieldSource();
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

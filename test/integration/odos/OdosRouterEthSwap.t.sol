@@ -2,7 +2,6 @@
 pragma solidity >=0.8.28;
 
 // Tests
-import { BaseTest } from "../../BaseTest.t.sol";
 import { strings } from "@stringutils/strings.sol";
 import { SuperNativePaymaster } from "../../../src/core/paymaster/SuperNativePaymaster.sol";
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
@@ -11,14 +10,14 @@ import { MockValidatorModule } from "../../mocks/MockValidatorModule.sol";
 import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
+import { OdosAPIParser } from "../../utils/parsers/OdosAPIParser.sol";
+import { SwapOdosHook } from "../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 
-contract OdosRouterEthSwap is BaseTest {
+contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
     using ModuleKitHelpers for *;
     using strings for *;
-
-    ISuperExecutor public superExecutor;
-    AccountInstance public instance;
-    address public account;
 
     address public token;
 
@@ -27,17 +26,12 @@ contract OdosRouterEthSwap is BaseTest {
     uint256 public maxGasLimit;
 
     function setUp() public override {
-        useLatestFork = true;
+        blockNumber = 0;
         super.setUp();
 
-        vm.selectFork(FORKS[ETH]);
-
         MockValidatorModule validator = new MockValidatorModule();
-        superExecutor = ISuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
 
-        instance = accountInstances[ETH];
-        account = instance.account;
-        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: "" });
+        instanceOnEth.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: "" });
 
         token = CHAIN_1_USDC;
 
@@ -50,19 +44,19 @@ contract OdosRouterEthSwap is BaseTest {
         uint256 amount = 1e18;
 
         address[] memory hookAddresses_ = new address[](2);
-        hookAddresses_[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hookAddresses_[1] = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
+        hookAddresses_[0] = approveHook;
+        hookAddresses_[1] = address(new SwapOdosHook(CHAIN_1_ODOS_ROUTER));
 
         bytes[] memory hookData = new bytes[](2);
-        hookData[0] = _createApproveHookData(token, ODOS_ROUTER[ETH], amount, false);
+        hookData[0] = _createApproveHookData(token, CHAIN_1_ODOS_ROUTER, amount, false);
 
         QuoteInputToken[] memory quoteInputTokens = new QuoteInputToken[](1);
         quoteInputTokens[0] = QuoteInputToken({ tokenAddress: address(0), amount: amount });
 
         QuoteOutputToken[] memory quoteOutputTokens = new QuoteOutputToken[](1);
         quoteOutputTokens[0] = QuoteOutputToken({ tokenAddress: token, proportion: 1 });
-        string memory path = surlCallQuoteV2(quoteInputTokens, quoteOutputTokens, account, ETH, false);
-        string memory requestBody = surlCallAssemble(path, account);
+        string memory path = surlCallQuoteV2(quoteInputTokens, quoteOutputTokens, accountEth, ETH, false);
+        string memory requestBody = surlCallAssemble(path, accountEth);
 
         OdosDecodedSwap memory odosDecodedSwap = decodeOdosSwapCalldata(fromHex(requestBody));
         bytes memory odosCalldata = _createOdosSwapHookData(
@@ -81,16 +75,13 @@ contract OdosRouterEthSwap is BaseTest {
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
-        UserOpData memory opData = _getExecOps(
-            instance, superExecutor, abi.encode(entryToExecute), _getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY)
-        );
-        opData.userOp.paymasterAndData = bytes("");
+        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
 
-        uint256 tokenBalanceBefore = IERC20(token).balanceOf(account);
+        uint256 tokenBalanceBefore = IERC20(token).balanceOf(accountEth);
 
         executeOp(opData);
 
-        uint256 tokenBalanceAfter = IERC20(token).balanceOf(account);
+        uint256 tokenBalanceAfter = IERC20(token).balanceOf(accountEth);
         assertGt(tokenBalanceAfter, tokenBalanceBefore);
     }
 
@@ -98,19 +89,19 @@ contract OdosRouterEthSwap is BaseTest {
         uint256 amount = 5e17;
 
         address[] memory hookAddresses_ = new address[](2);
-        hookAddresses_[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hookAddresses_[1] = _getHookAddress(ETH, SWAP_ODOS_HOOK_KEY);
+        hookAddresses_[0] = approveHook;
+        hookAddresses_[1] = address(new SwapOdosHook(CHAIN_1_ODOS_ROUTER));
 
         bytes[] memory hookData = new bytes[](2);
-        hookData[0] = _createApproveHookData(token, ODOS_ROUTER[ETH], amount, false);
+        hookData[0] = _createApproveHookData(token, CHAIN_1_ODOS_ROUTER, amount, false);
 
         QuoteInputToken[] memory quoteInputTokens = new QuoteInputToken[](1);
         quoteInputTokens[0] = QuoteInputToken({ tokenAddress: address(0), amount: amount });
 
         QuoteOutputToken[] memory quoteOutputTokens = new QuoteOutputToken[](1);
         quoteOutputTokens[0] = QuoteOutputToken({ tokenAddress: token, proportion: 1 });
-        string memory path = surlCallQuoteV2(quoteInputTokens, quoteOutputTokens, account, ETH, false);
-        string memory requestBody = surlCallAssemble(path, account);
+        string memory path = surlCallQuoteV2(quoteInputTokens, quoteOutputTokens, accountEth, ETH, false);
+        string memory requestBody = surlCallAssemble(path, accountEth);
 
         OdosDecodedSwap memory odosDecodedSwap = decodeOdosSwapCalldata(fromHex(requestBody));
         bytes memory odosCalldata = _createOdosSwapHookData(
@@ -127,17 +118,15 @@ contract OdosRouterEthSwap is BaseTest {
         );
         hookData[1] = odosCalldata;
 
-        address paymaster = _getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY);
+        address paymaster = address(new SuperNativePaymaster(IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032)));
         SuperNativePaymaster superNativePaymaster = SuperNativePaymaster(paymaster);
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
 
-        UserOpData memory opData = _getExecOps(
-            instance, superExecutor, abi.encode(entryToExecute), _getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY)
-        );
+        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute), paymaster);
 
-        uint256 tokenBalanceBefore = IERC20(token).balanceOf(account);
+        uint256 tokenBalanceBefore = IERC20(token).balanceOf(accountEth);
 
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
         ops[0] = opData.userOp;
@@ -147,7 +136,7 @@ contract OdosRouterEthSwap is BaseTest {
         vm.prank(bundler);
         superNativePaymaster.handleOps{ value: 20 ether }(ops);
 
-        uint256 tokenBalanceAfter = IERC20(token).balanceOf(account);
+        uint256 tokenBalanceAfter = IERC20(token).balanceOf(accountEth);
         assertGt(tokenBalanceAfter, tokenBalanceBefore);
     }
 }

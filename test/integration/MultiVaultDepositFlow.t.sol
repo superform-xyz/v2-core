@@ -24,7 +24,7 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
     address public yieldSource7540AddressUSDC;
 
     function setUp() public override {
-        blockNumber = 21_929_476;
+        blockNumber = ETH_BLOCK;
 
         super.setUp();
 
@@ -68,7 +68,8 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
             amountPerVault,
             0,
             true,
-            false
+            address(0),
+            0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =

@@ -54,11 +54,19 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         postExecuteCalled = true;
     }
 
-    function lockForSP() external pure override returns (bool) {
+    function lockForSP() external pure returns (bool) {
         return false;
     }
 
     function spToken() external pure override returns (address) {
         return address(0);
+    }
+
+    function vaultBank() external pure override returns (address) {
+        return address(0);
+    }
+
+    function dstChainId() external pure override returns (uint256) {
+        return 0;
     }
 }

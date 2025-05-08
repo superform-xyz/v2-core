@@ -268,18 +268,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             (innerExecutorPayload, accountToUse) = _createTargetExecutorMessage(messageData);
         }
 
-        // Create the Debridge External Call Envelope V1 using the helper
-        // The executor for the *Debridge envelope* is the SuperTargetExecutor on ETH.
-        // The payload for the *Debridge envelope* is the message we prepared above.
-        bytes memory debridgeExternalCall = _createDebridgeExternalCallEnvelope(
-            address(debridgeAdapterOnETH), // Executor for the *envelope's payload*
-            0, // executionFee
-            accountETH, // fallbackAddress (send funds here if superTargetExecutor fails)
-            innerExecutorPayload, // payload for the superTargetExecutor
-            false, // allowDelayedExecution
-            true // requireSuccessfulExecution
-        );
-
         // BASE IS SRC
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
 
@@ -300,6 +288,13 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 value: msgValue, //value
                 giveTokenAddress: underlyingBase_USDC, //giveTokenAddress
                 giveAmount: amountPerVault, //giveAmount
+                version: 1, //envelope.version
+                fallbackAddress: accountETH, //envelope.fallbackAddress
+                executorAddress: address(debridgeAdapterOnETH), //envelope.executorAddress
+                executionFee: uint160(0), //envelope.executionFee
+                allowDelayedExecution: false, //envelope.allowDelayedExecution
+                requireSuccessfulExecution: true, //envelope.requireSuccessfulExecution
+                payload: innerExecutorPayload, //envelope.payload
                 takeTokenAddress: underlyingETH_USDC, //takeTokenAddress
                 takeAmount: amountPerVault - amountPerVault * 1e4 / 1e5, //takeAmount
                 takeChainId: ETH, //takeChainId
@@ -308,7 +303,6 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 givePatchAuthoritySrc: address(0), //givePatchAuthoritySrc
                 orderAuthorityAddressDst: abi.encodePacked(accountETH), //orderAuthorityAddressDst
                 allowedTakerDst: "", //allowedTakerDst
-                externalCall: debridgeExternalCall, // Use the created envelope
                 allowedCancelBeneficiarySrc: "", //allowedCancelBeneficiarySrc
                 affiliateFee: "", //affiliateFee
                 referralCode: 0 //referralCode
@@ -806,7 +800,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
                 yieldSource4626AddressOP_USDCe,
                 amountPerVault,
                 true,
-                false
+                address(0),
+                0
             );
 
             messageData = TargetExecutorMessage({
@@ -885,7 +880,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             accountOP,
             userBalanceSharesBefore,
             false,
-            false
+            address(0),
+            0
         );
         opHooksData[1] = _createApproveHookData(underlyingOP_USDCe, SPOKE_POOL_V3_ADDRESSES[OP], amountPerVault, true);
 
@@ -1039,7 +1035,7 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, maxDeposit, false, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, maxDeposit, false, address(0), 0
         );
 
         UserOpData memory depositOpData = _createUserOpData(hooksAddresses, hooksData, ETH, false);
@@ -1095,7 +1091,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             yieldSource7540AddressETH_USDC,
             userExpectedAssets,
             false,
-            false
+            address(0),
+            0
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -1151,7 +1148,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             yieldSource7540AddressETH_USDC,
             userExpectedAssets,
             false,
-            false
+            address(0),
+            0
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -1208,7 +1206,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             yieldSource7540AddressETH_USDC,
             userExpectedAssets,
             false,
-            false
+            address(0),
+            0
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -1252,7 +1251,8 @@ contract BridgeToMultiVaultDepositAndRedeemFlow is BaseTest {
             accountOP,
             userBalanceSharesBefore,
             false,
-            false
+            address(0),
+            0
         );
 
         UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP, false);
