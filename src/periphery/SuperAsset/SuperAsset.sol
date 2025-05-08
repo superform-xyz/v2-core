@@ -280,7 +280,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _burn(msg.sender, amountSharesToRedeem);  // Use a proper burning mechanism
 
         // Transfer swap fees to Asset Bank
-        IERC20(tokenOut).safeTransferFrom(address(this), assetBank, swapFee);
+        IERC20(tokenOut).safeTransfer(assetBank, swapFee);
 
         // Transfer assets to receiver
         // For now, assuming shares are held in this contract, maybe they will have to be held in another contract balance sheet
