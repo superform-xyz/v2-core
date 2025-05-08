@@ -91,7 +91,8 @@ log() {
 
 # Environment detection
 is_local_run() {
-    command -v op >/dev/null 2>&1
+    # Check if branch name is 'local'
+    [ "${BRANCH_NAME:-}" = "local" ]
     return $?
 }
 
@@ -130,7 +131,26 @@ TENDERLY_ACCOUNT="superform"
 TENDERLY_PROJECT="v2"
 
 # Script Arguments
+# Store branch name as a global variable for is_local_run checks
 BRANCH_NAME=$1
+
+# Detect if this is a development or main branch
+IS_MAIN_OR_DEV=false
+if [ "$BRANCH_NAME" = "dev" ] || [ "$BRANCH_NAME" = "main" ]; then
+    IS_MAIN_OR_DEV=true
+fi
+
+# Override BRANCH_NAME to "local" for all non-dev/main branches
+if [ "$IS_MAIN_OR_DEV" = "false" ]; then
+    log "INFO" "Non-dev/main branch detected: $BRANCH_NAME. Treating as local deployment."
+    BRANCH_NAME="local"
+    GITHUB_REF_NAME="local"
+
+    S3_BUCKET_NAME="vnet-state"
+fi
+
+# Log branch name for debugging
+log "INFO" "Running with branch name: $BRANCH_NAME"
 
 # Set environment for forge scripts
 FORGE_ENV=1  # Default to environment 1 for both local and CI
@@ -178,15 +198,15 @@ if [ -z "${TENDERLY_ACCESS_KEY:-}" ]; then
 fi
 
 # Validate CI-specific environment variables
-if ! is_local_run; then
+if ! is_local_run && [ "$IS_MAIN_OR_DEV" = "true" ]; then
     if [ -z "${GITHUB_REF_NAME:-}" ]; then
         log "ERROR" "GITHUB_REF_NAME environment variable is required for CI mode"
         exit 1
     fi
 fi
 
-# CI-specific directory configuration
-if ! is_local_run; then
+# Directory configuration based on branch type
+if ! is_local_run && [ "$IS_MAIN_OR_DEV" = "true" ]; then
     # Handle feature branches differently
     if [[ "$GITHUB_REF_NAME" == feat/* ]]; then
         # Extract feature name without feat/ prefix
@@ -204,7 +224,7 @@ if ! is_local_run; then
         mkdir -p "$BRANCH_DIR/$network"
     done
 else
-    # For local runs
+    # For local runs and non-dev/main branches
     BRANCH_DIR="$OUTPUT_BASE_DIR/local"
     # Create local output directories
     for network in 1 8453 10; do
@@ -242,8 +262,12 @@ read_branch_latest() {
 get_salt() {
     local network_slug=$1
     
-    if is_local_run; then
-        echo "1"
+    # Use randomized salt if local run OR we're treating as local (non-dev/main branch)
+    if is_local_run || [ "$IS_MAIN_OR_DEV" = "false" ]; then
+        # Generate a randomized salt using timestamp and random number
+        local timestamp=$(date +%s)
+        local random=$(od -An -N4 -i /dev/urandom | tr -d ' ')
+        echo "$((timestamp + random))"
         return 0
     fi
     
@@ -291,14 +315,11 @@ check_vnets() {
     local network_slug=$1
     local network_id=$2
     
-    if is_local_run; then
-        # For local runs, always create new VNET
-        slug=$(generate_slug "$network_slug")
-        response=$(create_virtual_testnet "$slug" "$network_id" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
-        echo "$response"
-        return 0
-    fi
+
+    # For local runs, check if a VNET exists first before creating a new one
+    # We'll use the same logic as for dev/main branches
     
+    # Check if we can reuse an existing VNET
     log "INFO" "Checking for existing VNET for network: $network_slug"
 
     # Read from branch latest file
@@ -630,55 +651,67 @@ set_initial_balance "$ETH_MAINNET"
 set_initial_balance "$BASE_MAINNET"
 set_initial_balance "$OPTIMISM_MAINNET"
 
-# Deploy on Ethereum Mainnet
-log "INFO" "Deploying on Ethereum Mainnet..."
-if ! forge script script/DeployV2.s.sol:DeployV2 \
-    --sig 'run(uint256,uint64,string)' $FORGE_ENV $ETH_CHAIN_ID "$ETH_SALT" \
-    --verify \
-    --verifier-url $ETH_MAINNET_VERIFIER_URL \
-    --rpc-url $ETH_MAINNET \
-    --etherscan-api-key $TENDERLY_ACCESS_KEY \
-    --broadcast \
-    -vvv \
-    --slow; then
-    log "ERROR" "Failed to deploy V2 on Ethereum"
+# Function to handle deployment failures without updating S3 files
+deploy_error_handler() {
+    local network=$1
+    log "ERROR" "Failed to deploy V2 on $network"
+    log "WARN" "Preserving existing S3 file data"
     exit 1
-fi
-wait
+}
 
-# Deploy on Base Mainnet
-log "INFO" "Deploying on Base Mainnet..."
+# Set trap to ensure S3 files are preserved on any unexpected error
+trap 'log "ERROR" "Unexpected error occurred, preserving S3 file"; exit 1' ERR
 
-if ! forge script script/DeployV2.s.sol:DeployV2 \
-    --sig 'run(uint256,uint64,string)' $FORGE_ENV $BASE_CHAIN_ID "$BASE_SALT" \
-    --verify \
-    --verifier-url $BASE_MAINNET_VERIFIER_URL \
-    --rpc-url $BASE_MAINNET \
-    --etherscan-api-key $TENDERLY_ACCESS_KEY \
-    --broadcast \
-    -vvv \
-    --slow; then
-    log "ERROR" "Failed to deploy V2 on Base"
-    exit 1
-fi
-wait
-
-# Deploy on Optimism Mainnet
-log "INFO" "Deploying on Optimism Mainnet..."
-
-if ! forge script script/DeployV2.s.sol:DeployV2 \
-    --sig 'run(uint256,uint64,string)' $FORGE_ENV $OPTIMISM_CHAIN_ID "$OPTIMISM_SALT" \
-    --verify \
-    --verifier-url $OPTIMISM_MAINNET_VERIFIER_URL \
-    --rpc-url $OPTIMISM_MAINNET \
-    --etherscan-api-key $TENDERLY_ACCESS_KEY \
-    --broadcast \
-    -vvv \
-    --slow; then
-    log "ERROR" "Failed to deploy V2 on Optimism"
-    exit 1
-fi
-wait
+# Deploy all networks
+deploy_contracts() {
+    # Deploy on Ethereum Mainnet
+    log "INFO" "Deploying on Ethereum Mainnet..."
+    if ! forge script script/DeployV2.s.sol:DeployV2 \
+        --sig 'run(uint256,uint64,string)' $FORGE_ENV $ETH_CHAIN_ID "$ETH_SALT" \
+        --verify \
+        --verifier-url $ETH_MAINNET_VERIFIER_URL \
+        --rpc-url $ETH_MAINNET \
+        --etherscan-api-key $TENDERLY_ACCESS_KEY \
+        --broadcast \
+        -vvv \
+        --slow; then
+        deploy_error_handler "Ethereum"
+    fi
+    wait
+    
+    # Deploy on Base Mainnet
+    log "INFO" "Deploying on Base Mainnet..."
+    if ! forge script script/DeployV2.s.sol:DeployV2 \
+        --sig 'run(uint256,uint64,string)' $FORGE_ENV $BASE_CHAIN_ID "$BASE_SALT" \
+        --verify \
+        --verifier-url $BASE_MAINNET_VERIFIER_URL \
+        --rpc-url $BASE_MAINNET \
+        --etherscan-api-key $TENDERLY_ACCESS_KEY \
+        --broadcast \
+        -vvv \
+        --slow; then
+        deploy_error_handler "Base"
+    fi
+    wait
+    
+    # Deploy on Optimism Mainnet
+    log "INFO" "Deploying on Optimism Mainnet..."
+    if ! forge script script/DeployV2.s.sol:DeployV2 \
+        --sig 'run(uint256,uint64,string)' $FORGE_ENV $OPTIMISM_CHAIN_ID "$OPTIMISM_SALT" \
+        --verify \
+        --verifier-url $OPTIMISM_MAINNET_VERIFIER_URL \
+        --rpc-url $OPTIMISM_MAINNET \
+        --etherscan-api-key $TENDERLY_ACCESS_KEY \
+        --broadcast \
+        -vvv \
+        --slow; then
+        deploy_error_handler "Optimism"
+    fi
+    wait
+    
+    # If we reach here, all deployments were successful
+    return 0
+}
 
 
 
@@ -872,7 +905,12 @@ update_latest_file() {
     fi
 }
 
-# After all deployments are done, update the latest file
+# Run all deployments and update the latest file only if successful
+# Run the deployment process
+deploy_contracts
+
+# If we get here, all deployments were successful
+# Update the latest file with the new contract addresses
 if is_local_run; then
     update_latest_file true
 else
