@@ -11,6 +11,9 @@ import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 import "../interfaces/SuperAsset/IAssetBank.sol";
 import "../interfaces/SuperAsset/ISuperAsset.sol";
 import "../interfaces/ISuperOracle.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+
+
 
 import "forge-std/console.sol";
 
@@ -220,6 +223,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 amountTokenToDeposit,
         uint256 minSharesOut            // Slippage Protection
     ) public returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) {
+        PreviewErrors memory errors;
         console.log("deposit() Starts");
         // First all the non state changing functions 
         if (amountTokenToDeposit == 0) revert ZERO_AMOUNT();
@@ -228,6 +232,14 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         console.log("deposit() T2");
         if (receiver == address(0)) revert ZERO_ADDRESS();
         console.log("deposit() T3");
+
+        // Circuit Breakers preventing deposit
+        uint256 underlyingSuperVaultAssetPriceUSD;
+        (underlyingSuperVaultAssetPriceUSD, errors.isDepeg, errors.isDispersion, errors.isOracleOff) = getPriceWithCircuitBreakers(IERC4626(tokenIn).asset());
+        if (underlyingSuperVaultAssetPriceUSD == 0) revert UNDERLYING_SV_ASSET_PRICE_ZERO();
+        if (errors.isDepeg) revert UNDERLYING_SV_ASSET_PRICE_DEPEG();
+        if (errors.isDispersion) revert UNDERLYING_SV_ASSET_PRICE_DISPERSION();
+        if (errors.isOracleOff) revert UNDERLYING_SV_ASSET_PRICE_ORACLE_OFF();
 
         // Calculate and settle incentives
         (amountSharesMinted, swapFee, amountIncentiveUSDDeposit) = previewDeposit(tokenIn, amountTokenToDeposit);
@@ -390,6 +402,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     view
     returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD)
     {
+        // Question: make it a return value
+        // PreviewErrors memory errors;
         console.log("previewDeposit() Start");
         if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
 
@@ -510,15 +524,14 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             // Circuit Breaker for Depeg - price deviates more than ±2% from expected
             if (priceUSD < DEPEG_LOWER_THRESHOLD || priceUSD > DEPEG_UPPER_THRESHOLD) {
                 isDepeg = true;
-            } else {
-                // Calculate relative standard deviation
-                uint256 relativeStdDev = Math.mulDiv(stddev, PRECISION, priceUSD);
+            } 
+            // Calculate relative standard deviation
+            uint256 relativeStdDev = Math.mulDiv(stddev, PRECISION, priceUSD);
 
-                // Circuit Breaker for Dispersion
-                if (relativeStdDev > DISPERSION_THRESHOLD) {
-                    isDispersion = true;
+            // Circuit Breaker for Dispersion
+            if (relativeStdDev > DISPERSION_THRESHOLD) {
+                isDispersion = true;
                 }
-            }
         }
         return (priceUSD, isDepeg, isDispersion, isOracleOff);
     }
