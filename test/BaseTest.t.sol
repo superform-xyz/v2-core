@@ -1686,7 +1686,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         NOT_ENOUGH_BALANCE,
         ENOUGH_BALANCE,
         NO_HOOKS,
-        LOW_LEVEL_FAILED
+        LOW_LEVEL_FAILED,
+        FAILED
     }
 
     function _processAcrossV3Message(
@@ -1711,6 +1712,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         } else if (relayerType == RELAYER_TYPE.LOW_LEVEL_FAILED) {
             vm.expectEmit(true, false, false, false);
             emit ISuperDestinationExecutor.SuperDestinationExecutorFailedLowLevel(account, "");
+        } else if (relayerType == RELAYER_TYPE.FAILED) {
+            vm.expectEmit(true, false, false, false);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorFailed(account, "");
         }
         AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
             SPOKE_POOL_V3_ADDRESSES[srcChainId],
