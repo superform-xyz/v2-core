@@ -223,10 +223,11 @@ contract SuperAssetTest is Helpers {
     function test_OnlyAdminCanGrantRoles() public {
         address newManager = makeAddr("newManager");
         console.log("test_OnlyAdminCanGrantRoles Start()");
-        
+
+        console.log("User = ", user);
+
         // Non-admin cannot grant roles
         vm.startPrank(user);
-        console.log("User = ", user);
         // NOTE: This test is not passing, but not sure why since according to the logs it should pass
         vm.expectRevert(
             abi.encodeWithSelector(
@@ -237,13 +238,11 @@ contract SuperAssetTest is Helpers {
         );
         superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), newManager);
         vm.stopPrank();
-        console.log("T1");
-
+ 
         // Admin can grant roles
         vm.startPrank(admin);
         superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), newManager);
         vm.stopPrank();
-        console.log("T3");
 
         assertTrue(superAsset.hasRole(superAsset.VAULT_MANAGER_ROLE(), newManager));
     }
