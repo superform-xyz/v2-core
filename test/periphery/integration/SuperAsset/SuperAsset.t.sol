@@ -334,13 +334,18 @@ contract SuperAssetTest is Helpers {
         // Approve tokens
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
-        console.log("T1");
+
+        (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit) = 
+            superAsset.previewDeposit(address(tokenIn), depositAmount);
 
         // Deposit tokens
         (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) = 
             superAsset.deposit(user, address(tokenIn), depositAmount, minSharesOut);
         vm.stopPrank();
-        console.log("T2");
+        assertEq(expAmountSharesMinted, amountSharesMinted);
+        assertEq(expSwapFee, swapFee);
+        assertEq(expAmountIncentiveUSDDeposit, amountIncentiveUSDDeposit);
+
 
         // Verify results
         assertGt(amountSharesMinted, 0, "Should mint shares");
