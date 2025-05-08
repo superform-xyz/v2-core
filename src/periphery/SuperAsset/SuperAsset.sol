@@ -392,18 +392,14 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     {
         console.log("previewDeposit() Start");
         if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
-        console.log("T1");
 
         // Calculate swap fees (example: 0.1% fee)
         swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
         uint256 amountTokenInAfterFees = amountTokenToDeposit - swapFee;
-        console.log("T3");
 
         // Get price of underlying vault shares in USD
         (uint256 priceUSDTokenIn, , , ) = getPriceWithCircuitBreakers(tokenIn);
-        console.log("T5");
         (uint256 priceUSDThisShares, , , ) = getPriceWithCircuitBreakers(address(this));
-        console.log("T6");
 
         if (priceUSDTokenIn == 0 || priceUSDThisShares == 0) revert PRICE_USD_ZERO();
 
