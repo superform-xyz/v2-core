@@ -536,4 +536,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         }
     }
 
+    // /// @inheritdoc IAccessControl
+    // function grantRole(bytes32 role, address account) public override onlyRole(DEFAULT_ADMIN_ROLE) {
+    //     _grantRole(role, account);
+    // }
+
 }
