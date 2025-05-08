@@ -107,8 +107,6 @@ contract ERC7540VaultHookTests is Helpers, RhinestoneModuleKit, InternalHelpers 
         claimCancelRedeemRequestHook = new ClaimCancelRedeemRequest7540Hook();
     }
 
-    function test_7540Flow() public { }
-
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR TESTS
     //////////////////////////////////////////////////////////////*/
