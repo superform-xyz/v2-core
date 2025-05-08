@@ -361,6 +361,64 @@ contract SuperAssetTest is Helpers {
         assertTrue(superAsset.balanceOf(user) > 0, "User should have shares");
     }
 
+    struct BasicDepositWithCircuitBreaker {
+        uint256 depositAmount;
+        uint256 minSharesOut;
+        int256 currentPrice;
+        uint256 priceUSD;
+        bool isDepeg;
+        bool isDispersion;
+        bool isOracleOff;
+    }
+
+    function test_BasicDepositWithCircuitBreaker() public {
+        BasicDepositWithCircuitBreaker memory s;
+        s.depositAmount = 100e18;
+        s.minSharesOut = 99e18; // Allowing for 1% slippage
+        assertEq(superAsset.isSupportedERC20(address(tokenIn)), true, "Token In should be whitelisted");
+        assertEq(superAsset.isSupportedERC20(address(tokenOut)), true, "Token Out should be whitelisted");
+
+        // Approve tokens
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), s.depositAmount);
+
+        // (, s.currentPrice,,,) = mockFeed1.latestRoundData();
+        // mockFeed1.setAnswer(s.currentPrice);
+        (, s.currentPrice,,,) = mockFeed2.latestRoundData();
+        mockFeed2.setAnswer(s.currentPrice*3);
+        (, s.currentPrice,,,) = mockFeed3.latestRoundData();
+        mockFeed3.setAnswer(s.currentPrice*5);
+
+        (s.priceUSD, s.isDepeg, s.isDispersion, s.isOracleOff) = 
+        superAsset.getPriceWithCircuitBreakers(address(tokenIn));
+        // assertEq(s.priceUSD, uint256(s.currentPrice));
+        console.log("s.isDepeg = ", s.isDepeg);
+        console.log("s.isDispersion = ", s.isDispersion);
+        console.log("s.isOracleOff = ", s.isOracleOff);
+        assertEq(s.isDepeg, true);
+        assertEq(s.isDispersion, true);
+        assertEq(s.isOracleOff, false);
+
+
+        // (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit) = 
+        //     superAsset.previewDeposit(address(tokenIn), s.depositAmount);
+
+        // // Deposit tokens
+        // (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) = 
+        //     superAsset.deposit(user, address(tokenIn), s.depositAmount, s.minSharesOut);
+        // vm.stopPrank();
+        // assertEq(expAmountSharesMinted, amountSharesMinted);
+        // assertEq(expSwapFee, swapFee);
+        // assertEq(expAmountIncentiveUSDDeposit, amountIncentiveUSDDeposit);
+
+
+        // // Verify results
+        // assertGt(amountSharesMinted, 0, "Should mint shares");
+        // assertEq(swapFee, (s.depositAmount * superAsset.swapFeeInPercentage()) / superAsset.SWAP_FEE_PERC(), "Incorrect swap fee");
+        // assertTrue(superAsset.balanceOf(user) > 0, "User should have shares");
+    }
+
+
     function test_DepositWithZeroAmount() public {
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.ZERO_AMOUNT.selector);
