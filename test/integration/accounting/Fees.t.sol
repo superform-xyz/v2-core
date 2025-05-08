@@ -96,9 +96,7 @@ contract FeesTest is MinimalBaseIntegrationTest {
             yieldSourceAddress,
             accountEth,
             sharesToWithdraw,
-            false,
-            address(0),
-            0
+            false
         );
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
             ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
@@ -157,9 +155,7 @@ contract FeesTest is MinimalBaseIntegrationTest {
             yieldSourceAddress,
             accountEth,
             sharesToWithdraw,
-            false,
-            address(0),
-            0
+            false
         );
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
             ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
@@ -216,9 +212,7 @@ contract FeesTest is MinimalBaseIntegrationTest {
             yieldSourceAddress,
             accountEth,
             sharesToWithdraw,
-            false,
-            address(0),
-            0
+            false
         );
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
             ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));

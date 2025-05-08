@@ -91,7 +91,8 @@ log() {
 
 # Environment detection
 is_local_run() {
-    command -v op >/dev/null 2>&1
+    # Check if branch name is 'local'
+    [ "${BRANCH_NAME:-}" = "local" ]
     return $?
 }
 
@@ -130,7 +131,26 @@ TENDERLY_ACCOUNT="superform"
 TENDERLY_PROJECT="v2"
 
 # Script Arguments
+# Store branch name as a global variable for is_local_run checks
 BRANCH_NAME=$1
+
+# Detect if this is a development or main branch
+IS_MAIN_OR_DEV=false
+if [ "$BRANCH_NAME" = "dev" ] || [ "$BRANCH_NAME" = "main" ]; then
+    IS_MAIN_OR_DEV=true
+fi
+
+# Override BRANCH_NAME to "local" for all non-dev/main branches
+if [ "$IS_MAIN_OR_DEV" = "false" ]; then
+    log "INFO" "Non-dev/main branch detected: $BRANCH_NAME. Treating as local deployment."
+    BRANCH_NAME="local"
+    GITHUB_REF_NAME="local"
+
+    S3_BUCKET_NAME="vnet-state"
+fi
+
+# Log branch name for debugging
+log "INFO" "Running with branch name: $BRANCH_NAME"
 
 # Set environment for forge scripts
 FORGE_ENV=1  # Default to environment 1 for both local and CI
@@ -150,13 +170,14 @@ OUTPUT_BASE_DIR="script/output"
 # Authentication Setup
 ###################################################################################
 
-if is_local_run; then
-    log "INFO" "Running in local environment"
-    # For local runs, get TENDERLY_ACCESS_KEY from 1Password
+# Check if we're in a local run and if the op command is available
+if is_local_run && command -v op >/dev/null 2>&1; then
+    log "INFO" "Running in local environment with 1Password CLI available"
+    # For local runs with op available, get TENDERLY_ACCESS_KEY from 1Password
     TENDERLY_ACCESS_KEY=$(op read "op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY/credential")
 else
-    log "INFO" "Running in CI environment"
-    # Only source .env if any required variable is missing
+    
+    # Source .env if any required variable is missing
     if [ -z "${GITHUB_REF_NAME:-}" ] || [ -z "${TENDERLY_ACCESS_KEY:-}" ]; then
         if [ ! -f .env ]; then
             log "ERROR" ".env file is required when environment variables are missing"
@@ -178,15 +199,15 @@ if [ -z "${TENDERLY_ACCESS_KEY:-}" ]; then
 fi
 
 # Validate CI-specific environment variables
-if ! is_local_run; then
+if ! is_local_run && [ "$IS_MAIN_OR_DEV" = "true" ]; then
     if [ -z "${GITHUB_REF_NAME:-}" ]; then
         log "ERROR" "GITHUB_REF_NAME environment variable is required for CI mode"
         exit 1
     fi
 fi
 
-# CI-specific directory configuration
-if ! is_local_run; then
+# Directory configuration based on branch type
+if ! is_local_run && [ "$IS_MAIN_OR_DEV" = "true" ]; then
     # Handle feature branches differently
     if [[ "$GITHUB_REF_NAME" == feat/* ]]; then
         # Extract feature name without feat/ prefix
@@ -204,7 +225,7 @@ if ! is_local_run; then
         mkdir -p "$BRANCH_DIR/$network"
     done
 else
-    # For local runs
+    # For local runs and non-dev/main branches
     BRANCH_DIR="$OUTPUT_BASE_DIR/local"
     # Create local output directories
     for network in 1 8453 10; do
@@ -242,8 +263,20 @@ read_branch_latest() {
 get_salt() {
     local network_slug=$1
     
-    if is_local_run; then
-        echo "1"
+    # Use randomized salt if local run OR we're treating as local (non-dev/main branch)
+    if is_local_run || [ "$IS_MAIN_OR_DEV" = "false" ]; then
+        # Generate a randomized salt using timestamp and random number
+        local timestamp=$(date +%s)
+        # Generate a positive random number
+        local random=$(od -An -N4 -tu /dev/urandom | tr -d ' ')
+        
+        # Ensure the resulting salt is positive
+        local salt=$((timestamp + random % 1000000))
+        if [ "$salt" -le 0 ]; then
+            # Fallback to a simple positive number if calculation goes wrong
+            salt="$((timestamp % 1000000 + 1))"
+        fi
+        echo "$salt"
         return 0
     fi
     
@@ -286,22 +319,58 @@ generate_slug() {
     echo "$output"
 }
 
+# Function to check if a VNET with a specific slug exists in Tenderly
+check_existing_vnet_by_slug() {
+    local slug=$1
+    local account=$2
+    local project=$3
+    local access_key=$4
+    
+    log "INFO" "Checking if a VNET with slug '$slug' already exists in Tenderly"
+    
+    # Get list of all VNETs from Tenderly
+    local vnet_list=$(curl -s -X GET \
+        "${API_BASE_URL}/account/${account}/project/${project}/vnets" \
+        -H "X-Access-Key: ${access_key}")
+    
+    # Check if response is valid JSON
+    if ! echo "$vnet_list" | jq '.' >/dev/null 2>&1; then
+        log "ERROR" "Invalid JSON response when listing VNETs: $vnet_list"
+        return 1
+    fi
+    
+    # Check if the VNET with this slug exists
+    local existing_vnet_id=$(echo "$vnet_list" | jq -r --arg slug "$slug" '.[] | select(.slug==$slug) | .id // empty')
+    
+    if [ -n "$existing_vnet_id" ]; then
+        log "INFO" "Found existing VNET with slug '$slug', ID: $existing_vnet_id"
+        
+        # Get details of the VNET to extract RPC URL
+        local vnet_details=$(curl -s -X GET \
+            "${API_BASE_URL}/account/${account}/project/${project}/vnets/${existing_vnet_id}" \
+            -H "X-Access-Key: ${access_key}")
+        
+        local admin_rpc=$(echo "$vnet_details" | jq -r '.rpcs[] | select(.name=="Admin RPC") | .url')
+        
+        if [ -n "$admin_rpc" ]; then
+            echo "${admin_rpc}|${existing_vnet_id}"
+            return 0
+        fi
+    fi
+    
+    # No existing VNET found or couldn't extract details
+    return 1
+}
+
 # Check for existing VNET in branch latest file and create if not found
 check_vnets() {
     local network_slug=$1
     local network_id=$2
     
-    if is_local_run; then
-        # For local runs, always create new VNET
-        slug=$(generate_slug "$network_slug")
-        response=$(create_virtual_testnet "$slug" "$network_id" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
-        echo "$response"
-        return 0
-    fi
-    
+    # Check if we can reuse an existing VNET
     log "INFO" "Checking for existing VNET for network: $network_slug"
 
-    # Read from branch latest file
+    # Step 1: Check in S3/branch latest file
     content=$(read_branch_latest)
     log "DEBUG: Content received from read_branch_latest: $content"
 
@@ -309,7 +378,7 @@ check_vnets() {
     log "DEBUG" "VNET ID from latest file: $vnet_id"
     
     if [ -n "$vnet_id" ]; then
-        log "INFO" "Found existing VNET ID: $vnet_id"
+        log "INFO" "Found existing VNET ID in S3: $vnet_id"
         # Check if VNET still exists in Tenderly
         local tenderly_response=$(curl -s -X GET \
             "${API_BASE_URL}/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/vnets/${vnet_id}" \
@@ -318,6 +387,7 @@ check_vnets() {
         if [ "$(echo "$tenderly_response" | jq -r '.id')" == "$vnet_id" ]; then
             local admin_rpc=$(echo "$tenderly_response" | jq -r '.rpcs[] | select(.name=="Admin RPC") | .url')
             if [ -n "$admin_rpc" ]; then
+                log "INFO" "Reusing VNET from S3 state"
                 echo "${admin_rpc}|${vnet_id}"
                 return 0
             fi
@@ -325,9 +395,19 @@ check_vnets() {
         log "INFO" "VNET ID exists in branch file but not in Tenderly"
     fi
     
-    # No valid existing VNET found, create new one
-    log "INFO" "Creating new VNET for $network_slug"
+    # Step 2: Check if there's already a VNET with this slug in Tenderly (not in our state)
     slug=$(generate_slug "$network_slug")
+    log "INFO" "Checking if VNET with slug '$slug' already exists in Tenderly"
+    
+    existing_vnet=$(check_existing_vnet_by_slug "$slug" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
+    if [ $? -eq 0 ]; then
+        log "INFO" "Found and reusing existing VNET from Tenderly with slug: $slug"
+        echo "$existing_vnet"
+        return 0
+    fi
+
+    # Step 3: If no existing VNET found, create a new one
+    log "INFO" "No existing VNET found. Creating new VNET for $network_slug with slug: $slug"
     response=$(create_virtual_testnet "$slug" "$network_id" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
     echo "$response"
     return 0
@@ -462,21 +542,12 @@ save_vnet_info() {
     content="{\"networks\":{},\"updated_at\":null}"
     local latest_file
     
-    if [ "$is_local" = true ]; then
-        latest_file="$OUTPUT_BASE_DIR/latest.json"
-        if [ -f "$latest_file" ]; then
-            content=$(cat "$latest_file")
-            if ! echo "$content" | jq '.' >/dev/null 2>&1; then
-                content="{\"networks\":{},\"updated_at\":null}"
-            fi
-        fi
-    else
-        latest_file_path="/tmp/latest.json"
-        if aws s3 cp "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" "$latest_file_path" --quiet 2>/dev/null; then
-            content=$(cat "$latest_file_path")
-            if ! echo "$content" | jq '.' >/dev/null 2>&1; then
-                content="{\"networks\":{},\"updated_at\":null}"
-            fi
+    # Always use S3 for file operations
+    latest_file_path="/tmp/latest.json"
+    if aws s3 cp "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" "$latest_file_path" --quiet 2>/dev/null; then
+        content=$(cat "$latest_file_path")
+        if ! echo "$content" | jq '.' >/dev/null 2>&1; then
+            content="{\"networks\":{},\"updated_at\":null}"
         fi
     fi
     
@@ -503,16 +574,12 @@ save_vnet_info() {
     # Update timestamp
     content=$(echo "$content" | jq --arg time "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" '.updated_at = $time')
     
-    if [ "$is_local" = true ]; then
-        echo "$content" | jq '.' > "$latest_file"
-        log "INFO" "VNET information saved locally"
+    # Always use S3 for file operations, even for local runs
+    echo "$content" | jq '.' > "/tmp/latest.json"
+    if aws s3 cp "/tmp/latest.json" "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" --quiet; then
+        log "INFO" "VNET information successfully uploaded to S3"
     else
-        echo "$content" | jq '.' > "/tmp/latest.json"
-        if aws s3 cp "/tmp/latest.json" "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" --quiet; then
-            log "INFO" "VNET information successfully uploaded to S3"
-        else
-            log "WARN" "Failed to upload VNET information to S3"
-        fi
+        log "WARN" "Failed to upload VNET information to S3"
     fi
 }
 
@@ -568,12 +635,31 @@ done
 # Second phase: Generate salts for each network
 network_slug=$(get_network_slug "1")
 ETH_SALT=$(get_salt "$network_slug")
+log "INFO" "Generated ETH_SALT: $ETH_SALT"
 
 network_slug=$(get_network_slug "8453")
 BASE_SALT=$(get_salt "$network_slug")
+log "INFO" "Generated BASE_SALT: $BASE_SALT"
 
 network_slug=$(get_network_slug "10")
 OPTIMISM_SALT=$(get_salt "$network_slug")
+log "INFO" "Generated OPTIMISM_SALT: $OPTIMISM_SALT"
+
+# Validate salts to ensure they're positive integers
+if ! [[ "$ETH_SALT" =~ ^[0-9]+$ ]] || [ "$ETH_SALT" -le 0 ]; then
+    log "WARN" "Invalid ETH_SALT: $ETH_SALT. Using fallback value."
+    ETH_SALT=1
+fi
+
+if ! [[ "$BASE_SALT" =~ ^[0-9]+$ ]] || [ "$BASE_SALT" -le 0 ]; then
+    log "WARN" "Invalid BASE_SALT: $BASE_SALT. Using fallback value."
+    BASE_SALT=1
+fi
+
+if ! [[ "$OPTIMISM_SALT" =~ ^[0-9]+$ ]] || [ "$OPTIMISM_SALT" -le 0 ]; then
+    log "WARN" "Invalid OPTIMISM_SALT: $OPTIMISM_SALT. Using fallback value."
+    OPTIMISM_SALT=1
+fi
 
 # Third phase: Store network-specific variables
 i=0
@@ -630,61 +716,72 @@ set_initial_balance "$ETH_MAINNET"
 set_initial_balance "$BASE_MAINNET"
 set_initial_balance "$OPTIMISM_MAINNET"
 
-# Deploy on Ethereum Mainnet
-log "INFO" "Deploying on Ethereum Mainnet..."
-if ! forge script script/DeployV2.s.sol:DeployV2 \
-    --sig 'run(uint256,uint64,string)' $FORGE_ENV $ETH_CHAIN_ID "$ETH_SALT" \
-    --verify \
-    --verifier-url $ETH_MAINNET_VERIFIER_URL \
-    --rpc-url $ETH_MAINNET \
-    --etherscan-api-key $TENDERLY_ACCESS_KEY \
-    --broadcast \
-    -vvv \
-    --slow; then
-    log "ERROR" "Failed to deploy V2 on Ethereum"
+# Function to handle deployment failures without updating S3 files
+deploy_error_handler() {
+    local network=$1
+    log "ERROR" "Failed to deploy V2 on $network"
+    log "WARN" "Preserving existing S3 file data"
     exit 1
-fi
-wait
+}
 
-# Deploy on Base Mainnet
-log "INFO" "Deploying on Base Mainnet..."
+# Set trap to ensure S3 files are preserved on any unexpected error
+trap 'log "ERROR" "Unexpected error occurred, preserving S3 file"; exit 1' ERR
 
-if ! forge script script/DeployV2.s.sol:DeployV2 \
-    --sig 'run(uint256,uint64,string)' $FORGE_ENV $BASE_CHAIN_ID "$BASE_SALT" \
-    --verify \
-    --verifier-url $BASE_MAINNET_VERIFIER_URL \
-    --rpc-url $BASE_MAINNET \
-    --etherscan-api-key $TENDERLY_ACCESS_KEY \
-    --broadcast \
-    -vvv \
-    --slow; then
-    log "ERROR" "Failed to deploy V2 on Base"
-    exit 1
-fi
-wait
-
-# Deploy on Optimism Mainnet
-log "INFO" "Deploying on Optimism Mainnet..."
-
-if ! forge script script/DeployV2.s.sol:DeployV2 \
-    --sig 'run(uint256,uint64,string)' $FORGE_ENV $OPTIMISM_CHAIN_ID "$OPTIMISM_SALT" \
-    --verify \
-    --verifier-url $OPTIMISM_MAINNET_VERIFIER_URL \
-    --rpc-url $OPTIMISM_MAINNET \
-    --etherscan-api-key $TENDERLY_ACCESS_KEY \
-    --broadcast \
-    -vvv \
-    --slow; then
-    log "ERROR" "Failed to deploy V2 on Optimism"
-    exit 1
-fi
-wait
+# Deploy all networks
+deploy_contracts() {
+    # Deploy on Ethereum Mainnet
+    log "INFO" "Deploying on Ethereum Mainnet..."
+    if ! forge script script/DeployV2.s.sol:DeployV2 \
+        --sig 'run(uint256,uint64,string)' $FORGE_ENV $ETH_CHAIN_ID "$ETH_SALT" \
+        --verify \
+        --verifier-url $ETH_MAINNET_VERIFIER_URL \
+        --rpc-url $ETH_MAINNET \
+        --etherscan-api-key $TENDERLY_ACCESS_KEY \
+        --broadcast \
+        -vvv \
+        --slow; then
+        deploy_error_handler "Ethereum"
+    fi
+    wait
+    
+    # Deploy on Base Mainnet
+    log "INFO" "Deploying on Base Mainnet..."
+    if ! forge script script/DeployV2.s.sol:DeployV2 \
+        --sig 'run(uint256,uint64,string)' $FORGE_ENV $BASE_CHAIN_ID "$BASE_SALT" \
+        --verify \
+        --verifier-url $BASE_MAINNET_VERIFIER_URL \
+        --rpc-url $BASE_MAINNET \
+        --etherscan-api-key $TENDERLY_ACCESS_KEY \
+        --broadcast \
+        -vvv \
+        --slow; then
+        deploy_error_handler "Base"
+    fi
+    wait
+    
+    # Deploy on Optimism Mainnet
+    log "INFO" "Deploying on Optimism Mainnet..."
+    if ! forge script script/DeployV2.s.sol:DeployV2 \
+        --sig 'run(uint256,uint64,string)' $FORGE_ENV $OPTIMISM_CHAIN_ID "$OPTIMISM_SALT" \
+        --verify \
+        --verifier-url $OPTIMISM_MAINNET_VERIFIER_URL \
+        --rpc-url $OPTIMISM_MAINNET \
+        --etherscan-api-key $TENDERLY_ACCESS_KEY \
+        --broadcast \
+        -vvv \
+        --slow; then
+        deploy_error_handler "Optimism"
+    fi
+    wait
+    
+    # If we reach here, all deployments were successful
+    return 0
+}
 
 
 
 # Update the branch latest file section to use validation
 update_latest_file() {
-    local is_local=$1
     log "INFO" "All deployments successful. Updating latest file..."
     
     # Initialize content with default structure
@@ -692,38 +789,24 @@ update_latest_file() {
     local latest_file
     local initial_sha=""
     
-    if [ "$is_local" = true ]; then
-        latest_file="$OUTPUT_BASE_DIR/latest.json"
-        # Create the file if it doesn't exist
-        if [ ! -f "$latest_file" ]; then
-            echo "$content" > "$latest_file"
-        else
-            content=$(cat "$latest_file")
-            # Validate the content from file
-            if ! echo "$content" | jq '.' >/dev/null 2>&1; then
-                log "WARN" "Invalid JSON in latest file, resetting to default"
-                content="{\"networks\":{},\"updated_at\":null}"
-            fi
-        fi
-    else
-        latest_file_path="/tmp/latest.json"
+    # Always use S3 for file operations
+    latest_file_path="/tmp/latest.json"
 
-        # Download latest.json from S3
-        if aws s3 cp "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" "$latest_file_path" --quiet; then
-            log "INFO" "Successfully downloaded latest.json from S3"
+    # Download latest.json from S3
+    if aws s3 cp "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" "$latest_file_path" --quiet; then
+        log "INFO" "Successfully downloaded latest.json from S3"
 
-            # Read the file and validate JSON
-            content=$(cat "$latest_file_path")
+        # Read the file and validate JSON
+        content=$(cat "$latest_file_path")
 
-            # Validate the content from file
-            if ! echo "$content" | jq '.' >/dev/null 2>&1; then
-                log "WARN" "Invalid JSON in latest file, resetting to default"
-                content="{\"networks\":{},\"updated_at\":null}"
-            fi
-        else
-            log "WARN" "latest.json not found in S3, initializing empty file"
+        # Validate the content from file
+        if ! echo "$content" | jq '.' >/dev/null 2>&1; then
+            log "WARN" "Invalid JSON in latest file, resetting to default"
             content="{\"networks\":{},\"updated_at\":null}"
         fi
+    else
+        log "WARN" "latest.json not found in S3, initializing empty file"
+        content="{\"networks\":{},\"updated_at\":null}"
     fi
     
     log "DEBUG" "Initial content structure:"
@@ -736,12 +819,8 @@ update_latest_file() {
         vnet_id=$(echo "${VNET_RESPONSES[$i]}" | cut -d'|' -f2)
         
         # Read and validate deployed contracts
-        local network_dir
-        if [ "$is_local" = true ]; then
-            network_dir="$OUTPUT_BASE_DIR/local/$network"
-        else
-            network_dir="$OUTPUT_BASE_DIR/$GITHUB_REF_NAME/$network"
-        fi
+        # Always use consistent directory structure based on GITHUB_REF_NAME 
+        local network_dir="$OUTPUT_BASE_DIR/$GITHUB_REF_NAME/$network"
         
         contracts_file="$network_dir/$network_slug-latest.json"
         log "INFO" "Looking for contracts at: $contracts_file"
@@ -840,13 +919,10 @@ update_latest_file() {
     # Update timestamp
     content=$(echo "$content" | jq --arg time "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" '.updated_at = $time')
     
-    if [ "$is_local" = true ]; then
-        echo "$content" | jq '.' > "$latest_file"
-        log "SUCCESS" "Successfully updated local latest file"
-    else
-        # Format JSON nicely before base64 encoding
-        content=$(echo "$content" | jq '.')
-        
+    # Always use S3 for file operations
+    # Format JSON nicely
+    content=$(echo "$content" | jq '.')
+    
         # Use -w 0 to avoid line wrapping in base64 output
         encoded_content=$(echo -n "$content" | base64 -w 0)
         
@@ -861,22 +937,24 @@ update_latest_file() {
         update_data="$update_data,\"branch\":\"$GITHUB_REF_NAME\"}"
         
         log "INFO" "Sending update request to GitHub API"
-        echo "$content" | jq '.' > "$latest_file_path"
-
-        if aws s3 cp "$latest_file_path" "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" --quiet; then
-            log "SUCCESS" "Successfully uploaded latest.json to S3"
-        else
-            log "ERROR" "Failed to upload latest.json to S3"
-            exit 1
-        fi    
+    echo "$content" | jq '.' > "$latest_file_path"
+    
+    # Upload to S3
+    if aws s3 cp "$latest_file_path" "s3://$S3_BUCKET_NAME/$GITHUB_REF_NAME/latest.json" --quiet; then
+        log "SUCCESS" "Successfully uploaded latest.json to S3"
+    else
+        log "ERROR" "Failed to upload latest.json to S3"
+        exit 1
     fi
 }
 
-# After all deployments are done, update the latest file
-if is_local_run; then
-    update_latest_file true
-else
-    update_latest_file false
-fi
+# Run all deployments and update the latest file only if successful
+# Run the deployment process
+deploy_contracts
+
+# If we get here, all deployments were successful
+# Update the latest file with the new contract addresses
+# Since we're using S3 for everything now, no need to pass parameters
+update_latest_file
 
 log "SUCCESS" "All deployments completed successfully!"
