@@ -1346,9 +1346,7 @@ contract CrosschainTests is BaseTest {
             yieldSource4626AddressOP_USDCe,
             accountOP,
             userBalanceSharesBefore,
-            false,
-            address(0),
-            0
+            false
         );
         opHooksData[1] = _createApproveHookData(underlyingOP_USDCe, SPOKE_POOL_V3_ADDRESSES[OP], amountPerVault, true);
 
@@ -1555,9 +1553,7 @@ contract CrosschainTests is BaseTest {
             bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressETH_USDC,
             userExpectedAssets,
-            false,
-            address(0),
-            0
+            false
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -1612,9 +1608,7 @@ contract CrosschainTests is BaseTest {
             bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressETH_USDC,
             userExpectedAssets,
-            false,
-            address(0),
-            0
+            false
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -1670,9 +1664,7 @@ contract CrosschainTests is BaseTest {
             bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSource7540AddressETH_USDC,
             userExpectedAssets,
-            false,
-            address(0),
-            0
+            false
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -1715,9 +1707,7 @@ contract CrosschainTests is BaseTest {
             yieldSource4626AddressOP_USDCe,
             accountOP,
             userBalanceSharesBefore,
-            false,
-            address(0),
-            0
+            false
         );
 
         UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP, false);

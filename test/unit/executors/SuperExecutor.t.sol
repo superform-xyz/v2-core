@@ -112,7 +112,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers {
         hooksData[0] =
             _createDeposit4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), 1, false, address(0), 0);
         hooksData[1] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false
         );
 
         vm.startPrank(account);
@@ -160,7 +160,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false
         );
 
         _getTokens(address(token), account, 1000);
@@ -187,7 +187,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false
         );
 
         vm.startPrank(makeAddr("account"));
@@ -210,7 +210,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false
         );
 
         vm.startPrank(account);
@@ -244,7 +244,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false, address(0), 0
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false
         );
 
         vm.startPrank(address(this));

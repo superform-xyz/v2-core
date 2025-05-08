@@ -157,7 +157,7 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
     function test_ReplaceCalldataAmount() public view {
         uint256 amount = LARGE;
         bytes memory hookData = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, SMALL, false, address(0), 0
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, SMALL, false
         );
 
         address hook = address(redeem4626Hook);
@@ -181,7 +181,7 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
         );
         hooksData[2] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, amount, false, address(0), 0
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, amount, false
         );
         // assure account has tokens
         _getTokens(underlying, account, amount);

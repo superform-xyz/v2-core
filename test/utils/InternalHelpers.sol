@@ -330,15 +330,13 @@ abstract contract InternalHelpers {
         address vault,
         address owner,
         uint256 shares,
-        bool usePrevHookAmount,
-        address vaultBank,
-        uint256 dstChainId
+        bool usePrevHookAmount
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(yieldSourceOracleId, vault, owner, shares, usePrevHookAmount, vaultBank, dstChainId);
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, owner, shares, usePrevHookAmount);
     }
 
     function _createApproveAndRedeem4626HookData(
@@ -347,15 +345,13 @@ abstract contract InternalHelpers {
         address token,
         address owner,
         uint256 amount,
-        bool usePrevHookAmount,
-        address vaultBank,
-        uint256 dstChainId
+        bool usePrevHookAmount
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(yieldSourceOracleId, vault, token, owner, amount, usePrevHookAmount, vaultBank, dstChainId);
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, token, owner, amount, usePrevHookAmount);
     }
 
     function _create5115RedeemHookData(
@@ -364,16 +360,14 @@ abstract contract InternalHelpers {
         address tokenOut,
         uint256 shares,
         uint256 minTokenOut,
-        bool usePrevHookAmount,
-        address vaultBank,
-        uint256 dstChainId
+        bool usePrevHookAmount
     )
         internal
         pure
         returns (bytes memory hookData)
     {
         hookData = abi.encodePacked(
-            yieldSourceOracleId, vault, tokenOut, shares, minTokenOut, false, usePrevHookAmount, vaultBank, dstChainId
+            yieldSourceOracleId, vault, tokenOut, shares, minTokenOut, false, usePrevHookAmount
         );
     }
 
@@ -385,9 +379,7 @@ abstract contract InternalHelpers {
         uint256 shares,
         uint256 minTokenOut,
         bool burnFromInternalBalance,
-        bool usePrevHookAmount,
-        address vaultBank,
-        uint256 dstChainId
+        bool usePrevHookAmount
     )
         internal
         pure
@@ -401,9 +393,7 @@ abstract contract InternalHelpers {
             shares,
             minTokenOut,
             burnFromInternalBalance,
-            usePrevHookAmount,
-            vaultBank,
-            dstChainId
+            usePrevHookAmount
         );
     }
 
@@ -452,15 +442,13 @@ abstract contract InternalHelpers {
         bytes4 yieldSourceOracleId,
         address yieldSource,
         uint256 amount,
-        bool usePrevHookAmount,
-        address vaultBank,
-        uint256 dstChainId
+        bool usePrevHookAmount
     )
         internal
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, vaultBank, dstChainId);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
     function _createApproveAndWithdraw7540VaultHookData(
@@ -468,15 +456,13 @@ abstract contract InternalHelpers {
         address yieldSource,
         address token,
         uint256 amount,
-        bool usePrevHookAmount,
-        address vaultBank,
-        uint256 dstChainId
+        bool usePrevHookAmount
     )
         internal
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount, vaultBank, dstChainId);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount);
     }
 
     function _createApproveAndRedeem7540VaultHookData(
@@ -484,15 +470,13 @@ abstract contract InternalHelpers {
         address yieldSource,
         address token,
         uint256 shares,
-        bool usePrevHookAmount,
-        address vaultBank,
-        uint256 dstChainId
+        bool usePrevHookAmount
     )
         internal
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, shares, usePrevHookAmount, vaultBank, dstChainId);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, shares, usePrevHookAmount);
     }
 
     function _createDeposit5115VaultHookData(
@@ -551,7 +535,6 @@ abstract contract InternalHelpers {
         pure
         returns (bytes memory)
     {
-    
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 

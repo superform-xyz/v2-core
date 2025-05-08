@@ -28,8 +28,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 76);
 /// @notice         bool burnFromInternalBalance = _decodeBool(data, 108);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 109);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 110);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 130);
 contract Redeem5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
@@ -102,8 +100,6 @@ contract Redeem5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOut
         asset = BytesLib.toAddress(data, 24); // tokenOut from data
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
-        vaultBank = BytesLib.toAddress(data, 110);
-        dstChainId = BytesLib.toUint256(data, 130);
         spToken = data.extractYieldSource();
     }
 
