@@ -101,7 +101,7 @@ contract ApproveAndRedeem4626VaultHook is
         return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
-    /*///////////////////////////////////////////`///////////////////
+    /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
