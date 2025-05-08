@@ -228,6 +228,9 @@ contract SuperAssetTest is Helpers {
         console.log("User = ", user);
 
         // // Non-admin cannot grant roles
+        // //  This part is not passing for an unknown reason, see here 
+        // // https://github.com/superform-xyz/v2-contracts/pull/425/files#r2079529987
+        // // for the description of the issue
         // vm.startPrank(user);
         // // NOTE: This test is not passing, but not sure why since according to the logs it should pass
         // vm.expectRevert(
