@@ -236,7 +236,7 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         bytes[] memory hooksData = new bytes[](1);
         hooksAddresses[0] = redeem4626Hook;
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), account, amount, false, address(0), 0
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), account, amount, false
         );
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
     }

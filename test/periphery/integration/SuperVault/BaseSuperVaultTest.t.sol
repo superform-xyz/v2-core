@@ -273,7 +273,7 @@ contract BaseSuperVaultTest is BaseTest {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), assets, false, address(0), 0
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), assets, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
@@ -420,9 +420,7 @@ contract BaseSuperVaultTest is BaseTest {
             vault1,
             address(strategy),
             vars.fluidSharesOut,
-            false,
-            address(0),
-            0
+            false
         );
 
         vars.fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
@@ -431,9 +429,7 @@ contract BaseSuperVaultTest is BaseTest {
             vault2,
             address(strategy),
             vars.aaveSharesOut,
-            false,
-            address(0),
-            0
+            false
         );
 
         (vars.totalSvAssets,) = totalAssetHelper.totalAssets(address(strategy));
@@ -701,9 +697,7 @@ contract BaseSuperVaultTest is BaseTest {
             vault1,
             address(strategy),
             redeemSharesVault1,
-            false,
-            address(0),
-            0
+            false
         );
         fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
@@ -711,9 +705,7 @@ contract BaseSuperVaultTest is BaseTest {
             vault2,
             address(strategy),
             redeemSharesVault2,
-            false,
-            address(0),
-            0
+            false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
@@ -769,9 +761,7 @@ contract BaseSuperVaultTest is BaseTest {
             vault1,
             address(strategy),
             redeemSharesVault1,
-            false,
-            address(0),
-            0
+            false
         );
         fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
@@ -779,9 +769,7 @@ contract BaseSuperVaultTest is BaseTest {
             vault2,
             address(strategy),
             redeemSharesVault2,
-            false,
-            address(0),
-            0
+            false
         );
 
         vm.startPrank(STRATEGIST);
@@ -1012,9 +1000,7 @@ contract BaseSuperVaultTest is BaseTest {
                             vars.sources[i],
                             address(strategy),
                             vars.sharesToRedeem,
-                            false,
-                            address(0),
-                            0
+                            false
                         );
                         hookIndex++;
 
@@ -1297,9 +1283,7 @@ contract BaseSuperVaultTest is BaseTest {
             sourceVault,
             address(strategy),
             sharesToRedeem,
-            false,
-            address(0),
-            0
+            false
         );
         hooksData[1] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
@@ -1345,9 +1329,7 @@ contract BaseSuperVaultTest is BaseTest {
             sourceVault,
             address(strategy),
             sharesToRedeem,
-            false,
-            address(0),
-            0
+            false
         );
         hooksData[1] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY)),

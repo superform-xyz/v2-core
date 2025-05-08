@@ -26,8 +26,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address token = BytesLib.toAddress(data, 24);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 44);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 77);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 97);
 contract ApproveAndWithdraw7540VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
@@ -107,8 +105,6 @@ contract ApproveAndWithdraw7540VaultHook is
         asset = IERC7540(yieldSource).asset();
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
-        vaultBank = BytesLib.toAddress(data, 77);
-        dstChainId = BytesLib.toUint256(data, 97);
         spToken = IERC7540(yieldSource).share();
     }
 

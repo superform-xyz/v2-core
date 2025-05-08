@@ -67,9 +67,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
             yieldSourceAddressEth,
             accountEth,
             accSharesAfter / 2, // temporary
-            false,
-            address(0),
-            0
+            false
         );
 
         ISuperExecutor.ExecutorEntry memory entryWithdraw =
