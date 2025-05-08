@@ -28,8 +28,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address owner = BytesLib.toAddress(data, 44);
 /// @notice         uint256 shares = BytesLib.toUint256(data, 64);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 96);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 97);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 117);
 contract ApproveAndRedeem4626VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
@@ -103,7 +101,7 @@ contract ApproveAndRedeem4626VaultHook is
         return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
-    /*//////////////////////////////////////////////////////////////
+    /*///////////////////////////////////////////`///////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
@@ -111,8 +109,6 @@ contract ApproveAndRedeem4626VaultHook is
         asset = IERC4626(yieldSource).asset();
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
-        vaultBank = BytesLib.toAddress(data, 97);
-        dstChainId = BytesLib.toUint256(data, 117);
         spToken = yieldSource;
     }
 
