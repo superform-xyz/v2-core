@@ -140,9 +140,17 @@ contract CrosschainTests is BaseTest {
     /*//////////////////////////////////////////////////////////////
                                 SETUP
     //////////////////////////////////////////////////////////////*/
-
+    uint256 public CHAIN_1_TIMESTAMP;
+    uint256 public CHAIN_10_TIMESTAMP;
+    uint256 public CHAIN_8453_TIMESTAMP;
     function setUp() public override {
         super.setUp();
+        vm.selectFork(FORKS[ETH]);
+        CHAIN_1_TIMESTAMP = block.timestamp;
+        vm.selectFork(FORKS[OP]);
+        CHAIN_10_TIMESTAMP = block.timestamp;
+        vm.selectFork(FORKS[BASE]);
+        CHAIN_8453_TIMESTAMP = block.timestamp;
         vm.selectFork(FORKS[ETH]);
 
         // Set up the underlying tokens
@@ -496,6 +504,7 @@ contract CrosschainTests is BaseTest {
     }
 
     function test_CrossChainDepositWithSlippage() public {
+        SELECT_FORK_AND_WARP(ETH, CHAIN_1_TIMESTAMP + 1 days);
         _sendFundsFromOpToBase();
         _sendFundsFromEthToBase();
     }
@@ -1099,7 +1108,7 @@ contract CrosschainTests is BaseTest {
         uint256 amount = 1e8;
 
         // BASE IS DST
-        vm.selectFork(FORKS[BASE]);
+        SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP);
 
         address accountToUse;
         TargetExecutorMessage memory messageData;
@@ -1164,7 +1173,7 @@ contract CrosschainTests is BaseTest {
         }
 
         // ETH is SRC
-        vm.selectFork(FORKS[ETH]);
+        SELECT_FORK_AND_WARP(ETH, CHAIN_1_TIMESTAMP + 1 days);
 
         address[] memory srcHooksAddresses = new address[](6);
         srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -1243,7 +1252,7 @@ contract CrosschainTests is BaseTest {
         srcUserOpData.userOp.signature = signatureData;
         _processDebridgeDlnMessage(ETH, BASE, executeOp(srcUserOpData));
 
-        vm.selectFork(FORKS[BASE]);
+        SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP + 2 days);
         uint256 allowance =
             IERC20(underlyingBase_USDC).allowance(accountToUse, address(yieldSourceMorphoUsdcAddressBase));
         assertEq(allowance, 123);
@@ -1794,7 +1803,7 @@ contract CrosschainTests is BaseTest {
         uint256 intentAmount = 1e10;
 
         // BASE IS DST
-        SELECT_FORK_AND_WARP(BASE, block.timestamp);
+        SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP + 1 days);
         // Transfer users USDC to this contract so that balance checks are correct
         uint256 amountToRemove = IERC20(underlyingBase_USDC).balanceOf(accountBase);
         vm.prank(accountBase);
@@ -1841,7 +1850,7 @@ contract CrosschainTests is BaseTest {
         }
 
         // OP IS SRC1
-        SELECT_FORK_AND_WARP(OP, block.timestamp);
+        SELECT_FORK_AND_WARP(OP, CHAIN_10_TIMESTAMP + 1 days);
 
         // PREPARE SRC1 DATA
         address[] memory src1HooksAddresses = new address[](2);
@@ -1877,7 +1886,7 @@ contract CrosschainTests is BaseTest {
         uint256 intentAmount = 1e10;
 
         // BASE IS DST
-        SELECT_FORK_AND_WARP(BASE, block.timestamp);
+        SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP + 2 days);
 
         bytes memory targetExecutorMessage;
         address accountToUse;
@@ -1935,7 +1944,7 @@ contract CrosschainTests is BaseTest {
         }
 
         // ETH IS SRC1
-        SELECT_FORK_AND_WARP(ETH, block.timestamp);
+        SELECT_FORK_AND_WARP(ETH, CHAIN_1_TIMESTAMP + 2 days);
 
         // PREPARE SRC1 DATA
         address[] memory src1HooksAddresses = new address[](2);
@@ -1965,7 +1974,7 @@ contract CrosschainTests is BaseTest {
             ETH, BASE, block.timestamp, executeOp(src1UserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
         );
 
-        SELECT_FORK_AND_WARP(BASE, block.timestamp + 1 hours);
+        SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP + 2 days + 1 hours);
 
         uint256 sharesExpectedWETH;
         // `convertToShares` can fail due to the virtual timestamp
