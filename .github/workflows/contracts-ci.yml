@@ -50,6 +50,9 @@ jobs:
         with:
           node-version: "latest"
 
+      - name: Print ulimits
+        run: ulimit -Sa && ulimit -Ha
+
       - name: Install Dependencies
         run: yarn install
 
