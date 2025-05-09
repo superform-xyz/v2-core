@@ -11,6 +11,11 @@ import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 import "../interfaces/SuperAsset/IAssetBank.sol";
 import "../interfaces/SuperAsset/ISuperAsset.sol";
 import "../interfaces/ISuperOracle.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+
+
+
+import "forge-std/console.sol";
 
 /**
  * @author Superform Labs
@@ -218,13 +223,27 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 amountTokenToDeposit,
         uint256 minSharesOut            // Slippage Protection
     ) public returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) {
+        PreviewErrors memory errors;
+        console.log("deposit() Starts");
         // First all the non state changing functions 
         if (amountTokenToDeposit == 0) revert ZERO_AMOUNT();
+        console.log("deposit() T1");
         if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
+        console.log("deposit() T2");
         if (receiver == address(0)) revert ZERO_ADDRESS();
+        console.log("deposit() T3");
+
+        // Circuit Breakers preventing deposit
+        uint256 underlyingSuperVaultAssetPriceUSD;
+        (underlyingSuperVaultAssetPriceUSD, errors.isDepeg, errors.isDispersion, errors.isOracleOff) = getPriceWithCircuitBreakers(IERC4626(tokenIn).asset());
+        if (underlyingSuperVaultAssetPriceUSD == 0) revert UNDERLYING_SV_ASSET_PRICE_ZERO();
+        if (errors.isDepeg) revert UNDERLYING_SV_ASSET_PRICE_DEPEG();
+        if (errors.isDispersion) revert UNDERLYING_SV_ASSET_PRICE_DISPERSION();
+        if (errors.isOracleOff) revert UNDERLYING_SV_ASSET_PRICE_ORACLE_OFF();
 
         // Calculate and settle incentives
         (amountSharesMinted, swapFee, amountIncentiveUSDDeposit) = previewDeposit(tokenIn, amountTokenToDeposit);
+        console.log("deposit() T5");
         if (amountSharesMinted == 0) revert ZERO_AMOUNT();
         // Slippage Check
         if (amountSharesMinted < minSharesOut) revert SLIPPAGE_PROTECTION();
@@ -233,7 +252,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Settle Incentives
         _settleIncentive(msg.sender, amountIncentiveUSDDeposit);
-
+        console.log("deposit() T6");
         // Transfer the tokenIn from the sender to this contract
         // For now, assuming shares are held in this contract, maybe they will have to be held in another contract balance sheet
         IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountTokenToDeposit);
@@ -273,7 +292,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _burn(msg.sender, amountSharesToRedeem);  // Use a proper burning mechanism
 
         // Transfer swap fees to Asset Bank
-        IERC20(tokenOut).safeTransferFrom(address(this), assetBank, swapFee);
+        IERC20(tokenOut).safeTransfer(assetBank, swapFee);
 
         // Transfer assets to receiver
         // For now, assuming shares are held in this contract, maybe they will have to be held in another contract balance sheet
@@ -291,7 +310,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 minTokenOut
     ) external returns (uint256 amountSharesIntermediateStep, uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentivesIn, int256 amountIncentivesOut) {
         if (receiver == address(0)) revert ZERO_ADDRESS();
-        (amountSharesIntermediateStep, swapFeeIn, amountIncentivesIn) = deposit(address(this), tokenIn, amountTokenToDeposit, 0);
+        (amountSharesIntermediateStep, swapFeeIn, amountIncentivesIn) = deposit(msg.sender, tokenIn, amountTokenToDeposit, 0);
         (amountTokenOutAfterFees, swapFeeOut, amountIncentivesOut) = redeem(receiver, amountSharesIntermediateStep, tokenOut, minTokenOut);
         emit Swap(receiver, tokenIn, amountTokenToDeposit, tokenOut, amountSharesIntermediateStep, amountTokenOutAfterFees, swapFeeIn, swapFeeOut, amountIncentivesIn, amountIncentivesOut);
         return (amountSharesIntermediateStep, amountTokenOutAfterFees, swapFeeIn, swapFeeOut, amountIncentivesIn, amountIncentivesOut);
@@ -383,7 +402,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     view
     returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD)
     {
-        if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
+        // Question: make it a return value
+        // PreviewErrors memory errors;
+        console.log("previewDeposit() Start");
+        // NOTE: Preview Function should not revert
+        // if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
+        if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) return (0,0,0);
 
         // Calculate swap fees (example: 0.1% fee)
         swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
@@ -393,7 +417,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         (uint256 priceUSDTokenIn, , , ) = getPriceWithCircuitBreakers(tokenIn);
         (uint256 priceUSDThisShares, , , ) = getPriceWithCircuitBreakers(address(this));
 
-        if (priceUSDTokenIn == 0 || priceUSDThisShares == 0) revert PRICE_USD_ZERO();
+        // NOTE: Preview Function should not revert
+        // if (priceUSDTokenIn == 0 || priceUSDThisShares == 0) revert PRICE_USD_ZERO();
+        if (priceUSDTokenIn == 0 || priceUSDThisShares == 0) return (0,0,0);
 
         // Calculate SuperUSD shares to mint
         amountSharesMinted = Math.mulDiv(amountTokenInAfterFees, priceUSDTokenIn, priceUSDThisShares); // Adjust for decimals
@@ -428,7 +454,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     view
     returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD)
     {
-        if (!isSupportedUnderlyingVault[tokenOut] && !isSupportedERC20[tokenOut]) revert NOT_SUPPORTED_TOKEN();
+        // TODO: Handle the case of a token that was whitelisted, now it is not whitelisted anymore but still this contract holds some exposure to this token 
+
+        // NOTE: Preview Function should not revert
+        // if (!isSupportedUnderlyingVault[tokenOut] && !isSupportedERC20[tokenOut]) revert NOT_SUPPORTED_TOKEN();
+        if (!isSupportedUnderlyingVault[tokenOut] && !isSupportedERC20[tokenOut]) return (0,0,0);
 
         // Get price of underlying vault shares in USD
         (uint256 priceUSDThisShares, , , ) = getPriceWithCircuitBreakers(address(this));
@@ -478,7 +508,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     
     /// @inheritdoc ISuperAsset
     function getPriceWithCircuitBreakers(address tokenIn) public view returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) {
-        if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
+        // NOTE: We do not need this check here, since price request can also regard non-whitelisted tokens like integrated SuperVaults underlying assets, this price is required to check if a depeg, dispersion, oracle off happened
+        // if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
 
         // Get token decimals
         uint256 one = 10**IERC20Metadata(tokenIn).decimals();
@@ -502,15 +533,14 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             // Circuit Breaker for Depeg - price deviates more than ±2% from expected
             if (priceUSD < DEPEG_LOWER_THRESHOLD || priceUSD > DEPEG_UPPER_THRESHOLD) {
                 isDepeg = true;
-            } else {
-                // Calculate relative standard deviation
-                uint256 relativeStdDev = Math.mulDiv(stddev, PRECISION, priceUSD);
+            } 
+            // Calculate relative standard deviation
+            uint256 relativeStdDev = Math.mulDiv(stddev, PRECISION, priceUSD);
 
-                // Circuit Breaker for Dispersion
-                if (relativeStdDev > DISPERSION_THRESHOLD) {
-                    isDispersion = true;
+            // Circuit Breaker for Dispersion
+            if (relativeStdDev > DISPERSION_THRESHOLD) {
+                isDispersion = true;
                 }
-            }
         }
         return (priceUSD, isDepeg, isDispersion, isOracleOff);
     }
@@ -527,5 +557,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             IIncentiveFundContract(incentiveFundContract).takeIncentive(user, uint256(-amountIncentiveUSD));
         }
     }
+
+    // /// @inheritdoc IAccessControl
+    // function grantRole(bytes32 role, address account) public override onlyRole(DEFAULT_ADMIN_ROLE) {
+    //     _grantRole(role, account);
+    // }
 
 }
