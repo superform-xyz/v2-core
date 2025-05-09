@@ -220,15 +220,6 @@ contract SuperAssetTest is Helpers {
         superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
         superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
 
-        // Set up initial token balances
-        // tokenIn.mint(user, 1000e18);
-        // tokenIn.mint(address(incentiveFund), 1000e18);
-        // tokenOut.mint(user, 1000e18);
-        // tokenOut.mint(address(incentiveFund), 1000e18);
-
-        // tokenIn.mint(user11, 1000e18);
-        // tokenOut.mint(user11, 1000e18);
-
         console.log("Start Minting");
 
         underlyingToken1.mint(user, 1000e18);
@@ -241,16 +232,6 @@ contract SuperAssetTest is Helpers {
         vm.stopPrank();
         assertGt(tokenIn.balanceOf(user), 0);
         assertGt(tokenOut.balanceOf(user), 0);
-        // tokenIn.mint(1000e18, user);
-        console.log("Start Minting T1");
-        // tokenIn.mint(1000e18, address(incentiveFund));
-        // tokenOut.mint(user, 1000e18);
-
-        console.log("Start Minting T2");
-
-        // tokenOut.mint(address(incentiveFund), 1000e18);
-        console.log("Start Minting T3");
-
 
         underlyingToken1.mint(user11, 1000e18);
         underlyingToken2.mint(user11, 1000e18);
@@ -262,9 +243,6 @@ contract SuperAssetTest is Helpers {
         vm.stopPrank();
         assertGt(tokenIn.balanceOf(user11), 0);
         assertGt(tokenOut.balanceOf(user11), 0);
-        // tokenIn.mint(1000e18, user11);
-        // tokenOut.mint(user11, 1000e18);
-        console.log("Start Minting T5");
 
         vm.stopPrank();
     }
@@ -292,39 +270,6 @@ contract SuperAssetTest is Helpers {
             100 // swapFeeOutPercentage
         );
     }
-
-    // --- Test: Role Management ---
-    // NOTE: Commenting this out atm since the RBAC is going to be managed by SuperGovernor that needs to be integrated in tests
-    function test_OnlyAdminCanGrantRoles() public {
-        address newManager = makeAddr("newManager");
-        console.log("test_OnlyAdminCanGrantRoles Start()");
-
-        console.log("User = ", user);
-
-        // // Non-admin cannot grant roles
-        // //  This part is not passing for an unknown reason, see here 
-        // // https://github.com/superform-xyz/v2-contracts/pull/425/files#r2079529987
-        // // for the description of the issue
-        // vm.startPrank(user);
-        // // NOTE: This test is not passing, but not sure why since according to the logs it should pass
-        // vm.expectRevert(
-        //     abi.encodeWithSelector(
-        //         IAccessControl.AccessControlUnauthorizedAccount.selector,
-        //         user,
-        //         superAsset.DEFAULT_ADMIN_ROLE()
-        //     )
-        // );
-        // superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), newManager);
-        // vm.stopPrank();
- 
-        // Admin can grant roles
-        vm.startPrank(admin);
-        superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), newManager);
-        vm.stopPrank();
-
-        assertTrue(superAsset.hasRole(superAsset.VAULT_MANAGER_ROLE(), newManager));
-    }
-
     // --- Test: Token Management ---
     function test_OnlyVaultManagerCanWhitelistTokens() public {
         address newToken = makeAddr("newToken");
@@ -467,8 +412,6 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), s.depositAmount);
 
-        // (, s.currentPrice,,,) = mockFeed1.latestRoundData();
-        // mockFeed1.setAnswer(s.currentPrice);
         (, s.currentPrice,,,) = mockFeed2.latestRoundData();
         mockFeed2.setAnswer(s.currentPrice*3);
         (, s.currentPrice,,,) = mockFeed3.latestRoundData();
@@ -476,31 +419,9 @@ contract SuperAssetTest is Helpers {
 
         (s.priceUSD, s.isDepeg, s.isDispersion, s.isOracleOff) = 
         superAsset.getPriceWithCircuitBreakers(IERC4626(tokenIn).asset());
-        // assertEq(s.priceUSD, uint256(s.currentPrice));
-        console.log("s.isDepeg = ", s.isDepeg);
-        console.log("s.isDispersion = ", s.isDispersion);
-        console.log("s.isOracleOff = ", s.isOracleOff);
         assertEq(s.isDepeg, true);
         assertEq(s.isDispersion, true);
         assertEq(s.isOracleOff, false);
-
-
-        // (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit) = 
-        //     superAsset.previewDeposit(address(tokenIn), s.depositAmount);
-
-        // // Deposit tokens
-        // (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) = 
-        //     superAsset.deposit(user, address(tokenIn), s.depositAmount, s.minSharesOut);
-        // vm.stopPrank();
-        // assertEq(expAmountSharesMinted, amountSharesMinted);
-        // assertEq(expSwapFee, swapFee);
-        // assertEq(expAmountIncentiveUSDDeposit, amountIncentiveUSDDeposit);
-
-
-        // // Verify results
-        // assertGt(amountSharesMinted, 0, "Should mint shares");
-        // assertEq(swapFee, (s.depositAmount * superAsset.swapFeeInPercentage()) / superAsset.SWAP_FEE_PERC(), "Incorrect swap fee");
-        // assertTrue(superAsset.balanceOf(user) > 0, "User should have shares");
     }
 
 
@@ -550,9 +471,6 @@ contract SuperAssetTest is Helpers {
         assertEq(expSharesMinted, sharesMinted);
         assertEq(expSwapFee, swapFee);
         assertEq(expAmountIncentiveUSD, amountIncentiveUSD);
-        // console.log("Deposit swapFee = ", swapFee);
-        // console.log("Deposit amountIncentiveUSD = ", amountIncentiveUSD);
-        // console.log("Deposit sharesMinted = ", sharesMinted);
 
         // Now redeem the shares
         uint256 amountTokenOutAfterFees;
@@ -565,8 +483,6 @@ contract SuperAssetTest is Helpers {
         (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem) = superAsset.previewRedeem(address(tokenIn), sharesToRedeem);
         assertGt(expAmountTokenOutAfterFees, 0, "Should receive tokens");
         assertGt(expSwapFee, 0, "Should pay swap fees");
-        // assertGt(amountIncentiveUSDRedeem, 0, "Should receive incentives");
-        console.log("test_BasicRedeem() Preview");
 
         (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem) = 
             superAsset.redeem(user, sharesToRedeem, address(tokenIn), minTokenOut);
@@ -575,12 +491,6 @@ contract SuperAssetTest is Helpers {
         assertEq(expAmountTokenOutAfterFees, amountTokenOutAfterFees);
         assertEq(expSwapFee, swapFee);
         assertEq(expAmountIncentiveUSDRedeem, amountIncentiveUSDRedeem);
-
-        // console.log("test_BasicRedeem() Redeem");
-        // console.log("Amount Token Out After Fees:", amountTokenOutAfterFees);
-        // console.log("Swap Fee:", swapFee);
-        // console.log("Amount Incentive USD Redeem:", amountIncentiveUSDRedeem);
-
 
         // Verify results
         assertGt(amountTokenOutAfterFees, 0, "Should receive tokens");
@@ -622,49 +532,6 @@ contract SuperAssetTest is Helpers {
         superAsset.redeem(user, sharesMinted, address(tokenIn), tooHighMinTokenOut);
         vm.stopPrank();
     }
-
-    // --- Test: Incentive Handling ---
-    // function test_DepositWithIncentives() public {
-    //     uint256 depositAmount = 100e18;
-
-    //     // Approve tokens
-    //     vm.startPrank(user);
-    //     tokenIn.approve(address(superAsset), depositAmount);
-
-    //     // Deposit tokens and check incentive calculation
-    //     (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) = 
-    //         superAsset.deposit(user, address(tokenIn), depositAmount, 0);
-    //     vm.stopPrank();
-
-    //     // Verify incentive calculation
-    //     assertTrue(amountIncentiveUSDDeposit != 0, "Should calculate incentives");
-
-    //     // Check if incentives were settled with IncentiveFund
-    //     // This would require mocking/checking the IncentiveFund contract's state
-    //     // For now we just verify the event was emitted
-    //     vm.expectEmit(true, true, true, true);
-    //     emit Deposit(user, address(tokenIn), depositAmount, amountSharesMinted, swapFee, amountIncentiveUSDDeposit);
-    // }
-
-    // function test_RedeemWithIncentives() public {
-    //     // First deposit to get shares
-    //     uint256 depositAmount = 100e18;
-    //     vm.startPrank(user);
-    //     tokenIn.approve(address(superAsset), depositAmount);
-    //     (uint256 sharesMinted,,) = superAsset.deposit(user, address(tokenIn), depositAmount, 0);
-
-    //     // Redeem shares and check incentive calculation
-    //     (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem) = 
-    //         superAsset.redeem(user, address(tokenIn), sharesMinted, 0);
-    //     vm.stopPrank();
-
-    //     // Verify incentive calculation
-    //     assertTrue(amountIncentiveUSDRedeem != 0, "Should calculate incentives");
-
-    //     // Check if incentives were settled with IncentiveFund
-    //     vm.expectEmit(true, true, true, true);
-    //     emit Redeem(user, address(tokenIn), sharesMinted, amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem);
-    // }
 
     struct BasiSwapStack{
         uint256 swapAmount;

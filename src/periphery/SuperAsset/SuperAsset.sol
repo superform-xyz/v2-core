@@ -15,8 +15,6 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 
 
 
-import "forge-std/console.sol";
-
 /**
  * @author Superform Labs
  * @title SuperAsset
@@ -224,14 +222,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 minSharesOut            // Slippage Protection
     ) public returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) {
         PreviewErrors memory errors;
-        console.log("deposit() Starts");
         // First all the non state changing functions 
         if (amountTokenToDeposit == 0) revert ZERO_AMOUNT();
-        console.log("deposit() T1");
         if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
-        console.log("deposit() T2");
         if (receiver == address(0)) revert ZERO_ADDRESS();
-        console.log("deposit() T3");
 
         // Circuit Breakers preventing deposit
         uint256 underlyingSuperVaultAssetPriceUSD;
@@ -243,7 +237,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Calculate and settle incentives
         (amountSharesMinted, swapFee, amountIncentiveUSDDeposit) = previewDeposit(tokenIn, amountTokenToDeposit);
-        console.log("deposit() T5");
         if (amountSharesMinted == 0) revert ZERO_AMOUNT();
         // Slippage Check
         if (amountSharesMinted < minSharesOut) revert SLIPPAGE_PROTECTION();
@@ -252,7 +245,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Settle Incentives
         _settleIncentive(msg.sender, amountIncentiveUSDDeposit);
-        console.log("deposit() T6");
         // Transfer the tokenIn from the sender to this contract
         // For now, assuming shares are held in this contract, maybe they will have to be held in another contract balance sheet
         IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountTokenToDeposit);
@@ -402,11 +394,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     view
     returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD)
     {
-        // Question: make it a return value
-        // PreviewErrors memory errors;
-        console.log("previewDeposit() Start");
         // NOTE: Preview Function should not revert
-        // if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
         if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) return (0,0,0);
 
         // Calculate swap fees (example: 0.1% fee)
@@ -418,7 +406,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         (uint256 priceUSDThisShares, , , ) = getPriceWithCircuitBreakers(address(this));
 
         // NOTE: Preview Function should not revert
-        // if (priceUSDTokenIn == 0 || priceUSDThisShares == 0) revert PRICE_USD_ZERO();
         if (priceUSDTokenIn == 0 || priceUSDThisShares == 0) return (0,0,0);
 
         // Calculate SuperUSD shares to mint
@@ -557,10 +544,5 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             IIncentiveFundContract(incentiveFundContract).takeIncentive(user, uint256(-amountIncentiveUSD));
         }
     }
-
-    // /// @inheritdoc IAccessControl
-    // function grantRole(bytes32 role, address account) public override onlyRole(DEFAULT_ADMIN_ROLE) {
-    //     _grantRole(role, account);
-    // }
 
 }
