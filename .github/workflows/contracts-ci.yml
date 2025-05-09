@@ -58,6 +58,9 @@ jobs:
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
+      
+      - name: "Get forge version"
+        run: forge --version
 
       - name: "Install Foundry dependencies"
         run: forge install
@@ -121,6 +124,9 @@ jobs:
           echo "FOUNDRY_FUZZ_SEED=$(
             echo $(($EPOCHSECONDS - $EPOCHSECONDS % 604800))
           )" >> $GITHUB_ENV
+
+      - name: "Set locked-in memory size limit to unlimited"
+        run: ulimit -l unlimited
 
       - name: "Run the tests"
         run: "forge test -vvv"
@@ -187,6 +193,9 @@ jobs:
           BRANCH_NAME=${GITHUB_REF#refs/heads/}
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
+      - name: "Set locked-in memory size limit to unlimited"
+        run: ulimit -l unlimited
+
       - name: "Run deploy script"
         run: ./script/run/deploy_v2_vnet_s3.sh "$BRANCH_NAME"
         env:
@@ -249,6 +258,9 @@ jobs:
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
         run: pnpm install
+
+      - name: "Set locked-in memory size limit to unlimited"
+        run: ulimit -l unlimited
 
       - name: "Generate the coverage report using unit and integration tests"
         run: "make coverage"
