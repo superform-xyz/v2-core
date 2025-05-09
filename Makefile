@@ -20,7 +20,7 @@ ftest :; forge test --jobs 10
 
 ftest-vvv :; forge test -vvv --jobs 10
 
-coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
+coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 5 --ir-minimum --report lcov
 
 test-vvv :; forge test --match-test test_CrossChainDepositWithSlippage -vvv --jobs 10
 
