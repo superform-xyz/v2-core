@@ -15,6 +15,8 @@ import {MockAggregator} from "../../mocks/MockAggregator.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 import {Helpers} from "../../../utils/Helpers.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+
 
 
 contract SuperAssetTest is Helpers {
@@ -26,6 +28,9 @@ contract SuperAssetTest is Helpers {
     bytes32 public constant PROVIDER_5 = keccak256("PROVIDER_5");
     bytes32 public constant PROVIDER_6 = keccak256("PROVIDER_6");
     bytes32 public constant PROVIDER_SUPERASSET = keccak256("PROVIDER_SUPERASSET");
+    bytes32 public constant PROVIDER_SUPERVAULT1 = keccak256("PROVIDER_SUPERVAULT1");
+    bytes32 public constant PROVIDER_SUPERVAULT2 = keccak256("PROVIDER_SUPERVAULT2");
+
     address public constant USD = address(840);
 
     // --- State Variables ---
@@ -33,9 +38,12 @@ contract SuperAssetTest is Helpers {
     AssetBank public assetBank;
     SuperOracle public oracle;
     Mock4626Vault public tokenIn;
-    MockERC20 public underlyingToken;
-    MockERC20 public tokenOut;
+    Mock4626Vault public tokenOut;
+    MockERC20 public underlyingToken1;
+    MockERC20 public underlyingToken2;
     MockAggregator public mockFeedSuperAssetShares1;
+    MockAggregator public mockFeedSuperVault1Shares;
+    MockAggregator public mockFeedSuperVault2Shares;
     MockAggregator public mockFeed1;
     MockAggregator public mockFeed2;
     MockAggregator public mockFeed3;
@@ -63,13 +71,18 @@ contract SuperAssetTest is Helpers {
         console.log("SuperAsset deployed");
 
         // Deploy mock tokens and vault
-        underlyingToken = new MockERC20("Underlying Token", "UTKN", 18);
+        underlyingToken1 = new MockERC20("Underlying Token1", "UTKN1", 18);
         tokenIn = new Mock4626Vault(
-            IERC20(address(underlyingToken)),
+            IERC20(address(underlyingToken1)),
             "Vault Token",
             "vTKN"
         );
-        tokenOut = new MockERC20("Token Out", "TOUT", 18);
+        underlyingToken2 = new MockERC20("Underlying Token2", "UTKN2", 18);
+        tokenOut = new Mock4626Vault(
+            IERC20(address(underlyingToken2)),
+            "Vault Token",
+            "vTKN"
+        );
         console.log("Mock tokens deployed");
 
         // Deploy actual ICC
@@ -78,6 +91,9 @@ contract SuperAssetTest is Helpers {
 
         // Create mock price feeds with different price values (1 token = $1)
         mockFeedSuperAssetShares1 = new MockAggregator(1e8, 8); // Token/USD = $1
+        mockFeedSuperVault1Shares = new MockAggregator(1e8, 8); // Token/USD = $1
+        mockFeedSuperVault2Shares = new MockAggregator(1e8, 8); // Token/USD = $1
+
         mockFeed1 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed2 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed3 = new MockAggregator(1e8, 8); // Token/USD = $1
@@ -97,16 +113,18 @@ contract SuperAssetTest is Helpers {
         console.log("Feed timestamps updated");
 
         // Setup oracle parameters with regular providers
-        address[] memory bases = new address[](7);
-        bases[0] = address(tokenIn);
-        bases[1] = address(tokenIn);
-        bases[2] = address(tokenIn);
-        bases[3] = address(tokenOut);
-        bases[4] = address(tokenOut);
-        bases[5] = address(tokenOut);
+        address[] memory bases = new address[](9);
+        bases[0] = address(underlyingToken1);
+        bases[1] = address(underlyingToken1);
+        bases[2] = address(underlyingToken1);
+        bases[3] = address(underlyingToken2);
+        bases[4] = address(underlyingToken2);
+        bases[5] = address(underlyingToken2);
         bases[6] = address(superAsset);
+        bases[7] = address(tokenIn);
+        bases[8] = address(tokenOut);
 
-        address[] memory quotes = new address[](7);
+        address[] memory quotes = new address[](9);
         quotes[0] = USD;
         quotes[1] = USD;
         quotes[2] = USD;
@@ -114,8 +132,10 @@ contract SuperAssetTest is Helpers {
         quotes[4] = USD;
         quotes[5] = USD;
         quotes[6] = USD;
+        quotes[7] = USD;
+        quotes[8] = USD;
 
-        bytes32[] memory providers = new bytes32[](7);
+        bytes32[] memory providers = new bytes32[](9);
         providers[0] = PROVIDER_1;
         providers[1] = PROVIDER_2;
         providers[2] = PROVIDER_3;
@@ -123,8 +143,10 @@ contract SuperAssetTest is Helpers {
         providers[4] = PROVIDER_5;
         providers[5] = PROVIDER_6;
         providers[6] = PROVIDER_SUPERASSET;
+        providers[7] = PROVIDER_SUPERVAULT1;
+        providers[8] = PROVIDER_SUPERVAULT2;
 
-        address[] memory feeds = new address[](7);
+        address[] memory feeds = new address[](9);
         feeds[0] = address(mockFeed1);
         feeds[1] = address(mockFeed2);
         feeds[2] = address(mockFeed3);
@@ -132,6 +154,8 @@ contract SuperAssetTest is Helpers {
         feeds[4] = address(mockFeed5);
         feeds[5] = address(mockFeed6);
         feeds[6] = address(mockFeedSuperAssetShares1);
+        feeds[7] = address(mockFeedSuperVault1Shares);
+        feeds[8] = address(mockFeedSuperVault2Shares);
 
         // Deploy and configure oracle with regular providers only
         oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
@@ -146,6 +170,9 @@ contract SuperAssetTest is Helpers {
         oracle.setFeedMaxStaleness(address(mockFeed5), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed6), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeedSuperAssetShares1), 1 days);
+        oracle.setFeedMaxStaleness(address(mockFeedSuperVault1Shares), 1 days);
+        oracle.setFeedMaxStaleness(address(mockFeedSuperVault2Shares), 1 days);
+
         console.log("Feed staleness set");
 
         // Deploy contracts
@@ -204,31 +231,39 @@ contract SuperAssetTest is Helpers {
 
         console.log("Start Minting");
 
-        underlyingToken.mint(user, 1000e18);
+        underlyingToken1.mint(user, 1000e18);
+        underlyingToken2.mint(user, 1000e18);
         vm.startPrank(user);
-        underlyingToken.approve(address(tokenIn), 1000e18);
+        underlyingToken1.approve(address(tokenIn), 1000e18);
         tokenIn.deposit(1000e18, user);
+        underlyingToken2.approve(address(tokenOut), 1000e18);
+        tokenOut.deposit(1000e18, user);
         vm.stopPrank();
         assertGt(tokenIn.balanceOf(user), 0);
+        assertGt(tokenOut.balanceOf(user), 0);
         // tokenIn.mint(1000e18, user);
         console.log("Start Minting T1");
         // tokenIn.mint(1000e18, address(incentiveFund));
-        tokenOut.mint(user, 1000e18);
+        // tokenOut.mint(user, 1000e18);
 
         console.log("Start Minting T2");
 
-        tokenOut.mint(address(incentiveFund), 1000e18);
+        // tokenOut.mint(address(incentiveFund), 1000e18);
         console.log("Start Minting T3");
 
 
-        underlyingToken.mint(user11, 1000e18);
+        underlyingToken1.mint(user11, 1000e18);
+        underlyingToken2.mint(user11, 1000e18);
         vm.startPrank(user11);
-        underlyingToken.approve(address(tokenIn), 1000e18);
+        underlyingToken1.approve(address(tokenIn), 1000e18);
         tokenIn.deposit(1000e18, user11);
+        underlyingToken2.approve(address(tokenOut), 1000e18);
+        tokenOut.deposit(1000e18, user11);        
         vm.stopPrank();
         assertGt(tokenIn.balanceOf(user11), 0);
+        assertGt(tokenOut.balanceOf(user11), 0);
         // tokenIn.mint(1000e18, user11);
-        tokenOut.mint(user11, 1000e18);
+        // tokenOut.mint(user11, 1000e18);
         console.log("Start Minting T5");
 
         vm.stopPrank();
@@ -372,7 +407,8 @@ contract SuperAssetTest is Helpers {
     }
 
     // --- Test: Deposit ---
-    function test_BasicDeposit() public {
+    function test_BasicDepositSimple() public {
+        console.log("test_BasicDepositSimple() Start");
         uint256 depositAmount = 100e18;
         uint256 minSharesOut = 99e18; // Allowing for 1% slippage
         assertEq(superAsset.isSupportedERC20(address(tokenIn)), true, "Token In should be whitelisted");
@@ -385,6 +421,11 @@ contract SuperAssetTest is Helpers {
         (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit) = 
             superAsset.previewDeposit(address(tokenIn), depositAmount);
 
+        console.log("test_BasicDepositSimple() Preview");
+        console.log("Amount Shares Minted:", expAmountSharesMinted);
+        console.log("Swap Fee:", expSwapFee);
+        console.log("Amount Incentive USD Deposit:", expAmountIncentiveUSDDeposit);
+
         // Deposit tokens
         (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) = 
             superAsset.deposit(user, address(tokenIn), depositAmount, minSharesOut);
@@ -392,7 +433,11 @@ contract SuperAssetTest is Helpers {
         assertEq(expAmountSharesMinted, amountSharesMinted);
         assertEq(expSwapFee, swapFee);
         assertEq(expAmountIncentiveUSDDeposit, amountIncentiveUSDDeposit);
-
+        console.log("test_BasicDepositSimple() Deposit");
+        console.log("Amount Shares Minted:", amountSharesMinted);
+        console.log("Swap Fee:", swapFee);
+        console.log("Amount Incentive USD Deposit:", amountIncentiveUSDDeposit);
+        console.log("test_BasicDepositSimple() End");
 
         // Verify results
         assertGt(amountSharesMinted, 0, "Should mint shares");
@@ -411,6 +456,7 @@ contract SuperAssetTest is Helpers {
     }
 
     function test_BasicDepositWithCircuitBreaker() public {
+        console.log("test_BasicDepositWithCircuitBreaker() Start");
         BasicDepositWithCircuitBreaker memory s;
         s.depositAmount = 100e18;
         s.minSharesOut = 99e18; // Allowing for 1% slippage
@@ -429,7 +475,7 @@ contract SuperAssetTest is Helpers {
         mockFeed3.setAnswer(s.currentPrice*5);
 
         (s.priceUSD, s.isDepeg, s.isDispersion, s.isOracleOff) = 
-        superAsset.getPriceWithCircuitBreakers(address(tokenIn));
+        superAsset.getPriceWithCircuitBreakers(IERC4626(tokenIn).asset());
         // assertEq(s.priceUSD, uint256(s.currentPrice));
         console.log("s.isDepeg = ", s.isDepeg);
         console.log("s.isDispersion = ", s.isDispersion);
