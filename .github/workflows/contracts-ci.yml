@@ -53,9 +53,6 @@ jobs:
       - name: Print ulimits
         run: ulimit -Sa && ulimit -Ha
 
-      - name: Set ulimit with sudo
-        run: sudo ulimit -l unlimited
-
       - name: Install Dependencies
         run: yarn install
 
