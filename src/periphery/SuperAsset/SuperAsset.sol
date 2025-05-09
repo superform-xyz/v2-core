@@ -405,7 +405,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Question: make it a return value
         // PreviewErrors memory errors;
         console.log("previewDeposit() Start");
-        if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
+        // NOTE: Preview Function should not revert
+        // if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
+        if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) return (0,0,0);
 
         // Calculate swap fees (example: 0.1% fee)
         swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
@@ -415,7 +417,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         (uint256 priceUSDTokenIn, , , ) = getPriceWithCircuitBreakers(tokenIn);
         (uint256 priceUSDThisShares, , , ) = getPriceWithCircuitBreakers(address(this));
 
-        if (priceUSDTokenIn == 0 || priceUSDThisShares == 0) revert PRICE_USD_ZERO();
+        // NOTE: Preview Function should not revert
+        // if (priceUSDTokenIn == 0 || priceUSDThisShares == 0) revert PRICE_USD_ZERO();
+        if (priceUSDTokenIn == 0 || priceUSDThisShares == 0) return (0,0,0);
 
         // Calculate SuperUSD shares to mint
         amountSharesMinted = Math.mulDiv(amountTokenInAfterFees, priceUSDTokenIn, priceUSDThisShares); // Adjust for decimals
@@ -450,7 +454,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     view
     returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD)
     {
-        if (!isSupportedUnderlyingVault[tokenOut] && !isSupportedERC20[tokenOut]) revert NOT_SUPPORTED_TOKEN();
+        // TODO: Handle the case of a token that was whitelisted, now it is not whitelisted anymore but still this contract holds some exposure to this token 
+
+        // NOTE: Preview Function should not revert
+        // if (!isSupportedUnderlyingVault[tokenOut] && !isSupportedERC20[tokenOut]) revert NOT_SUPPORTED_TOKEN();
+        if (!isSupportedUnderlyingVault[tokenOut] && !isSupportedERC20[tokenOut]) return (0,0,0);
 
         // Get price of underlying vault shares in USD
         (uint256 priceUSDThisShares, , , ) = getPriceWithCircuitBreakers(address(this));
@@ -500,7 +508,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     
     /// @inheritdoc ISuperAsset
     function getPriceWithCircuitBreakers(address tokenIn) public view returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) {
-        if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
+        // NOTE: We do not need this check here, since price request can also regard non-whitelisted tokens like integrated SuperVaults underlying assets, this price is required to check if a depeg, dispersion, oracle off happened
+        // if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
 
         // Get token decimals
         uint256 one = 10**IERC20Metadata(tokenIn).decimals();
