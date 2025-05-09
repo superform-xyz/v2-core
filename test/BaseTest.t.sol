@@ -466,7 +466,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.makePersistent(debridgeDlnHelper);
             contractAddresses[chainIds[i]][DEBRIDGE_DLN_HELPER_KEY] = debridgeDlnHelper;
 
-            A[i].superGovernor = new SuperGovernor{ salt: SALT }(address(this), address(this), address(this), TREASURY, CHAIN_1_POLYMER_PROVER);
+            A[i].superGovernor = new SuperGovernor{ salt: SALT }(
+                address(this), address(this), address(this), TREASURY, CHAIN_1_POLYMER_PROVER
+            );
             vm.label(address(A[i].superGovernor), SUPER_GOVERNOR_KEY);
             contractAddresses[chainIds[i]][SUPER_GOVERNOR_KEY] = address(A[i].superGovernor);
 
@@ -1575,6 +1577,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY],
             MORPHO_GAUNTLET_WETH_CORE_KEY
         );
+        existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY] =
+            CHAIN_8453_MorphoGauntletWETHCore;
+        vm.label(
+            existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY],
+            AAVE_BASE_WETH
+        );
 
         /// @dev 7540 real centrifuge vaults on mainnet
         existingVaults[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY] = CHAIN_1_CentrifugeUSDC;
@@ -1836,12 +1844,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         bytes32[] memory leaves = new bytes32[](2);
         leaves[0] = _createDestinationValidatorLeaf(
-            executionData,
-            messageData.chainId,
-            accountToUse,
-            messageData.targetExecutor,
-            messageData.amount,
-            validUntil
+            executionData, messageData.chainId, accountToUse, messageData.targetExecutor, messageData.amount, validUntil
         );
         leaves[1] = _createSourceValidatorLeaf(userOpHash, validUntil);
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);

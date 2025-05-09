@@ -50,11 +50,17 @@ jobs:
         with:
           node-version: "latest"
 
+      - name: Print ulimits
+        run: ulimit -Sa && ulimit -Ha
+
       - name: Install Dependencies
         run: yarn install
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
+      
+      - name: "Get forge version"
+        run: forge --version
 
       - name: "Install Foundry dependencies"
         run: forge install
@@ -120,7 +126,7 @@ jobs:
           )" >> $GITHUB_ENV
 
       - name: "Run the tests"
-        run: "forge test -vvv"
+        run: "make ftest-vvv"
 
       - name: "Add test summary"
         run: |
