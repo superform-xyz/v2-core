@@ -50,11 +50,17 @@ jobs:
         with:
           node-version: "latest"
 
+      - name: Print ulimits
+        run: ulimit -Sa && ulimit -Ha
+
       - name: Install Dependencies
         run: yarn install
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
+      
+      - name: "Get forge version"
+        run: forge --version
 
       - name: "Install Foundry dependencies"
         run: forge install
@@ -120,7 +126,7 @@ jobs:
           )" >> $GITHUB_ENV
 
       - name: "Run the tests"
-        run: "forge test -vvv"
+        run: "make ftest-vvv"
 
       - name: "Add test summary"
         run: |
@@ -130,8 +136,7 @@ jobs:
   vnet-deploy:
     needs: ["test"]
     if:
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/dev' ||
-      contains(github.ref, '-test-'))
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/'))
     runs-on: "SuperformCore3"
     outputs:
       eth_mainnet_addresses: ${{ steps.get-addresses-eth.outputs.addresses }}

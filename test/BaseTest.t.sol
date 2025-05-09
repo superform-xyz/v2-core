@@ -466,7 +466,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.makePersistent(debridgeDlnHelper);
             contractAddresses[chainIds[i]][DEBRIDGE_DLN_HELPER_KEY] = debridgeDlnHelper;
 
-            A[i].superGovernor = new SuperGovernor{ salt: SALT }(address(this), address(this), address(this), TREASURY, CHAIN_1_POLYMER_PROVER);
+            A[i].superGovernor = new SuperGovernor{ salt: SALT }(
+                address(this), address(this), address(this), TREASURY, CHAIN_1_POLYMER_PROVER
+            );
             vm.label(address(A[i].superGovernor), SUPER_GOVERNOR_KEY);
             contractAddresses[chainIds[i]][SUPER_GOVERNOR_KEY] = address(A[i].superGovernor);
 
@@ -1575,6 +1577,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY],
             MORPHO_GAUNTLET_WETH_CORE_KEY
         );
+        existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY] =
+            CHAIN_8453_MorphoGauntletWETHCore;
+        vm.label(
+            existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY],
+            AAVE_BASE_WETH
+        );
 
         /// @dev 7540 real centrifuge vaults on mainnet
         existingVaults[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY] = CHAIN_1_CentrifugeUSDC;
@@ -1686,7 +1694,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         NOT_ENOUGH_BALANCE,
         ENOUGH_BALANCE,
         NO_HOOKS,
-        LOW_LEVEL_FAILED
+        LOW_LEVEL_FAILED,
+        FAILED
     }
 
     function _processAcrossV3Message(
@@ -1711,6 +1720,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         } else if (relayerType == RELAYER_TYPE.LOW_LEVEL_FAILED) {
             vm.expectEmit(true, false, false, false);
             emit ISuperDestinationExecutor.SuperDestinationExecutorFailedLowLevel(account, "");
+        } else if (relayerType == RELAYER_TYPE.FAILED) {
+            vm.expectEmit(true, false, false, false);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorFailed(account, "");
         }
         AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
             SPOKE_POOL_V3_ADDRESSES[srcChainId],
@@ -1832,14 +1844,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         bytes32[] memory leaves = new bytes32[](2);
         leaves[0] = _createDestinationValidatorLeaf(
-            executionData,
-            messageData.chainId,
-            accountToUse,
-            messageData.targetExecutor,
-            messageData.targetAdapter,
-            messageData.tokenSent,
-            messageData.amount,
-            validUntil
+            executionData, messageData.chainId, accountToUse, messageData.targetExecutor, messageData.amount, validUntil
         );
         leaves[1] = _createSourceValidatorLeaf(userOpHash, validUntil);
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
@@ -2015,6 +2020,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint256 value;
         address giveTokenAddress;
         uint256 giveAmount;
+        uint8 version;
+        address fallbackAddress;
+        address executorAddress;
+        uint256 executionFee;
+        bool allowDelayedExecution;
+        bool requireSuccessfulExecution;
+        bytes payload;
         address takeTokenAddress;
         uint256 takeAmount;
         uint256 takeChainId;
@@ -2022,7 +2034,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address givePatchAuthoritySrc;
         bytes orderAuthorityAddressDst;
         bytes allowedTakerDst;
-        bytes externalCall;
         bytes allowedCancelBeneficiarySrc;
         bytes affiliateFee;
         uint32 referralCode;
@@ -2035,36 +2046,45 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     {
         bytes memory part1 = _encodeDebridgePart1(d);
         bytes memory part2 = _encodeDebridgePart2(d);
-        hookData = bytes.concat(part1, part2);
+        bytes memory part3 = _encodeDebridgePart3(d);
+        hookData = bytes.concat(part1, part2, part3);
     }
 
     function _encodeDebridgePart1(DebridgeOrderData memory d) internal pure returns (bytes memory) {
-        bytes memory takeTokenAddressBytes = abi.encodePacked(d.takeTokenAddress);
-        bytes memory receiverDstBytes = abi.encodePacked(d.receiverDst);
-
         return abi.encodePacked(
             d.usePrevHookAmount,
             d.value,
             d.giveTokenAddress,
             d.giveAmount,
-            takeTokenAddressBytes.length,
-            takeTokenAddressBytes,
-            d.takeAmount,
-            d.takeChainId,
-            receiverDstBytes.length,
-            receiverDstBytes,
-            d.givePatchAuthoritySrc,
-            d.orderAuthorityAddressDst.length,
-            d.orderAuthorityAddressDst
+            d.version,
+            d.fallbackAddress,
+            d.executorAddress
         );
     }
 
     function _encodeDebridgePart2(DebridgeOrderData memory d) internal pure returns (bytes memory) {
         return abi.encodePacked(
+            d.executionFee,
+            d.allowDelayedExecution,
+            d.requireSuccessfulExecution,
+            d.payload.length,
+            d.payload,
+            abi.encodePacked(d.takeTokenAddress).length,
+            abi.encodePacked(d.takeTokenAddress),
+            d.takeAmount,
+            d.takeChainId
+        );
+    }
+
+    function _encodeDebridgePart3(DebridgeOrderData memory d) internal pure returns (bytes memory) {
+        return abi.encodePacked(
+            abi.encodePacked(d.receiverDst).length,
+            abi.encodePacked(d.receiverDst),
+            d.givePatchAuthoritySrc,
+            d.orderAuthorityAddressDst.length,
+            d.orderAuthorityAddressDst,
             d.allowedTakerDst.length,
             d.allowedTakerDst,
-            d.externalCall.length,
-            d.externalCall,
             d.allowedCancelBeneficiarySrc.length,
             d.allowedCancelBeneficiarySrc,
             d.affiliateFee.length,

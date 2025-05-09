@@ -16,19 +16,19 @@ deploy-poc:
 
 build :; forge build && $(MAKE) generate
 
-ftest :; forge test
+ftest :; forge test --jobs 10
 
-ftest-vvv :; forge test -vvv
+ftest-vvv :; forge test -vvv --jobs 10
 
-coverage :; FOUNDRY_PROFILE=coverage forge coverage --ir-minimum --report lcov
+coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_MultipleDepositsAndPartialWithdrawal_Fees -vvv
+test-vvv :; forge test --match-test test_CrossChainDepositWithSlippage -vvv --jobs 10
 
-test-integration :; forge test --match-contract PendleRouterHookTests -vvvvvv
+test-integration :; forge test --match-contract SuperVaultTest -vv --jobs 10
 
-test-gas-report-user :; forge test --match-test test_gasReport --gas-report
-test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report
-test-gas-report-3vaults :; forge test --match-test test_gasReport_ThreeVaults --gas-report
+test-gas-report-user :; forge test --match-test test_gasReport --gas-report --jobs 10
+test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10
+test-gas-report-3vaults :; forge test --match-test test_gasReport_ThreeVaults --gas-report --jobs 10
 
 test-cache :; forge test --cache-tests
 
