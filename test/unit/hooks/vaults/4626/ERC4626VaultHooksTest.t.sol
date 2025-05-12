@@ -166,7 +166,7 @@ contract ERC4626VaultHooksTest is Helpers {
     function test_RedeemHook_ZeroAddress() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         redeemHook.build(
-            address(0), address(this), abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), shares, false)
+            address(0), address(this), abi.encodePacked(yieldSourceOracleId, address(0), address(this), shares, false)
         );
     }
 
