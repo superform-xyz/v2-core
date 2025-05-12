@@ -372,6 +372,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         bool isDispersion;
         bool isOracleOff;
         uint256 balance;
+        uint256 absDeltaValue;
+        int256 deltaValue;
+        uint256 absDeltaToken;
     }
 
     /// @inheritdoc ISuperAsset
@@ -424,12 +427,16 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             totalAllocationPreOperation += absoluteAllocationPreOperation[i];
             absoluteAllocationPostOperation[i] = absoluteAllocationPreOperation[i];
             if(token == s.vault) {
-                absoluteAllocationPostOperation[i] = uint256(int256(absoluteAllocationPreOperation[i]) + deltaToken);
+                s.absDeltaToken = (deltaToken >= 0) ? uint256(deltaToken) : uint256(-deltaToken);
+                s.absDeltaValue = Math.mulDiv(s.absDeltaToken, s.priceUSD, 10**IERC20Metadata(s.vault).decimals());
+                s.deltaValue = (deltaToken >= 0) ? int256(s.absDeltaValue) : -int256(s.absDeltaValue);
+                absoluteAllocationPostOperation[i] = uint256(int256(absoluteAllocationPreOperation[i]) + s.deltaValue);
             }
             totalAllocationPostOperation += absoluteAllocationPostOperation[i];
             absoluteTargetAllocation[i] = targetAllocations[s.vault];
             totalTargetAllocation += absoluteTargetAllocation[i];
             vaultWeights[i] = weights[s.vault];
+            isSuccess = true;
         }
     }
 
