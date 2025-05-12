@@ -53,7 +53,6 @@ contract BaseSuperVaultTest is BaseTest {
 
     // Constants
     uint256 private constant PRECISION = 1e18;
-    uint256 constant SUPER_VAULT_CAP = 5_000_000e6; // 5M USDC
     uint256 constant LARGE_DEPOSIT = 100_000e6; // 100k USDC
 
     uint256 constant ONE_HUNDRED_PERCENT = 10_000;
@@ -151,7 +150,6 @@ contract BaseSuperVaultTest is BaseTest {
      */
     function _deployVault(
         address _asset,
-        uint256 _superVaultCap,
         string memory _superVaultSymbol
     )
         internal
@@ -168,7 +166,6 @@ contract BaseSuperVaultTest is BaseTest {
                 mainStrategist: STRATEGIST,
                 minUpdateInterval: 5,
                 maxStaleness: 300,
-                superVaultCap: _superVaultCap,
                 feeConfig: ISuperVaultStrategy.FeeConfig({ performanceFeeBps: 1000, recipient: address(this) })
             })
         );
@@ -194,7 +191,7 @@ contract BaseSuperVaultTest is BaseTest {
         internal
         returns (address vaultAddr, address strategyAddr, address escrowAddr)
     {
-        return _deployVault(address(asset), SUPER_VAULT_CAP, _superVaultSymbol);
+        return _deployVault(address(asset), _superVaultSymbol);
     }
 
     function __deposit(AccountInstance memory accInst, uint256 depositAmount) internal {
@@ -424,12 +421,7 @@ contract BaseSuperVaultTest is BaseTest {
         );
 
         vars.fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            vault2,
-            vault2,
-            address(strategy),
-            vars.aaveSharesOut,
-            false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, vault2, address(strategy), vars.aaveSharesOut, false
         );
 
         (vars.totalSvAssets,) = totalAssetHelper.totalAssets(address(strategy));
@@ -692,20 +684,10 @@ contract BaseSuperVaultTest is BaseTest {
         bytes[] memory fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults
         fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            vault1,
-            vault1,
-            address(strategy),
-            redeemSharesVault1,
-            false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, vault1, address(strategy), redeemSharesVault1, false
         );
         fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            vault2,
-            vault2,
-            address(strategy),
-            redeemSharesVault2,
-            false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, vault2, address(strategy), redeemSharesVault2, false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
@@ -756,20 +738,10 @@ contract BaseSuperVaultTest is BaseTest {
         bytes[] memory fulfillHooksData = new bytes[](2);
         // Withdraw proportionally from both vaults
         fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            vault1,
-            vault1,
-            address(strategy),
-            redeemSharesVault1,
-            false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault1, vault1, address(strategy), redeemSharesVault1, false
         );
         fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            vault2,
-            vault2,
-            address(strategy),
-            redeemSharesVault2,
-            false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, vault2, address(strategy), redeemSharesVault2, false
         );
 
         vm.startPrank(STRATEGIST);
@@ -1403,7 +1375,7 @@ contract BaseSuperVaultTest is BaseTest {
         uint256 superformFee;
         uint256 recipientFee;
 
-        (, SuperVaultStrategy.FeeConfig memory feeConfig) = strategy.getConfigInfo();
+        SuperVaultStrategy.FeeConfig memory feeConfig = strategy.getConfigInfo();
 
         if (currentAssets > historicalAssets) {
             uint256 profit = currentAssets - historicalAssets;

@@ -137,8 +137,6 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         uint256 currentPPS = strategy.getStoredPPS();
         if (currentPPS == 0) revert INVALID_PPS();
 
-        _checkSuperVaultCap(assets, currentPPS);
-
         shares = Math.mulDiv(assets, PRECISION, currentPPS, Math.Rounding.Floor);
         if (shares == 0) revert ZERO_AMOUNT();
 
@@ -161,8 +159,6 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
 
         assets = Math.mulDiv(shares, currentPPS, PRECISION, Math.Rounding.Ceil);
         if (assets == 0) revert ZERO_AMOUNT();
-
-        _checkSuperVaultCap(assets, currentPPS);
 
         _asset.safeTransferFrom(msg.sender, address(strategy), assets);
 
@@ -205,8 +201,8 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         // Forward to strategy
         strategy.handleOperation(controller, 0, 0, ISuperVaultStrategy.Operation.CancelRedeem);
 
-        // Return shares to user
-        ISuperVaultEscrow(escrow).returnShares(msg.sender, shares);
+        // Return shares to controller
+        ISuperVaultEscrow(escrow).returnShares(controller, shares);
 
         emit RedeemRequestCancelled(controller, msg.sender);
     }
@@ -335,11 +331,8 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     }
 
     /// @inheritdoc IERC4626
-    function maxDeposit(address) public view override returns (uint256) {
-        (uint256 cap,) = strategy.getConfigInfo();
-        if (cap == 0) return type(uint256).max;
-        uint256 currentAssets = totalAssets();
-        return (cap > currentAssets) ? cap - currentAssets : 0;
+    function maxDeposit(address) public pure override returns (uint256) {
+        return type(uint256).max;
     }
 
     /// @inheritdoc IERC4626
@@ -480,19 +473,6 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
 
     function _validateController(address controller) internal view {
         if (controller != msg.sender && !isOperator[controller][msg.sender]) revert INVALID_CONTROLLER();
-    }
-
-    function _checkSuperVaultCap(uint256 assetsToDeposit, uint256 currentPPS) internal view {
-        (uint256 cap,) = strategy.getConfigInfo();
-        if (cap > 0) {
-            uint256 supply = totalSupply();
-            if (supply == 0) return;
-            uint256 currentAssets = Math.mulDiv(supply, currentPPS, PRECISION, Math.Rounding.Floor);
-
-            if (currentAssets + assetsToDeposit > cap) {
-                revert CAP_EXCEEDED();
-            }
-        }
     }
 
     function _calculateDomainSeparator() internal view returns (bytes32) {

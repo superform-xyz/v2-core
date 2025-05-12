@@ -482,18 +482,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         assertEq(asset.balanceOf(address(strategy)), expectedAssets, "Wrong strategy asset balance");
     }
 
-    function test_MaxDeposit() public view {
-        uint256 result = vault.maxDeposit(accountEth);
-
-        // By default, should return the remaining cap
-        (uint256 cap,) = strategy.getConfigInfo();
-        uint256 currentAssets = vault.totalAssets();
-        uint256 expectedMax = cap - currentAssets;
-
-        // For a fresh vault, maxDeposit should be the full cap
-        assertEq(result, expectedMax, "maxDeposit should return remaining cap");
-    }
-
     function test_MaxMint() public view {
         uint256 result = vault.maxMint(accountEth);
 
@@ -742,30 +730,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vm.prank(randomAddress);
         vm.expectRevert(ISuperVault.INVALID_OWNER_OR_OPERATOR.selector);
         vault.requestRedeem(100e6, accountEth, accountEth);
-    }
-
-    function test_RevertWhen_ExceedingCap() public {
-        // Lower the cap to a small value for testing
-        uint256 lowCap = 500e6; // 500 USDC
-
-        // Update cap to a small value
-        vm.startPrank(STRATEGIST);
-        strategy.updateSuperVaultCap(lowCap);
-        vm.stopPrank();
-
-        // This should pass (under cap)
-        uint256 smallDeposit = 100e6; // 100 USDC
-        _deposit(smallDeposit);
-
-        // Try to deposit more than the cap
-        uint256 largeDeposit = 1000e6; // 1000 USDC
-        _getTokens(address(asset), accountEth, largeDeposit);
-
-        vm.startPrank(accountEth);
-        asset.approve(address(vault), largeDeposit);
-        vm.expectRevert(ISuperVault.CAP_EXCEEDED.selector);
-        vault.deposit(largeDeposit, accountEth);
-        vm.stopPrank();
     }
 
     /*//////////////////////////////////////////////////////////////

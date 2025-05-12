@@ -56,7 +56,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     uint8 private _vaultDecimals;
 
     // Global configuration
-    uint256 private superVaultCap;
 
     // Fee configuration
     FeeConfig private feeConfig;
@@ -88,7 +87,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     function initialize(
         address vault_,
         address superGovernor_,
-        uint256 superVaultCap_,
         FeeConfig memory feeConfig_
     )
         external
@@ -96,7 +94,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (_initialized) revert ALREADY_INITIALIZED();
         if (vault_ == address(0)) revert INVALID_VAULT();
         if (superGovernor_ == address(0)) revert ZERO_ADDRESS();
-        if (superVaultCap_ == 0) revert INVALID_SUPER_VAULT_CAP();
         if (feeConfig.performanceFeeBps > 0 && feeConfig.recipient == address(0)) revert ZERO_ADDRESS();
 
         _initialized = true;
@@ -104,10 +101,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         _asset = IERC20(IERC4626(vault_).asset());
         _vaultDecimals = IERC20Metadata(vault_).decimals();
         superGovernor = ISuperGovernor(superGovernor_);
-        superVaultCap = superVaultCap_;
         feeConfig = feeConfig_;
 
-        emit Initialized(_vault, superGovernor_, superVaultCap_);
+        emit Initialized(_vault, superGovernor_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -211,12 +207,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         }
     }
 
-    function updateSuperVaultCap(uint256 superVaultCap_) external {
-        _isPrimaryStrategist(msg.sender);
-        if (superVaultCap_ == 0) revert INVALID_SUPER_VAULT_CAP();
-        superVaultCap = superVaultCap_;
-        emit SuperVaultCapUpdated(superVaultCap_);
-    }
+
 
     function proposeVaultFeeConfigUpdate(uint256 performanceFeeBps, address recipient) external {
         _isPrimaryStrategist(msg.sender);
@@ -261,8 +252,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         vaultDecimals_ = _vaultDecimals;
     }
 
-    function getConfigInfo() external view returns (uint256 superVaultCap_, FeeConfig memory feeConfig_) {
-        superVaultCap_ = superVaultCap;
+    function getConfigInfo() external view returns (FeeConfig memory feeConfig_) {
         feeConfig_ = feeConfig;
     }
 
