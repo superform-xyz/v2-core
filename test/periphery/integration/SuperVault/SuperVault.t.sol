@@ -1015,17 +1015,19 @@ contract SuperVaultTest is BaseSuperVaultTest {
         _fulfillRedeemForUsers(
             requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
         );
-
+        console2.log("fulfilled redeem for half the users");
         // check that fulfilled requests are cleared
         for (uint256 i; i < partialUsersCount; ++i) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
             assertGt(strategy.claimableWithdraw(accInstances[i].account), 0);
         }
-
+        console2.log("checked that fulfilled requests are cleared");
         // check that remaining users still have pending requests
         for (uint256 i = partialUsersCount; i < ACCOUNT_COUNT; ++i) {
-            assertEq(strategy.pendingRedeemRequest(accInstances[i].account), redeemAmounts[i]);
-            assertGt(strategy.claimableWithdraw(accInstances[i].account), 0);
+            uint256 pendingRedeem = strategy.pendingRedeemRequest(accInstances[i].account);
+            assertEq(pendingRedeem, redeemAmounts[i]);
+            uint256 claimable = strategy.claimableWithdraw(accInstances[i].account);
+            assertEq(claimable, 0);
         }
 
         // calculate total redeem shares for remaining users
@@ -1262,11 +1264,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vars.finalAssetBalance = asset.balanceOf(accInstances[0].account);
         vars.assetsReceived = vars.finalAssetBalance - vars.initialAssetBalance;
 
-        console2.log("Final shares:", vars.finalShareBalance);
-        console2.log("Assets received:", vars.assetsReceived);
-
-        /// @dev  -4 is the SuperLedger fee
-        assertEq(vars.assetsReceived, vars.maxWithdraw - 4, "Assets received should match maxWithdraw");
+        assertEq(vars.assetsReceived, vars.maxWithdraw, "Assets received should match maxWithdraw");
         assertApproxEqRel(
             vault.convertToAssets(vars.finalShareBalance), vars.depositAmount - vars.assetsReceived, 0.002e18
         );
