@@ -260,22 +260,12 @@ read_branch_latest() {
 }
 
 # Generate salt for a network
-get_salt() {
-    local network_slug=$1
-    
-    # Use timestamp-based salt if local run OR we're treating as local (non-dev/main branch)
-    if is_local_run || [ "$IS_MAIN_OR_DEV" = "false" ]; then
-        # Simply use the current Unix timestamp as salt
-        # This ensures a unique but predictable value
-        local timestamp=$(date +%s)
-        echo "$timestamp"
-        return 0
-    fi
-    
-    # Read current latest file
-    content=$(read_branch_latest)
-    current_counter=$(echo "$content" | jq -r ".networks[\"$network_slug\"].counter // 0")
-    echo $((current_counter + 1))
+get_salt() {    
+    # Simply use the current Unix timestamp as salt
+    # This ensures a unique but predictable value
+    local timestamp=$(date +%s)
+    echo "$timestamp"
+
 }
 
 ###################################################################################
@@ -626,15 +616,15 @@ done
 
 # Second phase: Generate salts for each network
 network_slug=$(get_network_slug "1")
-ETH_SALT=$(get_salt "$network_slug")
+ETH_SALT=$(get_salt)
 log "INFO" "Generated ETH_SALT: $ETH_SALT"
 
 network_slug=$(get_network_slug "8453")
-BASE_SALT=$(get_salt "$network_slug")
+BASE_SALT=$(get_salt)
 log "INFO" "Generated BASE_SALT: $BASE_SALT"
 
 network_slug=$(get_network_slug "10")
-OPTIMISM_SALT=$(get_salt "$network_slug")
+OPTIMISM_SALT=$(get_salt)
 log "INFO" "Generated OPTIMISM_SALT: $OPTIMISM_SALT"
 
 # Validate salts to ensure they're positive integers
