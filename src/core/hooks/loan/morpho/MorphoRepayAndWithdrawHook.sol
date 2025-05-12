@@ -79,6 +79,8 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     {
         BuildHookLocalVars memory vars = _decodeHookData(data);
 
+        if (vars.amount == 0) revert AMOUNT_NOT_VALID();
+
         if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
 
         MarketParams memory marketParams =
