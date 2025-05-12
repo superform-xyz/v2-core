@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Test} from "forge-std/Test.sol";
-import "forge-std/console.sol";
 import {IncentiveFundContract} from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
 import {SuperAsset} from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
 import {AssetBank} from "../../../../src/periphery/SuperAsset/AssetBank.sol";
@@ -66,11 +64,9 @@ contract IncentiveFundContractTest is Helpers {
         tokenIn = new MockERC20("Token In", "TIN", 18);
         tokenOut = new MockERC20("Token Out", "TOUT", 18);
         // usd = new MockERC20("USD", "USD", 6);
-        console.log("Mock tokens deployed");
 
         // Deploy actual ICC
         icc = new IncentiveCalculationContract();
-        console.log("ICC deployed");
 
         // Create mock price feeds with different price values (1 token = $1)
         mockFeed1 = new MockAggregator(1e8, 8); // Token/USD = $1
@@ -79,7 +75,6 @@ contract IncentiveFundContractTest is Helpers {
         mockFeed4 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed5 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed6 = new MockAggregator(1e8, 8); // Token/USD = $1
-        console.log("Mock feeds deployed");
 
         // Update timestamps to ensure prices are fresh
         mockFeed1.setUpdatedAt(block.timestamp);
@@ -88,7 +83,6 @@ contract IncentiveFundContractTest is Helpers {
         mockFeed4.setUpdatedAt(block.timestamp);
         mockFeed5.setUpdatedAt(block.timestamp);
         mockFeed6.setUpdatedAt(block.timestamp);
-        console.log("Feed timestamps updated");
 
         // Setup oracle parameters with regular providers
         address[] memory bases = new address[](6);
@@ -127,7 +121,6 @@ contract IncentiveFundContractTest is Helpers {
         // Deploy and configure oracle with regular providers only
         oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
         oracle.setMaxStaleness(2 weeks);
-        console.log("Oracle deployed");
 
         // Set staleness for each feed
         vm.startPrank(admin);
@@ -138,23 +131,18 @@ contract IncentiveFundContractTest is Helpers {
         oracle.setFeedMaxStaleness(address(mockFeed5), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed6), 1 days);
         vm.stopPrank();
-        console.log("Feed staleness set");
         
         vm.startPrank(admin);
         // Deploy contracts (admin will automatically get DEFAULT_ADMIN_ROLE)
         assetBank = new AssetBank();
-        console.log("AssetBank deployed");
 
         incentiveFund = new IncentiveFundContract();
-        console.log("IncentiveFund deployed");
         vm.stopPrank();
         
         superAsset = new SuperAsset();
-        console.log("SuperAsset deployed");
 
         vm.startPrank(admin);
         // Initialize SuperAsset
-        console.log("About to initialize SuperAsset");
         superAsset.initialize(
             "SuperAsset", // name
             "SA", // symbol
@@ -164,9 +152,7 @@ contract IncentiveFundContractTest is Helpers {
             100, // swapFeeInPercentage (0.1%)
             100 // swapFeeOutPercentage (0.1%)
         );
-        console.log("Initialized SuperAsset");
 
-        console.log("Setup of Roles and Whitelists in SuperAsset");
         // Grant VAULT_MANAGER_ROLE to admin for token management
         superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), admin);
 
@@ -174,25 +160,20 @@ contract IncentiveFundContractTest is Helpers {
         superAsset.setSuperOracle(address(oracle));
         superAsset.whitelistERC20(address(tokenIn));
         superAsset.whitelistERC20(address(tokenOut));
-        console.log("Setup of Roles and Whitelists in SuperAsset completed");
 
-        console.log("Incentive Fund Initialization");
         // Initialize IncentiveFundContract after SuperAsset is set up
         incentiveFund.initialize(address(superAsset), address(assetBank));
 
         // Setup roles for each contract
         bytes32 INCENTIVE_FUND_MANAGER = incentiveFund.INCENTIVE_FUND_MANAGER();
 
-        console.log("Setup of roles in Incentive Fund");
         // Grant roles to manager and contracts
         incentiveFund.grantRole(INCENTIVE_FUND_MANAGER, manager);
-        console.log("Setup of roles in Incentive Fund Completed");
         assetBank.grantRole(assetBank.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
         superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
         superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
         superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
         vm.stopPrank();
-        console.log("Incentive Fund Initialization Completed");
 
         // Set up initial token balances for testing
         vm.startPrank(admin);
@@ -286,7 +267,6 @@ contract IncentiveFundContractTest is Helpers {
     }
 
     function test_OnlyManagerCanPayIncentive() public {
-        console.log("test_OnlyManagerCanPayIncentive() Start");
         // Setup tokens
         vm.startPrank(admin);
         incentiveFund.setTokenOutIncentive(address(tokenOut));
