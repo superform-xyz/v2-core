@@ -5,8 +5,8 @@ import { MockERC20 } from "test/mocks/MockERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract Mock7540Vault {
-    MockERC20 assetToken;
-    MockERC20 shareToken;
+    MockERC20 public assetToken;
+    MockERC20 public shareToken;
 
     constructor(IERC20 asset_, string memory name_, string memory symbol_) {
         if (address(asset_) == address(0)) {
@@ -39,5 +39,13 @@ contract Mock7540Vault {
 
     function convertToShares(uint256 assets) public pure returns (uint256 shares) {
         return assets;
+    }
+
+    function totalAssets() public pure returns (uint256) {
+        return 0;
+    }
+
+    function deposit(uint256 amount, address receiver) public pure {
+        
     }
 }
