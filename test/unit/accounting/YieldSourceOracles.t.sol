@@ -3,11 +3,6 @@ pragma solidity >=0.8.28;
 
 import { Helpers } from "../../utils/Helpers.sol";
 
-import { ERC4626YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import { ERC5115YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { ERC7540YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import { StakingYieldSourceOracle } from "../../../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
-
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 import { Mock7540Vault } from "../../mocks/Mock7540Vault.sol";
@@ -15,17 +10,14 @@ import { Mock5115Vault } from "../../mocks/Mock5115Vault.sol";
 
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC7540 } from "../../../src/vendor/vaults/7540/IERC7540.sol";
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IStakingVault } from "../../../src/vendor/staking/IStakingVault.sol";
-import { IStandardizedYield } from "../../../src/vendor/pendle/IStandardizedYield.sol";
+
+import { ERC4626YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC5115YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import { ERC7540YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { StakingYieldSourceOracle } from "../../../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
 
 contract YieldSourceOraclesTest is Helpers {
-    ERC4626YieldSourceOracle public erc4626YieldSourceOracle;
-    ERC5115YieldSourceOracle public erc5115YieldSourceOracle;
-    ERC7540YieldSourceOracle public erc7540YieldSourceOracle;
-    StakingYieldSourceOracle public stakingYieldSourceOracle;
-
     MockERC20 public asset;
     address public underlying;
 
@@ -33,6 +25,11 @@ contract YieldSourceOraclesTest is Helpers {
     Mock7540Vault public erc7540;
     Mock5115Vault public erc5115;
     IStakingVault public stakingVault;
+
+    ERC4626YieldSourceOracle public erc4626YieldSourceOracle;
+    ERC5115YieldSourceOracle public erc5115YieldSourceOracle;
+    ERC7540YieldSourceOracle public erc7540YieldSourceOracle;
+    StakingYieldSourceOracle public stakingYieldSourceOracle;
 
     function setUp() public {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
@@ -182,6 +179,53 @@ contract YieldSourceOraclesTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        TVL MULTIPLE TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_ERC4626_getTVLMultiple() public view {
+        address[] memory vaults = new address[](2);
+        vaults[0] = address(erc4626);
+        vaults[1] = address(erc4626);
+
+        uint256[] memory tvls = erc4626YieldSourceOracle.getTVLMultiple(vaults);
+        assertEq(tvls.length, 2);
+        assertEq(tvls[0], 0); // Initial TVL should be 0
+        assertEq(tvls[1], 0); // Initial TVL should be 0
+    }
+
+    function test_ERC7540_getTVLMultiple() public view {
+        address[] memory vaults = new address[](2);
+        vaults[0] = address(erc7540);
+        vaults[1] = address(erc7540);
+
+        uint256[] memory tvls = erc7540YieldSourceOracle.getTVLMultiple(vaults);
+        assertEq(tvls.length, 2);
+        assertEq(tvls[0], 0); // Initial TVL should be 0
+        assertEq(tvls[1], 0); // Initial TVL should be 0
+    }
+
+    function test_ERC5115_getTVLMultiple() public view {
+        address[] memory vaults = new address[](2);
+        vaults[0] = address(erc5115);
+        vaults[1] = address(erc5115);
+
+        uint256[] memory tvls = erc5115YieldSourceOracle.getTVLMultiple(vaults);
+        assertEq(tvls.length, 2);
+        assertEq(tvls[0], 0); // Initial TVL should be 0
+        assertEq(tvls[1], 0); // Initial TVL should be 0
+    }
+
+    function test_Staking_getTVLMultiple() public view {
+        address[] memory vaults = new address[](2);
+        vaults[0] = address(stakingVault);
+        vaults[1] = address(stakingVault);
+
+        uint256[] memory tvls = stakingYieldSourceOracle.getTVLMultiple(vaults);
+        assertEq(tvls.length, 2);
+        assertGt(tvls[0], 0); // Staking vault should have some TVL
+        assertGt(tvls[1], 0); // Staking vault should have some TVL
+    }
+
+    /*//////////////////////////////////////////////////////////////
                        UNDERLYING ASSET TESTS
     //////////////////////////////////////////////////////////////*/
     function test_ERC4626_isValidUnderlyingAsset() public view {
@@ -202,6 +246,65 @@ contract YieldSourceOraclesTest is Helpers {
     function test_Staking_isValidUnderlyingAsset() public view {
         bool isValid = stakingYieldSourceOracle.isValidUnderlyingAsset(address(stakingVault), underlying);
         assertTrue(isValid);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       UNDERLYING ASSETS TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_ERC4626_isValidUnderlyingAssets() public view {
+        address[] memory vaults = new address[](2);
+        address[] memory expectedUnderlying = new address[](2);
+        vaults[0] = address(erc4626);
+        vaults[1] = address(erc4626);
+        expectedUnderlying[0] = address(asset);
+        expectedUnderlying[1] = address(asset);
+
+        bool[] memory isValid = erc4626YieldSourceOracle.isValidUnderlyingAssets(vaults, expectedUnderlying);
+        assertEq(isValid.length, 2);
+        assertTrue(isValid[0]);
+        assertTrue(isValid[1]);
+    }
+
+    function test_ERC7540_isValidUnderlyingAssets() public view {
+        address[] memory vaults = new address[](2);
+        address[] memory expectedUnderlying = new address[](2);
+        vaults[0] = address(erc7540);
+        vaults[1] = address(erc7540);
+        expectedUnderlying[0] = address(asset);
+        expectedUnderlying[1] = address(asset);
+
+        bool[] memory isValid = erc7540YieldSourceOracle.isValidUnderlyingAssets(vaults, expectedUnderlying);
+        assertEq(isValid.length, 2);
+        assertTrue(isValid[0]);
+        assertTrue(isValid[1]);
+    }
+
+    function test_ERC5115_isValidUnderlyingAssets() public view {
+        address[] memory vaults = new address[](2);
+        address[] memory expectedUnderlying = new address[](2);
+        vaults[0] = address(erc5115);
+        vaults[1] = address(erc5115);
+        expectedUnderlying[0] = address(asset);
+        expectedUnderlying[1] = address(asset);
+
+        bool[] memory isValid = erc5115YieldSourceOracle.isValidUnderlyingAssets(vaults, expectedUnderlying);
+        assertEq(isValid.length, 2);
+        assertTrue(isValid[0]);
+        assertTrue(isValid[1]);
+    }
+
+    function test_Staking_isValidUnderlyingAssets() public view {
+        address[] memory vaults = new address[](2);
+        address[] memory expectedUnderlying = new address[](2);
+        vaults[0] = address(stakingVault);
+        vaults[1] = address(stakingVault);
+        expectedUnderlying[0] = stakingVault.stakingToken();
+        expectedUnderlying[1] = stakingVault.stakingToken();
+
+        bool[] memory isValid = stakingYieldSourceOracle.isValidUnderlyingAssets(vaults, expectedUnderlying);
+        assertEq(isValid.length, 2);
+        assertTrue(isValid[0]);
+        assertTrue(isValid[1]);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -235,5 +338,41 @@ contract YieldSourceOraclesTest is Helpers {
             IERC20(stakingVault.rewardsToken()).balanceOf(msg.sender),
             stakingYieldSourceOracle.getBalanceOfOwner(address(stakingVault), msg.sender)
         );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      TVL BY OWNER OF SHARES TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_ERC4626_getTVLByOwnerOfShares() public {
+        IERC20(address(asset)).approve(address(erc4626), 1e18);
+        erc4626.deposit(1e18, msg.sender);
+        uint256 shares = erc4626.balanceOf(msg.sender);
+        uint256 expectedTVL = erc4626.convertToAssets(shares);
+        uint256 actualTVL = erc4626YieldSourceOracle.getTVLByOwnerOfShares(address(erc4626), msg.sender);
+        assertEq(actualTVL, expectedTVL);
+    }
+
+    function test_ERC7540_getTVLByOwnerOfShares() public {
+        IERC20(address(asset)).approve(address(erc7540), 1e18);
+        erc7540.deposit(1e18, msg.sender);
+        uint256 shares = IERC20(erc7540.share()).balanceOf(msg.sender);
+        uint256 expectedTVL = erc7540.convertToAssets(shares);
+        uint256 actualTVL = erc7540YieldSourceOracle.getTVLByOwnerOfShares(address(erc7540), msg.sender);
+        assertEq(actualTVL, expectedTVL);
+    }
+
+    function test_ERC5115_getTVLByOwnerOfShares() public {
+        IERC20(address(asset)).approve(address(erc5115), 1e18);
+        erc5115.deposit(address(this), address(asset), 1e18, 0);
+        uint256 shares = erc5115.balanceOf(msg.sender);
+        uint256 expectedTVL = erc5115.previewRedeem(address(asset), shares);
+        uint256 actualTVL = erc5115YieldSourceOracle.getTVLByOwnerOfShares(address(erc5115), msg.sender);
+        assertEq(actualTVL, expectedTVL);
+    }
+
+    function test_Staking_getTVLByOwnerOfShares() public view {
+        uint256 shares = IERC20(stakingVault.rewardsToken()).balanceOf(msg.sender);
+        uint256 actualTVL = stakingYieldSourceOracle.getTVLByOwnerOfShares(address(stakingVault), msg.sender);
+        assertEq(actualTVL, shares); // For staking vaults, TVL = shares
     }
 }
