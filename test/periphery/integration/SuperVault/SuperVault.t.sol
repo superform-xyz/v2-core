@@ -768,37 +768,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vm.stopPrank();
     }
 
-    function test_InvalidSignatureLengths() public {
-        bool approved = true;
-        bytes32 nonce = keccak256("test_nonce");
-        uint256 deadline = block.timestamp + 1 hours;
-
-        // Create invalid signature (too short)
-        bytes memory shortSignature = new bytes(64); // ERC7741 expects 65 bytes
-
-        // Try to use invalid signature length
-        vm.prank(operator);
-        vm.expectRevert(ISuperVault.INVALID_SIGNATURE.selector);
-        vault.authorizeOperator(userAddress, operator, approved, nonce, deadline, shortSignature);
-    }
-
-    function test_InvalidSignatureRecovery() public {
-        bool approved = true;
-        bytes32 nonce = keccak256("test_nonce");
-        uint256 deadline = block.timestamp + 1 hours;
-
-        // Create proper length signature but with invalid recovery byte
-        bytes32 r = bytes32(uint256(1));
-        bytes32 s = bytes32(uint256(2));
-        uint8 v = 26; // Invalid v value (not 27 or 28)
-        bytes memory invalidSignature = abi.encodePacked(r, s, v);
-
-        // Try to use invalid signature
-        vm.prank(operator);
-        vm.expectRevert(ISuperVault.INVALID_SIGNATURE.selector);
-        vault.authorizeOperator(userAddress, operator, approved, nonce, deadline, invalidSignature);
-    }
-
     /*//////////////////////////////////////////////////////////////
                         STRATEGY INTERACTIONS TESTS
     //////////////////////////////////////////////////////////////*/

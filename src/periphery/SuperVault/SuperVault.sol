@@ -8,6 +8,7 @@ import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { IERC165 } from "openzeppelin-contracts/contracts/interfaces/IERC165.sol";
+import { ECDSA } from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // Interfaces
@@ -502,25 +503,10 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         );
     }
 
-    /// @notice Verify an EIP712 signature
+    /// @notice Verify an EIP712 signature using OpenZeppelin's ECDSA library
     function _isValidSignature(address signer, bytes32 digest, bytes memory signature) internal pure returns (bool) {
-        if (signature.length != 65) return false;
-
-        bytes32 r;
-        bytes32 s;
-        uint8 v;
-
-        assembly {
-            r := mload(add(signature, 0x20))
-            s := mload(add(signature, 0x40))
-            v := byte(0, mload(add(signature, 0x60)))
-        }
-
-        if (v < 27) v += 27;
-        if (v != 27 && v != 28) return false;
-
-        address recoveredSigner = ecrecover(digest, v, r, s);
-        return recoveredSigner != address(0) && recoveredSigner == signer;
+        address recoveredSigner = ECDSA.recover(digest, signature);
+        return recoveredSigner == signer;
     }
 
     /**
