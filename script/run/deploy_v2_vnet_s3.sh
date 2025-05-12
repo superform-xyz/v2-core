@@ -263,20 +263,12 @@ read_branch_latest() {
 get_salt() {
     local network_slug=$1
     
-    # Use randomized salt if local run OR we're treating as local (non-dev/main branch)
+    # Use timestamp-based salt if local run OR we're treating as local (non-dev/main branch)
     if is_local_run || [ "$IS_MAIN_OR_DEV" = "false" ]; then
-        # Generate a randomized salt using timestamp and random number
+        # Simply use the current Unix timestamp as salt
+        # This ensures a unique but predictable value
         local timestamp=$(date +%s)
-        # Generate a positive random number
-        local random=$(od -An -N4 -tu /dev/urandom | tr -d ' ')
-        
-        # Ensure the resulting salt is positive
-        local salt=$((timestamp + random % 1000000))
-        if [ "$salt" -le 0 ]; then
-            # Fallback to a simple positive number if calculation goes wrong
-            salt="$((timestamp % 1000000 + 1))"
-        fi
-        echo "$salt"
+        echo "$timestamp"
         return 0
     fi
     
@@ -738,6 +730,7 @@ deploy_contracts() {
         --rpc-url $ETH_MAINNET \
         --etherscan-api-key $TENDERLY_ACCESS_KEY \
         --broadcast \
+        --jobs 10 \
         -vvv \
         --slow; then
         deploy_error_handler "Ethereum"
@@ -753,6 +746,7 @@ deploy_contracts() {
         --rpc-url $BASE_MAINNET \
         --etherscan-api-key $TENDERLY_ACCESS_KEY \
         --broadcast \
+        --jobs 10 \
         -vvv \
         --slow; then
         deploy_error_handler "Base"
@@ -768,6 +762,7 @@ deploy_contracts() {
         --rpc-url $OPTIMISM_MAINNET \
         --etherscan-api-key $TENDERLY_ACCESS_KEY \
         --broadcast \
+        --jobs 10 \
         -vvv \
         --slow; then
         deploy_error_handler "Optimism"
