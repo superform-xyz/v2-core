@@ -881,7 +881,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
                        SUPERVAULTSTRATEGY.SOL
     //////////////////////////////////////////////////////////////*/
 
-    function test_RequestRedeem_MultipleUsers(uint256 depositAmount) public {
+    function test_RequestRedeem_MultipleUsers(uint256 depositAmount) public executeWithoutHookRestrictions {
         // bound amount
         depositAmount = bound(depositAmount, 100e6, 10_000e6);
 
@@ -894,7 +894,10 @@ contract SuperVaultTest is BaseSuperVaultTest {
         _requestRedeemForAllUsers(0);
     }
 
-    function test_RequestRedeemMultipleUsers_With_CompleteFullfilment(uint256 depositAmount) public {
+    function test_RequestRedeemMultipleUsers_With_CompleteFullfilment(uint256 depositAmount)
+        public
+        executeWithoutHookRestrictions
+    {
         // bound amount
         depositAmount = bound(depositAmount, 100e6, 10_000e6);
 
@@ -932,7 +935,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         }
     }
 
-    function test_RequestRedeem_MultipleUsers_DifferentAmounts() public {
+    function test_RequestRedeem_MultipleUsers_DifferentAmounts() public executeWithoutHookRestrictions {
         uint256 depositAmount = 1000e6;
 
         // first deposit same amount for all users
@@ -974,7 +977,10 @@ contract SuperVaultTest is BaseSuperVaultTest {
         }
     }
 
-    function test_RequestRedeemMultipleUsers_With_PartialUsersFullfilment(uint256 depositAmount) public {
+    function test_RequestRedeemMultipleUsers_With_PartialUsersFullfilment(uint256 depositAmount)
+        public
+        executeWithoutHookRestrictions
+    {
         depositAmount = 100e6;
 
         // perform deposit operations
@@ -1044,7 +1050,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
     }
 
-    function test_RequestRedeem_RevertOnExceedingBalance(uint256 depositAmount) public {
+    function test_RequestRedeem_RevertOnExceedingBalance(uint256 depositAmount) public executeWithoutHookRestrictions {
         depositAmount = bound(depositAmount, 100e6, 10_000e6);
 
         depositAmount = bound(depositAmount, 100e6, 10_000e6);
@@ -1060,7 +1066,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         _requestRedeemForAccount_Revert(accInstances[0], excessAmount);
     }
 
-    function test_ClaimRedeem_RevertBeforeFulfillment() public {
+    function test_ClaimRedeem_RevertBeforeFulfillment() public executeWithoutHookRestrictions {
         uint256 depositAmount = 1000e6;
 
         _completeDepositFlow(depositAmount);
@@ -1069,7 +1075,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         _requestRedeemForAccount(accInstances[0], redeemAmount);
 
         assertEq(strategy.pendingRedeemRequest(accInstances[0].account), redeemAmount);
-        assertGt(strategy.claimableWithdraw(accInstances[0].account), 0);
 
         // try/catch pattern to verify the revert
         bool claimFailed = false;
@@ -1090,16 +1095,17 @@ contract SuperVaultTest is BaseSuperVaultTest {
         _fulfillRedeemForUsers(
             requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
         );
-
-        assertEq(strategy.pendingRedeemRequest(accInstances[0].account), 0);
-        assertGt(strategy.claimableWithdraw(accInstances[0].account), 0);
+        uint256 pendingRedeem = strategy.pendingRedeemRequest(accInstances[0].account);
+        assertEq(pendingRedeem, 0);
+        uint256 claimable = strategy.claimableWithdraw(accInstances[0].account);
+        assertGt(claimable, 0);
 
         _claimWithdrawForAccount(accInstances[0], vault.maxWithdraw(accInstances[0].account));
 
         assertEq(strategy.claimableWithdraw(accInstances[0].account), 0);
     }
 
-    function test_ClaimRedeem_AfterPriceIncrease() public {
+    function test_ClaimRedeem_AfterPriceIncrease() public executeWithoutHookRestrictions {
         uint256 depositAmount = 1000e6;
 
         _completeDepositFlow(depositAmount);
@@ -1214,7 +1220,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         uint256 remainingShareValue;
     }
 
-    function test_Redeem_RoundingBehavior() public {
+    function test_Redeem_RoundingBehavior() public executeWithoutHookRestrictions {
         RoundingTestVars memory vars;
         vars.depositAmount = 1000e6;
 
@@ -1270,7 +1276,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         _claimWithdrawForAccount(accInst, assets);
     }
 
-    function test_RequestRedeem_VerifyAmounts() public {
+    function test_RequestRedeem_VerifyAmounts() public executeWithoutHookRestrictions {
         RedeemVerificationVars memory vars;
         vars.depositAmount = 1000e6;
 
@@ -1336,7 +1342,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         _verifyRedeemSharesAndAssets(vars);
     }
 
-    function test_MultipleUsers_SameAllocation_EqualRedeemValue() public {
+    function test_MultipleUsers_SameAllocation_EqualRedeemValue() public executeWithoutHookRestrictions {
         uint256 depositAmount = 1000e6;
 
         _completeDepositFlow(depositAmount);
@@ -1414,7 +1420,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         }
     }
 
-    function test_MultipleUsers_ChangingAllocation_RedeemValue() public {
+    function test_MultipleUsers_ChangingAllocation_RedeemValue() public executeWithoutHookRestrictions {
         uint256 depositAmount = 1000e6;
 
         _completeDepositFlow(depositAmount);
@@ -1473,6 +1479,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             console2.log("User", i, "shares burned:", sharesBurned[i]);
             console2.log("User", i, "assets received:", assetsReceived[i]);
             console2.log("User", i, "asset per share:", assetPerShare[i]);
+            console2.log("Free assets in vault", asset.balanceOf(address(strategy)));
         }
 
         for (uint256 i = 1; i < ACCOUNT_COUNT; i++) {

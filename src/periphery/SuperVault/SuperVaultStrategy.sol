@@ -723,10 +723,21 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (assetsToClaim == 0) revert INVALID_AMOUNT();
         if (controller == address(0)) revert ZERO_ADDRESS();
         SuperVaultState storage state = superVaultState[controller];
-        if (state.maxWithdraw < assetsToClaim) revert INVALID_REDEEM_CLAIM();
-        state.maxWithdraw -= assetsToClaim;
-        _asset.safeTransfer(controller, assetsToClaim);
-        emit RedeemRequestFulfilled(controller, controller, assetsToClaim, 0);
+
+        // Handle dust collection for rounding errors
+        uint256 actualAmountToClaim = assetsToClaim;
+        uint256 remainingAssets = _asset.balanceOf(address(this));
+
+        // If user is requesting slightly more than available due to rounding errors,
+        // and the difference is small (dust), give them the remaining balance
+        if (assetsToClaim > remainingAssets && assetsToClaim - remainingAssets <= TOLERANCE_CONSTANT) {
+            actualAmountToClaim = remainingAssets;
+        }
+
+        if (state.maxWithdraw < actualAmountToClaim) revert INVALID_REDEEM_CLAIM();
+        state.maxWithdraw -= actualAmountToClaim;
+        _asset.safeTransfer(controller, actualAmountToClaim);
+        emit RedeemRequestFulfilled(controller, controller, actualAmountToClaim, 0);
         if (state.maxWithdraw == 0 && state.pendingRedeemRequest == 0) {
             delete superVaultState[controller];
         }
