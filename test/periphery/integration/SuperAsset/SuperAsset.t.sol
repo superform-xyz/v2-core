@@ -363,8 +363,8 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
 
-        (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit) = 
-            superAsset.previewDeposit(address(tokenIn), depositAmount);
+        (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit, bool isSuccess) = 
+            superAsset.previewDeposit(address(tokenIn), depositAmount, false);
 
         console.log("test_BasicDepositSimple() Preview");
         console.log("Amount Shares Minted:", expAmountSharesMinted);
@@ -463,7 +463,7 @@ contract SuperAssetTest is Helpers {
     function test_BasicRedeem() public {
         // First deposit to get some shares
         uint256 depositAmount = 100e18;
-        (uint256 expSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSD) = superAsset.previewDeposit(address(tokenIn), depositAmount);
+        (uint256 expSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSD, bool isSuccess) = superAsset.previewDeposit(address(tokenIn), depositAmount, false);
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
         (uint256 sharesMinted, uint256 swapFee, int256 amountIncentiveUSD) = superAsset.deposit(user, address(tokenIn), depositAmount, 0);
@@ -480,7 +480,7 @@ contract SuperAssetTest is Helpers {
         uint256 sharesToRedeem = sharesMinted / 2;
         uint256 minTokenOut = sharesToRedeem * 99 / 100; // Allowing for 1% slippage
 
-        (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem) = superAsset.previewRedeem(address(tokenIn), sharesToRedeem);
+        (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem, isSuccess) = superAsset.previewRedeem(address(tokenIn), sharesToRedeem, false);
         assertGt(expAmountTokenOutAfterFees, 0, "Should receive tokens");
         assertGt(expSwapFee, 0, "Should pay swap fees");
 
@@ -544,6 +544,7 @@ contract SuperAssetTest is Helpers {
         uint256 sharesMinted;
         uint256 swapFee;
         int256 amountIncentiveUSD;
+        bool isSuccess;
     }
 
     // --- Test: Swap ---
@@ -562,8 +563,8 @@ contract SuperAssetTest is Helpers {
         assertEq(superAsset.balanceOf(user11), s.sharesMinted, "Should mint shares");
 
         (s.expAmountTokenOutAfterFees, s.expSwapFeeIn, s.expSwapFeeOut, 
-        s.expAmountIncentiveUSDDeposit, s.expAmountIncentiveUSDRedeem) = 
-            superAsset.previewSwap(address(tokenIn), s.swapAmount, address(tokenOut));
+        s.expAmountIncentiveUSDDeposit, s.expAmountIncentiveUSDRedeem, s.isSuccess) = 
+            superAsset.previewSwap(address(tokenIn), s.swapAmount, address(tokenOut), false);
         assertGt(s.expAmountTokenOutAfterFees, 0, "Should receive output tokens");
         assertGt(s.expSwapFeeIn, 0, "Should charge deposit fee");
         assertGt(s.expSwapFeeOut, 0, "Should charge redeem fee");
