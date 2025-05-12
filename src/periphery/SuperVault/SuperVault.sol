@@ -46,6 +46,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     bytes32 private _NAME_HASH;
     bytes32 private _VERSION_HASH;
     uint256 public deploymentChainId;
+    address public deploymentAddress;
     IERC20 private _asset;
     uint8 private _underlyingDecimals;
     ISuperVaultStrategy public strategy;
@@ -109,6 +110,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         _NAME_HASH = keccak256(bytes(name_));
         _VERSION_HASH = keccak256(bytes("1"));
         deploymentChainId = block.chainid;
+        deploymentAddress = address(this);
         _DOMAIN_SEPARATOR = _calculateDomainSeparator();
     }
 
@@ -288,7 +290,9 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
 
     /// @inheritdoc IERC7741
     function DOMAIN_SEPARATOR() public view virtual returns (bytes32) {
-        return block.chainid == deploymentChainId ? _DOMAIN_SEPARATOR : _calculateDomainSeparator();
+        return block.chainid == deploymentChainId && address(this) == deploymentAddress
+            ? _DOMAIN_SEPARATOR
+            : _calculateDomainSeparator();
     }
 
     /// @inheritdoc IERC7741
