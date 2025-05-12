@@ -3,4 +3,6 @@ pragma solidity >=0.8.28;
 
 interface IStakingVault {
     function stakingToken() external view returns (address);
+
+    function rewardsToken() external view returns (address);
 }
