@@ -217,26 +217,26 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     /// @inheritdoc ISuperAsset
     function deposit(
         address receiver,
-        address tokenIn,
+        address yieldSourceShare,
         uint256 amountTokenToDeposit,
         uint256 minSharesOut            // Slippage Protection
     ) public returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) {
         PreviewErrors memory errors;
         // First all the non state changing functions 
         if (amountTokenToDeposit == 0) revert ZERO_AMOUNT();
-        if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) revert NOT_SUPPORTED_TOKEN();
+        if (!isSupportedUnderlyingVault[yieldSourceShare] && !isSupportedERC20[yieldSourceShare]) revert NOT_SUPPORTED_TOKEN();
         if (receiver == address(0)) revert ZERO_ADDRESS();
 
         // Circuit Breakers preventing deposit
         uint256 underlyingSuperVaultAssetPriceUSD;
-        (underlyingSuperVaultAssetPriceUSD, errors.isDepeg, errors.isDispersion, errors.isOracleOff) = getPriceWithCircuitBreakers(IERC4626(tokenIn).asset());
+        (underlyingSuperVaultAssetPriceUSD, errors.isDepeg, errors.isDispersion, errors.isOracleOff) = getPriceWithCircuitBreakers(IERC4626(yieldSourceShare).asset());
         if (underlyingSuperVaultAssetPriceUSD == 0) revert UNDERLYING_SV_ASSET_PRICE_ZERO();
         if (errors.isDepeg) revert UNDERLYING_SV_ASSET_PRICE_DEPEG();
         if (errors.isDispersion) revert UNDERLYING_SV_ASSET_PRICE_DISPERSION();
         if (errors.isOracleOff) revert UNDERLYING_SV_ASSET_PRICE_ORACLE_OFF();
 
         // Calculate and settle incentives
-        (amountSharesMinted, swapFee, amountIncentiveUSDDeposit) = previewDeposit(tokenIn, amountTokenToDeposit);
+        (amountSharesMinted, swapFee, amountIncentiveUSDDeposit) = previewDeposit(yieldSourceShare, amountTokenToDeposit);
         if (amountSharesMinted == 0) revert ZERO_AMOUNT();
         // Slippage Check
         if (amountSharesMinted < minSharesOut) revert SLIPPAGE_PROTECTION();
@@ -247,15 +247,15 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _settleIncentive(msg.sender, amountIncentiveUSDDeposit);
         // Transfer the tokenIn from the sender to this contract
         // For now, assuming shares are held in this contract, maybe they will have to be held in another contract balance sheet
-        IERC20(tokenIn).safeTransferFrom(msg.sender, address(this), amountTokenToDeposit);
+        IERC20(yieldSourceShare).safeTransferFrom(msg.sender, address(this), amountTokenToDeposit);
 
         // Transfer swap fees to Asset Bank while holding the rest in the contract, since the full amount was already transferred in the beginning of the function
-        IERC20(tokenIn).safeTransfer(assetBank, swapFee);
+        IERC20(yieldSourceShare).safeTransfer(assetBank, swapFee);
 
         // Mint SuperUSD shares
         _mint(receiver, amountSharesMinted);
 
-        emit Deposit(receiver, tokenIn, amountTokenToDeposit, amountSharesMinted, swapFee, amountIncentiveUSDDeposit);
+        emit Deposit(receiver, yieldSourceShare, amountTokenToDeposit, amountSharesMinted, swapFee, amountIncentiveUSDDeposit);
     }
 
     /// @inheritdoc ISuperAsset
