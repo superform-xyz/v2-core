@@ -297,7 +297,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
 
     /// @inheritdoc IERC7741
     function invalidateNonce(bytes32 nonce) external {
-        if (nonce == bytes32(0)) revert INVALID_NONCE();
+        if (nonce == bytes32(0) || _authorizations[msg.sender][nonce]) revert INVALID_NONCE();
         _authorizations[msg.sender][nonce] = true;
     }
 
