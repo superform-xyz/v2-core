@@ -82,6 +82,12 @@ interface ISuperGovernor {
     error EXECUTOR_NOT_REGISTERED();
     /// @notice Thrown when an executor is already registered
     error EXECUTOR_ALREADY_REGISTERED();
+    /// @notice Thrown when there's no pending change but one is expected
+    error NO_PENDING_CHANGE();
+    /// @notice Thrown when a strategist is not registered
+    error STRATEGIST_NOT_REGISTERED();
+    /// @notice Thrown when a strategist is already registered
+    error STRATEGIST_ALREADY_REGISTERED();
 
     /*//////////////////////////////////////////////////////////////
                                   EVENTS
@@ -190,7 +196,7 @@ interface ISuperGovernor {
     /// @notice Emitted when the upkeep cost per update is changed
     /// @param newCost The new upkeep cost
     event UpkeepCostPerUpdateChanged(uint256 newCost);
-    
+
     /// @notice Emitted when a relayer is added
     /// @param relayer The address of the added relayer
     event RelayerAdded(address indexed relayer);
@@ -211,6 +217,22 @@ interface ISuperGovernor {
     /// @param prover The address of the prover
     event ProverSet(address indexed prover);
 
+    /// @notice Emitted when a change to upkeep payments status is proposed
+    /// @param enabled The proposed status (enabled/disabled)
+    /// @param effectiveTime The timestamp when the status change will be effective
+    event UpkeepPaymentsChangeProposed(bool enabled, uint256 effectiveTime);
+
+    /// @notice Emitted when upkeep payments status is changed
+    /// @param enabled The new status (enabled/disabled)
+    event UpkeepPaymentsChanged(bool enabled);
+
+    /// @notice Emitted when a superform strategist is added
+    /// @param strategist The address of the added strategist
+    event SuperFormStrategistAdded(address indexed strategist);
+
+    /// @notice Emitted when a superform strategist is removed
+    /// @param strategist The address of the removed strategist
+    event SuperFormStrategistRemoved(address indexed strategist);
 
     /*//////////////////////////////////////////////////////////////
                                    ROLES
@@ -343,6 +365,13 @@ interface ISuperGovernor {
 
     /// @notice Executes a previously proposed upkeep cost change after timelock has expired
     function executeUpkeepCostPerUpdateChange() external;
+
+    /// @notice Proposes a change to upkeep payments enabled status
+    /// @param enabled The proposed enabled status
+    function proposeUpkeepPaymentsChange(bool enabled) external;
+
+    /// @notice Executes a previously proposed upkeep payments status change
+    function executeUpkeepPaymentsChange() external;
 
     /*//////////////////////////////////////////////////////////////
                            VAULT HOOKS MGMT
@@ -483,6 +512,24 @@ interface ISuperGovernor {
     /// @return The address of the prover
     function getProver() external view returns (address);
 
+    /// @notice Checks if upkeep payments are currently enabled
+    /// @return enabled True if upkeep payments are enabled
+    function isUpkeepPaymentsEnabled() external view returns (bool);
+
+    /// @notice Gets the proposed upkeep payments status and effective time
+    /// @return enabled The proposed status
+    /// @return effectiveTime The timestamp when the change becomes effective
+    function getProposedUpkeepPaymentsStatus() external view returns (bool enabled, uint256 effectiveTime);
+
+    /// @notice Checks if an address is a registered superform strategist
+    /// @param strategist The address to check
+    /// @return isSuperForm True if the address is a superform strategist
+    function isSuperFormStrategist(address strategist) external view returns (bool);
+
+    /// @notice Gets the list of all superform strategists
+    /// @return strategists The list of all superform strategist addresses
+    function getAllSuperFormStrategists() external view returns (address[] memory);
+
     /// @notice Gets the SUP ID
     /// @return The ID of the SUP token
     function SUP() external view returns (bytes32);
@@ -514,4 +561,12 @@ interface ISuperGovernor {
     /// @notice Gets the SuperBank ID
     /// @return The ID for the SuperBank in the registry
     function SUPER_BANK() external view returns (bytes32);
+
+    /// @notice Adds a strategist to the superform strategists list
+    /// @param strategist Address of the strategist to add
+    function addSuperFormStrategist(address strategist) external;
+
+    /// @notice Removes a strategist from the superform strategists list
+    /// @param strategist Address of the strategist to remove
+    function removeSuperFormStrategist(address strategist) external;
 }

@@ -119,11 +119,19 @@ interface ISuperVaultAggregator {
     /// @param strategist Address of the strategist removed
     event SecondaryStrategistRemoved(address indexed strategy, address indexed strategist);
 
-    /// @notice Emitted when the primary strategist is changed
+    /// @notice Emitted when a primary strategist is changed
     /// @param strategy Address of the strategy
     /// @param oldStrategist Address of the old primary strategist
     /// @param newStrategist Address of the new primary strategist
     event PrimaryStrategistChanged(
+        address indexed strategy, address indexed oldStrategist, address indexed newStrategist
+    );
+
+    /// @notice Emitted when a primary strategist is changed to a superform strategist
+    /// @param strategy Address of the strategy
+    /// @param oldStrategist Address of the old primary strategist
+    /// @param newStrategist Address of the new primary strategist (superform strategist)
+    event PrimaryStrategistChangedToSuperForm(
         address indexed strategy, address indexed oldStrategist, address indexed newStrategist
     );
 

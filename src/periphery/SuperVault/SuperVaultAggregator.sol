@@ -489,36 +489,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                          INTERNAL HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Check if an update authority is exempt from paying upkeep costs
-    /// @param strategy Address of the strategy being updated
-    /// @param updateAuthority Address initiating the update
-    /// @param timestamp Timestamp of the PPS measurement
-    /// @return isExempt True if the authority is exempt from paying upkeep
-    function _isExemptFromUpkeep(
-        address strategy,
-        address updateAuthority,
-        uint256 timestamp
-    )
-        internal
-        returns (bool)
-    {
-        // Update is exempt if it is stale
-        if (block.timestamp - timestamp > _strategyData[strategy].maxStaleness) {
-            emit StaleUpdate(strategy, updateAuthority, timestamp);
-            return true;
-        }
-
-        // Check if the updateAuthority is in the authorized callers list
-        uint256 authCallerLength = _strategyData[strategy].authorizedCallers.length;
-        for (uint256 i; i < authCallerLength; i++) {
-            if (_strategyData[strategy].authorizedCallers[i] == updateAuthority) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
     /// @notice Internal implementation of forwarding PPS updates
     /// @param strategy Address of the strategy being updated
     /// @param isExempt Whether the update is exempt from paying upkeep
@@ -559,5 +529,46 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         _strategyData[strategy].lastUpdateTimestamp = timestamp;
 
         emit PPSUpdated(strategy, pps, timestamp);
+    }
+
+    /// @notice Check if an update authority is exempt from paying upkeep costs
+    /// @param strategy Address of the strategy being updated
+    /// @param updateAuthority Address initiating the update
+    /// @param timestamp Timestamp of the PPS measurement
+    /// @return isExempt True if the authority is exempt from paying upkeep
+    function _isExemptFromUpkeep(
+        address strategy,
+        address updateAuthority,
+        uint256 timestamp
+    )
+        internal
+        returns (bool)
+    {
+        // Check if upkeep payments are globally disabled in SuperGovernor
+        if (!SUPER_GOVERNOR.isUpkeepPaymentsEnabled()) {
+            return true;
+        }
+
+        // Update is exempt if it is stale
+        if (block.timestamp - timestamp > _strategyData[strategy].maxStaleness) {
+            emit StaleUpdate(strategy, updateAuthority, timestamp);
+            return true;
+        }
+
+        // If strategist is a superform strategist, they're exempt from upkeep fees
+        address strategist = _strategyData[strategy].mainStrategist;
+        if (SUPER_GOVERNOR.isSuperFormStrategist(strategist)) {
+            return true;
+        }
+
+        // Check if the updateAuthority is in the authorized callers list
+        uint256 authCallerLength = _strategyData[strategy].authorizedCallers.length;
+        for (uint256 i; i < authCallerLength; i++) {
+            if (_strategyData[strategy].authorizedCallers[i] == updateAuthority) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
