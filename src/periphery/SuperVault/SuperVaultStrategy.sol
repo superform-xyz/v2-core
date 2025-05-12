@@ -274,8 +274,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         return yieldSources[source];
     }
 
-    function getYieldSourcesList() external view returns (address[] memory) {
-        return yieldSourcesList;
+    function getYieldSourcesList() external view returns (address[] memory, YieldSource[] memory) {
+        uint256 length = yieldSourcesList.length;
+        YieldSource[] memory yieldSourcesList_ = new YieldSource[](length);
+        for (uint256 i; i < length; ++i) {
+            yieldSourcesList_[i] = yieldSources[yieldSourcesList[i]];
+        }
+        return (yieldSourcesList, yieldSourcesList_);
     }
 
     function pendingRedeemRequest(address controller) external view returns (uint256 pendingShares) {

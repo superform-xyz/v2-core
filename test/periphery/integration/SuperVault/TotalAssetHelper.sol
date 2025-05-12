@@ -83,10 +83,12 @@ contract TotalAssetHelper {
 
     /// @notice Get the list of yield sources for a strategy
     /// @param strategy Address of the SuperVaultStrategy contract
-    /// @return List of yield source addresses
+    /// @return List of yield source addresse
     function _getYieldSourcesList(address strategy) internal view returns (address[] memory) {
-        try ISuperVaultStrategy(strategy).getYieldSourcesList() returns (address[] memory sources) {
-            return sources;
+        try ISuperVaultStrategy(strategy).getYieldSourcesList() returns (
+            address[] memory source, ISuperVaultStrategy.YieldSource[] memory
+        ) {
+            return source;
         } catch {
             return new address[](0);
         }

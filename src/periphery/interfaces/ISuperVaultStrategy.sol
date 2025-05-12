@@ -253,8 +253,8 @@ interface ISuperVaultStrategy {
     /// @notice Get a yield source's configuration
     function getYieldSource(address source) external view returns (YieldSource memory);
 
-    /// @notice Get the list of all yield sources
-    function getYieldSourcesList() external view returns (address[] memory);
+    /// @notice Get the list of all yield sources and their configuration
+    function getYieldSourcesList() external view returns (address[] memory, YieldSource[] memory);
 
     /// @notice Get the average withdraw price for a controller
     /// @param controller The controller address
