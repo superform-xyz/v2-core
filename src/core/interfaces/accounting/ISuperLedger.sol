@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-/// @title ISuperHookRegistry
-/// @notice Interface for the SuperHookRegistry contract that manages yield source hooks and their accounting
-interface ISuperLedger {
+/// @title ISuperLedgerData
+/// @author Superform Labs
+/// @notice Interface for the SuperLedgerData contract that manages ledger data
+interface ISuperLedgerData {
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -17,49 +18,26 @@ interface ISuperLedger {
         uint256 unconsumedEntries;
     }
 
-    struct YieldSourceOracleConfig {
-        address yieldSourceOracle;
-        uint256 feePercent;
-        address vaultShareToken;
-        address feeRecipient;
-        address manager;
-    }
-
-    struct HookRegistrationConfig {
-        address yieldSourceOracle;
-        bytes32 yieldSourceOracleId;
-        uint256 feePercent;
-        address vaultShareToken;
-        address feeRecipient;
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event AccountingUpdated(
+    event AccountingInflow(
         address indexed user,
         address indexed yieldSourceOracle,
         address indexed yieldSource,
-        bool isInflow,
         uint256 amount,
-        uint256 price
+        uint256 pps
+    );
+    event AccountingOutflow(
+        address indexed user,
+        address indexed yieldSourceOracle,
+        address indexed yieldSource,
+        uint256 amount,
+        uint256 feeAmount
     );
 
     event AccountingOutflowSkipped(
-        address indexed user,
-        address indexed yieldSource,
-        bytes32 indexed yieldSourceOracleId,
-        uint256 amount,
-        uint256 price
-    );
-
-    event YieldSourceOracleConfigSet(
-        bytes32 indexed yieldSourceOracleId,
-        address indexed yieldSourceOracle,
-        uint256 feePercent,
-        address vaultShareToken,
-        address manager,
-        address feeRecipient
+        address indexed user, address indexed yieldSource, bytes4 indexed yieldSourceOracleId, uint256 amount
     );
 
     /*//////////////////////////////////////////////////////////////
@@ -76,57 +54,63 @@ interface ISuperLedger {
     error MANAGER_NOT_SET();
     error ZERO_LENGTH();
     error ZERO_ID_NOT_ALLOWED();
+    error INVALID_LEDGER();
+}
+
+/// @title ISuperHookRegistry
+/// @notice Interface for the SuperHookRegistry contract that manages yield source hooks and their accounting
+interface ISuperLedger is ISuperLedgerData {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Updates accounting for a user's yield source interaction
     /// @param user The user address
     /// @param yieldSource The yield source address
     /// @param yieldSourceOracleId The yield source id
     /// @param isInflow Whether this is an inflow (true) or outflow (false)
-    /// @param amount The amount of shares
-    /// @return pps The price per share used for the accounting
+    /// @param amountSharesOrAssets The amount of shares or assets
+    /// @param usedShares The amount of shares used by the OUTFLOW hook (0 for INFLOWS)
+    /// @return feeAmount The amount of fee to be collected in the asset being withdrawn (only for outflows)
     function updateAccounting(
         address user,
         address yieldSource,
-        bytes32 yieldSourceOracleId,
+        bytes4 yieldSourceOracleId,
         bool isInflow,
-        uint256 amount
+        uint256 amountSharesOrAssets,
+        uint256 usedShares
     )
         external
-        returns (uint256 pps);
+        returns (uint256 feeAmount);
 
-    /// @notice Registers hooks and sets their oracle configs in one transaction
-    /// @param configs Array of oracle configurations
-    function setYieldSourceOracles(HookRegistrationConfig[] calldata configs) external;
+    /// @notice Previews fees for a given amount of assets obtained from shares
+    /// @param user The user address
+    /// @param yieldSourceAddress The yield source address
+    /// @param amountAssets The amount of assets
+    /// @param usedShares The amount of shares used
+    /// @param feePercent The fee percentage in basis points (0-10000, where 10000 = 100%)
+    /// @return feeAmount The amount of fee to be collected in the asset being withdrawn
+    function previewFees(
+        address user,
+        address yieldSourceAddress,
+        uint256 amountAssets,
+        uint256 usedShares,
+        uint256 feePercent
+    )
+        external
+        view
+        returns (uint256 feeAmount);
 
-    /// @notice Returns the ledger for a specific user and yield source
+    /// @notice Calculates the cost basis for a given user and amount of shares
     /// @param user The user address
     /// @param yieldSource The yield source address
-    /// @return entries Array of ledger entries
-    /// @return unconsumedEntries Number of unconsumed entries
-    function getLedger(
+    /// @param usedShares The amount of shares used
+    /// @return costBasis The cost basis
+    function calculateCostBasisView(
         address user,
-        address yieldSource
+        address yieldSource,
+        uint256 usedShares
     )
         external
         view
-        returns (LedgerEntry[] memory entries, uint256 unconsumedEntries);
-
-    /// @notice Returns the configuration for a yield source oracle
-    /// @param yieldSourceOracleId The yield source id
-    /// @return The oracle configuration
-    function getYieldSourceOracleConfig(bytes32 yieldSourceOracleId)
-        external
-        view
-        returns (YieldSourceOracleConfig memory);
-
-    /// @notice Returns the configurations for multiple yield source oracles
-    /// @param yieldSourceOracleIds The array of yield source ids
-    /// @return The array of oracle configurations
-    function getYieldSourceOracleConfigs(bytes32[] calldata yieldSourceOracleIds)
-        external
-        view
-        returns (YieldSourceOracleConfig[] memory);
+        returns (uint256 costBasis);
 }

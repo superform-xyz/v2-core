@@ -7,12 +7,21 @@
 [submodule "lib/ExcessivelySafeCall"]
 	path = lib/ExcessivelySafeCall
 	url = https://github.com/nomad-xyz/ExcessivelySafeCall
-[submodule "lib/pigeon"]
-	path = lib/pigeon
-	url = https://github.com/exp-table/pigeon
-[submodule "lib/modulekit"]
-	path = lib/modulekit
-	url = https://github.com/rhinestonewtf/modulekit
 [submodule "lib/solady"]
 	path = lib/solady
 	url = https://github.com/Vectorized/solady
+[submodule "lib/modulekit"]
+	path = lib/modulekit
+	url = https://github.com/rhinestonewtf/modulekit
+[submodule "lib/pigeon"]
+	path = lib/pigeon
+	url = https://github.com/exp-table/pigeon
+[submodule "lib/surl"]
+	path = lib/surl
+	url = https://github.com/memester-xyz/surl
+[submodule "lib/solidity-stringutils"]
+	path = lib/solidity-stringutils
+	url = https://github.com/Arachnid/solidity-stringutils
+[submodule "lib/pendle-core-v2-public"]
+	path = lib/pendle-core-v2-public
+	url = https://github.com/pendle-finance/pendle-core-v2-public

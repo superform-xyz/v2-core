@@ -1,67 +1,148 @@
-// SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.28;
 
-import { ERC5115YieldSourceOracleLibrary } from "../../libraries/accounting/ERC5115YieldSourceOracleLibrary.sol";
+// external
+import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.sol";
+
+// Superform
+import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 
 /// @title ERC5115YieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for 5115 Vaults
-contract ERC5115YieldSourceOracle {
-    /*//////////////////////////////////////////////////////////////
-                            CONSTRUCTOR
-    //////////////////////////////////////////////////////////////*/
-
-    constructor() { }
+contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
+    constructor() AbstractYieldSourceOracle() { }
 
     /*//////////////////////////////////////////////////////////////
-                           VIEW METHODS
+                            EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /*
-    /// @param asset The address of the asset
-    /// @param yieldSourceAddress The address of the yield source
-    function getTVL(address asset, address yieldSourceAddress) public view returns (uint256 tvl) {
-        tvl = ERC5115YieldSourceOracleLibrary.getTVL(asset, yieldSourceAddress);
-    }
-    */
-
-    /// @notice Get the price per share for a deposit into a yield source
-    /// @param asset The address of the asset
-    /// @param yieldSourceAddress The address of the yield source
-    /// @return price The price per share
-    function getPricePerShare(address asset, address yieldSourceAddress) external view returns (uint256 price) {
-        price = ERC5115YieldSourceOracleLibrary.getPricePerShare(asset, yieldSourceAddress);
+    /// @inheritdoc AbstractYieldSourceOracle
+    function decimals(address /*yieldSourceAddress*/ ) public pure override returns (uint8) {
+        return 18;
     }
 
-    /// @notice Get the price per share for a deposit into multiple yield sources
-    /// @param assets The addresses of the assets
-    /// @param yieldSourceAddresses The addresses of the yield sources
-    /// @return prices The price per share per yield source
-    function getPricePerShareMultiple(
-        address[] memory assets,
-        address[] memory yieldSourceAddresses
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getShareOutput(
+        address yieldSourceAddress,
+        address assetIn,
+        uint256 assetsIn
     )
         external
         view
-        returns (uint256[] memory prices)
+        override
+        returns (uint256)
     {
-        prices = ERC5115YieldSourceOracleLibrary.getPricePerShareMultiple(yieldSourceAddresses, assets);
+        return IStandardizedYield(yieldSourceAddress).previewDeposit(assetIn, assetsIn);
     }
 
-    // ToDo: Implement this with the metadata library
-    /// @notice Get the metadata for a yield source
-    /// @return metadata The metadata
-    function getYieldSourceMetadata(address) external pure returns (bytes memory metadata) {
-        return "0x0";
-    }
-
-    // ToDo: Implement this with the metadata library
-    /// @notice Get the metadata for multiple yield sources
-    /// @return metadata The metadata per yield source
-    function getYieldSourcesMetadata(address[] memory yieldSourceAddresses)
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getAssetOutput(
+        address yieldSourceAddress,
+        address assetIn,
+        uint256 sharesIn
+    )
         external
-        pure
-        returns (bytes[] memory metadata)
+        view
+        override
+        returns (uint256)
     {
-        return new bytes[](yieldSourceAddresses.length);
+        return IStandardizedYield(yieldSourceAddress).previewRedeem(assetIn, sharesIn);
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
+        return IStandardizedYield(yieldSourceAddress).exchangeRate();
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getBalanceOfOwner(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        public
+        view
+        override
+        returns (uint256)
+    {
+        return IStandardizedYield(yieldSourceAddress).balanceOf(ownerOfShares);
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getTVLByOwnerOfShares(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
+        public
+        view
+        override
+        returns (uint256)
+    {
+        IStandardizedYield yieldSource = IStandardizedYield(yieldSourceAddress);
+        uint256 shares = yieldSource.balanceOf(ownerOfShares);
+        if (shares == 0) return 0;
+        return (shares * yieldSource.exchangeRate()) / 1e18;
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function getTVL(address yieldSourceAddress) public view override returns (uint256) {
+        IStandardizedYield yieldSource = IStandardizedYield(yieldSourceAddress);
+        uint256 totalShares = yieldSource.totalSupply();
+        if (totalShares == 0) return 0;
+        return (totalShares * yieldSource.exchangeRate()) / 1e18;
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function isValidUnderlyingAsset(
+        address yieldSourceAddress,
+        address expectedUnderlying
+    )
+        public
+        view
+        override
+        returns (bool)
+    {
+        IStandardizedYield yieldSource = IStandardizedYield(yieldSourceAddress);
+        address[] memory tokensIn = yieldSource.getTokensIn();
+        address[] memory tokensOut = yieldSource.getTokensOut();
+        uint256 tokensInLength = tokensIn.length;
+        uint256 tokensOutLength = tokensOut.length;
+        bool foundInTokensIn = false;
+        for (uint256 i; i < tokensInLength; ++i) {
+            if (tokensIn[i] == expectedUnderlying) {
+                foundInTokensIn = true;
+                break;
+            }
+        }
+
+        if (!foundInTokensIn) return false;
+
+        bool foundInTokensOut = false;
+        for (uint256 i; i < tokensOutLength; ++i) {
+            if (tokensOut[i] == expectedUnderlying) {
+                foundInTokensOut = true;
+                break;
+            }
+        }
+
+        return foundInTokensOut;
+    }
+
+    /// @inheritdoc AbstractYieldSourceOracle
+    function isValidUnderlyingAssets(
+        address[] memory yieldSourceAddresses,
+        address[] memory expectedUnderlying
+    )
+        external
+        view
+        override
+        returns (bool[] memory isValid)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        if (length != expectedUnderlying.length) revert ARRAY_LENGTH_MISMATCH();
+
+        isValid = new bool[](length);
+        for (uint256 i; i < length; ++i) {
+            isValid[i] = isValidUnderlyingAsset(yieldSourceAddresses[i], expectedUnderlying[i]);
+        }
     }
 }

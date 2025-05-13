@@ -2,6 +2,7 @@ name: "Smart Contracts CI"
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}-vnet-counter
@@ -15,19 +16,33 @@ env:
   TENDERLY_PROJECT_SLUG: "v2"
   TENDERLY_ACCOUNT_ID: "superform"
   FOUNDRY_EXPORTS_OVERWRITE_LATEST: "true"
+  ONE_INCH_API_KEY: ${{ secrets.ONE_INCH_API_KEY }}
   CI: "true"
 
 on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - dev
-      - 'feat/**'
+      - "feat/**"
 
 jobs:
   build:
     runs-on: "SuperformCore3"
     steps:
+      - name: Mask Secrets
+        run: |
+          echo "::add-mask::${{ secrets.AWS_ROLE_ARN }}"
+          echo "::add-mask::${{ secrets.S3_BUCKET_NAME }}"
+          echo "::add-mask::${{ secrets.AWS_REGION }}"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
 
@@ -36,11 +51,17 @@ jobs:
         with:
           node-version: "latest"
 
+      - name: Print ulimits
+        run: ulimit -Sa && ulimit -Ha
+
       - name: Install Dependencies
         run: yarn install
 
       - name: "Install Foundry"
         uses: "foundry-rs/foundry-toolchain@v1"
+      
+      - name: "Get forge version"
+        run: forge --version
 
       - name: "Install Foundry dependencies"
         run: forge install
@@ -52,11 +73,19 @@ jobs:
         run: pnpm --version
 
       - name: "Install ModuleKit"
-        working-directory: ./contracts/lib/modulekit
+        working-directory: ./lib/modulekit
         run: pnpm install
 
       - name: "Build the contracts and print their size"
-        run: "forge build"
+        run: "FOUNDRY_PROFILE=ci-sizes forge build --sizes"
+
+      - name: "Make export ABIs script executable"
+        run: chmod +x ./script/run/export_abis_s3.sh
+
+      - name: "Export ABIs to S3"
+        run: ./script/run/export_abis_s3.sh "${{ github.ref_name }}" --quiet
+        env:
+          S3_BUCKET_NAME_ABIS: ${{ secrets.S3_BUCKET_NAME_ABIS }}
 
       - name: "Add build summary"
         run: |
@@ -84,11 +113,8 @@ jobs:
       - name: "Install pnpm"
         run: npm install -g pnpm
 
-      - name: "Check pnpm version"
-        run: pnpm --version
-
       - name: "Install ModuleKit"
-        working-directory: ./contracts/lib/modulekit
+        working-directory: ./lib/modulekit
         run: pnpm install
 
       - name: "Show the Foundry config"
@@ -101,7 +127,7 @@ jobs:
           )" >> $GITHUB_ENV
 
       - name: "Run the tests"
-        run: "forge test"
+        run: "make ftest-vvv"
 
       - name: "Add test summary"
         run: |
@@ -110,13 +136,30 @@ jobs:
 
   vnet-deploy:
     needs: ["test"]
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/'))
+    if:
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/'))
     runs-on: "SuperformCore3"
     outputs:
       eth_mainnet_addresses: ${{ steps.get-addresses-eth.outputs.addresses }}
       base_mainnet_addresses: ${{ steps.get-addresses-base.outputs.addresses }}
       optimism_mainnet_addresses: ${{ steps.get-addresses-optimism.outputs.addresses }}
     steps:
+      # -------------------------------------------------------------------
+      # Block for OIDC
+      # -------------------------------------------------------------------
+      - name: Mask Secrets
+        run: |
+          echo "::add-mask::${{ secrets.AWS_ROLE_ARN }}"
+          echo "::add-mask::${{ secrets.S3_BUCKET_NAME }}"
+          echo "::add-mask::${{ secrets.AWS_REGION }}"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION }}
+      # -------------------------------------------------------------------
+
       - name: "Check out the repo"
         uses: "actions/checkout@v4"
 
@@ -130,7 +173,7 @@ jobs:
         run: npm install -g pnpm
 
       - name: "Install ModuleKit"
-        working-directory: ./contracts/lib/modulekit
+        working-directory: ./lib/modulekit
         run: pnpm install
 
       - name: "Install Tenderly CLI"
@@ -140,7 +183,7 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y jq
 
       - name: "Make deploy script executable"
-        run: chmod +x ./script/run/deploy_v2_vnet.sh
+        run: chmod +x ./script/run/deploy_v2_vnet_s3.sh
 
       - name: Get branch name and commit hash
         id: branch-info
@@ -149,11 +192,10 @@ jobs:
           echo "BRANCH_NAME=$BRANCH_NAME" >> $GITHUB_ENV
 
       - name: "Run deploy script"
-        run: ./script/run/deploy_v2_vnet.sh "$BRANCH_NAME"
+        run: ./script/run/deploy_v2_vnet_s3.sh "$BRANCH_NAME"
         env:
           TENDERLY_ACCESS_KEY: ${{ secrets.TENDERLY_ACCESS_KEY }}
-          GITHUB_TOKEN: ${{ github.token }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+          S3_BUCKET_NAME: ${{ secrets.S3_BUCKET_NAME }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
 
       - name: Get deployed addresses for Ethereum
@@ -189,3 +231,40 @@ jobs:
           echo "\`\`\`json" >> $GITHUB_STEP_SUMMARY
           cat ./script/output/10/Optimism-latest.json | jq . >> $GITHUB_STEP_SUMMARY
           echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  coverage:
+    runs-on: SuperformCore3
+    needs: ["test"]
+    steps:
+      - name: "Check out the repo"
+        uses: "actions/checkout@v4"
+        with:
+          submodules: "recursive"
+
+      - name: "Install Foundry"
+        uses: "foundry-rs/foundry-toolchain@v1"
+
+      - name: "Install Foundry dependencies"
+        run: forge install
+
+      - name: "Install pnpm"
+        run: npm install -g pnpm
+
+      - name: "Install ModuleKit"
+        working-directory: ./lib/modulekit
+        run: pnpm install
+
+      - name: "Generate the coverage report using unit and integration tests"
+        run: "make coverage"
+
+      - name: "Upload coverage report to Codecov"
+        uses: "codecov/codecov-action@v5"
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        with:
+          files: "./lcov.info"
+
+      - name: "Add coverage summary"
+        run: |
+          echo "## Coverage result" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Uploaded to Codecov" >> $GITHUB_STEP_SUMMARY

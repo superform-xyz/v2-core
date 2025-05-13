@@ -1,12 +1,13 @@
 # Full reference https://github.com/foundry-rs/foundry/tree/master/crates/config
 
 [profile.default]
+cache_path = "cache"
 auto_detect_solc = false
 bytecode_hash = "none"
-fuzz = { runs = 1_000 }
+fuzz = { runs = 10 }
 gas_reports = ["*"]
 optimizer = true
-optimizer_runs = 10_000
+optimizer_runs = 200
 out = "out"
 script = "script"
 solc = "0.8.28"
@@ -14,9 +15,8 @@ src = "src"
 test = "test"
 cbor_metadata = true
 libs = ['lib']
+ffi = true
 fs_permissions = [{ access = "read-write", path = "./" }]
-
-# remappings
 remappings = [
   "@openzeppelin/contracts/=lib/openzeppelin-contracts/contracts/",
   "excessivelySafeCall/=lib/ExcessivelySafeCall/src/",
@@ -25,7 +25,23 @@ remappings = [
   "@solady/=lib/solady/",
   "@account-abstraction/=lib/modulekit/node_modules/account-abstraction/contracts/",
   "@pigeon/=lib/pigeon/src/",
+  "@surl/=lib/surl/src/",
+  "@stringutils/=lib/solidity-stringutils/src/",
+  "@pendle/=lib/pendle-core-v2-public/contracts/",
 ]
+dynamic_test_linking = true
+
+[profile.ci-sizes]
+script = "src"
+src = "src"
+test = "src"
+
+[profile.coverage]
+script = "src"
+src = "src"
+test = "test"
+gas_limit = "18446744073709551615" # u64::MAX
+
 
 [profile.ci]
 fuzz = { runs = 10_000 }

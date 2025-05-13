@@ -15,9 +15,19 @@ contract Mock4626Vault is ERC4626 {
     address public _asset;
     IERC20 private immutable assetInstance;
 
+    uint256 public yield;
+    uint256 public yield_precision = 1e5;
+
+    // Track deposit timestamps for yield calculation
+    mapping(address => uint256) public depositTimestamps;
+
     constructor(IERC20 asset_, string memory name_, string memory symbol_) ERC4626(asset_) ERC20(name_, symbol_) {
         assetInstance = asset_;
         _asset = address(asset_);
+    }
+
+    function setYield(uint256 yield_) external {
+        yield = yield_;
     }
 
     function setLessAmount(bool lessAmount_) external {
@@ -42,6 +52,20 @@ contract Mock4626Vault is ERC4626 {
         return shares;
     }
 
+    function convertToAssets(uint256 shares) public view override returns (uint256 assets) {
+        // If yield is set, calculate accrued yield based on time
+        if (yield > 0 && msg.sender != address(0) && depositTimestamps[msg.sender] > 0) {
+            uint256 timeElapsed = block.timestamp - depositTimestamps[msg.sender];
+            uint256 yieldFactor = yield * timeElapsed / (365 days);
+            return shares + (shares * yieldFactor / yield_precision);
+        }
+        return shares;
+    }
+
+    function convertToShares(uint256 assets) public pure override returns (uint256 shares) {
+        return assets;
+    }
+
     function deposit(uint256 assets, address receiver) public override returns (uint256 shares) {
         require(assets > 0, AMOUNT_NOT_VALID());
         uint256 amount = lessAmount ? assets / 2 : assets;
@@ -49,6 +73,10 @@ contract Mock4626Vault is ERC4626 {
         _totalAssets += amount;
         _totalShares += shares;
         amountOf[receiver] += amount;
+
+        // Record deposit timestamp for yield calculation
+        depositTimestamps[receiver] = block.timestamp;
+
         IERC20(_asset).transferFrom(msg.sender, address(this), assets);
         _mint(receiver, shares);
         emit Deposit(msg.sender, receiver, assets, shares);
@@ -58,12 +86,29 @@ contract Mock4626Vault is ERC4626 {
         require(shares > 0, AMOUNT_NOT_VALID());
         require(shares <= _totalShares, AMOUNT_NOT_VALID());
 
-        assets = shares; // 1:1 ratio for simplicity
+        // Calculate assets with potential yield
+        if (yield > 0 && depositTimestamps[owner] > 0) {
+            uint256 timeElapsed = block.timestamp - depositTimestamps[owner];
+            uint256 yieldFactor = yield * timeElapsed / (365 days);
+            assets = shares + (shares * yieldFactor / yield_precision);
+        } else {
+            assets = shares; // 1:1 ratio for simplicity when no yield
+        }
+
         _totalAssets -= assets;
         _totalShares -= shares;
         amountOf[owner] -= assets;
+
+        // Reset deposit timestamp
+        depositTimestamps[owner] = 0;
+
         IERC20(_asset).transfer(receiver, assets);
         _burn(owner, shares);
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
+    }
+
+    function totalAssets() public view override returns (uint256) {
+        // For simplicity, we don't include accrued yield in totalAssets
+        return _totalAssets;
     }
 }

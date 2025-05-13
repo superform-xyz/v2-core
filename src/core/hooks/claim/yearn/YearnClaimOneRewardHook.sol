@@ -1,46 +1,83 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.28;
 
 // external
-import { BytesLib } from "../../../libraries/BytesLib.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IYearnStakingRewardsMulti } from "../../../../vendor/yearn/IYearnStakingRewardsMulti.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
-
-import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
-import { IYearnStakingRewardsMulti } from "../../../interfaces/vendors/yearn/IYearnStakingRewardsMulti.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import {
+    ISuperHook,
+    ISuperHookResultOutflow,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow,
+    ISuperHookContextAware
+} from "../../../interfaces/ISuperHook.sol";
 
 /// @title YearnClaimOneRewardHook
+/// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 /// @notice         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-contract YearnClaimOneRewardHook is BaseHook, BaseClaimRewardHook, ISuperHook {
-    constructor(address registry_, address author_) BaseHook(registry_, author_, HookType.NONACCOUNTING) { }
+contract YearnClaimOneRewardHook is
+    BaseHook,
+    BaseClaimRewardHook,
+    ISuperHookInflowOutflow,
+    ISuperHookOutflow,
+    ISuperHookContextAware
+{
+    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function build(address, bytes memory data) external pure override returns (Execution[] memory executions) {
-        address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-        address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-        if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
+    function build(
+        address,
+        address,
+        bytes memory data
+    )
+        external
+        pure
+        override
+        returns (Execution[] memory executions)
+    {
+        address yieldSource = BytesLib.toAddress(data, 0);
+        address rewardToken = BytesLib.toAddress(data, 20);
+        if (yieldSource == address(0) || rewardToken == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(yieldSource, abi.encodeCall(IYearnStakingRewardsMulti.getOneReward, (rewardToken)));
     }
 
+    /// @inheritdoc ISuperHookInflowOutflow
+    function decodeAmount(bytes memory) external pure returns (uint256) {
+        return 0;
+    }
+
+    /// @inheritdoc ISuperHookContextAware
+    function decodeUsePrevHookAmount(bytes memory) external pure returns (bool) {
+        return false;
+    }
+
+    /// @inheritdoc ISuperHookOutflow
+    function replaceCalldataAmount(bytes memory data, uint256) external pure returns (bytes memory) {
+        return data;
+    }
+
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                                 INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function preExecute(address, bytes memory data) external onlyExecutor {
+    function _preExecute(address, address, bytes calldata data) internal override {
+        asset = BytesLib.toAddress(data, 20);
+        if (asset == address(0)) revert ASSET_ZERO_ADDRESS();
+
         outAmount = _getBalance(data);
     }
 
-    /// @inheritdoc ISuperHook
-    function postExecute(address, bytes memory data) external onlyExecutor {
+    function _postExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data) - outAmount;
     }
 }

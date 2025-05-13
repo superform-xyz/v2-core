@@ -1,41 +1,51 @@
-// SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.28;
 
 // external
-import { BasePaymaster } from "@account-abstraction/core/BasePaymaster.sol";
-import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
-import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
-import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
-import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import { IEntryPointSimulations } from "modulekit/external/ERC4337.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { UserOperationLib } from "../../vendor/account-abstraction/UserOperationLib.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+// superform
+import { BasePaymaster } from "../../vendor/account-abstraction/BasePaymaster.sol";
+import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
 
 /// @title SuperNativePaymaster
+/// @author Superform Labs
 /// @notice A paymaster contract that allows users to pay for their operations with native tokens.
-/// @dev Inspired by https://github.com/0xPolycode/klaster-smart-contracts/blob/master/contracts/KlasterPaymasterV7.sol
-contract SuperNativePaymaster is BasePaymaster {
-    using UserOperationLib for PackedUserOperation; 
+/// @dev Inspired by https://github.com/0xPolycode/klaster-smart-contracts/blob/master/contracts/KlasterPaymasterV7.so
+contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
+    using UserOperationLib for PackedUserOperation;
+
+    uint256 internal constant UINT128_BYTES = 16;
+    uint256 internal constant MAX_NODE_OPERATOR_PREMIUM = 10_000;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-    error EMPTY_MESSAGE_VALUE();
-    error INSUFFICIENT_BALANCE();
 
-    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) { }
+    constructor(IEntryPoint _entryPoint) payable BasePaymaster(_entryPoint) {
+        if (address(_entryPoint).code.length == 0) revert ZERO_ADDRESS();
+    }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Calculate the refund amount based on the max gas limit, max fee per gas, actual gas cost, and node operator premium.
-    /// @param maxGasLimit The maximum gas limit for the operation.
-    /// @param maxFeePerGas The maximum fee per gas for the operation.
-    /// @param actualGasCost The actual gas cost for the operation.
-    /// @param nodeOperatorPremium The node operator premium for the operation.
+
+    /// @inheritdoc ISuperNativePaymaster
     function calculateRefund(
         uint256 maxGasLimit,
         uint256 maxFeePerGas,
         uint256 actualGasCost,
         uint256 nodeOperatorPremium
-    ) public pure returns (uint256 refund) {
-        uint256 costWithPremium = (actualGasCost * (100 + nodeOperatorPremium)) / 100;
+    )
+        public
+        pure
+        returns (uint256 refund)
+    {
+        if (nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) revert INVALID_NODE_OPERATOR_PREMIUM();
+        uint256 costWithPremium =
+            Math.mulDiv(actualGasCost, MAX_NODE_OPERATOR_PREMIUM + nodeOperatorPremium, MAX_NODE_OPERATOR_PREMIUM);
 
         uint256 maxCost = maxGasLimit * maxFeePerGas;
         if (costWithPremium < maxCost) {
@@ -46,64 +56,38 @@ contract SuperNativePaymaster is BasePaymaster {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Handle a batch of user operations.
-    /// @param ops The user operations to handle.
+    /// @inheritdoc ISuperNativePaymaster
     function handleOps(PackedUserOperation[] calldata ops) public payable {
-        if (msg.value == 0) {
-            revert EMPTY_MESSAGE_VALUE();
+        uint256 balance = address(this).balance;
+        if (balance > 0) {
+            (bool success,) = payable(address(entryPoint)).call{ value: balance }("");
+            if (!success) revert INSUFFICIENT_BALANCE();
         }
-        entryPoint.depositTo{value: msg.value}(address(this));
+        // note: msg.sender is the SuperBundler on same chain, or a cross-chain Gateway contract on the destination
+        // chain
         entryPoint.handleOps(ops, payable(msg.sender));
         entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
-    }
-    
-    /// @notice Simulate the handling of a user operation.
-    /// @param op The user operation to simulate.
-    /// @param target The target address of the user operation.
-    /// @param callData The call data for the user operation.
-    function simulateHandleOp(PackedUserOperation calldata op, address target, bytes calldata callData)
-        external
-        payable
-        returns (IEntryPointSimulations.ExecutionResult memory)
-    {
-        if (msg.value == 0) {
-            revert EMPTY_MESSAGE_VALUE();
-        }
-        IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
-        entryPointWithSimulations.depositTo{value: msg.value}(address(this));
-        return entryPointWithSimulations.simulateHandleOp(op, target, callData);
-    }
-
-    /// @notice Simulate the validation of a user operation.
-    /// @param op The user operation to simulate.   
-    function simulateValidation(PackedUserOperation calldata op)
-        external
-        payable
-        returns (IEntryPointSimulations.ValidationResult memory)
-    {
-        if (msg.value == 0) {
-            revert EMPTY_MESSAGE_VALUE();
-        }
-        IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
-        entryPointWithSimulations.depositTo{value: msg.value}(address(this));
-        return entryPointWithSimulations.simulateValidation(op);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32 /** userOpHash */, uint256 maxCost)
+    function _validatePaymasterUserOp(
+        PackedUserOperation calldata userOp,
+        bytes32,
+        uint256
+    )
         internal
         virtual
         override
         returns (bytes memory context, uint256 validationData)
     {
-        if (entryPoint.getDepositInfo(address(this)).deposit < maxCost) {
-            revert INSUFFICIENT_BALANCE();
-        }
         (uint256 maxGasLimit, uint256 nodeOperatorPremium) =
             abi.decode(userOp.paymasterAndData[PAYMASTER_DATA_OFFSET:], (uint256, uint256));
 
+        if (nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) {
+            revert INVALID_NODE_OPERATOR_PREMIUM();
+        }
         return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), maxGasLimit, nodeOperatorPremium), 0);
     }
 
@@ -111,21 +95,22 @@ contract SuperNativePaymaster is BasePaymaster {
     ///         Executes userOp and gives back refund to the userOp.sender if userOp.sender has overpaid for execution.
     /// @dev Verified to be called only through the entryPoint.
     ///      If subclass returns a non-empty context from validatePaymasterUserOp, it must also implement this method.
-    /// @param mode The mode of the post-operation
-    ///                  opSucceeded - user operation succeeded.
-    ///                  opReverted  - user op reverted. still has to pay for gas.
-    ///                  postOpReverted - user op succeeded, but caused postOp (in mode=opSucceeded) to revert.
     ///                                    Now this is the 2nd call, after user's op was deliberately reverted.
     /// @param context The context value returned by validatePaymasterUserOp.
     /// @param actualGasCost The actual gas used so far (without this postOp call).
-    function _postOp(PostOpMode mode, bytes calldata context, uint256 actualGasCost, uint256 /**actualUserOpFeePerGas */) 
+    function _postOp(
+        PostOpMode,
+        bytes calldata context,
+        uint256 actualGasCost,
+        uint256
+    )
+        /**
+         * actualUserOpFeePerGas
+         */
         internal
         virtual
         override
     {
-        if (mode == PostOpMode.postOpReverted) {
-            return;
-        }
         (address sender, uint256 maxFeePerGas, uint256 maxGasLimit, uint256 nodeOperatorPremium) =
             abi.decode(context, (address, uint256, uint256, uint256));
 

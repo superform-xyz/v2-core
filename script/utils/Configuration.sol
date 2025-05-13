@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-abstract contract Configuration {
+import "./Constants.sol";
+
+abstract contract Configuration is Constants {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -23,25 +25,20 @@ abstract contract Configuration {
         address owner;
         address paymaster;
         address bundler;
+        address treasury;
         mapping(uint64 chainId => address acrossSpokePoolV3) acrossSpokePoolV3s;
-        mapping(uint64 chainId => address debridgeGate) debridgeGates;
+        mapping(uint64 chainId => address debridgeDstDln) debridgeDstDln;
+        mapping(uint64 chainId => address routers) aggregationRouters;
+        mapping(uint64 chainId => address odosRouter) odosRouters;
+        mapping(uint64 chainId => address okxRouter) okxRouters;
+        mapping(uint64 chainId => address nexusFactory) nexusFactories;
+        mapping(uint64 chainId => address spectraRouter) spectraRouters;
+        mapping(uint64 chainId => address pendleRouter) pendleRouters;
+        mapping(uint64 chainId => address polymerProver) polymerProvers;
         SuperPositionData[] superPositions;
-        RolesData[] externalRoles;
     }
 
     EnvironmentData public configuration;
-
-    // mainnets
-    uint64 public constant MAINNET_CHAIN_ID = 1;
-    uint64 public constant BASE_CHAIN_ID = 8453;
-    uint64 public constant OPTIMISM_CHAIN_ID = 10;
-    uint64 public constant POLYGON_CHAIN_ID = 137;
-    uint64 public constant ARBITRUM_CHAIN_ID = 42_161;
-    // testnets
-    uint64 public constant SEPOLIA_CHAIN_ID = 11_155_111;
-    uint64 public constant ARB_SEPOLIA_CHAIN_ID = 421_613;
-    uint64 public constant BASE_SEPOLIA_CHAIN_ID = 84_532;
-    uint64 public constant OP_SEPOLIA_CHAIN_ID = 11_155_420;
 
     mapping(uint64 chainId => string chainName) internal chainNames;
     bytes internal SALT_NAMESPACE;
@@ -53,43 +50,85 @@ abstract contract Configuration {
 
     function _setConfiguration(uint256 env, string memory saltNamespace) internal {
         SALT_NAMESPACE = bytes(saltNamespace);
-        chainNames[MAINNET_CHAIN_ID] = "Ethereum";
-        chainNames[BASE_CHAIN_ID] = "Base";
-        chainNames[OPTIMISM_CHAIN_ID] = "Optimism";
-        chainNames[POLYGON_CHAIN_ID] = "Polygon";
-        chainNames[ARBITRUM_CHAIN_ID] = "Arbitrum";
-        chainNames[SEPOLIA_CHAIN_ID] = "Sepolia";
-        chainNames[ARB_SEPOLIA_CHAIN_ID] = "Arbitrum_Sepolia";
-        chainNames[BASE_SEPOLIA_CHAIN_ID] = "Base_Sepolia";
-        chainNames[OP_SEPOLIA_CHAIN_ID] = "OP_Sepolia";
+        chainNames[MAINNET_CHAIN_ID] = ETHEREUM_KEY;
+        chainNames[BASE_CHAIN_ID] = BASE_KEY;
+        chainNames[OPTIMISM_CHAIN_ID] = OPTIMISM_KEY;
+        chainNames[POLYGON_CHAIN_ID] = POLYGON_KEY;
+        chainNames[ARBITRUM_CHAIN_ID] = ARBITRUM_KEY;
+        chainNames[SEPOLIA_CHAIN_ID] = SEPOLIA_KEY;
+        chainNames[ARB_SEPOLIA_CHAIN_ID] = ARB_SEPOLIA_KEY;
+        chainNames[BASE_SEPOLIA_CHAIN_ID] = BASE_SEPOLIA_KEY;
+        chainNames[OP_SEPOLIA_CHAIN_ID] = OP_SEPOLIA_KEY;
 
         // common configuration
-        // this is the SuperDeployer address
-        configuration.deployer = 0x4b38341B1126F45614B26319787CA98aeC1b6f57;
-
         if (env == 0) {
-            configuration.owner = 0x76e9b0063546d97A9c2FDbC9682C5FA347B253BA;
-            configuration.paymaster = 0x76e9b0063546d97A9c2FDbC9682C5FA347B253BA;
-            configuration.bundler = 0x76e9b0063546d97A9c2FDbC9682C5FA347B253BA;
+            configuration.owner = PROD_MULTISIG;
+            configuration.paymaster = PROD_MULTISIG;
+            configuration.bundler = PROD_MULTISIG;
+            configuration.treasury = PROD_MULTISIG;
         } else {
-            configuration.owner = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
-            configuration.paymaster = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
-            configuration.bundler = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+            configuration.owner = TEST_DEPLOYER;
+            configuration.paymaster = TEST_DEPLOYER;
+            configuration.bundler = TEST_DEPLOYER;
+            configuration.treasury = TEST_DEPLOYER;
         }
 
         // chain specific configuration
-        configuration.acrossSpokePoolV3s[MAINNET_CHAIN_ID] = 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5;
-        configuration.acrossSpokePoolV3s[BASE_CHAIN_ID] = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
-        configuration.acrossSpokePoolV3s[OPTIMISM_CHAIN_ID] = 0x6f26Bf09B1C792e3228e5467807a900A503c0281;
-        configuration.acrossSpokePoolV3s[ARB_SEPOLIA_CHAIN_ID] = 0x7E63A5f1a8F0B4d0934B2f2327DAED3F6bb2ee75;
-        configuration.acrossSpokePoolV3s[BASE_SEPOLIA_CHAIN_ID] = 0x82B564983aE7274c86695917BBf8C99ECb6F0F8F;
-        configuration.acrossSpokePoolV3s[OP_SEPOLIA_CHAIN_ID] = 0x4e8E101924eDE233C13e2D8622DC8aED2872d505;
+        configuration.acrossSpokePoolV3s[MAINNET_CHAIN_ID] = ACROSS_SPOKE_POOL_MAINNET;
+        configuration.acrossSpokePoolV3s[BASE_CHAIN_ID] = ACROSS_SPOKE_POOL_BASE;
+        configuration.acrossSpokePoolV3s[OPTIMISM_CHAIN_ID] = ACROSS_SPOKE_POOL_OPTIMISM;
+        configuration.acrossSpokePoolV3s[ARB_SEPOLIA_CHAIN_ID] = ACROSS_SPOKE_POOL_ARB_SEPOLIA;
+        configuration.acrossSpokePoolV3s[BASE_SEPOLIA_CHAIN_ID] = ACROSS_SPOKE_POOL_BASE_SEPOLIA;
+        configuration.acrossSpokePoolV3s[OP_SEPOLIA_CHAIN_ID] = ACROSS_SPOKE_POOL_OP_SEPOLIA;
 
-        configuration.debridgeGates[MAINNET_CHAIN_ID] = 0x43dE2d77BF8027e25dBD179B491e8d64f38398aA;
-        configuration.debridgeGates[BASE_CHAIN_ID] = 0xc1656B63D9EEBa6d114f6bE19565177893e5bCBF;
-        configuration.debridgeGates[OPTIMISM_CHAIN_ID] = 0x43dE2d77BF8027e25dBD179B491e8d64f38398aA;
-        configuration.debridgeGates[ARB_SEPOLIA_CHAIN_ID] = 0x43dE2d77BF8027e25dBD179B491e8d64f38398aA;
-        configuration.debridgeGates[BASE_SEPOLIA_CHAIN_ID] = 0x0000000000000000000000000000000000000000;
-        configuration.debridgeGates[OP_SEPOLIA_CHAIN_ID] = 0x0000000000000000000000000000000000000000;
+        configuration.debridgeDstDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[BASE_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[OPTIMISM_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[ARB_SEPOLIA_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[BASE_SEPOLIA_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[OP_SEPOLIA_CHAIN_ID] = DEBRIDGE_DLN_DST;
+
+        configuration.aggregationRouters[MAINNET_CHAIN_ID] = AGGREGATION_ROUTER_MAINNET;
+        configuration.aggregationRouters[BASE_CHAIN_ID] = AGGREGATION_ROUTER_BASE;
+        configuration.aggregationRouters[OPTIMISM_CHAIN_ID] = AGGREGATION_ROUTER_OPTIMISM;
+        configuration.aggregationRouters[ARB_SEPOLIA_CHAIN_ID] = AGGREGATION_ROUTER_ARB_SEPOLIA;
+        configuration.aggregationRouters[BASE_SEPOLIA_CHAIN_ID] = AGGREGATION_ROUTER_BASE_SEPOLIA;
+        configuration.aggregationRouters[OP_SEPOLIA_CHAIN_ID] = AGGREGATION_ROUTER_OP_SEPOLIA;
+
+        configuration.odosRouters[MAINNET_CHAIN_ID] = ODOS_ROUTER_MAINNET;
+        configuration.odosRouters[BASE_CHAIN_ID] = ODOS_ROUTER_BASE;
+        configuration.odosRouters[OPTIMISM_CHAIN_ID] = ODOS_ROUTER_OPTIMISM;
+        configuration.odosRouters[ARB_SEPOLIA_CHAIN_ID] = ODOS_ROUTER_ARB_SEPOLIA;
+        configuration.odosRouters[BASE_SEPOLIA_CHAIN_ID] = ODOS_ROUTER_BASE_SEPOLIA;
+        configuration.odosRouters[OP_SEPOLIA_CHAIN_ID] = ODOS_ROUTER_OP_SEPOLIA;
+
+        configuration.okxRouters[MAINNET_CHAIN_ID] = OKX_ROUTER_MAINNET;
+        configuration.okxRouters[BASE_CHAIN_ID] = OKX_ROUTER_BASE;
+        configuration.okxRouters[OPTIMISM_CHAIN_ID] = OKX_ROUTER_OPTIMISM;
+        configuration.okxRouters[ARB_SEPOLIA_CHAIN_ID] = OKX_ROUTER_ARB_SEPOLIA;
+        configuration.okxRouters[BASE_SEPOLIA_CHAIN_ID] = OKX_ROUTER_BASE_SEPOLIA;
+        configuration.okxRouters[OP_SEPOLIA_CHAIN_ID] = OKX_ROUTER_OP_SEPOLIA;
+
+        configuration.nexusFactories[MAINNET_CHAIN_ID] = NEXUS_FACTORY_MAINNET;
+        configuration.nexusFactories[BASE_CHAIN_ID] = NEXUS_FACTORY_BASE;
+        configuration.nexusFactories[OPTIMISM_CHAIN_ID] = NEXUS_FACTORY_OPTIMISM;
+        configuration.nexusFactories[ARB_SEPOLIA_CHAIN_ID] = NEXUS_FACTORY_ARB_SEPOLIA;
+        configuration.nexusFactories[BASE_SEPOLIA_CHAIN_ID] = NEXUS_FACTORY_BASE_SEPOLIA;
+        configuration.nexusFactories[OP_SEPOLIA_CHAIN_ID] = NEXUS_FACTORY_OP_SEPOLIA;
+
+        configuration.spectraRouters[MAINNET_CHAIN_ID] = SPECTRA_ROUTER_MAINNET;
+        configuration.spectraRouters[BASE_CHAIN_ID] = SPECTRA_ROUTER_BASE;
+        configuration.spectraRouters[OPTIMISM_CHAIN_ID] = SPECTRA_ROUTER_OPTIMISM;
+
+        configuration.pendleRouters[MAINNET_CHAIN_ID] = PENDLE_ROUTER_MAINNET;
+        configuration.pendleRouters[BASE_CHAIN_ID] = PENDLE_ROUTER_BASE;
+        configuration.pendleRouters[OPTIMISM_CHAIN_ID] = PENDLE_ROUTER_OPTIMISM;
+
+        configuration.polymerProvers[MAINNET_CHAIN_ID] = POLYMER_PROVER_MAINNET;
+        configuration.polymerProvers[BASE_CHAIN_ID] = POLYMER_PROVER_BASE;
+        configuration.polymerProvers[OPTIMISM_CHAIN_ID] = POLYMER_PROVER_OPTIMISM;
+        configuration.polymerProvers[ARB_SEPOLIA_CHAIN_ID] = POLYMER_PROVER_ARB_SEPOLIA;
+        configuration.polymerProvers[BASE_SEPOLIA_CHAIN_ID] = POLYMER_PROVER_BASE_SEPOLIA;
+        configuration.polymerProvers[OP_SEPOLIA_CHAIN_ID] = POLYMER_PROVER_OP_SEPOLIA;
     }
 }

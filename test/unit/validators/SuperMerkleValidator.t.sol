@@ -2,190 +2,322 @@
 pragma solidity >=0.8.28;
 
 // external
-import {
-    RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, AccountType, UserOpData
-} from "modulekit/ModuleKit.sol";
+import { ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
-import { AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
-import { BaseTest } from "../../BaseTest.t.sol";
 import { SuperMerkleValidator } from "../../../src/core/validators/SuperMerkleValidator.sol";
+import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
 
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
+import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
+import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 
-import { console2 } from "forge-std/console2.sol";
-
-contract SuperMerkleValidatorTest is BaseTest {
+contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
     IERC4626 public vaultInstance;
-    ISuperExecutor public superExecutor;
     AccountInstance public instance;
     address public account;
-    address public underlying;
-    address public yieldSourceAddress;
 
     SuperMerkleValidator public validator;
-    bytes public dummyData;
-    UserOpData public dummyUserOp;
-    bytes public dummySigData;
     bytes public validSigData;
 
-    function setUp() public override {
-        super.setUp();
-        vm.selectFork(FORKS[ETH]);
-        underlying = existingUnderlyingTokens[1]["USDC"];
-        yieldSourceAddress = realVaultAddresses[1]["ERC4626"]["MorphoVault"]["USDC"];
-        vaultInstance = IERC4626(yieldSourceAddress);
-        superExecutor = ISuperExecutor(_getContract(ETH, "SuperExecutor"));
+    UserOpData approveUserOp;
+    UserOpData transferUserOp;
+    UserOpData depositUserOp;
+    UserOpData withdrawUserOp;
 
-        validator = SuperMerkleValidator(_getContract(ETH, "SuperMerkleValidator"));
+    uint256 privateKey;
+    address signerAddr;
 
-        instance = accountInstances[ETH];
+    function setUp() public {
+        validator = new SuperMerkleValidator();
+
+        (signerAddr, privateKey) = makeAddrAndKey("The signer");
+        vm.label(signerAddr, "The signer");
+
+        instance = makeAccountInstance(keccak256(abi.encode("TEST")));
         account = instance.account;
-        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: "" });
 
-        dummyData = abi.encode(address(this));
-        dummyUserOp = instance.getExecOps(
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(address(signerAddr))
+        });
+        assertEq(validator.getAccountOwner(account), signerAddr);
+
+        approveUserOp = _createDummyApproveUserOp();
+        transferUserOp = _createDummyTransferUserOp();
+        depositUserOp = _createDummyDepositUserOp();
+        withdrawUserOp = _createDummyWithdrawUserOp();
+    }
+
+    function test_Dummy_1LeafMerkleTree() public pure {
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = keccak256(bytes.concat(keccak256(abi.encode("leaf 0"))));
+
+        bytes32 root = leaves[0];
+        bytes32[] memory proof = new bytes32[](0);
+
+        bool isValid = MerkleProof.verify(proof, root, leaves[0]);
+        assertTrue(isValid, "Merkle proof for leaf 0 should be valid");
+    }
+
+    function test_ValidateUserOp_1LeafMerkleTree() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+
+        // simulate a merkle tree with 4 leaves (4 user ops)
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+        bytes memory signature = _getSignature(root);
+
+        // validate first user op
+        _testUserOpValidation(validUntil, root, proof[0], signature, approveUserOp);
+    }
+
+    function test_Dummy_OnChainMerkleTree() public pure {
+        bytes32[] memory leaves = new bytes32[](4);
+        leaves[0] = keccak256(bytes.concat(keccak256(abi.encode("leaf 0"))));
+        leaves[1] = keccak256(bytes.concat(keccak256(abi.encode("leaf 1"))));
+        leaves[2] = keccak256(bytes.concat(keccak256(abi.encode("leaf 2"))));
+        leaves[3] = keccak256(bytes.concat(keccak256(abi.encode("leaf 3"))));
+
+        bytes32[][] memory proof;
+        bytes32 root;
+        {
+            bytes32[] memory level1 = new bytes32[](2);
+            level1[0] = _hashPair(leaves[0], leaves[1]);
+            level1[1] = _hashPair(leaves[2], leaves[3]);
+
+            root = _hashPair(level1[0], level1[1]);
+
+            proof = new bytes32[][](4);
+
+            // Proof for leaves[0] - Sibling is leaves[1], Parent is level1[1]
+            proof[0] = new bytes32[](2);
+            proof[0][0] = leaves[1]; // Sibling of leaves[0]
+            proof[0][1] = level1[1]; // Parent of leaves[0] and leaves[1]
+
+            // Proof for leaves[1] - Sibling is leaves[0], Parent is level1[1]
+            proof[1] = new bytes32[](2);
+            proof[1][0] = leaves[0]; // Sibling of leaves[1]
+            proof[1][1] = level1[1]; // Parent of leaves[0] and leaves[1]
+
+            // Proof for leaves[2] - Sibling is leaves[3], Parent is level1[0]
+            proof[2] = new bytes32[](2);
+            proof[2][0] = leaves[3]; // Sibling of leaves[2]
+            proof[2][1] = level1[0]; // Parent of leaves[2] and leaves[3]
+
+            // Proof for leaves[3] - Sibling is leaves[2], Parent is level1[0]
+            proof[3] = new bytes32[](2);
+            proof[3][0] = leaves[2]; // Sibling of leaves[3]
+            proof[3][1] = level1[0]; // Parent of leaves[2] and leaves[3]
+        }
+
+        bool isValid = MerkleProof.verify(proof[0], root, leaves[0]);
+        assertTrue(isValid, "Merkle proof for leaf 0 should be valid");
+
+        // check 2nd leaf
+        isValid = MerkleProof.verify(proof[1], root, leaves[1]);
+        assertTrue(isValid, "Merkle proof for leaf 1 should be valid");
+
+        // check 3rd leaf
+        isValid = MerkleProof.verify(proof[2], root, leaves[2]);
+        assertTrue(isValid, "Merkle proof for leaf 2 should be valid");
+
+        // check 4th leaf
+        isValid = MerkleProof.verify(proof[3], root, leaves[3]);
+        assertTrue(isValid, "Merkle proof for leaf 3 should be valid");
+    }
+
+    function test_Dummy_OnChainMerkleTree_WithActualUserOps() public view {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+        bytes32[] memory leaves = new bytes32[](4);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil);
+        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil);
+        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+        bool isValid = MerkleProof.verify(proof[0], root, leaves[0]);
+        assertTrue(isValid, "Merkle proof should be valid");
+    }
+
+    function test_ValidateUserOp() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+
+        // simulate a merkle tree with 4 leaves (4 user ops)
+        bytes32[] memory leaves = new bytes32[](4);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil);
+        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil);
+        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+        bytes memory signature = _getSignature(root);
+
+        // validate first user op
+        _testUserOpValidation(validUntil, root, proof[0], signature, approveUserOp);
+
+        // validate second user op
+        _testUserOpValidation(validUntil, root, proof[1], signature, transferUserOp);
+
+        // validate third user op
+        _testUserOpValidation(validUntil, root, proof[2], signature, depositUserOp);
+
+        // validate fourth user op
+        _testUserOpValidation(validUntil, root, proof[3], signature, withdrawUserOp);
+    }
+
+    function test_ExpiredSignature() public {
+        vm.warp(block.timestamp + 2 hours);
+
+        uint48 validUntil = uint48(block.timestamp - 1 hours);
+
+        // simulate a merkle tree with 4 leaves (4 user ops)
+        bytes32[] memory leaves = new bytes32[](4);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil);
+        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil);
+        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+        bytes memory signature = _getSignature(root);
+
+        validSigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
+
+        approveUserOp.userOp.signature = validSigData;
+        ERC7579ValidatorBase.ValidationData result =
+            validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
+        uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
+        bool _sigFailed = rawResult & 1 == 1;
+        uint48 _validUntil = uint48(rawResult >> 160);
+
+        assertTrue(_sigFailed, "Sig should fail");
+        assertLt(_validUntil, block.timestamp, "Should not be valid");
+    }
+
+    function test_tamperingSignature_And_Proof_For_1LeafMerkleTree() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+
+        // simulate a merkle tree with 1 leaves
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+        assertEq(proof[0].length, 0, "Proof should be empty");
+        assertEq(root, leaves[0], "Root should be the same as the leaf");
+
+        bytes memory signature = _getSignature(root);
+
+        // tamper the merkle root
+        bytes32 _prevRoot = root;
+        root = keccak256(abi.encode("tampered root"));
+        validSigData = abi.encode(validUntil, root, proof, proof, signature);
+
+        approveUserOp.userOp.signature = validSigData;
+
+        vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
+        validator.validateUserOp(approveUserOp.userOp, bytes32(0));
+
+        // tamper the proof
+        root = _prevRoot;
+        bytes32[] memory _proof = new bytes32[](1);
+        _proof[0] = keccak256(abi.encode("tampered proof"));
+        validSigData = abi.encode(validUntil, root, _proof, _proof, signature);
+
+        approveUserOp.userOp.signature = validSigData;
+
+        vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
+        validator.validateUserOp(approveUserOp.userOp, bytes32(0));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                 PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _getSignature(bytes32 root) private view returns (bytes memory) {
+        bytes32 messageHash = keccak256(abi.encode(validator.namespace(), root));
+        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, ethSignedMessageHash);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        // test sig here; fail early if invalid
+        address _expectedSigner = ECDSA.recover(ethSignedMessageHash, signature);
+        assertEq(_expectedSigner, signerAddr, "Signature should be valid");
+        return signature;
+    }
+
+    function _testUserOpValidation(
+        uint48 validUntil,
+        bytes32 root,
+        bytes32[] memory proof,
+        bytes memory signature,
+        UserOpData memory userOpData
+    )
+        private
+    {
+        validSigData = abi.encode(validUntil, root, proof, proof, signature);
+
+        userOpData.userOp.signature = validSigData;
+        ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(userOpData.userOp, userOpData.userOpHash);
+        uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
+        bool _sigFailed = rawResult & 1 == 1;
+        uint48 _validUntil = uint48(rawResult >> 160);
+
+        assertFalse(_sigFailed, "Sig should be valid");
+        assertGt(_validUntil, block.timestamp, "validUntil should be valid");
+    }
+
+    function _createDummyApproveUserOp() private returns (UserOpData memory) {
+        return instance.getExecOps(
             address(this),
             0,
             abi.encodeWithSelector(IERC20.approve.selector, address(this), 1e18),
             address(instance.defaultValidator)
         );
-        dummySigData = bytes("1234");
     }
 
-    function test_GivenTheSignatureIsInvalid() external {
-        // it should return validation failure
-        vm.expectRevert();
-        validator.validateUserOp(dummyUserOp.userOp, bytes32(0));
-    }
-
-    modifier givenTheSignatureIsValid(uint256 timestamp) {
-        uint48 validUntil = uint48(timestamp); // 1 hour valid
-        bytes32 merkleRoot = keccak256(abi.encodePacked("validMerkleRoot"));
-        bytes32 leaf = keccak256(
-            abi.encodePacked(
-                address(this),
-                dummyUserOp.userOp.nonce,
-                dummyUserOp.userOp.callData,
-                dummyUserOp.userOp.accountGasLimits
-            )
+    function _createDummyTransferUserOp() private returns (UserOpData memory) {
+        return instance.getExecOps(
+            address(this),
+            0,
+            abi.encodeWithSelector(IERC20.transfer.selector, address(this), 1e18),
+            address(instance.defaultValidator)
         );
-        bytes32[] memory proof = new bytes32[](1);
-        proof[0] = keccak256(
-            abi.encodePacked(
-                address(this),
-                dummyUserOp.userOp.nonce,
-                dummyUserOp.userOp.callData,
-                dummyUserOp.userOp.accountGasLimits
-            )
-        );
-
-        bytes32 messageHash =
-            keccak256(abi.encode(validator.namespace(), merkleRoot, leaf, address(this), dummyUserOp.userOp.nonce));
-        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(uint256(uint160(address(this))), ethSignedMessageHash);
-        bytes memory signature = abi.encodePacked(r, s, v);
-
-        validSigData = abi.encode(validUntil, merkleRoot, proof, signature);
-        _;
     }
 
-    function test_WhenTimestampIsExpired() external givenTheSignatureIsValid(block.timestamp - 1 hours) {
-        dummyUserOp.userOp.signature = validSigData;
-        validator.validateUserOp(dummyUserOp.userOp, bytes32(0));
-        // it should return validation failure
+    function _createDummyDepositUserOp() private returns (UserOpData memory) {
+        return instance.getExecOps(
+            address(this),
+            0,
+            abi.encodeWithSelector(IERC4626.deposit.selector, 1e18, address(this)),
+            address(instance.defaultValidator)
+        );
     }
 
-    function test_WhenTimestampIsValid() external givenTheSignatureIsValid(block.timestamp + 1 hours) {
-        dummyUserOp.userOp.signature = validSigData;
-        ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(dummyUserOp.userOp, bytes32(0));
-
-        uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
-        bool sigFailed = (rawResult >> 255) & 1 == 1;
-        uint48 validUntil = uint48(rawResult >> 160);
-
-        assertFalse(sigFailed);
-        assertGt(validUntil, block.timestamp);
-    }
-
-    function test_ValidSignatureWithActualData(uint256 amount) external {
-        // valid amount
-        amount = _bound(amount);
-
-        // get tokens for deposit
-        _getTokens(underlying, account, amount);
-
-        // hooks
-        address[] memory hooksAddresses = new address[](2);
-        address approveHook = _getHookAddress(ETH, "ApproveERC20Hook");
-        address depositHook = _getHookAddress(ETH, "Deposit4626VaultHook");
-        hooksAddresses[0] = approveHook;
-        hooksAddresses[1] = depositHook;
-
-        // hooks data
-        bytes[] memory hooksData = new bytes[](2);
-        bytes memory approveData = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
-        bytes memory depositData =
-            _createDepositHookData(account, bytes32("ERC4626YieldSourceOracle"), yieldSourceAddress, amount, false);
-        hooksData[0] = approveData;
-        hooksData[1] = depositData;
-
-        uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
-
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOps(instance, superExecutor, abi.encode(entry));
-
-        // merkle proof
-        //  -- leaf
-        bytes32 leaf = keccak256(
-            abi.encodePacked(
-                account, userOpData.userOp.nonce, userOpData.userOp.callData, userOpData.userOp.accountGasLimits
-            )
+    function _createDummyWithdrawUserOp() private returns (UserOpData memory) {
+        return instance.getExecOps(
+            address(this),
+            0,
+            abi.encodeWithSelector(IERC4626.withdraw.selector, 1e18, address(this)),
+            address(instance.defaultValidator)
         );
-
-        //  -- proof
-        bytes32[] memory proof = new bytes32[](1);
-        proof[0] = keccak256(
-            abi.encodePacked(
-                account, userOpData.userOp.nonce, userOpData.userOp.callData, userOpData.userOp.accountGasLimits
-            )
-        );
-
-        // -- root
-        bytes32 merkleRoot = proof[0];
-
-        {
-            uint48 validUntil = uint48(block.timestamp + 1 hours);
-            bytes32 messageHash =
-                keccak256(abi.encode(validator.namespace(), merkleRoot, leaf, account, userOpData.userOp.nonce));
-            bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(uint256(uint160(account)), ethSignedMessageHash);
-            bytes memory signature = abi.encodePacked(r, s, v);
-
-            validSigData = abi.encode(validUntil, merkleRoot, proof, signature);
-            userOpData.userOp.signature = validSigData;
-
-            ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(userOpData.userOp, bytes32(0));
-            uint256 rawResult = ERC7579ValidatorBase.ValidationData.unwrap(result);
-            bool _sigFailed = (rawResult >> 255) & 1 == 1;
-            uint48 _validUntil = uint48(rawResult >> 160);
-
-            assertFalse(_sigFailed);
-            assertGt(_validUntil, block.timestamp);
-        }
-        executeOp(userOpData);
-
-        uint256 accSharesAfter = vaultInstance.balanceOf(account);
-        assertEq(accSharesAfter, sharesPreviewed);
     }
 }

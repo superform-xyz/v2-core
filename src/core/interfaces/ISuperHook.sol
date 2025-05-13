@@ -1,22 +1,106 @@
-// SPDX-License-Identifier: MIT
+// SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
+/// @title ISuperHookResult
+/// @author Superform Labs
+/// @notice Interface for the SuperHookResult contract that manages hook results
 interface ISuperHookResult {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice The amount of tokens processed by the hook
     function outAmount() external view returns (uint256);
-
     /// @notice The type of hook
     function hookType() external view returns (ISuperHook.HookType);
+    /// @notice The lock token of the hook
+    function spToken() external view returns (address);
+    /// @notice The asset token being withdrawn or deposited
+    function asset() external view returns (address);
+    /// @notice The vault bank address used to lock `spToken`
+    function vaultBank() external view returns (address);
+    /// @notice The destination chain id to receive super positions on
+    function dstChainId() external view returns (uint256);
 }
 
+/// @title ISuperHookContextAware
+/// @author Superform Labs
+interface ISuperHookContextAware {
+    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool);
+}
+
+/// @title ISuperHookInflowOutflow
+/// @author Superform Labs
+interface ISuperHookInflowOutflow {
+    function decodeAmount(bytes memory data) external pure returns (uint256);
+
+}
+
+/// @title ISuperHookOutflow
+/// @author Superform Labs
+/// @notice Interface for the SuperHookOutflow contract that manages outflow hooks
+interface ISuperHookOutflow {
+    /// @notice Replace the amount in the calldata
+    /// @param data The data to replace the amount in
+    /// @param amount The amount to replace
+    /// @return data The data with the replaced amount
+    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory);
+}
+
+/// @title ISuperHookResultOutflow
+/// @author Superform Labs
+/// @notice Interface for the SuperHookResultOutflow contract that manages outflow hook results
+interface ISuperHookResultOutflow is ISuperHookResult {
+    /// @notice The amount of shares processed by the hook
+    function usedShares() external view returns (uint256);
+}
+
+/// @title ISuperHookAsync
+/// @author Superform Labs
+interface ISuperHookAsync {
+    /// @notice The amount of assets or shares processed by the hook
+    function getUsedAssetsOrShares() external view returns (uint256, bool);
+}
+
+/// @title ISuperHookLoans
+/// @author Superform Labs
+interface ISuperHookLoans is ISuperHookContextAware {
+    /// @notice The loan token address
+    function getLoanTokenAddress(bytes memory data) external view returns (address);
+
+    /// @notice The collateral token address
+    function getCollateralTokenAddress(bytes memory data) external view returns (address);
+
+    /// @notice The loan token balance
+    function getLoanTokenBalance(address account, bytes memory data) external view returns (uint256);
+
+    /// @notice The collateral token balance
+    function getCollateralTokenBalance(address account, bytes memory data) external view returns (uint256);
+
+    function getUsedAssets(address account, bytes memory data) external view returns (uint256);
+}
+
+/// @title ISuperHookAsyncCancelations
+/// @author Superform Labs
+interface ISuperHookAsyncCancelations {
+    enum CancelationType {
+        NONE,
+        INFLOW,
+        OUTFLOW
+    }
+
+    /// @notice Whether the hook is a cancelation hook
+    function isAsyncCancelHook() external pure returns (CancelationType asyncType);
+}
+
+/// @title ISuperHook
+/// @author Superform Labs
+/// @notice Interface for the SuperHook contract that manages hooks
 interface ISuperHook {
     /*//////////////////////////////////////////////////////////////
+
                                  ENUMS
     //////////////////////////////////////////////////////////////*/
     enum HookType {
@@ -30,21 +114,33 @@ interface ISuperHook {
     //////////////////////////////////////////////////////////////*/
     /// @notice Build the execution array for the hook
     /// @param prevHook The previous hook
+    /// @param account The account to build the execution array from
     /// @param data The data to build the execution array from
     /// @return executions The execution array
-    function build(address prevHook, bytes memory data) external view returns (Execution[] memory executions);
+    function build(
+        address prevHook,
+        address account,
+        bytes memory data
+    )
+        external
+        view
+        returns (Execution[] memory executions);
 
     /*//////////////////////////////////////////////////////////////
                                  PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Pre-hook operation
     /// @param prevHook The previous hook
+    /// @param account The account to pre-hook
     /// @param data The data to pre-hook
-    function preExecute(address prevHook, bytes memory data) external;
+    function preExecute(address prevHook, address account, bytes memory data) external;
 
     /// @notice Post-hook operation
     /// @param prevHook The previous hook
+    /// @param account The account to post-hook
     /// @param data The data to post-hook
-    function postExecute(address prevHook, bytes memory data) external;
+    function postExecute(address prevHook, address account, bytes memory data) external;
 
+    /// @notice The subtype of the hook
+    function subtype() external view returns (bytes32);
 }

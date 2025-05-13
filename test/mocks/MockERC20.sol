@@ -13,10 +13,24 @@ contract MockERC20 is ERC20 {
         _decimals = decimals_;
     }
 
+    // when used as a yield source, the asset is the token itself
+    function asset() external view returns (address) {
+        return address(this);
+    }
+
+    // when used as a yield source, the share is the token itself
+    function share() external view returns (address) {
+        return address(this);
+    }
+
+    function claimableRedeemRequest(uint256, address) external pure returns (uint256) {
+        return 0;
+    }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Get the number of decimals for the token
+
     function decimals() public view override returns (uint8) {
         return _decimals;
     }
