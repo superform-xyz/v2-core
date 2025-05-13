@@ -23,6 +23,7 @@ on:
   workflow_dispatch:
   push:
     branches:
+      - main
       - dev
       - "feat/**"
 
@@ -82,7 +83,7 @@ jobs:
         run: chmod +x ./script/run/export_abis_s3.sh
 
       - name: "Export ABIs to S3"
-        run: ./script/run/export_abis_s3.sh "dev" --quiet # TODO apply only dev ${{ github.ref_name }}"
+        run: ./script/run/export_abis_s3.sh "${{ github.ref_name }}" --quiet
         env:
           S3_BUCKET_NAME_ABIS: ${{ secrets.S3_BUCKET_NAME_ABIS }}
 
@@ -136,7 +137,7 @@ jobs:
   vnet-deploy:
     needs: ["test"]
     if:
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/'))
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/'))
     runs-on: "SuperformCore3"
     outputs:
       eth_mainnet_addresses: ${{ steps.get-addresses-eth.outputs.addresses }}
