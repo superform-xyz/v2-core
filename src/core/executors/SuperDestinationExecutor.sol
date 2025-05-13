@@ -124,7 +124,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
 
         // Decode sigData to extract merkleRoot
-        (, bytes32 merkleRoot,,) = abi.decode(userSignatureData, (uint48, bytes32, bytes32[], bytes));
+        (, bytes32 merkleRoot,,,) = abi.decode(userSignatureData, (uint48, bytes32, bytes32[],bytes32[], bytes));
 
         // --- Signature Validation ---
         // DestinationData encodes both the adapter (msg.sender) and the executor (address(this))
@@ -186,6 +186,8 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         // Execute via the target account's ERC7579 interface
         try IERC7579Account(account).executeFromExecutor(modeCode, ERC7579ExecutionLib.encodeBatch(execs)) {
             emit SuperDestinationExecutorExecuted(account);
+        } catch Panic(uint256 errorCode) {
+            emit SuperDestinationExecutorPanicFailed(account, errorCode);
         } catch Error(string memory reason) {
             // Log failure but do not revert the state change (nonce increment)
             emit SuperDestinationExecutorFailed(account, reason);
