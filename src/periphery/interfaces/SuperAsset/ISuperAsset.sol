@@ -17,6 +17,46 @@ interface ISuperAsset is IERC20 {
         bool isOracleOff;
     }
 
+    struct GetAllocationsPrePostOperations {
+        uint256 length;
+        uint256 extraSlot;
+        address vault;
+        uint256 priceUSD;
+        bool isDepeg; 
+        bool isDispersion;
+        bool isOracleOff;
+        uint256 balance;
+        uint256 absDeltaValue;
+        int256 deltaValue;
+        uint256 absDeltaToken;
+    }
+
+    struct GetPrePostAllocationReturnValues {
+        uint256[] absoluteAllocationPreOperation;
+        uint256 totalAllocationPreOperation;
+        uint256[] absoluteAllocationPostOperation;
+        uint256 totalAllocationPostOperation;
+        uint256[] absoluteTargetAllocation;
+        uint256 totalTargetAllocation;
+        uint256[] vaultWeights;
+        bool isSuccess;
+    }
+
+    struct PreviewDeposit {
+        GetPrePostAllocationReturnValues allocations;
+        uint256 amountTokenInAfterFees;
+        uint256 priceUSDTokenIn;
+        uint256 priceUSDThisShares;
+    }
+
+    struct PreviewRedeem {
+        GetPrePostAllocationReturnValues allocations;
+        uint256 priceUSDThisShares;
+        uint256 priceUSDTokenOut;
+        uint256 amountTokenOutBeforeFees;
+    }
+
+
     /**
      * @notice Initializes the SuperAsset contract
      * @param name_ Name of the token

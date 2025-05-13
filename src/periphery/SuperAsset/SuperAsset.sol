@@ -363,20 +363,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         }
     }
 
-    struct GetAllocationsPrePostOperations {
-        uint256 length;
-        uint256 extraSlot;
-        address vault;
-        uint256 priceUSD;
-        bool isDepeg; 
-        bool isDispersion;
-        bool isOracleOff;
-        uint256 balance;
-        uint256 absDeltaValue;
-        int256 deltaValue;
-        uint256 absDeltaToken;
-    }
-
     /// @inheritdoc ISuperAsset
     function getAllocationsPrePostOperation(address token, int256 deltaToken, bool isSoft) public view returns (
         uint256[] memory absoluteAllocationPreOperation, 
@@ -392,10 +378,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             // NOTE: Since we do not want this function to revert, we re-set the amount out to the max possible amount out which is the balance of this token
             // NOTE: This should be OK since the user can control the min amount out they desire with the slippage protection 
             deltaToken = -int256(IERC20(token).balanceOf(address(this)));
-            //revert INSUFFICIENT_BALANCE();
         }
 
-        // TODO: If token is not in the whitelist, consider it like if it was and add a corresponding target allocation of 0
+        // NOTE: If token is not in the whitelist, consider it like if it was and add a corresponding target allocation of 0
         // NOTE: This means adding one slot to the arrays here 
         s.extraSlot = (_supportedVaults.contains(token) ? 1 : 0);
         s.length = _supportedVaults.length() + s.extraSlot;
@@ -422,8 +407,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             s.balance = IERC20(s.vault).balanceOf(address(this));
             // Convert balance to USD value using price
             absoluteAllocationPreOperation[i] = Math.mulDiv(s.balance, s.priceUSD, 10**IERC20Metadata(s.vault).decimals());
-            // TODO: This does not work for tokens with different decimals, so need to normalize to a common decimal or even better calculate everything in USD
-            // TODO: Calculate allocations in USD Value
             totalAllocationPreOperation += absoluteAllocationPreOperation[i];
             absoluteAllocationPostOperation[i] = absoluteAllocationPreOperation[i];
             if(token == s.vault) {
@@ -438,24 +421,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             vaultWeights[i] = weights[s.vault];
             isSuccess = true;
         }
-    }
-
-    struct GetPrePostAllocationReturnValues {
-        uint256[] absoluteAllocationPreOperation;
-        uint256 totalAllocationPreOperation;
-        uint256[] absoluteAllocationPostOperation;
-        uint256 totalAllocationPostOperation;
-        uint256[] absoluteTargetAllocation;
-        uint256 totalTargetAllocation;
-        uint256[] vaultWeights;
-        bool isSuccess;
-    }
-
-    struct PreviewDeposit {
-        GetPrePostAllocationReturnValues allocations;
-        uint256 amountTokenInAfterFees;
-        uint256 priceUSDTokenIn;
-        uint256 priceUSDThisShares;
     }
 
     /// @inheritdoc ISuperAsset
@@ -508,13 +473,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         return (amountSharesMinted, swapFee, amountIncentiveUSD, s.allocations.isSuccess);
     }
 
-    struct PreviewRedeem {
-        GetPrePostAllocationReturnValues allocations;
-        uint256 priceUSDThisShares;
-        uint256 priceUSDTokenOut;
-        uint256 amountTokenOutBeforeFees;
-    }
-
     /// @inheritdoc ISuperAsset
     function previewRedeem(address tokenOut, uint256 amountSharesToRedeem, bool isSoft)
     public
@@ -522,13 +480,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess)
     {
         PreviewRedeem memory s;
-        // TODO: Handle the case of a token that was whitelisted, now it is not whitelisted anymore but still this contract holds some exposure to this token
-
-        // NOTE: Preview Function should not revert
-        // if (!isSupportedUnderlyingVault[tokenOut] && !isSupportedERC20[tokenOut]) revert NOT_SUPPORTED_TOKEN();
-
-        // NOTE: Removing this check on purpose since we need to handle the case where a token has been removed from whitelist, in which case we need to still allow SuperAsset to sell it
-        // if (!isSupportedUnderlyingVault[tokenOut] && !isSupportedERC20[tokenOut]) return (0,0,0);
+        // NOTE: Handle the case of a token that was whitelisted, now it is not whitelisted anymore but still this contract holds some exposure to this token
 
         // Get price of underlying vault shares in USD
         (s.priceUSDThisShares, , , ) = getPriceWithCircuitBreakers(address(this));
