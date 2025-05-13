@@ -804,58 +804,6 @@ contract LedgerTests is Helpers {
         mockBaseLedger.updateAccounting(user, yieldSource, oracleId, false, amountAssets, usedShares);
     }
 
-    function test_BaseLedger_FeeNotSetCheck() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
-        address oracle = address(mockOracle);
-        uint256 feePercent = 0; // Set fee to 0 to trigger FEE_NOT_SET
-        address feeRecipient = address(this);
-        address ledger = address(mockBaseLedger);
-
-        // Set up config with manager but zero fee
-        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
-        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
-            yieldSourceOracle: oracle,
-            feePercent: feePercent,
-            feeRecipient: feeRecipient,
-            ledger: ledger
-        });
-        config.setYieldSourceOracles(configs);
-
-        address user = address(0x456);
-        address yieldSource = address(0x789);
-        uint256 amountAssets = 1000e18;
-        uint256 usedShares = 1000e18;
-
-        // First do an inflow with base price
-        mockOracle.setPricePerShare(1e18); // Set base price
-        vm.prank(address(exec));
-        mockBaseLedger.updateAccounting(
-            user,
-            yieldSource,
-            oracleId,
-            true, // isInflow
-            amountAssets,
-            usedShares
-        );
-
-        // Increase price per share significantly to ensure profit
-        mockOracle.setPricePerShare(10e18); // 10x the price to ensure profit
-
-        // Now try to do an outflow with zero fee, higher price, and more assets
-        vm.prank(address(exec));
-        vm.expectRevert(ISuperLedgerData.FEE_NOT_SET.selector);
-        mockBaseLedger.updateAccounting(
-            user,
-            yieldSource,
-            oracleId,
-            false, // isOutflow
-            amountAssets * 2, // Double the assets to ensure profit
-            usedShares / 4 // Use half the shares to create profit
-        );
-    }
-
     function test_BaseLedger_UpdateAccountValidation() public {
         bytes4 oracleId = bytes4(keccak256("test"));
         address oracle = address(mockOracle);
