@@ -11,11 +11,11 @@ import { IStandardizedYield } from "@pendle/interfaces/IStandardizedYield.sol";
 import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol"; // Already inherited via
 
-/// @title PendlePtYieldSourceOracle
+/// @title PendlePTYieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for pricing Pendle Principal Tokens (PT) using the official Pendle oracle.
 /// @dev Assumes yieldSourceAddress corresponds to the Pendle Market address (IPMarket).
-contract PendlePtYieldSourceOracle is AbstractYieldSourceOracle {
+contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
     using PendlePYOracleLib for IPMarket; // Import SCALE from library
 
     /// @notice The Time-Weighted Average Price duration used for Pendle oracle queries.

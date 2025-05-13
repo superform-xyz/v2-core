@@ -14,7 +14,7 @@ import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperDestinationExecutor } from "../src/core/interfaces/ISuperDestinationExecutor.sol";
 
-// Superform contracts
+// Superform contracts coded
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
 import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
@@ -1577,12 +1577,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY],
             MORPHO_GAUNTLET_WETH_CORE_KEY
         );
-        existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY] =
-            CHAIN_8453_MorphoGauntletWETHCore;
-        vm.label(
-            existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY],
-            AAVE_BASE_WETH
-        );
+        existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY] = CHAIN_8453_MorphoGauntletWETHCore;
+        vm.label(existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY], AAVE_BASE_WETH);
 
         /// @dev 7540 real centrifuge vaults on mainnet
         existingVaults[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY] = CHAIN_1_CentrifugeUSDC;
