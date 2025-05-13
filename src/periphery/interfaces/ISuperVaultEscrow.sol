@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 /// @title ISuperVaultEscrow
 /// @notice Interface for SuperVault escrow contract that holds shares during request/claim process
-/// @author SuperForm Labs
+/// @author Superform Labs
 interface ISuperVaultEscrow {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS

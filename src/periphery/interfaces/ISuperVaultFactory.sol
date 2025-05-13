@@ -7,7 +7,7 @@ import { ISuperVaultStrategy } from "./ISuperVaultStrategy.sol";
 
 /// @title ISuperVaultFactory
 /// @notice Interface for the SuperVaultFactory contract
-/// @author SuperForm Labs
+/// @author Superform Labs
 interface ISuperVaultFactory {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS

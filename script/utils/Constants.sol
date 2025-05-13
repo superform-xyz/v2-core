@@ -112,11 +112,11 @@ abstract contract Constants {
 
     // Polymer Prover addresses per chain
     address internal constant POLYMER_PROVER_MAINNET = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76;
-    address internal constant POLYMER_PROVER_BASE = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available 
-    address internal constant POLYMER_PROVER_OPTIMISM = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available 
-    address internal constant POLYMER_PROVER_ARB_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available 
-    address internal constant POLYMER_PROVER_BASE_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available 
-    address internal constant POLYMER_PROVER_OP_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available 
+    address internal constant POLYMER_PROVER_BASE = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
+    address internal constant POLYMER_PROVER_OPTIMISM = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
+    address internal constant POLYMER_PROVER_ARB_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
+    address internal constant POLYMER_PROVER_BASE_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
+    address internal constant POLYMER_PROVER_OP_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
 
     address public constant MORPHO = 0xBBBBBbbBBb9cC5e90e3b3Af64bdAF62C37EEFFCb;
 
@@ -178,5 +178,7 @@ abstract contract Constants {
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
     string internal constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
     string internal constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
+    string internal constant PENDLE_PT_YIELD_SOURCE_ORACLE_KEY = "PendlePTYieldSourceOracle";
+    string internal constant SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY = "SpectraPTYieldSourceOracle";
     string internal constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
 }
