@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {IHookExecutionData} from "./IHookExecutionData.sol";
+import { IHookExecutionData } from "./IHookExecutionData.sol";
 
 /// @title ISuperBank
-/// @author SuperForm Labs
+/// @author Superform Labs
 /// @notice Interface for SuperBank, which compounds protocol revenue into sUP by executing registered hooks.
 interface ISuperBank is IHookExecutionData {
     /*//////////////////////////////////////////////////////////////

@@ -41,7 +41,6 @@ interface ISuperVaultAggregator {
     /// @param name Name of the vault token
     /// @param symbol Symbol of the vault token
     /// @param mainStrategist Address of the vault mainStrategist
-    /// @param superVaultCap Maximum cap for the vault (in underlying asset)
     /// @param minUpdateInterval Minimum time interval between PPS updates
     /// @param maxStaleness Maximum time allowed between PPS updates before staleness
     /// @param feeConfig Fee configuration for the vault
@@ -50,7 +49,6 @@ interface ISuperVaultAggregator {
         string name;
         string symbol;
         address mainStrategist;
-        uint256 superVaultCap;
         uint256 minUpdateInterval;
         uint256 maxStaleness;
         ISuperVaultStrategy.FeeConfig feeConfig;
@@ -119,11 +117,19 @@ interface ISuperVaultAggregator {
     /// @param strategist Address of the strategist removed
     event SecondaryStrategistRemoved(address indexed strategy, address indexed strategist);
 
-    /// @notice Emitted when the primary strategist is changed
+    /// @notice Emitted when a primary strategist is changed
     /// @param strategy Address of the strategy
     /// @param oldStrategist Address of the old primary strategist
     /// @param newStrategist Address of the new primary strategist
     event PrimaryStrategistChanged(
+        address indexed strategy, address indexed oldStrategist, address indexed newStrategist
+    );
+
+    /// @notice Emitted when a primary strategist is changed to a superform strategist
+    /// @param strategy Address of the strategy
+    /// @param oldStrategist Address of the old primary strategist
+    /// @param newStrategist Address of the new primary strategist (superform strategist)
+    event PrimaryStrategistChangedToSuperform(
         address indexed strategy, address indexed oldStrategist, address indexed newStrategist
     );
 

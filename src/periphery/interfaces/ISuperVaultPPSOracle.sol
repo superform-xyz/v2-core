@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 /// @title ISuperVaultPPSOracle
 /// @notice Interface for the contract providing the reference PPS calculation logic.
-/// @author SuperForm Labs
+/// @author Superform Labs
 interface ISuperVaultPPSOracle {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
