@@ -5,7 +5,7 @@ import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol"
 import { ISuperHook, Execution } from "../../core/interfaces/ISuperHook.sol";
 
 /// @title ISuperVaultStrategy
-/// @author SuperForm Labs
+/// @author Superform Labs
 /// @notice Interface for SuperVault strategy implementation that manages yield sources and executes strategies
 interface ISuperVaultStrategy {
     /*//////////////////////////////////////////////////////////////
@@ -33,7 +33,6 @@ interface ISuperVaultStrategy {
     error ACTION_TYPE_DISALLOWED();
     error YIELD_SOURCE_NOT_FOUND();
     error YIELD_SOURCE_NOT_ACTIVE();
-    error INVALID_SUPER_VAULT_CAP();
     error INVALID_EMERGENCY_ADMIN();
     error INVALID_PERIPHERY_REGISTRY();
     error YIELD_SOURCE_ALREADY_EXISTS();
@@ -56,12 +55,12 @@ interface ISuperVaultStrategy {
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
 
-    event Initialized(address indexed vault, address indexed superGovernor, uint256 superVaultCap);
+    event Initialized(address indexed vault, address indexed superGovernor);
     event YieldSourceAdded(address indexed source, address indexed oracle);
     event YieldSourceDeactivated(address indexed source);
     event YieldSourceOracleUpdated(address indexed source, address indexed oldOracle, address indexed newOracle);
     event YieldSourceReactivated(address indexed source);
-    event SuperVaultCapUpdated(uint256 superVaultCap);
+
     event HookRootUpdated(bytes32 newRoot);
     event HookRootProposed(bytes32 proposedRoot, uint256 effectiveTime);
     event EmergencyWithdrawableProposed(bool newWithdrawable, uint256 effectiveTime);
@@ -112,6 +111,13 @@ interface ISuperVaultStrategy {
     }
 
     struct YieldSource {
+        address oracle; // Associated yield source oracle address
+        bool isActive; // Whether the source is active
+    }
+
+    /// @notice Comprehensive information about a yield source including its address and configuration
+    struct YieldSourceInfo {
+        address sourceAddress; // Address of the yield source
         address oracle; // Associated yield source oracle address
         bool isActive; // Whether the source is active
     }
@@ -167,15 +173,8 @@ interface ISuperVaultStrategy {
     /// @notice Initializes the strategy with required parameters
     /// @param vault_ Address of the associated SuperVault
     /// @param superGovernor_ Address of the SuperGovernor contract
-    /// @param superVaultCap_ Maximum cap for the vault in underlying asset units
     /// @param feeConfig_ Fee configuration
-    function initialize(
-        address vault_,
-        address superGovernor_,
-        uint256 superVaultCap_,
-        FeeConfig memory feeConfig_
-    )
-        external;
+    function initialize(address vault_, address superGovernor_, FeeConfig memory feeConfig_) external;
 
     /// @notice Handles asynchronous redeem operations initiated by the Vault.
     /// @param controller Controller address for the redeem operation.
@@ -200,15 +199,11 @@ interface ISuperVaultStrategy {
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Update super vault cap
-    /// @param superVaultCap New super vault cap
-    function updateSuperVaultCap(uint256 superVaultCap) external;
-
-    /// @notice Manage yield sources: add, update oracle, and toggle activation.
-    /// @param source Address of the yield source.
-    /// @param oracle Address of the oracle (used for adding/updating).
-    /// @param actionType Type of action: 0=Add, 1=UpdateOracle, 2=ToggleActivation.
-    /// @param activate Boolean flag for activation when actionType is 2.
+    /// @notice Manage a single yield source: add, update oracle, and toggle activation
+    /// @param source Address of the yield source
+    /// @param oracle Address of the oracle (used for adding/updating)
+    /// @param actionType Type of action: 0=Add, 1=UpdateOracle, 2=ToggleActivation
+    /// @param activate Boolean flag for activation when actionType is 2
     /// @param isAsync Boolean flag for async yield source
     function manageYieldSource(
         address source,
@@ -216,8 +211,21 @@ interface ISuperVaultStrategy {
         uint8 actionType,
         bool activate,
         bool isAsync
-    )
-        external;
+    ) external;
+    
+    /// @notice Batch manage multiple yield sources in a single transaction
+    /// @param sources Array of yield source addresses
+    /// @param oracles Array of oracle addresses (used for adding/updating)
+    /// @param actionTypes Array of action types: 0=Add, 1=UpdateOracle, 2=ToggleActivation
+    /// @param activates Array of boolean flags for activation when actionType is 2
+    /// @param isAsyncs Array of boolean flags for async yield sources
+    function manageYieldSources(
+        address[] calldata sources,
+        address[] calldata oracles,
+        uint8[] calldata actionTypes,
+        bool[] calldata activates,
+        bool[] calldata isAsyncs
+    ) external;
 
     /// @notice Propose or execute a hook root update
     /// @notice Propose changes to vault-specific fee configuration
@@ -244,8 +252,8 @@ interface ISuperVaultStrategy {
     /// @notice Get the vault info
     function getVaultInfo() external view returns (address vault, address asset, uint8 vaultDecimals);
 
-    /// @notice Get the super vault cap and fee configurations
-    function getConfigInfo() external view returns (uint256 superVaultCap, FeeConfig memory feeConfig);
+    /// @notice Get the fee configurations
+    function getConfigInfo() external view returns (FeeConfig memory feeConfig);
 
     /// @notice Returns the currently stored PPS value.
     function getStoredPPS() external view returns (uint256);
@@ -253,8 +261,9 @@ interface ISuperVaultStrategy {
     /// @notice Get a yield source's configuration
     function getYieldSource(address source) external view returns (YieldSource memory);
 
-    /// @notice Get the list of all yield sources
-    function getYieldSourcesList() external view returns (address[] memory);
+    /// @notice Returns a list of all yield sources with their addresses and configurations
+    /// @return A list of YieldSourceInfo structs containing comprehensive information about each yield source
+    function getYieldSourcesList() external view returns (YieldSourceInfo[] memory);
 
     /// @notice Get the average withdraw price for a controller
     /// @param controller The controller address
