@@ -228,11 +228,11 @@ interface ISuperGovernor {
 
     /// @notice Emitted when a superform strategist is added
     /// @param strategist The address of the added strategist
-    event SuperFormStrategistAdded(address indexed strategist);
+    event SuperformStrategistAdded(address indexed strategist);
 
     /// @notice Emitted when a superform strategist is removed
     /// @param strategist The address of the removed strategist
-    event SuperFormStrategistRemoved(address indexed strategist);
+    event SuperformStrategistRemoved(address indexed strategist);
 
     /*//////////////////////////////////////////////////////////////
                                    ROLES
@@ -523,12 +523,12 @@ interface ISuperGovernor {
 
     /// @notice Checks if an address is a registered superform strategist
     /// @param strategist The address to check
-    /// @return isSuperForm True if the address is a superform strategist
-    function isSuperFormStrategist(address strategist) external view returns (bool);
+    /// @return isSuperform True if the address is a superform strategist
+    function isSuperformStrategist(address strategist) external view returns (bool);
 
     /// @notice Gets the list of all superform strategists
     /// @return strategists The list of all superform strategist addresses
-    function getAllSuperFormStrategists() external view returns (address[] memory);
+    function getAllSuperformStrategists() external view returns (address[] memory);
 
     /// @notice Gets the SUP ID
     /// @return The ID of the SUP token
@@ -564,9 +564,9 @@ interface ISuperGovernor {
 
     /// @notice Adds a strategist to the superform strategists list
     /// @param strategist Address of the strategist to add
-    function addSuperFormStrategist(address strategist) external;
+    function addSuperformStrategist(address strategist) external;
 
     /// @notice Removes a strategist from the superform strategists list
     /// @param strategist Address of the strategist to remove
-    function removeSuperFormStrategist(address strategist) external;
+    function removeSuperformStrategist(address strategist) external;
 }

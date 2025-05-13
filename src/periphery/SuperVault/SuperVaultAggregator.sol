@@ -16,7 +16,7 @@ import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
 
 /// @title SuperVaultAggregator
-/// @author SuperForm Labs
+/// @author Superform Labs
 /// @notice Registry and PPS oracle for all SuperVaults
 /// @dev Creates new SuperVault trios and manages PPS updates
 contract SuperVaultAggregator is ISuperVaultAggregator {
@@ -555,7 +555,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
         // If strategist is a superform strategist, they're exempt from upkeep fees
         address strategist = _strategyData[strategy].mainStrategist;
-        if (SUPER_GOVERNOR.isSuperFormStrategist(strategist)) {
+        if (SUPER_GOVERNOR.isSuperformStrategist(strategist)) {
             return true;
         }
 

@@ -19,7 +19,7 @@ import { IERC7575 } from "../../vendor/standards/ERC7575/IERC7575.sol";
 import { ISuperVaultEscrow } from "../interfaces/ISuperVaultEscrow.sol";
 
 /// @title SuperVault
-/// @author SuperForm Labs
+/// @author Superform Labs
 /// @notice SuperVault vault contract implementing ERC4626 with synchronous deposits and asynchronous redeems via
 /// ERC7540
 contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, ReentrancyGuard {

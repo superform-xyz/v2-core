@@ -79,7 +79,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bool private _proposedUpkeepPaymentsEnabled;
     uint256 private _upkeepPaymentsChangeEffectiveTime;
 
-    // SuperForm strategists (exempt from upkeep costs)
+    // Superform strategists (exempt from upkeep costs)
     EnumerableSet.AddressSet private _superformStrategists;
 
     // Timelock configuration
@@ -487,31 +487,31 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     //////////////////////////////////////////////////////////////*/
     /// @notice Adds a strategist to the superform strategists list (exempt from upkeep costs)
     /// @param strategist The address to add to the list
-    function addSuperFormStrategist(address strategist) external onlyRole(_GOVERNOR_ROLE) {
+    function addSuperformStrategist(address strategist) external onlyRole(_GOVERNOR_ROLE) {
         if (strategist == address(0)) revert INVALID_ADDRESS();
         if (!_superformStrategists.add(strategist)) revert STRATEGIST_ALREADY_REGISTERED();
 
-        emit SuperFormStrategistAdded(strategist);
+        emit SuperformStrategistAdded(strategist);
     }
 
     /// @notice Removes a strategist from the superform strategists list
     /// @param strategist The address to remove from the list
-    function removeSuperFormStrategist(address strategist) external onlyRole(_GOVERNOR_ROLE) {
+    function removeSuperformStrategist(address strategist) external onlyRole(_GOVERNOR_ROLE) {
         if (!_superformStrategists.remove(strategist)) revert STRATEGIST_NOT_REGISTERED();
 
-        emit SuperFormStrategistRemoved(strategist);
+        emit SuperformStrategistRemoved(strategist);
     }
 
     /// @notice Checks if an address is a registered superform strategist
     /// @param strategist The address to check
-    /// @return isSuperForm True if the address is a superform strategist
-    function isSuperFormStrategist(address strategist) external view returns (bool isSuperForm) {
+    /// @return isSuperform True if the address is a superform strategist
+    function isSuperformStrategist(address strategist) external view returns (bool isSuperform) {
         return _superformStrategists.contains(strategist);
     }
 
     /// @notice Gets the list of all superform strategists
     /// @return strategists The list of all superform strategist addresses
-    function getAllSuperFormStrategists() external view returns (address[] memory strategists) {
+    function getAllSuperformStrategists() external view returns (address[] memory strategists) {
         return _superformStrategists.values();
     }
 

@@ -129,7 +129,7 @@ interface ISuperVaultAggregator {
     /// @param strategy Address of the strategy
     /// @param oldStrategist Address of the old primary strategist
     /// @param newStrategist Address of the new primary strategist (superform strategist)
-    event PrimaryStrategistChangedToSuperForm(
+    event PrimaryStrategistChangedToSuperform(
         address indexed strategy, address indexed oldStrategist, address indexed newStrategist
     );
 

@@ -12,7 +12,7 @@ import { IYieldSourceOracle } from "../../../../src/core/interfaces/accounting/I
 import { ISuperVaultStrategy } from "../../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 
 /// @title TotalAssetHelper
-/// @author SuperForm Labs
+/// @author Superform Labs
 /// @notice Helper contract for calculating totalAssets of a SuperVault strategy
 /// @dev Used for testing purposes to retrieve totalAssets by querying active yield sources
 contract TotalAssetHelper {
@@ -41,7 +41,7 @@ contract TotalAssetHelper {
         returns (uint256 totalAssets_, YieldSourceTVL[] memory sourceTVLs)
     {
         // Get all yield sources from the strategy
-        address[] memory yieldSourcesList = _getYieldSourcesList(strategy);
+        ISuperVaultStrategy.YieldSourceInfo[] memory yieldSourcesList = _getYieldSourcesList(strategy);
         uint256 length = yieldSourcesList.length;
 
         // Initialize array to track TVLs
@@ -56,7 +56,7 @@ contract TotalAssetHelper {
 
         // Calculate total assets by summing TVLs across all active yield sources
         for (uint256 i; i < length; ++i) {
-            address source = yieldSourcesList[i];
+            address source = yieldSourcesList[i].sourceAddress;
 
             // Check if the yield source is active
             if (_isYieldSourceActive(strategy, source)) {
@@ -84,13 +84,17 @@ contract TotalAssetHelper {
     /// @notice Get the list of yield sources for a strategy
     /// @param strategy Address of the SuperVaultStrategy contract
     /// @return List of yield source addresse
-    function _getYieldSourcesList(address strategy) internal view returns (address[] memory) {
+    function _getYieldSourcesList(address strategy)
+        internal
+        view
+        returns (ISuperVaultStrategy.YieldSourceInfo[] memory)
+    {
         try ISuperVaultStrategy(strategy).getYieldSourcesList() returns (
-            address[] memory source, ISuperVaultStrategy.YieldSource[] memory
+            ISuperVaultStrategy.YieldSourceInfo[] memory info
         ) {
-            return source;
+            return info;
         } catch {
-            return new address[](0);
+            return new ISuperVaultStrategy.YieldSourceInfo[](0);
         }
     }
 
