@@ -34,8 +34,10 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
             uint256 _currentAllocation = Math.mulDiv(currentAllocation[i], PERC, totalCurrentAllocation);
             uint256 _targetAllocation = Math.mulDiv(allocationTarget[i], PERC, totalAllocationTarget);
             int256 diff = int256(_currentAllocation) - int256(_targetAllocation);
-            uint256 diff2 = uint256(diff * diff);
-            res += (diff2 * weights[i]);
+            // Square the difference and maintain precision
+            uint256 diff2 = Math.mulDiv(uint256(diff * diff), 1, PRECISION);
+            // Apply weight and maintain precision
+            res += Math.mulDiv(diff2, weights[i], PRECISION);
         }
         return res;
     }

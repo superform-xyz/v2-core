@@ -11,6 +11,52 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  */
 interface ISuperAsset is IERC20 {
 
+    struct PreviewErrors {
+        bool isDepeg;
+        bool isDispersion;
+        bool isOracleOff;
+    }
+
+    struct GetAllocationsPrePostOperations {
+        uint256 length;
+        uint256 extraSlot;
+        address vault;
+        uint256 priceUSD;
+        bool isDepeg; 
+        bool isDispersion;
+        bool isOracleOff;
+        uint256 balance;
+        uint256 absDeltaValue;
+        int256 deltaValue;
+        uint256 absDeltaToken;
+    }
+
+    struct GetPrePostAllocationReturnValues {
+        uint256[] absoluteAllocationPreOperation;
+        uint256 totalAllocationPreOperation;
+        uint256[] absoluteAllocationPostOperation;
+        uint256 totalAllocationPostOperation;
+        uint256[] absoluteTargetAllocation;
+        uint256 totalTargetAllocation;
+        uint256[] vaultWeights;
+        bool isSuccess;
+    }
+
+    struct PreviewDeposit {
+        GetPrePostAllocationReturnValues allocations;
+        uint256 amountTokenInAfterFees;
+        uint256 priceUSDTokenIn;
+        uint256 priceUSDThisShares;
+    }
+
+    struct PreviewRedeem {
+        GetPrePostAllocationReturnValues allocations;
+        uint256 priceUSDThisShares;
+        uint256 priceUSDTokenOut;
+        uint256 amountTokenOutBeforeFees;
+    }
+
+
     /**
      * @notice Initializes the SuperAsset contract
      * @param name_ Name of the token
@@ -63,6 +109,7 @@ interface ISuperAsset is IERC20 {
      * @notice Gets the allocations before and after an operation
      * @param token The token address involved in the operation
      * @param deltaToken The change in token amount (positive for deposit, negative for withdrawal)
+     * @param isSoft Whether the operation is soft or strict on checks 
      * @return absoluteAllocationPreOperation Array of pre-operation absolute allocations
      * @return totalAllocationPreOperation Sum of all pre-operation allocations
      * @return absoluteAllocationPostOperation Array of post-operation absolute allocations
@@ -70,15 +117,17 @@ interface ISuperAsset is IERC20 {
      * @return absoluteTargetAllocation Array of target absolute allocations
      * @return totalTargetAllocation Sum of all target allocations
      * @return vaultWeights Array of vault weights
+     * @return isSuccess Whether the operation was successful
      */
-    function getAllocationsPrePostOperation(address token, int256 deltaToken) external view returns (
+    function getAllocationsPrePostOperation(address token, int256 deltaToken, bool isSoft) external view returns (
         uint256[] memory absoluteAllocationPreOperation, 
         uint256 totalAllocationPreOperation, 
         uint256[] memory absoluteAllocationPostOperation, 
         uint256 totalAllocationPostOperation, 
         uint256[] memory absoluteTargetAllocation, 
         uint256 totalTargetAllocation,
-        uint256[] memory vaultWeights);
+        uint256[] memory vaultWeights,
+        bool isSuccess);
 
     /**
      * @notice Sets the swap fee percentage for deposits (input operations)
@@ -182,43 +231,49 @@ interface ISuperAsset is IERC20 {
      * @notice Preview a deposit.
      * @param tokenIn The address of the underlying asset to deposit.
      * @param amountTokenToDeposit The amount of the underlying asset to deposit.
+     * @param isSoft Whether the operation is soft or strict on checks
      * @return amountSharesMinted The amount of SuperUSD shares that would be minted.
      * @return swapFee The amount of swap fee paid.
      * @return amountIncentiveUSD The amount of incentives in USD.
+     * @return isSuccess Whether the preview was successful
      */
-    function previewDeposit(address tokenIn, uint256 amountTokenToDeposit)
+    function previewDeposit(address tokenIn, uint256 amountTokenToDeposit, bool isSoft)
     external 
     view
-    returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD);
+    returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess);
 
     /**
      * @notice Preview a redemption.
      * @param tokenOut The address of the underlying asset to redeem for.
      * @param amountSharesToRedeem The amount of SuperUSD shares to redeem.
+     * @param isSoft Whether the operation is soft or strict on checks
      * @return amountTokenOutAfterFees The amount of the underlying asset that would be received.
      * @return swapFee The amount of swap fee paid.
      * @return amountIncentiveUSD The amount of incentives in USD.
+     * @return isSuccess Whether the preview was successful
      */
-    function previewRedeem(address tokenOut, uint256 amountSharesToRedeem)
+    function previewRedeem(address tokenOut, uint256 amountSharesToRedeem, bool isSoft)
     external
     view
-    returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD);
+    returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess);
 
     /**
      * @notice Preview a swap.
      * @param tokenIn The address of the input asset.
      * @param amountTokenToDeposit The amount of the input asset to deposit.
      * @param tokenOut The address of the output asset.
+     * @param isSoft Whether the operation is soft or strict on checks
      * @return amountTokenOutAfterFees The amount of the output asset that would be received.
      * @return swapFeeIn The amount of swap fee paid for the input asset.
      * @return swapFeeOut The amount of swap fee paid for the output asset.
      * @return amountIncentiveUSDDeposit The amount of incentives paid for the input asset.
      * @return amountIncentiveUSDRedeem The amount of incentives paid for the output asset.
+     * @return isSuccess Whether the preview was successful
      */
-    function previewSwap(address tokenIn, uint256 amountTokenToDeposit, address tokenOut)
+    function previewSwap(address tokenIn, uint256 amountTokenToDeposit, address tokenOut, bool isSoft)
     external
     view
-    returns (uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDDeposit, int256 amountIncentiveUSDRedeem);
+    returns (uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDDeposit, int256 amountIncentiveUSDRedeem, bool isSuccess);
 
     /**
      * @notice Gets the price of a token in USD with circuit breakers
@@ -348,4 +403,16 @@ interface ISuperAsset is IERC20 {
 
     /// @notice Thrown when price in USD is zero
     error PRICE_USD_ZERO();
+
+    /// @notice Thrown when underlying SV asset price is zero
+    error UNDERLYING_SV_ASSET_PRICE_ZERO();
+
+    /// @notice Thrown when underlying SV asset price is depegged
+    error UNDERLYING_SV_ASSET_PRICE_DEPEG();
+
+    /// @notice Thrown when underlying SV asset price is dispersed
+    error UNDERLYING_SV_ASSET_PRICE_DISPERSION();
+
+    /// @notice Thrown when underlying SV asset price is oracle off
+    error UNDERLYING_SV_ASSET_PRICE_ORACLE_OFF();
 }
