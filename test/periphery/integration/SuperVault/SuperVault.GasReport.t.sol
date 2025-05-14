@@ -9,8 +9,8 @@ import { console2 } from "forge-std/console2.sol";
 
 // superform
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
-import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
-import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
+import { Mock4626Vault } from "../../../mocks/Mock4626Vault.sol";
+import { ISuperVaultStrategy } from "../../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 
 contract SuperVaultGasReportTest is BaseSuperVaultTest {
     using ModuleKitHelpers for *;
@@ -44,14 +44,14 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
         uint256 initialMockVaultPPS;
     }
 
-    function test_gasReport_RequestRedeem() public {
+    function test_gasReport_RequestRedeem() public executeWithoutHookRestrictions {
         uint256 depositAmount = 1000e6; // 1000 USDC
 
         // First setup a deposit and claim it
-        _requestDeposit(depositAmount);
-        _fulfillDeposit(depositAmount, accountEth, address(fluidVault), address(aaveVault));
-        _claimDeposit(depositAmount);
+        _deposit(depositAmount);
 
+        // Need to allocate to yield sources before requesting redemption
+        _depositFreeAssetsFromSingleAmount(depositAmount, address(fluidVault), address(aaveVault));
         // Now request redeem of half the shares
         uint256 redeemShares = vault.balanceOf(accountEth) / 2;
         _requestRedeem(redeemShares);
@@ -61,17 +61,19 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
         assertEq(vault.balanceOf(address(escrow)), redeemShares, "Wrong escrow balance");
     }
 
-    function test_gasReport_ClaimRedeem() public {
+    function test_gasReport_ClaimRedeem() public executeWithoutHookRestrictions {
         uint256 depositAmount = 1000e6; // 1000 USDC
         uint256 initialAssetBalance = asset.balanceOf(address(accountEth));
 
         // First setup a deposit and claim it
-        _requestDeposit(depositAmount);
-        _fulfillDeposit(depositAmount, accountEth, address(fluidVault), address(aaveVault));
-        _claimDeposit(depositAmount);
+        _deposit(depositAmount);
 
+        // Need to allocate to yield sources before requesting redemption
+        _depositFreeAssetsFromSingleAmount(depositAmount, address(fluidVault), address(aaveVault));
         // Get initial balances
         uint256 initialShares = vault.balanceOf(accountEth);
+
+        console2.log("initial shares", initialShares);
 
         // Request redeem of half the shares
         uint256 redeemShares = initialShares / 2;
@@ -79,7 +81,7 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
         _fulfillRedeem(redeemShares, address(fluidVault), address(aaveVault));
 
         // Get claimable assets
-        uint256 claimableAssets = strategy.getSuperVaultState(accountEth, 2);
+        uint256 claimableAssets = strategy.claimableWithdraw(accountEth);
         // Claim redeem
         _claimWithdraw(claimableAssets);
 
@@ -88,17 +90,17 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
         assertApproxEqRel(
             asset.balanceOf(accountEth), initialAssetBalance + claimableAssets, 0.05e18, "Wrong final asset balance"
         );
-        assertEq(strategy.getSuperVaultState(accountEth, 2), 0, "Assets not claimed");
+        assertEq(strategy.claimableWithdraw(accountEth), 0, "Assets not claimed");
     }
 
-    function test_gasReport_TwoVaults_Fulfill() public {
+    function test_gasReport_TwoVaults_Fulfill() public executeWithoutHookRestrictions {
         NewYieldSourceVars memory vars;
         vars.depositAmount = 1000e6;
 
         _completeDepositFlow(vars.depositAmount);
     }
 
-    function test_gasReport_ThreeVaults_Fulfill_And_Rebalance() public {
+    function test_gasReport_ThreeVaults_Fulfill_And_Rebalance() public executeWithoutHookRestrictions {
         NewYieldSourceVars memory vars;
         vars.depositAmount = 1000e6;
 
@@ -119,7 +121,7 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
         vm.warp(block.timestamp + 20 days);
 
         // -- add it as a new yield source
-        vm.startPrank(MANAGER);
+        vm.startPrank(STRATEGIST);
         strategy.manageYieldSource(
             address(vars.newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
         );
@@ -162,7 +164,6 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
             address(fluidVault),
             address(strategy),
             vars.amountToReallocateFluidVault,
-            false,
             false
         );
         // redeem from AaveVault
@@ -171,7 +172,6 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
             address(aaveVault),
             address(strategy),
             vars.amountToReallocateAaveVault,
-            false,
             false
         );
         // deposit to PendleVault
@@ -181,16 +181,15 @@ contract SuperVaultGasReportTest is BaseSuperVaultTest {
             address(asset),
             vars.assetAmountToReallocateToPendleVault,
             false,
-            false
+            address(0),
+            0
         );
 
         vm.startPrank(STRATEGIST);
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
-                users: new address[](0),
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                hookProofs: _getMerkleProofsForAddresses(ETH, hooksAddresses),
                 expectedAssetsOrSharesOut: new uint256[](3)
             })
         );
