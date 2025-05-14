@@ -22,6 +22,7 @@ abstract contract Helpers is Test, Constants {
     address public SV_MANAGER;
     address public STRATEGIST;
     address public EMERGENCY_ADMIN;
+    address public VALIDATOR;
     /*//////////////////////////////////////////////////////////////
                                  EIP-7702 HELPER METHODS
     //////////////////////////////////////////////////////////////*/

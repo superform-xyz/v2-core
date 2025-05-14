@@ -26,11 +26,11 @@ import { HookDataDecoder } from "../../core/libraries/HookDataDecoder.sol";
 import { ISuperVaultStrategy } from "../interfaces/ISuperVaultStrategy.sol";
 import { ISuperGovernor, FeeType } from "../interfaces/ISuperGovernor.sol";
 import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
+import { console2 } from "forge-std/console2.sol";
 
 /// @title SuperVaultStrategy
 /// @author Superform Labs
-/// @notice Strategy implementation for SuperVault that manages yield sources, executes strategies, and uses optimistic
-/// PPS.
+/// @notice Strategy implementation for SuperVault that executes strategies
 contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -40,12 +40,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
     uint256 private constant ONE_HUNDRED_PERCENT = 10_000;
     uint256 private constant ONE_WEEK = 7 days;
-    uint256 private constant PRECISION = 1e18;
     uint256 private constant BPS_PRECISION = 10_000; // For PPS deviation check
     uint256 private constant TOLERANCE_CONSTANT = 10 wei;
 
     // Slippage tolerance in BPS (1%)
     uint256 private constant SV_SLIPPAGE_TOLERANCE_BPS = 100;
+
+    uint256 public PRECISION;
 
     /*//////////////////////////////////////////////////////////////
                                 STATE
@@ -94,6 +95,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         _vault = vault_;
         _asset = IERC20(IERC4626(vault_).asset());
         _vaultDecimals = IERC20Metadata(vault_).decimals();
+        PRECISION = 10 ** _vaultDecimals;
         superGovernor = ISuperGovernor(superGovernor_);
         feeConfig = feeConfig_;
 
@@ -465,7 +467,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
         // Update average withdraw price if needed
         if (requestedShares > 0) {
-            _updateAverageWithdrawPrice(state, requestedShares, finalAssets);
+            _updateAverageWithdrawPrice(state, requestedShares, finalAssets, currentPricePerShare);
         }
 
         return finalAssets;
@@ -552,23 +554,67 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     function _updateAverageWithdrawPrice(
         SuperVaultState storage state,
         uint256 requestedShares,
-        uint256 finalAssets
+        uint256 finalAssets,
+        uint256 pps
     )
         private
     {
-        uint256 existingShares;
-        uint256 existingAssets;
+        {
+            uint256 existingShares;
+            uint256 existingAssets;
 
-        if (state.maxWithdraw > 0 && state.averageWithdrawPrice > 0) {
-            existingShares = state.maxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Floor);
-            existingAssets = state.maxWithdraw;
+            if (state.maxWithdraw > 0 && state.averageWithdrawPrice > 0) {
+                existingShares = state.maxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Floor);
+                existingAssets = state.maxWithdraw;
+            }
+
+            uint256 newTotalShares = existingShares + requestedShares;
+            uint256 newTotalAssets = existingAssets + finalAssets;
+
+            if (newTotalShares > 0) {
+                //console2.log("newTotalAssets", newTotalAssets);
+                //console2.log("newTotalShares", newTotalShares);
+                //state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
+                console2.log(
+                    "AVG WITHDRAW PRICE WITH FEES ",
+                    newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor)
+                );
+                //state.averageWithdrawPrice = pps;
+            }
+        }
+        // Handle first withdrawal case
+        if (state.maxWithdraw == 0 || state.averageWithdrawPrice == 0) {
+            state.averageWithdrawPrice = pps;
+            return;
         }
 
-        uint256 newTotalShares = existingShares + requestedShares;
-        uint256 newTotalAssets = existingAssets + finalAssets;
+        // Calculate previous state before this request
+        uint256 previousMaxWithdraw = state.maxWithdraw - finalAssets;
+        uint256 previousShares = 0;
+        if (previousMaxWithdraw > 0 && state.averageWithdrawPrice > 0) {
+            previousShares = previousMaxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Floor);
+        }
 
-        if (newTotalShares > 0) {
-            state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
+        // Calculate new weighted average
+        uint256 totalShares = previousShares + requestedShares;
+        console2.log("Previous MaxWithdraw:", previousMaxWithdraw);
+        console2.log("Previous Shares:", previousShares);
+        console2.log("Requested Shares:", requestedShares);
+        console2.log("Total Shares:", totalShares);
+        console2.log("Previous PPS:", state.averageWithdrawPrice);
+        console2.log("New PPS:", pps);
+        if (totalShares > 0) {
+            // Weight by shares
+            uint256 weightedPrice = (
+                (previousShares.mulDiv(state.averageWithdrawPrice, PRECISION, Math.Rounding.Floor))
+                    + (requestedShares.mulDiv(pps, PRECISION, Math.Rounding.Floor))
+            ).mulDiv(PRECISION, totalShares, Math.Rounding.Floor);
+
+            // Log for debugging
+
+            console2.log("Weighted PPS:", weightedPrice);
+
+            state.averageWithdrawPrice = weightedPrice;
         }
     }
 
@@ -785,9 +831,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         state.maxWithdraw -= actualAmountToClaim;
         _asset.safeTransfer(controller, actualAmountToClaim);
         emit RedeemRequestFulfilled(controller, controller, actualAmountToClaim, 0);
-        if (state.maxWithdraw == 0 && state.pendingRedeemRequest == 0) {
-            delete superVaultState[controller];
-        }
     }
 
     function _safeTokenTransfer(address token, address recipient, uint256 amount) private {
