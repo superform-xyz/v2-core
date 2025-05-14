@@ -41,7 +41,7 @@ contract YieldSourceOraclesTest is Helpers {
 
         asset = new MockERC20("MockAsset", "MA", 18);
 
-        erc4626 = new Mock4626Vault(IERC20(address(asset)), "Mock4626", "M4626");
+        erc4626 = new Mock4626Vault(address(asset), "Mock4626", "M4626");
         erc7540 = new Mock7540Vault(IERC20(address(asset)), "Mock7540", "M7540");
         erc5115 = new Mock5115Vault(IERC20(address(asset)), "Mock5115", "M5115");
         stakingVault = IStakingVault(CHAIN_1_FluidVault);
