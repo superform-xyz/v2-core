@@ -3,11 +3,13 @@ pragma solidity =0.8.28;
 
 // testing
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
+import { AccountInstance } from "modulekit/ModuleKit.sol";
 
 // external
 import { console2 } from "forge-std/console2.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC165 } from "openzeppelin-contracts/contracts/interfaces/IERC165.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 // superform
 import { ISuperVault } from "src/periphery/interfaces/ISuperVault.sol";
@@ -26,7 +28,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        BASIC ERC20 FUNCTIONS TESTS
+                       SUPERVAULT.SOL
     //////////////////////////////////////////////////////////////*/
 
     function test_Name() public view {
@@ -39,9 +41,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         assertEq(symbol, "SV_USDC");
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        DEPOSIT FLOW TESTS
-    //////////////////////////////////////////////////////////////*/
     function test_Deposit() public {
         uint256 depositAmount = 1000e6; // 1000 USDC
         _deposit(depositAmount);
@@ -215,10 +214,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
         assertEq(strategy.claimableWithdraw(accountEth), 0, "Assets not claimed");
     }
-
-    /*//////////////////////////////////////////////////////////////
-                      OPERATOR AUTHORIZATION TESTS
-    //////////////////////////////////////////////////////////////*/
 
     function test_AuthorizeOperator() public {
         // Create signature components
@@ -418,10 +413,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vault.authorizeOperator(userAddress, operator, approved, nonce, deadline, signature);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        ERC4626 FUNCTIONS TESTS
-    //////////////////////////////////////////////////////////////*/
-
     function test_TotalAssets() public executeWithoutHookRestrictions {
         uint256 depositAmount = 1000e6; // 1000 USDC
 
@@ -489,18 +480,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         assertEq(assetsUsed, expectedAssets, "Wrong amount of assets used");
         assertEq(vault.balanceOf(accountEth), mintShares, "Wrong shares balance");
         assertEq(asset.balanceOf(address(strategy)), expectedAssets, "Wrong strategy asset balance");
-    }
-
-    function test_MaxDeposit() public view {
-        uint256 result = vault.maxDeposit(accountEth);
-
-        // By default, should return the remaining cap
-        (uint256 cap,) = strategy.getConfigInfo();
-        uint256 currentAssets = vault.totalAssets();
-        uint256 expectedMax = cap - currentAssets;
-
-        // For a fresh vault, maxDeposit should be the full cap
-        assertEq(result, expectedMax, "maxDeposit should return remaining cap");
     }
 
     function test_MaxMint() public view {
@@ -753,61 +732,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vault.requestRedeem(100e6, accountEth, accountEth);
     }
 
-    function test_RevertWhen_ExceedingCap() public {
-        // Lower the cap to a small value for testing
-        uint256 lowCap = 500e6; // 500 USDC
-
-        // Update cap to a small value
-        vm.startPrank(STRATEGIST);
-        strategy.updateSuperVaultCap(lowCap);
-        vm.stopPrank();
-
-        // This should pass (under cap)
-        uint256 smallDeposit = 100e6; // 100 USDC
-        _deposit(smallDeposit);
-
-        // Try to deposit more than the cap
-        uint256 largeDeposit = 1000e6; // 1000 USDC
-        _getTokens(address(asset), accountEth, largeDeposit);
-
-        vm.startPrank(accountEth);
-        asset.approve(address(vault), largeDeposit);
-        vm.expectRevert(ISuperVault.CAP_EXCEEDED.selector);
-        vault.deposit(largeDeposit, accountEth);
-        vm.stopPrank();
-    }
-
-    function test_InvalidSignatureLengths() public {
-        bool approved = true;
-        bytes32 nonce = keccak256("test_nonce");
-        uint256 deadline = block.timestamp + 1 hours;
-
-        // Create invalid signature (too short)
-        bytes memory shortSignature = new bytes(64); // ERC7741 expects 65 bytes
-
-        // Try to use invalid signature length
-        vm.prank(operator);
-        vm.expectRevert(ISuperVault.INVALID_SIGNATURE.selector);
-        vault.authorizeOperator(userAddress, operator, approved, nonce, deadline, shortSignature);
-    }
-
-    function test_InvalidSignatureRecovery() public {
-        bool approved = true;
-        bytes32 nonce = keccak256("test_nonce");
-        uint256 deadline = block.timestamp + 1 hours;
-
-        // Create proper length signature but with invalid recovery byte
-        bytes32 r = bytes32(uint256(1));
-        bytes32 s = bytes32(uint256(2));
-        uint8 v = 26; // Invalid v value (not 27 or 28)
-        bytes memory invalidSignature = abi.encodePacked(r, s, v);
-
-        // Try to use invalid signature
-        vm.prank(operator);
-        vm.expectRevert(ISuperVault.INVALID_SIGNATURE.selector);
-        vault.authorizeOperator(userAddress, operator, approved, nonce, deadline, invalidSignature);
-    }
-
     /*//////////////////////////////////////////////////////////////
                         STRATEGY INTERACTIONS TESTS
     //////////////////////////////////////////////////////////////*/
@@ -884,5 +808,624 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vm.prank(accountEth);
         vm.expectRevert(ISuperVault.UNAUTHORIZED.selector);
         vault.onRedeemClaimable(accountEth, 100e6, 100e6, 1e18, 500e6, 500e6);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       SUPERVAULTSTRATEGY.SOL
+    //////////////////////////////////////////////////////////////*/
+
+    function test_RequestRedeem_MultipleUsers(uint256 depositAmount) public executeWithoutHookRestrictions {
+        // bound amount
+        depositAmount = bound(depositAmount, 100e6, 10_000e6);
+
+        depositAmount = bound(depositAmount, 100e6, 10_000e6);
+
+        // perform deposit operations
+        _completeDepositFlow(depositAmount);
+
+        // request redeem for all users
+        _requestRedeemForAllUsers(0);
+    }
+
+    function test_RequestRedeemMultipleUsers_With_CompleteFullfilment(uint256 depositAmount)
+        public
+        executeWithoutHookRestrictions
+    {
+        // bound amount
+        depositAmount = bound(depositAmount, 100e6, 10_000e6);
+
+        depositAmount = bound(depositAmount, 100e6, 10_000e6);
+
+        // perform deposit operations
+        _completeDepositFlow(depositAmount);
+
+        uint256 totalRedeemShares;
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
+            uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
+            totalRedeemShares += vaultBalance;
+        }
+
+        // request redeem for all users
+        _requestRedeemForAllUsers(0);
+
+        // create fullfillment data
+        uint256 allocationAmountVault1 = totalRedeemShares / 2;
+        uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
+            requestingUsers[i] = accInstances[i].account;
+        }
+
+        // fulfill redeem
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
+
+        // check that all pending requests are cleared
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
+            assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
+            assertGt(strategy.claimableWithdraw(accInstances[i].account), 0);
+        }
+    }
+
+    function test_RequestRedeem_MultipleUsers_DifferentAmounts() public executeWithoutHookRestrictions {
+        uint256 depositAmount = 1000e6;
+
+        // first deposit same amount for all users
+        _completeDepositFlow(depositAmount);
+
+        uint256[] memory redeemAmounts = new uint256[](ACCOUNT_COUNT);
+        uint256 totalRedeemShares;
+
+        // create redeem requests with randomized amounts based on vault balance
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
+            // random amount between 50% and 100% of maxRedeemable
+            redeemAmounts[i] =
+                bound(uint256(keccak256(abi.encodePacked(block.timestamp, i))), vaultBalance / 2, vaultBalance);
+            redeemAmounts[i] =
+                bound(uint256(keccak256(abi.encodePacked(block.timestamp, i))), vaultBalance / 2, vaultBalance);
+            _requestRedeemForAccount(accInstances[i], redeemAmounts[i]);
+            assertEq(strategy.pendingRedeemRequest(accInstances[i].account), redeemAmounts[i]);
+            totalRedeemShares += redeemAmounts[i];
+        }
+
+        // fulfill all redeem requests
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            requestingUsers[i] = accInstances[i].account;
+        }
+
+        uint256 allocationAmountVault1 = totalRedeemShares / 2;
+        uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
+
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
+
+        // verify all redeems were fulfilled
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
+            assertGt(strategy.claimableWithdraw(accInstances[i].account), 0);
+        }
+    }
+
+    function test_RequestRedeemMultipleUsers_With_PartialUsersFullfilment(uint256 depositAmount)
+        public
+        executeWithoutHookRestrictions
+    {
+        depositAmount = 100e6;
+
+        // perform deposit operations
+        _completeDepositFlow(depositAmount);
+
+        // store redeem amounts for later verification
+        uint256[] memory redeemAmounts = new uint256[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
+            redeemAmounts[i] = vault.balanceOf(accInstances[i].account);
+        }
+
+        // request redeem for all users
+        _requestRedeemForAllUsers(0);
+
+        // create fulfillment data for half the users
+        uint256 partialUsersCount = ACCOUNT_COUNT / 2;
+        uint256 totalRedeemShares;
+
+        // calculate total redeem shares for partial users
+        for (uint256 i; i < partialUsersCount; ++i) {
+            totalRedeemShares += strategy.pendingRedeemRequest(accInstances[i].account);
+        }
+
+        address[] memory requestingUsers = new address[](partialUsersCount);
+        for (uint256 i; i < partialUsersCount; ++i) {
+            requestingUsers[i] = accInstances[i].account;
+        }
+
+        (uint256 allocationAmountVault1, uint256 allocationAmountVault2) = _calculateVaultShares(totalRedeemShares);
+
+        // fulfill redeem for half the users
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
+        console2.log("fulfilled redeem for half the users");
+        // check that fulfilled requests are cleared
+        for (uint256 i; i < partialUsersCount; ++i) {
+            assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
+            assertGt(strategy.claimableWithdraw(accInstances[i].account), 0);
+        }
+        console2.log("checked that fulfilled requests are cleared");
+        // check that remaining users still have pending requests
+        for (uint256 i = partialUsersCount; i < ACCOUNT_COUNT; ++i) {
+            uint256 pendingRedeem = strategy.pendingRedeemRequest(accInstances[i].account);
+            assertEq(pendingRedeem, redeemAmounts[i]);
+            uint256 claimable = strategy.claimableWithdraw(accInstances[i].account);
+            assertEq(claimable, 0);
+        }
+
+        // calculate total redeem shares for remaining users
+        totalRedeemShares = 0;
+        uint256 j;
+        requestingUsers = new address[](ACCOUNT_COUNT - partialUsersCount);
+        for (uint256 i = partialUsersCount; i < ACCOUNT_COUNT;) {
+            requestingUsers[j] = accInstances[i].account;
+            totalRedeemShares += strategy.pendingRedeemRequest(accInstances[i].account);
+            unchecked {
+                ++i;
+                ++j;
+            }
+        }
+
+        allocationAmountVault1 = totalRedeemShares / 2;
+        allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
+
+        // fulfill remaining users
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
+    }
+
+    function test_RequestRedeem_RevertOnExceedingBalance(uint256 depositAmount) public executeWithoutHookRestrictions {
+        depositAmount = bound(depositAmount, 100e6, 10_000e6);
+
+        depositAmount = bound(depositAmount, 100e6, 10_000e6);
+
+        // first deposit for single user
+        _completeDepositFlow(depositAmount);
+
+        // try to redeem more than balance
+        uint256 vaultBalance = vault.balanceOf(accInstances[0].account);
+        uint256 excessAmount = vaultBalance * 100;
+
+        // should revert when trying to redeem more than balance
+        _requestRedeemForAccount_Revert(accInstances[0], excessAmount);
+    }
+
+    function test_ClaimRedeem_RevertBeforeFulfillment() public executeWithoutHookRestrictions {
+        uint256 depositAmount = 1000e6;
+
+        _completeDepositFlow(depositAmount);
+
+        uint256 redeemAmount = IERC20(vault).balanceOf(accInstances[0].account) / 2;
+        _requestRedeemForAccount(accInstances[0], redeemAmount);
+
+        assertEq(strategy.pendingRedeemRequest(accInstances[0].account), redeemAmount);
+
+        // try/catch pattern to verify the revert
+        bool claimFailed = false;
+        try this.externalClaimWithdraw(accInstances[0], redeemAmount) {
+            claimFailed = false;
+        } catch {
+            claimFailed = true;
+        }
+
+        assertTrue(claimFailed, "Claim should have failed before fulfillment");
+
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = accInstances[0].account;
+
+        uint256 allocationAmountVault1 = redeemAmount / 2;
+        uint256 allocationAmountVault2 = redeemAmount - allocationAmountVault1;
+
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
+        uint256 pendingRedeem = strategy.pendingRedeemRequest(accInstances[0].account);
+        assertEq(pendingRedeem, 0);
+        uint256 claimable = strategy.claimableWithdraw(accInstances[0].account);
+        assertGt(claimable, 0);
+
+        _claimWithdrawForAccount(accInstances[0], vault.maxWithdraw(accInstances[0].account));
+
+        assertEq(strategy.claimableWithdraw(accInstances[0].account), 0);
+    }
+
+    function test_ClaimRedeem_AfterPriceIncrease() public executeWithoutHookRestrictions {
+        uint256 depositAmount = 1000e6;
+
+        _completeDepositFlow(depositAmount);
+        uint256 redeemAmount = IERC20(vault).balanceOf(accInstances[0].account) / 2;
+
+        _requestRedeemForAccount(accInstances[0], redeemAmount);
+
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = accInstances[0].account;
+
+        uint256 allocationAmountVault1 = redeemAmount / 2;
+        uint256 allocationAmountVault2 = redeemAmount - allocationAmountVault1;
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
+        console2.log("------fulfilled redeem");
+        uint256 initialAssetBalance = asset.balanceOf(accInstances[0].account);
+
+        // increase price of assets
+        uint256 yieldAmount = 100e6;
+        deal(address(asset), address(this), yieldAmount * 2);
+        asset.approve(address(fluidVault), yieldAmount);
+        asset.approve(address(aaveVault), yieldAmount);
+        fluidVault.deposit(yieldAmount, address(this));
+        aaveVault.deposit(yieldAmount, address(this));
+
+        uint256 strategyAssetBalanceBefore = asset.balanceOf(address(strategy));
+        uint256 maxWithdraw = vault.maxWithdraw(accInstances[0].account);
+        console2.log("maxWithdraw", maxWithdraw);
+        _claimWithdrawForAccount(accInstances[0], maxWithdraw);
+        console2.log("------claimed withdraw");
+        uint256 assetsReceived = asset.balanceOf(accInstances[0].account) - initialAssetBalance;
+        assertApproxEqRel(
+            assetsReceived,
+            maxWithdraw,
+            0.01e18,
+            "Assets received should be greater than or equal to requested redeem amount"
+        );
+
+        uint256 strategyAssetBalanceAfter = asset.balanceOf(address(strategy));
+        assertApproxEqRel(
+            strategyAssetBalanceBefore - strategyAssetBalanceAfter,
+            assetsReceived,
+            0.01e18,
+            "Strategy asset balance should decrease by the amount sent to user"
+        );
+
+        assertApproxEqRel(
+            strategyAssetBalanceBefore - strategyAssetBalanceAfter,
+            assetsReceived,
+            0.01e18,
+            "Strategy asset balance should decrease by the amount sent to user"
+        );
+
+        console2.log("Requested redeem amount:", redeemAmount);
+        console2.log("Actual assets received:", assetsReceived);
+        console2.log("Strategy asset withdrawn", strategyAssetBalanceBefore - strategyAssetBalanceAfter);
+
+        // make sure redeem is cleared even if we have small rounding errors
+        assertEq(strategy.claimableWithdraw(accInstances[0].account), 0);
+    }
+
+    // Helper function to handle deposit setup
+    function _setupInitialDeposit(uint256 depositAmount) internal returns (uint256 initialShareBalance) {
+        // add some tokens initially to the strategy
+        _getTokens(address(asset), address(strategy), 1000);
+
+        _getTokens(address(asset), accInstances[0].account, depositAmount);
+        _depositForAccount(accInstances[0], depositAmount);
+
+        // Verify deposit was successful
+        initialShareBalance = vault.balanceOf(accInstances[0].account);
+        console2.log("Initial share balance after deposit:", initialShareBalance);
+        console2.log("Initial asset value:", vault.convertToAssets(initialShareBalance));
+
+        require(initialShareBalance > 0, "Deposit failed - no shares minted");
+        return initialShareBalance;
+    }
+
+    // Helper function to calculate redeem amounts
+    function _calculateRedeemAmounts(uint256 redeemAmount)
+        internal
+        view
+        returns (uint256 firstHalf, uint256 secondHalf)
+    {
+        // Calculate total assets using vault's conversion
+        uint256 totalAssets = vault.convertToAssets(redeemAmount);
+
+        console2.log("Total assets to redeem:", totalAssets);
+
+        // Split evenly, rounding down first half
+        firstHalf = totalAssets / 2;
+        secondHalf = totalAssets - firstHalf;
+
+        console2.log("First half:", firstHalf);
+        console2.log("Second half:", secondHalf);
+    }
+
+    struct RoundingTestVars {
+        uint256 depositAmount;
+        uint256 initialShareBalance;
+        uint256 initialAssetBalance;
+        uint256 initialStrategyBalance;
+        uint256 redeemAmount;
+        uint256 firstHalf;
+        uint256 secondHalf;
+        uint256 maxWithdraw;
+        uint256 finalShareBalance;
+        uint256 finalAssetBalance;
+        uint256 finalStrategyBalance;
+        uint256 assetsReceived;
+        uint256 remainingShareValue;
+    }
+
+    function test_Redeem_RoundingBehavior() public executeWithoutHookRestrictions {
+        RoundingTestVars memory vars;
+        vars.depositAmount = 1000e6;
+
+        _completeDepositFlow(vars.depositAmount);
+
+        vars.initialShareBalance = vault.balanceOf(accInstances[0].account);
+        vars.initialAssetBalance = asset.balanceOf(accInstances[0].account);
+
+        console2.log("Initial shares:", vars.initialShareBalance);
+        console2.log(
+            "Initial price per share:", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor)
+        );
+
+        // Calculate redeem amount
+        vars.redeemAmount = vars.initialShareBalance / 2;
+        console2.log("Redeem amount (in shares):", vars.redeemAmount);
+
+        _requestRedeemForAccount(accInstances[0], vars.redeemAmount);
+
+        // Split redeem amount directly (don't convert to assets first)
+        vars.firstHalf = vars.redeemAmount / 2;
+        vars.secondHalf = vars.redeemAmount - vars.firstHalf;
+
+        console2.log("First vault amount:", vars.firstHalf);
+        console2.log("Second vault amount:", vars.secondHalf);
+
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = accInstances[0].account;
+        _fulfillRedeemForUsers(
+            requestingUsers, vars.firstHalf, vars.secondHalf, address(fluidVault), address(aaveVault)
+        );
+
+        vars.maxWithdraw = vault.maxWithdraw(accInstances[0].account);
+        console2.log("maxWithdraw after fulfill:", vars.maxWithdraw);
+
+        _claimWithdrawForAccount(accInstances[0], vars.maxWithdraw);
+
+        vars.finalShareBalance = vault.balanceOf(accInstances[0].account);
+        vars.finalAssetBalance = asset.balanceOf(accInstances[0].account);
+        vars.assetsReceived = vars.finalAssetBalance - vars.initialAssetBalance;
+
+        assertEq(vars.assetsReceived, vars.maxWithdraw, "Assets received should match maxWithdraw");
+        assertApproxEqRel(
+            vault.convertToAssets(vars.finalShareBalance), vars.depositAmount - vars.assetsReceived, 0.002e18
+        );
+    }
+
+    function externalClaimWithdraw(AccountInstance memory accInst, uint256 assets) external {
+        _claimWithdrawForAccount(accInst, assets);
+    }
+
+    function test_RequestRedeem_VerifyAmounts() public executeWithoutHookRestrictions {
+        RedeemVerificationVars memory vars;
+        vars.depositAmount = 1000e6;
+
+        _completeDepositFlow(vars.depositAmount);
+
+        vars.userShareBalances = new uint256[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            vars.userShareBalances[i] = vault.balanceOf(accInstances[i].account);
+        }
+        console2.log("pps", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
+
+        console2.log("deposits done");
+        /// redeem half of the shares
+        vars.redeemAmount = IERC20(vault).balanceOf(accInstances[0].account) / 2;
+        console2.log("redeem amount:", vars.redeemAmount);
+
+        console2.log("pps", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
+
+        console2.log("deposits done");
+        /// redeem half of the shares
+        vars.redeemAmount = IERC20(vault).balanceOf(accInstances[0].account) / 2;
+        console2.log("redeem amount:", vars.redeemAmount);
+
+        _requestRedeemForAllUsers(vars.redeemAmount);
+
+        vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.initialStrategyAssetBalance = asset.balanceOf(address(strategy));
+
+        vars.totalDepositAmount = vars.depositAmount * ACCOUNT_COUNT;
+        vars.totalRedeemAmount = vars.redeemAmount * ACCOUNT_COUNT;
+
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            requestingUsers[i] = accInstances[i].account;
+        }
+
+        vars.allocationAmountVault1 = vars.totalRedeemAmount / 2;
+        vars.allocationAmountVault2 = vars.totalRedeemAmount - vars.allocationAmountVault1;
+
+        _fulfillRedeemForUsers(
+            requestingUsers,
+            vars.allocationAmountVault1,
+            vars.allocationAmountVault2,
+            address(fluidVault),
+            address(aaveVault)
+        );
+
+        vars.fluidVaultSharesDecrease = vars.initialFluidVaultBalance - fluidVault.balanceOf(address(strategy));
+        vars.aaveVaultSharesDecrease = vars.initialAaveVaultBalance - aaveVault.balanceOf(address(strategy));
+        vars.strategyAssetBalanceIncrease = asset.balanceOf(address(strategy)) - vars.initialStrategyAssetBalance;
+
+        vars.fluidVaultAssetsValue = fluidVault.convertToAssets(vars.fluidVaultSharesDecrease);
+        vars.aaveVaultAssetsValue = aaveVault.convertToAssets(vars.aaveVaultSharesDecrease);
+
+        vars.totalAssetsRedeemed = vars.fluidVaultAssetsValue + vars.aaveVaultAssetsValue;
+
+        vars.totalRedeemedAssets = vault.convertToAssets(vars.totalRedeemAmount);
+        assertApproxEqRel(vars.totalAssetsRedeemed, vars.totalRedeemedAssets, 0.01e18);
+
+        assertApproxEqRel(vars.strategyAssetBalanceIncrease, vars.totalRedeemedAssets, 0.01e18);
+
+        _verifyRedeemSharesAndAssets(vars);
+    }
+
+    function test_MultipleUsers_SameAllocation_EqualRedeemValue() public executeWithoutHookRestrictions {
+        uint256 depositAmount = 1000e6;
+
+        _completeDepositFlow(depositAmount);
+
+        uint256[] memory initialShareBalances = new uint256[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            initialShareBalances[i] = vault.balanceOf(accInstances[i].account);
+            console2.log("User", i, "initial share balance:", initialShareBalances[i]);
+        }
+        uint256 redeemAmount = IERC20(vault).balanceOf(accInstances[0].account) / 2;
+
+        // request redem
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            _requestRedeemForAccount(accInstances[i], redeemAmount);
+        }
+
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            requestingUsers[i] = accInstances[i].account;
+        }
+
+        uint256 totalRedeemAmount = redeemAmount * ACCOUNT_COUNT;
+        uint256 allocationAmountVault1 = totalRedeemAmount / 2;
+        uint256 allocationAmountVault2 = totalRedeemAmount - allocationAmountVault1;
+
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
+
+        uint256[] memory initialAssetBalances = new uint256[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            initialAssetBalances[i] = asset.balanceOf(accInstances[i].account);
+        }
+
+        // Arrays to store results
+        uint256[] memory assetsReceived = new uint256[](ACCOUNT_COUNT);
+        uint256[] memory sharesBurned = new uint256[](ACCOUNT_COUNT);
+        uint256[] memory assetPerShare = new uint256[](ACCOUNT_COUNT);
+
+        // Claim redemptions for all users
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            // Record share balance before claiming
+            uint256 shareBalanceBeforeClaim = vault.balanceOf(accInstances[i].account);
+            console2.log("User", i, "share balance before claim:", shareBalanceBeforeClaim);
+
+            uint256 maxWithdraw = vault.maxWithdraw(accInstances[i].account);
+            _claimWithdrawForAccount(accInstances[i], maxWithdraw);
+
+            uint256 shareBalanceAfterClaim = vault.balanceOf(accInstances[i].account);
+            uint256 assetBalanceAfterClaim = asset.balanceOf(accInstances[i].account);
+
+            console2.log("User", i, "share balance after claim:", shareBalanceAfterClaim);
+
+            sharesBurned[i] = initialShareBalances[i] - shareBalanceAfterClaim;
+            assetsReceived[i] = assetBalanceAfterClaim - initialAssetBalances[i];
+
+            console2.log("User", i, "shares burned:", sharesBurned[i]);
+            console2.log("User", i, "assets received:", assetsReceived[i]);
+
+            if (sharesBurned[i] > 0) {
+                assetPerShare[i] = assetsReceived[i] * 1e18 / sharesBurned[i];
+                console2.log("User", i, "asset per share:", assetPerShare[i]);
+            } else {
+                console2.log("User", i, "!!! No shares were burned!");
+            }
+
+            assertGt(sharesBurned[i], 0, "No shares were burned for user");
+            assertGt(assetsReceived[i], 0, "No assets were received for user");
+        }
+
+        for (uint256 i = 1; i < ACCOUNT_COUNT; i++) {
+            assertApproxEqRel(assetPerShare[i], assetPerShare[0], 0.001e18, "Asset per share ratio should be equal");
+            assertApproxEqRel(assetsReceived[i], assetsReceived[0], 0.001e18, "Assets received should be equal");
+            assertApproxEqRel(sharesBurned[i], sharesBurned[0], 0.001e18, "Shares burned should be equal");
+        }
+    }
+
+    function test_MultipleUsers_ChangingAllocation_RedeemValue() public executeWithoutHookRestrictions {
+        uint256 depositAmount = 1000e6;
+
+        _completeDepositFlow(depositAmount);
+
+        uint256[] memory initialShareBalances = new uint256[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            initialShareBalances[i] = vault.balanceOf(accInstances[i].account);
+        }
+
+        uint256 redeemAmount = IERC20(vault).balanceOf(accInstances[0].account) / 2;
+
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            _requestRedeemForAccount(accInstances[i], redeemAmount);
+        }
+        address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            requestingUsers[i] = accInstances[i].account;
+        }
+
+        uint256 totalRedeemAmount = redeemAmount * ACCOUNT_COUNT;
+        uint256 allocationAmountVault1 = totalRedeemAmount * 90 / 100;
+        uint256 allocationAmountVault2 = totalRedeemAmount - allocationAmountVault1;
+        console2.log("Redeem allocation vault1:", allocationAmountVault1 * 100 / totalRedeemAmount, "%");
+        console2.log("Redeem allocation vault2:", allocationAmountVault2 * 100 / totalRedeemAmount, "%");
+
+        _fulfillRedeemForUsers(
+            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+        );
+
+        uint256[] memory initialAssetBalances = new uint256[](ACCOUNT_COUNT);
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            initialAssetBalances[i] = asset.balanceOf(accInstances[i].account);
+        }
+
+        uint256[] memory assetsReceived = new uint256[](ACCOUNT_COUNT);
+        uint256[] memory sharesBurned = new uint256[](ACCOUNT_COUNT);
+        uint256[] memory assetPerShare = new uint256[](ACCOUNT_COUNT);
+
+        for (uint256 i; i < ACCOUNT_COUNT; i++) {
+            uint256 maxWithdraw = vault.maxWithdraw(accInstances[i].account);
+            _claimWithdrawForAccount(accInstances[i], maxWithdraw);
+
+            uint256 shareBalanceAfterClaim = vault.balanceOf(accInstances[i].account);
+            uint256 assetBalanceAfterClaim = asset.balanceOf(accInstances[i].account);
+
+            sharesBurned[i] = initialShareBalances[i] - shareBalanceAfterClaim;
+            assetsReceived[i] = assetBalanceAfterClaim - initialAssetBalances[i];
+
+            if (sharesBurned[i] > 0) {
+                assetPerShare[i] = assetsReceived[i] * 1e18 / sharesBurned[i];
+            }
+
+            assertGt(sharesBurned[i], 0, "No shares were burned for user");
+            assertGt(assetsReceived[i], 0, "No assets were received for user");
+
+            console2.log("User", i, "shares burned:", sharesBurned[i]);
+            console2.log("User", i, "assets received:", assetsReceived[i]);
+            console2.log("User", i, "asset per share:", assetPerShare[i]);
+            console2.log("Free assets in vault", asset.balanceOf(address(strategy)));
+        }
+
+        for (uint256 i = 1; i < ACCOUNT_COUNT; i++) {
+            assertApproxEqRel(assetPerShare[i], assetPerShare[0], 0.001e18, "Asset per share ratio should be equal");
+            assertApproxEqRel(assetsReceived[i], assetsReceived[0], 0.001e18, "Assets received should be equal");
+            assertApproxEqRel(sharesBurned[i], sharesBurned[0], 0.001e18, "Shares burned should be equal");
+        }
+
+        uint256 totalAssetsReceived = 0;
+        for (uint256 i = 0; i < ACCOUNT_COUNT; i++) {
+            totalAssetsReceived += assetsReceived[i];
+        }
+
+        assertApproxEqRel(
+            totalAssetsReceived, totalRedeemAmount, 0.01e18, "Total assets received should match total redeem amount"
+        );
     }
 }

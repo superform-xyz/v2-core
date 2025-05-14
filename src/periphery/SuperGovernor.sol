@@ -74,6 +74,14 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     // Effective time for proposed upkeep cost change
     uint256 private _upkeepCostEffectiveTime;
 
+    // Upkeep control
+    bool private _upkeepPaymentsEnabled = true;
+    bool private _proposedUpkeepPaymentsEnabled;
+    uint256 private _upkeepPaymentsChangeEffectiveTime;
+
+    // Superform strategists (exempt from upkeep costs)
+    EnumerableSet.AddressSet private _superformStrategists;
+
     // Timelock configuration
     uint256 private constant TIMELOCK = 7 days;
     uint256 private constant BPS_MAX = 10_000; // 100% in basis points
@@ -105,7 +113,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @param treasury_ Address of the treasury
     /// @param prover_ Address of the prover
     constructor(address superGovernor, address governor, address bankManager, address treasury_, address prover_) {
-        if (superGovernor == address(0) || treasury_ == address(0) || governor == address(0) || bankManager == address(0)) revert INVALID_ADDRESS();
+        if (
+            superGovernor == address(0) || treasury_ == address(0) || governor == address(0)
+                || bankManager == address(0)
+        ) revert INVALID_ADDRESS();
 
         // Set up roles
         _grantRole(DEFAULT_ADMIN_ROLE, superGovernor);
@@ -433,6 +444,75 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         _upkeepCostEffectiveTime = 0;
 
         emit UpkeepCostPerUpdateChanged(_upkeepCostPerUpdate);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        UPKEEP PAYMENTS CONTROL
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Proposes a change to the upkeep payments enabled status
+    /// @param enabled The proposed new status for upkeep payments
+    function proposeUpkeepPaymentsChange(bool enabled) external onlyRole(_SUPER_GOVERNOR_ROLE) {
+        _proposedUpkeepPaymentsEnabled = enabled;
+        _upkeepPaymentsChangeEffectiveTime = block.timestamp + TIMELOCK;
+
+        emit UpkeepPaymentsChangeProposed(enabled, _upkeepPaymentsChangeEffectiveTime);
+    }
+
+    /// @notice Executes a previously proposed change to upkeep payments status after timelock expires
+    function executeUpkeepPaymentsChange() external {
+        if (_upkeepPaymentsChangeEffectiveTime == 0) revert NO_PENDING_CHANGE();
+        if (block.timestamp < _upkeepPaymentsChangeEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+
+        _upkeepPaymentsEnabled = _proposedUpkeepPaymentsEnabled;
+        _upkeepPaymentsChangeEffectiveTime = 0;
+
+        emit UpkeepPaymentsChanged(_upkeepPaymentsEnabled);
+    }
+
+    /// @notice Checks if upkeep payments are currently enabled
+    /// @return enabled True if upkeep payments are enabled
+    function isUpkeepPaymentsEnabled() external view returns (bool enabled) {
+        return _upkeepPaymentsEnabled;
+    }
+
+    /// @notice Gets the proposed upkeep payments status and effective time
+    /// @return enabled The proposed status
+    /// @return effectiveTime The timestamp when the change becomes effective
+    function getProposedUpkeepPaymentsStatus() external view returns (bool enabled, uint256 effectiveTime) {
+        return (_proposedUpkeepPaymentsEnabled, _upkeepPaymentsChangeEffectiveTime);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        SUPERFORM STRATEGIST MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Adds a strategist to the superform strategists list (exempt from upkeep costs)
+    /// @param strategist The address to add to the list
+    function addSuperformStrategist(address strategist) external onlyRole(_GOVERNOR_ROLE) {
+        if (strategist == address(0)) revert INVALID_ADDRESS();
+        if (!_superformStrategists.add(strategist)) revert STRATEGIST_ALREADY_REGISTERED();
+
+        emit SuperformStrategistAdded(strategist);
+    }
+
+    /// @notice Removes a strategist from the superform strategists list
+    /// @param strategist The address to remove from the list
+    function removeSuperformStrategist(address strategist) external onlyRole(_GOVERNOR_ROLE) {
+        if (!_superformStrategists.remove(strategist)) revert STRATEGIST_NOT_REGISTERED();
+
+        emit SuperformStrategistRemoved(strategist);
+    }
+
+    /// @notice Checks if an address is a registered superform strategist
+    /// @param strategist The address to check
+    /// @return isSuperform True if the address is a superform strategist
+    function isSuperformStrategist(address strategist) external view returns (bool isSuperform) {
+        return _superformStrategists.contains(strategist);
+    }
+
+    /// @notice Gets the list of all superform strategists
+    /// @return strategists The list of all superform strategist addresses
+    function getAllSuperformStrategists() external view returns (address[] memory strategists) {
+        return _superformStrategists.values();
     }
 
     /*//////////////////////////////////////////////////////////////

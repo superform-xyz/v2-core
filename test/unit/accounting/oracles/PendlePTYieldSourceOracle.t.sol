@@ -3,15 +3,14 @@ pragma solidity 0.8.28;
 
 import { InternalHelpers } from "../../../utils/InternalHelpers.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
-
-import { PendlePtYieldSourceOracle } from "../../../../src/core/accounting/oracles/PendlePtYieldSourceOracle.sol";
+import { PendlePTYieldSourceOracle } from "../../../../src/core/accounting/oracles/PendlePTYieldSourceOracle.sol";
 import { IYieldSourceOracle } from "../../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
 import { MockStandardizedYield } from "../../../mocks/MockStandardizedYield.sol";
 import { MockPendleMarket } from "../../../mocks/MockPendleMarket.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 
 contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
-    PendlePtYieldSourceOracle public oracle;
+    PendlePTYieldSourceOracle public oracle;
     MockPendleMarket public mockPendleMarket;
 
     MockERC20 public assetSy;
@@ -30,7 +29,7 @@ contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
         assetPt = new MockERC20("Mock PT", "MPT", 18);
         assetYt = new MockERC20("Mock YT", "MYT", 18);
 
-        oracle = new PendlePtYieldSourceOracle();
+        oracle = new PendlePTYieldSourceOracle();
         sy = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
         pt = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
         yt = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
