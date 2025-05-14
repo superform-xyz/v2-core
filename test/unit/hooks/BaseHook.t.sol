@@ -91,10 +91,10 @@ contract BaseHookTest is Helpers {
                           HELPER METHOD TESTS
     //////////////////////////////////////////////////////////////*/
     function test_DecodeBool() public view {
-        bytes memory data = abi.encodePacked(uint256(1));
+        bytes memory data = abi.encodePacked(true);
         assertTrue(hook.testDecodeBool(data, 0));
 
-        data = abi.encodePacked(uint256(0));
+        data = abi.encodePacked(false);
         assertFalse(hook.testDecodeBool(data, 0));
     }
 

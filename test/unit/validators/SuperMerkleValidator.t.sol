@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
-import { ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
+import { ModuleKitHelpers, AccountInstance, UserOpData, PackedUserOperation } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
@@ -20,6 +20,23 @@ import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/Mes
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
 import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
+
+// Helper contract to test transient sig storage
+contract SignatureTransientTester {
+    SuperMerkleValidator public validator;
+    
+    constructor(address _validator) {
+        validator = SuperMerkleValidator(_validator);
+    }
+    
+    function validateAndRetrieve(
+        PackedUserOperation calldata userOp,
+        bytes32 userOpHash
+    ) external returns (bytes memory) {
+        validator.validateUserOp(userOp, userOpHash);
+        return validator.retrieveSignatureData(userOp.sender);
+    }
+}
 
 contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
@@ -39,6 +56,8 @@ contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneM
 
     uint256 privateKey;
     address signerAddr;
+
+    bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
 
     function setUp() public {
         validator = new SuperMerkleValidator();
@@ -62,6 +81,111 @@ contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneM
         withdrawUserOp = _createDummyWithdrawUserOp();
     }
 
+    function test_SourceValidator_IsModuleType() public view {
+        assertTrue(validator.isModuleType(MODULE_TYPE_VALIDATOR));
+        assertFalse(validator.isModuleType(1234));
+    }
+
+    function test_SourceValidator_OnInstall() public view {
+        assertTrue(validator.isInitialized(account));
+    }
+
+    function test_SourceValidator_namespace() public view {
+        assertEq(validator.namespace(), "SuperValidator");
+    }
+
+    function test_SourceValidator_GetAccountOwner() public view {
+        assertEq(validator.getAccountOwner(account), address(signerAddr));
+    }
+
+    function test_SourceValidator_OnInstall_RevertIf_AlreadyInitialized() public {
+        AccountInstance memory newInstance = makeAccountInstance(keccak256(abi.encode("TEST")));
+        address newAccount = newInstance.account;
+
+        vm.startPrank(newAccount);
+
+        vm.expectRevert(SuperValidatorBase.ALREADY_INITIALIZED.selector);
+        validator.onInstall("");
+        vm.stopPrank();
+    }
+
+    function test_SourceValidator_OnUninstall() public {
+        vm.startPrank(account);
+        validator.onUninstall("");
+        vm.stopPrank();
+
+        assertFalse(validator.isInitialized(account));
+    }
+
+    function test_SourceValidator_OnUninstall_RevertIf_NotInitialized() public {
+        vm.startPrank(makeAddr("account"));
+        vm.expectRevert(SuperValidatorBase.NOT_INITIALIZED.selector);
+        validator.onUninstall("");
+        vm.stopPrank();
+    }
+
+    function test_Validate_isValidSignatureWithSender_NotInitialized() public {
+        vm.startPrank(address(0x1));
+        vm.expectRevert(SuperValidatorBase.NOT_INITIALIZED.selector);
+        validator.isValidSignatureWithSender(account, bytes32(0), "");
+        vm.stopPrank();
+    }
+
+    function test_Validate_isValidSignatureWithSender() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+
+        // simulate a merkle tree with 4 leaves (4 user ops)
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+        bytes memory signature = _getSignature(root);
+        bytes memory _validSigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
+
+        vm.prank(account);
+        bytes4 result = validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+
+        assertEq(result, VALID_SIGNATURE);
+    }
+
+    function test_Validate_isValidSignatureWithSender_InvalidProof() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+
+        // simulate a merkle tree with 4 leaves (4 user ops)
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+        bytes memory signature = _getSignature(root);
+        bytes memory _validSigData = abi.encode(validUntil, root, proof, proof, signature);
+
+        vm.startPrank(account);
+        vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
+        validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+        vm.stopPrank();
+
+    }
+
+    function test_Validate_isValidSignatureWithSender_InvalidSignature() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+
+        // simulate a merkle tree with 4 leaves (4 user ops)
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+        bytes memory signature = _getSignature(bytes32(0));
+        bytes memory _validSigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
+
+        vm.prank(account);
+        bytes4 result = validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+
+        assertEq(result, bytes4(""));
+    }
+
     function test_Dummy_1LeafMerkleTree() public pure {
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = keccak256(bytes.concat(keccak256(abi.encode("leaf 0"))));
@@ -71,6 +195,13 @@ contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneM
 
         bool isValid = MerkleProof.verify(proof, root, leaves[0]);
         assertTrue(isValid, "Merkle proof for leaf 0 should be valid");
+    }
+
+    function test_ValidateUserOp_1LeafMerkleTree_NotInitialized() public {
+        vm.startPrank(makeAddr("account"));
+        vm.expectRevert();
+        validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
+        vm.stopPrank();
     }
 
     function test_ValidateUserOp_1LeafMerkleTree() public {
@@ -86,6 +217,66 @@ contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneM
 
         // validate first user op
         _testUserOpValidation(validUntil, root, proof[0], signature, approveUserOp);
+
+        bytes memory retrievedSig = validator.retrieveSignatureData(account);
+        assertEq(retrievedSig, "");
+    }
+    
+    function test_ValidateUserOp_RetrieveSignatureData() public {
+        SignatureTransientTester tester = new SignatureTransientTester(address(validator));
+        
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+        bytes memory signature = _getSignature(root);
+
+        bytes32[] memory dstProofs = new bytes32[](1);
+        dstProofs[0] = keccak256(abi.encode("PROOF"));
+        bytes memory sigData = abi.encode(validUntil, root, proof[0], dstProofs, signature);
+        approveUserOp.userOp.signature = sigData;
+        
+        bytes memory retrievedSig = tester.validateAndRetrieve(
+            approveUserOp.userOp, 
+            approveUserOp.userOpHash
+        );
+        
+        assertEq(retrievedSig, sigData, "Retrieved signature should match the provided signature");
+    }
+    
+    function test_ValidateUserOp_1LeafMerkleTree_InvalidProof() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+
+        // simulate a merkle tree with 4 leaves (4 user ops)
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+        bytes memory signature = _getSignature(root);
+        bytes memory _validSigData = abi.encode(validUntil, root, proof, proof, signature);
+
+        approveUserOp.userOp.signature = _validSigData;
+        vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
+        validator.validateUserOp(approveUserOp.userOp, approveUserOp.userOpHash);
+    }
+
+    function test_ValidateUserOp_1LeafMerkleTree_InvalidSignature() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+
+        // simulate a merkle tree with 4 leaves (4 user ops)
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+        bytes memory signature = _getSignature(bytes32(0));
+        bytes memory _validSigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
+
+        approveUserOp.userOp.signature = _validSigData;
+        vm.prank(account);
+        bytes4 result = validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+        assertNotEq(result, VALID_SIGNATURE);
     }
 
     function test_Dummy_OnChainMerkleTree() public pure {

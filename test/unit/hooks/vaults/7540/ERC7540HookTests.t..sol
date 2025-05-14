@@ -20,6 +20,7 @@ import { ClaimCancelDepositRequest7540Hook } from
     "../../../../../src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
 import { ClaimCancelRedeemRequest7540Hook } from
     "../../../../../src/core/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
+import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { ISuperHook, ISuperHookAsyncCancelations } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { IERC7540 } from "../../../../../src/vendor/vaults/7540/IERC7540.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
@@ -162,7 +163,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     }
 
     function test_DepositHook_Build() public view {
-        bytes memory data = _encodeData(false, false);
+        bytes memory data = _encodeData(false);
         Execution[] memory executions = depositHook.build(address(0), address(this), data);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, yieldSource);
@@ -271,6 +272,17 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         assertEq(executions[0].target, yieldSource);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
+    }
+
+    
+    function test_ClaimCancelRedeemRequestHook_Build_ZeroAddresses() public {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, address(0), address(this));
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        claimCancelRedeemRequestHook.build(address(0), address(this), data);
+
+        data = abi.encodePacked(yieldSourceOracleId, address(this), address(0));
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        claimCancelRedeemRequestHook.build(address(0), address(this), data);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -633,6 +645,17 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         assertEq(decodedAmount, 1000);
     }
 
+    function test_UsePrevHookAmount() public view {
+        bytes memory data = _encodeData(false);
+        assertFalse(approveAndRequestDepositHook.decodeUsePrevHookAmount(data));
+        assertFalse(requestDepositHook.decodeUsePrevHookAmount(data));
+        assertFalse(depositHook.decodeUsePrevHookAmount(data));
+        assertFalse(reqRedeemHook.decodeUsePrevHookAmount(data));
+        assertFalse(redeemHook.decodeUsePrevHookAmount(data));
+        assertFalse(approveAndWithdrawHook.decodeUsePrevHookAmount(data));
+        assertFalse(withdrawHook.decodeUsePrevHookAmount(data));
+    }
+
     /*//////////////////////////////////////////////////////////////
                         REPLACE CALLDATA TESTS
     //////////////////////////////////////////////////////////////*/
@@ -776,6 +799,43 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         assertEq(approveAndWithdrawHook.outAmount(), 0);
     }
 
+    function test_claimCancelRedeemRequestHook_PreAndPostExecute() public {
+        yieldSource = token; // for the .balanceOf call
+        _getTokens(token, address(this), amount);
+
+        bytes memory data =
+            abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false, address(this), uint256(1));
+
+        claimCancelRedeemRequestHook.preExecute(address(0), address(this), data);
+        assertEq(claimCancelRedeemRequestHook.outAmount(), 1_000_000_000);
+
+        claimCancelRedeemRequestHook.postExecute(address(0), address(this), data);
+        assertEq(claimCancelRedeemRequestHook.outAmount(), 0);
+    }
+
+    function test_claimCancelDepositRequestHook_PreAndPostExecute() public {
+        yieldSource = token; // for the .balanceOf call
+        _getTokens(token, address(this), amount);
+
+        bytes memory data =
+            abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false, address(this), uint256(1));
+
+        claimCancelDepositRequestHook.preExecute(address(0), address(this), data);
+        assertEq(claimCancelDepositRequestHook.outAmount(), 1_000_000_000);
+
+        claimCancelDepositRequestHook.postExecute(address(0), address(this), data);
+        assertEq(claimCancelDepositRequestHook.outAmount(), 0);
+    }
+
+    function test_cancelRedeemRequest_PreAndPostExecute() public {
+        cancelRedeemRequestHook.preExecute(address(0), address(this), "");
+        cancelRedeemRequestHook.postExecute(address(0), address(this), "");
+    }
+
+    function test_cancelDepositRequestHook_PreAndPostExecute() public {
+        cancelDepositRequestHook.preExecute(address(0), address(this), "");
+        cancelDepositRequestHook.postExecute(address(0), address(this), "");
+    }
     /*//////////////////////////////////////////////////////////////
                         ASYNC HOOK TESTS
     //////////////////////////////////////////////////////////////*/
@@ -833,6 +893,20 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     function test_CancelRedeemHook_IsAsyncCancelHook() public view {
         assertEq(
             uint256(cancelRedeemHook.isAsyncCancelHook()), uint256(ISuperHookAsyncCancelations.CancelationType.OUTFLOW)
+        );
+    }
+
+    function test_ClaimCancelRedeemRequestHook_IsAsyncCancelHook() public view {
+        assertEq(
+            uint256(claimCancelRedeemRequestHook.isAsyncCancelHook()),
+            uint256(ISuperHookAsyncCancelations.CancelationType.OUTFLOW)
+        );
+    }
+
+    function test_ClaimCancelDepositRequestHook_IsAsyncCancelHook() public view {
+        assertEq(
+            uint256(claimCancelDepositRequestHook.isAsyncCancelHook()),
+            uint256(ISuperHookAsyncCancelations.CancelationType.INFLOW)
         );
     }
 

@@ -67,6 +67,7 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
     address public account;
     AccountInstance public instance;
     ISuperExecutor public superExecutor;
+    ISuperExecutor public newSuperExecutor;
     address ledgerConfig;
     ISuperLedger public ledger;
     MockSuperPositionFactory public mockSuperPositionFactory;
@@ -110,11 +111,13 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         ledgerConfig = address(new SuperLedgerConfiguration());
 
         superExecutor = ISuperExecutor(new SuperExecutor(address(ledgerConfig)));
+        newSuperExecutor = ISuperExecutor(new SuperExecutor(address(ledgerConfig)));
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
         instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: abi.encode(signer)});
 
-        address[] memory allowedExecutors = new address[](1);
+        address[] memory allowedExecutors = new address[](2);
         allowedExecutors[0] = address(superExecutor);
+        allowedExecutors[1] = address(newSuperExecutor);
         ledger = ISuperLedger(address(new SuperLedger(address(ledgerConfig), allowedExecutors)));
 
         feeRecipient = makeAddr("feeRecipient");
@@ -208,6 +211,71 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         assertEq(feeRecipient.balance, amount * 1e2/1e4);
     }
 
+    function test_ExecuteWithUpdateAccounting_NewExecutor() external {
+        uint256 amount = 1e18;
+
+        MockHook _depositHook = new MockHook(ISuperHook.HookType.INFLOW, address(underlying));
+        vm.label(address(_depositHook), "_depositHook");
+        MockHook _redeemHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(underlying));
+        vm.label(address(_redeemHook), "_redeemHook");
+        Mock4626Vault vault = new Mock4626Vault(underlying, "Mock4626Vault", "Mock4626Vault");
+        vm.label(address(vault), "_vault");
+
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = address(approveHook);
+        hooksAddresses[1] = address(_depositHook);
+
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(underlying, address(vault), amount, false);
+        hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), amount, false, address(0), 0
+        );
+        // assure account has tokens
+        _getTokens(underlying, account, amount);
+
+        Execution[] memory depositExecutions = new Execution[](1);
+        depositExecutions[0] = Execution({ target: address(vault), value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, account)) });
+        _depositHook.setExecutions(depositExecutions);
+        _depositHook.setOutAmount(amount);
+
+        // it should execute all hooks
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+        bytes memory sigData = _createSourceData(validUntil, userOpData);
+        userOpData.userOp.signature = sigData;
+        emit ISuperLedgerData.AccountingInflow(account, yieldSourceOracle, yieldSourceAddress, amount, 1e18);
+        executeOp(userOpData);
+
+        // install new executor
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(newSuperExecutor), data: "" });
+
+        hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(_redeemHook);
+
+        hooksData = new bytes[](1);
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), account, amount, false
+        );
+
+        Execution[] memory redeemExecutions = new Execution[](1);
+        redeemExecutions[0] = Execution({ target: address(vault), value: 0, callData: abi.encodeCall(IERC4626.redeem, (amount, account, account)) });
+        _redeemHook.setExecutions(redeemExecutions);
+        _redeemHook.setUsedShares(amount);
+        _redeemHook.setOutAmount(amount * 2);
+        _redeemHook.setAsset(address(0));
+
+        entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        userOpData = _getExecOpsWithValidator(instance, newSuperExecutor, abi.encode(entry), address(validator));
+        validUntil = uint48(block.timestamp + 100 days);
+        sigData = _createSourceData(validUntil, userOpData);
+        userOpData.userOp.signature = sigData;
+        executeOp(userOpData);
+
+        assertEq(feeRecipient.balance, amount * 1e2/1e4);
+    }
 
     function test_ShouldExecuteAll_MerkleValidator(uint256 amount) external {
         AccountInstance memory testInstance = makeAccountInstance(keccak256(abi.encode("TEST")));

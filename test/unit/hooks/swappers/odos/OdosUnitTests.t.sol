@@ -99,6 +99,22 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         new ApproveAndSwapOdosHook(address(0));
     }
 
+    function test_DecodeUsePrevHookAmount() public view {
+        bytes memory data = _buildApproveAndSwapOdosData(false);
+        assertFalse(approveAndSwapOdosHook.decodeUsePrevHookAmount(data));
+
+        data = _buildApproveAndSwapOdosData(true);
+        assertTrue(approveAndSwapOdosHook.decodeUsePrevHookAmount(data));
+    }
+
+    function test_DecodeUsePrevHookSwapHook() public view {
+        bytes memory data = _buildSwapOdosData(false);
+        assertFalse(swapOdosHook.decodeUsePrevHookAmount(data));
+
+        data = _buildSwapOdosData(true);
+        assertTrue(swapOdosHook.decodeUsePrevHookAmount(data));
+    }
+
     function test_Build() public view {
         bytes memory data = _buildApproveAndSwapOdosData(false);
 

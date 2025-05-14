@@ -30,6 +30,14 @@ contract Deposit5115VaultHookTest is Helpers {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.INFLOW));
     }
 
+    function test_UsePrevHookAmount() public view {
+        bytes memory data = _encodeData(true);
+        assertTrue(hook.decodeUsePrevHookAmount(data));
+
+        data = _encodeData(false);
+        assertFalse(hook.decodeUsePrevHookAmount(data));
+    }
+
     function test_Build() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = hook.build(address(0), address(this), data);

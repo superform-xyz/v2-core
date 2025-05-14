@@ -1367,7 +1367,6 @@ contract LedgerTests is Helpers {
         // Set up initial shares for the user
         address user = address(0x456);
         address yieldSource = address(0x789);
-        uint256 amountAssets = 1000e18;
         uint256 usedShares = 1000e18;
 
         // First do an inflow to set up shares
@@ -1412,7 +1411,6 @@ contract LedgerTests is Helpers {
         // Set up initial shares for the user
         address user = address(0x456);
         address yieldSource = address(0x789);
-        uint256 amountAssets = 1000e18;
         uint256 usedShares = 1000e18;
 
         // First do an inflow to set up shares

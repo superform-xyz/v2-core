@@ -132,6 +132,11 @@ contract YieldSourceOraclesTest is Helpers {
         assertEq(actualAssets, sharesIn); // For staking vaults, assets = shares
     }
 
+    function test_Staking_decimals() public view {
+        assertEq(stakingYieldSourceOracle.decimals(address(stakingVault)), 18);
+        assertEq(stakingYieldSourceOracle.decimals(address(this)), 18);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         PRICE PER SHARE TESTS
     //////////////////////////////////////////////////////////////*/
