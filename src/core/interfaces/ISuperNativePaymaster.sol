@@ -17,6 +17,12 @@ interface ISuperNativePaymaster {
     error INVALID_NODE_OPERATOR_PREMIUM();
 
     /*//////////////////////////////////////////////////////////////
+                                 EVENTS
+    //////////////////////////////////////////////////////////////*/
+    event SuperNativePaymasterPostOp(bytes context);
+    event SuperNativePaymsterRefund(address indexed sender, uint256 refund);
+
+    /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Handle a batch of user operations.

@@ -15,7 +15,7 @@ contract ERC4626YieldSourceOracleTest is Helpers {
     function setUp() public {
         oracle = new ERC4626YieldSourceOracle();
         underlying = new MockERC20("Underlying", "UND", 18);
-        vault = new Mock4626Vault(IERC20(address(underlying)), "Vault", "VAULT");
+        vault = new Mock4626Vault(address(underlying), "Vault", "VAULT");
     }
 
     function test_getPricePerShare() public view {

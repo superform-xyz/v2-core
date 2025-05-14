@@ -5,6 +5,9 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC4626 } from "@openzeppelin/contracts/token/ERC20/extensions/ERC4626.sol";
 
+
+import "forge-std/console2.sol";
+
 contract Mock4626Vault is ERC4626 {
     uint256 public _totalAssets;
     uint256 public _totalShares;
@@ -21,8 +24,8 @@ contract Mock4626Vault is ERC4626 {
     // Track deposit timestamps for yield calculation
     mapping(address => uint256) public depositTimestamps;
 
-    constructor(IERC20 asset_, string memory name_, string memory symbol_) ERC4626(asset_) ERC20(name_, symbol_) {
-        assetInstance = asset_;
+    constructor(address asset_, string memory name_, string memory symbol_) ERC4626(IERC20(asset_)) ERC20(name_, symbol_) {
+        assetInstance = IERC20(asset_);
         _asset = address(asset_);
     }
 
@@ -67,6 +70,7 @@ contract Mock4626Vault is ERC4626 {
     }
 
     function deposit(uint256 assets, address receiver) public override returns (uint256 shares) {
+        console2.log("------------A", assets);
         require(assets > 0, AMOUNT_NOT_VALID());
         uint256 amount = lessAmount ? assets / 2 : assets;
         shares = amount; // 1:1 ratio for simplicity in case lessAmount is false
