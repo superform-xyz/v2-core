@@ -63,22 +63,15 @@ abstract contract SuperExecutorBase is
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Checks if an account has initialized this executor
-    /// @dev Used to verify if an account has permission to use this executor
-    /// @param account The address to check initialization status for
-    /// @return True if the account is initialized, false otherwise
+    /// @inheritdoc ISuperExecutor
     function isInitialized(address account) external view returns (bool) {
         return _initialized[account];
     }
 
-    /// @notice Returns the name of the executor implementation
-    /// @dev Must be implemented by derived contracts
-    /// @return The name string of the specific executor implementation
+    /// @inheritdoc ISuperExecutor
     function name() external view virtual returns (string memory);
 
-    /// @notice Returns the version of the executor implementation
-    /// @dev Must be implemented by derived contracts
-    /// @return The version string of the specific executor implementation
+    /// @inheritdoc ISuperExecutor
     function version() external view virtual returns (string memory);
 
     /// @notice Verifies if this module is of the specified type
@@ -92,28 +85,19 @@ abstract contract SuperExecutorBase is
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Handles module installation for an account
-    /// @dev Called by the ERC-7579 account during module installation
-    ///      Sets up the initialization status for the calling account
-    /// @param data Installation data (unused in base implementation)
+    /// @inheritdoc ISuperExecutor
     function onInstall(bytes calldata) external {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         _initialized[msg.sender] = true;
     }
 
-    /// @notice Handles module uninstallation for an account
-    /// @dev Called by the ERC-7579 account during module removal
-    ///      Clears the initialization status for the calling account
-    /// @param data Uninstallation data (unused in base implementation)
+    /// @inheritdoc ISuperExecutor
     function onUninstall(bytes calldata) external {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
     }
 
-    /// @notice Entry point for executing hook sequences
-    /// @dev Decodes the ExecutorEntry data and processes the hook chain
-    ///      Validates that the caller is properly initialized first
-    /// @param data Encoded ExecutorEntry containing hooks and their data
+    /// @inheritdoc ISuperExecutor
     function execute(bytes calldata data) external virtual {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _execute(msg.sender, abi.decode(data, (ExecutorEntry)));

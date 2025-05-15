@@ -32,12 +32,12 @@ interface ISuperExecutor {
     
     /// @notice Thrown when a fee calculation results in an invalid amount
     /// @dev Typically occurs when a fee exceeds the available amount or is negative
-    ///      Important for maintaining economic integrity in the SuperUSD system
+    ///      Important for maintaining economic integrity in the system
     error INVALID_FEE();
     
     /// @notice Thrown when an unauthorized address attempts a restricted operation
     /// @dev Security measure to ensure only approved addresses can perform certain actions
-    ///      Critical for protecting the potential energy model governance
+    ///      Critical for maintaining system security and integrity
     error NOT_AUTHORIZED();
     
     /// @notice Thrown when the hooks addresses and data arrays have different lengths
@@ -88,8 +88,39 @@ interface ISuperExecutor {
     event SuperPositionMintRequested(address indexed account, address indexed spToken, uint256 amount, uint256 indexed dstChainId);
 
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Checks if an account has initialized this executor
+    /// @dev Used to verify if an account has permission to use this executor
+    /// @param account The address to check initialization status for
+    /// @return True if the account is initialized, false otherwise
+    function isInitialized(address account) external view returns (bool);
+
+    /// @notice Returns the name of the executor implementation
+    /// @dev Must be implemented by each executor to identify its type
+    /// @return The name string of the specific executor implementation
+    function name() external view returns (string memory);
+
+    /// @notice Returns the version of the executor implementation
+    /// @dev Used for tracking implementation version for upgrades and compatibility
+    /// @return The version string of the specific executor implementation
+    function version() external view returns (string memory);
+
+    /*//////////////////////////////////////////////////////////////
+                                  EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Handles module installation for an account
+    /// @dev Called by the ERC-7579 account during module installation
+    ///      Sets up the initialization status for the calling account
+    /// @param data Installation data (may be used by specific implementations)
+    function onInstall(bytes calldata data) external;
+
+    /// @notice Handles module uninstallation for an account
+    /// @dev Called by the ERC-7579 account during module removal
+    ///      Clears the initialization status for the calling account
+    /// @param data Uninstallation data (may be used by specific implementations)
+    function onUninstall(bytes calldata data) external;
+
     /// @notice Executes a sequence of hooks with their respective parameters
     /// @dev The main entry point for executing hook sequences
     ///      The input data should be encoded ExecutorEntry struct
@@ -97,5 +128,5 @@ interface ISuperExecutor {
     ///      influencing the execution of subsequent hooks
     ///      Each hook's execution involves calling preExecute, build, and postExecute
     /// @param data ABI-encoded ExecutorEntry containing hooks and their parameters
-    function execute(bytes memory data) external;
+    function execute(bytes calldata data) external;
 }

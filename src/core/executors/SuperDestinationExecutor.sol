@@ -23,11 +23,9 @@ import { ISuperDestinationValidator } from "../interfaces/ISuperDestinationValid
 
 /// @title SuperDestinationExecutor
 /// @author Superform Labs
-/// @notice Generic executor for destination chains of Superform, processing bridged executions.
-/// @notice This contract acts as the core logic gateway for receiving funds (via Adapters)
-/// @notice and executing associated user operations validated by a SuperDestinationValidator.
-/// @dev Receives calls from Adapter contracts (e.g., AcrossV3Adapter) via `processBridgedExecution`.
-/// @dev Handles account creation, nonce management, signature validation, and execution forwarding.
+/// @notice Generic executor for destination chains of Superform, processing bridged executions
+/// @dev Implements ISuperDestinationExecutor for receiving funds via Adapters and executing validated cross-chain operations
+///      Handles account creation, signature validation, and execution forwarding
 contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecutor {
     using SafeERC20 for IERC20;
 
@@ -90,11 +88,13 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperExecutor
     function name() external pure override returns (string memory) {
         // Updated name
         return "SuperDestinationExecutor";
     }
 
+    /// @inheritdoc ISuperExecutor
     function version() external pure override returns (string memory) {
         return "0.0.1";
     }
