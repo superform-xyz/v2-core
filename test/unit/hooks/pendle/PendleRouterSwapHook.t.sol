@@ -108,6 +108,31 @@ contract PendleRouterSwapHookTest is Helpers {
         assertEq(executions[0].value, 0);
     }
 
+    function test_UsePrevHookAmount() public view {
+        TokenOutput memory output = TokenOutput({
+            tokenOut: address(outputToken),
+            minTokenOut: 950,
+            tokenRedeemSy: address(outputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(0),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: new FillOrderParams[](0),
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
+        );
+
+        bytes memory data = abi.encodePacked(bytes4(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        assertFalse(hook.decodeUsePrevHookAmount(data));
+    }
+
     function test_Build_SwapExactPtForToken() public view {
         TokenOutput memory output = TokenOutput({
             tokenOut: address(outputToken),
@@ -202,7 +227,7 @@ contract PendleRouterSwapHookTest is Helpers {
         assertEq(hook.outAmount(), 500);
     }
 
-    function test_PostExecuteX() public {
+    function test_PostExecute() public {
         TokenInput memory input = TokenInput({
             tokenIn: address(inputToken),
             netTokenIn: inputAmount,
