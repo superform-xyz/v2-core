@@ -92,7 +92,7 @@ contract Withdraw7540VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookO
         address yieldSource = data.extractYieldSource();
         asset = IERC7540(yieldSource).asset();
         outAmount = _getBalance(account, data);
-        usedShares = _getSharesBalance(account, data);   // 1000000000
+        usedShares = _getSharesBalance(account, data);
         spToken = IERC7540(yieldSource).share();
     }
 
