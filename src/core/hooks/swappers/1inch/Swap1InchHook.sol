@@ -11,6 +11,8 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
+import "forge-std/console2.sol";
+
 /// @title Swap1InchHook
 /// @author Superform Labs
 /// @dev data has the following structure

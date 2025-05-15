@@ -1540,7 +1540,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         _completeDepositFlow(vars.depositAmount);
 
         // add new vault as yield source
-        vars.newVault = new Mock4626Vault(asset, "New Vault", "NV");
+        vars.newVault = new Mock4626Vault(address(asset), "New Vault", "NV");
 
         //  -- add funds to the newVault to respect LARGE_DEPOSIT
         _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);

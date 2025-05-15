@@ -11,7 +11,7 @@ contract Mock5115Vault {
         BRIDGED_YIELD_BEARING_TOKEN
     }
 
-    MockERC20 asset;
+    MockERC20 public asset;
 
     constructor(IERC20 asset_, string memory name_, string memory symbol_) {
         if (address(asset_) == address(0)) {
@@ -56,5 +56,31 @@ contract Mock5115Vault {
         returns (uint256 amountTokenOut)
     {
         amountTokenOut = amountSharesToRedeem;
+    }
+
+    function deposit(
+        address,
+        address,
+        uint256 amountTokenToDeposit,
+        uint256
+    )
+        external
+        payable
+        returns (uint256 amountSharesOut)
+    {
+        amountSharesOut = amountTokenToDeposit;
+    }
+
+    function balanceOf(address) external pure returns (uint256) {
+        return 1e18;
+    }
+
+    function getTokensIn() external view returns (address[] memory tokens) {
+        tokens = new address[](1);
+        tokens[0] = address(asset);
+    }
+
+    function totalSupply() external pure returns (uint256) {
+        return 0;
     }
 }
