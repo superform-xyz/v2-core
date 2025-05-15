@@ -40,29 +40,29 @@ interface ISuperRegistry {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Associates an address with an identifier in the registry
-    /// @dev This function configures the essential components of the SuperUSD system
+    /// @dev This function configures the essential components of the Superform system
     ///      Key components registered include:
-    ///      - K coefficient calculators that determine stablecoin weightings
-    ///      - Oracle providers for price and allocation data
-    ///      - Circuit breaker controllers for depeg protection
-    ///      - Yield source adapters for different stablecoins
+    ///      - Protocol validators for cross-chain operations
+    ///      - Executors for processing transactions
+    ///      - Oracle providers for required data
+    ///      - Bridge adapters for cross-chain communication
     ///      
     ///      Access is strictly controlled to prevent unauthorized modifications
-    ///      that could compromise the potential energy model
+    ///      that could compromise the system security
     /// @param id_ The bytes32 identifier for the component
     /// @param address_ The address to associate with the identifier
     function setAddress(bytes32 id_, address address_) external;
 
     /// @notice Registers an executor in the system
-    /// @dev Executors are critical components that can initiate and execute rebalancing operations
-    ///      In the potential energy model, executors are responsible for:
-    ///      1. Identifying favorable energy gradients between stablecoins
-    ///      2. Executing transitions between allocation targets
-    ///      3. Triggering circuit breakers during depeg events
-    ///      4. Managing cross-chain position transfers
+    /// @dev Executors are critical components that can initiate and execute operations
+    ///      In the Superform system, executors are responsible for:
+    ///      1. Processing user transactions
+    ///      2. Executing cross-chain operations
+    ///      3. Managing the execution flow through hooks
+    ///      4. Ensuring proper transaction validation
     ///      
     ///      This function is highly access-controlled as executors can modify
-    ///      positions and trigger rebalancing events across the system
+    ///      system state and trigger critical events across chains
     /// @param id_ The bytes32 identifier for the executor
     /// @param address_ The address of the executor contract
     function setExecutor(bytes32 id_, address address_) external;
@@ -73,10 +73,10 @@ interface ISuperRegistry {
     /// @notice Retrieves the address associated with an identifier
     /// @dev Used throughout the system to locate component addresses dynamically
     ///      Critical for finding the correct:
-    ///      - K coefficient calculators for specific stablecoin types
-    ///      - Oracle providers for price and allocation targets
-    ///      - Circuit breaker controllers for different depeg scenarios
-    ///      - Yield sources supported by the system
+    ///      - Validator modules for operation verification
+    ///      - Executor contracts for transaction processing
+    ///      - Bridge adapters for cross-chain communication
+    ///      - Hook implementations for execution extensions
     ///      
     ///      Components must verify addresses are not zero before interaction
     /// @param id_ The bytes32 identifier to look up
@@ -84,14 +84,14 @@ interface ISuperRegistry {
     function getAddress(bytes32 id_) external view returns (address);
 
     /// @notice Verifies if an address is a registered executor with permission to call protected functions
-    /// @dev Core security function that protects the potential energy model from manipulation
+    /// @dev Core security function that protects the Superform system from unauthorized access
     ///      Used by components to verify that only authorized executors can:
-    ///      1. Initiate rebalancing between different stablecoins
-    ///      2. Modify K coefficients for stablecoin weightings
-    ///      3. Trigger circuit breakers during market stress
-    ///      4. Update target allocations based on yield opportunities
+    ///      1. Process cross-chain operations
+    ///      2. Execute user transactions
+    ///      3. Interact with validator modules
+    ///      4. Manage critical system parameters
     ///      
-    ///      This check is critical for maintaining system security at billion-dollar scale
+    ///      This check is critical for maintaining system security and preventing unauthorized operations
     /// @param executor The address to check for executor permissions
     /// @return True if the address is a registered executor, false otherwise
     function isExecutorAllowed(address executor) external view returns (bool);

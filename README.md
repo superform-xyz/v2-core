@@ -1,36 +1,47 @@
 # Superform v2-Contracts
 
-This document provides technical details, reasoning behind design choices, and discussion of potential edge cases and
-risks in Superform's v2-contracts.
+This document provides technical details, reasoning behind design choices, and discussion of potential edge cases and risks in Superform's v2-contracts.
 
 ## Overview
 
-SuperformV2 is a chain abstracted DeFi protocol that emphasizes flexibility and composability. The protocol implements a
-modular architecture that allows dynamic execution and flexible composition of user operations (userOps). This
-repository contains the smart contracts powering Superform v2, including core execution logic and advanced account
-abstraction via ERC7579 modules.
+SuperformV2 is a chain-abstracted DeFi protocol that emphasizes flexibility and composability. The protocol implements a modular architecture that allows dynamic execution and flexible composition of user operations (userOps). This repository contains the smart contracts powering Superform v2, including core execution logic and advanced account abstraction via ERC7579 modules.
 
 At a high level, Superform v2 is organized into two major parts:
 
-- Core Contracts: These include the primary business logic, interfaces, execution routines and accounting mechanisms
-- Periphery Contracts: These include a suite of products built on top of the core contracts, such as SuperVaults.
+- **Core Contracts**: These include the primary business logic, interfaces, execution routines, and accounting mechanisms
+- **Periphery Contracts (OUT OF SCOPE)**: These include a suite of products built on top of the core contracts, such as SuperVaults
 
 ## Key Components
 
-- Hooks: Lightweight, modular contracts that perform specific operations (e.g., token approvals, transfers) during an
-  execution flow.
-- SuperExecutor: Sequentially executes one or more hooks, manages transient state storage for intermediate state, and
-  interacts with the SuperLedger for accounting.
-- SuperLedger: Handles accounting aspects (pricing, fees) for both INFLOW and OUTFLOW hooks. These fees are taken by
-  Superform.
-- SuperRegistry: Provides centralized address management for configuration and upgradeability.
-- SuperBundler: A specialized off-chain bundler that processes ERC4337 userOps on a timed basis. It also integrates with
-  a validation system (SuperMerkleValidator) to ensure secure operation.
-- SuperVault: A ERC7540 compliant vault capable of allocating an asset to various yield sources using hooks and allowing
-  strategists to optimize the performance of the vault.
-- SuperMerkleValidator: A validator contract for entrypoint actions. This is used for the purpose of users only signing
-  once for multiple user ops under Superform v2 chain abstraction experience
-- SuperNativePaymaster: A paymaster contract to fund user actions with native tokens and to allow users to use ERC20
+### Execution Layer
+
+- **Hooks**: Lightweight, modular contracts that perform specific operations (e.g., token approvals, transfers) during an execution flow. Hooks are designed to be composable and can be chained together to create complex transaction flows.
+
+- **SuperExecutor**: The standard executor that sequentially processes one or more hooks on the same chain. It manages transient state storage for intermediate results, performs fee calculations, and interacts with the SuperLedger for accounting.
+
+- **SuperDestinationExecutor**: Specialized executor for handling cross-chain operations on destination chains. It processes bridged executions, handles account creation, validates signatures, and forwards execution to the target accounts.
+
+### Validation Layer
+
+- **SuperValidatorBase**: Base contract providing core validation functionality used across all validator implementations, including signature validation and account ownership verification.
+
+- **SuperMerkleValidator**: A validator contract for ERC4337 entrypoint actions. It enables users to sign once for multiple user operations using merkle proofs, enhancing the chain abstraction experience.
+
+- **SuperDestinationValidator**: Validates cross-chain operation signatures for destination chain operations. It verifies merkle proofs and signatures to ensure only authorized operations are executed.
+
+### Accounting Layer
+
+- **SuperLedger**: Handles accounting aspects (pricing, fees) for both INFLOW and OUTFLOW operations. Tracks cost basis and calculates performance fees on yield.
+
+- **YieldSourceOracles**: Specialized oracles for different vault standards (ERC4626, ERC5115, ERC7540, etc.) that provide accurate price data and TVL information.
+
+### Infrastructure
+
+- **SuperRegistry**: Provides centralized address management for configuration and upgradeability.
+
+- **SuperBundler**: A specialized off-chain bundler that processes ERC4337 userOps on a timed basis. It integrates with the validation system to ensure secure operation.
+
+- **SuperNativePaymaster**: A paymaster contract to fund user actions with native tokens and to allow users to use ERC20 tokens for gas.
   tokens to fund operations from their originating
 
 ### Repository Structure
@@ -297,218 +308,121 @@ Key Points for Auditors:
 
 ---
 
-### Periphery Components (NOT IN SCOPE FOR AUDIT)
-
-#### SuperOracle
-
-Definition & Role: SuperOracle is a specialized on-chain oracle system that provides USD price information for various
-assets (bases) using https://eips.ethereum.org/EIPS/eip-7726
-
-Key Points for Auditors:
-
-- Allows any supported quote to be used
-- Callees can provide provider 0 to get the average of all providers and dispersion metrics of the price
-- Important for the get functions of SuperYieldSourceOracle that translate metadata, such as PPS and TVL, to USD terms. Can be used on-chain in future contracts.
-- Risk Considerations (typical oracle risks):
-  - Oracle manipulation risks must be considered
-  - Price staleness checks should be implemented
-  - Failure modes should gracefully handle oracle unavailability
-
-#### SuperVaults
-
-Definition & Role: SuperVaults are ERC7540-compliant vaults that enable users to deposit and withdraw assets across
-multiple yield sources. They implement sophisticated allocation strategies and reward mechanisms.
-
-Key Features:
-
-1. Yield Source Management:
-
-   - Dynamic configuration of yield sources
-   - Caps for risk management
-   - Timelock for yield source additions
-
-2. Request Processing:
-
-   - Deposit and withdrawal request queuing
-   - Batch fulfillment by strategists
-   - Request matching for gas optimization
-
-3. Allocation Management:
-
-   - Flexible allocation strategies
-   - Hook-based execution
-   - Constraint enforcement
-
-4. Reward Mechanisms:
-   - Claim and compound functionality
-   - Token swapping capabilities
-
-Key Points for Auditors:
-
-- State Management:
-  - Request queue integrity
-  - Share accounting accuracy
-  - Asset tracking precision
-- Security Considerations:
-  - Access control implementation
-  - Emergency controls
-  - Hook validation
-- Important cases to watch for:
-  - Rebalance accuracy
-  - Fee calculation accuracy
-  - Sufficient mitigation of rounding issues
-  - Guardrails to protect users/strategists against bad underlying vaults.
-  - Unique logic around matchRequests functionality, which will have high importance to reduce gas costs to fulfill
-    requests in Coindidence of Wants format.
-  - Ensure all the above is secure in light of the existence of the escrow contract
-
-Factory Implementation:
-
-- Proxy pattern for gas efficiency
-- Configurable parameters for new vaults
-- Security measures for initialization
-- Important case to watch for:
-
 ## Edge Cases & Known Issues
 
-To ensure transparency and facilitate the audit process, the following points outline known issues and potential edge
-cases: In an effort to preemptively address concerns that auditors might raise, we outline the following known edge
-cases and limitations:
+To ensure transparency and facilitate the audit process, the following points outline known issues and potential edge cases our team has identified:
 
-SuperBundler Centralization:
+### Hook System
 
-- Risk:
-  - Since SuperBundler manages both the bundling and validation of userOps, it can be seen as a centralized component.
+**Issue**: If a hook is compromised, it can potentially manipulate the entire execution flow.
+
 - Mitigation:
-  - The v2-contracts design incorporates fallback paths if operations are submitted outside of SuperBundler.
-  - All SuperBundler can do is execute indicated user operations, no possibilities of malicious injection. Will be
-    submitted to a separate audit.
+  - For extra safety, hooks are not allowed to target the SuperExecutor directly
+  - All hooks must be registered and go through validation checks
 
-Execution Outside SuperBundler:
+### Cross-Chain Execution
 
-- Risk:
-  - If userOps are executed directly (not via SuperBundler), certain optimizations and checks might be bypassed.
-  - Users can deplete the SuperGasTank by grieving it, in cross chain operations
-- Mitigation:
-  - See the potential fix for gas grievance issue in the `Bridges` section. This issue can be flagged as an non-solved
-    issue that will be tackled during
-  - Our modules are designed to handle direct execution gracefully, but users and integrators are advised to follow best
-    practices outlined in the documentation and interact via Superform app.
+#### Mechanism Overview
 
-Inter-Hook Dependencies:
+Superform v2 implements a cross-chain execution mechanism using merkle trees and validator contracts to enable secure operations across different blockchains. This system allows users to sign a single transaction that can trigger actions across multiple chains.
 
-SuperLedger Accounting:
+**Core Components**:
 
-- Risk:
-  - Any edge cases where users could be locked into a position?
-  - Small rounding errors in fee calculations could be exploited over time to reduce fee paid?
-- Mitigation:
-  - Regarding fee loss, a small loss due to rounding is accepted.
-  - Regarding being locked into a position, in serious problems with the core each yieldSourceOracle configured in
-    SuperLedgerConfiguration can be set with a feePercent of 0 to allow users to skip the accounting calculation on
-    exit. Aditionally, the yieldSourceOracleId can be configured to use a new ledger contract.
+1. **Merkle Root Generation**:
+   - When a user initiates a cross-chain action, a merkle tree is generated with leaves representing operations on different chains
+   - The user signs the merkle root, not individual operations
+   - Each leaf contains chain-specific data (chain ID, execution parameters, expiration time)
 
-SuperExecutor module:
+2. **Source Chain Execution**:
+   - On the source chain, the SuperMerkleValidator verifies the user's signature against the merkle root
+   - The source chain operations are executed through the merkle proof for that chain
+   - Typically includes bridging assets to destination chains
 
-- Risk:
-  - Users could execute hooks by their own, without go through the SuperBundler. This could lead to an avoidance of the
-    validator module. However, this would affect only the user and not the protocol as each action is executed in the
-    context of the user's account.
-- Mitigation:
-  - For extra safety, should we deny `target` as SuperExecutor for each hook?
+3. **Destination Chain Execution**:
+   - Bridge adapters call the SuperDestinationExecutor with bridged assets and execution data
+   - The SuperDestinationValidator verifies the signature and merkle proof for destination operations
+   - Upon validation, the SuperDestinationExecutor executes the intended operations
+
+4. **Replay Protection**:
+   - Each merkle root is tracked per user to prevent replay attacks
+   - Operations can only be executed once per merkle root per user
+
+#### Known Issues
+
+**Issue 1**: Source chain transaction failures don't automatically invalidate destination chain operations.
+
+**Scenario**: When a source chain transaction fails or is re-organized, but the signed merkle root remains valid:
+- The destination chain execution can still be performed if the user's account has sufficient funds
+- This is by design, as signed operations are considered valid user intents until their expiration time
+- If the user is unaware and signs a second transaction for the same operation, both could potentially execute
+
+**Behavior**:
+- Signed merkle roots remain valid until their expiration timestamp
+- Destination operations can execute independently if the account has sufficient funds
+- Each signed operation represents a legitimate user intent that can be executed independently
+
+**Technical Reasoning**:
+- Cross-chain operations have inherent finality and atomicity limitations
+- The system prioritizes ensuring valid signed operations can be executed rather than strict source-destination coupling
+- The validation mechanism is designed to be permissionless, allowing anyone to submit a valid operation for execution
+
+**Mitigation**:
+- Clear user documentation and transaction monitoring tools
+- Reasonable expiration times for signed operations (typically 1 hour)
+- Comprehensive transaction status tracking in the frontend
+- Users should monitor the execution status of both source and destination transactions
+- The Superform frontend and SuperScan provide visibility into all pending and executed operations
 
 ---
 
-# **Role-Gated Functions in Superform V2 Periphery**
+### SuperBundler Centralization
 
-### **SuperOracle.sol**
+**Risk**:
+- Since SuperBundler manages both the bundling and validation of userOps, it can be seen as a centralized component.
 
-**Function**: setProviderMaxStaleness(uint256 provider, uint256 newMaxStaleness)
+**Mitigation**:
+- The v2-contracts design incorporates fallback paths if operations are submitted outside of SuperBundler.
+- All SuperBundler can do is execute indicated user operations, no possibilities of malicious injection. Will be submitted to a separate audit.
 
-**Role**: onlyOwner
+### Execution Outside SuperBundler
 
-**Purpose**: Sets the maximum staleness period for a price provider
+**Risk**:
+- If userOps are executed directly (not via SuperBundler), certain optimizations and checks might be bypassed.
+- Users can deplete the SuperGasTank by grieving it, in cross chain operations.
 
-**Justification**: Owner control ensures price feed reliability by allowing only authorized updates to staleness
-parameters, preventing manipulation of price validity windows
+**Mitigation**:
+- See the potential fix for gas grievance issue in the `Bridges` section. This issue can be flagged as a non-solved issue that will be tackled during implementation.
+- Our modules are designed to handle direct execution gracefully, but users and integrators are advised to follow best practices outlined in the documentation and interact via Superform app.
 
-<br>
+### Inter-Hook Dependencies
 
-### **PeripheryRegistry.sol**
+**Risk**:
+- In complex execution flows, hooks may have dependencies on each other's state or outputs.
 
-**Function**: registerHook(address hook_)
+**Mitigation**:
+- The hook execution system carefully manages state transitions.
+- Hooks are encouraged to be designed in a way that minimizes tight coupling.
+- Mock test suites ensure proper behavior under various execution scenarios.
 
-**Role**: onlyOwner
+### SuperLedger Accounting
 
-**Purpose**: Registers a new hook in the system
+**Risk**:
+- Users could potentially be locked into a position if accounting errors occur
+- Small rounding errors in fee calculations could be exploited over time to reduce fees paid
 
-**Justification**: Owner control ensures only core verified and audited hooks can be added to the system, preventing
-malicious hooks from being registered
+**Mitigation**:
+- Regarding fee loss, a small loss due to rounding is accepted as the cost of practicality
+- For position locking concerns, in case of serious problems with the core, each yieldSourceOracle configured in SuperLedgerConfiguration can be set with a feePercent of 0 to allow users to skip the accounting calculation on exit
+- Additionally, the yieldSourceOracleId can be configured to use a new ledger contract as a fallback mechanism
 
-<br>
+### SuperExecutor Module
 
-**Function**: unregisterHook(address hook_)
+**Risk**:
+- Users could execute hooks directly, bypassing the SuperBundler, potentially avoiding the validator module
+- This would primarily affect only the user and not the protocol as each action is executed in the context of the user's account
 
-**Role**: onlyOwner
-
-**Purpose**: Removes a hook from the system
-
-**Justification**: Owner control allows disabling compromised or deprecated hooks, protecting users from potential
-vulnerabilities
-
-<br>
-
-**Function**: proposeFeeSplit(uint256 feeSplit_)
-
-**Role**: onlyOwner
-
-**Purpose**: Proposes a new fee split with a timelock
-
-**Justification**: Owner control with timelock ensures transparent and gradual changes to fee structures, preventing
-sudden changes that could harm users
-
-<br>
-
-**Function**: setTreasury(address treasury_)
-
-**Role**: onlyOwner
-
-**Purpose**: Updates the treasury address
-
-**Justification**: Owner control protects the destination of collected fees, ensuring they go to the legitimate project
-treasury
+**Mitigation**:
+- For extra safety, hooks are not allowed to target the SuperExecutor directly
+- All hook executions are validated for proper sequencing and authorization
 
 ---
-
-### **SuperVaultStrategy.sol (roles are set by creators of SuperVaults)**
-
-**Function**: Various strategy management functions
-
-**Role**: STRATEGIST_ROLE
-
-**Purpose**: Manages yield sources and strategy execution
-
-**Justification**: Specialized role for optimizing yield strategies, requiring deep DeFi expertise and quick response to
-market conditions
-
-<br>
-
-**Function**: Various configuration functions
-
-**Role**: MANAGER_ROLE
-
-**Purpose**: Manages global configuration and fee settings
-
-**Justification**: Administrative role for overall vault management, separate from strategy execution for better
-separation of concerns
-
-<br>
-
-**Function**: Emergency functions
-
-**Role**: EMERGENCY_ADMIN_ROLE
-
-**Purpose**: Handles emergency situations
-
-**Justification**: Specialized role with limited powers focused on emergency response, allowing quick action during
-critical situations without full admin privileges
