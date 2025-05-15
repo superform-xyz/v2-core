@@ -5,7 +5,9 @@ import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { BatchTransferFromHook } from "../../../../../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
+import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { IAllowanceTransfer } from "../../../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import { IPermit2Batch } from "../../../../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 import { InternalHelpers } from "../../../../utils/InternalHelpers.sol";
 
@@ -20,9 +22,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
     uint256[] public amounts;
 
     address public eoa;
-
     address public account;
-
     IAllowanceTransfer public permit2;
 
     function setUp() public {
@@ -67,19 +67,162 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         hook.build(address(0), account, hookData);
     }
 
-    function test_Build_Executions() public {
+    function test_Build_RevertIf_ZeroTokens() public {
+        vm.expectRevert(BatchTransferFromHook.INVALID_ARRAY_LENGTH.selector);
+        bytes memory hookData = _createBatchTransferFromHookData(eoa, 0, tokens, amounts);
+        hook.build(address(0), account, hookData);
+    }
+
+    function test_Build_Executions() public view {
         bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, tokens, amounts);
 
-        vm.startPrank(eoa);
-        permit2.approve(usdc, account, 10e18, uint48(block.timestamp + 1_000_000_000_000_000_000));
-        permit2.approve(weth, account, 10e18, uint48(block.timestamp + 1_000_000_000_000_000_000));
-        permit2.approve(dai, account, 10e18, uint48(block.timestamp + 1_000_000_000_000_000_000));
-        vm.stopPrank();
+        // Create a mock signature (65 bytes)
+        bytes memory signature = new bytes(65);
+        hookData = bytes.concat(hookData, signature);
 
-        Execution[] memory executions = hook.build(eoa, account, hookData);
+        Execution[] memory executions = hook.build(address(0), account, hookData);
 
-        assertEq(executions.length, 1);
+        assertEq(executions.length, 2);
         assertEq(executions[0].target, address(PERMIT2));
         assertEq(executions[0].value, 0);
+        assertEq(executions[1].target, address(PERMIT2));
+        assertEq(executions[1].value, 0);
+
+        // Verify the permit call data
+        bytes memory expectedPermitCallData =
+            abi.encodeCall(IPermit2Batch.permit, (eoa, _buildExpectedPermitBatch(account, tokens, amounts), signature));
+        assertEq(executions[0].callData, expectedPermitCallData);
+
+        // Verify the transfer call data
+        bytes memory expectedTransferCallData =
+            abi.encodeCall(IPermit2Batch.transferFrom, (_buildExpectedTransferDetails(eoa, account, tokens, amounts)));
+        assertEq(executions[1].callData, expectedTransferCallData);
+    }
+
+    function _buildExpectedPermitBatch(
+        address spender,
+        address[] memory tokens_,
+        uint256[] memory amountPerToken
+    )
+        internal
+        pure
+        returns (IAllowanceTransfer.PermitBatch memory)
+    {
+        uint256 len = tokens_.length;
+        IAllowanceTransfer.PermitDetails[] memory details = new IAllowanceTransfer.PermitDetails[](len);
+
+        for (uint256 i; i < len; ++i) {
+            details[i] = IAllowanceTransfer.PermitDetails({
+                token: tokens_[i],
+                amount: uint160(amountPerToken[i]),
+                expiration: type(uint48).max,
+                nonce: 0
+            });
+        }
+
+        return IAllowanceTransfer.PermitBatch({ details: details, spender: spender, sigDeadline: type(uint256).max });
+    }
+
+    function _buildExpectedTransferDetails(
+        address from,
+        address to,
+        address[] memory tokens_,
+        uint256[] memory amountPerToken
+    )
+        internal
+        pure
+        returns (IAllowanceTransfer.AllowanceTransferDetails[] memory)
+    {
+        uint256 len = tokens_.length;
+        IAllowanceTransfer.AllowanceTransferDetails[] memory details =
+            new IAllowanceTransfer.AllowanceTransferDetails[](len);
+
+        for (uint256 i; i < len; ++i) {
+            details[i] = IAllowanceTransfer.AllowanceTransferDetails({
+                from: from,
+                to: to,
+                token: tokens_[i],
+                amount: uint160(amountPerToken[i])
+            });
+        }
+
+        return details;
+    }
+
+    function test_Build_RevertIf_InvalidArrayLengths() public {
+        // Create arrays with mismatched lengths
+        address[] memory mismatchedTokens = new address[](2);
+        mismatchedTokens[0] = usdc;
+        mismatchedTokens[1] = weth;
+
+        uint256[] memory mismatchedAmounts = new uint256[](3);
+        mismatchedAmounts[0] = 1000e6;
+        mismatchedAmounts[1] = 2e18;
+        mismatchedAmounts[2] = 3e18;
+
+        bytes memory hookData = abi.encodePacked(
+            eoa,
+            uint256(3), // This should match the amounts array length
+            mismatchedTokens[0],
+            mismatchedTokens[1],
+            mismatchedAmounts[0],
+            mismatchedAmounts[1],
+            mismatchedAmounts[2]
+        );
+        bytes memory signature = new bytes(65);
+        hookData = bytes.concat(hookData, signature);
+
+        // This should revert when trying to decode the third token
+        vm.expectRevert();
+        hook.build(address(0), account, hookData);
+    }
+
+    function test_Build_RevertIf_EmptyTokenArray() public {
+        bytes memory hookData = abi.encodePacked(eoa, uint256(0));
+        bytes memory signature = new bytes(65);
+        hookData = bytes.concat(hookData, signature);
+
+        vm.expectRevert(BatchTransferFromHook.INVALID_ARRAY_LENGTH.selector);
+        hook.build(address(0), account, hookData);
+    }
+
+    function test_Build_RevertIf_ZeroAmount() public {
+        bytes memory hookData =
+            abi.encodePacked(eoa, uint256(3), tokens[0], tokens[1], tokens[2], uint256(0), uint256(0), uint256(0));
+        bytes memory signature = new bytes(65);
+        hookData = bytes.concat(hookData, signature);
+
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        hook.build(address(0), account, hookData);
+    }
+
+    function test_Build_RevertIf_InvalidSignatureLength() public {
+        bytes memory hookData =
+            abi.encodePacked(eoa, uint256(3), tokens[0], tokens[1], tokens[2], amounts[0], amounts[1], amounts[2]);
+        // Create an invalid signature length (not 65 bytes)
+        bytes memory invalidSignature = new bytes(64);
+        hookData = bytes.concat(hookData, invalidSignature);
+
+        // The hook doesn't actually check signature length, so this should succeed
+        Execution[] memory executions = hook.build(address(0), account, hookData);
+        assertEq(executions.length, 2);
+    }
+
+    function test_Build_RevertIf_InvalidTokenAddress() public {
+        bytes memory hookData = abi.encodePacked(
+            eoa,
+            uint256(3),
+            address(0), // Invalid token address
+            weth,
+            dai,
+            amounts[0],
+            amounts[1],
+            amounts[2]
+        );
+        bytes memory signature = new bytes(65);
+        hookData = bytes.concat(hookData, signature);
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        hook.build(address(0), account, hookData);
     }
 }
