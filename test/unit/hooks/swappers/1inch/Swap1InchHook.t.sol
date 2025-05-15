@@ -194,7 +194,6 @@ contract Swap1InchHookTest is Helpers {
     function test_UnoSwap_beneficiaryArgs() public view {
         bytes memory data = _buildCurveHookData(0, false, dstReceiver, 1000, 100, false);
         uint8[] memory idxs = hook.beneficiaryArgs(data);
-
         assertEq(idxs.length, 1);
     }
 

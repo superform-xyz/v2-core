@@ -16,7 +16,8 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @author Superform Labs
 /// @dev `externalCall` field won't contain the signature for the destination executor
 /// @dev      signature is retrieved from the validator contract transient storage
-/// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to sign it
+/// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to
+/// sign it
 /// @dev data has the following structure
 /// @notice         bool usePrevHookAmount = _decodeBool(0);
 /// @notice         uint256 value = BytesLib.toUint256(data, 1);
@@ -74,12 +75,8 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         returns (Execution[] memory executions)
     {
         bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
-        (
-            IDlnSource.OrderCreation memory orderCreation,
-            uint256 value,
-            bytes memory affiliateFee,
-            uint32 referralCode
-        ) = _createOrder(data, signature);
+        (IDlnSource.OrderCreation memory orderCreation, uint256 value, bytes memory affiliateFee, uint32 referralCode) =
+            _createOrder(data, signature);
 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         if (usePrevHookAmount) {
@@ -159,7 +156,10 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         bytes allowedCancelBeneficiarySrc;
     }
 
-    function _createOrder(bytes memory data, bytes memory sigData)
+    function _createOrder(
+        bytes memory data,
+        bytes memory sigData
+    )
         internal
         pure
         returns (
@@ -248,12 +248,8 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
 
         // create externalCall
         IDlnSource.ExternalCallEnvelopV1 memory envelope;
-        (
-            bytes memory initData,
-            bytes memory executorCalldata,
-            address account,
-            uint256 intentAmount
-        ) = abi.decode(vars.destinationMessage, (bytes, bytes, address, uint256));
+        (bytes memory initData, bytes memory executorCalldata, address account, uint256 intentAmount) =
+            abi.decode(vars.destinationMessage, (bytes, bytes, address, uint256));
         envelope.payload = abi.encode(initData, executorCalldata, account, intentAmount, sigData);
         envelope.fallbackAddress = vars.fallbackAddress;
         envelope.executorAddress = vars.executorAddress;

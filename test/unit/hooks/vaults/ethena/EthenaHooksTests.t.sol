@@ -224,7 +224,7 @@ contract EthenaHooksTests is Helpers {
         uint8[] memory idxs = unstakeHook.beneficiaryArgs(data);
         assertEq(idxs.length, 0);
     }
-
+    
     /*//////////////////////////////////////////////////////////////
                               HELPERS
     //////////////////////////////////////////////////////////////*/

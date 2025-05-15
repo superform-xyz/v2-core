@@ -211,8 +211,9 @@ interface ISuperVaultStrategy {
         uint8 actionType,
         bool activate,
         bool isAsync
-    ) external;
-    
+    )
+        external;
+
     /// @notice Batch manage multiple yield sources in a single transaction
     /// @param sources Array of yield source addresses
     /// @param oracles Array of oracle addresses (used for adding/updating)
@@ -225,7 +226,8 @@ interface ISuperVaultStrategy {
         uint8[] calldata actionTypes,
         bool[] calldata activates,
         bool[] calldata isAsyncs
-    ) external;
+    )
+        external;
 
     /// @notice Propose or execute a hook root update
     /// @notice Propose changes to vault-specific fee configuration
@@ -269,6 +271,20 @@ interface ISuperVaultStrategy {
     /// @param controller The controller address
     /// @return averageWithdrawPrice The average withdraw price
     function getAverageWithdrawPrice(address controller) external view returns (uint256 averageWithdrawPrice);
+
+    /// @notice Previews the fee that would be taken for redeeming a specific amount of shares
+    /// @param controller The address of the controller requesting the redemption
+    /// @param sharesToRedeem The number of shares to redeem
+    /// @return totalFee The estimated fee that would be taken in asset terms
+    /// @return superformFee The portion of the fee that would go to Superform treasury
+    /// @return recipientFee The portion of the fee that would go to the fee recipient
+    function previewPerformanceFee(
+        address controller,
+        uint256 sharesToRedeem
+    )
+        external
+        view
+        returns (uint256 totalFee, uint256 superformFee, uint256 recipientFee);
 
     /// @notice Get the pending redeem request amount (shares) for a controller
     /// @param controller The controller address

@@ -434,6 +434,4 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         return data;
     }
-
-    
 }

@@ -98,6 +98,7 @@ contract ApproveAndGearboxStakeHookTest is Helpers {
         assertEq(hook.decodeUsePrevHookAmount(data), true);
     }
 
+
     function _assertExecutions(Execution[] memory executions) internal view {
         assertEq(executions.length, 4);
         assertEq(executions[0].target, token);

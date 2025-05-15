@@ -172,7 +172,7 @@ abstract contract Constants {
     string internal constant SUPER_VAULT_AGGREGATOR_KEY = "SuperVaultAggregator";
     string internal constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
     string internal constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";
-    string internal constant SUPER_GAS_TANK_KEY = "SuperGasTank";
+    string internal constant ECDSAPPS_ORACLE_KEY = "ECDSAPPSOracle";
     // oracle keys
     string internal constant SUPER_ORACLE_KEY = "SuperOracle";
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";

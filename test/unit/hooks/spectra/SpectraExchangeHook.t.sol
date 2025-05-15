@@ -97,7 +97,7 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        (address target, address[] memory args) = hook.inspect(data);
+        (, address[] memory args) = hook.inspect(data);
         assertEq(args.length, 3);
     }
 
@@ -164,7 +164,7 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        (address target, address[] memory args) = hook.inspect(data);
+        (, address[] memory args) = hook.inspect(data);
         assertEq(args.length, 2);
     }
 
@@ -207,7 +207,7 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        (address target, address[] memory args) = hook.inspect(data);
+        (, address[] memory args) = hook.inspect(data);
         assertEq(args.length, 1);
     }
 
