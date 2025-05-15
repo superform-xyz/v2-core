@@ -132,6 +132,8 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeBorrowData(false);
         Execution[] memory executions = borrowHook.build(address(0), address(this), data);
 
+        assertFalse(borrowHook.decodeUsePrevHookAmount(data));
+
         assertEq(executions.length, 4);
 
         // Check approve(0) call
@@ -418,6 +420,7 @@ contract MorphoLoanHooksTest is Helpers {
                           DERIVE INTEREST TESTS
     //////////////////////////////////////////////////////////////*/
     function test_RepayHook_DeriveInterest() public view {
+        _encodeRepayData(false, false);
         uint256 interest = repayHook.deriveInterest(
             MarketParams({
                 loanToken: loanToken,
@@ -431,6 +434,7 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     function test_RepayAndWithdrawHook_DeriveInterest() public view {
+        _encodeRepayAndWithdrawData(false, false);
         uint256 interest = repayAndWithdrawHook.deriveInterest(
             MarketParams({
                 loanToken: loanToken,
@@ -556,7 +560,22 @@ contract MorphoLoanHooksTest is Helpers {
         });
         Id id = params.id();
         uint256 assets = repayAndWithdrawHook.sharesToAssets(params, address(this));
-        repayAndWithdrawHook.deriveShareBalance(id, address(this));
+        uint256 sharesToAssets =
+            shares.toAssetsUp(mockMorpho.market(id).totalBorrowAssets, mockMorpho.market(id).totalBorrowShares);
+        assertEq(assets, sharesToAssets);
+    }
+
+    function test_RepayHook_SharesToAssets() public view {
+        uint256 shares = 100e18;
+        MarketParams memory params = MarketParams({
+            loanToken: loanToken,
+            collateralToken: collateralToken,
+            oracle: address(mockOracle),
+            irm: address(mockIRM),
+            lltv: lltv
+        });
+        Id id = params.id();
+        uint256 assets = repayHook.sharesToAssets(params, address(this));
         uint256 sharesToAssets =
             shares.toAssetsUp(mockMorpho.market(id).totalBorrowAssets, mockMorpho.market(id).totalBorrowShares);
         assertEq(assets, sharesToAssets);
@@ -591,6 +610,37 @@ contract MorphoLoanHooksTest is Helpers {
 
         repayAndWithdrawHook.postExecute(address(0), address(this), data);
         assertEq(repayAndWithdrawHook.outAmount(), 0);
+    }
+    /*//////////////////////////////////////////////////////////////
+                        BASE LOAN HOOK
+    //////////////////////////////////////////////////////////////*/
+    function test_DecodeUsePrevHookAmount() public view {
+        bytes memory data = _encodeRepayData(false, false);
+        assertEq(repayHook.decodeUsePrevHookAmount(data), false);
+
+        data = _encodeRepayData(true, false);
+        assertEq(repayHook.decodeUsePrevHookAmount(data), true);
+    }
+
+    function test_getLoanTokenAddress() public view {
+        bytes memory data = _encodeRepayData(false, false);
+        assertNotEq(repayHook.getLoanTokenAddress(data), address(0));
+    }
+
+    function test_getCollateralTokenAddress() public view {
+        bytes memory data = _encodeRepayData(false, false);
+        assertNotEq(repayHook.getCollateralTokenAddress(data), address(0));
+    }
+
+    function test_getCollateralTokenBalance() public view {
+        bytes memory data = _encodeRepayData(false, false);
+        assertEq(repayHook.getCollateralTokenBalance(address(this), data), 0);
+    }
+
+    function test_getLoanTokenBalance() public {
+        loanToken = address(mockCollateralToken);
+        bytes memory data = _encodeRepayData(false, false);
+        assertEq(repayHook.getLoanTokenBalance(address(this), data), 0);
     }
 
     /*//////////////////////////////////////////////////////////////

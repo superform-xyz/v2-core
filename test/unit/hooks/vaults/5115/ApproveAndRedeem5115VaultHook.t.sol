@@ -41,6 +41,20 @@ contract ApproveAndRedeem5115VaultHookTest is Helpers {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.OUTFLOW));
     }
 
+    function test_UsePrevHookAmount() public view {
+        bytes memory data = _encodeData(true);
+        assertTrue(hook.decodeUsePrevHookAmount(data));
+
+        data = _encodeData(false);
+        assertFalse(hook.decodeUsePrevHookAmount(data));
+    }
+
+    function test_ReplaceCalldataAmount() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory newCalldata = hook.replaceCalldataAmount(data, 1000);
+        assertEq(newCalldata.length, data.length);
+    }
+
     function test_Build_ApproveAndRedeem_5115_Hook() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = hook.build(address(0), address(this), data);

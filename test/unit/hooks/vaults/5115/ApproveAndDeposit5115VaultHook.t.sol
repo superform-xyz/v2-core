@@ -178,6 +178,14 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
         assertEq(decodedAmount, amount);
     }
 
+    function test_UsePrevHookAmount() public view {
+        bytes memory data = _encodeData(true);
+        assertTrue(hook.decodeUsePrevHookAmount(data));
+
+        data = _encodeData(false);
+        assertFalse(hook.decodeUsePrevHookAmount(data));
+    }
+
     function test_PreAndPostExecute() public {
         yieldSource = token; // for the .balanceOf call
         _getTokens(token, address(this), amount);
