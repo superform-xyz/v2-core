@@ -105,5 +105,6 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
         } else {
             incentiveUSD = -int256(Math.mulDiv(uint256(-energyDiff), energyToUSDExchangeRatio, PRECISION));
         }
+        return (incentiveUSD, true);
     }
 }
