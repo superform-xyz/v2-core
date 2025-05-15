@@ -14,12 +14,15 @@ import { SuperVaultStrategy } from "./SuperVaultStrategy.sol";
 import { SuperVaultEscrow } from "./SuperVaultEscrow.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
+// Libraries
+import { AssetMetadataLib } from "../libraries/AssetMetadataLib.sol";
 
 /// @title SuperVaultAggregator
 /// @author Superform Labs
 /// @notice Registry and PPS oracle for all SuperVaults
 /// @dev Creates new SuperVault trios and manages PPS updates
 contract SuperVaultAggregator is ISuperVaultAggregator {
+    using AssetMetadataLib for address;
     using Clones for address;
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -124,8 +127,11 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         _superVaultStrategies.add(strategy);
         _superVaultEscrows.add(escrow);
 
+        (bool success, uint8 assetDecimals) = params.asset.tryGetAssetDecimals();
+        uint8 underlyingDecimals = success ? assetDecimals : 18;
+
         // Initialize StrategyData individually to avoid mapping assignment issues
-        _strategyData[strategy].pps = 10 ** PPS_DECIMALS; // 1.0 as initial PPS
+        _strategyData[strategy].pps = 10 ** underlyingDecimals; // 1.0 as initial PPS
         _strategyData[strategy].lastUpdateTimestamp = block.timestamp;
         _strategyData[strategy].minUpdateInterval = params.minUpdateInterval;
         _strategyData[strategy].maxStaleness = params.maxStaleness;

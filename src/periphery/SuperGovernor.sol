@@ -75,7 +75,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     uint256 private _upkeepCostEffectiveTime;
 
     // Upkeep control
-    bool private _upkeepPaymentsEnabled = true;
+    bool private _upkeepPaymentsEnabled;
     bool private _proposedUpkeepPaymentsEnabled;
     uint256 private _upkeepPaymentsChangeEffectiveTime;
 

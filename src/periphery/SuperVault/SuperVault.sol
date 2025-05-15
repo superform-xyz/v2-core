@@ -18,11 +18,15 @@ import { IERC7540Operator, IERC7540Redeem, IERC7741 } from "../../vendor/standar
 import { IERC7575 } from "../../vendor/standards/ERC7575/IERC7575.sol";
 import { ISuperVaultEscrow } from "../interfaces/ISuperVaultEscrow.sol";
 
+// Libraries
+import { AssetMetadataLib } from "../libraries/AssetMetadataLib.sol";
+
 /// @title SuperVault
 /// @author Superform Labs
 /// @notice SuperVault vault contract implementing ERC4626 with synchronous deposits and asynchronous redeems via
 /// ERC7540
 contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, ReentrancyGuard {
+    using AssetMetadataLib for address;
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -51,8 +55,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     uint8 private _underlyingDecimals;
     ISuperVaultStrategy public strategy;
     address public escrow;
-
-    uint256 private constant PRECISION = 1e18;
+    uint256 public PRECISION;
 
     /// @inheritdoc IERC7540Operator
     mapping(address owner => mapping(address operator => bool)) public isOperator;
@@ -91,17 +94,17 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         if (asset_ == address(0)) revert INVALID_ASSET();
         if (strategy_ == address(0)) revert INVALID_STRATEGY();
         if (escrow_ == address(0)) revert INVALID_ESCROW();
-
         initialized = true;
 
         // Store name and symbol
         vaultName = name_;
         vaultSymbol = symbol_;
 
-        // Initialize asset and decimals
-        (bool success, uint8 assetDecimals) = _tryGetAssetDecimals(asset_);
-        _underlyingDecimals = success ? assetDecimals : 18;
+        // Set asset and precision
         _asset = IERC20(asset_);
+        (bool success, uint8 assetDecimals) = asset_.tryGetAssetDecimals();
+        _underlyingDecimals = success ? assetDecimals : 18;
+        PRECISION = 10 ** _underlyingDecimals;
         share = address(this);
         strategy = ISuperVaultStrategy(strategy_);
         escrow = escrow_;
@@ -348,7 +351,9 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
 
     /// @inheritdoc IERC4626
     function maxRedeem(address owner) public view override returns (uint256) {
-        return maxWithdraw(owner).mulDiv(strategy.getAverageWithdrawPrice(owner), PRECISION, Math.Rounding.Ceil);
+        uint256 withdrawPrice = strategy.getAverageWithdrawPrice(owner);
+        if (withdrawPrice == 0) return 0;
+        return maxWithdraw(owner).mulDiv(PRECISION, withdrawPrice, Math.Rounding.Floor);
     }
 
     /// @inheritdoc IERC4626
@@ -491,20 +496,5 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     function _isValidSignature(address signer, bytes32 digest, bytes memory signature) internal pure returns (bool) {
         address recoveredSigner = ECDSA.recover(digest, signature);
         return recoveredSigner == signer;
-    }
-
-    /**
-     * @dev Attempts to fetch the asset decimals. A return value of false indicates that the attempt failed in some way.
-     */
-    function _tryGetAssetDecimals(address asset_) private view returns (bool ok, uint8 assetDecimals) {
-        (bool success, bytes memory encodedDecimals) =
-            address(asset_).staticcall(abi.encodeCall(IERC20Metadata.decimals, ()));
-        if (success && encodedDecimals.length >= 32) {
-            uint256 returnedDecimals = abi.decode(encodedDecimals, (uint256));
-            if (returnedDecimals <= type(uint8).max) {
-                return (true, uint8(returnedDecimals));
-            }
-        }
-        return (false, 0);
     }
 }
