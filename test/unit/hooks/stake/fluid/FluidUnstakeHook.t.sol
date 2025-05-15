@@ -32,6 +32,14 @@ contract FluidUnstakeHookTest is Helpers {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
+    function test_DecodeUsePrevHookAmount() public {
+        bytes memory data = _encodeData(false);
+        assertEq(hook.decodeUsePrevHookAmount(data), false);
+
+        data = _encodeData(true);
+        assertEq(hook.decodeUsePrevHookAmount(data), true);
+    }
+
     function test_Build() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = hook.build(address(0), address(this), data);

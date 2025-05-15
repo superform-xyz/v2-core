@@ -117,7 +117,10 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         uint256 refund = calculateRefund(maxGasLimit, maxFeePerGas, actualGasCost, nodeOperatorPremium);
         if (refund > 0) {
             entryPoint.withdrawTo(payable(sender), refund);
+            emit SuperNativePaymsterRefund(sender, refund);
         }
+
+        emit SuperNativePaymasterPostOp(context);
     }
 
     /*//////////////////////////////////////////////////////////////
