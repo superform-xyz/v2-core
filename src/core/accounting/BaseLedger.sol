@@ -7,7 +7,6 @@ import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { console2 } from "forge-std/console2.sol";
 
 /// @title BaseLedger
 /// @author Superform Labs
@@ -65,11 +64,6 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 accumulatorShares = usersAccumulatorShares[user][yieldSource];
         uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user][yieldSource];
 
-        console2.log("\n ----------");
-        console2.log("SHARES REDEEMING:", usedShares);
-        console2.log("ACCUMULATED SHARES:", accumulatorShares);
-        console2.log("\n ----------");
-
         if (usedShares > accumulatorShares) revert INSUFFICIENT_SHARES();
 
         costBasis = Math.mulDiv(accumulatorCostBasis, usedShares, accumulatorShares);
@@ -107,13 +101,6 @@ abstract contract BaseLedger is ISuperLedger {
     {
         usersAccumulatorShares[user][yieldSource] += amountShares;
         usersAccumulatorCostBasis[user][yieldSource] += Math.mulDiv(amountShares, pps, 10 ** decimals);
-
-        console2.log("\n ----------");
-        console2.log("PPS of the update", pps);
-        console2.log("decimals", decimals);
-
-        console2.log("DEPOSIT ACCUMULATED SHARES:", usersAccumulatorCostBasis[user][yieldSource]);
-        console2.log("\n ----------");
     }
 
     function _getOutflowProcessVolume(
@@ -157,9 +144,6 @@ abstract contract BaseLedger is ISuperLedger {
     {
         uint256 costBasis = _calculateCostBasis(user, yieldSource, usedShares);
         feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
-        console2.log("\n");
-        console2.log("LEDGER FEE ACTUALLY TAKEN", feeAmount);
-        console2.log("ON ASSETS", amountAssets);
     }
 
     function _calculateFees(

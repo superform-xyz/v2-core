@@ -26,7 +26,6 @@ import { HookDataDecoder } from "../../core/libraries/HookDataDecoder.sol";
 import { ISuperVaultStrategy } from "../interfaces/ISuperVaultStrategy.sol";
 import { ISuperGovernor, FeeType } from "../interfaces/ISuperGovernor.sol";
 import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
-import { console2 } from "forge-std/console2.sol";
 
 /// @title SuperVaultStrategy
 /// @author Superform Labs
@@ -580,7 +579,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
             uint256 profit = currentAssetsWithFees - historicalAssets;
             uint256 performanceFeeBps = feeConfig.performanceFeeBps;
             uint256 totalFee = profit.mulDiv(performanceFeeBps, BPS_PRECISION, Math.Rounding.Floor);
-            console2.log("FEE-TAKEN", totalFee);
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee using revenueShare from SuperGovernor
                 uint256 superformFee = totalFee.mulDiv(
@@ -627,7 +625,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
         if (newTotalShares > 0) {
             state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
-            console2.log("AVG WITHDRAW PRICE WITH FEES ", state.averageWithdrawPrice);
         }
     }
 
