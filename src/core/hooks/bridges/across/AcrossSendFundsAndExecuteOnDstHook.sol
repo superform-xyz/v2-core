@@ -17,7 +17,8 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
 /// @dev `destinationMessage` field won't contain the signature for the destination executor
 /// @dev      signature is retrieved from the validator contract transient storage
-/// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to sign it
+/// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to
+/// sign it
 /// @dev data has the following structure
 /// @notice         uint256 value = BytesLib.toUint256(data, 0);
 /// @notice         address recipient = BytesLib.toAddress(data, 32);
@@ -108,13 +109,10 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
         // append signature to `destinationMessage`
         {
             bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
-            (
-                bytes memory initData,
-                bytes memory executorCalldata,
-                address _account,
-                uint256 intentAmount
-            ) = abi.decode(acrossV3DepositAndExecuteData.destinationMessage, (bytes, bytes, address, uint256));
-            acrossV3DepositAndExecuteData.destinationMessage = abi.encode(initData, executorCalldata, _account, intentAmount, signature);
+            (bytes memory initData, bytes memory executorCalldata, address _account, uint256 intentAmount) =
+                abi.decode(acrossV3DepositAndExecuteData.destinationMessage, (bytes, bytes, address, uint256));
+            acrossV3DepositAndExecuteData.destinationMessage =
+                abi.encode(initData, executorCalldata, _account, intentAmount, signature);
         }
 
         // build execution

@@ -25,7 +25,6 @@ import { MockSignature } from "../../mocks/MockSignature.sol";
 import { MockExecutorModule } from "../../mocks/MockExecutorModule.sol";
 import { MockValidatorModule } from "../../mocks/MockValidatorModule.sol";
 
-
 import "forge-std/console2.sol";
 
 contract Mock is Helpers, RhinestoneModuleKit, ERC7579Precompiles, OdosAPIParser {
