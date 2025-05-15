@@ -26,6 +26,8 @@ import { FeeType } from "../../../../src/periphery/interfaces/ISuperGovernor.sol
 
 import { ISuperVaultAggregator } from "../../../../src/periphery/interfaces/ISuperVaultAggregator.sol";
 
+import { IECDSAPPSOracle } from "../../../../src/periphery/interfaces/IECDSAPPSOracle.sol";
+
 contract BaseSuperVaultTest is BaseTest {
     using ModuleKitHelpers for *;
     using Math for uint256;
@@ -42,6 +44,7 @@ contract BaseSuperVaultTest is BaseTest {
     SuperVaultAggregator public aggregator;
     SuperVaultStrategy public strategy;
     SuperGovernor public superGovernor;
+    IECDSAPPSOracle public ecdsappsOracle;
 
     // Helper contracts
     TotalAssetHelper public totalAssetHelper;
@@ -52,7 +55,6 @@ contract BaseSuperVaultTest is BaseTest {
     IERC4626 public aaveVault;
 
     // Constants
-    uint256 private constant PRECISION = 1e18;
     uint256 constant LARGE_DEPOSIT = 100_000e6; // 100k USDC
 
     uint256 constant ONE_HUNDRED_PERCENT = 10_000;
@@ -86,6 +88,9 @@ contract BaseSuperVaultTest is BaseTest {
 
         // Get aggregator
         aggregator = SuperVaultAggregator(_getContract(ETH, SUPER_VAULT_AGGREGATOR_KEY));
+
+        // Get ECDSA Oracle
+        ecdsappsOracle = IECDSAPPSOracle(_getContract(ETH, ECDSAPPS_ORACLE_KEY));
 
         // Get USDC from fork
         asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
@@ -270,7 +275,7 @@ contract BaseSuperVaultTest is BaseTest {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), assets, false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), assets, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
@@ -373,7 +378,7 @@ contract BaseSuperVaultTest is BaseTest {
         vm.stopPrank();
 
         (uint256 pricePerShare) = _getSuperVaultPricePerShare();
-        uint256 shares = depositAmount.mulDiv(PRECISION, pricePerShare);
+        uint256 shares = depositAmount.mulDiv(strategy.PRECISION(), pricePerShare);
 
         _trackDeposit(accountEth, shares, depositAmount);
     }
@@ -425,10 +430,10 @@ contract BaseSuperVaultTest is BaseTest {
         );
 
         (vars.totalSvAssets,) = totalAssetHelper.totalAssets(address(strategy));
-        vars.pricePerShare = vars.totalSvAssets.mulDiv(PRECISION, vault.totalSupply(), Math.Rounding.Floor);
+        vars.pricePerShare = vars.totalSvAssets.mulDiv(strategy.PRECISION(), vault.totalSupply(), Math.Rounding.Floor);
 
-        vars.amountForVault1 = vars.fluidSharesOut * 1e18 / vars.pricePerShare;
-        vars.amountForVault2 = vars.aaveSharesOut * 1e18 / vars.pricePerShare;
+        vars.amountForVault1 = vars.fluidSharesOut * vault.PRECISION() / vars.pricePerShare;
+        vars.amountForVault2 = vars.aaveSharesOut * vault.PRECISION() / vars.pricePerShare;
 
         vars.underlyingSharesForVault1 = IERC4626(address(vault1)).convertToShares(vars.amountForVault1);
         vars.underlyingSharesForVault2 = IERC4626(address(vault2)).convertToShares(vars.amountForVault2);
@@ -693,10 +698,10 @@ contract BaseSuperVaultTest is BaseTest {
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
         {
             (uint256 totalSvAssets,) = totalAssetHelper.totalAssets(address(strategy));
-            uint256 pricePerShare = totalSvAssets.mulDiv(PRECISION, vault.totalSupply(), Math.Rounding.Floor);
+            uint256 pricePerShare = totalSvAssets.mulDiv(vault.PRECISION(), vault.totalSupply(), Math.Rounding.Floor);
 
-            uint256 amountForVault1 = redeemSharesVault1 * 1e18 / pricePerShare;
-            uint256 amountForVault2 = redeemSharesVault2 * 1e18 / pricePerShare;
+            uint256 amountForVault1 = redeemSharesVault1 * vault.PRECISION() / pricePerShare;
+            uint256 amountForVault2 = redeemSharesVault2 * vault.PRECISION() / pricePerShare;
 
             uint256 underlyingSharesForVault1 = IERC4626(address(vault1)).convertToShares(amountForVault1);
             uint256 underlyingSharesForVault2 = IERC4626(address(vault2)).convertToShares(amountForVault2);
@@ -1179,56 +1184,6 @@ contract BaseSuperVaultTest is BaseTest {
         assertApproxEqRel(assetsFromTotalSharesBurned, totalAssetsReceived, 0.01e18);
     }
 
-    // 0% fee is required for Ledger entries where the SuperVault is the target so that we don't double charge fees
-    function _setUpSuperLedgerForVault() internal {
-        vm.selectFork(FORKS[ETH]);
-        vm.startPrank(MANAGER);
-        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
-        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSourceOracle: _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
-            feePercent: 0,
-            feeRecipient: TREASURY,
-            ledger: _getContract(ETH, SUPER_LEDGER_KEY)
-        });
-
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(
-            configs
-        );
-        vm.warp(block.timestamp + 2 weeks);
-        bytes4[] memory yieldSourceOracleIds = new bytes4[](1);
-        yieldSourceOracleIds[0] = bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY))
-            .acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);
-        vm.stopPrank();
-    }
-
-    // 0.1% fee for Ledger entries where the SuperVault is the target so that we can test the fee derivation
-    function _setUpSuperLedgerForVault_With_Ledger_Fees() internal {
-        vm.selectFork(FORKS[ETH]);
-        vm.startPrank(MANAGER);
-        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
-        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSourceOracle: _getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY),
-            feePercent: 100,
-            feeRecipient: TREASURY,
-            ledger: _getContract(ETH, SUPER_LEDGER_KEY)
-        });
-
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY)).proposeYieldSourceOracleConfig(
-            configs
-        );
-        vm.warp(block.timestamp + 2 weeks);
-        bytes4[] memory yieldSourceOracleIds = new bytes4[](1);
-        yieldSourceOracleIds[0] = bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
-        ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY))
-            .acceptYieldSourceOracleConfigProposal(yieldSourceOracleIds);
-        vm.stopPrank();
-    }
-
     function _setFeeConfig(uint256 feePercent, address feeRecipient) internal {
         vm.startPrank(STRATEGIST);
         strategy.proposeVaultFeeConfigUpdate(feePercent, feeRecipient);
@@ -1328,7 +1283,8 @@ contract BaseSuperVaultTest is BaseTest {
 
     function _deriveSuperVaultFees(
         uint256 requestedShares,
-        uint256 currentPricePerShare
+        uint256 currentPricePerShare,
+        uint256 precision
     )
         internal
         returns (uint256, uint256)
@@ -1350,7 +1306,7 @@ contract BaseSuperVaultTest is BaseTest {
         state.accumulatorCostBasis -= historicalAssets;
 
         // Calculate current value and process fees
-        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor);
+        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, precision, Math.Rounding.Floor);
 
         (uint256 superformFee, uint256 recipientFee) = _deriveSuperVaultFeesFromAssets(currentAssets, historicalAssets);
 
@@ -1396,12 +1352,61 @@ contract BaseSuperVaultTest is BaseTest {
         uint256 totalSupplyAmount = vault.totalSupply();
         if (totalSupplyAmount == 0) {
             // For first deposit, set initial PPS to 1 unit in price decimals
-            pricePerShare = PRECISION;
+            pricePerShare = vault.PRECISION();
         } else {
             // Calculate current PPS in price decimals
             (uint256 totalAssetsVault,) = totalAssetHelper.totalAssets(address(strategy));
-            pricePerShare = totalAssetsVault.mulDiv(PRECISION, totalSupplyAmount, Math.Rounding.Floor);
+            pricePerShare = totalAssetsVault.mulDiv(vault.PRECISION(), totalSupplyAmount, Math.Rounding.Floor);
         }
+    }
+
+    /**
+     * @notice Updates the PPS (Price Per Share) using TotalAssetHelper
+     * @return pps The calculated and updated price per share value
+     * @dev This function uses TotalAssetHelper to get totalAssets, calculates PPS,
+     *      creates a signature, and updates the PPS through the ECDSAPPSOracle contract
+     */
+    function _updateSuperVaultPPS(address strategyAddr, address vault_) internal returns (uint256 pps) {
+        uint256 totalSupplyAmount = SuperVault(vault_).totalSupply();
+
+        // Get current totalAssets from TotalAssetHelper
+        (uint256 currentTotalAssets,) = totalAssetHelper.totalAssets(strategyAddr);
+        uint256 precision = SuperVault(vault_).PRECISION();
+        // Calculate price per share based on current totalAssets and totalSupply
+        if (totalSupplyAmount == 0) {
+            // For first deposit, set initial PPS to 1 unit in price decimals
+            pps = precision;
+        } else {
+            // Calculate current PPS in price decimals using total assets from helper
+            pps = currentTotalAssets.mulDiv(precision, totalSupplyAmount, Math.Rounding.Floor);
+        }
+
+        // Get the current timestamp for the signature
+        uint256 timestamp = block.timestamp;
+
+        // Create the message hash
+        bytes32 messageHash = keccak256(abi.encodePacked(strategyAddr, pps, timestamp));
+
+        // Create the Ethereum signed message hash
+        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+
+        // Create signature (r, s, v) components using the constant KEEPER address
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(VALIDATOR_KEY, ethSignedMessageHash);
+
+        // Combine the signature components into a single bytes signature
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        // Create an array of proofs with the signature
+        bytes[] memory proofs = new bytes[](1);
+        proofs[0] = signature;
+
+        // Call updatePPS on the ECDSAPPSOracle
+        ecdsappsOracle.updatePPS(strategyAddr, proofs, pps, timestamp);
+
+        // Log the updated PPS for debugging
+        console2.log("Updated PPS:", pps);
+
+        return pps;
     }
 
     function _calculateVaultShares(uint256 redeemShares)

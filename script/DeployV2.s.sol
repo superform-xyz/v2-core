@@ -94,6 +94,7 @@ import { SuperOracle } from "../src/periphery/oracles/SuperOracle.sol";
 // SuperVault
 
 import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 contract DeployV2 is Script, Configuration {
@@ -126,6 +127,7 @@ contract DeployV2 is Script, Configuration {
         address superMerkleValidator;
         address superDestinationValidator;
         address superNativePaymaster;
+        address ecdsappsOracle;
     }
 
     struct HookAddresses {
@@ -367,6 +369,18 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, SUPER_VAULT_AGGREGATOR_KEY),
             abi.encodePacked(type(SuperVaultAggregator).creationCode, abi.encode(deployedContracts.superGovernor))
         );
+
+        deployedContracts.ecdsappsOracle = __deployContract(
+            deployer,
+            ECDSAPPS_ORACLE_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, ECDSAPPS_ORACLE_KEY),
+            abi.encodePacked(type(ECDSAPPSOracle).creationCode, abi.encode(address(deployedContracts.superGovernor)))
+        );
+
+        SuperGovernor(deployedContracts.superGovernor).setActivePPSOracle(address(deployedContracts.ecdsappsOracle));
+        SuperGovernor(deployedContracts.superGovernor).addValidator(configuration.validator);
+
         // Deploy Hooks
         HookAddresses memory hookAddresses = _deployHooks(deployer, chainId);
 
