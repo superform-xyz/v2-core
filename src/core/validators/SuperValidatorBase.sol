@@ -111,12 +111,12 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     /// @notice Validates if a signature is valid based on signer and expiration time
     /// @dev Checks that the signer matches the registered account owner and signature hasn't expired
     /// @param signer The address recovered from the signature
-    /// @param account The account address being operated on
+    /// @param sender The account address being operated on
     /// @param validUntil Timestamp after which the signature is no longer valid
     /// @return True if the signature is valid, false otherwise
     function _isSignatureValid(
         address signer, 
-        address account,
+        address sender,
         uint48 validUntil
     ) 
         internal
@@ -124,6 +124,6 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
         virtual
         returns (bool)
     {
-        return signer == _accountOwners[account] && validUntil >= block.timestamp;
+        return signer == _accountOwners[sender] && validUntil >= block.timestamp;
     }
 }

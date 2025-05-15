@@ -158,21 +158,15 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         bytes32 storageKey = _makeKey(identifier);
         uint256 len = data.length;
 
-        // Store the length of the data at the base storage key
         assembly {
             tstore(storageKey, len)
         }
 
-        // Store each 32-byte chunk of data in consecutive storage slots
         for (uint256 i; i < len; i += 32) {
-            bytes32 value;
-
+            bytes32 word;
             assembly {
-                value := calldataload(add(data.offset, i))
-            }
-
-            assembly {
-                tstore(add(storageKey, add(i, 32)), value)
+                word := calldataload(add(data.offset, i))
+                tstore(add(storageKey, div(add(i, 32), 32)), word)
             }
         }
     }
