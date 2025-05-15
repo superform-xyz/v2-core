@@ -1,17 +1,20 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-// external
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-
 // superform
 import { BaseLedger } from "./BaseLedger.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 /// @title FlatFeeLedger
 /// @author Superform Labs
-/// @notice Rewards ledger
+/// @notice Specialized ledger implementation that applies a flat fee to reward distributions
+/// @dev Extends BaseLedger to modify the fee calculation logic for reward scenarios
+///      Unlike the base implementation, this ledger ignores the cost basis and treats the
+///      entire amount as profit subject to the fee percentage
 contract FlatFeeLedger is BaseLedger {
+    /// @notice Initializes the FlatFeeLedger with configuration and executor permissions
+    /// @param ledgerConfiguration_ Address of the SuperLedgerConfiguration contract
+    /// @param allowedExecutors_ Array of addresses authorized to execute accounting operations
     constructor(
         address ledgerConfiguration_,
         address[] memory allowedExecutors_
@@ -19,7 +22,16 @@ contract FlatFeeLedger is BaseLedger {
         BaseLedger(ledgerConfiguration_, allowedExecutors_)
     { }
 
-    /// @dev override to use a flat fee out of `amountAssets`
+    /// @notice Processes outflow operations with a flat fee calculation
+    /// @dev Overrides the base implementation to apply fees to the entire amount
+    ///      Sets the cost basis to zero, treating the entire amount as profit
+    ///      This is suitable for reward distributions where the entire amount is considered yield
+    /// @param _ First unused parameter (maintains interface compatibility)
+    /// @param __ Second unused parameter (maintains interface compatibility) 
+    /// @param amountAssets The total asset amount being processed
+    /// @param ___ Third unused parameter (maintains interface compatibility)
+    /// @param config The yield source oracle configuration containing fee settings
+    /// @return feeAmount The calculated fee amount based on the full asset amount
     function _processOutflow(
         address,
         address,
@@ -32,8 +44,8 @@ contract FlatFeeLedger is BaseLedger {
         override
         returns (uint256 feeAmount)
     {
-        /// @dev flat fee out of `amountAssets` (rewards)
-        ///      `costBasis` is 0 to use the full `amountAssets`
+        // Apply fee to the entire amount by using zero cost basis
+        // This treats the entire amount as profit subject to the fee percentage
         feeAmount = _calculateFees(0, amountAssets, config.feePercent);
     }
 }
