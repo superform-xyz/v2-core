@@ -38,6 +38,10 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         }
     }
 
+    function setAsset(address _asset) external {
+        asset = _asset;
+    }
+
     function preExecute(address, address, bytes memory) external override {
         preExecuteCalled = true;
     }

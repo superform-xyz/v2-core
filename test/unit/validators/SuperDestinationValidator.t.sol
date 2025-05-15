@@ -2,7 +2,7 @@
 pragma solidity >=0.8.28;
 
 // external
-import { ModuleKitHelpers, AccountInstance } from "modulekit/ModuleKit.sol";
+import { ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -11,14 +11,13 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 
 // Superform
 import { SuperDestinationValidator } from "../../../src/core/validators/SuperDestinationValidator.sol";
+import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
 import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
 import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance } from "modulekit/ModuleKit.sol";
 import { MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
-
-import "forge-std/console2.sol";
 
 contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
@@ -82,7 +81,66 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
         withdrawDestinationData = _createDummyWithdrawDestinationData(executorNonce);
     }
 
-    function test_Dummy_OnChainMerkleTreeXX() public pure {
+    function test_DestinationValidator_IsModuleType() public view {
+        assertTrue(validator.isModuleType(MODULE_TYPE_VALIDATOR));
+        assertFalse(validator.isModuleType(1234));
+    }
+
+    function test_DestinationValidator_OnInstall() public view {
+        assertTrue(validator.isInitialized(account));
+    }
+
+    function test_DestinationValidator_namespace() public view {
+        assertEq(validator.namespace(), "SuperValidator");
+    }
+
+    function test_DestinationValidator_GetAccountOwner() public view {
+        assertEq(validator.getAccountOwner(account), address(signerAddr));
+    }
+
+    function test_DestinationValidator_OnInstall_RevertIf_AlreadyInitialized() public {
+        AccountInstance memory newInstance = makeAccountInstance(keccak256(abi.encode("TEST")));
+        address newAccount = newInstance.account;
+
+        vm.startPrank(newAccount);
+
+        vm.expectRevert(SuperValidatorBase.ALREADY_INITIALIZED.selector);
+        validator.onInstall("");
+        vm.stopPrank();
+    }
+
+    function test_DestinationValidator_OnUninstall() public {
+        vm.startPrank(account);
+        validator.onUninstall("");
+        vm.stopPrank();
+
+        assertFalse(validator.isInitialized(account));
+    }
+
+    function test_DestinationValidator_ValidateUserOp_NotImplemented() public {
+        UserOpData memory userOpData = instance.getExecOps(
+            address(this),
+            0,
+            abi.encodeWithSelector(IERC20.approve.selector, address(this), 1e18),
+            address(instance.defaultValidator)
+        );
+        vm.expectRevert(SuperDestinationValidator.NOT_IMPLEMENTED.selector);
+        validator.validateUserOp(userOpData.userOp, bytes32(0));
+    }
+
+    function test_DestinationValidator_isValidSignatureWithSender_NotImplemented() public {
+        vm.expectRevert(SuperDestinationValidator.NOT_IMPLEMENTED.selector);
+        validator.isValidSignatureWithSender(account, bytes32(0), "");
+    }
+
+    function test_DestinationValidator_OnUninstall_RevertIf_NotInitialized() public {
+        vm.startPrank(makeAddr("account"));
+        vm.expectRevert(SuperValidatorBase.NOT_INITIALIZED.selector);
+        validator.onUninstall("");
+        vm.stopPrank();
+    }
+
+    function test_Dummy_OnChainMerkleTree() public pure {
         bytes32[] memory leaves = new bytes32[](4);
         leaves[0] = keccak256(bytes.concat(keccak256(abi.encode("leaf 0"))));
         leaves[1] = keccak256(bytes.concat(keccak256(abi.encode("leaf 1"))));

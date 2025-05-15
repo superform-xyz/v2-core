@@ -23,9 +23,7 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
     //////////////////////////////////////////////////////////////*/
     /// @notice The SuperGovernor contract for validator verification
     ISuperGovernor public immutable SUPER_GOVERNOR;
-
-    /// @notice The SuperVaultAggregator contract for forwarding validated PPS updates
-    ISuperVaultAggregator public immutable SUPER_VAULT_AGGREGATOR;
+    bytes32 private constant SUPER_VAULT_AGGREGATOR = keccak256("SUPER_VAULT_AGGREGATOR");
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -36,12 +34,6 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
         if (superGovernor_ == address(0)) revert INVALID_VALIDATOR();
 
         SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
-
-        // Get SuperVaultAggregator address from SuperGovernor
-        address superVaultAggregator = SUPER_GOVERNOR.getAddress(keccak256("SUPER_VAULT_AGGREGATOR"));
-        if (superVaultAggregator == address(0)) revert INVALID_VALIDATOR(); // Reuse error for simplicity
-
-        SUPER_VAULT_AGGREGATOR = ISuperVaultAggregator(superVaultAggregator);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -56,7 +48,9 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
 
         // Forward the validated PPS update to the SuperVaultAggregator
         // The msg.sender is passed as updateAuthority for upkeep tracking
-        SUPER_VAULT_AGGREGATOR.forwardPPS(msg.sender, strategy, pps, timestamp);
+        ISuperVaultAggregator(SUPER_GOVERNOR.getAddress(SUPER_VAULT_AGGREGATOR)).forwardPPS(
+            msg.sender, strategy, pps, timestamp
+        );
     }
 
     /// @inheritdoc IECDSAPPSOracle
@@ -90,7 +84,9 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
         }
 
         // Forward all validated updates to SuperVaultAggregator as a batch
-        SUPER_VAULT_AGGREGATOR.batchForwardPPS(strategies, ppss, timestamps);
+        ISuperVaultAggregator(SUPER_GOVERNOR.getAddress(SUPER_VAULT_AGGREGATOR)).batchForwardPPS(
+            strategies, ppss, timestamps
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
