@@ -387,6 +387,22 @@ interface ISuperGovernor {
     function executeVaultBankHookMerkleRootUpdate(address hook) external;
 
     /*//////////////////////////////////////////////////////////////
+                        ALLOW-LIST MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Stage, activate or revoke a target  (Global list)
+    /// @param hook Hook contract address
+    /// @param idx Index for the target in the hook
+    /// @param target Target address to manage
+    function manageTargetGlobal(address hook, uint8 idx, address target) external;
+
+    /// @notice Stage, activate or revoke an argument  (Global list)
+    /// @param hook Hook contract address
+    /// @param idx Index for the argument in the hook
+    /// @param arg Argument address to manage
+    function manageArgGlobal(address hook, uint8 idx, address arg) external;
+
+    /*//////////////////////////////////////////////////////////////
                            SUPERBANK HOOKS MGMT
     //////////////////////////////////////////////////////////////*/
     /// @notice Proposes a new Merkle root for a specific hook's allowed targets.

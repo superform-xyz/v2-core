@@ -71,6 +71,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     uint256 public emergencyWithdrawableEffectiveTime;
 
     // Yield source configuration
+    // @dev todo whenever a new yield source is added we can move it to allowed target
     mapping(address source => YieldSource sourceConfig) private yieldSources;
     mapping(address source => YieldSource sourceConfig) private asyncYieldSources;
     address[] private yieldSourcesList;
