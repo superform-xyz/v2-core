@@ -365,7 +365,7 @@ contract SuperAssetTest is Helpers {
 
         (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit, bool isSuccess) = 
             superAsset.previewDeposit(address(tokenIn), depositAmount, false);
-        assertEq(isSuccess, true, "isSuccess should be true");
+        assertEq(isSuccess, false, "isSuccess should be false, because of zero initial allocation");
 
         console.log("test_BasicDepositSimple() Preview");
         console.log("Amount Shares Minted:", expAmountSharesMinted);
