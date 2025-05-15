@@ -35,7 +35,6 @@ interface ISuperHookContextAware {
 /// @author Superform Labs
 interface ISuperHookInflowOutflow {
     function decodeAmount(bytes memory data) external pure returns (uint256);
-
 }
 
 /// @title ISuperHookOutflow

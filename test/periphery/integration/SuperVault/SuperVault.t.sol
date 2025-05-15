@@ -14,6 +14,10 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 // superform
 import { ISuperVault } from "src/periphery/interfaces/ISuperVault.sol";
 import { IERC7540Redeem, IERC7741 } from "src/vendor/standards/ERC7540/IERC7540Vault.sol";
+import { Mock4626Vault } from "../../../mocks/Mock4626Vault.sol";
+import { ISuperVaultStrategy } from "../../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
+import { ERC7540YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { ISuperLedger } from "../../../../src/core/interfaces/accounting/ISuperLedger.sol";
 
 contract SuperVaultTest is BaseSuperVaultTest {
     using Math for uint256;
@@ -21,10 +25,18 @@ contract SuperVaultTest is BaseSuperVaultTest {
     address operator = address(0x123);
     uint256 constant userPrivateKey = 0xA11CE; // Replace with a known good testing private key
     address userAddress; // Will be derived from private key
+    ERC7540YieldSourceOracle public oracle;
+    ISuperLedger public superLedgerETH;
 
     function setUp() public override {
         super.setUp();
         userAddress = vm.addr(userPrivateKey); // Derive the correct address from private key
+
+        vm.selectFork(FORKS[ETH]);
+
+        superLedgerETH = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
+
+        oracle = ERC7540YieldSourceOracle(_getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -540,7 +552,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         // Calculate expected shares based on claimable assets and average withdraw price
         uint256 avgWithdrawPrice = strategy.getAverageWithdrawPrice(accountEth);
         // Use Math.Rounding.Ceil to match the contract's implementation
-        uint256 expectedShares = claimableAssets.mulDiv(1e18, avgWithdrawPrice, Math.Rounding.Ceil);
+        uint256 expectedShares = claimableAssets.mulDiv(vault.PRECISION(), avgWithdrawPrice, Math.Rounding.Ceil);
 
         // Verify maxRedeem matches expected shares with sufficient tolerance
         assertApproxEqAbs(
@@ -789,7 +801,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         address user = accountEth;
         uint256 assets = 100e6;
         uint256 shares = 100e6;
-        uint256 averageWithdrawPrice = 1e18;
+        uint256 averageWithdrawPrice = vault.PRECISION();
         uint256 accumulatorShares = 500e6;
         uint256 accumulatorCostBasis = 500e6;
 
@@ -806,8 +818,9 @@ contract SuperVaultTest is BaseSuperVaultTest {
     function test_RevertWhen_UnauthorizedOnRedeemClaimable() public {
         // Random address cannot call onRedeemClaimable
         vm.prank(accountEth);
+        uint256 precision = vault.PRECISION();
         vm.expectRevert(ISuperVault.UNAUTHORIZED.selector);
-        vault.onRedeemClaimable(accountEth, 100e6, 100e6, 1e18, 500e6, 500e6);
+        vault.onRedeemClaimable(accountEth, 100e6, 100e6, precision, 500e6, 500e6);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1166,7 +1179,8 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         console2.log("Initial shares:", vars.initialShareBalance);
         console2.log(
-            "Initial price per share:", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor)
+            "Initial price per share:",
+            vault.totalAssets().mulDiv(vault.PRECISION(), vault.totalSupply(), Math.Rounding.Floor)
         );
 
         // Calculate redeem amount
@@ -1217,14 +1231,14 @@ contract SuperVaultTest is BaseSuperVaultTest {
         for (uint256 i; i < ACCOUNT_COUNT; i++) {
             vars.userShareBalances[i] = vault.balanceOf(accInstances[i].account);
         }
-        console2.log("pps", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
+        console2.log("pps", vault.totalAssets().mulDiv(vault.PRECISION(), vault.totalSupply(), Math.Rounding.Floor));
 
         console2.log("deposits done");
         /// redeem half of the shares
         vars.redeemAmount = IERC20(vault).balanceOf(accInstances[0].account) / 2;
         console2.log("redeem amount:", vars.redeemAmount);
 
-        console2.log("pps", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
+        console2.log("pps", vault.totalAssets().mulDiv(vault.PRECISION(), vault.totalSupply(), Math.Rounding.Floor));
 
         console2.log("deposits done");
         /// redeem half of the shares
@@ -1334,7 +1348,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             console2.log("User", i, "assets received:", assetsReceived[i]);
 
             if (sharesBurned[i] > 0) {
-                assetPerShare[i] = assetsReceived[i] * 1e18 / sharesBurned[i];
+                assetPerShare[i] = assetsReceived[i] * vault.PRECISION() / sharesBurned[i];
                 console2.log("User", i, "asset per share:", assetPerShare[i]);
             } else {
                 console2.log("User", i, "!!! No shares were burned!");
@@ -1401,7 +1415,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             assetsReceived[i] = assetBalanceAfterClaim - initialAssetBalances[i];
 
             if (sharesBurned[i] > 0) {
-                assetPerShare[i] = assetsReceived[i] * 1e18 / sharesBurned[i];
+                assetPerShare[i] = assetsReceived[i] * vault.PRECISION() / sharesBurned[i];
             }
 
             assertGt(sharesBurned[i], 0, "No shares were burned for user");
@@ -1427,5 +1441,636 @@ contract SuperVaultTest is BaseSuperVaultTest {
         assertApproxEqRel(
             totalAssetsReceived, totalRedeemAmount, 0.01e18, "Total assets received should match total redeem amount"
         );
+    }
+    /*//////////////////////////////////////////////////////////////
+                      GAS REPORT TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    struct NewYieldSourceVars {
+        uint256 depositAmount;
+        uint256 initialFluidVaultBalance;
+        uint256 initialAaveVaultBalance;
+        uint256 initialMockVaultBalance;
+        uint256 initialPendleVaultBalance;
+        uint256 amountToReallocateFluidVault;
+        uint256 amountToReallocateAaveVault;
+        uint256 assetAmountToReallocateFromFluidVault;
+        uint256 assetAmountToReallocateFromAaveVault;
+        uint256 assetAmountToReallocateToMockVault;
+        uint256 assetAmountToReallocateToPendleVault;
+        uint256 finalFluidVaultBalance;
+        uint256 finalAaveVaultBalance;
+        uint256 finalMockVaultBalance;
+        uint256 finalPendleVaultBalance;
+        uint256 initialTotalValue;
+        uint256 finalTotalValue;
+        Mock4626Vault newVault;
+        address pendleVault;
+        // Price per share tracking
+        uint256 initialFluidVaultPPS;
+        uint256 initialAaveVaultPPS;
+        uint256 initialPendleVaultPPS;
+        uint256 initialMockVaultPPS;
+    }
+
+    function test_gasReport_RequestRedeem() public executeWithoutHookRestrictions {
+        uint256 depositAmount = 1000e6; // 1000 USDC
+
+        // First setup a deposit and claim it
+        _deposit(depositAmount);
+
+        // Need to allocate to yield sources before requesting redemption
+        _depositFreeAssetsFromSingleAmount(depositAmount, address(fluidVault), address(aaveVault));
+        // Now request redeem of half the shares
+        uint256 redeemShares = vault.balanceOf(accountEth) / 2;
+        _requestRedeem(redeemShares);
+
+        // Verify state
+        assertEq(strategy.pendingRedeemRequest(accountEth), redeemShares, "Wrong pending redeem amount");
+        assertEq(vault.balanceOf(address(escrow)), redeemShares, "Wrong escrow balance");
+    }
+
+    function test_gasReport_ClaimRedeem() public executeWithoutHookRestrictions {
+        uint256 depositAmount = 1000e6; // 1000 USDC
+        uint256 initialAssetBalance = asset.balanceOf(address(accountEth));
+
+        // First setup a deposit and claim it
+        _deposit(depositAmount);
+
+        // Need to allocate to yield sources before requesting redemption
+        _depositFreeAssetsFromSingleAmount(depositAmount, address(fluidVault), address(aaveVault));
+        // Get initial balances
+        uint256 initialShares = vault.balanceOf(accountEth);
+
+        console2.log("initial shares", initialShares);
+
+        // Request redeem of half the shares
+        uint256 redeemShares = initialShares / 2;
+        _requestRedeem(redeemShares);
+        _fulfillRedeem(redeemShares, address(fluidVault), address(aaveVault));
+
+        // Get claimable assets
+        uint256 claimableAssets = strategy.claimableWithdraw(accountEth);
+        // Claim redeem
+        _claimWithdraw(claimableAssets);
+
+        // Verify state
+        assertEq(vault.balanceOf(accountEth), initialShares - redeemShares, "Wrong final share balance");
+        assertApproxEqRel(
+            asset.balanceOf(accountEth), initialAssetBalance + claimableAssets, 0.05e18, "Wrong final asset balance"
+        );
+        assertEq(strategy.claimableWithdraw(accountEth), 0, "Assets not claimed");
+    }
+
+    function test_gasReport_TwoVaults_Fulfill() public executeWithoutHookRestrictions {
+        NewYieldSourceVars memory vars;
+        vars.depositAmount = 1000e6;
+
+        _completeDepositFlow(vars.depositAmount);
+    }
+
+    function test_gasReport_ThreeVaults_Fulfill_And_Rebalance() public executeWithoutHookRestrictions {
+        NewYieldSourceVars memory vars;
+        vars.depositAmount = 1000e6;
+
+        vars.initialFluidVaultPPS = fluidVault.convertToAssets(vault.PRECISION());
+        vars.initialAaveVaultPPS = aaveVault.convertToAssets(vault.PRECISION());
+
+        // do an initial allo
+        _completeDepositFlow(vars.depositAmount);
+
+        // add new vault as yield source
+        vars.newVault = new Mock4626Vault(address(asset), "New Vault", "NV");
+
+        //  -- add funds to the newVault to respect LARGE_DEPOSIT
+        _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);
+        asset.approve(address(vars.newVault), type(uint256).max);
+        vars.newVault.deposit(2 * LARGE_DEPOSIT, address(this));
+
+        vm.warp(block.timestamp + 20 days);
+
+        // -- add it as a new yield source
+        vm.startPrank(STRATEGIST);
+        strategy.manageYieldSource(
+            address(vars.newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
+        );
+        vm.stopPrank();
+
+        vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.initialPendleVaultBalance = vars.newVault.balanceOf(address(strategy));
+
+        console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
+        console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
+        console2.log("Initial PendleVault balance:", vars.initialPendleVaultBalance);
+
+        // 30/30/40
+        // allocate 20% from each vault to the new one
+        vars.amountToReallocateFluidVault = vars.initialFluidVaultBalance * 20 / 100;
+        vars.amountToReallocateAaveVault = vars.initialAaveVaultBalance * 20 / 100;
+        vars.assetAmountToReallocateFromFluidVault = fluidVault.convertToAssets(vars.amountToReallocateFluidVault);
+        vars.assetAmountToReallocateFromAaveVault = aaveVault.convertToAssets(vars.amountToReallocateAaveVault);
+        vars.assetAmountToReallocateToPendleVault =
+            vars.assetAmountToReallocateFromFluidVault + vars.assetAmountToReallocateFromAaveVault;
+        console2.log("Asset amount to reallocate from FluidVault:", vars.assetAmountToReallocateFromFluidVault);
+        console2.log("Asset amount to reallocate from AaveVault:", vars.assetAmountToReallocateFromAaveVault);
+
+        vm.warp(block.timestamp + 20 days);
+
+        // allocation
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory hooksAddresses = new address[](3);
+        hooksAddresses[0] = withdrawHookAddress;
+        hooksAddresses[1] = withdrawHookAddress;
+        hooksAddresses[2] = depositHookAddress;
+
+        bytes[] memory hooksData = new bytes[](3);
+        // redeem from FluidVault
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            address(strategy),
+            vars.amountToReallocateFluidVault,
+            false
+        );
+        // redeem from AaveVault
+        hooksData[1] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            address(strategy),
+            vars.amountToReallocateAaveVault,
+            false
+        );
+        // deposit to PendleVault
+        hooksData[2] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(vars.newVault),
+            address(asset),
+            vars.assetAmountToReallocateToPendleVault,
+            false,
+            address(0),
+            0
+        );
+
+        vm.startPrank(STRATEGIST);
+        strategy.executeHooks(
+            ISuperVaultStrategy.ExecuteArgs({
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](3)
+            })
+        );
+        // check new balances
+        vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.finalPendleVaultBalance = vars.newVault.balanceOf(address(strategy));
+
+        console2.log("Final FluidVault balance:", vars.finalFluidVaultBalance);
+        console2.log("Final AaveVault balance:", vars.finalAaveVaultBalance);
+        console2.log("Final PendleVault balance:", vars.finalPendleVaultBalance);
+
+        assertApproxEqRel(
+            vars.finalFluidVaultBalance,
+            vars.initialFluidVaultBalance - vars.amountToReallocateFluidVault,
+            0.01e18,
+            "FluidVault balance should decrease by the reallocated amount"
+        );
+
+        assertApproxEqRel(
+            vars.finalAaveVaultBalance,
+            vars.initialAaveVaultBalance - vars.amountToReallocateAaveVault,
+            0.01e18,
+            "AaveVault balance should decrease by the reallocated amount"
+        );
+
+        assertGt(vars.finalPendleVaultBalance, vars.initialPendleVaultBalance, "PendleVault balance should increase");
+
+        vars.initialTotalValue = fluidVault.convertToAssets(vars.initialFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.initialAaveVaultBalance)
+            + vars.newVault.convertToAssets(vars.initialPendleVaultBalance);
+
+        vars.finalTotalValue = fluidVault.convertToAssets(vars.finalFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.finalAaveVaultBalance)
+            + vars.newVault.convertToAssets(vars.finalPendleVaultBalance);
+        assertApproxEqRel(
+            vars.finalTotalValue, vars.initialTotalValue, 0.01e18, "Total value should be preserved during allocation"
+        );
+
+        // Enhanced checks for price per share and yield
+        console2.log("\n=== Enhanced Vault Metrics ===");
+
+        // Price per share comparison
+        uint256 fluidVaultFinalPPS = fluidVault.convertToAssets(vault.PRECISION());
+        uint256 aaveVaultFinalPPS = aaveVault.convertToAssets(vault.PRECISION());
+        uint256 pendleVaultFinalPPS = vars.newVault.convertToAssets(vault.PRECISION());
+
+        console2.log("\nPrice per Share Changes:");
+        console2.log("Fluid Vault:");
+        console2.log("  Initial PPS:", vars.initialFluidVaultPPS);
+        console2.log("  Final PPS:", fluidVaultFinalPPS);
+        console2.log(
+            "  Change:",
+            fluidVaultFinalPPS > vars.initialFluidVaultPPS ? "+" : "",
+            fluidVaultFinalPPS - vars.initialFluidVaultPPS
+        );
+        console2.log(
+            "  Change %:", ((fluidVaultFinalPPS - vars.initialFluidVaultPPS) * 10_000) / vars.initialFluidVaultPPS
+        );
+
+        console2.log("\nAave Vault:");
+        console2.log("  Initial PPS:", vars.initialAaveVaultPPS);
+        console2.log("  Final PPS:", aaveVaultFinalPPS);
+        console2.log(
+            "  Change:",
+            aaveVaultFinalPPS > vars.initialAaveVaultPPS ? "+" : "",
+            aaveVaultFinalPPS - vars.initialAaveVaultPPS
+        );
+        console2.log(
+            "  Change %:", ((aaveVaultFinalPPS - vars.initialAaveVaultPPS) * 10_000) / vars.initialAaveVaultPPS
+        );
+
+        console2.log("\nYield Metrics:");
+        uint256 totalYield =
+            vars.finalTotalValue > vars.initialTotalValue ? vars.finalTotalValue - vars.initialTotalValue : 0;
+        console2.log("Total Yield:", totalYield);
+        console2.log("Yield %:", (totalYield * 10_000) / vars.initialTotalValue);
+
+        assertGe(fluidVaultFinalPPS, vars.initialFluidVaultPPS, "Fluid Vault should not lose value");
+        assertGe(aaveVaultFinalPPS, vars.initialAaveVaultPPS, "Aave Vault should not lose value");
+        assertGe(pendleVaultFinalPPS, vault.PRECISION(), "Pendle Vault should not lose value");
+
+        uint256 totalFinalBalance =
+            vars.finalFluidVaultBalance + vars.finalAaveVaultBalance + vars.finalPendleVaultBalance;
+
+        uint256 fluidRatio = (vars.finalFluidVaultBalance * 100) / totalFinalBalance;
+        uint256 aaveRatio = (vars.finalAaveVaultBalance * 100) / totalFinalBalance;
+        uint256 pendleRatio = (vars.finalPendleVaultBalance * 100) / totalFinalBalance;
+
+        console2.log("\nFinal Allocation Ratios:");
+        console2.log("Fluid Vault:", fluidRatio, "%");
+        console2.log("Aave Vault:", aaveRatio, "%");
+        console2.log("Pendle Vault:", pendleRatio, "%");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                E2E tests
+    //////////////////////////////////////////////////////////////*/
+
+    struct MultipleDepositsPartialRedemptionsVars {
+        // Balances
+        uint256 initialUserAssets;
+        uint256 feeBalanceBefore;
+        // Deposit amounts
+        uint256 deposit1Amount;
+        uint256 deposit2Amount;
+        uint256 deposit3Amount;
+        // Shares
+        uint256 shares1;
+        uint256 shares2;
+        uint256 shares3;
+        uint256 totalShares;
+        // Redemption 1
+        uint256 redeemAmount1;
+        uint256 superformFee1;
+        uint256 recipientFee1;
+        uint256 totalFee1;
+        uint256 userBalanceBeforeRedeem1;
+        uint256 treasuryBalanceAfterRedeem1;
+        uint256 claimableAssets1;
+        uint256 userAssetsAfterRedeem1;
+        // Redemption 2
+        uint256 remainingShares;
+        uint256 redeemAmount2;
+        uint256 superformFee2;
+        uint256 recipientFee2;
+        uint256 totalFee2;
+        uint256 userBalanceBeforeRedeem2;
+        uint256 treasuryBalanceAfterRedeem2;
+        uint256 claimableAssets2;
+        uint256 userAssetsAfterRedeem2;
+        // Redemption 3
+        uint256 finalShares;
+        uint256 superformFee3;
+        uint256 recipientFee3;
+        uint256 totalFee3;
+        uint256 userBalanceBeforeRedeem3;
+        uint256 treasuryBalanceAfterRedeem3;
+        uint256 claimableAssets3;
+        uint256 userAssetsAfterRedeem3;
+        // Totals
+        uint256 totalDeposits;
+        uint256 totalFees;
+        uint256 totalAssetsReceived;
+    }
+
+    function test_SuperVault_E2E_Flow_With_Ledger_Fees() public executeWithoutHookRestrictions {
+        uint256 amount = 1000e6; // 1000 USDC
+
+        vm.selectFork(FORKS[ETH]);
+
+        // Record initial balances
+        uint256 initialUserAssets = asset.balanceOf(accountEth);
+        uint256 initialVaultAssets = asset.balanceOf(address(vault));
+
+        // Step 1: Request Deposit
+        _deposit(amount);
+
+        // Verify assets transferred from user to vault
+        assertEq(
+            asset.balanceOf(accountEth), initialUserAssets - amount, "User assets not reduced after deposit request"
+        );
+        assertEq(
+            asset.balanceOf(address(strategy)),
+            initialVaultAssets + amount,
+            "Vault assets not increased after deposit request"
+        );
+
+        // Need to allocate to yield sources before requesting redemption
+        _depositFreeAssetsFromSingleAmount(amount, address(fluidVault), address(aaveVault));
+
+        // Verify shares minted to user
+        uint256 userShares = IERC20(vault.share()).balanceOf(accountEth);
+
+        // Record balances before redeem
+        uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
+        uint256 feeBalanceBefore = asset.balanceOf(TREASURY);
+
+        // Fast forward time to simulate yield on underlying vaults
+        vm.warp(block.timestamp + 50 weeks);
+
+        console2.log("--pps before---", aggregator.getPPS(address(strategy)));
+
+        _updateSuperVaultPPS(address(strategy), address(vault));
+
+        console2.log("--pps after---", aggregator.getPPS(address(strategy)));
+        // Step 4: Request Redeem
+        _requestRedeem(userShares);
+
+        // Verify shares are escrowed
+        assertEq(IERC20(vault.share()).balanceOf(accountEth), 0, "User shares not transferred from account");
+        assertEq(IERC20(vault.share()).balanceOf(address(escrow)), userShares, "Shares not transferred to escrow");
+
+        console2.log("--pps before---", aggregator.getPPS(address(strategy)));
+        vm.warp(block.timestamp + 6);
+        _updateSuperVaultPPS(address(strategy), address(vault));
+
+        console2.log("--pps after---", aggregator.getPPS(address(strategy)));
+
+        /*
+        The impact of fee collection at super vault is that when calculating a fee in core, the user cannot "claim" the
+            whole set of shares he had inscribed as historical shares
+        Claims 999552226 shares instead of 1000000000 accumulated shares, where the diff is explained by the "assets"
+            collected as fees by the strategist/superform in SuperVault
+        For this reason, should we continue like this and assume this? Should we set a ledger configuration just for
+            super vaults where the core fee on yield is 0 so the user is not double charged on performance?
+        */
+        (, uint256 superformFee, uint256 recipientFee) = strategy.previewPerformanceFee(accountEth, userShares);
+
+        // Step 5: Fulfill Redeem
+        _fulfillRedeem(userShares, address(fluidVault), address(aaveVault));
+
+        // Calculate expected assets based on shares
+        uint256 claimableAssets = vault.maxWithdraw(accountEth);
+        uint256 claimableShares = vault.maxRedeem(accountEth);
+        console2.log("claimableShares", claimableShares);
+
+        uint256 expectedLedgerFee =
+            superLedgerETH.previewFees(accountEth, address(vault), claimableAssets, claimableShares, 100);
+
+        console2.log("expectedLedgerFee", expectedLedgerFee);
+        console2.log("claimableAssets", claimableAssets);
+        console2.log("getAverageWithdrawPrice", strategy.getAverageWithdrawPrice(accountEth));
+
+        // Step 6: Claim Withdraw
+        _claimWithdraw(claimableAssets);
+
+        uint256 totalFeesTaken = superformFee + recipientFee + expectedLedgerFee;
+
+        // Final balance assertions
+        assertGt(asset.balanceOf(accountEth), preRedeemUserAssets, "User assets not increased after redeem");
+
+        // Verify fee was taken
+        _assertFeeDerivation(totalFeesTaken, feeBalanceBefore, asset.balanceOf(TREASURY));
+    }
+
+    function test_SuperVault_MultipleDeposits_PartialRedemptions() public executeWithoutHookRestrictions {
+        vm.selectFork(FORKS[ETH]);
+
+        MultipleDepositsPartialRedemptionsVars memory vars;
+
+        // Record initial balances
+        vars.initialUserAssets = asset.balanceOf(accountEth);
+        vars.feeBalanceBefore = asset.balanceOf(TREASURY);
+
+        // ========== DEPOSIT 1 ==========
+        console2.log("===== DEPOSIT 1 =====");
+        vars.deposit1Amount = 1000e6; // 1000 USDC
+
+        // Step 1: Request first Deposit
+        _deposit(vars.deposit1Amount);
+
+        // Need to allocate to yield sources before requesting redemption
+        _depositFreeAssetsFromSingleAmount(vars.deposit1Amount, address(fluidVault), address(aaveVault));
+
+        // Get shares minted to user for first deposit
+        vars.shares1 = IERC20(vault.share()).balanceOf(accountEth);
+        console2.log("Shares after deposit 1:", vars.shares1);
+
+        // Simulate some yield accrual between deposits
+        vm.warp(block.timestamp + 4 weeks);
+        console2.log("--pps before---", aggregator.getPPS(address(strategy)));
+
+        _updateSuperVaultPPS(address(strategy), address(vault));
+
+        console2.log("--pps after---", aggregator.getPPS(address(strategy)));
+        // ========== DEPOSIT 2 ==========
+        console2.log("===== DEPOSIT 2 =====");
+        vars.deposit2Amount = 2000e6; // 2000 USDC
+
+        // Deal more tokens to user
+        deal(address(asset), accountEth, vars.deposit2Amount);
+
+        // Step 1: Request second Deposit
+        _deposit(vars.deposit2Amount);
+
+        // Need to allocate to yield sources before requesting redemption
+        _depositFreeAssetsFromSingleAmount(vars.deposit2Amount, address(fluidVault), address(aaveVault));
+
+        // Get additional shares minted to user
+        vars.shares2 = IERC20(vault.share()).balanceOf(accountEth) - vars.shares1;
+        console2.log("Shares after deposit 2:", vars.shares2);
+
+        // Simulate more yield accrual between deposits
+        vm.warp(block.timestamp + 4 weeks);
+        console2.log("--pps before---", aggregator.getPPS(address(strategy)));
+
+        _updateSuperVaultPPS(address(strategy), address(vault));
+
+        console2.log("--pps after---", aggregator.getPPS(address(strategy)));
+        // ========== DEPOSIT 3 ==========
+        console2.log("===== DEPOSIT 3 =====");
+        vars.deposit3Amount = 3000e6; // 3000 USDC
+
+        // Deal more tokens to user
+        deal(address(asset), accountEth, vars.deposit3Amount);
+
+        // Step 1: Request third Deposit
+        _deposit(vars.deposit3Amount);
+
+        // Need to allocate to yield sources before requesting redemption
+        _depositFreeAssetsFromSingleAmount(vars.deposit3Amount, address(fluidVault), address(aaveVault));
+
+        // Get additional shares minted to user
+        vars.shares3 = IERC20(vault.share()).balanceOf(accountEth) - vars.shares1 - vars.shares2;
+        console2.log("Shares after deposit 3:", vars.shares3);
+
+        // Get total shares for user
+        vars.totalShares = IERC20(vault.share()).balanceOf(accountEth);
+        console2.log("Total shares:", vars.totalShares);
+
+        // Fast forward time to simulate yield on underlying vaults
+        vm.warp(block.timestamp + 42 weeks); // significant time for yield accrual
+
+        console2.log("--pps before---", aggregator.getPPS(address(strategy)));
+
+        _updateSuperVaultPPS(address(strategy), address(vault));
+
+        console2.log("--pps after---", aggregator.getPPS(address(strategy)));
+
+        // ========== REDEMPTION 1 (25% of shares) ==========
+        console2.log("===== REDEMPTION 1 (25%) =====");
+        vars.redeemAmount1 = vars.totalShares / 4; // 25% of shares
+        console2.log("Redeeming shares (25%):", vars.redeemAmount1);
+
+        // Calculate expected fee for first redemption
+        (, vars.superformFee1, vars.recipientFee1) = strategy.previewPerformanceFee(accountEth, vars.redeemAmount1);
+
+        vars.treasuryBalanceAfterRedeem1 = vars.feeBalanceBefore;
+
+        // Record asset balance before redemption
+        vars.userBalanceBeforeRedeem1 = asset.balanceOf(accountEth);
+
+        // Step 1: Request first Redeem
+        _requestRedeem(vars.redeemAmount1);
+
+        // Step 2: Fulfill first Redeem
+        _fulfillRedeem(vars.redeemAmount1, address(fluidVault), address(aaveVault));
+
+        // Step 3: Claim first Withdraw
+        vars.claimableAssets1 = vault.maxWithdraw(accountEth);
+
+        uint256 expectedLedgerFee = superLedgerETH.previewFees(
+            accountEth, address(vault), vars.claimableAssets1, vault.maxRedeem(accountEth), 100
+        );
+        vars.totalFee1 = vars.superformFee1 + vars.recipientFee1 + expectedLedgerFee;
+        console2.log("Expected fee for redemption 1:", vars.totalFee1);
+        _claimWithdraw(vars.claimableAssets1);
+
+        vars.treasuryBalanceAfterRedeem1 = asset.balanceOf(TREASURY);
+
+        // Verify user received assets
+        vars.userAssetsAfterRedeem1 = asset.balanceOf(accountEth) - vars.userBalanceBeforeRedeem1;
+        console2.log("User received assets after redemption 1:", vars.userAssetsAfterRedeem1);
+
+        // Verify fee was taken correctly
+        _assertFeeDerivation(vars.totalFee1, vars.feeBalanceBefore, vars.treasuryBalanceAfterRedeem1);
+        console2.log("Treasury balance after redemption 1:", vars.treasuryBalanceAfterRedeem1);
+
+        // ========== REDEMPTION 2 (33% of remaining shares) ==========
+        console2.log("===== REDEMPTION 2 (33% of remaining) =====");
+        vars.remainingShares = IERC20(vault.share()).balanceOf(accountEth);
+        vars.redeemAmount2 = vars.remainingShares / 3; // 33% of remaining shares
+        console2.log("Redeeming shares (33% of remaining):", vars.redeemAmount2);
+
+        // Calculate expected fee for second redemption
+        (, vars.superformFee2, vars.recipientFee2) = strategy.previewPerformanceFee(accountEth, vars.redeemAmount2);
+
+        // Record asset balance before redemption
+        vars.userBalanceBeforeRedeem2 = asset.balanceOf(accountEth);
+
+        // Step 1: Request second Redeem
+        _requestRedeem(vars.redeemAmount2);
+
+        // Step 2: Fulfill second Redeem
+        _fulfillRedeem(vars.redeemAmount2, address(fluidVault), address(aaveVault));
+
+        // Step 3: Claim second Withdraw
+        vars.claimableAssets2 = vault.maxWithdraw(accountEth);
+
+        expectedLedgerFee = superLedgerETH.previewFees(
+            accountEth, address(vault), vars.claimableAssets2, vault.maxRedeem(accountEth), 100
+        );
+        vars.totalFee2 = vars.superformFee2 + vars.recipientFee2 + expectedLedgerFee;
+        console2.log("Expected fee for redemption 2:", vars.totalFee2);
+
+        _claimWithdraw(vars.claimableAssets2);
+
+        vars.treasuryBalanceAfterRedeem2 = asset.balanceOf(TREASURY);
+
+        // Verify user received assets
+        vars.userAssetsAfterRedeem2 = asset.balanceOf(accountEth) - vars.userBalanceBeforeRedeem2;
+        console2.log("User received assets after redemption 2:", vars.userAssetsAfterRedeem2);
+
+        // Verify fee was taken correctly
+        _assertFeeDerivation(vars.totalFee2, vars.treasuryBalanceAfterRedeem1, vars.treasuryBalanceAfterRedeem2);
+        console2.log("Treasury balance after redemption 2:", vars.treasuryBalanceAfterRedeem2);
+
+        // ========== REDEMPTION 3 (all remaining shares) ==========
+        console2.log("===== REDEMPTION 3 (all remaining) =====");
+        vars.finalShares = IERC20(vault.share()).balanceOf(accountEth);
+        console2.log("Redeeming final shares:", vars.finalShares);
+
+        // Calculate expected fee for third redemption
+        (, vars.superformFee3, vars.recipientFee3) = strategy.previewPerformanceFee(accountEth, vars.finalShares);
+
+        // Record asset balance before redemption
+        vars.userBalanceBeforeRedeem3 = asset.balanceOf(accountEth);
+
+        // Step 1: Request third Redeem
+        _requestRedeem(vars.finalShares);
+
+        // Step 2: Fulfill third Redeem
+        _fulfillRedeem(vars.finalShares, address(fluidVault), address(aaveVault));
+
+        // Step 3: Claim third Withdraw
+        vars.claimableAssets3 = vault.maxWithdraw(accountEth);
+
+        expectedLedgerFee = superLedgerETH.previewFees(
+            accountEth, address(vault), vars.claimableAssets3, vault.maxRedeem(accountEth), 100
+        );
+        vars.totalFee3 = vars.superformFee3 + vars.recipientFee3 + expectedLedgerFee;
+        console2.log("Expected fee for redemption 3:", vars.totalFee3);
+        _claimWithdraw(vars.claimableAssets3);
+
+        vars.treasuryBalanceAfterRedeem3 = asset.balanceOf(TREASURY);
+
+        // Verify user received assets
+        vars.userAssetsAfterRedeem3 = asset.balanceOf(accountEth) - vars.userBalanceBeforeRedeem3;
+        console2.log("User received assets after redemption 3:", vars.userAssetsAfterRedeem3);
+
+        // Verify fee was taken correctly
+        _assertFeeDerivation(vars.totalFee3, vars.treasuryBalanceAfterRedeem2, vars.treasuryBalanceAfterRedeem3);
+
+        // Verify total fee collection
+        vars.totalFees = vars.totalFee1 + vars.totalFee2 + vars.totalFee3;
+        console2.log("Total fees collected:", vars.totalFees);
+        console2.log("Initial treasury balance:", vars.feeBalanceBefore);
+        console2.log("Final treasury balance:", vars.treasuryBalanceAfterRedeem3);
+        assertEq(
+            vars.treasuryBalanceAfterRedeem3, vars.feeBalanceBefore + vars.totalFees, "Total fee collection mismatch"
+        );
+
+        // Verify user has received all assets minus fees
+        vars.totalDeposits = vars.deposit1Amount + vars.deposit2Amount + vars.deposit3Amount;
+        vars.totalAssetsReceived =
+            vars.userAssetsAfterRedeem1 + vars.userAssetsAfterRedeem2 + vars.userAssetsAfterRedeem3;
+        console2.log("Total deposits:", vars.totalDeposits);
+        console2.log("Total assets received:", vars.totalAssetsReceived);
+        assertGt(vars.totalAssetsReceived, vars.totalDeposits, "User should receive more than deposited due to yield");
+
+        // Verify all shares are redeemed
+        assertEq(IERC20(vault.share()).balanceOf(accountEth), 0, "User should have no shares left");
     }
 }

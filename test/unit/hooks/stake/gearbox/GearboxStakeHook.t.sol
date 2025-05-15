@@ -80,7 +80,7 @@ contract GearboxStakeHookTest is Helpers {
         assertEq(hook.outAmount(), 0);
     }
 
-    function test_DecodeUsePrevHookAmount() public {
+    function test_DecodeUsePrevHookAmount() public view {
         bytes memory data = _encodeData(false);
         assertEq(hook.decodeUsePrevHookAmount(data), false);
 

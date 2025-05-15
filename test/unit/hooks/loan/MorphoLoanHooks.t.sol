@@ -560,6 +560,7 @@ contract MorphoLoanHooksTest is Helpers {
         });
         Id id = params.id();
         uint256 assets = repayAndWithdrawHook.sharesToAssets(params, address(this));
+
         uint256 sharesToAssets =
             shares.toAssetsUp(mockMorpho.market(id).totalBorrowAssets, mockMorpho.market(id).totalBorrowShares);
         assertEq(assets, sharesToAssets);
@@ -614,6 +615,7 @@ contract MorphoLoanHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                         BASE LOAN HOOK
     //////////////////////////////////////////////////////////////*/
+
     function test_DecodeUsePrevHookAmount() public view {
         bytes memory data = _encodeRepayData(false, false);
         assertEq(repayHook.decodeUsePrevHookAmount(data), false);
