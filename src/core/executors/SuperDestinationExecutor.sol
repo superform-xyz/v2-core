@@ -34,18 +34,26 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+    /// @notice Address of the validator contract used to verify cross-chain signatures
+    /// @dev Used to validate signatures in the processBridgedExecution method
     address public immutable superDestinationValidator;
+    
+    /// @notice Factory contract used to create new smart accounts when needed
+    /// @dev Creates deterministic smart accounts during cross-chain operations
     INexusFactory public immutable nexusFactory;
 
-    // Track used merkle roots per user
+    /// @notice Tracks which merkle roots have been used by each user address
+    /// @dev Prevents replay attacks by ensuring each merkle root can only be used once per user
     mapping(address user => mapping(bytes32 merkleRoot => bool used)) public usedMerkleRoots;
 
-    // https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
+    /// @notice Magic value returned by ERC-1271 contracts when a signature is valid
+    /// @dev From EIP-1271 standard: https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
     bytes4 constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
 
-    // @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays + the 4
-    // bytes of the `execute` function selector
-    // @dev saves decoding gas
+    /// @notice Length of an empty execution data structure
+    /// @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays
+    ///      plus the 4 bytes of the `execute` function selector
+    ///      Used to check if actual hook execution data is present without full decoding
     uint256 constant EMPTY_EXECUTION_LENGTH = 228;
 
     /*//////////////////////////////////////////////////////////////
@@ -60,6 +68,10 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
+    /// @notice Initializes the SuperDestinationExecutor with required references
+    /// @param ledgerConfiguration_ Address of the ledger configuration contract for fee calculations
+    /// @param superDestinationValidator_ Address of the validator contract used to verify cross-chain messages
+    /// @param nexusFactory_ Address of the account factory used to create new smart accounts
     constructor(
         address ledgerConfiguration_,
         address superDestinationValidator_,
@@ -67,7 +79,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     )
         SuperExecutorBase(ledgerConfiguration_)
     {
-        // Updated constructor validation
+        // Validate critical contract references
         if (superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
