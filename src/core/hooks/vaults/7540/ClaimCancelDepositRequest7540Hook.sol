@@ -12,7 +12,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookAsyncCancelations, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ClaimCancelDepositRequest7540Hook
 /// @author Superform Labs
@@ -20,7 +20,7 @@ import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol"
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         address receiver = BytesLib.toAddress(data, 24);
-contract ClaimCancelDepositRequest7540Hook is BaseHook, ISuperHookAsyncCancelations {
+contract ClaimCancelDepositRequest7540Hook is BaseHook, ISuperHookAsyncCancelations, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM_CANCEL_DEPOSIT_REQUEST) { }
@@ -60,6 +60,21 @@ contract ClaimCancelDepositRequest7540Hook is BaseHook, ISuperHookAsyncCancelati
         return CancelationType.INFLOW;
     }
 
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
+        target = data.extractYieldSource();
+        args = new address[](2);
+        args[0] = BytesLib.toAddress(data, 24); //receiver
+        args[1] = tempAcc;
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
+        idxs = new uint8[](2);
+        idxs[0] = 0;
+        idxs[1] = 1;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -68,6 +83,7 @@ contract ClaimCancelDepositRequest7540Hook is BaseHook, ISuperHookAsyncCancelati
         asset = IERC7540(yieldSource).asset();
         // store current balance
         outAmount = _getBalance(account, data);
+        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

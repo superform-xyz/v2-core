@@ -18,7 +18,7 @@ import {
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
-import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
@@ -35,7 +35,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isFullRepayment = _decodeBool(data, 145);
-contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
+contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
     using SharesMathLib for uint256;
@@ -161,6 +161,29 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         }
     }
 
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
+        BuildHookLocalVars memory vars = _decodeHookData(data);
+
+        MarketParams memory marketParams =
+            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+
+        target = address(morpho);
+        args = new address[](5);
+        args[0] = marketParams.loanToken;
+        args[1] = marketParams.collateralToken;
+        args[2] = marketParams.oracle;
+        args[3] = marketParams.irm;
+        args[4] = tempAcc;
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
+        idxs = new uint8[](1);
+        idxs[0] = 4;
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                             PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
@@ -240,6 +263,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
         outAmount = getCollateralTokenBalance(account, data);
+        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

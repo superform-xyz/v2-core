@@ -10,7 +10,7 @@ import { IAcrossSpokePoolV3 } from "../../../../vendor/bridges/across/IAcrossSpo
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
@@ -31,7 +31,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 216);
 /// @notice         bytes destinationMessage = BytesLib.slice(data, 217, data.length - 217);
-contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
+contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -148,6 +148,22 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
+        target = address(spokePoolV3);
+        args = new address[](4);
+        args[0] = BytesLib.toAddress(data, 32); //recipient
+        args[1] = BytesLib.toAddress(data, 52); //inputToken
+        args[2] = BytesLib.toAddress(data, 72); //outputToken
+        args[3] = BytesLib.toAddress(data, 188); //exclusiveRelayer
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
+        idxs = new uint8[](1);
+        idxs[0] = 0;
     }
 
     /*//////////////////////////////////////////////////////////////

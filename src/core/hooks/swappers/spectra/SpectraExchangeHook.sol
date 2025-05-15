@@ -8,7 +8,7 @@ import { BytesLib } from "../../../../vendor/BytesLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { SpectraCommands } from "../../../../vendor/spectra/SpectraCommands.sol";
 import { ISpectraRouter } from "../../../../vendor/spectra/ISpectraRouter.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
@@ -22,7 +22,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
 /// @notice         uint256 value = BytesLib.toUint256(data, 57);
 /// @notice         bytes txData_ = BytesLib.slice(data, 57, data.length - 57);
-contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
+contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
@@ -85,11 +85,131 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
+        target = address(router);
+
+        bytes calldata txData_ = data[AMOUNT_POSITION:];
+        ValidateTxDataParams memory params;
+        params.selector = bytes4(txData_[0:4]);
+
+        if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
+            (params.commandsData, params.inputs) = abi.decode(txData_[4:], (bytes, bytes[]));
+            params.inputsLength = params.inputs.length;
+            params.updatedInputs = new bytes[](params.inputsLength);
+        } else if (params.selector == bytes4(keccak256("execute(bytes,bytes[],uint256)"))) {
+            (params.commandsData, params.inputs, params.deadline) = abi.decode(txData_[4:], (bytes, bytes[], uint256));
+            params.inputsLength = params.inputs.length;
+            params.updatedInputs = new bytes[](params.inputsLength);
+        } 
+
+        params.commands = _validateCommands(params.commandsData, params.inputsLength);
+        params.commandsLength = params.commands.length;
+
+        //count args array length
+        uint256 argsLength;
+        for (uint256 i; i < params.commandsLength; ++i) {
+            uint256 command = params.commands[i];
+            if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
+                argsLength += 3;
+                // add params.pt, params.ptRecipient, params.ytRecipient to args array
+            } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
+                argsLength += 2;
+                // add params.ibt, params.recipient to args array
+            } else if (command == SpectraCommands.TRANSFER_FROM) {
+                argsLength += 1;
+                // add params.transferToken to args array
+            }
+        }
+
+        args = new address[](argsLength);
+        uint256 j;
+        for (uint256 i; i < params.commandsLength; ++i) {
+            uint256 command = params.commands[i];
+            bytes memory input = params.inputs[i];
+            if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
+                (params.pt, params.assets, params.ptRecipient, params.ytRecipient, params.minShares) =
+                    abi.decode(input, (address, uint256, address, address, uint256));
+                args[j++] = params.pt;
+                args[j++] = params.ptRecipient;
+                args[j++] = params.ytRecipient;
+            } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
+                (params.ibt, params.assets, params.recipient) = abi.decode(input, (address, uint256, address));
+                args[j++] = params.ibt;
+                args[j++] = params.recipient;
+            } else if (command == SpectraCommands.TRANSFER_FROM) {
+                (params.transferToken) = abi.decode(input, (address));
+                args[j++] = params.transferToken;
+            }
+        }
+    }
+
+    function beneficiaryArgs(bytes calldata data) external pure returns (uint8[] memory idxs) {
+        bytes calldata txData_ = data[AMOUNT_POSITION:];
+        ValidateTxDataParams memory params;
+        params.selector = bytes4(txData_[0:4]);
+
+        if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
+            (params.commandsData, params.inputs) = abi.decode(txData_[4:], (bytes, bytes[]));
+            params.inputsLength = params.inputs.length;
+            params.updatedInputs = new bytes[](params.inputsLength);
+        } else if (params.selector == bytes4(keccak256("execute(bytes,bytes[],uint256)"))) {
+            (params.commandsData, params.inputs, params.deadline) = abi.decode(txData_[4:], (bytes, bytes[], uint256));
+            params.inputsLength = params.inputs.length;
+            params.updatedInputs = new bytes[](params.inputsLength);
+        } 
+
+        params.commands = _validateCommands(params.commandsData, params.inputsLength);
+        params.commandsLength = params.commands.length;
+
+        //count args array length
+        uint256 idxsLength;
+        for (uint256 i; i < params.commandsLength; ++i) {
+            uint256 command = params.commands[i];
+            if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
+                idxsLength += 2;
+                // add params.ptRecipient, params.ytRecipient to args array
+            } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
+                idxsLength += 1;
+                // add params.recipient to args array
+            } else if (command == SpectraCommands.TRANSFER_FROM) {
+                idxsLength += 1;
+                // add `tempAcc`
+            }
+        }
+
+
+        idxs = new uint8[](idxsLength);
+        uint256 j;
+        uint256 k;
+        for (uint256 i; i < params.commandsLength; ++i) {
+            uint256 command = params.commands[i];
+
+            if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
+                // pt, ptRecipient, ytRecipient
+                j += 1; // pt
+                idxs[k++] = uint8(j++); // ptRecipient
+                idxs[k++] = uint8(j++); // ytRecipient
+
+            } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
+                // ibt, recipient
+                j += 1; // ibt
+                idxs[k++] = uint8(j++); // recipient
+
+            } else if (command == SpectraCommands.TRANSFER_FROM) {
+                // transferToken
+                idxs[k++] = uint8(j); // account
+                j += 1;
+            }
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(data, account);
+        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

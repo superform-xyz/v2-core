@@ -13,7 +13,8 @@ import {
     ISuperHookResultOutflow,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -32,7 +33,8 @@ contract ApproveAndRedeem4626VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 {
     using HookDataDecoder for bytes;
 
@@ -101,6 +103,21 @@ contract ApproveAndRedeem4626VaultHook is
         return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
     }
 
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
+        target = data.extractYieldSource();
+        args = new address[](2);
+        args[0] = tempAcc;
+        args[1] = BytesLib.toAddress(data, 24); //owner
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
+        idxs = new uint8[](2);
+        idxs[0] = 0;
+        idxs[1] = 1;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -110,6 +127,7 @@ contract ApproveAndRedeem4626VaultHook is
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
         spToken = yieldSource;
+        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

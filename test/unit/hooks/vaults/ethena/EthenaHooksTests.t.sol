@@ -199,6 +199,32 @@ contract EthenaHooksTests is Helpers {
         assertEq(isShares, true);
     }
 
+    function test_cooldownSharesHook_Inspector() public view {
+        bytes memory data = _encodeCooldownData(false);
+        (address target, address[] memory args) = cooldownSharesHook.inspect(data);
+        assertEq(target, address(yieldSource));
+        assertEq(args.length, 0);
+    }
+
+    function test_cooldownSharesHook_BeneficiaryArgs() public view {
+        bytes memory data = _encodeCooldownData(false);
+        uint8[] memory idxs = cooldownSharesHook.beneficiaryArgs(data);
+        assertEq(idxs.length, 0);
+    }
+
+    function test_unstakeHook_Inspector() public view {
+        bytes memory data = _encodeUnstakeData();
+        (address target, address[] memory args) = unstakeHook.inspect(data);
+        assertEq(target, address(yieldSource));
+        assertEq(args.length, 0);
+    }
+
+    function test_unstakeHook_BeneficiaryArgs() public view {
+        bytes memory data = _encodeUnstakeData();
+        uint8[] memory idxs = unstakeHook.beneficiaryArgs(data);
+        assertEq(idxs.length, 0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                               HELPERS
     //////////////////////////////////////////////////////////////*/

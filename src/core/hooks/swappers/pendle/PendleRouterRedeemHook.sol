@@ -11,7 +11,7 @@ import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title PendleRouterRedeemHook
 /// @author Superform Labs
@@ -23,7 +23,7 @@ import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../i
 /// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 92);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
 /// @notice         bytes output = BytesLib.slice(data, 125, data.length - 125);
-contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
+contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     // Offset for bool usePrevHookAmount (after packed amount, YT, tokenOut, minTokenOut)
@@ -113,11 +113,28 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
+        target = address(pendleRouterV4);
+
+        DecodedParams memory params = _decodeAndValidateData(data);
+        args = new address[](2);
+        args[0] = tempAcc;
+        args[1] = params.YT;
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
+        idxs = new uint8[](1);
+        idxs[0] = 0;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(data, account);
+        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

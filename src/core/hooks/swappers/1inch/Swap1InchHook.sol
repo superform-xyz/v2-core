@@ -8,10 +8,7 @@ import "../../../../vendor/1inch/I1InchAggregationRouterV6.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
-
-import "forge-std/console2.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Swap1InchHook
 /// @author Superform Labs
@@ -21,7 +18,7 @@ import "forge-std/console2.sol";
 /// @notice         uint256 value = BytesLib.toUint256(data, 40);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 /// @notice         bytes txData_ = BytesLib.slice(data, 73, data.length - 73);
-contract Swap1InchHook is BaseHook, ISuperHookContextAware {
+contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using AddressLib for Address;
     using ProtocolLib for Address;
 
@@ -93,11 +90,71 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
+        target = address(aggregationRouter);
+
+        bytes calldata txData_ = data[73:];
+        bytes4 selector = bytes4(txData_[:4]);
+
+        if (selector == I1InchAggregationRouterV6.unoswapTo.selector) {
+            (Address to, Address token,,, Address dex) =
+                abi.decode(txData_[4:], (Address, Address, uint256, uint256, Address));
+            args = new address[](3);
+            args[0] = to.get();
+            args[1] = token.get();
+            args[2] = dex.get();
+        } else if (selector == I1InchAggregationRouterV6.swap.selector) {
+            (IAggregationExecutor executor, I1InchAggregationRouterV6.SwapDescription memory desc,) =
+                abi.decode(txData_[4:], (IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription, bytes));
+            args = new address[](5);
+            args[0] = address(executor);
+            args[1] = address(desc.srcToken);
+            args[2] = address(desc.dstToken);
+            args[3] = address(desc.srcReceiver);
+            args[4] = address(desc.dstReceiver);
+        } else if (selector == I1InchAggregationRouterV6.clipperSwapTo.selector) {
+            (
+                IClipperExchange clipperExchange,
+                address recipient,
+                Address srcToken,
+                IERC20 dstToken,
+                ,
+                ,
+                ,
+                ,
+                
+            ) = abi.decode(
+                txData_[4:], (IClipperExchange, address, Address, IERC20, uint256, uint256, uint256, bytes32, bytes32)
+            );
+            args = new address[](4);
+            args[0] = address(clipperExchange);
+            args[1] = recipient;
+            args[2] = srcToken.get();
+            args[3] = address(dstToken);
+        } 
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function beneficiaryArgs(bytes calldata data) external pure returns (uint8[] memory idxs) {
+        idxs = new uint8[](1);
+        bytes calldata txData_ = data[73:];
+        bytes4 selector = bytes4(txData_[:4]);
+        if (selector == I1InchAggregationRouterV6.unoswapTo.selector) {
+            idxs[0] = 0;
+        } else if (selector == I1InchAggregationRouterV6.swap.selector) {
+            idxs[0] = 4;
+        } else if (selector == I1InchAggregationRouterV6.clipperSwapTo.selector) {
+            idxs[0] = 1;
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
+    function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(data);
+        tempAcc = account;
     }
 
     function _postExecute(address, address, bytes calldata data) internal override {

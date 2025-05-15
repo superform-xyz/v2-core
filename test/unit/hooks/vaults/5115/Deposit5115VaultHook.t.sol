@@ -96,6 +96,21 @@ contract Deposit5115VaultHookTest is Helpers {
         assertEq(hook.outAmount(), 0);
     }
 
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        (address target, address[] memory args) = hook.inspect(data);
+        assertEq(target, yieldSource);
+        assertEq(args.length, 2);
+        assertEq(args[1], token);
+    }
+
+    function test_BeneficiaryArgs() public view {
+        bytes memory data = _encodeData(false);
+        uint8[] memory idxs = hook.beneficiaryArgs(data);
+        assertEq(idxs.length, 1);
+        assertEq(idxs[0], 0);
+    }
+
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, amount, usePrevHook, address(0), uint256(0));
     }

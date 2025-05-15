@@ -20,6 +20,8 @@ abstract contract BaseHook is ISuperHook {
     address public transient spToken;
     address public transient asset;
     address public transient lastExecutionCaller;
+    address public transient tempAcc;
+
 
     address public transient vaultBank;
     uint256 public transient dstChainId;

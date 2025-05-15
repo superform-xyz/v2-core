@@ -73,6 +73,19 @@ contract FluidClaimRewardHookTest is Helpers {
         assertEq(hook.outAmount(), 0);
     }
 
+    function test_Inspector() public view {
+        bytes memory data = _encodeData();
+        (address target, address[] memory args) = hook.inspect(data);
+        assertEq(target, stakingRewards);
+        assertEq(args.length, 0);
+    }
+
+    function test_BeneficiaryArgs() public view {
+        bytes memory data = _encodeData();
+        uint8[] memory idxs = hook.beneficiaryArgs(data);
+        assertEq(idxs.length, 0);
+    }
+
     function _encodeData() internal view returns (bytes memory) {
         return abi.encodePacked(stakingRewards, rewardToken, account);
     }

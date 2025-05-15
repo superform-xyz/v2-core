@@ -183,6 +183,20 @@ contract Swap1InchHookTest is Helpers {
         executions = hook.build(address(0), account, hookData);
     }
 
+    function test_UnoSwap_inspect() public view {
+        bytes memory data = _buildCurveHookData(0, false, dstReceiver, 1000, 100, false);
+        (address target, address[] memory args) = hook.inspect(data);
+
+        assertEq(target, mockRouter);
+        assertEq(args.length, 3);
+    }
+
+    function test_UnoSwap_beneficiaryArgs() public view {
+        bytes memory data = _buildCurveHookData(0, false, dstReceiver, 1000, 100, false);
+        uint8[] memory idxs = hook.beneficiaryArgs(data);
+
+        assertEq(idxs.length, 1);
+    }
 
     function test_PreExecute() public {
         MockERC20 token = new MockERC20("Test Token", "TT", 18);
@@ -241,6 +255,21 @@ contract Swap1InchHookTest is Helpers {
         executions = hook.build(address(this), account, hookData);
     }
 
+    function test_GenericSwap_inspect() public view {
+        bytes memory data =  _buildGenericSwapData(0, dstToken, dstReceiver, 1000, 100, false);
+        (address target, address[] memory args) = hook.inspect(data);
+
+        assertEq(target, mockRouter);
+        assertEq(args.length, 5);
+    }
+
+    function test_GenericSwap_beneficiaryArgs() public view {
+        bytes memory data = _buildGenericSwapData(0, dstToken, dstReceiver, 1000, 100, false);
+        uint8[] memory idxs = hook.beneficiaryArgs(data);
+
+        assertEq(idxs.length, 1);
+    }
+
     function test_Build_ClipperSwap() public {
         address account = address(this); 
 
@@ -265,6 +294,21 @@ contract Swap1InchHookTest is Helpers {
         executions = hook.build(address(this), account, hookData);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, mockRouter);
+    }
+
+    function test_ClipperSwap_inspect() public view {
+        bytes memory data =  _buildClipperData(1000, 100, dstReceiver, dstToken, false);
+        (address target, address[] memory args) = hook.inspect(data);
+
+        assertEq(target, mockRouter);
+        assertEq(args.length, 4);
+    }
+
+    function test_ClipperSwap_beneficiaryArgs() public view {
+        bytes memory data = _buildClipperData(1000, 100, dstReceiver, dstToken, false);
+        uint8[] memory idxs = hook.beneficiaryArgs(data);
+
+        assertEq(idxs.length, 1);
     }
 
     function _buildClipperData(uint256 _amount, uint256 _minAmount, address _dstReceiver, address _dstToken, bool usePrev) private view returns (bytes memory) {

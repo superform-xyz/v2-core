@@ -10,7 +10,7 @@ import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLend
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookContextAware, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookContextAware, ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title FluidStakeHook
 /// @author Superform Labs
@@ -19,7 +19,7 @@ import { ISuperHookContextAware, ISuperHookResult } from "../../../interfaces/IS
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 24);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-contract FluidStakeHook is BaseHook, ISuperHookContextAware {
+contract FluidStakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
@@ -66,6 +66,17 @@ contract FluidStakeHook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(address target, address[] memory args) {
+        target = data.extractYieldSource();
+        args = new address[](0);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
+        idxs = new uint8[](0);
     }
 
     /*//////////////////////////////////////////////////////////////

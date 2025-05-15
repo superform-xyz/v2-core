@@ -407,6 +407,48 @@ contract ERC4626VaultHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                      OTHER TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_inspect() public view {
+        (address target, address[] memory args) = depositHook.inspect(_encodeDepositData());
+        assertEq(target, yieldSource);
+        assertEq(args.length, 1);
+        assertEq(args[0], address(0));
+
+        (target, args) = redeemHook.inspect(_encodeRedeemData());
+        assertEq(target, yieldSource);
+        assertEq(args.length, 2);
+
+        (target, args) = approveAndRedeemHook.inspect(_encodeApproveAndRedeemData());
+        assertEq(target, yieldSource);
+        assertEq(args.length, 2);
+
+        (target, args) = approveAndDepositHook.inspect(_encodeApproveAndDepositData());
+        assertEq(target, yieldSource);
+        assertEq(args.length, 1);
+    }
+
+    function test_beneficiaryArgs() public view {
+        uint8[] memory idxs = depositHook.beneficiaryArgs("");
+        assertEq(idxs.length, 1);
+        assertEq(idxs[0], 0);
+
+        idxs = redeemHook.beneficiaryArgs("");
+        assertEq(idxs.length, 2);
+        assertEq(idxs[0], 0);
+        assertEq(idxs[1], 1);
+
+        idxs = approveAndRedeemHook.beneficiaryArgs("");
+        assertEq(idxs.length, 2);
+        assertEq(idxs[0], 0);
+        assertEq(idxs[1], 1);
+
+        idxs = approveAndDepositHook.beneficiaryArgs("");
+        assertEq(idxs.length, 1);
+        assertEq(idxs[0], 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                         HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function _encodeApproveAndDepositData() internal view returns (bytes memory) {

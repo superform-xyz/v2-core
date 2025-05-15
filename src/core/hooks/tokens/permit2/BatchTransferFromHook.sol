@@ -8,6 +8,7 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IPermit2Batch } from "../../../../vendor/uniswap/permit2/IPermit2Batch.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IAllowanceTransfer } from "../../../../vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -20,7 +21,7 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @notice         uint256 amountTokens = BytesLib.toUint256(data, 20);
 /// @notice         address[] tokens = BytesLib.slice(data, 52, 20 * amountTokens);
 /// @notice         uint256[] amounts = BytesLib.slice(data, 52 + 20 * amountTokens, 32 * amountTokens);
-contract BatchTransferFromHook is BaseHook {
+contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
     using SafeCast for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -78,6 +79,27 @@ contract BatchTransferFromHook is BaseHook {
             Execution({ target: permit2, value: 0, callData: abi.encodeCall(IPermit2Batch.transferFrom, (details)) });
     }
 
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
+        target = address(permit2);
+        uint256 permitArrayLength = BytesLib.toUint256(data, 20);
+        uint256 argsLen = permitArrayLength + 2; // from, to & tokens[]
+        args = new address[](argsLen);
+        args[0] = BytesLib.toAddress(data, 0);
+        args[1] = tempAcc;
+        
+        address[] memory tokens = _decodeTokenArray(data, 52, permitArrayLength);
+        for (uint256 i; i < permitArrayLength; ++i) {
+            args[i + 2] = tokens[i];
+        }
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
+        idxs = new uint8[](1);
+        idxs[0] = 1;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -87,6 +109,7 @@ contract BatchTransferFromHook is BaseHook {
         for (uint256 i; i < arrayLength; ++i) {
             outAmount += _getBalance(tokens[i], account);
         }
+        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

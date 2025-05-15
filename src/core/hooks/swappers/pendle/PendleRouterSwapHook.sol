@@ -8,7 +8,7 @@ import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import {
     IPendleRouterV4,
     ApproxParams,
@@ -30,7 +30,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
 /// @notice         uint256 value = BytesLib.toUint256(data, 25);
 /// @notice         bytes txData_ = BytesLib.slice(data, 57, data.length - 57);
-contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
+contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 24;
@@ -95,11 +95,105 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
+        target = address(pendleRouterV4);
+
+        bytes calldata txData_ = data[57:];
+        bytes4 selector = bytes4(txData_[0:4]);
+
+        if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
+            // skip selector
+            (
+                address receiver,
+                address market,
+                ,
+                ,
+                TokenInput memory input,
+                LimitOrderData memory limit
+            ) = abi.decode(txData_[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+
+            uint256 argsLen = 7;
+            uint256 normalFillsLen = limit.normalFills.length;
+            uint256 flashFillsLen = limit.flashFills.length;
+            argsLen += normalFillsLen *4; // 4 addreses per fill
+            argsLen += flashFillsLen *4; // 4 addreses per fill
+
+            args = new address[](argsLen);
+            args[0] = receiver;
+            args[1] = market;
+            args[2] = input.tokenIn;
+            args[3] = input.tokenMintSy;
+            args[4] = input.pendleSwap;
+            args[5] = input.swapData.extRouter;
+            args[6] = limit.limitRouter;
+            
+            uint256 idx = 7;
+            for (uint256 i; i < normalFillsLen; i++) {
+                args[idx++] = limit.normalFills[i].order.token;
+                args[idx++] = limit.normalFills[i].order.YT;
+                args[idx++] = limit.normalFills[i].order.maker;
+                args[idx++] = limit.normalFills[i].order.receiver;
+            }
+            for (uint256 i; i < flashFillsLen; i++) {
+                args[idx++] = limit.flashFills[i].order.token;
+                args[idx++] = limit.flashFills[i].order.YT;
+                args[idx++] = limit.flashFills[i].order.maker;
+                args[idx++] = limit.flashFills[i].order.receiver;
+            }
+
+            
+        } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
+            // skip selector
+            (
+                address receiver,
+                address market,
+                ,
+                TokenOutput memory output,
+                LimitOrderData memory limit
+            ) = abi.decode(txData_[4:], (address, address, uint256, TokenOutput, LimitOrderData));
+            
+            uint256 argsLen = 6;
+            uint256 normalFillsLen = limit.normalFills.length;
+            uint256 flashFillsLen = limit.flashFills.length;
+            argsLen += normalFillsLen *4; // 4 addreses per fill
+            argsLen += flashFillsLen *4; // 4 addreses per fill
+            args = new address[](argsLen);
+            args[0] = receiver;
+            args[1] = market;
+            args[2] = output.tokenOut;
+            args[3] = output.tokenRedeemSy;
+            args[4] = output.pendleSwap;
+            args[5] = output.swapData.extRouter;
+
+            uint256 idx = 6;
+            for (uint256 i; i < normalFillsLen; i++) {
+                args[idx++] = limit.normalFills[i].order.token;
+                args[idx++] = limit.normalFills[i].order.YT;
+                args[idx++] = limit.normalFills[i].order.maker;
+                args[idx++] = limit.normalFills[i].order.receiver;
+            }
+            for (uint256 i; i < flashFillsLen; i++) {
+                args[idx++] = limit.flashFills[i].order.token;
+                args[idx++] = limit.flashFills[i].order.YT;
+                args[idx++] = limit.flashFills[i].order.maker;
+                args[idx++] = limit.flashFills[i].order.receiver;
+            }
+        }
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
+        idxs = new uint8[](1);
+        idxs[0] = 0;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
+    function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(data);
+        tempAcc = account;
     }
 
     function _postExecute(address, address, bytes calldata data) internal override {

@@ -32,12 +32,25 @@ contract ApproveAndFluidStakeHookTest is Helpers {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
-    function test_DecodeUsePrevHookAmount() public {
+    function test_DecodeUsePrevHookAmount() public view {
         bytes memory data = _encodeData(false);
         assertEq(hook.decodeUsePrevHookAmount(data), false);
 
         data = _encodeData(true);
         assertEq(hook.decodeUsePrevHookAmount(data), true);
+    }
+
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        (address target, address[] memory args) = hook.inspect(data);
+        assertEq(target, yieldSource);
+        assertEq(args.length, 0);
+    }
+
+    function test_BeneficiaryArgs() public view {
+        bytes memory data = _encodeData(false);
+        uint8[] memory idxs = hook.beneficiaryArgs(data);
+        assertEq(idxs.length, 0);
     }
 
     function test_Build() public view {

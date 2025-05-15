@@ -10,7 +10,7 @@ import { IStakedUSDeCooldown } from "../../../../vendor/ethena/IStakedUSDeCooldo
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHookInflowOutflow, ISuperHookOutflow } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title EthenaUnstakeHook
@@ -23,7 +23,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
 /// @notice         address vaultBank = BytesLib.toAddress(data, 77);
 /// @notice         uint256 dstChainId = BytesLib.toUint256(data, 97);
-contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow {
+contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
@@ -75,6 +75,17 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
     /// @inheritdoc ISuperHookOutflow
     function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
         return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(address target, address[] memory args) {
+        target = data.extractYieldSource();
+        args = new address[](0);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
+        idxs = new uint8[](0);
     }
 
     /*//////////////////////////////////////////////////////////////

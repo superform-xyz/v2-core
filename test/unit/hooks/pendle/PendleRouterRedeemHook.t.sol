@@ -112,6 +112,22 @@ contract PendleRouterRedeemHookTest is Helpers {
         assertEq(executions[2].callData, expectedCallData);
     }
 
+    function test_Inspect() public view {
+        bytes memory data =
+            _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
+        (address target, address[] memory args) = hook.inspect(data);
+        assertEq(target, address(pendleRouter));
+        assertEq(args.length, 2);
+    }
+
+    function test_BeneficiaryArgs() public view {
+        bytes memory data =
+            _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
+        uint8[] memory idxs = hook.beneficiaryArgs(data);
+        assertEq(idxs.length, 1);
+        assertEq(idxs[0], 0);
+    }
+
     function test_PreExecute() public {
         bytes memory data =
             _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);

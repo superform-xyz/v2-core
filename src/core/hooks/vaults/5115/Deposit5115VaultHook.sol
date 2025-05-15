@@ -11,7 +11,7 @@ import { IStandardizedYield } from "../../../../vendor/pendle/IStandardizedYield
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Deposit5115VaultHook
 /// @author Superform Labs
@@ -24,7 +24,7 @@ import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } fro
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 108);
 /// @notice         address vaultBank = BytesLib.toAddress(data, 109);
 /// @notice         uint256 dstChainId = BytesLib.toUint256(data, 129);
-contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
@@ -80,6 +80,20 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
+        target = data.extractYieldSource();
+        args = new address[](2);
+        args[0] = tempAcc;
+        args[1] = BytesLib.toAddress(data, 24); //tokenIn
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
+        idxs = new uint8[](1);
+        idxs[0] = 0;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -89,6 +103,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
         dstChainId = BytesLib.toUint256(data, 129);
         spToken = data.extractYieldSource();
         asset = BytesLib.toAddress(data, 24);
+        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

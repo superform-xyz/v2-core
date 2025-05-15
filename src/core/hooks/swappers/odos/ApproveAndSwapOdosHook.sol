@@ -10,7 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveAndSwapOdosHook
 /// @author Superform Labs
@@ -27,7 +27,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         bytes pathDefinition = BytesLib.slice(data, 209, pathDefinition_paramLength);
 /// @notice         address executor = BytesLib.toAddress(data, 209 + pathDefinition_paramLength);
 /// @notice         uint32 referralCode = BytesLib.toUint32(data, 209 + pathDefinition_paramLength + 20);
-contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
+contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     IOdosRouterV2 public immutable odosRouterV2;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
@@ -102,11 +102,32 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
+        target = address(odosRouterV2);
+
+        uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 177);
+        address executor = BytesLib.toAddress(data, 209 + pathDefinition_paramLength);
+        args = new address[](5);
+        args[0] = BytesLib.toAddress(data, 0);
+        args[1] = BytesLib.toAddress(data, 52);
+        args[2] = BytesLib.toAddress(data, 72);
+        args[3] = tempAcc;
+        args[4] = executor;
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
+        idxs = new uint8[](1);
+        idxs[0] = 0;
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
+        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

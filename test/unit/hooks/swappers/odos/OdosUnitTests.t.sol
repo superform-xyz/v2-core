@@ -238,6 +238,22 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         assertEq(executions.length, 4);
     }
 
+    function test_ApproveAndSwapOdosHook_inspect() public view {
+        bytes memory data = _buildApproveAndSwapOdosData(false);
+
+        (address target, address[] memory args) = approveAndSwapOdosHook.inspect(data);
+
+        assertEq(target, address(odosRouter));
+        assertEq(args.length, 5);
+    }
+
+    function test_ApproveAndSwapOdosHook_beneficiaryArgs() public view {
+        bytes memory data = _buildApproveAndSwapOdosData(false);
+        uint8[] memory idxs = approveAndSwapOdosHook.beneficiaryArgs(data);
+
+        assertEq(idxs.length, 1);
+    }
+
     function _buildApproveAndSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
         bytes memory data = bytes.concat(
             bytes20(inputToken),
@@ -383,6 +399,22 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         Execution[] memory executions = swapOdosHook.build(address(prevHook), account, data);
 
         assertEq(executions.length, 1);
+    }
+
+    function test_SwapOdosHook_inspect() public view {
+        bytes memory data = _buildSwapOdosData(false);
+
+        (address target, address[] memory args) = swapOdosHook.inspect(data);
+
+        assertEq(target, address(odosRouter));
+        assertEq(args.length, 5);
+    }
+
+    function test_SwapOdosHook_beneficiaryArgs() public view {
+        bytes memory data = _buildSwapOdosData(false);
+        uint8[] memory idxs = swapOdosHook.beneficiaryArgs(data);
+
+        assertEq(idxs.length, 1);
     }
 
     function _buildSwapOdosData(bool usePrevious) internal view returns (bytes memory) {

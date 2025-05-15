@@ -11,7 +11,8 @@ import {
     ISuperHookResultOutflow,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
@@ -26,7 +27,8 @@ contract FluidClaimRewardHook is
     BaseClaimRewardHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 {
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) { }
 
@@ -62,6 +64,17 @@ contract FluidClaimRewardHook is
     /// @inheritdoc ISuperHookOutflow
     function replaceCalldataAmount(bytes memory data, uint256) external pure returns (bytes memory) {
         return data;
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(address target, address[] memory args) {
+        target = BytesLib.toAddress(data, 0);
+        args = new address[](0);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
+        idxs = new uint8[](0);
     }
 
     /*//////////////////////////////////////////////////////////////
