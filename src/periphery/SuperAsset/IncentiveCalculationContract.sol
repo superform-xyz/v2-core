@@ -3,7 +3,6 @@ pragma solidity ^0.8.28;
 
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IIncentiveCalculationContract } from "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
-import { console } from "forge-std/console.sol";
 
 
 /**
@@ -36,9 +35,6 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
         if(totalCurrentAllocation == 0 || totalAllocationTarget == 0) {
             return (0, false);
         }
-
-        console.log("Energy() totalCurrentAllocation = ", totalCurrentAllocation);
-        console.log("Energy() totalAllocationTarget = ", totalAllocationTarget);
 
         uint256 length = currentAllocation.length;
         for (uint256 i; i < length; i++) {
