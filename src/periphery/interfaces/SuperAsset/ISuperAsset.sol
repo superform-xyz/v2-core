@@ -19,6 +19,7 @@ interface ISuperAsset is IERC20 {
 
     struct GetAllocationsPrePostOperations {
         uint256 length;
+        uint256 extendedLength;
         uint256 extraSlot;
         address vault;
         uint256 priceUSD;

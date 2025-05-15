@@ -12,6 +12,8 @@ import "../interfaces/SuperAsset/IAssetBank.sol";
 import "../interfaces/SuperAsset/ISuperAsset.sol";
 import "../interfaces/ISuperOracle.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import "forge-std/console.sol";
+
 
 
 
@@ -338,6 +340,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         if (token == address(0)) revert ZERO_ADDRESS();
         if (isSupportedERC20[token]) revert ALREADY_WHITELISTED();
         isSupportedERC20[token] = true;
+        _supportedVaults.add(token);
         emit ERC20Whitelisted(token);
     }
 
@@ -346,6 +349,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         if (token == address(0)) revert ZERO_ADDRESS();
         if (!isSupportedERC20[token]) revert NOT_WHITELISTED();
         isSupportedERC20[token] = false;
+        _supportedVaults.remove(token);
         emit ERC20Removed(token);
     }
 
@@ -374,6 +378,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256[] memory vaultWeights, 
         bool isSuccess) {
         GetAllocationsPrePostOperations memory s;
+        console.log("getAllocationsPrePostOperation() T1");
         if (deltaToken < 0 && uint256(-deltaToken) > IERC20(token).balanceOf(address(this))) {
             // NOTE: Since we do not want this function to revert, we re-set the amount out to the max possible amount out which is the balance of this token
             // NOTE: This should be OK since the user can control the min amount out they desire with the slippage protection 
@@ -382,18 +387,23 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // NOTE: If token is not in the whitelist, consider it like if it was and add a corresponding target allocation of 0
         // NOTE: This means adding one slot to the arrays here 
-        s.extraSlot = (_supportedVaults.contains(token) ? 1 : 0);
-        s.length = _supportedVaults.length() + s.extraSlot;
+        s.extraSlot = (_supportedVaults.contains(token) ? 0 : 1);
+        s.length = _supportedVaults.length();
+        s.extendedLength = _supportedVaults.length() + s.extraSlot;
         absoluteAllocationPreOperation = new uint256[](s.length);
         absoluteAllocationPostOperation = new uint256[](s.length);
         absoluteTargetAllocation = new uint256[](s.length);
         vaultWeights = new uint256[](s.length);
+        console.log("getAllocationsPrePostOperation() T2");
+        console.log("s.length = ", s.length);
 
-        for (uint256 i; i < s.length; i++) {
-            s.vault = _supportedVaults.at(i);
+        for (uint256 i; i < s.extendedLength; i++) {
+            console.log("getAllocationsPrePostOperation() T3");
+            s.vault = (i < s.length) ? _supportedVaults.at(i) : token;
             (s.priceUSD, s.isDepeg, s.isDispersion, s.isOracleOff) = getPriceWithCircuitBreakers(s.vault);
             if (!isSoft && (s.isDepeg || s.isDispersion || s.isOracleOff)) {
                 isSuccess = false;
+                console.log("getAllocationsPrePostOperation() T3 false in the loop");
                 return (
                     absoluteAllocationPreOperation, 
                     totalAllocationPreOperation, 
@@ -419,8 +429,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             absoluteTargetAllocation[i] = targetAllocations[s.vault];
             totalTargetAllocation += absoluteTargetAllocation[i];
             vaultWeights[i] = weights[s.vault];
-            isSuccess = true;
+            console.log("getAllocationsPrePostOperation() T5");
         }
+        isSuccess = true;
+        console.log("getAllocationsPrePostOperation() T6");
     }
 
     /// @inheritdoc ISuperAsset
@@ -431,7 +443,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     {
         PreviewDeposit memory s;
         // NOTE: Preview Function should not revert
+        console.log("previewDeposit() T1");
         if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) return (0,0,0, false);
+        console.log("previewDeposit() T2");
 
         // Calculate swap fees (example: 0.1% fee)
         swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
@@ -458,9 +472,13 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             s.allocations.vaultWeights,
             s.allocations.isSuccess
         ) = getAllocationsPrePostOperation(tokenIn, int256(amountTokenToDeposit), isSoft);
+        console.log("previewDeposit() T3");
+        console.log("s.allocations.isSuccess = ", s.allocations.isSuccess);
+
+        // TODO: Handle the case where isSuccess is false
 
         // Calculate incentives (using ICC)
-        amountIncentiveUSD = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
+        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
             s.allocations.absoluteAllocationPreOperation,
             s.allocations.absoluteAllocationPostOperation,
             s.allocations.absoluteTargetAllocation,
@@ -504,8 +522,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             s.allocations.isSuccess
         ) = getAllocationsPrePostOperation(tokenOut, -int256(s.amountTokenOutBeforeFees), isSoft);
 
+        // TODO: Handle the case where isSuccess is false
+
         // Calculate incentives (using ICC)
-        amountIncentiveUSD = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
+        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
             s.allocations.absoluteAllocationPreOperation,
             s.allocations.absoluteAllocationPostOperation,
             s.allocations.absoluteTargetAllocation,

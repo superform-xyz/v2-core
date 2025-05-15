@@ -35,7 +35,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalCurrentAllocation = 1000e18;
         uint256 totalAllocationTarget = 1000e18;
 
-        uint256 energy = calculator.energy(
+        (uint256 energy, bool isSuccess) = calculator.energy(
             currentAllocation,
             allocationTarget,
             weights,
@@ -61,7 +61,7 @@ contract IncentiveCalculationContractTest is Helpers {
         weights[0] = PRECISION;
         weights[1] = PRECISION;
 
-        uint256 energy = calculator.energy(
+        (uint256 energy, bool isSuccess) = calculator.energy(
             currentAllocation,
             allocationTarget,
             weights,
@@ -103,7 +103,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalCurrentAllocation = 1000e18;
         uint256 totalAllocationTarget = 1000e18;
 
-        uint256 energy = calculator.energy(
+        (uint256 energy, bool isSuccess) = calculator.energy(
             currentAllocation,
             allocationTarget,
             weights,
@@ -141,7 +141,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = 2 * PRECISION; // 2 USD per energy unit
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -184,7 +184,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = 2 * PRECISION; // 2 USD per energy unit
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -226,7 +226,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = 2 * PRECISION;
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -287,7 +287,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = PRECISION; // 1 USD per energy unit
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -330,7 +330,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = PRECISION;
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -370,7 +370,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = PRECISION;
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -412,7 +412,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = PRECISION;
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -467,7 +467,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = PRECISION;
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -507,7 +507,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 extremeRatio = type(uint256).max / (200 * PRECISION); // Maximum safe ratio
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -553,7 +553,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = PRECISION;
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -606,7 +606,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = PRECISION;
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
