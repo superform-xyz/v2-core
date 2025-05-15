@@ -315,6 +315,54 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         return superVaultState[controller].averageWithdrawPrice;
     }
 
+    // @inheritdoc ISuperVaultStrategy
+    function previewPerformanceFee(
+        address controller,
+        uint256 sharesToRedeem
+    )
+        external
+        view
+        returns (uint256 totalFee, uint256 superformFee, uint256 recipientFee)
+    {
+        if (sharesToRedeem == 0) return (0, 0, 0);
+
+        // Get controller's state
+        SuperVaultState storage state = superVaultState[controller];
+
+        // Check if controller has enough shares
+        if (sharesToRedeem > state.accumulatorShares) return (0, 0, 0);
+
+        // Get the current price per share
+        uint256 currentPPS = _getSuperVaultAggregator().getPPS(address(this));
+
+        // Calculate historical assets (cost basis)
+        uint256 historicalAssets = 0;
+        if (state.accumulatorShares > 0) {
+            historicalAssets =
+                sharesToRedeem.mulDiv(state.accumulatorCostBasis, state.accumulatorShares, Math.Rounding.Floor);
+        }
+
+        // Calculate current value of shares in asset terms
+        uint256 currentAssetsWithFees = sharesToRedeem.mulDiv(currentPPS, PRECISION, Math.Rounding.Floor);
+
+        // Calculate fee (if any) using same logic as _calculateAndTransferFee
+        if (currentAssetsWithFees > historicalAssets) {
+            uint256 profit = currentAssetsWithFees - historicalAssets;
+            uint256 performanceFeeBps = feeConfig.performanceFeeBps;
+            totalFee = profit.mulDiv(performanceFeeBps, BPS_PRECISION, Math.Rounding.Floor);
+
+            if (totalFee > 0) {
+                // Calculate Superform's portion of the fee using revenueShare from SuperGovernor
+                superformFee = totalFee.mulDiv(
+                    superGovernor.getFee(FeeType.SUPER_VAULT_PERFORMANCE_FEE), ONE_HUNDRED_PERCENT, Math.Rounding.Floor
+                );
+                recipientFee = totalFee - superformFee;
+            }
+        }
+
+        return (totalFee, superformFee, recipientFee);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -428,17 +476,17 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         for (uint256 i; i < controllersLength; ++i) {
             SuperVaultState storage state = superVaultState[controllers[i]];
 
-            uint256 finalAssets =
+            uint256 currentAssets =
                 _calculateHistoricalAssetsAndProcessFees(state, controllerRequestedAmount[i], currentPPS);
 
             // Update user state, no partial redeems allowed
             state.pendingRedeemRequest -= controllerRequestedAmount[i];
-            state.maxWithdraw += finalAssets;
+            state.maxWithdraw += currentAssets;
 
             // Call vault callback
             _onRedeemClaimable(
                 controllers[i],
-                finalAssets,
+                currentAssets,
                 controllerRequestedAmount[i],
                 state.averageWithdrawPrice,
                 state.accumulatorShares,
@@ -457,20 +505,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         uint256 currentPricePerShare
     )
         private
-        returns (uint256 finalAssets)
+        returns (uint256 currentAssets)
     {
         // Calculate cost basis based on requested shares
         uint256 historicalAssets = _calculateCostBasis(state, requestedShares);
-
+        uint256 currentAssetsWithFees;
         // Process fees and get final assets
-        finalAssets = _processFees(requestedShares, currentPricePerShare, historicalAssets);
+        (currentAssetsWithFees, currentAssets) = _processFees(requestedShares, currentPricePerShare, historicalAssets);
 
         // Update average withdraw price if needed
         if (requestedShares > 0) {
-            _updateAverageWithdrawPrice(state, requestedShares, finalAssets, currentPricePerShare);
+            _updateAverageWithdrawPrice(state, requestedShares, currentAssetsWithFees);
         }
 
-        return finalAssets;
+        return currentAssets;
     }
 
     /// @notice Calculate cost basis for requested shares using weighted average approach
@@ -501,30 +549,38 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         uint256 historicalAssets
     )
         private
-        returns (uint256 finalAssets)
+        returns (uint256 currentAssetsWithFees, uint256 currentAssets)
     {
         // Calculate current value of the shares at current price
-        uint256 currentValue = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor);
+        currentAssetsWithFees = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor);
 
         // Apply fees only on profit
-        finalAssets = _calculateAndTransferFee(currentValue, historicalAssets);
+        currentAssets = _calculateAndTransferFee(currentAssetsWithFees, historicalAssets);
 
         // Ensure we don't exceed available balance
         uint256 balanceOfStrategy = _getTokenBalance(address(_asset), address(this));
-        finalAssets = finalAssets > balanceOfStrategy ? balanceOfStrategy : finalAssets;
+        currentAssets = currentAssets > balanceOfStrategy ? balanceOfStrategy : currentAssets;
 
-        return finalAssets;
+        return (currentAssetsWithFees, currentAssets);
     }
 
     /// @notice Calculate fee on profit and transfer to recipient
-    /// @param currentAssets Current value of shares in assets
+    /// @param currentAssetsWithFees Current value of shares in assets (not net of fees)
     /// @param historicalAssets Historical value of shares in assets
-    /// @return uint256 Assets after fee deduction
-    function _calculateAndTransferFee(uint256 currentAssets, uint256 historicalAssets) private returns (uint256) {
-        if (currentAssets > historicalAssets) {
-            uint256 profit = currentAssets - historicalAssets;
+    /// @return currentAssets Current assets after fee deduction
+    function _calculateAndTransferFee(
+        uint256 currentAssetsWithFees,
+        uint256 historicalAssets
+    )
+        private
+        returns (uint256 currentAssets)
+    {
+        currentAssets = currentAssetsWithFees;
+        if (currentAssetsWithFees > historicalAssets) {
+            uint256 profit = currentAssetsWithFees - historicalAssets;
             uint256 performanceFeeBps = feeConfig.performanceFeeBps;
             uint256 totalFee = profit.mulDiv(performanceFeeBps, BPS_PRECISION, Math.Rounding.Floor);
+            console2.log("FEE-TAKEN", totalFee);
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee using revenueShare from SuperGovernor
                 uint256 superformFee = totalFee.mulDiv(
@@ -554,67 +610,24 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     function _updateAverageWithdrawPrice(
         SuperVaultState storage state,
         uint256 requestedShares,
-        uint256 finalAssets,
-        uint256 pps
+        uint256 currentAssetsWithFees
     )
         private
     {
-        {
-            uint256 existingShares;
-            uint256 existingAssets;
+        uint256 existingShares;
+        uint256 existingAssets;
 
-            if (state.maxWithdraw > 0 && state.averageWithdrawPrice > 0) {
-                existingShares = state.maxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Floor);
-                existingAssets = state.maxWithdraw;
-            }
-
-            uint256 newTotalShares = existingShares + requestedShares;
-            uint256 newTotalAssets = existingAssets + finalAssets;
-
-            if (newTotalShares > 0) {
-                //console2.log("newTotalAssets", newTotalAssets);
-                //console2.log("newTotalShares", newTotalShares);
-                //state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
-                console2.log(
-                    "AVG WITHDRAW PRICE WITH FEES ",
-                    newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor)
-                );
-                //state.averageWithdrawPrice = pps;
-            }
-        }
-        // Handle first withdrawal case
-        if (state.maxWithdraw == 0 || state.averageWithdrawPrice == 0) {
-            state.averageWithdrawPrice = pps;
-            return;
+        if (state.maxWithdraw > 0 && state.averageWithdrawPrice > 0) {
+            existingShares = state.maxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Floor);
+            existingAssets = state.maxWithdraw;
         }
 
-        // Calculate previous state before this request
-        uint256 previousMaxWithdraw = state.maxWithdraw - finalAssets;
-        uint256 previousShares = 0;
-        if (previousMaxWithdraw > 0 && state.averageWithdrawPrice > 0) {
-            previousShares = previousMaxWithdraw.mulDiv(PRECISION, state.averageWithdrawPrice, Math.Rounding.Floor);
-        }
+        uint256 newTotalShares = existingShares + requestedShares;
+        uint256 newTotalAssets = existingAssets + currentAssetsWithFees;
 
-        // Calculate new weighted average
-        uint256 totalShares = previousShares + requestedShares;
-        console2.log("Previous MaxWithdraw:", previousMaxWithdraw);
-        console2.log("Previous Shares:", previousShares);
-        console2.log("Requested Shares:", requestedShares);
-        console2.log("Total Shares:", totalShares);
-        console2.log("Previous PPS:", state.averageWithdrawPrice);
-        console2.log("New PPS:", pps);
-        if (totalShares > 0) {
-            // Weight by shares
-            uint256 weightedPrice = (
-                (previousShares.mulDiv(state.averageWithdrawPrice, PRECISION, Math.Rounding.Floor))
-                    + (requestedShares.mulDiv(pps, PRECISION, Math.Rounding.Floor))
-            ).mulDiv(PRECISION, totalShares, Math.Rounding.Floor);
-
-            // Log for debugging
-
-            console2.log("Weighted PPS:", weightedPrice);
-
-            state.averageWithdrawPrice = weightedPrice;
+        if (newTotalShares > 0) {
+            state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
+            console2.log("AVG WITHDRAW PRICE WITH FEES ", state.averageWithdrawPrice);
         }
     }
 

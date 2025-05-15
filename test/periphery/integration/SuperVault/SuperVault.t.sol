@@ -1818,17 +1818,26 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         console2.log("--pps after---", aggregator.getPPS(address(strategy)));
 
-        (uint256 superformFee, uint256 recipientFee) =
-            _deriveSuperVaultFees(userShares, _getSuperVaultPricePerShare(), vault.PRECISION());
+        /*
+        The impact of fee collection at super vault is that when calculating a fee in core, the user cannot "claim" the
+            whole set of shares he had inscribed as historical shares
+        Claims 999552226 shares instead of 1000000000 accumulated shares, where the diff is explained by the "assets"
+            collected as fees by the strategist/superform in SuperVault
+        For this reason, should we continue like this and assume this? Should we set a ledger configuration just for
+            super vaults where the core fee on yield is 0 so the user is not double charged on performance?
+        */
+        (, uint256 superformFee, uint256 recipientFee) = strategy.previewPerformanceFee(accountEth, userShares);
 
         // Step 5: Fulfill Redeem
         _fulfillRedeem(userShares, address(fluidVault), address(aaveVault));
 
         // Calculate expected assets based on shares
         uint256 claimableAssets = vault.maxWithdraw(accountEth);
+        uint256 claimableShares = vault.maxRedeem(accountEth);
+        console2.log("claimableShares", claimableShares);
 
         uint256 expectedLedgerFee =
-            superLedgerETH.previewFees(accountEth, address(vault), claimableAssets, userShares, 100);
+            superLedgerETH.previewFees(accountEth, address(vault), claimableAssets, claimableShares, 100);
 
         console2.log("expectedLedgerFee", expectedLedgerFee);
         console2.log("claimableAssets", claimableAssets);
@@ -1837,13 +1846,13 @@ contract SuperVaultTest is BaseSuperVaultTest {
         // Step 6: Claim Withdraw
         _claimWithdraw(claimableAssets);
 
-        uint256 totalFee = superformFee + recipientFee + expectedLedgerFee;
+        uint256 totalFeesTaken = superformFee + recipientFee + expectedLedgerFee;
 
         // Final balance assertions
         assertGt(asset.balanceOf(accountEth), preRedeemUserAssets, "User assets not increased after redeem");
 
         // Verify fee was taken
-        _assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(TREASURY));
+        _assertFeeDerivation(totalFeesTaken, feeBalanceBefore, asset.balanceOf(TREASURY));
     }
 
     function test_SuperVault_MultipleDeposits_PartialRedemptions() public executeWithoutHookRestrictions {
@@ -1936,8 +1945,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         console2.log("Redeeming shares (25%):", vars.redeemAmount1);
 
         // Calculate expected fee for first redemption
-        (vars.superformFee1, vars.recipientFee1) =
-            _deriveSuperVaultFees(vars.redeemAmount1, _getSuperVaultPricePerShare(), vault.PRECISION());
+        (, vars.superformFee1, vars.recipientFee1) = strategy.previewPerformanceFee(accountEth, vars.redeemAmount1);
 
         vars.treasuryBalanceAfterRedeem1 = vars.feeBalanceBefore;
 
@@ -1953,8 +1961,9 @@ contract SuperVaultTest is BaseSuperVaultTest {
         // Step 3: Claim first Withdraw
         vars.claimableAssets1 = vault.maxWithdraw(accountEth);
 
-        uint256 expectedLedgerFee =
-            superLedgerETH.previewFees(accountEth, address(vault), vars.claimableAssets1, vars.redeemAmount1, 100);
+        uint256 expectedLedgerFee = superLedgerETH.previewFees(
+            accountEth, address(vault), vars.claimableAssets1, vault.maxRedeem(accountEth), 100
+        );
         vars.totalFee1 = vars.superformFee1 + vars.recipientFee1 + expectedLedgerFee;
         console2.log("Expected fee for redemption 1:", vars.totalFee1);
         _claimWithdraw(vars.claimableAssets1);
@@ -1976,8 +1985,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         console2.log("Redeeming shares (33% of remaining):", vars.redeemAmount2);
 
         // Calculate expected fee for second redemption
-        (vars.superformFee2, vars.recipientFee2) =
-            _deriveSuperVaultFees(vars.redeemAmount2, _getSuperVaultPricePerShare(), vault.PRECISION());
+        (, vars.superformFee2, vars.recipientFee2) = strategy.previewPerformanceFee(accountEth, vars.redeemAmount2);
 
         // Record asset balance before redemption
         vars.userBalanceBeforeRedeem2 = asset.balanceOf(accountEth);
@@ -1991,8 +1999,9 @@ contract SuperVaultTest is BaseSuperVaultTest {
         // Step 3: Claim second Withdraw
         vars.claimableAssets2 = vault.maxWithdraw(accountEth);
 
-        expectedLedgerFee =
-            superLedgerETH.previewFees(accountEth, address(vault), vars.claimableAssets2, vars.redeemAmount2, 100);
+        expectedLedgerFee = superLedgerETH.previewFees(
+            accountEth, address(vault), vars.claimableAssets2, vault.maxRedeem(accountEth), 100
+        );
         vars.totalFee2 = vars.superformFee2 + vars.recipientFee2 + expectedLedgerFee;
         console2.log("Expected fee for redemption 2:", vars.totalFee2);
 
@@ -2014,8 +2023,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         console2.log("Redeeming final shares:", vars.finalShares);
 
         // Calculate expected fee for third redemption
-        (vars.superformFee3, vars.recipientFee3) =
-            _deriveSuperVaultFees(vars.finalShares, _getSuperVaultPricePerShare(), vault.PRECISION());
+        (, vars.superformFee3, vars.recipientFee3) = strategy.previewPerformanceFee(accountEth, vars.finalShares);
 
         // Record asset balance before redemption
         vars.userBalanceBeforeRedeem3 = asset.balanceOf(accountEth);
@@ -2029,8 +2037,9 @@ contract SuperVaultTest is BaseSuperVaultTest {
         // Step 3: Claim third Withdraw
         vars.claimableAssets3 = vault.maxWithdraw(accountEth);
 
-        expectedLedgerFee =
-            superLedgerETH.previewFees(accountEth, address(vault), vars.claimableAssets3, vars.finalShares, 100);
+        expectedLedgerFee = superLedgerETH.previewFees(
+            accountEth, address(vault), vars.claimableAssets3, vault.maxRedeem(accountEth), 100
+        );
         vars.totalFee3 = vars.superformFee3 + vars.recipientFee3 + expectedLedgerFee;
         console2.log("Expected fee for redemption 3:", vars.totalFee3);
         _claimWithdraw(vars.claimableAssets3);

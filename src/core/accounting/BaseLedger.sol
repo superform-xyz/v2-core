@@ -157,6 +157,9 @@ abstract contract BaseLedger is ISuperLedger {
     {
         uint256 costBasis = _calculateCostBasis(user, yieldSource, usedShares);
         feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
+        console2.log("\n");
+        console2.log("LEDGER FEE ACTUALLY TAKEN", feeAmount);
+        console2.log("ON ASSETS", amountAssets);
     }
 
     function _calculateFees(
