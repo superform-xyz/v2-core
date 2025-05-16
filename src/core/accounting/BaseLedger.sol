@@ -136,9 +136,9 @@ abstract contract BaseLedger is ISuperLedger {
     /// @return The volume to use for fee calculations
     function _getOutflowProcessVolume(
         uint256 amountSharesOrAssets,
-        uint256 /* pricePerShare */,
-        uint256 /* unused1 */,
-        uint8 /* decimals */
+        uint256,
+        uint256,
+        uint8
     )
         internal
         pure
