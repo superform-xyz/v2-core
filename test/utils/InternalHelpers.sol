@@ -637,7 +637,8 @@ abstract contract InternalHelpers {
         address from,
         uint256 arrayLength,
         address[] memory tokens,
-        uint256[] memory amounts
+        uint256[] memory amounts,
+        bytes memory sig
     )
         internal
         pure
@@ -650,6 +651,7 @@ abstract contract InternalHelpers {
         for (uint256 i = 0; i < arrayLength; i++) {
             data = bytes.concat(data, abi.encodePacked(amounts[i]));
         }
+        data = bytes.concat(data, abi.encodePacked(sig));
     }
 
     function _createTransferERC20HookData(
