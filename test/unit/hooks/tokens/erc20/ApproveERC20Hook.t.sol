@@ -104,6 +104,12 @@ contract ApproveERC20HookTest is Helpers {
         assertEq(hook.outAmount(), 0);
     }
 
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
     function _encodeData(bool usePrev) internal view returns (bytes memory) {
         return abi.encodePacked(token, spender, amount, usePrev);
     }

@@ -9,6 +9,7 @@ import { IPermit2 } from "../../../../vendor/uniswap/permit2/IPermit2.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IPermit2Batch } from "../../../../vendor/uniswap/permit2/IPermit2Batch.sol";
 import { IAllowanceTransfer } from "../../../../vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -23,7 +24,7 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @notice     address[] tokens = BytesLib.slice(data, 84, 20 * amountTokens);
 /// @notice     uint256[] amounts = BytesLib.slice(data, 84 + 20 * amountTokens, 32 * amountTokens);
 /// @notice     bytes signature = BytesLib.slice(data, 84 + 20 * amountTokens + 32 * amountTokens, 65);
-contract BatchTransferFromHook is BaseHook {
+contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
     using SafeCast for uint256;
 
     /*//////////////////////////////////////////////////////////////
@@ -115,6 +116,21 @@ contract BatchTransferFromHook is BaseHook {
         executions[1] = Execution({ target: PERMIT_2, value: 0, callData: transferCallData });
 
         return executions;
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns (bytes memory) {
+        uint256 amountTokens = BytesLib.toUint256(data, 20);
+        bytes memory tokensData = BytesLib.slice(data, 84, 20 * amountTokens);
+        address[] memory tokens = new address[](amountTokens);
+        for (uint256 i; i < amountTokens; i++) {
+            tokens[i] = BytesLib.toAddress(tokensData, i * 20);
+        }
+        bytes memory packed = abi.encodePacked(BytesLib.toAddress(data, 0)); //from
+        for (uint256 i; i < amountTokens; ++i) {
+            packed = abi.encodePacked(packed, tokens[i]);
+        }
+        return packed;
     }
 
     /*//////////////////////////////////////////////////////////////

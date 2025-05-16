@@ -10,7 +10,7 @@ import { IDlnSource } from "../../../../vendor/bridges/debridge/IDlnSource.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title DeBridgeSendOrderAndExecuteOnDstHook
 /// @author Superform Labs
@@ -31,45 +31,23 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         bool requireSuccessfullExecution = _decodeBool(data, 159);
 /// @notice         uint256 destinationMessage_paramLength = BytesLib.toUint256(data, 160);
 /// @notice         bytes destinationMessage = BytesLib.slice(data, 192, destinationMessage_paramLength);
-/// @notice         uint256 takeTokenAddress_paramLength = BytesLib.toUint256(data, 192 +
-/// destinationMessage_paramLength);
-/// @notice         bytes takeTokenAddress = BytesLib.slice(data, 224 + destinationMessage_paramLength,
-/// takeTokenAddress_paramLength);
-/// @notice         uint256 takeAmount = BytesLib.toUint256(data, 256 + destinationMessage_paramLength +
-/// takeTokenAddress_paramLength);
-/// @notice         uint256 takeChainId = BytesLib.toUint256(data, 288 + destinationMessage_paramLength +
-/// takeTokenAddress_paramLength);
-/// @notice         uint256 receiverDst_paramLength = BytesLib.toUint256(data, 320 + destinationMessage_paramLength +
-/// takeTokenAddress_paramLength);
-/// @notice         bytes receiverDst = BytesLib.slice(data, 352 + destinationMessage_paramLength +
-/// takeTokenAddress_paramLength, receiverDst_paramLength);
-/// @notice         address givePatchAuthoritySrc = BytesLib.toAddress(data, 352 + destinationMessage_paramLength +
-/// takeTokenAddress_paramLength + receiverDst_paramLength);
-/// @notice         uint256 orderAuthorityAddressDst_paramLength = BytesLib.toUint256(data, 372 +
-/// destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength);
-/// @notice         bytes orderAuthorityAddressDst = BytesLib.slice(data, 404 + destinationMessage_paramLength +
-/// takeTokenAddress_paramLength + receiverDst_paramLength, orderAuthorityAddressDst_paramLength);
-/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 436 + destinationMessage_paramLength
-/// + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength);
-/// @notice         bytes allowedTakerDst = BytesLib.slice(data, 468 + destinationMessage_paramLength +
-/// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength,
-/// allowedTakerDst_paramLength);
-/// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 498 +
-/// destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
-/// orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength);
-/// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 530 + destinationMessage_paramLength +
-/// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
-/// allowedTakerDst_paramLength, allowedCancelBeneficiarySrc_paramLength);
-/// @notice         uint256 affiliateFee_paramLength = BytesLib.toUint256(data, 562 + destinationMessage_paramLength +
-/// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
-/// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength);
-/// @notice         bytes affiliateFee = BytesLib.slice(data, 594 + destinationMessage_paramLength +
-/// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
-/// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength, affiliateFee_paramLength);
-/// @notice         uint256 referralCode = BytesLib.toUint256(data, 626 + destinationMessage_paramLength +
-/// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
-/// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
-contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
+/// @notice         uint256 takeTokenAddress_paramLength = BytesLib.toUint256(data, 192 + destinationMessage_paramLength);
+/// @notice         bytes takeTokenAddress = BytesLib.slice(data, 224 + destinationMessage_paramLength, takeTokenAddress_paramLength);
+/// @notice         uint256 takeAmount = BytesLib.toUint256(data, 256 + destinationMessage_paramLength + takeTokenAddress_paramLength);
+/// @notice         uint256 takeChainId = BytesLib.toUint256(data, 288 + destinationMessage_paramLength + takeTokenAddress_paramLength);
+/// @notice         uint256 receiverDst_paramLength = BytesLib.toUint256(data, 320 + destinationMessage_paramLength + takeTokenAddress_paramLength);
+/// @notice         bytes receiverDst = BytesLib.slice(data, 352 + destinationMessage_paramLength + takeTokenAddress_paramLength, receiverDst_paramLength);
+/// @notice         address givePatchAuthoritySrc = BytesLib.toAddress(data, 352 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength);
+/// @notice         uint256 orderAuthorityAddressDst_paramLength = BytesLib.toUint256(data, 372 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength);
+/// @notice         bytes orderAuthorityAddressDst = BytesLib.slice(data, 404 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength, orderAuthorityAddressDst_paramLength);
+/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 436 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength);
+/// @notice         bytes allowedTakerDst = BytesLib.slice(data, 468 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength, allowedTakerDst_paramLength);
+/// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 498 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength);
+/// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 530 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength, allowedCancelBeneficiarySrc_paramLength);
+/// @notice         uint256 affiliateFee_paramLength = BytesLib.toUint256(data, 562 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength);
+/// @notice         bytes affiliateFee = BytesLib.slice(data, 594 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength, affiliateFee_paramLength);
+/// @notice         uint256 referralCode = BytesLib.toUint256(data, 626 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
+contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -126,6 +104,25 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        (
+            IDlnSource.OrderCreation memory orderCreation,
+            ,
+            ,
+            
+        ) = _createOrder(data, "");
+        
+        return abi.encodePacked(
+            orderCreation.giveTokenAddress,
+            address(bytes20(orderCreation.takeTokenAddress)),
+            address(bytes20(orderCreation.receiverDst)),
+            address(bytes20(orderCreation.givePatchAuthoritySrc)),
+            address(bytes20(orderCreation.orderAuthorityAddressDst)),
+            address(bytes20(orderCreation.allowedCancelBeneficiarySrc))
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

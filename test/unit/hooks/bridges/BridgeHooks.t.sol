@@ -121,6 +121,12 @@ contract BridgeHooks is Helpers {
         assertEq(executions[0].callData, expectedCallData);
     }
 
+    function test_AcrossV3_Inspector() public view {
+        bytes memory data = _encodeAcrossData(false);
+        bytes memory argsEncoded = acrossV3hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
     function test_AcrossV3_Build_RevertIf_AmountNotValid() public {
         mockInputAmount = 0;
         bytes memory data = _encodeAcrossData(false);
@@ -261,6 +267,12 @@ contract BridgeHooks is Helpers {
         new DeBridgeSendOrderAndExecuteOnDstHook(address(0), address(this));
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         new DeBridgeSendOrderAndExecuteOnDstHook(address(this), address(0));
+    }
+
+    function test_DeBridge_Inspector() public view {
+        bytes memory data = _encodeDebridgeData(false, 100, address(mockInputToken));
+        bytes memory argsEncoded = deBridgehook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_Debrigdge_Build() public view {

@@ -10,7 +10,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookContextAware, ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookContextAware, ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingPool.sol";
 
 /// @title ApproveAndGearboxStakeHook
@@ -21,7 +21,7 @@ import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingP
 /// @notice         address token = BytesLib.toAddress(data, 24);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 44);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
-contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware {
+contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
@@ -76,6 +76,11 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(data.extractYieldSource());
     }
 
     /*//////////////////////////////////////////////////////////////
