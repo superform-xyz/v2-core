@@ -1,6 +1,6 @@
-# Superform v2-Contracts
+# Superform v2-contracts
 
-This document provides technical details, reasoning behind design choices, and discussion of potential edge cases and risks in Superform's v2-contracts.
+This document provides technical details, reasoning behind design choices, and discussion of potential edge cases and risks in Superform's v2 contracts. Given the scope of ongoing reviews, the focus will be on Superform v2-core.
 
 ## Overview
 
