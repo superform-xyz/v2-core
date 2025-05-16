@@ -5,10 +5,10 @@ pragma solidity 0.8.28;
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { IPermit2Batch } from "../../../../vendor/uniswap/permit2/IPermit2Batch.sol";
+import { IPermit2 } from "../../../../vendor/uniswap/permit2/IPermit2.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IPermit2Batch } from "../../../../vendor/uniswap/permit2/IPermit2Batch.sol";
 import { IAllowanceTransfer } from "../../../../vendor/uniswap/permit2/IAllowanceTransfer.sol";
-import { ISignatureTransfer } from "../../../../vendor/uniswap/permit2/ISignatureTransfer.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -36,6 +36,7 @@ contract BatchTransferFromHook is BaseHook {
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
     address public immutable PERMIT_2;
+    IPermit2 public immutable PERMIT_2_INTERFACE;
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
@@ -43,6 +44,7 @@ contract BatchTransferFromHook is BaseHook {
     constructor(address permit2_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) {
         if (permit2_ == address(0)) revert ADDRESS_NOT_VALID();
         PERMIT_2 = permit2_;
+        PERMIT_2_INTERFACE = IPermit2(permit2_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -68,28 +70,50 @@ contract BatchTransferFromHook is BaseHook {
         address[] memory tokens = _decodeTokenArray(data, 52, amountTokens);
         uint256[] memory amounts = _decodeAmountArray(data, 52 + (20 * amountTokens), amountTokens);
 
-        // Extract signature - it's the last 65 bytes of the data
         bytes memory signature = BytesLib.slice(data, data.length - 65, 65);
 
-        // Build permitBatch call
-        IAllowanceTransfer.PermitBatch memory permit = _buildPermitBatch(
-            account, // spender
-            tokens,
-            amounts
-        );
+        // Create 2 executions - one for batch permit and one for batch transfer
+        executions = new Execution[](2);
 
-        bytes memory callDataPermit = abi.encodeCall(IPermit2Batch.permit, (from, permit, signature));
+        // First execution: Create a batch permit call
+        // Create PermitBatch structure
+        IAllowanceTransfer.PermitDetails[] memory details = new IAllowanceTransfer.PermitDetails[](amountTokens);
 
-        // Build transferFrom call
-        IAllowanceTransfer.AllowanceTransferDetails[] memory details =
+        for (uint256 i = 0; i < amountTokens; i++) {
+            details[i] = IAllowanceTransfer.PermitDetails({
+                token: tokens[i],
+                amount: uint160(amounts[i]),
+                expiration: uint48(block.timestamp + 2 weeks),
+                nonce: uint48(0)
+            });
+        }
+
+        IAllowanceTransfer.PermitBatch memory permitBatch = IAllowanceTransfer.PermitBatch({
+            details: details,
+            spender: account,
+            sigDeadline: block.timestamp + 2 weeks
+        });
+
+        // Create permit call
+        bytes memory permitCallData =
+            abi.encodeCall(IPermit2Batch.permit, (from, permitBatch, signature));
+
+        executions[0] = Execution({
+            target: PERMIT_2,
+            value: 0,
+            callData: permitCallData
+         });
+
+        // Second execution: Create a batch transferFrom call
+        IAllowanceTransfer.AllowanceTransferDetails[] memory transferDetails =
             _createAllowanceTransferDetails(from, account, tokens, amounts);
 
-        bytes memory callDataTransfer = abi.encodeCall(IPermit2Batch.transferFrom, (details));
+        // Use IPermit2Batch.transferFrom selector which takes AllowanceTransferDetails[] as parameter
+        bytes memory transferCallData = abi.encodeCall(IPermit2Batch.transferFrom, (transferDetails));
 
-        // Create executions array with permit first, then transfer
-        executions = new Execution[](2);
-        executions[0] = Execution({ target: PERMIT_2, value: 0, callData: callDataPermit });
-        executions[1] = Execution({ target: PERMIT_2, value: 0, callData: callDataTransfer });
+        executions[1] = Execution({ target: PERMIT_2, value: 0, callData: transferCallData });
+
+        return executions;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -176,30 +200,6 @@ contract BatchTransferFromHook is BaseHook {
                 amount: uint160(amounts_[i])
             });
         }
-    }
-
-    /// @dev Builds a Permit2 `PermitBatch` with open-ended deadlines.
-    function _buildPermitBatch(
-        address spender,
-        address[] memory tokens_,
-        uint256[] memory amounts_
-    )
-        private
-        pure 
-        returns (IAllowanceTransfer.PermitBatch memory permit)
-    {
-        uint256 len = tokens_.length;
-        IAllowanceTransfer.PermitDetails[] memory details = new IAllowanceTransfer.PermitDetails[](len);
-
-        for (uint256 i; i < len; ++i) {
-            details[i] = IAllowanceTransfer.PermitDetails({
-                token: tokens_[i],
-                amount: uint160(amounts_[i]),
-                expiration: type(uint48).max,
-                nonce: 0
-            });
-        }
-
-        permit = IAllowanceTransfer.PermitBatch({ details: details, spender: spender, sigDeadline: type(uint256).max });
+        return details;
     }
 }
