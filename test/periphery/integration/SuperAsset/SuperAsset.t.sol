@@ -5,6 +5,7 @@ import { Test } from "forge-std/Test.sol";
 import "forge-std/console.sol";
 import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
 import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
+import { SuperGovernor } from "../../../../src/periphery/SuperGovernor.sol";
 import { AssetBank } from "../../../../src/periphery/SuperAsset/AssetBank.sol";
 import { IncentiveFundContract } from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
 import { IncentiveCalculationContract } from "../../../../src/periphery/SuperAsset/IncentiveCalculationContract.sol";
@@ -50,6 +51,7 @@ contract SuperAssetTest is Helpers {
     MockAggregator public mockFeed6;
     IncentiveCalculationContract public icc;
     IncentiveFundContract public incentiveFund;
+    SuperGovernor public superGovernor;
     address public admin;
     address public manager;
     address public user;
@@ -168,8 +170,18 @@ contract SuperAssetTest is Helpers {
         // Deploy contracts
         vm.startPrank(admin);
 
+        // Deploy SuperGovernor first
+        superGovernor = new SuperGovernor(
+            admin, // superGovernor role
+            admin, // governor role
+            admin, // bankManager role
+            makeAddr("treasury"), // treasury
+            makeAddr("prover") // prover
+        );
+        console.log("SuperGovernor deployed");
+
         // Deploy and initialize AssetBank
-        assetBank = new AssetBank(admin);
+        assetBank = new AssetBank(admin, address(superGovernor));
         console.log("AssetBank deployed");
 
         // Deploy and initialize IncentiveFund

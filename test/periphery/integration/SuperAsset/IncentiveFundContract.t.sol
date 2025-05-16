@@ -8,6 +8,7 @@ import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol"
 import { AssetBank } from "../../../../src/periphery/SuperAsset/AssetBank.sol";
 import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
 import { IIncentiveFundContract } from "../../../../src/periphery/interfaces/SuperAsset/IIncentiveFundContract.sol";
+import { SuperGovernor } from "../../../../src/periphery/SuperGovernor.sol";
 import { SuperOracle } from "../../../../src/periphery/oracles/SuperOracle.sol";
 import { IncentiveCalculationContract } from "src/periphery/SuperAsset/IncentiveCalculationContract.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
@@ -37,6 +38,7 @@ contract IncentiveFundContractTest is Helpers {
     SuperAsset public superAsset;
     AssetBank public assetBank;
     SuperOracle public oracle;
+    SuperGovernor public superGovernor;
     MockERC20 public tokenIn;
     MockERC20 public tokenOut;
     MockERC20 public usd;
@@ -134,7 +136,17 @@ contract IncentiveFundContractTest is Helpers {
         vm.stopPrank();
 
         vm.startPrank(admin);
-        assetBank = new AssetBank(admin);
+        
+        // Deploy SuperGovernor first
+        superGovernor = new SuperGovernor(
+            admin, // superGovernor role
+            admin, // governor role
+            admin, // bankManager role
+            makeAddr("treasury"), // treasury
+            makeAddr("prover") // prover
+        );
+
+        assetBank = new AssetBank(admin, address(superGovernor));
 
         incentiveFund = new IncentiveFundContract(admin);
         vm.stopPrank();

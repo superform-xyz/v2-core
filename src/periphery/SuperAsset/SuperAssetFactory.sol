@@ -8,6 +8,7 @@ import "./SuperAsset.sol";
 import "./AssetBank.sol";
 import "./IncentiveFundContract.sol";
 import "./IncentiveCalculationContract.sol";
+import "../SuperGovernor.sol";
 
 /**
  * @title SuperAssetFactory
@@ -26,6 +27,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     // Single instances
     address public immutable assetBank;
     address public immutable incentiveCalculationContract;
+    address public immutable superGovernor;
 
     // --- Roles ---
     bytes32 public constant DEPLOYER_ROLE = keccak256("DEPLOYER_ROLE");
@@ -34,11 +36,20 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
     constructor(address admin) {
+        // Deploy SuperGovernor first
+        superGovernor = address(new SuperGovernor(
+            admin, // superGovernor role
+            admin, // governor role
+            admin, // bankManager role
+            admin, // treasury (using admin for simplicity)
+            admin  // prover (using admin for simplicity)
+        ));
+
         superAssetImplementation = address(new SuperAsset());
         incentiveFundImplementation = address(new IncentiveFundContract(admin));
 
         // Deploy single instances
-        assetBank = address(new AssetBank(admin));
+        assetBank = address(new AssetBank(admin, superGovernor));
         incentiveCalculationContract = address(new IncentiveCalculationContract());
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
