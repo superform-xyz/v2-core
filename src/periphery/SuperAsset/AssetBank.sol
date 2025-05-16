@@ -16,7 +16,7 @@ contract AssetBank is AccessControl, IAssetBank {
     ISuperGovernor public immutable SUPER_GOVERNOR;
 
     // --- Roles ---
-    bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
+    // bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
 
     // --- Constructor ---
     constructor(address admin, address superGovernor) {
@@ -24,7 +24,7 @@ contract AssetBank is AccessControl, IAssetBank {
         SUPER_GOVERNOR = ISuperGovernor(superGovernor);
 
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        _grantRole(INCENTIVE_FUND_MANAGER, admin);
+        // _grantRole(INCENTIVE_FUND_MANAGER, admin);
         // _grantRole(_SUPER_GOVERNOR_ROLE, superGovernor);
     }
 
@@ -36,7 +36,7 @@ contract AssetBank is AccessControl, IAssetBank {
     )
         external
         override
-        onlyRole(INCENTIVE_FUND_MANAGER)
+        onlyRole(SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER())
     {
         if (receiver == address(0) || tokenOut == address(0)) revert ZERO_ADDRESS();
         if (amount == 0) revert ZERO_AMOUNT();

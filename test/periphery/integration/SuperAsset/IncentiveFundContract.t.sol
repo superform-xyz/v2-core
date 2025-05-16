@@ -177,11 +177,11 @@ contract IncentiveFundContractTest is Helpers {
         incentiveFund.initialize(address(superAsset), address(assetBank));
 
         // Setup roles for each contract
-        bytes32 INCENTIVE_FUND_MANAGER = incentiveFund.INCENTIVE_FUND_MANAGER();
+        bytes32 INCENTIVE_FUND_MANAGER = superGovernor.INCENTIVE_FUND_MANAGER();
 
         // Grant roles to manager and contracts
         incentiveFund.grantRole(INCENTIVE_FUND_MANAGER, manager);
-        assetBank.grantRole(assetBank.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
+        superGovernor.grantRole(INCENTIVE_FUND_MANAGER, address(incentiveFund));
         superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
         superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
         superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));

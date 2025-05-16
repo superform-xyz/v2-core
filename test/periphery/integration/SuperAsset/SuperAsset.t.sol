@@ -217,7 +217,7 @@ contract SuperAssetTest is Helpers {
         // Grant necessary roles
         bytes32 INCENTIVE_FUND_MANAGER = incentiveFund.INCENTIVE_FUND_MANAGER();
         incentiveFund.grantRole(INCENTIVE_FUND_MANAGER, manager);
-        assetBank.grantRole(assetBank.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
+        superGovernor.grantRole(superGovernor.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
         superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
         superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
         superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
