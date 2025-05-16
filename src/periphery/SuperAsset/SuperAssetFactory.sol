@@ -22,7 +22,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     //////////////////////////////////////////////////////////////*/
     address public immutable superAssetImplementation;
     address public immutable incentiveFundImplementation;
-    
+
     // Single instances
     address public immutable assetBank;
     address public immutable incentiveCalculationContract;
@@ -33,12 +33,12 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor() {
+    constructor(address admin) {
         superAssetImplementation = address(new SuperAsset());
-        incentiveFundImplementation = address(new IncentiveFundContract());
-        
+        incentiveFundImplementation = address(new IncentiveFundContract(admin));
+
         // Deploy single instances
-        assetBank = address(new AssetBank());
+        assetBank = address(new AssetBank(admin));
         incentiveCalculationContract = address(new IncentiveCalculationContract());
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -53,12 +53,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     function createSuperAsset(AssetCreationParams calldata params)
         external
         onlyRole(DEPLOYER_ROLE)
-        returns (
-            address superAsset,
-            address assetBank_,
-            address incentiveFund,
-            address incentiveCalc
-        )
+        returns (address superAsset, address assetBank_, address incentiveFund, address incentiveCalc)
     {
         // Deploy IncentiveFund (this one needs to be unique per SuperAsset)
         incentiveFund = incentiveFundImplementation.clone();
@@ -83,12 +78,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
         incentiveCalc = incentiveCalculationContract;
 
         emit SuperAssetCreated(
-            superAsset,
-            assetBank,
-            incentiveFund,
-            incentiveCalculationContract,
-            params.name,
-            params.symbol
+            superAsset, assetBank, incentiveFund, incentiveCalculationContract, params.name, params.symbol
         );
     }
 }
