@@ -17,11 +17,12 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @title BatchTransferFromHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address from = BytesLib.toAddress(data, 0);
-/// @notice         uint256 amountTokens = BytesLib.toUint256(data, 20);
-/// @notice         address[] tokens = BytesLib.slice(data, 52, 20 * amountTokens);
-/// @notice         uint256[] amounts = BytesLib.slice(data, 52 + 20 * amountTokens, 32 * amountTokens);
-/// @notice         bytes signature = BytesLib.slice(data, 52 + 20 * amountTokens + 32 * amountTokens, 65);
+/// @notice     address from = BytesLib.toAddress(data, 0);
+/// @notice     uint256 amountTokens = BytesLib.toUint256(data, 20);
+/// @notice     uint256 sigDeadline = BytesLib.toUint256(data, 52);
+/// @notice     address[] tokens = BytesLib.slice(data, 84, 20 * amountTokens);
+/// @notice     uint256[] amounts = BytesLib.slice(data, 84 + 20 * amountTokens, 32 * amountTokens);
+/// @notice     bytes signature = BytesLib.slice(data, 84 + 20 * amountTokens + 32 * amountTokens, 65);
 contract BatchTransferFromHook is BaseHook {
     using SafeCast for uint256;
 
@@ -66,9 +67,11 @@ contract BatchTransferFromHook is BaseHook {
         uint256 amountTokens = BytesLib.toUint256(data, 20);
         if (amountTokens == 0) revert INVALID_ARRAY_LENGTH();
 
-        // Extract tokens and amounts arrays
-        address[] memory tokens = _decodeTokenArray(data, 52, amountTokens);
-        uint256[] memory amounts = _decodeAmountArray(data, 52 + (20 * amountTokens), amountTokens);
+        uint256 sigDeadline = BytesLib.toUint256(data, 52);
+
+        // Extract tokens and amounts as raw bytes
+        bytes memory tokensData = BytesLib.slice(data, 84, 20 * amountTokens);
+        bytes memory amountsData = BytesLib.slice(data, 84 + (20 * amountTokens), 32 * amountTokens);
 
         bytes memory signature = BytesLib.slice(data, data.length - 65, 65);
 
@@ -79,20 +82,23 @@ contract BatchTransferFromHook is BaseHook {
         // Create PermitBatch structure
         IAllowanceTransfer.PermitDetails[] memory details = new IAllowanceTransfer.PermitDetails[](amountTokens);
 
-        for (uint256 i = 0; i < amountTokens; i++) {
+        for (uint256 i; i < amountTokens; i++) {
+            address token = BytesLib.toAddress(tokensData, i * 20);
+            uint256 amount = BytesLib.toUint256(amountsData, i * 32);
+
+            if (token == address(0)) revert ADDRESS_NOT_VALID();
+            if (amount == 0) revert AMOUNT_NOT_VALID();
+
             details[i] = IAllowanceTransfer.PermitDetails({
-                token: tokens[i],
-                amount: uint160(amounts[i]),
+                token: token,
+                amount: uint160(amount),
                 expiration: uint48(block.timestamp + 2 weeks),
                 nonce: uint48(0)
             });
         }
 
-        IAllowanceTransfer.PermitBatch memory permitBatch = IAllowanceTransfer.PermitBatch({
-            details: details,
-            spender: account,
-            sigDeadline: block.timestamp + 2 weeks
-        });
+        IAllowanceTransfer.PermitBatch memory permitBatch =
+            IAllowanceTransfer.PermitBatch({ details: details, spender: account, sigDeadline: sigDeadline });
 
         // Create permit call
         bytes memory permitCallData = abi.encodeCall(IPermit2Batch.permit, (from, permitBatch, signature));
@@ -101,7 +107,7 @@ contract BatchTransferFromHook is BaseHook {
 
         // Second execution: Create a batch transferFrom call
         IAllowanceTransfer.AllowanceTransferDetails[] memory transferDetails =
-            _createAllowanceTransferDetails(from, account, tokens, amounts);
+            _createAllowanceTransferDetails(from, account, tokensData, amountsData, amountTokens);
 
         // Use IPermit2Batch.transferFrom selector which takes AllowanceTransferDetails[] as parameter
         bytes memory transferCallData = abi.encodeCall(IPermit2Batch.transferFrom, (transferDetails));
@@ -116,18 +122,22 @@ contract BatchTransferFromHook is BaseHook {
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         uint256 arrayLength = BytesLib.toUint256(data, 20);
-        address[] memory tokens = _decodeTokenArray(data, 52, arrayLength);
+        bytes memory tokensData = BytesLib.slice(data, 84, 20 * arrayLength);
+
         for (uint256 i; i < arrayLength; ++i) {
-            outAmount += _getBalance(tokens[i], account);
+            address token = BytesLib.toAddress(tokensData, i * 20);
+            outAmount += _getBalance(token, account);
         }
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         uint256 arrayLength = BytesLib.toUint256(data, 20);
         uint256 newAmount;
-        address[] memory tokens = _decodeTokenArray(data, 52, arrayLength);
+        bytes memory tokensData = BytesLib.slice(data, 84, 20 * arrayLength);
+
         for (uint256 i; i < arrayLength; ++i) {
-            newAmount += _getBalance(tokens[i], account);
+            address token = BytesLib.toAddress(tokensData, i * 20);
+            newAmount += _getBalance(token, account);
         }
         outAmount = newAmount - outAmount;
     }
@@ -139,60 +149,27 @@ contract BatchTransferFromHook is BaseHook {
         return IERC20(token).balanceOf(account);
     }
 
-    function _decodeTokenArray(
-        bytes memory data,
-        uint256 offset,
-        uint256 length
-    )
-        private
-        pure
-        returns (address[] memory tokens)
-    {
-        tokens = new address[](length);
-        for (uint256 i; i < length; ++i) {
-            tokens[i] = BytesLib.toAddress(data, offset + (20 * i));
-            if (tokens[i] == address(0)) {
-                revert ADDRESS_NOT_VALID();
-            }
-        }
-    }
-
-    function _decodeAmountArray(
-        bytes memory data,
-        uint256 offset,
-        uint256 length
-    )
-        private
-        pure
-        returns (uint256[] memory amounts)
-    {
-        amounts = new uint256[](length);
-        for (uint256 i; i < length; ++i) {
-            amounts[i] = BytesLib.toUint256(data, offset + (32 * i));
-            if (amounts[i] == 0) {
-                revert AMOUNT_NOT_VALID();
-            }
-        }
-    }
-
     function _createAllowanceTransferDetails(
         address from,
         address account,
-        address[] memory tokens_,
-        uint256[] memory amounts_
+        bytes memory tokensData,
+        bytes memory amountsData,
+        uint256 length
     )
         private
         pure
         returns (IAllowanceTransfer.AllowanceTransferDetails[] memory details)
     {
-        uint256 length = tokens_.length;
         details = new IAllowanceTransfer.AllowanceTransferDetails[](length);
         for (uint256 i; i < length; ++i) {
+            address token = BytesLib.toAddress(tokensData, i * 20);
+            uint256 amount = BytesLib.toUint256(amountsData, i * 32);
+
             details[i] = IAllowanceTransfer.AllowanceTransferDetails({
                 from: from,
                 to: account,
-                token: tokens_[i],
-                amount: uint160(amounts_[i])
+                token: token,
+                amount: uint160(amount)
             });
         }
         return details;

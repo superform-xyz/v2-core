@@ -25,6 +25,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
     address[] public tokens;
 
     uint256[] public amounts;
+    uint256 public sigDeadline;
 
     bytes32 public DOMAIN_SEPARATOR;
 
@@ -53,6 +54,8 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         amounts[0] = 1e18;
         amounts[1] = 1e18;
         amounts[2] = 1e18;
+
+        sigDeadline = block.timestamp + 2 weeks;
 
         eoa = vm.addr(0x12341234);
         vm.label(eoa, "EOA");
@@ -93,12 +96,12 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
 
         bytes memory sig = getPermitBatchSignature(permitBatch, 0x12341234, DOMAIN_SEPARATOR);
 
-        bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, tokens, amounts, sig);
+        bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, sigDeadline, tokens, amounts, sig);
 
         bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;
 
-        uint256 expectedLength = 20 + 32 + (20 * 3) + (32 * 3) + 65;
+        uint256 expectedLength = 20 + 32 + 32 + (20 * 3) + (32 * 3) + 65;
         assertEq(hookData.length, expectedLength);
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -160,11 +163,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
             });
         }
 
-        return IAllowanceTransfer.PermitBatch({
-            details: details,
-            spender: accountEth,
-            sigDeadline: block.timestamp + 2 weeks
-        });
+        return IAllowanceTransfer.PermitBatch({ details: details, spender: accountEth, sigDeadline: sigDeadline });
     }
 
     function getPermitBatchSignature(

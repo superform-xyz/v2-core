@@ -19,6 +19,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
     address[] public tokens;
 
     uint256[] public amounts;
+    uint256 public sigDeadline;
 
     address public eoa;
     address public account;
@@ -40,6 +41,8 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         amounts[0] = 1000e6;
         amounts[1] = 2e18;
         amounts[2] = 3e18;
+
+        sigDeadline = block.timestamp + 2 weeks;
 
         eoa = vm.addr(321);
         deal(usdc, eoa, 1000e6);
@@ -66,6 +69,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         bytes memory hookData = abi.encodePacked(
             address(0), // invalid from address
             uint256(3),
+            sigDeadline,
             abi.encodePacked(tokens[0], tokens[1], tokens[2]),
             abi.encodePacked(amounts[0], amounts[1], amounts[2]),
             new bytes(65)
@@ -78,6 +82,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         bytes memory hookData = abi.encodePacked(
             eoa,
             uint256(0), // zero tokens
+            sigDeadline,
             new bytes(65)
         );
         hook.build(address(0), account, hookData);
@@ -87,6 +92,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         bytes memory hookData = abi.encodePacked(
             eoa, // from address (20 bytes)
             uint256(3), // number of tokens (32 bytes)
+            sigDeadline, // signature deadline (32 bytes)
             abi.encodePacked(tokens[0], tokens[1], tokens[2]), // token addresses (20 bytes each)
             abi.encodePacked(amounts[0], amounts[1], amounts[2]), // amounts (32 bytes each)
             new bytes(65) // mock signature (65 bytes)
@@ -115,7 +121,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         uint256[] memory amountPerToken
     )
         internal
-        pure
+        view
         returns (IAllowanceTransfer.PermitBatch memory)
     {
         uint256 len = tokens_.length;
@@ -130,7 +136,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
             });
         }
 
-        return IAllowanceTransfer.PermitBatch({ details: details, spender: spender, sigDeadline: type(uint256).max });
+        return IAllowanceTransfer.PermitBatch({ details: details, spender: spender, sigDeadline: sigDeadline });
     }
 
     function _buildExpectedTransferDetails(
@@ -173,6 +179,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         bytes memory hookData = abi.encodePacked(
             eoa,
             uint256(3), // This should match the amounts array length
+            sigDeadline,
             abi.encodePacked(mismatchedTokens[0], mismatchedTokens[1]),
             abi.encodePacked(mismatchedAmounts[0], mismatchedAmounts[1], mismatchedAmounts[2]),
             new bytes(65)
@@ -184,7 +191,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
     }
 
     function test_Build_RevertIf_EmptyTokenArray() public {
-        bytes memory hookData = abi.encodePacked(eoa, uint256(0), new bytes(65));
+        bytes memory hookData = abi.encodePacked(eoa, uint256(0), sigDeadline, new bytes(65));
 
         vm.expectRevert(BatchTransferFromHook.INVALID_ARRAY_LENGTH.selector);
         hook.build(address(0), account, hookData);
@@ -194,6 +201,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         bytes memory hookData = abi.encodePacked(
             eoa,
             uint256(3),
+            sigDeadline,
             abi.encodePacked(tokens[0], tokens[1], tokens[2]),
             abi.encodePacked(uint256(0), uint256(0), uint256(0)),
             new bytes(65)
@@ -207,6 +215,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         bytes memory hookData = abi.encodePacked(
             eoa,
             uint256(3),
+            sigDeadline,
             abi.encodePacked(tokens[0], tokens[1], tokens[2]),
             abi.encodePacked(amounts[0], amounts[1], amounts[2]),
             new bytes(64) // Invalid signature length (not 65 bytes)
@@ -221,6 +230,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         bytes memory hookData = abi.encodePacked(
             eoa,
             uint256(3),
+            sigDeadline,
             abi.encodePacked(address(0), weth, dai), // Invalid token address
             abi.encodePacked(amounts[0], amounts[1], amounts[2]),
             new bytes(65)
