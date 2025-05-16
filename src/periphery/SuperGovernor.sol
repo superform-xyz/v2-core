@@ -9,12 +9,10 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 import { ISuperGovernor, FeeType } from "./interfaces/ISuperGovernor.sol";
 import { ISuperVaultAggregator } from "./interfaces/ISuperVaultAggregator.sol";
 
-import { HookGuard } from "./HookGuard.sol";
-
 /// @title SuperGovernor
 /// @author Superform Labs
 /// @notice Central registry for all deployed contracts in the Superform periphery
-contract SuperGovernor is HookGuard, AccessControl, ISuperGovernor {
+contract SuperGovernor is ISuperGovernor, AccessControl {
     using EnumerableSet for EnumerableSet.AddressSet;
 
     /*//////////////////////////////////////////////////////////////
@@ -92,7 +90,6 @@ contract SuperGovernor is HookGuard, AccessControl, ISuperGovernor {
     bytes32 private constant _SUPER_GOVERNOR_ROLE = keccak256("SUPER_GOVERNOR_ROLE");
     bytes32 private constant _GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
     bytes32 private constant _BANK_MANAGER_ROLE = keccak256("BANK_MANAGER_ROLE");
-    bytes32 private constant _GUARDIAN_ROLE = keccak256("GUARDIAN_ROLE");
 
     // Common contract keys
     bytes32 public constant TREASURY = keccak256("TREASURY");
@@ -131,7 +128,6 @@ contract SuperGovernor is HookGuard, AccessControl, ISuperGovernor {
         _setRoleAdmin(_GOVERNOR_ROLE, DEFAULT_ADMIN_ROLE);
         _setRoleAdmin(_SUPER_GOVERNOR_ROLE, DEFAULT_ADMIN_ROLE);
         _setRoleAdmin(_BANK_MANAGER_ROLE, DEFAULT_ADMIN_ROLE);
-        _setRoleAdmin(_GUARDIAN_ROLE, DEFAULT_ADMIN_ROLE);
 
         // Initialize with default fees
         _feeValues[FeeType.REVENUE_SHARE] = 2000; // 20% revenue share
@@ -517,29 +513,6 @@ contract SuperGovernor is HookGuard, AccessControl, ISuperGovernor {
     /// @return strategists The list of all superform strategist addresses
     function getAllSuperformStrategists() external view returns (address[] memory strategists) {
         return _superformStrategists.values();
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                    HOOK GUARD MANAGEMENT
-    //////////////////////////////////////////////////////////////*/
-    function _hookGuardListManagerRoleCheck() internal view override {
-        _checkRole(_GOVERNOR_ROLE);
-    }
-
-    function _hookGuardGuardianRoleCheck() internal view override {
-        _checkRole(_GUARDIAN_ROLE);
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function manageTargetGlobal(address hook, uint8 idx, address target) external override {
-        // address 0 signals a global entry
-        _manageTarget(address(0), hook, idx, target);
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function manageArgGlobal(address hook, uint8 idx, address arg) external override {
-        // address 0 signals a global entry
-        _manageArg(address(0), hook, idx, arg);
     }
 
     /*//////////////////////////////////////////////////////////////

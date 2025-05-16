@@ -4,29 +4,8 @@ pragma solidity >=0.8.28;
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-/// @title ISuperHookInspector
-/// @author Superform Labs
-/// @notice Interface for the SuperHookInspector contract that manages hook inspection
 interface ISuperHookInspector {
-    /// @notice Inspect the hook
-    /// @param data The hook data to inspect
-    /// @return targets The targets of the hook
-    /// @return targetIndexes The indexes of the targets in the hook
-    /// @return nonBeneficiaryArgs The arguments of the hook
-    /// @return nonBeneficiaryArgIndexes The indexes of the arguments in the hook
-    /// @return beneficiaryArgs The beneficiary arguments of the hook
-    /// @return beneficiaryArgIndexes The indexes of the beneficiary arguments in the hook
-    function inspect(bytes calldata data)
-        external
-        view
-        returns (
-            address[] memory targets,
-            uint256[] memory targetIndexes,
-            address[] memory nonBeneficiaryArgs,
-            uint256[] memory nonBeneficiaryArgIndexes,
-            address[] memory beneficiaryArgs,
-            uint256[] memory beneficiaryArgIndexes
-        );
+    function inspect(bytes calldata data) external view returns (bytes memory argsEncoded);
 }
 
 /// @title ISuperHookResult

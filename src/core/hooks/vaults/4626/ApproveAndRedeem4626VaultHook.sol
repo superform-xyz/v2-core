@@ -13,7 +13,8 @@ import {
     ISuperHookResultOutflow,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -32,7 +33,8 @@ contract ApproveAndRedeem4626VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 {
     using HookDataDecoder for bytes;
 
@@ -85,6 +87,15 @@ contract ApproveAndRedeem4626VaultHook is
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external view returns (bytes memory argsEncoded) {
+        address yieldSource = data.extractYieldSource();
+        address token = BytesLib.toAddress(data, 24);
+        address owner = BytesLib.toAddress(data, 44);
+
+        argsEncoded = abi.encodePacked(yieldSource, token, owner);
+    }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {

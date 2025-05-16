@@ -107,6 +107,8 @@ contract BaseSuperVaultTest is BaseTest {
         // Deploy vault using the new _deployVault function
         (address vaultAddr, address strategyAddr, address escrowAddr) = _deployVault("SV_USDC");
 
+        // strategy deterministic: 0x58e5f0414148D46a3E7e2E7190d881EfCAebbDA3
+
         // Cast addresses to contract types
         vault = SuperVault(vaultAddr);
         strategy = SuperVaultStrategy(strategyAddr);
