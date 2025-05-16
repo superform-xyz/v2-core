@@ -58,10 +58,11 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     uint256 private constant _STRATEGIST_CHANGE_TIMELOCK = 7 days;
     uint256 private constant _HOOKS_ROOT_UPDATE_TIMELOCK = 15 minutes;
 
-    // Global hooks Merkle root
+    // Global hooks Merkle root data
     bytes32 private _globalHooksRoot;
     bytes32 private _proposedGlobalHooksRoot;
     uint256 private _globalHooksRootEffectiveTime;
+    bool private _globalHooksRootVetoed;
 
     // No need for separate mappings since we now store this data in the StrategyData struct
 
@@ -321,7 +322,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
     /// @inheritdoc ISuperVaultAggregator
     function changePrimaryStrategist(address strategy, address newStrategist) external validStrategy(strategy) {
-        // Only SuperGovernor can directly change the primary strategist
+        // Only SuperGovernor can call this
         if (msg.sender != address(SUPER_GOVERNOR)) {
             revert UNAUTHORIZED_UPDATE_AUTHORITY();
         }
@@ -434,6 +435,24 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     }
 
     /// @inheritdoc ISuperVaultAggregator
+    function setGlobalHooksRootVetoStatus(bool vetoed) external {
+        // Only SuperGovernor can call this
+        if (msg.sender != address(SUPER_GOVERNOR)) {
+            revert UNAUTHORIZED_UPDATE_AUTHORITY();
+        }
+
+        // Don't emit event if status doesn't change
+        if (_globalHooksRootVetoed == vetoed) {
+            return;
+        }
+
+        // Update veto status
+        _globalHooksRootVetoed = vetoed;
+
+        emit GlobalHooksRootVetoStatusChanged(vetoed, _globalHooksRoot);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
     function proposeStrategyHooksRoot(address strategy, bytes32 newRoot) external validStrategy(strategy) {
         // Only the main strategist can propose strategy-specific hooks root
         if (_strategyData[strategy].mainStrategist != msg.sender) {
@@ -471,6 +490,34 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
         emit StrategyHooksRootUpdated(strategy, oldRoot, _strategyData[strategy].strategistHooksRoot);
     }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function setStrategyHooksRootVetoStatus(address strategy, bool vetoed) external validStrategy(strategy) {
+        // Only SuperGovernor can call this
+        if (msg.sender != address(SUPER_GOVERNOR)) {
+            revert UNAUTHORIZED_UPDATE_AUTHORITY();
+        }
+
+        // Don't emit event if status doesn't change
+        if (_strategyData[strategy].hooksRootVetoed == vetoed) {
+            return;
+        }
+
+        // Update veto status
+        _strategyData[strategy].hooksRootVetoed = vetoed;
+        
+        emit StrategyHooksRootVetoStatusChanged(strategy, vetoed, _strategyData[strategy].strategistHooksRoot);
+    }
+    /// @inheritdoc ISuperVaultAggregator
+    function isGlobalHooksRootVetoed() external view returns (bool vetoed) {
+        return _globalHooksRootVetoed;
+    }
+    
+    /// @inheritdoc ISuperVaultAggregator
+    function isStrategyHooksRootVetoed(address strategy) external view returns (bool vetoed) {
+        return _strategyData[strategy].hooksRootVetoed;
+    }
+    
     /*//////////////////////////////////////////////////////////////
                               VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -588,8 +635,16 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         view
         returns (bool isValid)
     {
+        // If either root is vetoed, all hook validations fail
+        if (_globalHooksRootVetoed || _strategyData[strategy].hooksRootVetoed) {
+            return false;
+        }
+
+        uint256 lengthGlobalProof = globalProof.length;
+        uint256 lengthStrategyProof = strategyProof.length;
+        
         // If both proofs are empty, the hook is not allowed
-        if (globalProof.length == 0 && strategyProof.length == 0) {
+        if (lengthGlobalProof == 0 && lengthStrategyProof == 0) {
             return false;
         }
 
@@ -597,7 +652,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         bytes32 leaf = _createLeaf(hookArgs);
 
         // First try to verify against the global root if provided
-        if (globalProof.length > 0) {
+        if (lengthGlobalProof > 0) {
             // Only validate against global root if it exists
             if (_globalHooksRoot != bytes32(0) && MerkleProof.verify(globalProof, _globalHooksRoot, leaf)) {
                 return true;
@@ -605,7 +660,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         }
 
         // Then try to verify against the strategy-specific root if provided
-        if (strategyProof.length > 0) {
+        if (lengthStrategyProof > 0) {
             bytes32 strategyRoot = _strategyData[strategy].strategistHooksRoot;
             if (strategyRoot != bytes32(0) && MerkleProof.verify(strategyProof, strategyRoot, leaf)) {
                 return true;

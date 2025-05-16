@@ -799,6 +799,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     function _handleDeposit(address controller, uint256 assets, uint256 shares) private {
         if (assets == 0 || shares == 0) revert INVALID_AMOUNT();
         if (controller == address(0)) revert ZERO_ADDRESS();
+
+        // Check if global hooks root is vetoed, and revert if it is
+        if (_getSuperVaultAggregator().isGlobalHooksRootVetoed()) {
+            revert OPERATIONS_BLOCKED_BY_VETO();
+        }
+
         SuperVaultState storage state = superVaultState[controller];
         state.accumulatorShares += shares;
         state.accumulatorCostBasis += assets;

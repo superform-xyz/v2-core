@@ -39,6 +39,8 @@ interface ISuperVaultAggregator {
         // Hook root update proposal data
         bytes32 proposedHooksRoot;
         uint256 hooksRootEffectiveTime;
+        // Veto status
+        bool hooksRootVetoed;
     }
 
     /// @notice Parameters for creating a new SuperVault trio
@@ -180,8 +182,22 @@ interface ISuperVaultAggregator {
     /// @param root New root value
     /// @param effectiveTime Timestamp when the root becomes effective
     event StrategyHooksRootUpdateProposed(
-        address indexed strategy, address indexed proposer, bytes32 root, uint256 effectiveTime
+        address indexed strategy,
+        address indexed proposer,
+        bytes32 root,
+        uint256 effectiveTime
     );
+
+    /// @notice Emitted when a proposed global hooks root update veto status is changed
+    /// @param vetoed Whether the root is being vetoed (true) or unvetoed (false)
+    /// @param root The root value affected
+    event GlobalHooksRootVetoStatusChanged(bool vetoed, bytes32 indexed root);
+    
+    /// @notice Emitted when a proposed strategy hooks root update veto status is changed
+    /// @param strategy Address of the strategy affected
+    /// @param vetoed Whether the root is being vetoed (true) or unvetoed (false)
+    /// @param root The root value affected
+    event StrategyHooksRootVetoStatusChanged(address indexed strategy, bool vetoed, bytes32 indexed root);
 
     /*///////////////////////////////////////////////////////////////
                                  ERRORS
@@ -226,6 +242,10 @@ interface ISuperVaultAggregator {
     error ROOT_UPDATE_NOT_READY();
     /// @notice Thrown when a provided hook fails Merkle proof validation
     error HOOK_VALIDATION_FAILED();
+    /// @notice Thrown when a non-guardian tries to veto a root update
+    error NOT_A_GUARDIAN();
+    /// @notice Thrown when trying to veto a root update that doesn't exist
+    error NO_PENDING_ROOT_UPDATE();
     /// @notice Thrown when strategist is not found
     error STRATEGIST_NOT_FOUND();
     /// @notice Thrown when there is no pending strategist change proposal
@@ -349,6 +369,26 @@ interface ISuperVaultAggregator {
     /// @dev Can be called by anyone after the timelock period has elapsed
     /// @param strategy Address of the strategy whose root update to execute
     function executeStrategyHooksRootUpdate(address strategy) external;
+    
+    /// @notice Set veto status for the global hooks root
+    /// @dev Only callable by SuperGovernor
+    /// @param vetoed Whether to veto (true) or unveto (false) the global hooks root
+    function setGlobalHooksRootVetoStatus(bool vetoed) external;
+    
+    /// @notice Set veto status for a strategy-specific hooks root
+    /// @dev Only callable by SuperGovernor
+    /// @param strategy Address of the strategy to affect
+    /// @param vetoed Whether to veto (true) or unveto (false) the strategy hooks root
+    function setStrategyHooksRootVetoStatus(address strategy, bool vetoed) external;
+    
+    /// @notice Check if the global hooks root is currently vetoed
+    /// @return vetoed True if the global hooks root is vetoed
+    function isGlobalHooksRootVetoed() external view returns (bool vetoed);
+    
+    /// @notice Check if a strategy hooks root is currently vetoed
+    /// @param strategy Address of the strategy to check
+    /// @return vetoed True if the strategy hooks root is vetoed
+    function isStrategyHooksRootVetoed(address strategy) external view returns (bool vetoed);
 
     /*//////////////////////////////////////////////////////////////
                               VIEW FUNCTIONS

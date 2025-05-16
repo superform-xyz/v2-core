@@ -51,6 +51,8 @@ interface ISuperVaultStrategy {
     error INVALID_REDEEM_FILL();
     error INVALID_VAULT();
     error STAKE_TOO_LOW();
+    error OPERATIONS_BLOCKED_BY_VETO();
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
