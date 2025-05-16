@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.28;
 
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -18,6 +18,7 @@ import {
 
 // Superform
 import { SuperExecutorBase } from "./SuperExecutorBase.sol";
+import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperDestinationExecutor } from "../interfaces/ISuperDestinationExecutor.sol";
 import { ISuperDestinationValidator } from "../interfaces/ISuperDestinationValidator.sol";
 
@@ -34,11 +35,11 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     //////////////////////////////////////////////////////////////*/
     /// @notice Address of the validator contract used to verify cross-chain signatures
     /// @dev Used to validate signatures in the processBridgedExecution method
-    address public immutable superDestinationValidator;
+    address public immutable SUPER_DESTINATION_VALIDATOR;
     
     /// @notice Factory contract used to create new smart accounts when needed
     /// @dev Creates deterministic smart accounts during cross-chain operations
-    INexusFactory public immutable nexusFactory;
+    INexusFactory public immutable NEXUS_FACTORY;
 
     /// @notice Tracks which merkle roots have been used by each user address
     /// @dev Prevents replay attacks by ensuring each merkle root can only be used once per user
@@ -46,13 +47,13 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
 
     /// @notice Magic value returned by ERC-1271 contracts when a signature is valid
     /// @dev From EIP-1271 standard: https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
-    bytes4 constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
+    bytes4 internal constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
 
     /// @notice Length of an empty execution data structure
     /// @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays
     ///      plus the 4 bytes of the `execute` function selector
     ///      Used to check if actual hook execution data is present without full decoding
-    uint256 constant EMPTY_EXECUTION_LENGTH = 228;
+    uint256 internal constant EMPTY_EXECUTION_LENGTH = 228;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -81,8 +82,8 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         if (superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
-        superDestinationValidator = superDestinationValidator_;
-        nexusFactory = INexusFactory(nexusFactory_);
+        SUPER_DESTINATION_VALIDATOR = superDestinationValidator_;
+        NEXUS_FACTORY = INexusFactory(nexusFactory_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -128,7 +129,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         // @dev we need to create the account
         if (initData.length > 0 && account.code.length == 0) {
             (bytes memory factoryInitData, bytes32 salt) = abi.decode(initData, (bytes, bytes32));
-            address computedAddress = nexusFactory.createAccount(factoryInitData, salt);
+            address computedAddress = NEXUS_FACTORY.createAccount(factoryInitData, salt);
             if (account != computedAddress) revert INVALID_ACCOUNT();
         }
 
@@ -146,7 +147,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
             abi.encode(executorCalldata, uint64(block.chainid), account, address(this), intentAmount);
 
         // The userSignatureData is passed directly from the adapter
-        bytes4 validationResult = ISuperDestinationValidator(superDestinationValidator).isValidDestinationSignature(
+        bytes4 validationResult = ISuperDestinationValidator(SUPER_DESTINATION_VALIDATOR).isValidDestinationSignature(
             account, abi.encode(userSignatureData, destinationData)
         );
 

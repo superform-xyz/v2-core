@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.28;
 
 // external
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
+import { ISuperSignatureStorage } from "../interfaces/ISuperSignatureStorage.sol";
 
 /// @title SuperValidatorBase
 /// @author Superform Labs
@@ -28,18 +29,17 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
 
     /// @notice Tracks which accounts have initialized this validator
     /// @dev Used to prevent unauthorized use of the validator
-    mapping(address => bool) internal _initialized;
+    mapping(address account => bool initialized) internal _initialized;
     
     /// @notice Maps accounts to their owners
     /// @dev Used to verify signatures against the correct owner address
-    mapping(address => address) internal _accountOwners;
+    mapping(address account => address owner) internal _accountOwners;
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error ZERO_ADDRESS();
     error INVALID_PROOF();
-    error NOT_INITIALIZED();
     error ALREADY_INITIALIZED();
 
     /*//////////////////////////////////////////////////////////////
@@ -73,7 +73,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     }
 
     function onUninstall(bytes calldata) external {
-        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
+        if (!_initialized[msg.sender]) revert ISuperSignatureStorage.NOT_INITIALIZED();
         _initialized[msg.sender] = false;
         delete _accountOwners[msg.sender];
     }
@@ -94,8 +94,13 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     /// @param sigDataRaw ABI-encoded signature data bytes
     /// @return Structured SignatureData for further processing
     function _decodeSignatureData(bytes memory sigDataRaw) internal pure virtual returns (SignatureData memory) {
-        (uint48 validUntil, bytes32 merkleRoot, bytes32[] memory proofSrc, bytes32[] memory proofDst, bytes memory signature) =
-            abi.decode(sigDataRaw, (uint48, bytes32, bytes32[], bytes32[], bytes));
+        (
+            uint48 validUntil,
+            bytes32 merkleRoot,
+            bytes32[] memory proofSrc,
+            bytes32[] memory proofDst,
+            bytes memory signature
+        ) = abi.decode(sigDataRaw, (uint48, bytes32, bytes32[], bytes32[], bytes));
         return SignatureData(validUntil, merkleRoot, proofSrc, proofDst, signature);
     }
 

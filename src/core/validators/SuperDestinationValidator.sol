@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.28;
 
 // external
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
@@ -8,6 +8,7 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import { SuperValidatorBase } from "./SuperValidatorBase.sol";
+import { ISuperSignatureStorage } from "../interfaces/ISuperSignatureStorage.sol";
 
 /// @title SuperDestinationValidator
 /// @author Superform Labs
@@ -67,7 +68,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
     }
 
     function isValidDestinationSignature(address sender, bytes calldata data) external view returns (bytes4) {
-        if (!_initialized[sender]) revert NOT_INITIALIZED();
+        if (!_initialized[sender]) revert ISuperSignatureStorage.NOT_INITIALIZED();
         
         // Decode data
         (SignatureData memory sigData, DestinationData memory destinationData) =

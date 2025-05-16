@@ -14,6 +14,7 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 // Superform
 import { SuperMerkleValidator } from "../../../src/core/validators/SuperMerkleValidator.sol";
 import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
+import { ISuperSignatureStorage } from "../../../src/core/interfaces/ISuperSignatureStorage.sol";
 
 import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
@@ -119,14 +120,14 @@ contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneM
 
     function test_SourceValidator_OnUninstall_RevertIf_NotInitialized() public {
         vm.startPrank(makeAddr("account"));
-        vm.expectRevert(SuperValidatorBase.NOT_INITIALIZED.selector);
+        vm.expectRevert(ISuperSignatureStorage.NOT_INITIALIZED.selector);
         validator.onUninstall("");
         vm.stopPrank();
     }
 
     function test_Validate_isValidSignatureWithSender_NotInitialized() public {
         vm.startPrank(address(0x1));
-        vm.expectRevert(SuperValidatorBase.NOT_INITIALIZED.selector);
+        vm.expectRevert(ISuperSignatureStorage.NOT_INITIALIZED.selector);
         validator.isValidSignatureWithSender(account, bytes32(0), "");
         vm.stopPrank();
     }

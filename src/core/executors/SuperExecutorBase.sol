@@ -4,6 +4,7 @@ pragma solidity 0.8.28;
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
+import { IModule } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
@@ -64,7 +65,7 @@ abstract contract SuperExecutorBase is
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperExecutor
-    function isInitialized(address account) external view returns (bool) {
+    function isInitialized(address account) external view override(IModule, ISuperExecutor) returns (bool) {
         return _initialized[account];
     }
 
@@ -86,13 +87,13 @@ abstract contract SuperExecutorBase is
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperExecutor
-    function onInstall(bytes calldata) external {
+    function onInstall(bytes calldata) external override(IModule, ISuperExecutor) {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         _initialized[msg.sender] = true;
     }
 
     /// @inheritdoc ISuperExecutor
-    function onUninstall(bytes calldata) external {
+    function onUninstall(bytes calldata) external override(IModule, ISuperExecutor) {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
     }

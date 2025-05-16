@@ -26,10 +26,7 @@ contract FlatFeeLedger is BaseLedger {
     /// @dev Overrides the base implementation to apply fees to the entire amount
     ///      Sets the cost basis to zero, treating the entire amount as profit
     ///      This is suitable for reward distributions where the entire amount is considered yield
-    /// @param _ First unused parameter (maintains interface compatibility)
-    /// @param __ Second unused parameter (maintains interface compatibility) 
     /// @param amountAssets The total asset amount being processed
-    /// @param ___ Third unused parameter (maintains interface compatibility)
     /// @param config The yield source oracle configuration containing fee settings
     /// @return feeAmount The calculated fee amount based on the full asset amount
     function _processOutflow(

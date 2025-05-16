@@ -20,4 +20,5 @@ interface ISuperSignatureStorage {
     ///      This data typically includes merkle roots or public keys authorized by the account
     /// @param account The smart account address to retrieve signature data for
     /// @return The signature data associated with the account (e.g., merkle roots)
+    function retrieveSignatureData(address account) external view returns (bytes memory);
 }

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.28;
 
 // external
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -26,13 +26,12 @@ contract ERC5115Ledger is BaseLedger {
     /// @notice Calculates the asset volume for outflow processing in ERC-5115 vaults
     /// @dev Overrides the base implementation to handle ERC-5115 specific price conversion
     ///      Converts share amount to asset amount using price per share from the oracle
-    /// @param _ Unused parameter (maintains interface compatibility)
     /// @param usedShares Amount of shares being withdrawn
     /// @param pps Current price per share from the oracle
     /// @param decimals Decimal precision of the yield source
     /// @return The asset amount equivalent to the withdrawn shares
     function _getOutflowProcessVolume(
-        uint256,
+        uint256 /* notUsed */,
         uint256 usedShares,
         uint256 pps,
         uint8 decimals

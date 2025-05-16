@@ -238,4 +238,5 @@ interface ISuperHook {
     /// @dev Used to categorize hooks beyond the basic HookType
     ///      For example, a hook might be of type INFLOW but subtype VAULT_DEPOSIT
     /// @return A bytes32 identifier for the specific hook functionality
+    function subtype() external view returns (bytes32);
 }

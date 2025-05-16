@@ -22,4 +22,5 @@ interface ISuperDestinationValidator {
     /// @param sender The sender account that initiated the cross-chain request
     /// @param data Encoded signature and destination data including calldata, chainId, etc.
     /// @return The EIP-1271 magic value if valid, empty bytes4 if invalid
+    function isValidDestinationSignature(address sender, bytes calldata data) external view returns (bytes4);
 }

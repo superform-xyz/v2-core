@@ -133,15 +133,12 @@ abstract contract BaseLedger is ISuperLedger {
     /// @dev Can be overridden by derived contracts to implement different volume calculation strategies
     ///      In the base implementation, simply returns the input amount unchanged
     /// @param amountSharesOrAssets The amount of shares or assets being withdrawn
-    /// @param _ Unused in base implementation (reserved for price per share)
-    /// @param __ Unused in base implementation (reserved for additional price data)
-    /// @param ___ Unused in base implementation (reserved for decimals)
     /// @return The volume to use for fee calculations
     function _getOutflowProcessVolume(
         uint256 amountSharesOrAssets,
-        uint256,
-        uint256,
-        uint8
+        uint256 /* pricePerShare */,
+        uint256 /* unused1 */,
+        uint8 /* decimals */
     )
         internal
         pure
