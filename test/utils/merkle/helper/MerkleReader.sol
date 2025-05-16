@@ -7,9 +7,13 @@ import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 import { Helpers } from "../../Helpers.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 // Custom errors for MerkleReader
 error NoProofFoundForArgs();
 error NoProofFoundForHookAndArgs();
+error InvalidArrayLengths();
+error EmptyInput();
 
 abstract contract MerkleReader is StdCheats, Helpers {
     using stdJson for string;
@@ -22,6 +26,7 @@ abstract contract MerkleReader is StdCheats, Helpers {
 
     // Updated appends for the new structure
     string private hookNameQueryAppend = "].hookName";
+    string private hookAddressQueryAppend = "].hookAddress"; // Added to access hook address
     string private valueQueryAppend = "].value[0]"; // First element in the value array
     string private proofQueryAppend = "].proof";
 
@@ -57,7 +62,7 @@ abstract contract MerkleReader is StdCheats, Helpers {
         v.treeJson = vm.readFile(string.concat(vm.projectRoot(), basePathForTreeDump, ".json"));
 
         // Get the total number of values in the tree
-        bytes memory encodedValuesLength = vm.parseJson(v.treeJson, ".values.length");
+        bytes memory encodedValuesLength = vm.parseJson(v.treeJson, ".count");
         uint256 valuesLength = abi.decode(encodedValuesLength, (uint256));
 
         // Search for the matching encoded args
@@ -65,7 +70,7 @@ abstract contract MerkleReader is StdCheats, Helpers {
             // Get encoded args directly as bytes
             string memory valueQuery = string.concat(prepend, Strings.toString(i), ".value[0]");
             bytes memory valueBytes = abi.decode(vm.parseJson(v.treeJson, valueQuery), (bytes));
-            
+
             // Compare the encoded args
             if (keccak256(valueBytes) == keccak256(encodedHookArgs)) {
                 v.encodedProof = vm.parseJson(v.treeJson, string.concat(prepend, Strings.toString(i), proofQueryAppend));
@@ -78,37 +83,44 @@ abstract contract MerkleReader is StdCheats, Helpers {
     }
 
     /**
-     * @notice Get the Merkle proof for a specific hook with specific arguments
-     * @param hookName Name of the hook (e.g. "ApproveAndRedeem4626VaultHook")
-     * @param encodedHookArgs The packed-encoded hook arguments (from inspect function)
-     * @return proof The Merkle proof for the given hook and arguments
+     * @notice Get Merkle proof for a hook with specific arguments
+     * @param hookAddress Address of the hook contract
+     * @param encodedHookArgs Packed-encoded hook arguments
+     * @return proof Merkle proof for the hook/args combination
      */
     function _getMerkleProofForHook(
-        string memory hookName,
+        address hookAddress,
         bytes memory encodedHookArgs
-    ) internal view returns (bytes32[] memory proof) {
+    )
+        internal
+        view
+        returns (bytes32[] memory proof)
+    {
         LocalVars memory v;
 
         v.treeJson = vm.readFile(string.concat(vm.projectRoot(), basePathForTreeDump, ".json"));
 
         // Get the total number of values in the tree
-        bytes memory encodedValuesLength = vm.parseJson(v.treeJson, ".values.length");
+        bytes memory encodedValuesLength = vm.parseJson(v.treeJson, ".count");
         uint256 valuesLength = abi.decode(encodedValuesLength, (uint256));
 
-        // Search for the matching hook name and encoded args
+        // Search for the matching hook address and encoded args
         for (uint256 i = 0; i < valuesLength; ++i) {
-            v.encodedHookName = vm.parseJson(v.treeJson, string.concat(prepend, Strings.toString(i), hookNameQueryAppend));
-            string memory currentHookName = abi.decode(v.encodedHookName, (string));
-            
+            // Get hook address for each entry
+            bytes memory encodedHookAddress =
+                vm.parseJson(v.treeJson, string.concat(prepend, Strings.toString(i), hookAddressQueryAppend));
+            address currentHookAddress = abi.decode(encodedHookAddress, (address));
+
             // Only check values for the specified hook
-            if (keccak256(bytes(currentHookName)) == keccak256(bytes(hookName))) {
+            if (currentHookAddress == hookAddress) {
                 // Get encoded args directly as bytes
-                string memory valueQuery = string.concat(prepend, Strings.toString(i), ".value[0]");
+                string memory valueQuery = string.concat(prepend, Strings.toString(i), valueQueryAppend);
                 bytes memory valueBytes = abi.decode(vm.parseJson(v.treeJson, valueQuery), (bytes));
-                
+
                 // Compare the encoded args
                 if (keccak256(valueBytes) == keccak256(encodedHookArgs)) {
-                    v.encodedProof = vm.parseJson(v.treeJson, string.concat(prepend, Strings.toString(i), proofQueryAppend));
+                    v.encodedProof =
+                        vm.parseJson(v.treeJson, string.concat(prepend, Strings.toString(i), proofQueryAppend));
                     proof = abi.decode(v.encodedProof, (bytes32[]));
                     break;
                 }
@@ -119,11 +131,94 @@ abstract contract MerkleReader is StdCheats, Helpers {
     }
 
     /**
+     * @notice Get Merkle proofs for multiple hooks with specific arguments
+     * @dev Optimized for batch processing multiple hooks by reading the JSON only once
+     * @param hookAddresses Array of hook contract addresses
+     * @param encodedHookArgs Array of packed-encoded hook arguments corresponding to each hook
+     * @return proofs Array of Merkle proofs for each hook/args combination
+     */
+    function _getMerkleProofsForHooks(
+        address[] memory hookAddresses,
+        bytes[] memory encodedHookArgs
+    )
+        internal
+        view
+        returns (bytes32[][] memory proofs)
+    {
+        // Input validation
+        if (hookAddresses.length != encodedHookArgs.length) revert InvalidArrayLengths();
+        if (hookAddresses.length == 0) revert EmptyInput();
+
+        LocalVars memory v;
+        v.treeJson = vm.readFile(string.concat(vm.projectRoot(), basePathForTreeDump, ".json"));
+
+        // Get the total number of values in the tree
+        bytes memory encodedValuesLength = vm.parseJson(v.treeJson, ".count");
+        uint256 valuesLength = abi.decode(encodedValuesLength, (uint256));
+
+        // Create a properly sized array for proofs
+        proofs = new bytes32[][](hookAddresses.length);
+
+        // Cache data from JSON to minimize redundant reads
+        address[] memory cachedHookAddresses = new address[](valuesLength);
+        bytes[] memory cachedValueBytes = new bytes[](valuesLength);
+        string[] memory cachedProofQueries = new string[](valuesLength);
+
+        for (uint256 i = 0; i < valuesLength; ++i) {
+            string memory hookAddressQuery = string.concat(prepend, Strings.toString(i), hookAddressQueryAppend);
+            bytes memory encodedHookAddress = vm.parseJson(v.treeJson, hookAddressQuery);
+            cachedHookAddresses[i] = abi.decode(encodedHookAddress, (address));
+
+            string memory valueQuery = string.concat(prepend, Strings.toString(i), valueQueryAppend);
+            bytes memory encodedValue = vm.parseJson(v.treeJson, valueQuery);
+            cachedValueBytes[i] = abi.decode(encodedValue, (bytes));
+
+            cachedProofQueries[i] = string.concat(prepend, Strings.toString(i), proofQueryAppend);
+        }
+
+        // Process each hook address and find its proof
+        for (uint256 h = 0; h < hookAddresses.length; h++) {
+            address targetHookAddress = hookAddresses[h];
+            bytes memory targetArgs = encodedHookArgs[h];
+
+            bool found = false;
+
+            console2.log("targetHookAddress", targetHookAddress);
+            console2.logBytes(targetArgs);
+
+            // Search through cached entries
+            for (uint256 i = 0; i < valuesLength; ++i) {
+                // Check if hook address matches
+                if (cachedHookAddresses[i] == targetHookAddress) {
+                    // Compare the encoded args
+                    if (keccak256(cachedValueBytes[i]) == keccak256(targetArgs)) {
+                        // Get proof for this leaf
+                        bytes memory encodedProof = vm.parseJson(v.treeJson, cachedProofQueries[i]);
+                        proofs[h] = abi.decode(encodedProof, (bytes32[]));
+                        found = true;
+                        break;
+                    }
+                }
+            }
+
+            // If we couldn't find a proof for this hook/args pair
+            if (!found) {
+                // Log debugging information
+                console2.log("No proof found for hook address:", targetHookAddress);
+                revert NoProofFoundForHookAndArgs();
+            }
+        }
+
+        return proofs;
+    }
+
+    /**
      * @notice Generate the complete Merkle tree data
      * @dev Returns the root, all encoded args and their proofs
      * @return root The Merkle root
      * @return encodedArgsList List of all encoded arguments in the tree
      * @return hookNames List of hook names corresponding to each encoded argument
+     * @return hookAddresses List of hook addresses corresponding to each encoded argument
      * @return proofs List of proofs corresponding to each encoded argument
      */
     function _generateMerkleTree()
@@ -133,6 +228,7 @@ abstract contract MerkleReader is StdCheats, Helpers {
             bytes32 root,
             bytes[] memory encodedArgsList,
             string[] memory hookNames,
+            address[] memory hookAddresses,
             bytes32[][] memory proofs
         )
     {
@@ -145,19 +241,26 @@ abstract contract MerkleReader is StdCheats, Helpers {
         v.treeJson = vm.readFile(string.concat(vm.projectRoot(), basePathForTreeDump, ".json"));
 
         // Get the total number of values in the tree
-        bytes memory encodedValuesLength = vm.parseJson(v.treeJson, ".values.length");
+        bytes memory encodedValuesLength = vm.parseJson(v.treeJson, ".count");
         uint256 valuesLength = abi.decode(encodedValuesLength, (uint256));
 
         // Initialize arrays to store results
         encodedArgsList = new bytes[](valuesLength);
         hookNames = new string[](valuesLength);
+        hookAddresses = new address[](valuesLength);
         proofs = new bytes32[][](valuesLength);
 
         // Fill arrays with data from the tree dump
         for (uint256 i = 0; i < valuesLength; ++i) {
             // Get hook name
-            v.encodedHookName = vm.parseJson(v.treeJson, string.concat(prepend, Strings.toString(i), hookNameQueryAppend));
+            v.encodedHookName =
+                vm.parseJson(v.treeJson, string.concat(prepend, Strings.toString(i), hookNameQueryAppend));
             hookNames[i] = abi.decode(v.encodedHookName, (string));
+
+            // Get hook address
+            bytes memory encodedHookAddress =
+                vm.parseJson(v.treeJson, string.concat(prepend, Strings.toString(i), hookAddressQueryAppend));
+            hookAddresses[i] = abi.decode(encodedHookAddress, (address));
 
             // Get encoded args directly as bytes
             string memory valueQuery = string.concat(prepend, Strings.toString(i), ".value[0]");

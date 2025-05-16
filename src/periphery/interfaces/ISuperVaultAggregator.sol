@@ -182,22 +182,30 @@ interface ISuperVaultAggregator {
     /// @param root New root value
     /// @param effectiveTime Timestamp when the root becomes effective
     event StrategyHooksRootUpdateProposed(
-        address indexed strategy,
-        address indexed proposer,
-        bytes32 root,
-        uint256 effectiveTime
+        address indexed strategy, address indexed proposer, bytes32 root, uint256 effectiveTime
     );
 
-    /// @notice Emitted when a proposed global hooks root update veto status is changed
+    /// @notice Emitted when a proposed global hooks root update is vetoed by SuperGovernor
     /// @param vetoed Whether the root is being vetoed (true) or unvetoed (false)
     /// @param root The root value affected
     event GlobalHooksRootVetoStatusChanged(bool vetoed, bytes32 indexed root);
-    
-    /// @notice Emitted when a proposed strategy hooks root update veto status is changed
+
+    /// @notice Emitted when a proposed strategy hooks root update is vetoed by SuperGovernor
     /// @param strategy Address of the strategy affected
     /// @param vetoed Whether the root is being vetoed (true) or unvetoed (false)
     /// @param root The root value affected
     event StrategyHooksRootVetoStatusChanged(address indexed strategy, bool vetoed, bytes32 indexed root);
+
+    /// @notice Emitted when a proposed global hooks root update is vetoed by a guardian
+    /// @param guardian Address of the guardian who vetoed the update
+    /// @param root The vetoed root value
+    event GlobalHooksRootVetoed(address indexed guardian, bytes32 indexed root);
+
+    /// @notice Emitted when a proposed strategy hooks root update is vetoed by a guardian
+    /// @param guardian Address of the guardian who vetoed the update
+    /// @param strategy Address of the strategy whose root update was vetoed
+    /// @param root The vetoed root value
+    event StrategyHooksRootVetoed(address indexed guardian, address indexed strategy, bytes32 indexed root);
 
     /*///////////////////////////////////////////////////////////////
                                  ERRORS
@@ -254,6 +262,8 @@ interface ISuperVaultAggregator {
     error UNAUTHORIZED_CALLER();
     /// @notice Thrown when the timelock for a proposed change has not expired
     error TIMELOCK_NOT_EXPIRED();
+    /// @notice Thrown when an array length is invalid
+    error INVALID_ARRAY_LENGTH();
 
     /*//////////////////////////////////////////////////////////////
                             VAULT CREATION
@@ -369,22 +379,22 @@ interface ISuperVaultAggregator {
     /// @dev Can be called by anyone after the timelock period has elapsed
     /// @param strategy Address of the strategy whose root update to execute
     function executeStrategyHooksRootUpdate(address strategy) external;
-    
+
     /// @notice Set veto status for the global hooks root
     /// @dev Only callable by SuperGovernor
     /// @param vetoed Whether to veto (true) or unveto (false) the global hooks root
     function setGlobalHooksRootVetoStatus(bool vetoed) external;
-    
+
     /// @notice Set veto status for a strategy-specific hooks root
     /// @dev Only callable by SuperGovernor
     /// @param strategy Address of the strategy to affect
     /// @param vetoed Whether to veto (true) or unveto (false) the strategy hooks root
     function setStrategyHooksRootVetoStatus(address strategy, bool vetoed) external;
-    
+
     /// @notice Check if the global hooks root is currently vetoed
     /// @return vetoed True if the global hooks root is vetoed
     function isGlobalHooksRootVetoed() external view returns (bool vetoed);
-    
+
     /// @notice Check if a strategy hooks root is currently vetoed
     /// @param strategy Address of the strategy to check
     /// @return vetoed True if the strategy hooks root is vetoed
@@ -490,12 +500,12 @@ interface ISuperVaultAggregator {
     /// @return The SuperVaultEscrow address at the given index
     function superVaultEscrows(uint256 index) external view returns (address);
 
-    /// @notice Validates if a hook is allowed based on global and strategy roots
-    /// @param strategy Address of the strategy for validation context
-    /// @param hookArgs Encoded hook arguments to validate
-    /// @param globalProof Merkle proof for the global root (can be empty if using strategy proof)
-    /// @param strategyProof Merkle proof for the strategy root (can be empty if using global proof)
-    /// @return isValid Whether the hook is allowed
+    /// @notice Validates a hook against both global and strategy-specific Merkle roots
+    /// @param strategy Address of the strategy
+    /// @param hookArgs Encoded arguments for the hook operation
+    /// @param globalProof Merkle proof for the global root
+    /// @param strategyProof Merkle proof for the strategy-specific root
+    /// @return isValid True if the hook is valid against either root
     function validateHook(
         address strategy,
         bytes calldata hookArgs,
@@ -505,6 +515,22 @@ interface ISuperVaultAggregator {
         external
         view
         returns (bool isValid);
+
+    /// @notice Batch validates multiple hooks against Merkle roots
+    /// @param strategy Address of the strategy
+    /// @param hooksArgs Array of encoded arguments for each hook operation
+    /// @param globalProofs Array of Merkle proofs for the global root
+    /// @param strategyProofs Array of Merkle proofs for the strategy-specific root
+    /// @return validHooks Array of booleans indicating which hooks are valid
+    function validateHooks(
+        address strategy,
+        bytes[] calldata hooksArgs,
+        bytes32[][] calldata globalProofs,
+        bytes32[][] calldata strategyProofs
+    )
+        external
+        view
+        returns (bool[] memory validHooks);
 
     /// @notice Gets the current global hooks Merkle root
     /// @return root The current global hooks Merkle root

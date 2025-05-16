@@ -12,13 +12,44 @@ const ownerList = require('../target/owner_list.json');
  * Each hook definition contains:
  * - argsInfo: which addresses are used as arguments and their semantic types
  */
+// Hook contract addresses from deployment
+const hookAddresses = {
+  'ApproveAndRedeem4626VaultHook': '0x14C9f45191be683d53E347B39b515A840f59c637',
+  'ApproveAndDeposit4626VaultHook': '0x5B6e16CA55281E857cb7Ef7257bfFC7636ecE932',
+  'Redeem4626VaultHook': '0xB5289CDa2268D557F26a9e1394D4E34B5Cb30265'
+};
+
 const hookDefinitions = {
   ApproveAndRedeem4626VaultHook: {
+    // Contract address of the deployed hook
+    address: hookAddresses['ApproveAndRedeem4626VaultHook'],
     // Map argument names to their semantic types for proper list lookups
     argsInfo: {
       extractedAddresses: [
         { name: 'yieldSource', type: 'yieldSource' },
         { name: 'token', type: 'token' },
+        { name: 'owner', type: 'beneficiary' }
+      ]
+    }
+  },
+  ApproveAndDeposit4626VaultHook: {
+    // Contract address of the deployed hook
+    address: hookAddresses['ApproveAndDeposit4626VaultHook'],
+    // Map argument names to their semantic types for proper list lookups
+    argsInfo: {
+      extractedAddresses: [
+        { name: 'yieldSource', type: 'yieldSource' },
+        { name: 'token', type: 'token' }
+      ]
+    }
+  },
+  Redeem4626VaultHook: {
+    // Contract address of the deployed hook
+    address: hookAddresses['Redeem4626VaultHook'],
+    // Map argument names to their semantic types for proper list lookups
+    argsInfo: {
+      extractedAddresses: [
+        { name: 'yieldSource', type: 'yieldSource' },
         { name: 'owner', type: 'beneficiary' }
       ]
     }
@@ -45,39 +76,64 @@ function getAddressesForType(type, chainId) {
 }
 
 /**
- * Generate all possible argument combinations for a hook
+ * Generate all possible argument combinations for a hook using a dynamic approach
  * @param {Object} hookDef - Hook definition
  * @param {number} chainId - Chain ID to use for addresses
  * @returns {Array<Object>} Array of argument objects
  */
 function generateArgCombinations(hookDef, chainId) {
-  // Get lists of possible addresses for each argument type
-  const argAddresses = {};
-  
-  // Map each extracted address to its list of possible values
-  for (const argDef of hookDef.argsInfo.extractedAddresses) {
-    argAddresses[argDef.name] = getAddressesForType(argDef.type, chainId);
+  // Get the argument definitions from the hook
+  const argDefs = hookDef.argsInfo.extractedAddresses;
+
+  // Create a map of argument names to their possible values
+  const argValues = {};
+  for (const argDef of argDefs) {
+    argValues[argDef.name] = getAddressesForType(argDef.type, chainId);
   }
-  
-  // Generate all combinations (cartesian product)
-  const argCombinations = [];
-  
-  // For the ApproveAndRedeem4626VaultHook:
-  // We need combinations of yieldSource, token, and owner
-  for (const yieldSource of argAddresses['yieldSource'] || []) {
-    for (const token of argAddresses['token'] || []) {
-      for (const owner of argAddresses['owner'] || []) {
-        const argObj = { 
-          yieldSource,
-          token,
-          owner 
-        };
-        argCombinations.push(argObj);
-      }
+
+  // Helper function to generate combinations recursively
+  function generateCombinationsRecursive(argNames, currentIndex, currentCombination) {
+    // Base case: we've processed all argument names
+    if (currentIndex === argNames.length) {
+      return [currentCombination];
     }
+
+    // Get the current argument name
+    const argName = argNames[currentIndex];
+
+    // Get the possible values for this argument
+    const possibleValues = argValues[argName] || [];
+
+    // If there are no possible values, skip this argument
+    if (possibleValues.length === 0) {
+      return generateCombinationsRecursive(argNames, currentIndex + 1, currentCombination);
+    }
+
+    // Generate combinations for each possible value
+    let combinations = [];
+    for (const value of possibleValues) {
+      // Create a new combination with this value
+      const newCombination = { ...currentCombination, [argName]: value };
+
+      // Recursively generate combinations for the remaining arguments
+      const remainingCombinations = generateCombinationsRecursive(
+        argNames,
+        currentIndex + 1,
+        newCombination
+      );
+
+      // Add these combinations to our result
+      combinations = combinations.concat(remainingCombinations);
+    }
+
+    return combinations;
   }
-  
-  return argCombinations;
+
+  // Get all argument names from the argDefs
+  const argNames = argDefs.map(def => def.name);
+
+  // Generate combinations for all arguments
+  return generateCombinationsRecursive(argNames, 0, {});
 }
 
 // Add ethers import at the top
@@ -90,18 +146,35 @@ const { ethers } = require('ethers');
  * @returns {string} Hex string of encoded args (packed, not ABI encoded)
  */
 function encodeArgs(args, hookName) {
-  if (hookName === 'ApproveAndRedeem4626VaultHook') {
-    // Based on the hook's inspect() function:
-    // argsEncoded = abi.encodePacked(yieldSource, token, owner)
-    // We need to use solidityPack to match abi.encodePacked in Solidity
-    return ethers.utils.solidityPack(
-      ['address', 'address', 'address'], 
-      [args.yieldSource, args.token, args.owner]
-    );
+  // Get hook definition
+  const hookDef = hookDefinitions[hookName];
+  if (!hookDef) {
+    console.warn(`No hook definition found for ${hookName}`);
+    return '';
   }
-  
-  // Default implementation for other hooks
-  return '';
+
+  // Get argument definitions in the correct order
+  const argDefs = hookDef.argsInfo.extractedAddresses;
+
+  // Build the types and values arrays for solidityPack
+  const types = [];
+  const values = [];
+
+  for (const argDef of argDefs) {
+    const argName = argDef.name;
+    if (args[argName] !== undefined) {
+      types.push('address'); // All our args are addresses
+      values.push(args[argName]);
+    }
+  }
+
+  // If we have no arguments, return empty string
+  if (types.length === 0) {
+    return '';
+  }
+
+  // Use solidityPack to match abi.encodePacked in Solidity
+  return ethers.utils.solidityPack(types, values);
 }
 
 /**
@@ -113,35 +186,35 @@ function encodeArgs(args, hookName) {
 function buildMerkleTreeForHook(hookName, chainId) {
   const hookDef = hookDefinitions[hookName];
   if (!hookDef) throw new Error(`Unknown hook: ${hookName}`);
-  
+
   const argCombinations = generateArgCombinations(hookDef, chainId);
-  
+
   // Build leaves in the format expected by StandardMerkleTree.of()
   const leaves = [];
   const leafData = [];
-  
+
   for (const args of argCombinations) {
     // Encode args according to the hook's specific encoding
     const encodedArgs = encodeArgs(args, hookName);
-    
+
     // Store leaf data for later reference
     leafData.push({
       hookName,
       args,
       encodedArgs
     });
-    
+
     // For StandardMerkleTree, we need to use a specific format
     // Each leaf is an array with a single value (the packed encoding)
     leaves.push([encodedArgs]);
   }
-  
+
   // Create the merkle tree with StandardMerkleTree
   const tree = StandardMerkleTree.of(
-    leaves, 
+    leaves,
     ["bytes"] // Using bytes type for the solidityPack output
   );
-  
+
   return { tree, leafData };
 }
 
@@ -152,15 +225,15 @@ function buildMerkleTreeForHook(hookName, chainId) {
  */
 function generateMerkleTrees(hookNames, chainId) {
   console.log(`Generating global Merkle tree for chain ID ${chainId}...`);
-  
+
   // Generate leaves for each hook but only for the global tree
   let allLeaves = [];
   let allLeafData = [];
-  
+
   for (const hookName of hookNames) {
     const { tree, leafData } = buildMerkleTreeForHook(hookName, chainId);
     console.log(`Generated ${leafData.length} leaves for ${hookName}`);
-    
+
     // Add to global leaves
     for (let i = 0; i < leafData.length; i++) {
       // Each leaf must be in array format for StandardMerkleTree
@@ -168,46 +241,64 @@ function generateMerkleTrees(hookNames, chainId) {
       allLeafData.push(leafData[i]);
     }
   }
-  
+
   // Generate global Merkle tree with all leaves
   if (allLeaves.length > 0) {
     const globalTree = StandardMerkleTree.of(
-      allLeaves, 
+      allLeaves,
       ["bytes"] // Using bytes type for the solidityPack output
     );
-    
+
     const globalTreeDump = globalTree.dump();
-    
+
+    // Add count element to the tree dump for easier access in Solidity
+    globalTreeDump.count = allLeaves.length;
+
     // Enhance global tree dump with proofs for each leaf
     for (const [i, v] of globalTree.entries()) {
-      // Only include essential information: value, treeIndex, hookName, and proof
+      const currentHookName = allLeafData[i].hookName;
+
+      // Verify the hook definition exists
+      if (!hookDefinitions[currentHookName]) {
+        throw new Error(`Hook definition not found for ${currentHookName}. Please add it to the hookDefinitions object.`);
+      }
+
+      // Verify the hook address exists
+      const hookAddress = hookDefinitions[currentHookName].address;
+      if (!hookAddress) {
+        throw new Error(`Hook address not found for ${currentHookName}. Please add it to the hookAddresses object.`);
+      }
+
+      // Only include essential information: value, treeIndex, hookName, address, and proof
       globalTreeDump.values[i] = {
         value: globalTreeDump.values[i].value,
         treeIndex: globalTreeDump.values[i].treeIndex,
-        hookName: allLeafData[i].hookName,
+        hookName: currentHookName,
+        hookAddress: hookAddress, // Add hook contract address for validation
+        encodedHookArgs: allLeafData[i].encodedArgs, // Add this for easy reference
         proof: globalTree.getProof(i)
       };
     }
-    
+
     // Create output directory if it doesn't exist
     const outputDir = path.join(__dirname, '../output');
     if (!fs.existsSync(outputDir)) {
       fs.mkdirSync(outputDir, { recursive: true });
     }
-    
+
     // Save root and tree dump separately (like in generateMerkleTree.js)
     const root = globalTree.root;
-    
+
     fs.writeFileSync(
-      path.join(outputDir, `jsGeneratedRoot_${chainId}.json`), 
+      path.join(outputDir, `jsGeneratedRoot_${chainId}.json`),
       JSON.stringify({ "root": root })
     );
-    
+
     fs.writeFileSync(
-      path.join(outputDir, `jsTreeDump_${chainId}.json`), 
+      path.join(outputDir, `jsTreeDump_${chainId}.json`),
       JSON.stringify(globalTreeDump)
     );
-    
+
     console.log(`Saved global Merkle tree with root: ${root}`);
     console.log(`Total leaves in global tree: ${allLeaves.length}`);
   }

@@ -119,6 +119,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         // No need for external registration
 
         // Create minimal proxies
+        // todo add asset as part of this @Vik
         // @dev cloneDeterministic disallows a clone to have the same name and symbol pair
         superVault = VAULT_IMPLEMENTATION.cloneDeterministic(keccak256(abi.encodePacked(params.name, params.symbol)));
         escrow = ESCROW_IMPLEMENTATION.cloneDeterministic(keccak256(abi.encodePacked(params.name, params.symbol)));
@@ -505,19 +506,20 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
         // Update veto status
         _strategyData[strategy].hooksRootVetoed = vetoed;
-        
+
         emit StrategyHooksRootVetoStatusChanged(strategy, vetoed, _strategyData[strategy].strategistHooksRoot);
     }
     /// @inheritdoc ISuperVaultAggregator
+
     function isGlobalHooksRootVetoed() external view returns (bool vetoed) {
         return _globalHooksRootVetoed;
     }
-    
+
     /// @inheritdoc ISuperVaultAggregator
     function isStrategyHooksRootVetoed(address strategy) external view returns (bool vetoed) {
         return _strategyData[strategy].hooksRootVetoed;
     }
-    
+
     /*//////////////////////////////////////////////////////////////
                               VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -635,40 +637,55 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         view
         returns (bool isValid)
     {
-        // If either root is vetoed, all hook validations fail
-        if (_globalHooksRootVetoed || _strategyData[strategy].hooksRootVetoed) {
+        // If both roots are vetoed, all hook validations fail
+        bool globalHooksVetoed = _globalHooksRootVetoed;
+        bool strategyHooksVetoed = _strategyData[strategy].hooksRootVetoed;
+        if (globalHooksVetoed && strategyHooksVetoed) {
             return false;
         }
 
-        uint256 lengthGlobalProof = globalProof.length;
-        uint256 lengthStrategyProof = strategyProof.length;
-        
-        // If both proofs are empty, the hook is not allowed
-        if (lengthGlobalProof == 0 && lengthStrategyProof == 0) {
-            return false;
+        return
+            _validateSingleHook(strategy, hookArgs, globalProof, strategyProof, globalHooksVetoed, strategyHooksVetoed);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function validateHooks(
+        address strategy,
+        bytes[] calldata hooksArgs,
+        bytes32[][] calldata globalProofs,
+        bytes32[][] calldata strategyProofs
+    )
+        external
+        view
+        returns (bool[] memory validHooks)
+    {
+        uint256 length = hooksArgs.length;
+
+        // Ensure array lengths match
+        if (globalProofs.length != length || strategyProofs.length != length) {
+            revert INVALID_ARRAY_LENGTH();
         }
 
-        // Create leaf node from the hook arguments
-        bytes32 leaf = _createLeaf(hookArgs);
+        // Get veto statuses only once
+        bool globalHooksVetoed = _globalHooksRootVetoed;
+        bool strategyHooksVetoed = _strategyData[strategy].hooksRootVetoed;
 
-        // First try to verify against the global root if provided
-        if (lengthGlobalProof > 0) {
-            // Only validate against global root if it exists
-            if (_globalHooksRoot != bytes32(0) && MerkleProof.verify(globalProof, _globalHooksRoot, leaf)) {
-                return true;
-            }
+        // If both roots are vetoed, all hooks are invalid
+        if (globalHooksVetoed && strategyHooksVetoed) {
+            validHooks = new bool[](length);
+            // All values default to false in Solidity, so no need to set them
+            return validHooks;
         }
 
-        // Then try to verify against the strategy-specific root if provided
-        if (lengthStrategyProof > 0) {
-            bytes32 strategyRoot = _strategyData[strategy].strategistHooksRoot;
-            if (strategyRoot != bytes32(0) && MerkleProof.verify(strategyProof, strategyRoot, leaf)) {
-                return true;
-            }
+        // Validate each hook
+        validHooks = new bool[](length);
+        for (uint256 i; i < length; i++) {
+            validHooks[i] = _validateSingleHook(
+                strategy, hooksArgs[i], globalProofs[i], strategyProofs[i], globalHooksVetoed, strategyHooksVetoed
+            );
         }
 
-        // If we get here, verification failed
-        return false;
+        return validHooks;
     }
 
     /// @inheritdoc ISuperVaultAggregator
@@ -704,13 +721,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                          INTERNAL HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
-    /// @notice Creates a leaf node for Merkle verification from hook arguments
-    /// @param hookArgs The packed-encoded hook arguments (from solidityPack in JS)
-    /// @return leaf The leaf node hash
-    function _createLeaf(bytes calldata hookArgs) internal pure returns (bytes32) {
-        return keccak256(bytes.concat(keccak256(abi.encode(hookArgs))));
-    }
 
     /// @notice Internal implementation of forwarding PPS updates
     /// @param strategy Address of the strategy being updated
@@ -793,6 +803,66 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
             }
         }
 
+        return false;
+    }
+
+    /// @notice Creates a leaf node for Merkle verification from hook arguments
+    /// @param hookArgs The packed-encoded hook arguments (from solidityPack in JS)
+    /// @return leaf The leaf node hash
+    function _createLeaf(bytes calldata hookArgs) internal pure returns (bytes32) {
+        return keccak256(bytes.concat(keccak256(abi.encode(hookArgs))));
+    }
+
+    /**
+     * @dev Internal function to validate a single hook
+     * @param strategy Address of the strategy
+     * @param hookArgs Hook arguments
+     * @param globalProof Merkle proof for global root
+     * @param strategyProof Merkle proof for strategy root
+     * @param globalVetoed Whether global hooks are vetoed
+     * @param strategyVetoed Whether strategy hooks are vetoed
+     * @return True if hook is valid, false otherwise
+     */
+    function _validateSingleHook(
+        address strategy,
+        bytes calldata hookArgs,
+        bytes32[] calldata globalProof,
+        bytes32[] calldata strategyProof,
+        bool globalVetoed,
+        bool strategyVetoed
+    )
+        internal
+        view
+        returns (bool)
+    {
+        uint256 lengthGlobalProof = globalProof.length;
+        uint256 lengthStrategyProof = strategyProof.length;
+
+        // If both proofs are empty, the hook is not allowed
+        if (lengthGlobalProof == 0 && lengthStrategyProof == 0) {
+            return false;
+        }
+
+        // Create leaf node from the hook arguments
+        bytes32 leaf = _createLeaf(hookArgs);
+
+        // First try to verify against the global root if provided
+        if (lengthGlobalProof > 0 && !globalVetoed) {
+            // Only validate against global root if it exists
+            if (_globalHooksRoot != bytes32(0) && MerkleProof.verify(globalProof, _globalHooksRoot, leaf)) {
+                return true;
+            }
+        }
+
+        // Then try to verify against the strategy-specific root if provided
+        if (lengthStrategyProof > 0 && !strategyVetoed) {
+            bytes32 strategyRoot = _strategyData[strategy].strategistHooksRoot;
+            if (strategyRoot != bytes32(0) && MerkleProof.verify(strategyProof, strategyRoot, leaf)) {
+                return true;
+            }
+        }
+
+        // If we get here, verification failed
         return false;
     }
 }

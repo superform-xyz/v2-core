@@ -52,6 +52,7 @@ interface ISuperVaultStrategy {
     error INVALID_VAULT();
     error STAKE_TOO_LOW();
     error OPERATIONS_BLOCKED_BY_VETO();
+    error HOOK_VALIDATION_FAILED();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -99,10 +100,18 @@ interface ISuperVaultStrategy {
         address recipient; // Fee recipient address
     }
 
+    /// @notice Structure for hook execution arguments
     struct ExecuteArgs {
+        /// @notice Array of hooks to execute
         address[] hooks;
+        /// @notice Calldata for each hook (must match hooks array length)
         bytes[] hookCalldata;
+        /// @notice Expected output amounts or output shares
         uint256[] expectedAssetsOrSharesOut;
+        /// @notice Global Merkle proofs for hook validation (must match hooks array length)
+        bytes32[][] globalProofs;
+        /// @notice Strategy-specific Merkle proofs for hook validation (must match hooks array length)
+        bytes32[][] strategyProofs;
     }
 
     struct FulfillArgs {
@@ -110,6 +119,8 @@ interface ISuperVaultStrategy {
         address[] hooks;
         bytes[] hookCalldata;
         uint256[] expectedAssetsOrSharesOut;
+        bytes32[][] globalProofs;
+        bytes32[][] strategyProofs;
     }
 
     struct YieldSource {

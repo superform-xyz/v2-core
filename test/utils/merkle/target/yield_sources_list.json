@@ -6,7 +6,7 @@
     },
     {
       "symbol": "FluidVault",
-      "address": "0x490681095ed277B45377d28cA15Ac41d64583048"
+      "address": "0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33"
     },
     {
       "symbol": "EulerVault",
@@ -31,10 +31,6 @@
     {
       "symbol": "GearboxVault",
       "address": "0xda00000035fef4082F78dEF6A8903bee419FbF8E"
-    },
-    {
-      "symbol": "PendleRouter",
-      "address": "0x888888888889758F76e7103c6CbF23ABbF58F946"
     }
   ],
   "10": [
