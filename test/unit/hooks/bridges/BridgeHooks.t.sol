@@ -61,11 +61,15 @@ contract BridgeHooks is Helpers {
         mockDestinationChainId = 10;
         mockFillDeadlineOffset = 3600;
         mockExclusivityPeriod = 1800;
-        mockMessage = abi.encode("test message");
         mockSignatureStorage = new MockSignatureStorage();
         acrossV3hook = new AcrossSendFundsAndExecuteOnDstHook(mockSpokePool, address(mockSignatureStorage));
         deBridgehook = new DeBridgeSendOrderAndExecuteOnDstHook(address(this), address(mockSignatureStorage));
-        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), uint256(1));
+
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(mockOutputToken);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1;
+        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), dstTokens, intentAmounts, mockMessage);
     }
 
     function test_AcrossV3_Constructor() public view {
@@ -90,7 +94,12 @@ contract BridgeHooks is Helpers {
         assertEq(executions[0].value, mockValue);
 
         bytes memory sigData = mockSignatureStorage.retrieveSignatureData(address(0));
-        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), uint256(1), sigData);
+
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(mockOutputToken);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1;
+        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), dstTokens, intentAmounts, sigData);
 
         bytes memory expectedCallData = abi.encodeCall(
             IAcrossSpokePoolV3.depositV3Now,
@@ -146,8 +155,12 @@ contract BridgeHooks is Helpers {
 
         assertEq(executions.length, 1);
 
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(mockOutputToken);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1;
         bytes memory sigData = mockSignatureStorage.retrieveSignatureData(address(0));
-        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), uint256(1), sigData);
+        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), dstTokens, intentAmounts, sigData);
 
         bytes memory expectedCallData = abi.encodeCall(
             IAcrossSpokePoolV3.depositV3Now,
@@ -372,7 +385,11 @@ contract BridgeHooks is Helpers {
             referralCode: 0
         });
 
-        data.payload = abi.encode("", "", address(this), 100);
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(mockOutputToken);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 100;
+        data.payload = abi.encode("", "", address(this), dstTokens, intentAmounts);
 
         bytes memory part1 = _encodeDebridgePart1(data);
         bytes memory part2 = _encodeDebridgePart2(data);

@@ -38,6 +38,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
     address public immutable spokePoolV3;
     address private immutable _validator;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 216;
+    uint8 private constant MAX_INTENT_COUNT = 10;
 
     struct AcrossV3DepositAndExecuteData {
         uint256 value;
@@ -112,9 +113,10 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
                 bytes memory initData,
                 bytes memory executorCalldata,
                 address _account,
-                uint256 intentAmount
-            ) = abi.decode(acrossV3DepositAndExecuteData.destinationMessage, (bytes, bytes, address, uint256));
-            acrossV3DepositAndExecuteData.destinationMessage = abi.encode(initData, executorCalldata, _account, intentAmount, signature);
+                address[] memory dstTokens,
+                uint256[] memory intentAmounts
+            ) = abi.decode(acrossV3DepositAndExecuteData.destinationMessage, (bytes, bytes, address, address[], uint256[]));
+            acrossV3DepositAndExecuteData.destinationMessage = abi.encode(initData, executorCalldata, _account, dstTokens, intentAmounts, signature);
         }
 
         // build execution
