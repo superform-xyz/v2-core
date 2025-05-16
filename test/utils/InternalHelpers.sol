@@ -66,7 +66,6 @@ abstract contract InternalHelpers {
         return userOpData;
     }
 
-
     /*//////////////////////////////////////////////////////////////
                                  SWAPPERS
     //////////////////////////////////////////////////////////////*/
@@ -322,8 +321,9 @@ abstract contract InternalHelpers {
         pure
         returns (bytes memory hookData)
     {
-        hookData =
-            abi.encodePacked(yieldSourceOracleId, vault, tokenIn, amount, minSharesOut, usePrevHookAmount, vaultBank, dstChainId);
+        hookData = abi.encodePacked(
+            yieldSourceOracleId, vault, tokenIn, amount, minSharesOut, usePrevHookAmount, vaultBank, dstChainId
+        );
     }
 
     function _createRedeem4626HookData(
@@ -367,9 +367,7 @@ abstract contract InternalHelpers {
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(
-            yieldSourceOracleId, vault, tokenOut, shares, minTokenOut, false, usePrevHookAmount
-        );
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, tokenOut, shares, minTokenOut, false, usePrevHookAmount);
     }
 
     function _createApproveAndRedeem5115VaultHookData(

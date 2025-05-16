@@ -95,14 +95,9 @@ contract BatchTransferFromHook is BaseHook {
         });
 
         // Create permit call
-        bytes memory permitCallData =
-            abi.encodeCall(IPermit2Batch.permit, (from, permitBatch, signature));
+        bytes memory permitCallData = abi.encodeCall(IPermit2Batch.permit, (from, permitBatch, signature));
 
-        executions[0] = Execution({
-            target: PERMIT_2,
-            value: 0,
-            callData: permitCallData
-         });
+        executions[0] = Execution({ target: PERMIT_2, value: 0, callData: permitCallData });
 
         // Second execution: Create a batch transferFrom call
         IAllowanceTransfer.AllowanceTransferDetails[] memory transferDetails =

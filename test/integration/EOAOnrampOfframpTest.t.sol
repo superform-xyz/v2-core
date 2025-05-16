@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.28;
 
-import {console} from "forge-std/console.sol";
+import { console } from "forge-std/console.sol";
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IPermit2 } from "../../src/vendor/uniswap/permit2/IPermit2.sol";
@@ -198,7 +198,6 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, msgHash);
         return bytes.concat(r, s, bytes1(v));
     }
-    
 
     // function _createBatchTransferFromHookData(
     //     address from,
