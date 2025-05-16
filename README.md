@@ -1,10 +1,8 @@
-# Superform v2-contracts
+# Overview
+
+Superform v2 is a modular DeFi protocol for yield abstraction that allows dynamic execution and flexible composition of user operations via ERC7579 modules.
 
 This document provides technical details, reasoning behind design choices, and discussion of potential edge cases and risks in Superform's v2 contracts. Given the scope of ongoing reviews, the focus will be on Superform v2-core.
-
-## Overview
-
-Superform v2 is a modular, chain-abstracted DeFi protocol that allows dynamic execution and flexible composition of user operations (userOps). This repository contains the smart contracts powering Superform v2, including core execution logic and advanced account abstraction via ERC7579 modules.
 
 The protocol consists of the following components:
 
@@ -111,9 +109,9 @@ sequenceDiagram
     Frontend->>User: Shows completed transaction status
 ```
 
-### Execution Layer
+## Execution Layer
 
-#### Hooks
+### Hooks
 
 Hooks are lightweight, modular contracts that perform specific operations (e.g., token approvals, transfers) during an execution flow. Hooks are designed to be composable and can be chained together to create complex transaction flows. If any hook fails, the entire transaction is reverted, ensuring atomicity.
 
@@ -133,7 +131,7 @@ Key Points for Auditors:
     SuperBundler to provide the correct suggestions for users in the majority of the cases. Therefore users place a
     certain degree of trust in SuperBundler
 
-#### SuperExecutor and SuperDestinationExecutor
+### SuperExecutor and SuperDestinationExecutor
 
 SuperExecutor is the standard executor that sequentially processes one or more hooks on the same chain. It manages transient state storage for intermediate results, performs fee calculations, and interacts with the SuperLedger for accounting. It is responsible for executing the provided hooks, invoking pre- and post-execute functions to handle transient state updates and ensuring that the operation's logic is correctly sequenced.
 
@@ -150,7 +148,7 @@ Key Points for Auditors:
 - Accounting Integration: After hook execution, it checks hook types and calls updateAccounting on the SuperLedger when
   required.
 
-##### Transient Storage Mechanism
+#### Transient Storage Mechanism
 
 Transient storage is used during the execution of a SuperExecutor transaction to temporarily hold state changes. This
 mechanism allows efficient inter-hook communication without incurring high gas costs associated with permanent storage
@@ -167,11 +165,11 @@ Key Points for Auditors:
   - The trade-off is acceptable as it minimizes gas cost without impacting the integrity of the final state.
 
 
-### Validation Layer
+## Validation Layer
 
 SuperValidatorBase is the base contract providing core validation functionality used across all validator implementations, including signature validation and account ownership verification.
 
-#### SuperMerkleValidator and SuperDestinationValidator
+### SuperMerkleValidator and SuperDestinationValidator
 
 SuperMerkleValidator and SuperDestinationValidator are ERC7579-compliant modules used to validate operations through Merkle proof verification, ensuring only authorized operations are executed. They leverage a single owner signature over a Merkle root representing a batch of operations.
 
@@ -197,9 +195,9 @@ Key Points for Auditors:
 - Signature Scheme: Ensure the EIP-191 compliant signature verification against the Merkle root and namespace is sound.
 - Access Control: Verify that the signer check correctly uses the `_accountOwners` mapping initialized via `onInstall`.
 
-### Accounting Layer
+## Accounting Layer
 
-#### SuperLedger
+### SuperLedger
 
 Handles accounting aspects (pricing, fees) for both INFLOW and OUTFLOW operations. Tracks cost basis and calculates performance fees on yield. It ensures accurate pricing and accounting for INFLOW and OUTFLOW type hooks.
 
@@ -223,13 +221,13 @@ Key Points for Auditors:
     yieldSourceOracle. This is a known risk for users (fully isolated to the user's account) if not interacting through
     the offchain SuperBundler and acknowledged by the team.
 
-#### YieldSourceOracles
+### YieldSourceOracles
 
 The system uses a dedicated on-chain oracle system to compute the price per share for accounting. Specialized oracles exist for different vault standards (ERC4626, ERC5115, ERC7540, etc.) that provide accurate price data and TVL information.
 
-### Infrastructure
+## Infrastructure
 
-#### SuperBundler
+### SuperBundler
 
 A specialized off-chain bundler that processes ERC4337 userOps on a timed basis. It integrates with the validation system to ensure secure operation. Unlike typical bundlers that immediately forward userOps, SuperBundler processes them in a timed manner, allowing for batching and optimized execution.
 
@@ -249,7 +247,7 @@ Bundler Operation
 - Mitigation: Transparency around this design choice and the availability of fallback mechanisms when operations are not
   executed through SuperBundler.
 
-#### Adapters
+### Adapters
 
 Adapters are a set of gateway contracts that handle the acceptance of relayed messages and trigger execution on destination chains via 7579 SuperDestinationExecutor.
 
@@ -274,7 +272,7 @@ Key Points for Auditors:
     - User cancellations during pending bridge operations
     - Refund mechanisms when operations fail
 
-#### SuperNativePaymaster
+### SuperNativePaymaster
 
 SuperNativePaymaster is a specialized paymaster contract that wraps around the ERC4337 EntryPoint. It enables users to pay for operations using ERC20 tokens from any chain, on demand. It's primarily used by SuperBundler for gas sponsoring. This functionality is necessary because of the SuperBundler's unique fee collection mechanism where userOps are executed on user behalf and when required.
 
@@ -292,65 +290,10 @@ Key Points for Auditors:
   - Gas price manipulation protection
   - Fund safety during conversions
 
-#### SuperRegistry
+### SuperRegistry
 
 Provides centralized address management for configuration and upgradeability.
 
-## Development Setup
-
-### Prerequisites
-
-- Foundry
-- Node.js
-- Git
-
-### Installation
-
-Clone the repository with submodules:
-
-```bash
-git clone --recursive https://github.com/superform-xyz/v2-contracts
-cd v2-contracts
-```
-
-Install dependencies:
-
-```bash
-forge install
-```
-
-```bash
-cd lib/modulekit
-pnpm install
-```
-
-Note: This requires pnpm and will not work with npm. Install it using:
-
-```bash
-curl -fsSL https://get.pnpm.io/install.sh | sh -
-```
-
-Copy the environment file:
-
-```bash
-cp .env.example .env
-```
-
-### Building & Testing
-
-Build:
-
-```bash
-forge build
-```
-
-### Testing
-
-Supply your node rpc directly in the makefile and then
-
-```bash
-make ftest
-```
 
 ## Areas of Interest
 
@@ -495,3 +438,57 @@ graph TD
 **Mitigation**:
 - For extra safety, hooks are not allowed to target the SuperExecutor directly
 - All hook executions are validated for proper sequencing and authorization
+
+## Development Setup
+
+### Prerequisites
+
+- Foundry
+- Node.js
+- Git
+
+### Installation
+
+Clone the repository with submodules:
+
+```bash
+git clone --recursive https://github.com/superform-xyz/v2-contracts
+cd v2-contracts
+```
+
+Install dependencies:
+
+```bash
+forge install
+```
+
+```bash
+cd lib/modulekit
+pnpm install
+```
+
+Note: This requires pnpm and will not work with npm. Install it using:
+
+```bash
+curl -fsSL https://get.pnpm.io/install.sh | sh -
+```
+
+Copy the environment file:
+
+```bash
+cp .env.example .env
+```
+
+### Building & Testing
+
+Build:
+
+```bash
+forge build
+```
+
+Supply your node rpc directly in the makefile and then
+
+```bash
+make ftest
+```
