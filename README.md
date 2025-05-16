@@ -4,22 +4,250 @@ This document provides technical details, reasoning behind design choices, and d
 
 ## Overview
 
-SuperformV2 is a chain-abstracted DeFi protocol that emphasizes flexibility and composability. The protocol implements a modular architecture that allows dynamic execution and flexible composition of user operations (userOps). This repository contains the smart contracts powering Superform v2, including core execution logic and advanced account abstraction via ERC7579 modules.
+Superform v2 is a modular, chain-abstracted DeFi protocol that allows dynamic execution and flexible composition of user operations (userOps). This repository contains the smart contracts powering Superform v2, including core execution logic and advanced account abstraction via ERC7579 modules.
 
-At a high level, Superform v2 is organized into two major parts:
+The protocol consists of the following components:
 
-- **Core Contracts**: These include the primary business logic, interfaces, execution routines, and accounting mechanisms
-- **Periphery Contracts (OUT OF SCOPE)**: These include a suite of products built on top of the core contracts, such as SuperVaults
+- **Core System**: The primary business logic, interfaces, execution routines, accounting mechanisms, and validation components
+- **Periphery Contracts (OUT OF SCOPE)**: Suite of products built on top of the core contracts, such as SuperVaults
 
 ## Key Components
 
+### System Architecture Overview
+
+The following diagram illustrates how users interact with the Superform system and how the different components work together:
+
+```mermaid
+graph TD
+    User[User/DApp] -->|Interacts with| Frontend[Superform Frontend]
+    Frontend -->|Signs operations with| SmartAccount[Smart Account Layer]
+    
+    subgraph "Core Components"
+        SmartAccount -->|Executes via| Executors[Execution Layer]
+        Executors -->|Validates with| Validators[Validation Layer]
+        Executors -->|Tracks positions in| Accounting[Accounting Layer]
+        Executors -->|Uses| Hooks[Hook System]
+        
+        Registry[SuperRegistry] -.->|Configures| Executors
+        Registry -.->|Configures| Validators
+        Registry -.->|Configures| Accounting
+        Registry -.->|Registers| Hooks
+    end
+    
+    subgraph "Cross-Chain Infrastructure"
+        Executors -->|Source chain ops| Bridges[Bridge Adapters]
+        Bridges -->|Relay messages to| DestExecutors[Destination Executors]
+        DestExecutors -->|Validate with| DestValidators[Destination Validators]
+    end
+    
+    Accounting -->|Record balances in| Ledgers[SuperLedger]
+    
+    Monitoring[SuperScan/Monitoring] -.->|Tracks operations| SmartAccount
+    Monitoring -.->|Tracks execution| Executors
+    Monitoring -.->|Tracks balances| Accounting
+
+    classDef userFacing fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef core fill:#bbf,stroke:#333,stroke-width:1px;
+    classDef infra fill:#bfb,stroke:#333,stroke-width:1px;
+    
+    class User,Frontend,Monitoring userFacing;
+    class SmartAccount,Executors,Validators,Accounting,Hooks,Registry core;
+    class Bridges,DestExecutors,DestValidators,Ledgers infra;
+```
+
+#### User Interaction Flow
+
+This sequence diagram illustrates how a user would interact with Superform to execute operations across chains:
+
+```mermaid
+sequenceDiagram
+    participant User as User/DApp
+    participant Frontend as Superform Frontend
+    participant SmartAccount as Smart Account
+    participant SuperMerkle as SuperMerkleValidator
+    participant SuperExecutor as SuperExecutor
+    participant Bridge as Bridge Adapter
+    participant DestExecutor as SuperDestinationExecutor
+    participant DestValidator as SuperDestinationValidator
+    participant Accounting as SuperLedger
+
+    User->>Frontend: Initiates cross-chain operation
+    Frontend->>SmartAccount: Prepares & groups operations
+    Frontend->>Frontend: Generates merkle tree of operations
+    Frontend->>User: Requests signature for merkle root
+    User->>Frontend: Signs merkle root
+    
+    Frontend->>SmartAccount: Submits signed operation via userOp
+    SmartAccount->>SuperMerkle: Validates signature & merkle proof
+    SuperMerkle->>SmartAccount: Confirms valid signature
+    
+    SmartAccount->>SuperExecutor: Executes source chain operations
+    SuperExecutor->>Accounting: Updates ledger for source operations
+    SuperExecutor->>Bridge: Sends bridged assets & execution data
+    
+    Note over Bridge,DestExecutor: Cross-chain message transmission
+    
+    Bridge->>DestExecutor: Delivers assets & execution data
+    DestExecutor->>DestValidator: Validates signature/merkle proof
+    DestValidator->>DestExecutor: Confirms valid destination proof
+    DestExecutor->>Accounting: Updates ledger for destination operations
+    
+    DestExecutor->>Frontend: Emits execution events
+    SuperExecutor->>Frontend: Emits execution events
+    Frontend->>User: Shows completed transaction status
+```
+
+#### Component Layers
+
+The Superform architecture consists of several specialized layers that work together to enable seamless cross-chain operations:
+
+```mermaid
+graph TB
+    subgraph "User-Facing Layer"
+        Frontend[Superform Frontend]
+        SuperScan[SuperScan Monitoring]
+    end
+    
+    subgraph "Smart Account Layer"
+        SmartAccounts[ERC-7579 Smart Accounts]
+        SuperBundler[SuperBundler]
+    end
+    
+    subgraph "Execution Layer"
+        SuperExecutor[SuperExecutor]
+        SuperDestinationExecutor[SuperDestinationExecutor]
+        SuperHooks[SuperHooks System]
+    end
+    
+    subgraph "Validation Layer"
+        SuperMerkleValidator[SuperMerkleValidator]
+        SuperDestinationValidator[SuperDestinationValidator]
+        SignatureStorage[Signature Storage]
+    end
+    
+    subgraph "Accounting Layer"
+        SuperLedger[SuperLedger]
+        ERC5115Ledger[ERC5115 Ledger]
+        FlatFeeLedger[FlatFee Ledger]
+        LedgerConfig[SuperLedgerConfiguration]
+    end
+    
+    subgraph "Infrastructure Layer"
+        SuperRegistry[SuperRegistry]
+        BridgeAdapters[Bridge Adapters]
+        YieldSourceOracles[Yield Source Oracles]
+    end
+    
+    Frontend --> SmartAccounts
+    Frontend --> SuperScan
+    SmartAccounts --> SuperExecutor
+    SmartAccounts --> SuperDestinationExecutor
+    SuperBundler --> SmartAccounts
+    
+    SuperExecutor --> SuperMerkleValidator
+    SuperExecutor --> SuperHooks
+    SuperExecutor --> SuperLedger
+    
+    SuperDestinationExecutor --> SuperDestinationValidator
+    SuperDestinationExecutor --> SuperHooks
+    SuperDestinationExecutor --> SuperLedger
+    
+    SuperMerkleValidator --> SignatureStorage
+    SuperDestinationValidator --> SignatureStorage
+    
+    SuperLedger --> ERC5115Ledger
+    SuperLedger --> FlatFeeLedger
+    SuperLedger --> LedgerConfig
+    
+    SuperRegistry -.-> SuperExecutor
+    SuperRegistry -.-> SuperMerkleValidator
+    SuperRegistry -.-> SuperLedger
+    SuperRegistry -.-> BridgeAdapters
+    
+    SuperExecutor --> BridgeAdapters
+    BridgeAdapters --> SuperDestinationExecutor
+    
+    LedgerConfig --> YieldSourceOracles
+    
+    classDef userLayer fill:#f9c,stroke:#333,stroke-width:1px;
+    classDef accountLayer fill:#fcf,stroke:#333,stroke-width:1px;
+    classDef execLayer fill:#ccf,stroke:#333,stroke-width:1px;
+    classDef validLayer fill:#cff,stroke:#333,stroke-width:1px;
+    classDef accountingLayer fill:#cfc,stroke:#333,stroke-width:1px;
+    classDef infraLayer fill:#fcc,stroke:#333,stroke-width:1px;
+    
+    class Frontend,SuperScan userLayer;
+    class SmartAccounts,SuperBundler accountLayer;
+    class SuperExecutor,SuperDestinationExecutor,SuperHooks execLayer;
+    class SuperMerkleValidator,SuperDestinationValidator,SignatureStorage validLayer;
+    class SuperLedger,ERC5115Ledger,FlatFeeLedger,LedgerConfig accountingLayer;
+    class SuperRegistry,BridgeAdapters,YieldSourceOracles infraLayer;
+```
+
+#### Module Installation & Account Bootstrapping
+
+Smart accounts that interact with Superform must install four essential ERC7579 modules:
+
+- SuperExecutor / SuperDestinationExecutor:
+  - Installs hooks and executes operations.
+- SuperMerkleValidator / SuperDestinationValidator:
+  - Validates userOps against a Merkle root.
+
 ### Execution Layer
 
-- **Hooks**: Lightweight, modular contracts that perform specific operations (e.g., token approvals, transfers) during an execution flow. Hooks are designed to be composable and can be chained together to create complex transaction flows.
+#### Hooks
 
-- **SuperExecutor**: The standard executor that sequentially processes one or more hooks on the same chain. It manages transient state storage for intermediate results, performs fee calculations, and interacts with the SuperLedger for accounting.
+Hooks are Lightweight, modular contracts that perform specific operations (e.g., token approvals, transfers) during an execution flow. Hooks are designed to be composable and can be chained together to create complex transaction flows. If any hook fails, the entire transaction is reverted, ensuring atomicity.
 
-- **SuperDestinationExecutor**: Specialized executor for handling cross-chain operations on destination chains. It processes bridged executions, handles account creation, validates signatures, and forwards execution to the target accounts.
+Key Points for Auditors:
+
+- Modularity & Ordering: Hooks can be arranged in any order within a user operation. Their execution order is defined by
+  the build function of the SuperExecutor.
+- Pre/Post Execution: Each hook can have pre-execution and post-execution functions. These functions update internal
+  transient storage to maintain state between hook invocations.
+- Known Considerations:
+  - Complex interdependencies may arise if hooks are misconfigured.
+  - Failure handling is strict (reverting the entire operation on a specific hook failure).
+  - All hooks are executed within the smart account context. This is why many typical checks on slippage or other
+    behaviour can be disregarded, because the assumption is that the user will agree to the ordering and the type of
+    hooks provided and this choice will solely affect his account and not the entire core system of contracts.
+  - Anyone can create a hook including a malicious one. Users select which hooks to use, but ultimately it is up to the
+    SuperBundler to provide the correct suggestions for users in the majority of the cases. Therefore users place a
+    certain degree of trust in SuperBundler
+
+#### SuperExecutor and SuperDestinationExecutor
+
+SuperExecutor is the standard executor that sequentially processes one or more hooks on the same chain. It manages transient state storage for intermediate results, performs fee calculations, and interacts with the SuperLedger for accounting. It is responsible for executing the provided hooks, invoking pre- and post-execute functions to handle transient state updates and ensuring that the operation's logic is correctly sequenced.
+
+SuperDestinationExecutor is a specialized executor for handling cross-chain operations on destination chains. It processes bridged executions, handles account creation, validates signatures, and forwards execution to the target accounts.
+
+Key Points for Auditors:
+
+- Inheritance: Inherits from ERC7579ExecutorBase to facilitate deployment on ERC7579 smart accounts.
+- SuperDestinationExecutor:
+  - Bypasses 4337 UserOp flow with some gas savings for the user
+  - Allows account creation on destination
+  - Note for auditors: important to check the ability to not replay transactions on destination and that all the elements
+  included in the signature are enough for that.
+- Accounting Integration: After hook execution, it checks hook types and calls updateAccounting on the SuperLedger when
+  required.
+
+#### Transient Storage Mechanism
+
+Transient storage is used during the execution of a SuperExecutor transaction to temporarily hold state changes. This
+mechanism allows efficient inter-hook communication without incurring high gas costs associated with permanent storage
+writes.
+
+Key Points for Auditors:
+
+- Gas Efficiency:
+  - Uses temporary, in-memory storage to avoid high SSTORE costs (5,000–20,000 gas).
+- Limitations:
+  - Only value types can be stored.
+- Debugging is more challenging because intermediate states aren't persistently recorded.
+- Design Rationale:
+  - The trade-off is acceptable as it minimizes gas cost without impacting the integrity of the final state.
+
 
 ### Validation Layer
 
@@ -29,20 +257,130 @@ At a high level, Superform v2 is organized into two major parts:
 
 - **SuperDestinationValidator**: Validates cross-chain operation signatures for destination chain operations. It verifies merkle proofs and signatures to ensure only authorized operations are executed.
 
+#### SuperMerkleValidator and SuperDestinationValidator
+
+SuperMerkleValidator and SuperDestinationValidator are ERC7579-compliant modules used to validate operations through Merkle proof verification, ensuring only authorized operations are executed. They leverage a single owner signature over a Merkle root representing a batch of operations.
+
+SuperMerkleValidator:
+- Usage: Designed for standard ERC-4337 `EntryPoint` interactions. Validates `UserOperation` hashes (`userOpHash`) provided within a Merkle proof, typically constructed by the SuperBundler. Implements `validateUserOp` and EIP-1271 `isValidSignatureWithSender`.
+
+SuperDestinationValidator:
+- Usage: Specifically designed for validating operations executed *directly* on a destination chain via `SuperDestinationExecutor`, bypassing the ERC-4337 `EntryPoint`. Implements a custom `isValidDestinationSignature` method; `validateUserOp` and `isValidSignatureWithSender` are explicitly **not** implemented and will revert.
+- Merkle Leaf Contents: `keccak256(keccak256(abi.encode(callData, chainId, sender, executor, adapter, tokenSent, intentAmount, validUntil)))`. The leaf commits to the full context of the destination execution parameters.
+- Replay Protection:
+    - Includes `block.chainid` in the leaf and verifies it during signature validation to prevent cross-chain replay.
+    - Incorporates a `validUntil` timestamp in the leaf, checked against `block.timestamp`.
+    - Includes the `executor` address in the leaf to prevent replay across different executor modules installed on the same account.
+    - Uses a unique namespace (`SuperDestinationValidator-v0.0.1`) in the final signed message hash.
+
+
+Key Points for Auditors:
+
+- Proof Verification Robustness: Examine the specific data included in each validator's Merkle leaf (detailed above) to confirm the scope of user authorization.
+- Replay Attack Prevention: Assess the combination of mechanisms used by each validator (Merkle root commitment, `validUntil`, `nonce`/`userOpHash`, `chainId`, `executor` address, distinct namespaces) to prevent various replay scenarios.
+- Signature Scheme: Ensure the EIP-191 compliant signature verification against the Merkle root and namespace is sound.
+- Access Control: Verify that the signer check correctly uses the `_accountOwners` mapping initialized via `onInstall`.
+
 ### Accounting Layer
 
-- **SuperLedger**: Handles accounting aspects (pricing, fees) for both INFLOW and OUTFLOW operations. Tracks cost basis and calculates performance fees on yield.
+#### SuperLedger
 
-- **YieldSourceOracles**: Specialized oracles for different vault standards (ERC4626, ERC5115, ERC7540, etc.) that provide accurate price data and TVL information.
+Handles accounting aspects (pricing, fees) for both INFLOW and OUTFLOW operations. Tracks cost basis and calculates performance fees on yield. It ensures accurate pricing and accounting for INFLOW and OUTFLOW type hooks.
+
+Key Points for Auditors:
+
+- Oracle-Based Pricing:
+  - The YieldSourceOracle derives price-per-share and other relevant metadata (for off-chain purposes) for yield
+    sources.
+  - Hooks are passed the yieldSourceOracleId to use. It is up for the SuperBundler to suggest / enforce the correct
+    yieldSourceOracleIds to use, but nothing impedes a user to pass their own yieldSourceOracleId in a hook and bypass
+    the fee. This is known and accepted.
+- Multiple yield source oracle and ledger implementation system:
+  - Provide more flexibility to adapt to yield source types that have special needs do determine fees for Superform
+    (such as Pendle's EIP5115)
+  - Risks may exist if the yield source oracles provide incorrect data, which may lead to no fees being taken by
+    Superform.
+  - It is also important to assess if a user can ever be denied of exiting a position (due to a revert) in a certain
+    state due to influences on the price per share accounting and the SuperLedger used for that yield source.
+  - SuperBundler will enforce the yieldSourceOracleId to use whenever a user interacts with it. Otherwise this cannot be
+    enforced. Each yieldSourceOracle is paired with a ledger contract which users can also specify when configuring the
+    yieldSourceOracle. This is a known risk for users (fully isolated to the user's account) if not interacting through
+    the offchain SuperBundler and acknowledged by the team.
+
+#### YieldSourceOracles
+
+The system uses a dedicated on-chain oracle system to compute the price per share for accounting.Specialized oracles exist for different vault standards (ERC4626, ERC5115, ERC7540, etc.) that provide accurate price data and TVL information.
 
 ### Infrastructure
 
-- **SuperRegistry**: Provides centralized address management for configuration and upgradeability.
+#### SuperBundler
 
-- **SuperBundler**: A specialized off-chain bundler that processes ERC4337 userOps on a timed basis. It integrates with the validation system to ensure secure operation.
+A specialized off-chain bundler that processes ERC4337 userOps on a timed basis. It integrates with the validation system to ensure secure operation. Unlike typical bundlers that immediately forward userOps, SuperBundler processes them in a timed manner, allowing for batching and optimized execution.
 
-- **SuperNativePaymaster**: A paymaster contract to fund user actions with native tokens and to allow users to use ERC20 tokens for gas.
-  tokens to fund operations from their originating
+Bundler Operation
+
+- Allows fee charging in ERC20 tokens with a fee payment hook (a transfer hook), which transfers fees to the
+  SuperBundler so that it can orchestrate the entire operation.
+- Allows for a single signature experience flow, where the SuperBundler builds a merkle tree of all userOps that are
+  going to be executed in all chains for a given user intent. This signature is validated in SuperMerkle Validator.
+- Allows for delayed execution of userOps (async userOps) with a single user signature. UserOps are processed when and
+  where required rather than immediately upon receipt. Reasonable deadlines apply here. Typical desired flow of usage is
+  for example with asynchronous vaults like those following ERC7540 standard.
+- Centralization Concerns:
+  - Since SuperBundler controls both the userOp and validation flow, it introduces a degree of centralization. We
+    acknowledge that this could be flagged by auditors.
+  - In later stages this system is planned to be decentralized.
+- Mitigation: Transparency around this design choice and the availability of fallback mechanisms when operations are not
+  executed through SuperBundler.
+
+#### Adapters
+
+Adapter are a set of gateway contracts that handle the acceptance of relayed messages and trigger execution on destination chains via 7579 SuperDestinationExecutor.
+
+Key Points for Auditors:
+
+- Relayed message handling:
+  - Both bridges expect the full intent amount to be available to continue execution on destinaton
+  - The last relay to happen continues the operation
+- Known and accepted cases:
+  - Failure of a relay:
+    - It is entirely possible for a relay to fail due to a lack of a fill by a solver. In these types of cases, the
+      funds remain on source. Any funds that were relayed successfully will remain on destination and won't be bridged
+      back. The assumption for the operation mode is chain abstraction/one balance, so it shouldn't matter for the user
+      where the funds land.
+  - Slippage loss due to bridging:
+    - The user accepts the conditions the solver providers to execute the operations. All subsequent operations on
+      destination are dependent on the actual value provided by the relayer. It is accepted that if the valued filled is
+      substantially lower, execution continues anyway with the chained hooks (using the context awareness) and the users
+      acknowledges this risk.
+- Things to watch for:
+  - Cancellation Scenarios:
+    - User cancellations during pending bridge operations
+    - Refund mechanisms when operations fail
+
+#### SuperNativePaymaster
+
+Definition & Role: SuperNativePaymaster is a specialized paymaster contract that wraps around the ERC4337 EntryPoint, enabling users to pay for operations using erc20 tokens from any chain, on demand. It's primarily used by SuperBundler for gas sponsoring. This is necessary because of the Superbundler's unique fee collection
+mechanism where userOps are executed on user behalf and when required.
+
+Key Points for Auditors:
+
+- Gas Management:
+  - Gas estimation and pricing mechanisms
+  - Refund handling for unused gas
+- Integration Points:
+  - EntryPoint interaction patterns
+  - SuperBundler dependencies
+  - Across gateway interaction
+- Security Considerations:
+  - DOS prevention
+  - Gas price manipulation protection
+  - Fund safety during conversions
+
+#### SuperRegistry
+
+Provides centralized address management for configuration and upgradeability.
+
 
 ### Repository Structure
 
@@ -116,197 +454,6 @@ Supply your node rpc directly in the makefile and then
 make ftest
 ```
 
-## Technical Architecture & Concepts
-
-### SuperBundler
-
-SuperBundler is a specialized component that handles the bundling of ERC4337 userOps. Unlike typical bundlers that
-immediately forward userOps, SuperBundler processes them in a timed manner, allowing for batching and optimized
-execution.
-
-Bundler Operation
-
-- Allows fee charging in ERC20 tokens with a fee payment hook (a transfer hook), which transfers fees to the
-  SuperBundler so that it can orchestrate the entire operation.
-- Allows for a single signature experience flow, where the SuperBundler builds a merkle tree of all userOps that are
-  going to be executed in all chains for a given user intent. This signature is validated in SuperMerkle Validator.
-- Allows for delayed execution of userOps (async userOps) with a single user signature. UserOps are processed when and
-  where required rather than immediately upon receipt. Reasonable deadlines apply here. Typical desired flow of usage is
-  for example with asynchronous vaults like those following ERC7540 standard.
-- Centralization Concerns:
-  - Since SuperBundler controls both the userOp and validation flow, it introduces a degree of centralization. We
-    acknowledge that this could be flagged by auditors.
-  - In later stages this system is planned to be decentralized.
-- Mitigation: Transparency around this design choice and the availability of fallback mechanisms when operations are not
-  executed through SuperBundler.
-
-### Module Installation & Account Bootstrapping
-
-Smart accounts that interact with Superform must install four essential ERC7579 modules:
-
-- SuperExecutor / SuperDestinationExecutor:
-  - Installs hooks and executes operations.
-- SuperMerkleValidator / SuperDestinationValidator:
-  - Validates userOps against a Merkle root.
-
-### Core Contracts
-
-#### Hooks
-
-Definition & Role: Hooks are small, modular components that are triggered during various phases of an operation. They
-encapsulate specific logic (for example, token approvals or transfers) and are integrated into the overall transaction
-flow. If any hook fails, the entire transaction is reverted, ensuring atomicity.
-
-Key Points for Auditors:
-
-- Modularity & Ordering: Hooks can be arranged in any order within a user operation. Their execution order is defined by
-  the build function of the SuperExecutor.
-- Pre/Post Execution: Each hook can have pre-execution and post-execution functions. These functions update internal
-  transient storage to maintain state between hook invocations.
-- Known Considerations:
-  - Complex interdependencies may arise if hooks are misconfigured.
-  - Failure handling is strict (reverting the entire operation on a specific hook failure).
-  - All hooks are executed within the smart account context. This is why many typical checks on slippage or other
-    behaviour can be disregarded, because the assumption is that the user will agree to the ordering and the type of
-    hooks provided and this choice will solely affect his account and not the entire core system of contracts.
-  - Anyone can create a hook including a malicious one. Users select which hooks to use, but ultimately it is up to the
-    SuperBundler to provide the correct suggestions for users in the majority of the cases. Therefore users place a
-    certain degree of trust in SuperBundler
-
-Untested Areas:
-
-- Partial unit tests for hooks (coverage additions in progress)
-
-#### SuperExecutor and SuperDestinationExecutor
-
-The SuperExecutor is responsible for executing the provided hooks, invoking pre- and post-execute functions to handle
-transient state updates and ensuring that the operation's logic is correctly sequenced.
-
-Key Points for Auditors:
-
-- Inheritance: Inherits from ERC7579ExecutorBase to facilitate deployment on ERC7579 smart accounts.
-- SuperDestinationExecutor:
-  - Bypasses 4337 UserOp flow with some gas savings for the user
-  - Allows account creation on destination
-  - Note for auditors: important to check the ability to not replay transactions on destination and that all the elements
-  included in the signature are enough for that.
-- Accounting Integration: After hook execution, it checks hook types and calls updateAccounting on the SuperLedger when
-  required.
-
-#### Transient Storage Mechanism
-
-Transient storage is used during the execution of a SuperExecutor transaction to temporarily hold state changes. This
-mechanism allows efficient inter-hook communication without incurring high gas costs associated with permanent storage
-writes.
-
-Key Points for Auditors:
-
-- Gas Efficiency:
-  - Uses temporary, in-memory storage to avoid high SSTORE costs (5,000–20,000 gas).
-- Limitations:
-  - Only value types can be stored.
-- Debugging is more challenging because intermediate states aren't persistently recorded.
-- Design Rationale:
-  - The trade-off is acceptable as it minimizes gas cost without impacting the integrity of the final state.
-
-#### SuperLedger & Accounting
-
-Definition & Role: The SuperLedger's implementations handles the accounting aspects of the protocol. It ensures accurate
-pricing and accounting for INFLOW and OUTFLOW type hooks. The system uses a dedicated on-chain oracle system
-(YieldSourceOracles) to compute the price per share for accounting.
-
-Key Points for Auditors:
-
-- Oracle-Based Pricing:
-  - The YieldSourceOracle derives price-per-share and other relevant metadata (for off-chain purposes) for yield
-    sources.
-  - Hooks are passed the yieldSourceOracleId to use. It is up for the SuperBundler to suggest / enforce the correct
-    yieldSourceOracleIds to use, but nothing impedes a user to pass their own yieldSourceOracleId in a hook and bypass
-    the fee. This is known and accepted.
-- Multiple yield source oracle and ledger implementation system:
-  - Provide more flexibility to adapt to yield source types that have special needs do determine fees for Superform
-    (such as Pendle's EIP5115)
-  - Risks may exist if the yield source oracles provide incorrect data, which may lead to no fees being taken by
-    Superform.
-  - It is also important to assess if a user can ever be denied of exiting a position (due to a revert) in a certain
-    state due to influences on the price per share accounting and the SuperLedger used for that yield source.
-  - SuperBundler will enforce the yieldSourceOracleId to use whenever a user interacts with it. Otherwise this cannot be
-    enforced. Each yieldSourceOracle is paired with a ledger contract which users can also specify when configuring the
-    yieldSourceOracle. This is a known risk for users (fully isolated to the user's account) if not interacting through
-    the offchain SuperBundler and acknowledged by the team.
-
-#### Adapters
-
-Definition & Role: This is a set of gateway contracts that handle the acceptance of relayed messages and trigger
-execution on destination chains via 7579 SuperDestinationExecutor.
-
-Key Points for Auditors:
-
-- Relayed message handling:
-  - Both bridges expect the full intent amount to be available to continue execution on destinaton
-  - The last relay to happen continues the operation
-- Known and accepted cases:
-  - Failure of a relay:
-    - It is entirely possible for a relay to fail due to a lack of a fill by a solver. In these types of cases, the
-      funds remain on source. Any funds that were relayed successfully will remain on destination and won't be bridged
-      back. The assumption for the operation mode is chain abstraction/one balance, so it shouldn't matter for the user
-      where the funds land.
-  - Slippage loss due to bridging:
-    - The user accepts the conditions the solver providers to execute the operations. All subsequent operations on
-      destination are dependent on the actual value provided by the relayer. It is accepted that if the valued filled is
-      substantially lower, execution continues anyway with the chained hooks (using the context awareness) and the users
-      acknowledges this risk.
-- Things to watch for:
-  - Cancellation Scenarios:
-    - User cancellations during pending bridge operations
-    - Refund mechanisms when operations fail
-
-#### SuperNativePaymaster
-
-Definition & Role: SuperNativePaymaster is a specialized paymaster contract that wraps around the ERC4337 EntryPoint,
-enabling users to pay for operations using erc20 tokens from any chain, on demand. It's primarily used by SuperBundler
-for gas sponsoring. This is necessary because of the Superbundler's unique fee collection
-mechanism where userOps are executed on user behalf and when required.
-
-Key Points for Auditors:
-
-- Gas Management:
-  - Gas estimation and pricing mechanisms
-  - Refund handling for unused gas
-- Integration Points:
-  - EntryPoint interaction patterns
-  - SuperBundler dependencies
-  - Across gateway interaction
-- Security Considerations:
-  - DOS prevention
-  - Gas price manipulation protection
-  - Fund safety during conversions
-
-#### SuperMerkleValidator and SuperDestinationValidator
-
-Definition & Role: SuperMerkleValidator and SuperDestinationValidator are ERC7579-compliant modules used to validate operations through Merkle proof verification, ensuring only authorized operations are executed. They leverage a single owner signature over a Merkle root representing a batch of operations.
-
-SuperMerkleValidator:
-- Usage: Designed for standard ERC-4337 `EntryPoint` interactions. Validates `UserOperation` hashes (`userOpHash`) provided within a Merkle proof, typically constructed by the SuperBundler. Implements `validateUserOp` and EIP-1271 `isValidSignatureWithSender`.
-
-SuperDestinationValidator:
-- Usage: Specifically designed for validating operations executed *directly* on a destination chain via `SuperDestinationExecutor`, bypassing the ERC-4337 `EntryPoint`. Implements a custom `isValidDestinationSignature` method; `validateUserOp` and `isValidSignatureWithSender` are explicitly **not** implemented and will revert.
-- Merkle Leaf Contents: `keccak256(keccak256(abi.encode(callData, chainId, sender, executor, adapter, tokenSent, intentAmount, validUntil)))`. The leaf commits to the full context of the destination execution parameters.
-- Replay Protection:
-    - Includes `block.chainid` in the leaf and verifies it during signature validation to prevent cross-chain replay.
-    - Incorporates a `validUntil` timestamp in the leaf, checked against `block.timestamp`.
-    - Includes the `executor` address in the leaf to prevent replay across different executor modules installed on the same account.
-    - Uses a unique namespace (`SuperDestinationValidator-v0.0.1`) in the final signed message hash.
-
-
-Key Points for Auditors:
-
-- Proof Verification Robustness: Examine the specific data included in each validator's Merkle leaf (detailed above) to confirm the scope of user authorization.
-- Replay Attack Prevention: Assess the combination of mechanisms used by each validator (Merkle root commitment, `validUntil`, `nonce`/`userOpHash`, `chainId`, `executor` address, distinct namespaces) to prevent various replay scenarios.
-- Signature Scheme: Ensure the EIP-191 compliant signature verification against the Merkle root and namespace is sound.
-- Access Control: Verify that the signer check correctly uses the `_accountOwners` mapping initialized via `onInstall`.
-
----
 
 ## Edge Cases & Known Issues
 
@@ -325,6 +472,41 @@ To ensure transparency and facilitate the audit process, the following points ou
 #### Mechanism Overview
 
 Superform v2 implements a cross-chain execution mechanism using merkle trees and validator contracts to enable secure operations across different blockchains. This system allows users to sign a single transaction that can trigger actions across multiple chains.
+
+This diagram illustrates how the merkle tree enables efficient cross-chain operations:
+
+```mermaid
+graph TD
+    User[User] -->|Signs| MerkleRoot[Merkle Root]
+    
+    MerkleRoot -->|Contains proof for| Chain1[Chain A Operations]
+    MerkleRoot -->|Contains proof for| Chain2[Chain B Operations]
+    MerkleRoot -->|Contains proof for| Chain3[Chain C Operations]
+    
+    Chain1 -->|Executed by| Executor1[SuperExecutor on Chain A]
+    Chain2 -->|Bridged and executed by| Executor2[SuperDestinationExecutor on Chain B]
+    Chain3 -->|Bridged and executed by| Executor3[SuperDestinationExecutor on Chain C]
+    
+    Executor1 -->|Records in| Ledger1[SuperLedger Chain A]
+    Executor2 -->|Records in| Ledger2[SuperLedger Chain B]
+    Executor3 -->|Records in| Ledger3[SuperLedger Chain C]
+    
+    Executor1 -.->|Events tracked by| SuperScan[SuperScan]
+    Executor2 -.->|Events tracked by| SuperScan
+    Executor3 -.->|Events tracked by| SuperScan
+    
+    classDef userFacing fill:#f9f,stroke:#333,stroke-width:2px;
+    classDef operations fill:#ffc,stroke:#333,stroke-width:1px;
+    classDef executors fill:#ccf,stroke:#333,stroke-width:1px;
+    classDef ledgers fill:#cfc,stroke:#333,stroke-width:1px;
+    classDef monitoring fill:#fcf,stroke:#333,stroke-width:1px;
+    
+    class User,MerkleRoot userFacing;
+    class Chain1,Chain2,Chain3 operations;
+    class Executor1,Executor2,Executor3 executors;
+    class Ledger1,Ledger2,Ledger3 ledgers;
+    class SuperScan monitoring;
+```
 
 **Core Components**:
 
