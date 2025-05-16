@@ -25,6 +25,8 @@ contract SuperDestinationValidator is SuperValidatorBase {
         uint256 intentAmount;
     }
 
+    bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -43,7 +45,6 @@ contract SuperDestinationValidator is SuperValidatorBase {
     }
 
     /// @notice Validate a signature with sender
-    /// @dev EIP1271 compatible
     function isValidSignatureWithSender(
         address,
         bytes32,
@@ -69,7 +70,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
 
         // Validate
         bool isValid = _isSignatureValid(signer, sender, sigData.validUntil);
-        return isValid ? bytes4(0x1626ba7e) : bytes4("");
+        return isValid ? VALID_SIGNATURE : bytes4("");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -109,6 +110,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
         override
         returns (bool)
     {
+        /// @dev block.timestamp could vary between chains
         return signer == _accountOwners[sender] && validUntil >= block.timestamp;
     }
 
