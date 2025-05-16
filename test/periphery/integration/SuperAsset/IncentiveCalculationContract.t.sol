@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import {Test} from "forge-std/Test.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {IncentiveCalculationContract} from "src/periphery/SuperAsset/IncentiveCalculationContract.sol";
-import {IIncentiveCalculationContract} from "src/periphery/interfaces/SuperAsset/IIncentiveCalculationContract.sol";
-import {Helpers} from "../../../utils/Helpers.sol";
+import { Test } from "forge-std/Test.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { IncentiveCalculationContract } from "src/periphery/SuperAsset/IncentiveCalculationContract.sol";
+import { IIncentiveCalculationContract } from "src/periphery/interfaces/SuperAsset/IIncentiveCalculationContract.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
 
 contract IncentiveCalculationContractTest is Helpers {
     IncentiveCalculationContract public calculator;
@@ -36,11 +36,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
 
         (uint256 energy, bool isSuccess) = calculator.energy(
-            currentAllocation,
-            allocationTarget,
-            weights,
-            totalCurrentAllocation,
-            totalAllocationTarget
+            currentAllocation, allocationTarget, weights, totalCurrentAllocation, totalAllocationTarget
         );
 
         assertEq(isSuccess, true, "isSuccess should be true");
@@ -80,13 +76,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256[] memory weights = new uint256[](2);
 
         vm.expectRevert(IIncentiveCalculationContract.INVALID_ARRAY_LENGTH.selector);
-        calculator.energy(
-            currentAllocation,
-            allocationTarget,
-            weights,
-            1000e18,
-            1000e18
-        );
+        calculator.energy(currentAllocation, allocationTarget, weights, 1000e18, 1000e18);
     }
 
     function test_Energy_DifferentWeights() public view {
@@ -106,11 +96,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
 
         (uint256 energy, bool isSuccess) = calculator.energy(
-            currentAllocation,
-            allocationTarget,
-            weights,
-            totalCurrentAllocation,
-            totalAllocationTarget
+            currentAllocation, allocationTarget, weights, totalCurrentAllocation, totalAllocationTarget
         );
         assertEq(isSuccess, true, "isSuccess should be true");
 
@@ -285,7 +271,7 @@ contract IncentiveCalculationContractTest is Helpers {
 
         uint256[] memory weights = new uint256[](2);
         weights[0] = 2 * PRECISION; // Higher weight for first asset
-        weights[1] = PRECISION;     // Normal weight for second asset
+        weights[1] = PRECISION; // Normal weight for second asset
 
         uint256 totalAllocationPreOperation = 1000e18;
         uint256 totalAllocationPostOperation = 1000e18;
@@ -580,13 +566,13 @@ contract IncentiveCalculationContractTest is Helpers {
         // Asset 2: (30-30)^2 * 1 = 0
         // Asset 3: (30-40)^2 * 2 = 200
         // Total pre = 300
-        
+
         // Post-operation energy:
         // Asset 1: (30-30)^2 * 1 = 0
         // Asset 2: (40-30)^2 * 1 = 100
         // Asset 3: (30-40)^2 * 2 = 200
         // Total post = 300
-        
+
         // No net change in energy
         assertEq(incentive, 0);
     }
@@ -608,9 +594,9 @@ contract IncentiveCalculationContractTest is Helpers {
         allocationTarget[2] = 400e18;
 
         uint256[] memory weights = new uint256[](3);
-        weights[0] = 0;           // Zero weight
-        weights[1] = 0;           // Zero weight
-        weights[2] = PRECISION;   // Only this asset matters
+        weights[0] = 0; // Zero weight
+        weights[1] = 0; // Zero weight
+        weights[2] = PRECISION; // Only this asset matters
 
         uint256 totalAllocationPreOperation = 1000e18;
         uint256 totalAllocationPostOperation = 1000e18;

@@ -31,9 +31,9 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     address public assetBank;
 
     // --- Constructor ---
-    constructor() {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(INCENTIVE_FUND_MANAGER, msg.sender);
+    constructor(address admin) {
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(INCENTIVE_FUND_MANAGER, admin);
     }
 
     /// @inheritdoc IIncentiveFundContract
@@ -66,15 +66,12 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function payIncentive(
-        address receiver,
-        uint256 amountUSD
-    ) external onlyRole(INCENTIVE_FUND_MANAGER) {
+    function payIncentive(address receiver, uint256 amountUSD) external onlyRole(INCENTIVE_FUND_MANAGER) {
         _validateInput(receiver, amountUSD);
         if (tokenOutIncentive == address(0)) revert TOKEN_OUT_NOT_SET();
 
         // Get token price and check circuit breakers
-        (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) = 
+        (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) =
             superAsset.getPriceWithCircuitBreakers(tokenOutIncentive);
 
         // Revert if any circuit breaker is triggered
@@ -90,15 +87,12 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function takeIncentive(
-        address sender,
-        uint256 amountUSD
-    ) external onlyRole(INCENTIVE_FUND_MANAGER) {
+    function takeIncentive(address sender, uint256 amountUSD) external onlyRole(INCENTIVE_FUND_MANAGER) {
         _validateInput(sender, amountUSD);
         if (tokenInIncentive == address(0)) revert TOKEN_IN_NOT_SET();
 
         // Get token price and check circuit breakers
-        (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) = 
+        (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) =
             superAsset.getPriceWithCircuitBreakers(tokenInIncentive);
 
         // Revert if any circuit breaker is triggered
@@ -114,11 +108,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function withdraw(
-        address receiver,
-        address tokenOut,
-        uint256 amount
-    ) external onlyRole(INCENTIVE_FUND_MANAGER) {
+    function withdraw(address receiver, address tokenOut, uint256 amount) external onlyRole(INCENTIVE_FUND_MANAGER) {
         _validateInput(receiver, amount);
         if (tokenOut == address(0)) revert ZERO_ADDRESS();
 
@@ -126,11 +116,11 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
         emit RebalanceWithdrawal(receiver, tokenOut, amount);
     }
 
-
     /*//////////////////////////////////////////////////////////////
                 INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function _validateInput(address user, uint256 amount) internal pure {
         if (user == address(0)) revert ZERO_ADDRESS();
-        if (amount == 0) revert ZERO_AMOUNT();    }
+        if (amount == 0) revert ZERO_AMOUNT();
+    }
 }

@@ -3,18 +3,18 @@ pragma solidity ^0.8.28;
 
 import "forge-std/console.sol";
 
-import {IncentiveFundContract} from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
-import {SuperAsset} from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
-import {AssetBank} from "../../../../src/periphery/SuperAsset/AssetBank.sol";
-import {ISuperAsset} from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
-import {IIncentiveFundContract} from "../../../../src/periphery/interfaces/SuperAsset/IIncentiveFundContract.sol";
-import {SuperOracle} from "../../../../src/periphery/oracles/SuperOracle.sol";
-import {IncentiveCalculationContract} from "src/periphery/SuperAsset/IncentiveCalculationContract.sol";
-import {MockERC20} from "../../../mocks/MockERC20.sol";
-import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
-import {IERC20Errors} from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
-import {MockAggregator} from "../../mocks/MockAggregator.sol";
-import {Helpers} from "../../../utils/Helpers.sol";
+import { IncentiveFundContract } from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
+import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
+import { AssetBank } from "../../../../src/periphery/SuperAsset/AssetBank.sol";
+import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
+import { IIncentiveFundContract } from "../../../../src/periphery/interfaces/SuperAsset/IIncentiveFundContract.sol";
+import { SuperOracle } from "../../../../src/periphery/oracles/SuperOracle.sol";
+import { IncentiveCalculationContract } from "src/periphery/SuperAsset/IncentiveCalculationContract.sol";
+import { MockERC20 } from "../../../mocks/MockERC20.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
+import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
+import { MockAggregator } from "../../mocks/MockAggregator.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
 
 contract IncentiveFundContractTest is Helpers {
     // --- Events ---
@@ -61,7 +61,7 @@ contract IncentiveFundContractTest is Helpers {
         user = makeAddr("user");
 
         vm.startPrank(admin);
-        
+
         // Deploy mock tokens
         tokenIn = new MockERC20("Token In", "TIN", 18);
         tokenOut = new MockERC20("Token Out", "TOUT", 18);
@@ -94,7 +94,6 @@ contract IncentiveFundContractTest is Helpers {
         bases[3] = address(tokenOut);
         bases[4] = address(tokenOut);
         bases[5] = address(tokenOut);
-
 
         address[] memory quotes = new address[](6);
         quotes[0] = USD;
@@ -133,14 +132,13 @@ contract IncentiveFundContractTest is Helpers {
         oracle.setFeedMaxStaleness(address(mockFeed5), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed6), 1 days);
         vm.stopPrank();
-        
-        vm.startPrank(admin);
-        // Deploy contracts (admin will automatically get DEFAULT_ADMIN_ROLE)
-        assetBank = new AssetBank();
 
-        incentiveFund = new IncentiveFundContract();
+        vm.startPrank(admin);
+        assetBank = new AssetBank(admin);
+
+        incentiveFund = new IncentiveFundContract(admin);
         vm.stopPrank();
-        
+
         superAsset = new SuperAsset();
 
         vm.startPrank(admin);
@@ -186,7 +184,6 @@ contract IncentiveFundContractTest is Helpers {
         vm.stopPrank();
     }
 
-
     function test_SuperOracleGetQuote1() public view {
         uint256 baseAmount = 1e18;
         // uint256 expectedQuote = 1e6;
@@ -217,7 +214,6 @@ contract IncentiveFundContractTest is Helpers {
         assertEq(availableProvidersAvg, 3, "Available providers should be 3");
     }
 
-
     // --- Test: Initialization ---
     function test_Initialize() public view {
         assertEq(address(incentiveFund.superAsset()), address(superAsset));
@@ -232,7 +228,7 @@ contract IncentiveFundContractTest is Helpers {
 
     function test_Initialize_RevertIfZeroAddress() public {
         vm.startPrank(admin);
-        IncentiveFundContract newContract = new IncentiveFundContract();
+        IncentiveFundContract newContract = new IncentiveFundContract(admin);
         vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
         newContract.initialize(address(0), address(assetBank));
 
@@ -245,10 +241,18 @@ contract IncentiveFundContractTest is Helpers {
     function test_OnlyAdminCanSetTokens() public {
         // Non-admin cannot set tokens
         vm.startPrank(user);
-        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.DEFAULT_ADMIN_ROLE()));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.DEFAULT_ADMIN_ROLE()
+            )
+        );
         incentiveFund.setTokenInIncentive(address(tokenIn));
 
-        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.DEFAULT_ADMIN_ROLE()));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.DEFAULT_ADMIN_ROLE()
+            )
+        );
         incentiveFund.setTokenOutIncentive(address(tokenOut));
         vm.stopPrank();
 
@@ -275,13 +279,17 @@ contract IncentiveFundContractTest is Helpers {
 
         // Non-manager cannot pay incentive
         vm.startPrank(user);
-        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.INCENTIVE_FUND_MANAGER()));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.INCENTIVE_FUND_MANAGER()
+            )
+        );
         incentiveFund.payIncentive(user, 100e18);
         vm.stopPrank();
 
         // Manager can pay incentive
         uint256 balanceBefore = tokenOut.balanceOf(user);
-        
+
         vm.startPrank(manager);
         incentiveFund.payIncentive(user, 100e18);
         vm.stopPrank();
@@ -303,13 +311,17 @@ contract IncentiveFundContractTest is Helpers {
 
         // Non-manager cannot take incentive
         vm.startPrank(user);
-        vm.expectRevert(abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.INCENTIVE_FUND_MANAGER()));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.INCENTIVE_FUND_MANAGER()
+            )
+        );
         incentiveFund.takeIncentive(user, 100e18);
         vm.stopPrank();
 
         // Manager can take incentive
         uint256 balanceBefore = tokenIn.balanceOf(user);
-        
+
         vm.startPrank(manager);
         incentiveFund.takeIncentive(user, 100e18);
         vm.stopPrank();
@@ -352,7 +364,11 @@ contract IncentiveFundContractTest is Helpers {
 
         // Try to pay more than contract's balance
         vm.startPrank(manager);
-        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, address(incentiveFund), 1000e18, 2000e18));
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InsufficientBalance.selector, address(incentiveFund), 1000e18, 2000e18
+            )
+        );
         incentiveFund.payIncentive(user, 2000e18);
         vm.stopPrank();
     }
@@ -395,7 +411,9 @@ contract IncentiveFundContractTest is Helpers {
 
         // Try to take without approval
         vm.startPrank(manager);
-        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(incentiveFund), 0, 100e18));
+        vm.expectRevert(
+            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(incentiveFund), 0, 100e18)
+        );
         incentiveFund.takeIncentive(user, 100e18);
         vm.stopPrank();
     }

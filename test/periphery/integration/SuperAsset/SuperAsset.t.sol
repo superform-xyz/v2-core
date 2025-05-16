@@ -1,23 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import {Test} from "forge-std/Test.sol";
+import { Test } from "forge-std/Test.sol";
 import "forge-std/console.sol";
-import {SuperAsset} from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
-import {ISuperAsset} from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
-import {AssetBank} from "../../../../src/periphery/SuperAsset/AssetBank.sol";
-import {IncentiveFundContract} from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
-import {IncentiveCalculationContract} from "../../../../src/periphery/SuperAsset/IncentiveCalculationContract.sol";
-import {SuperOracle} from "../../../../src/periphery/oracles/SuperOracle.sol";
-import {MockERC20} from "../../../mocks/MockERC20.sol";
-import {Mock4626Vault} from "../../../mocks/Mock4626Vault.sol";
-import {MockAggregator} from "../../mocks/MockAggregator.sol";
-import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
-import {Helpers} from "../../../utils/Helpers.sol";
+import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
+import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
+import { AssetBank } from "../../../../src/periphery/SuperAsset/AssetBank.sol";
+import { IncentiveFundContract } from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
+import { IncentiveCalculationContract } from "../../../../src/periphery/SuperAsset/IncentiveCalculationContract.sol";
+import { SuperOracle } from "../../../../src/periphery/oracles/SuperOracle.sol";
+import { MockERC20 } from "../../../mocks/MockERC20.sol";
+import { Mock4626Vault } from "../../../mocks/Mock4626Vault.sol";
+import { MockAggregator } from "../../mocks/MockAggregator.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-
-
 
 contract SuperAssetTest is Helpers {
     // --- Constants ---
@@ -72,17 +70,9 @@ contract SuperAssetTest is Helpers {
 
         // Deploy mock tokens and vault
         underlyingToken1 = new MockERC20("Underlying Token1", "UTKN1", 18);
-        tokenIn = new Mock4626Vault(
-            address(underlyingToken1),
-            "Vault Token",
-            "vTKN"
-        );
+        tokenIn = new Mock4626Vault(address(underlyingToken1), "Vault Token", "vTKN");
         underlyingToken2 = new MockERC20("Underlying Token2", "UTKN2", 18);
-        tokenOut = new Mock4626Vault(
-            address(underlyingToken2),
-            "Vault Token",
-            "vTKN"
-        );
+        tokenOut = new Mock4626Vault(address(underlyingToken2), "Vault Token", "vTKN");
         console.log("Mock tokens deployed");
 
         // Deploy actual ICC
@@ -177,13 +167,13 @@ contract SuperAssetTest is Helpers {
 
         // Deploy contracts
         vm.startPrank(admin);
-        
+
         // Deploy and initialize AssetBank
-        assetBank = new AssetBank();
+        assetBank = new AssetBank(admin);
         console.log("AssetBank deployed");
 
         // Deploy and initialize IncentiveFund
-        incentiveFund = new IncentiveFundContract();
+        incentiveFund = new IncentiveFundContract(admin);
         console.log("IncentiveFund deployed");
 
         // Initialize SuperAsset
@@ -239,7 +229,7 @@ contract SuperAssetTest is Helpers {
         underlyingToken1.approve(address(tokenIn), 1000e18);
         tokenIn.deposit(1000e18, user11);
         underlyingToken2.approve(address(tokenOut), 1000e18);
-        tokenOut.deposit(1000e18, user11);        
+        tokenOut.deposit(1000e18, user11);
         vm.stopPrank();
         assertGt(tokenIn.balanceOf(user11), 0);
         assertGt(tokenOut.balanceOf(user11), 0);
@@ -248,7 +238,7 @@ contract SuperAssetTest is Helpers {
     }
 
     // --- Test: Initialization ---
-    function test_Initialize() public {
+    function test_Initialize() public view {
         assertEq(superAsset.name(), "SuperAsset");
         assertEq(superAsset.symbol(), "SA");
         assertEq(superAsset.incentiveCalculationContract(), address(icc));
@@ -271,6 +261,7 @@ contract SuperAssetTest is Helpers {
         );
     }
     // --- Test: Token Management ---
+
     function test_OnlyVaultManagerCanWhitelistTokens() public {
         address newToken = makeAddr("newToken");
 
@@ -278,9 +269,7 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                user,
-                superAsset.VAULT_MANAGER_ROLE()
+                IAccessControl.AccessControlUnauthorizedAccount.selector, user, superAsset.VAULT_MANAGER_ROLE()
             )
         );
         superAsset.whitelistERC20(newToken);
@@ -302,9 +291,7 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                user,
-                superAsset.DEFAULT_ADMIN_ROLE()
+                IAccessControl.AccessControlUnauthorizedAccount.selector, user, superAsset.DEFAULT_ADMIN_ROLE()
             )
         );
         superAsset.setSuperOracle(newOracle);
@@ -326,9 +313,7 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector,
-                user,
-                superAsset.DEFAULT_ADMIN_ROLE()
+                IAccessControl.AccessControlUnauthorizedAccount.selector, user, superAsset.DEFAULT_ADMIN_ROLE()
             )
         );
         superAsset.setSwapFeeInPercentage(newFee);
@@ -363,7 +348,7 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
 
-        (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit, bool isSuccess) = 
+        (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit, bool isSuccess) =
             superAsset.previewDeposit(address(tokenIn), depositAmount, false);
         assertEq(isSuccess, false, "isSuccess should be false, because of zero initial allocation");
 
@@ -373,7 +358,7 @@ contract SuperAssetTest is Helpers {
         console.log("Amount Incentive USD Deposit:", expAmountIncentiveUSDDeposit);
 
         // Deposit tokens
-        (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) = 
+        (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) =
             superAsset.deposit(user, address(tokenIn), depositAmount, minSharesOut);
         vm.stopPrank();
         assertEq(expAmountSharesMinted, amountSharesMinted);
@@ -387,7 +372,11 @@ contract SuperAssetTest is Helpers {
 
         // Verify results
         assertGt(amountSharesMinted, 0, "Should mint shares");
-        assertEq(swapFee, (depositAmount * superAsset.swapFeeInPercentage()) / superAsset.SWAP_FEE_PERC(), "Incorrect swap fee");
+        assertEq(
+            swapFee,
+            (depositAmount * superAsset.swapFeeInPercentage()) / superAsset.SWAP_FEE_PERC(),
+            "Incorrect swap fee"
+        );
         assertTrue(superAsset.balanceOf(user) > 0, "User should have shares");
     }
 
@@ -414,17 +403,16 @@ contract SuperAssetTest is Helpers {
         tokenIn.approve(address(superAsset), s.depositAmount);
 
         (, s.currentPrice,,,) = mockFeed2.latestRoundData();
-        mockFeed2.setAnswer(s.currentPrice*3);
+        mockFeed2.setAnswer(s.currentPrice * 3);
         (, s.currentPrice,,,) = mockFeed3.latestRoundData();
-        mockFeed3.setAnswer(s.currentPrice*5);
+        mockFeed3.setAnswer(s.currentPrice * 5);
 
-        (s.priceUSD, s.isDepeg, s.isDispersion, s.isOracleOff) = 
-        superAsset.getPriceWithCircuitBreakers(IERC4626(tokenIn).asset());
+        (s.priceUSD, s.isDepeg, s.isDispersion, s.isOracleOff) =
+            superAsset.getPriceWithCircuitBreakers(IERC4626(tokenIn).asset());
         assertEq(s.isDepeg, true);
         assertEq(s.isDispersion, true);
         assertEq(s.isOracleOff, false);
     }
-
 
     function test_DepositWithZeroAmount() public {
         vm.startPrank(user);
@@ -464,10 +452,12 @@ contract SuperAssetTest is Helpers {
     function test_BasicRedeem() public {
         // First deposit to get some shares
         uint256 depositAmount = 100e18;
-        (uint256 expSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSD, bool isSuccess) = superAsset.previewDeposit(address(tokenIn), depositAmount, false);
+        (uint256 expSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSD, bool isSuccess) =
+            superAsset.previewDeposit(address(tokenIn), depositAmount, false);
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
-        (uint256 sharesMinted, uint256 swapFee, int256 amountIncentiveUSD) = superAsset.deposit(user, address(tokenIn), depositAmount, 0);
+        (uint256 sharesMinted, uint256 swapFee, int256 amountIncentiveUSD) =
+            superAsset.deposit(user, address(tokenIn), depositAmount, 0);
         assertEq(tokenIn.balanceOf(address(superAsset)), depositAmount - swapFee);
         assertEq(expSharesMinted, sharesMinted);
         assertEq(expSwapFee, swapFee);
@@ -481,14 +471,15 @@ contract SuperAssetTest is Helpers {
         uint256 sharesToRedeem = sharesMinted / 2;
         uint256 minTokenOut = sharesToRedeem * 99 / 100; // Allowing for 1% slippage
 
-        (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem, isSuccess) = superAsset.previewRedeem(address(tokenIn), sharesToRedeem, false);
+        (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem, isSuccess) =
+            superAsset.previewRedeem(address(tokenIn), sharesToRedeem, false);
         assertGt(expAmountTokenOutAfterFees, 0, "Should receive tokens");
         assertGt(expSwapFee, 0, "Should pay swap fees");
 
-        (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem) = 
+        (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem) =
             superAsset.redeem(user, sharesToRedeem, address(tokenIn), minTokenOut);
         vm.stopPrank();
-        
+
         assertEq(expAmountTokenOutAfterFees, amountTokenOutAfterFees);
         assertEq(expSwapFee, swapFee);
         assertEq(expAmountIncentiveUSDRedeem, amountIncentiveUSDRedeem);
@@ -534,7 +525,7 @@ contract SuperAssetTest is Helpers {
         vm.stopPrank();
     }
 
-    struct BasiSwapStack{
+    struct BasiSwapStack {
         uint256 swapAmount;
         uint256 minTokenOut;
         uint256 expAmountTokenOutAfterFees;
@@ -557,15 +548,20 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(user11);
         // We need enough tokenOut deposited
         tokenOut.approve(address(superAsset), s.swapAmount);
-        (s.sharesMinted, s.swapFee, s.amountIncentiveUSD) = 
+        (s.sharesMinted, s.swapFee, s.amountIncentiveUSD) =
             superAsset.deposit(user11, address(tokenOut), s.swapAmount, 0);
         vm.stopPrank();
         assertEq(tokenOut.balanceOf(address(superAsset)), s.swapAmount - s.swapFee, "Should deposit tokenOut");
         assertEq(superAsset.balanceOf(user11), s.sharesMinted, "Should mint shares");
 
-        (s.expAmountTokenOutAfterFees, s.expSwapFeeIn, s.expSwapFeeOut, 
-        s.expAmountIncentiveUSDDeposit, s.expAmountIncentiveUSDRedeem, s.isSuccess) = 
-            superAsset.previewSwap(address(tokenIn), s.swapAmount, address(tokenOut), false);
+        (
+            s.expAmountTokenOutAfterFees,
+            s.expSwapFeeIn,
+            s.expSwapFeeOut,
+            s.expAmountIncentiveUSDDeposit,
+            s.expAmountIncentiveUSDRedeem,
+            s.isSuccess
+        ) = superAsset.previewSwap(address(tokenIn), s.swapAmount, address(tokenOut), false);
         assertGt(s.expAmountTokenOutAfterFees, 0, "Should receive output tokens");
         assertGt(s.expSwapFeeIn, 0, "Should charge deposit fee");
         assertGt(s.expSwapFeeOut, 0, "Should charge redeem fee");
@@ -587,13 +583,14 @@ contract SuperAssetTest is Helpers {
         tokenIn.approve(address(superAsset), s.swapAmount);
 
         // Perform swap
-        (uint256 amountSharesIntermediateStep, 
-         uint256 amountTokenOutAfterFees, 
-         uint256 swapFeeIn, 
-         uint256 swapFeeOut, 
-         int256 amountIncentivesIn, 
-         int256 amountIncentivesOut) = 
-            superAsset.swap(user, address(tokenIn), s.swapAmount, address(tokenOut), s.minTokenOut);
+        (
+            uint256 amountSharesIntermediateStep,
+            uint256 amountTokenOutAfterFees,
+            uint256 swapFeeIn,
+            uint256 swapFeeOut,
+            int256 amountIncentivesIn,
+            int256 amountIncentivesOut
+        ) = superAsset.swap(user, address(tokenIn), s.swapAmount, address(tokenOut), s.minTokenOut);
 
         vm.stopPrank();
 
