@@ -113,6 +113,10 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
 
         bytes32 merkleRoot = _decodeMerkleRoot(userSignatureData);
 
+        // --- Signature Validation ---
+        // DestinationData encodes both the adapter (msg.sender) and the executor (address(this))
+        //  this is useful to avoid replay attacks on a different group of executor <> sender (adapter)
+        // Note: the msgs.sender doesn't necessarily match an adapter address
         bytes memory destinationData = abi.encode(
             executorCalldata, uint64(block.chainid), account, address(this), dstTokens, intentAmounts
         );
@@ -145,6 +149,8 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
 
         try IERC7579Account(account).executeFromExecutor(modeCode, ERC7579ExecutionLib.encodeBatch(execs)) {
             emit SuperDestinationExecutorExecuted(account);
+        } catch Panic(uint256 errorCode) {
+            emit SuperDestinationExecutorPanicFailed(account, errorCode);
         } catch Error(string memory reason) {
             emit SuperDestinationExecutorFailed(account, reason);
         } catch (bytes memory lowLevelData) {

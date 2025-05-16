@@ -10,6 +10,7 @@ interface ISuperDestinationExecutor {
     event SuperDestinationExecutorReceivedButNotEnoughBalance(address indexed account, address indexed token, uint256 intentAmount, uint256 available);
     event SuperDestinationExecutorReceivedButNoHooks(address indexed account);
     event SuperDestinationExecutorExecuted(address indexed account);
+    event SuperDestinationExecutorPanicFailed(address indexed account, uint256 errorCode);
     event SuperDestinationExecutorFailed(address indexed account, string reason);
     event SuperDestinationExecutorFailedLowLevel(address indexed account, bytes lowLevelData);
     event AccountCreated(address indexed account, bytes32 salt);
