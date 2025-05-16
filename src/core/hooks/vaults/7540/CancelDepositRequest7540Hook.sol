@@ -56,7 +56,7 @@ contract CancelDepositRequest7540Hook is BaseHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address account, bytes calldata) internal override { }
+    function _preExecute(address, address, bytes calldata) internal override { }
 
     function _postExecute(address, address, bytes calldata) internal override { }
 }
