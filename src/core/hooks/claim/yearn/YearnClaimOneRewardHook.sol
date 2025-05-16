@@ -70,15 +70,12 @@ contract YearnClaimOneRewardHook is
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns(address target, address[] memory args) {
-        target = BytesLib.toAddress(data, 0);
-        args = new address[](1);
-        args[0] = BytesLib.toAddress(data, 20);
-    }
-
-    /// @inheritdoc ISuperHookInspector
-    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
-        idxs = new uint8[](0);
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked
+        (
+            BytesLib.toAddress(data, 0), // yieldSource
+            BytesLib.toAddress(data, 20) // rewardToken
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

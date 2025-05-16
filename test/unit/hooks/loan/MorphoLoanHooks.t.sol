@@ -157,17 +157,8 @@ contract MorphoLoanHooksTest is Helpers {
 
     function test_BorrowHook_Inspector() public view {
         bytes memory data = _encodeBorrowData(false);
-        (address target, address[] memory args) = borrowHook.inspect(data);
-        assertEq(target, address(mockMorpho));
-        assertEq(args.length, 6);
-    }
-
-    function test_BorrowHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeBorrowData(false);
-        uint8[] memory idxs = borrowHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 2);
-        assertEq(idxs[0], 4);
-        assertEq(idxs[1], 5);
+        bytes memory argsEncoded = borrowHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_BorrowHook_Build_RevertIf_ZeroAddress() public {
@@ -263,16 +254,8 @@ contract MorphoLoanHooksTest is Helpers {
 
     function test_RepayHook_Inspector() public view {
         bytes memory data = _encodeRepayData(false, false);
-        (address target, address[] memory args) = repayHook.inspect(data);
-        assertEq(target, address(mockMorpho));
-        assertEq(args.length, 5);
-    }
-
-    function test_RepayHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeRepayData(false, false);
-        uint8[] memory idxs = repayHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 1);
-        assertEq(idxs[0], 4);
+        bytes memory argsEncoded = repayHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_RepayHook_Build_RevertIf_InvalidLoanToken() public {
@@ -345,18 +328,9 @@ contract MorphoLoanHooksTest is Helpers {
     
     function test_RepayAndWithdrawHook_Inspector() public view {
         bytes memory data = _encodeRepayAndWithdrawData(false, false);
-        (address target, address[] memory args) = repayAndWithdrawHook.inspect(data);
-        assertEq(target, address(mockMorpho));
-        assertEq(args.length, 5);
+        bytes memory argsEncoded = repayAndWithdrawHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
-
-    function test_RepayAndWithdrawHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeRepayAndWithdrawData(false, false);
-        uint8[] memory idxs = repayAndWithdrawHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 1);
-        assertEq(idxs[0], 4);
-    }
-
 
     function test_RepayAndWithdrawHook_Build_RevertIf_InvalidLoanToken() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);

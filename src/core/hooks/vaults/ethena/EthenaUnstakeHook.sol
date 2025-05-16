@@ -17,19 +17,15 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
-/// @notice         address receiver = BytesLib.toAddress(BytesLib.slice(data, 56, 20), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 77);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 97);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 24);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
+/// @notice         address vaultBank = BytesLib.toAddress(data, 57);
+/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 77);
 contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
-
-    // if the callee is the superRegistry, the receiver must be the account
-    error INVALID_RECEIVER();
 
     constructor() BaseHook(HookType.OUTFLOW, "Ethena") { }
 
@@ -49,11 +45,8 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
         // Note: prev amount cannot be used in here, it unstakes everything available
 
         address yieldSource = data.extractYieldSource();
-        address receiver = BytesLib.toAddress(BytesLib.slice(data, 56, 20), 0);
-
         if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
-        if (receiver != account) revert INVALID_RECEIVER();
         executions = new Execution[](1);
 
         executions[0] = Execution({
@@ -78,15 +71,12 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns(address target, address[] memory args) {
-        target = data.extractYieldSource();
-        args = new address[](0);
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource()
+        );
     }
 
-    /// @inheritdoc ISuperHookInspector
-    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
-        idxs = new uint8[](0);
-    }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
@@ -96,8 +86,8 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
         asset = IERC4626(yieldSource).asset();
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
-        vaultBank = BytesLib.toAddress(data, 77);
-        dstChainId = BytesLib.toUint256(data, 97);
+        vaultBank = BytesLib.toAddress(data, 57);
+        dstChainId = BytesLib.toUint256(data, 77);
         spToken = yieldSource;
     }
 
@@ -110,7 +100,7 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 
     function _getBalance(address account, bytes memory) private view returns (uint256) {

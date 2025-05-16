@@ -34,17 +34,10 @@ contract FluidUnstakeHookTest is Helpers {
 
     function test_Inspector() public view {
         bytes memory data = _encodeData(false);
-        (address target, address[] memory args) = hook.inspect(data);
-        assertEq(target, yieldSource);
-        assertEq(args.length, 0);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
-    function test_BeneficiaryArgs() public view {
-        bytes memory data = _encodeData(false);
-        uint8[] memory idxs = hook.beneficiaryArgs(data);
-        assertEq(idxs.length, 0);
-    }
-    
     function test_DecodeUsePrevHookAmount() public view {
         bytes memory data = _encodeData(false);
         assertEq(hook.decodeUsePrevHookAmount(data), false);

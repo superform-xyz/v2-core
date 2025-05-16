@@ -104,18 +104,12 @@ contract ApproveAndRedeem4626VaultHook is
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
-        target = data.extractYieldSource();
-        args = new address[](2);
-        args[0] = tempAcc;
-        args[1] = BytesLib.toAddress(data, 24); //owner
-    }
-
-    /// @inheritdoc ISuperHookInspector
-    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
-        idxs = new uint8[](2);
-        idxs[0] = 0;
-        idxs[1] = 1;
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource(),
+            BytesLib.toAddress(data, 24), // token
+            BytesLib.toAddress(data, 44) // owner
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -127,7 +121,6 @@ contract ApproveAndRedeem4626VaultHook is
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
         spToken = yieldSource;
-        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

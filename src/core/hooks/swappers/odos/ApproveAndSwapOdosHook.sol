@@ -103,23 +103,17 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookI
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
-        target = address(odosRouterV2);
-
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
         uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 177);
         address executor = BytesLib.toAddress(data, 209 + pathDefinition_paramLength);
-        args = new address[](5);
-        args[0] = BytesLib.toAddress(data, 0);
-        args[1] = BytesLib.toAddress(data, 52);
-        args[2] = BytesLib.toAddress(data, 72);
-        args[3] = tempAcc;
-        args[4] = executor;
-    }
-
-    /// @inheritdoc ISuperHookInspector
-    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
-        idxs = new uint8[](1);
-        idxs[0] = 0;
+      
+        return abi.encodePacked(
+            BytesLib.toAddress(data, 0), //inputToken
+            BytesLib.toAddress(data, 52), //inputReceiver
+            BytesLib.toAddress(data, 72), //outputToken
+            BytesLib.toAddress(data, 157), //spender
+            executor
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -127,7 +121,6 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookI
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
-        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

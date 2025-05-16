@@ -67,14 +67,8 @@ contract GearboxUnstakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspe
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns(address target, address[] memory args) {
-        target = data.extractYieldSource();
-        args = new address[](0);
-    }
-
-    /// @inheritdoc ISuperHookInspector
-    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
-        idxs = new uint8[](0);
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(data.extractYieldSource());
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -96,12 +96,11 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
-        target = address(pendleRouterV4);
-
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
         bytes calldata txData_ = data[57:];
         bytes4 selector = bytes4(txData_[0:4]);
 
+        bytes memory packed;
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
             // skip selector
             (
@@ -113,33 +112,36 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
                 LimitOrderData memory limit
             ) = abi.decode(txData_[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
 
-            uint256 argsLen = 7;
-            uint256 normalFillsLen = limit.normalFills.length;
-            uint256 flashFillsLen = limit.flashFills.length;
-            argsLen += normalFillsLen *4; // 4 addreses per fill
-            argsLen += flashFillsLen *4; // 4 addreses per fill
-
-            args = new address[](argsLen);
-            args[0] = receiver;
-            args[1] = market;
-            args[2] = input.tokenIn;
-            args[3] = input.tokenMintSy;
-            args[4] = input.pendleSwap;
-            args[5] = input.swapData.extRouter;
-            args[6] = limit.limitRouter;
+            packed = abi.encodePacked(
+                data.extractYieldSource(),
+                receiver,
+                market,
+                input.tokenIn,
+                input.tokenMintSy,
+                input.pendleSwap,
+                input.swapData.extRouter,
+                limit.limitRouter
+            );
             
-            uint256 idx = 7;
+            uint256 normalFillsLen = limit.normalFills.length;
             for (uint256 i; i < normalFillsLen; i++) {
-                args[idx++] = limit.normalFills[i].order.token;
-                args[idx++] = limit.normalFills[i].order.YT;
-                args[idx++] = limit.normalFills[i].order.maker;
-                args[idx++] = limit.normalFills[i].order.receiver;
+                packed = abi.encodePacked(
+                    packed,
+                    limit.normalFills[i].order.token,
+                    limit.normalFills[i].order.YT,
+                    limit.normalFills[i].order.maker,
+                    limit.normalFills[i].order.receiver
+                );
             }
+            uint256 flashFillsLen = limit.flashFills.length;
             for (uint256 i; i < flashFillsLen; i++) {
-                args[idx++] = limit.flashFills[i].order.token;
-                args[idx++] = limit.flashFills[i].order.YT;
-                args[idx++] = limit.flashFills[i].order.maker;
-                args[idx++] = limit.flashFills[i].order.receiver;
+                packed = abi.encodePacked(
+                    packed,
+                    limit.flashFills[i].order.token,
+                    limit.flashFills[i].order.YT,
+                    limit.flashFills[i].order.maker,
+                    limit.flashFills[i].order.receiver
+                );
             }
 
             
@@ -153,47 +155,46 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
                 LimitOrderData memory limit
             ) = abi.decode(txData_[4:], (address, address, uint256, TokenOutput, LimitOrderData));
             
-            uint256 argsLen = 6;
-            uint256 normalFillsLen = limit.normalFills.length;
-            uint256 flashFillsLen = limit.flashFills.length;
-            argsLen += normalFillsLen *4; // 4 addreses per fill
-            argsLen += flashFillsLen *4; // 4 addreses per fill
-            args = new address[](argsLen);
-            args[0] = receiver;
-            args[1] = market;
-            args[2] = output.tokenOut;
-            args[3] = output.tokenRedeemSy;
-            args[4] = output.pendleSwap;
-            args[5] = output.swapData.extRouter;
+            packed = abi.encodePacked(
+                data.extractYieldSource(),
+                receiver,
+                market,
+                output.tokenOut,
+                output.tokenRedeemSy,
+                output.pendleSwap,
+                output.swapData.extRouter
+            );
 
-            uint256 idx = 6;
+            uint256 normalFillsLen = limit.normalFills.length;
             for (uint256 i; i < normalFillsLen; i++) {
-                args[idx++] = limit.normalFills[i].order.token;
-                args[idx++] = limit.normalFills[i].order.YT;
-                args[idx++] = limit.normalFills[i].order.maker;
-                args[idx++] = limit.normalFills[i].order.receiver;
+                packed = abi.encodePacked(
+                    packed,
+                    limit.normalFills[i].order.token,
+                    limit.normalFills[i].order.YT,
+                    limit.normalFills[i].order.maker,
+                    limit.normalFills[i].order.receiver
+                );
             }
+            uint256 flashFillsLen = limit.flashFills.length;
             for (uint256 i; i < flashFillsLen; i++) {
-                args[idx++] = limit.flashFills[i].order.token;
-                args[idx++] = limit.flashFills[i].order.YT;
-                args[idx++] = limit.flashFills[i].order.maker;
-                args[idx++] = limit.flashFills[i].order.receiver;
+                packed = abi.encodePacked(
+                    packed,
+                    limit.flashFills[i].order.token,
+                    limit.flashFills[i].order.YT,
+                    limit.flashFills[i].order.maker,
+                    limit.flashFills[i].order.receiver
+                );
             }
         }
-    }
 
-    /// @inheritdoc ISuperHookInspector
-    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
-        idxs = new uint8[](1);
-        idxs[0] = 0;
+        return packed;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address account, bytes calldata data) internal override {
+    function _preExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data);
-        tempAcc = account;
     }
 
     function _postExecute(address, address, bytes calldata data) internal override {

@@ -149,19 +149,13 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
-        target = address(spokePoolV3);
-        args = new address[](4);
-        args[0] = BytesLib.toAddress(data, 32); //recipient
-        args[1] = BytesLib.toAddress(data, 52); //inputToken
-        args[2] = BytesLib.toAddress(data, 72); //outputToken
-        args[3] = BytesLib.toAddress(data, 188); //exclusiveRelayer
-    }
-
-    /// @inheritdoc ISuperHookInspector
-    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
-        idxs = new uint8[](1);
-        idxs[0] = 0;
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            BytesLib.toAddress(data, 32),   // recipient
+            BytesLib.toAddress(data, 52),   // inputToken
+            BytesLib.toAddress(data, 72),   // outputToken
+            BytesLib.toAddress(data, 188)   // exclusiveRelayer
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

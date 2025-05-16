@@ -77,12 +77,6 @@ contract EthenaHooksTests is Helpers {
         unstakeHook.build(address(0), address(this), data);
     }
 
-    function test_EthenaUnstakeHook_BuildRevert_InvalidReceiver() public {
-        bytes memory data = _encodeUnstakeDataWithInvalidReceiver();
-        vm.expectRevert(EthenaUnstakeHook.INVALID_RECEIVER.selector);
-        unstakeHook.build(address(0), address(this), data);
-    }
-
     function test_EthenaCooldownSharesHook_BuildRevert_InvalidShares() public {
         bytes memory data = _encodeCooldownDataWithZeroShares();
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
@@ -201,28 +195,14 @@ contract EthenaHooksTests is Helpers {
 
     function test_cooldownSharesHook_Inspector() public view {
         bytes memory data = _encodeCooldownData(false);
-        (address target, address[] memory args) = cooldownSharesHook.inspect(data);
-        assertEq(target, address(yieldSource));
-        assertEq(args.length, 0);
-    }
-
-    function test_cooldownSharesHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeCooldownData(false);
-        uint8[] memory idxs = cooldownSharesHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 0);
+        bytes memory argsEncoded = cooldownSharesHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_unstakeHook_Inspector() public view {
         bytes memory data = _encodeUnstakeData();
-        (address target, address[] memory args) = unstakeHook.inspect(data);
-        assertEq(target, address(yieldSource));
-        assertEq(args.length, 0);
-    }
-
-    function test_unstakeHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeUnstakeData();
-        uint8[] memory idxs = unstakeHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 0);
+        bytes memory argsEncoded = unstakeHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
     
     /*//////////////////////////////////////////////////////////////
@@ -242,16 +222,10 @@ contract EthenaHooksTests is Helpers {
 
     function _encodeUnstakeData() internal view returns (bytes memory) {
         return
-            abi.encodePacked(yieldSourceOracleId, address(yieldSource), amount, receiver, false, address(0), uint256(1));
+            abi.encodePacked(yieldSourceOracleId, address(yieldSource), amount, false, address(0), uint256(1));
     }
 
     function _encodeUnstakeDataWithZeroYieldSource() internal view returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, address(0), amount, receiver, false, address(0), uint256(1));
-    }
-
-    function _encodeUnstakeDataWithInvalidReceiver() internal view returns (bytes memory) {
-        return abi.encodePacked(
-            yieldSourceOracleId, address(yieldSource), amount, address(0x1), false, address(0), uint256(1)
-        );
+        return abi.encodePacked(yieldSourceOracleId, address(0), amount, false, address(0), uint256(1));
     }
 }

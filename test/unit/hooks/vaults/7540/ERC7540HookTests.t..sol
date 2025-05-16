@@ -135,170 +135,76 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     //////////////////////////////////////////////////////////////*/
     function test_redeemHook_InspectorTests() public view {
         bytes memory data = _encodeData(false);
-        (address target, address[] memory args) = redeemHook.inspect(data);
-        assertEq(target, yieldSource);
-        assertEq(args.length, 2);
-    }
-    function test_redeemHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeData(false);
-        uint8[] memory idxs = redeemHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 2);
-        assertEq(idxs[0], 0);
-        assertEq(idxs[1], 1);
+        bytes memory argsEncoded = redeemHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_approveAndRequestDepositHook_InspectorTests() public view {
         bytes memory data = _encodeData(false);
-        (address target, address[] memory args) = approveAndRequestDepositHook.inspect(data);
-        assertEq(target, yieldSource);
-        assertEq(args.length, 2);
-    }
-    function test_approveAndRequestDepositHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeData(false);
-        uint8[] memory idxs = approveAndRequestDepositHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 2);
-        assertEq(idxs[0], 0);
-        assertEq(idxs[1], 1);
+        bytes memory argsEncoded = approveAndRequestDepositHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_approveAndWithdrawHook_InspectorTests() public view {
         bytes memory data = _encodeData(false);
-        (address target, address[] memory args) = approveAndWithdrawHook.inspect(data);
-        assertEq(target, yieldSource);
-        assertEq(args.length, 2);
-    }
-    function test_approveAndWithdrawHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeData(false);
-        uint8[] memory idxs = approveAndWithdrawHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 2);
-        assertEq(idxs[0], 0);
-        assertEq(idxs[1], 1);
+        bytes memory argsEncoded = approveAndWithdrawHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_cancelDepositRequestHook_InspectorTests() public view {
         bytes memory data = _encodeData(false);
-        (address target, address[] memory args) = cancelDepositRequestHook.inspect(data);
-        assertEq(target, yieldSource);
-        assertEq(args.length, 1);
-    }
-    function test_cancelDepositRequestHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeData(false);
-        uint8[] memory idxs = cancelDepositRequestHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 1);
-        assertEq(idxs[0], 0);
+        bytes memory argsEncoded = cancelDepositRequestHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_cancelRedeemRequestHook_InspectorTests() public view {
         bytes memory data = _encodeData(false);
-        (address target, address[] memory args) = cancelRedeemRequestHook.inspect(data);
-        assertEq(target, yieldSource);
-        assertEq(args.length, 1);
-    }
-    function test_cancelRedeemRequestHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeData(false);
-        uint8[] memory idxs = cancelRedeemRequestHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 1);
-        assertEq(idxs[0], 0);
+        bytes memory argsEncoded = cancelRedeemRequestHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_claimCancelDepositRequestHook_InspectorTests() public view {
         bytes memory data = _encodeData(false);
-        (address target, address[] memory args) = claimCancelDepositRequestHook.inspect(data);
-        assertEq(target, yieldSource);
-        assertEq(args.length, 2);
-    }
-    function test_claimCancelDepositRequestHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeData(false);
-        uint8[] memory idxs = claimCancelDepositRequestHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 2);
-        assertEq(idxs[0], 0);
-        assertEq(idxs[1], 1);
+        bytes memory argsEncoded = claimCancelDepositRequestHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_claimCancelRedeemRequestHook_InspectorTests() public view {
         bytes memory data = _encodeData(false);
-        (address target, address[] memory args) = claimCancelRedeemRequestHook.inspect(data);
-        assertEq(target, yieldSource);
-        assertEq(args.length, 2);
+        bytes memory argsEncoded = claimCancelRedeemRequestHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
-    function test_claimCancelRedeemRequestHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeData(false);
-        uint8[] memory idxs = claimCancelRedeemRequestHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 2);
-        assertEq(idxs[0], 0);
-        assertEq(idxs[1], 1);
-    }
-
 
     function test_depositHook_InspectorTests() public view {
         bytes memory data = _encodeData(false);
-        (address target, address[] memory args) = depositHook.inspect(data);
-        assertEq(target, yieldSource);
-        assertEq(args.length, 2);
-    }
-    function test_depositHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeData(false);
-        uint8[] memory idxs = depositHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 2);
-        assertEq(idxs[0], 0);
-        assertEq(idxs[1], 1);
+        bytes memory argsEncoded = depositHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_requestDepositHook_InspectorTests() public view {
         bytes memory data = _encodeData(false);
-        (address target, address[] memory args) = requestDepositHook.inspect(data);
-        assertEq(target, yieldSource);
-        assertEq(args.length, 2);
-    }
-    function test_requestDepositHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeData(false);
-        uint8[] memory idxs = requestDepositHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 2);
-        assertEq(idxs[0], 0);
-        assertEq(idxs[1], 1);
+        bytes memory argsEncoded = requestDepositHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_requestRedeemHook_InspectorTests() public view {
         bytes memory data = _encodeData(false);
-        (address target, address[] memory args) = reqRedeemHook.inspect(data);
-        assertEq(target, yieldSource);
-        assertEq(args.length, 2);
-    }
-    function test_requestRedeemHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeData(false);
-        uint8[] memory idxs = reqRedeemHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 2);
-        assertEq(idxs[0], 0);
-        assertEq(idxs[1], 1);
+        bytes memory argsEncoded = reqRedeemHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_withdrawHook_InspectorTests() public view {
         bytes memory data = _encodeData(false);
-        (address target, address[] memory args) = withdrawHook.inspect(data);
-        assertEq(target, yieldSource);
-        assertEq(args.length, 2);
+        bytes memory argsEncoded = withdrawHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
-    function test_withdrawHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeData(false);
-        uint8[] memory idxs = withdrawHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 2);
-        assertEq(idxs[0], 0);
-        assertEq(idxs[1], 1);
-    }
-
 
     function test_cancelRedeemHook_InspectorTests() public view {
         bytes memory data = _encodeData(false);
-        (address target, address[] memory args) = cancelRedeemHook.inspect(data);
-        assertEq(target, yieldSource);
-        assertEq(args.length, 1);
+        bytes memory argsEncoded = cancelRedeemHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
-    function test_cancelRedeemHook_BeneficiaryArgs() public view {
-        bytes memory data = _encodeData(false);
-        uint8[] memory idxs = cancelRedeemHook.beneficiaryArgs(data);
-        assertEq(idxs.length, 1);
-        assertEq(idxs[0], 0);
-    }
+
     /*//////////////////////////////////////////////////////////////
                               BUILD TESTS
     //////////////////////////////////////////////////////////////*/

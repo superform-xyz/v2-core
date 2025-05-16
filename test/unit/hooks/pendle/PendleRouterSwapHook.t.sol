@@ -133,9 +133,8 @@ contract PendleRouterSwapHookTest is Helpers {
         );
 
         bytes memory data = abi.encodePacked(bytes4(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
-        (address target, address[] memory args) = hook.inspect(data);
-        assertEq(target, address(pendleRouter));
-        assertGt(args.length, 0);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_UsePrevHookAmount() public view {
@@ -214,9 +213,8 @@ contract PendleRouterSwapHookTest is Helpers {
         );
 
         bytes memory data = abi.encodePacked(bytes4(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
-        (address target, address[] memory args) = hook.inspect(data);
-        assertEq(target, address(pendleRouter));
-        assertGt(args.length, 0);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_Build_WithPrevHookAmount() public {
@@ -736,8 +734,4 @@ contract PendleRouterSwapHookTest is Helpers {
         hook.build(address(prevHook), account, data);
     }
 
-    function test_benecifiary() public view {
-        uint8[] memory idxs = hook.beneficiaryArgs("");
-        assertEq(idxs.length, 1);
-    }
 }

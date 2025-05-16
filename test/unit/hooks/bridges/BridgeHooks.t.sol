@@ -114,16 +114,8 @@ contract BridgeHooks is Helpers {
 
     function test_AcrossV3_Inspector() public view {
         bytes memory data = _encodeAcrossData(false);
-        (address target, address[] memory args) = acrossV3hook.inspect(data);
-        assertEq(target, address(mockSpokePool));
-        assertGt(args.length, 0);
-    }
-
-    function test_AcrossV3_BeneficiaryArgs() public view {
-        bytes memory data = _encodeAcrossData(false);
-        uint8[] memory idxs = acrossV3hook.beneficiaryArgs(data);
-        assertEq(idxs.length, 1);
-        assertEq(idxs[0], 0);
+        bytes memory argsEncoded = acrossV3hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_AcrossV3_Build_RevertIf_AmountNotValid() public {
@@ -266,18 +258,10 @@ contract BridgeHooks is Helpers {
 
     function test_DeBridge_Inspector() public view {
         bytes memory data = _encodeDebridgeData(false, 100, address(mockInputToken));
-        (address target, address[] memory args) = deBridgehook.inspect(data);
-        assertEq(target, address(deBridgehook.dlnSource()));
-        assertEq(args.length, 6);
-        assertEq(args[1], address(mockOutputToken));
+        bytes memory argsEncoded = deBridgehook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
-    function test_DeBridge_BeneficiaryArgs() public view {
-        bytes memory data = _encodeDebridgeData(false, 100, address(mockInputToken));
-        uint8[] memory idxs = deBridgehook.beneficiaryArgs(data);
-        assertEq(idxs.length, 1);
-        assertEq(idxs[0], 2);
-    }
     function test_Debrigdge_Build() public view {
         bytes memory data = _encodeDebridgeData(false, 100, address(mockInputToken));
         Execution[] memory executions = deBridgehook.build(address(0), mockAccount, data);

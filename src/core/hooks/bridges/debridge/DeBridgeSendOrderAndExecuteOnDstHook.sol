@@ -107,8 +107,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
-        target = address(dlnSource);
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
         (
             IDlnSource.OrderCreation memory orderCreation,
             ,
@@ -116,18 +115,14 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
             
         ) = _createOrder(data, "");
         
-        args = new address[](6);
-        args[0] = orderCreation.giveTokenAddress;
-        args[1] = address(bytes20(orderCreation.takeTokenAddress));
-        args[2] = address(bytes20(orderCreation.receiverDst));
-        args[3] = address(bytes20(orderCreation.givePatchAuthoritySrc));
-        args[4] = address(bytes20(orderCreation.orderAuthorityAddressDst));
-        args[5] = address(bytes20(orderCreation.allowedCancelBeneficiarySrc));
-    }
-    /// @inheritdoc ISuperHookInspector
-    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
-        idxs = new uint8[](1);
-        idxs[0] = 2;
+        return abi.encodePacked(
+            orderCreation.giveTokenAddress,
+            address(bytes20(orderCreation.takeTokenAddress)),
+            address(bytes20(orderCreation.receiverDst)),
+            address(bytes20(orderCreation.givePatchAuthoritySrc)),
+            address(bytes20(orderCreation.orderAuthorityAddressDst)),
+            address(bytes20(orderCreation.allowedCancelBeneficiarySrc))
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

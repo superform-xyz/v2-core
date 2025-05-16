@@ -10,14 +10,8 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 interface ISuperHookInspector {
     /// @notice Inspect the hook
     /// @param data The hook data to inspect
-    /// @return target The target of the hook
-    /// @return args The arguments of the hook
-    function inspect(bytes calldata data) external view returns(address target, address[] memory args);
-
-    /// @notice Get the beneficiary arguments
-    /// @param data The hook data to inspect
-    /// @return idxs The indexes of the beneficiary arguments
-    function beneficiaryArgs(bytes calldata data) external view returns (uint8[] memory idxs);
+    /// @return argsEncoded The arguments of the hook encoded
+    function inspect(bytes calldata data) external view returns(bytes memory argsEncoded);
 }
 
 /// @title ISuperHookResult

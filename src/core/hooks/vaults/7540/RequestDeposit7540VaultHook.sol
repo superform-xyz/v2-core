@@ -99,18 +99,10 @@ contract RequestDeposit7540VaultHook is
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
-        target = data.extractYieldSource();
-        args = new address[](2);
-        args[0] = tempAcc;
-        args[1] = tempAcc;
-    }
-
-    /// @inheritdoc ISuperHookInspector
-    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
-        idxs = new uint8[](2);
-        idxs[0] = 0;
-        idxs[1] = 1;
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource()
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -118,7 +110,6 @@ contract RequestDeposit7540VaultHook is
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
-        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

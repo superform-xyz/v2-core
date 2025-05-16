@@ -86,8 +86,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
-        target = address(router);
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
 
         bytes calldata txData_ = data[AMOUNT_POSITION:];
         ValidateTxDataParams memory params;
@@ -106,102 +105,38 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
         params.commands = _validateCommands(params.commandsData, params.inputsLength);
         params.commandsLength = params.commands.length;
 
-        //count args array length
-        uint256 argsLength;
-        for (uint256 i; i < params.commandsLength; ++i) {
-            uint256 command = params.commands[i];
-            if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
-                argsLength += 3;
-                // add params.pt, params.ptRecipient, params.ytRecipient to args array
-            } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
-                argsLength += 2;
-                // add params.ibt, params.recipient to args array
-            } else if (command == SpectraCommands.TRANSFER_FROM) {
-                argsLength += 1;
-                // add params.transferToken to args array
-            }
-        }
+        bytes memory packed = abi.encodePacked(data.extractYieldSource());
 
-        args = new address[](argsLength);
-        uint256 j;
         for (uint256 i; i < params.commandsLength; ++i) {
             uint256 command = params.commands[i];
             bytes memory input = params.inputs[i];
             if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
                 (params.pt, params.assets, params.ptRecipient, params.ytRecipient, params.minShares) =
                     abi.decode(input, (address, uint256, address, address, uint256));
-                args[j++] = params.pt;
-                args[j++] = params.ptRecipient;
-                args[j++] = params.ytRecipient;
+
+                packed = abi.encodePacked(
+                    packed,
+                    params.pt,
+                    params.ptRecipient,
+                    params.ytRecipient
+                );
             } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
                 (params.ibt, params.assets, params.recipient) = abi.decode(input, (address, uint256, address));
-                args[j++] = params.ibt;
-                args[j++] = params.recipient;
+                packed = abi.encodePacked(
+                    packed,
+                    params.ibt,
+                    params.recipient
+                );
             } else if (command == SpectraCommands.TRANSFER_FROM) {
                 (params.transferToken) = abi.decode(input, (address));
-                args[j++] = params.transferToken;
-            }
-        }
-    }
-
-    function beneficiaryArgs(bytes calldata data) external pure returns (uint8[] memory idxs) {
-        bytes calldata txData_ = data[AMOUNT_POSITION:];
-        ValidateTxDataParams memory params;
-        params.selector = bytes4(txData_[0:4]);
-
-        if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
-            (params.commandsData, params.inputs) = abi.decode(txData_[4:], (bytes, bytes[]));
-            params.inputsLength = params.inputs.length;
-            params.updatedInputs = new bytes[](params.inputsLength);
-        } else if (params.selector == bytes4(keccak256("execute(bytes,bytes[],uint256)"))) {
-            (params.commandsData, params.inputs, params.deadline) = abi.decode(txData_[4:], (bytes, bytes[], uint256));
-            params.inputsLength = params.inputs.length;
-            params.updatedInputs = new bytes[](params.inputsLength);
-        } 
-
-        params.commands = _validateCommands(params.commandsData, params.inputsLength);
-        params.commandsLength = params.commands.length;
-
-        //count args array length
-        uint256 idxsLength;
-        for (uint256 i; i < params.commandsLength; ++i) {
-            uint256 command = params.commands[i];
-            if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
-                idxsLength += 2;
-                // add params.ptRecipient, params.ytRecipient to args array
-            } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
-                idxsLength += 1;
-                // add params.recipient to args array
-            } else if (command == SpectraCommands.TRANSFER_FROM) {
-                idxsLength += 1;
-                // add `tempAcc`
+                packed = abi.encodePacked(
+                    packed,
+                    params.transferToken
+                );
             }
         }
 
-
-        idxs = new uint8[](idxsLength);
-        uint256 j;
-        uint256 k;
-        for (uint256 i; i < params.commandsLength; ++i) {
-            uint256 command = params.commands[i];
-
-            if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
-                // pt, ptRecipient, ytRecipient
-                j += 1; // pt
-                idxs[k++] = uint8(j++); // ptRecipient
-                idxs[k++] = uint8(j++); // ytRecipient
-
-            } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
-                // ibt, recipient
-                j += 1; // ibt
-                idxs[k++] = uint8(j++); // recipient
-
-            } else if (command == SpectraCommands.TRANSFER_FROM) {
-                // transferToken
-                idxs[k++] = uint8(j); // account
-                j += 1;
-            }
-        }
+        return packed;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -209,7 +144,6 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(data, account);
-        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

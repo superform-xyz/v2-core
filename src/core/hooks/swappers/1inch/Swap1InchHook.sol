@@ -93,28 +93,20 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
-        target = address(aggregationRouter);
-
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
         bytes calldata txData_ = data[73:];
         bytes4 selector = bytes4(txData_[:4]);
+
+        bytes memory packed;
 
         if (selector == I1InchAggregationRouterV6.unoswapTo.selector) {
             (Address to, Address token,,, Address dex) =
                 abi.decode(txData_[4:], (Address, Address, uint256, uint256, Address));
-            args = new address[](3);
-            args[0] = to.get();
-            args[1] = token.get();
-            args[2] = dex.get();
+            packed = abi.encodePacked(to.get(), token.get(), dex.get());
         } else if (selector == I1InchAggregationRouterV6.swap.selector) {
             (IAggregationExecutor executor, I1InchAggregationRouterV6.SwapDescription memory desc,) =
                 abi.decode(txData_[4:], (IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription, bytes));
-            args = new address[](5);
-            args[0] = address(executor);
-            args[1] = address(desc.srcToken);
-            args[2] = address(desc.dstToken);
-            args[3] = address(desc.srcReceiver);
-            args[4] = address(desc.dstReceiver);
+            packed = abi.encodePacked(address(executor), address(desc.srcToken), address(desc.dstToken), address(desc.srcReceiver), address(desc.dstReceiver));
         } else if (selector == I1InchAggregationRouterV6.clipperSwapTo.selector) {
             (
                 IClipperExchange clipperExchange,
@@ -129,34 +121,17 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
             ) = abi.decode(
                 txData_[4:], (IClipperExchange, address, Address, IERC20, uint256, uint256, uint256, bytes32, bytes32)
             );
-            args = new address[](4);
-            args[0] = address(clipperExchange);
-            args[1] = recipient;
-            args[2] = srcToken.get();
-            args[3] = address(dstToken);
+            packed = abi.encodePacked(address(clipperExchange), recipient, srcToken.get(), address(dstToken));
         } 
-    }
 
-    /// @inheritdoc ISuperHookInspector
-    function beneficiaryArgs(bytes calldata data) external pure returns (uint8[] memory idxs) {
-        idxs = new uint8[](1);
-        bytes calldata txData_ = data[73:];
-        bytes4 selector = bytes4(txData_[:4]);
-        if (selector == I1InchAggregationRouterV6.unoswapTo.selector) {
-            idxs[0] = 0;
-        } else if (selector == I1InchAggregationRouterV6.swap.selector) {
-            idxs[0] = 4;
-        } else if (selector == I1InchAggregationRouterV6.clipperSwapTo.selector) {
-            idxs[0] = 1;
-        }
+        return packed;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address account, bytes calldata data) internal override {
+    function _preExecute(address, address, bytes calldata data) internal override {
         outAmount = _getBalance(data);
-        tempAcc = account;
     }
 
     function _postExecute(address, address, bytes calldata data) internal override {

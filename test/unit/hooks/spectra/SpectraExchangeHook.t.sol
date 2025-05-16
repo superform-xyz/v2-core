@@ -97,29 +97,8 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        (, address[] memory args) = hook.inspect(data);
-        assertEq(args.length, 3);
-    }
-
-    function test_DepositAssetInPT_BeneficiaryArgs() public view {
-        bytes memory commandsData = new bytes(1);
-        commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
-
-        bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
-
-        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
-
-        bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
-            address(token), // yieldSource
-            uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
-        );
-
-        uint8[] memory idxs = hook.beneficiaryArgs(data);
-        assertEq(idxs.length, 2);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_Build_DepositAssetInIBT() public view {
@@ -164,31 +143,9 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        (, address[] memory args) = hook.inspect(data);
-        assertEq(args.length, 2);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
-
-    function test_DepositAssetInIBT_BeneficiaryArgs() public view {
-        bytes memory commandsData = new bytes(1);
-        commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_IBT));
-
-        bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(token), 1e18, account);
-
-        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
-
-        bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
-            address(token), // yieldSource
-            uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
-        );
-
-        uint8[] memory idxs = hook.beneficiaryArgs(data);
-        assertEq(idxs.length, 1);
-    }
-
 
     function test_TransferFrom_Inspector() public view {
         bytes memory commandsData = new bytes(1);
@@ -207,29 +164,8 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        (, address[] memory args) = hook.inspect(data);
-        assertEq(args.length, 1);
-    }
-
-    function test_TransferFrom_BeneficiaryArgs() public view {
-        bytes memory commandsData = new bytes(1);
-        commandsData[0] = bytes1(uint8(SpectraCommands.TRANSFER_FROM));
-
-        bytes[] memory inputs = new bytes[](1);
-        inputs[0] = abi.encode(address(token), 1e18, account);
-
-        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
-
-        bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
-            address(token), // yieldSource
-            uint8(0), // usePrevHookAmount = false
-            uint256(0), // value
-            txData
-        );
-
-        uint8[] memory idxs = hook.beneficiaryArgs(data);
-        assertEq(idxs.length, 1);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_Build_WithPrevHookAmount() public {

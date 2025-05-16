@@ -114,19 +114,13 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
-        target = address(pendleRouterV4);
-
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
         DecodedParams memory params = _decodeAndValidateData(data);
-        args = new address[](2);
-        args[0] = tempAcc;
-        args[1] = params.YT;
-    }
-
-    /// @inheritdoc ISuperHookInspector
-    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
-        idxs = new uint8[](1);
-        idxs[0] = 0;
+        return abi.encodePacked(
+            params.YT,
+            params.PT,
+            params.tokenOut
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -134,7 +128,6 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(data, account);
-        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

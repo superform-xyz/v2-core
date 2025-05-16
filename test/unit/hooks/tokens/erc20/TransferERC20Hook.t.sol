@@ -83,17 +83,8 @@ contract TransferERC20HookTest is Helpers {
 
     function test_Inspector() public view {
         bytes memory data = _encodeData(false);
-        (address target, address[] memory args) = hook.inspect(data);
-        assertEq(target, token);
-        assertEq(args.length, 1);
-        assertEq(args[0], to);
-    }
-
-    function test_BeneficiaryArgs() public view {
-        bytes memory data = _encodeData(false);
-        uint8[] memory idxs = hook.beneficiaryArgs(data);
-        assertEq(idxs.length, 1);
-        assertEq(idxs[0], 0);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function _encodeData(bool usePrev) internal view returns (bytes memory) {

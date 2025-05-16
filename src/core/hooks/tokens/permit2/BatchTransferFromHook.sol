@@ -80,24 +80,15 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
-        target = address(permit2);
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
         uint256 permitArrayLength = BytesLib.toUint256(data, 20);
-        uint256 argsLen = permitArrayLength + 2; // from, to & tokens[]
-        args = new address[](argsLen);
-        args[0] = BytesLib.toAddress(data, 0);
-        args[1] = tempAcc;
-        
         address[] memory tokens = _decodeTokenArray(data, 52, permitArrayLength);
-        for (uint256 i; i < permitArrayLength; ++i) {
-            args[i + 2] = tokens[i];
-        }
-    }
 
-    /// @inheritdoc ISuperHookInspector
-    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
-        idxs = new uint8[](1);
-        idxs[0] = 1;
+        bytes memory packed = abi.encodePacked(BytesLib.toAddress(data, 0)); //from
+        for (uint256 i; i < permitArrayLength; ++i) {
+            packed = abi.encodePacked(packed, tokens[i]);
+        }
+        return packed;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -109,7 +100,6 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
         for (uint256 i; i < arrayLength; ++i) {
             outAmount += _getBalance(tokens[i], account);
         }
-        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

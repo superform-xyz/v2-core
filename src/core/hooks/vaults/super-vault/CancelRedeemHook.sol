@@ -56,16 +56,8 @@ contract CancelRedeemHook is BaseHook, ISuperHookAsyncCancelations, ISuperHookIn
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view returns(address target, address[] memory args) {
-        target = data.extractYieldSource();
-        args = new address[](1);
-        args[0] = tempAcc;
-    }
-
-    /// @inheritdoc ISuperHookInspector
-    function beneficiaryArgs(bytes calldata) external pure returns (uint8[] memory idxs) {
-        idxs = new uint8[](1);
-        idxs[0] = 0;
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(data.extractYieldSource());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -73,7 +65,6 @@ contract CancelRedeemHook is BaseHook, ISuperHookAsyncCancelations, ISuperHookIn
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
-        tempAcc = account;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
