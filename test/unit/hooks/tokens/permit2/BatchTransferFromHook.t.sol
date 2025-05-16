@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.28;
 
+import { Helpers } from "../../../../utils/Helpers.sol";
+import { InternalHelpers } from "../../../../utils/InternalHelpers.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
 import { BatchTransferFromHook } from "../../../../../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { IAllowanceTransfer } from "../../../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
 import { IPermit2Batch } from "../../../../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
-import { Helpers } from "../../../../utils/Helpers.sol";
-import { InternalHelpers } from "../../../../utils/InternalHelpers.sol";
 
 contract BatchTransferFromHookTest is Helpers, InternalHelpers {
     BatchTransferFromHook public hook;
@@ -23,6 +22,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
 
     address public eoa;
     address public account;
+
     IAllowanceTransfer public permit2;
 
     function setUp() public {
@@ -96,11 +96,11 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
 
         assertEq(executions.length, 2);
         // First execution should be a dummy call to the first token
-        assertEq(executions[0].target, tokens[0]);
+        assertEq(executions[0].target, PERMIT2);
         assertEq(executions[0].value, 0);
 
         // Second execution should be the transferFrom call
-        assertEq(executions[1].target, address(PERMIT2));
+        assertEq(executions[1].target, PERMIT2);
         assertEq(executions[1].value, 0);
 
         // Verify the transfer call data
@@ -203,7 +203,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         hook.build(address(0), account, hookData);
     }
 
-    function test_Build_RevertIf_InvalidSignatureLength() public {
+    function test_Build_RevertIf_InvalidSignatureLength() public view {
         bytes memory hookData = abi.encodePacked(
             eoa,
             uint256(3),
