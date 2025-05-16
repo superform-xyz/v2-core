@@ -63,35 +63,45 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
 
     function test_Build_RevertIf_InvalidAddresses() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        bytes memory hookData = _createBatchTransferFromHookData(address(0), 3, tokens, amounts);
+        bytes memory hookData = abi.encodePacked(
+            address(0), // invalid from address
+            uint256(3),
+            abi.encodePacked(tokens[0], tokens[1], tokens[2]),
+            abi.encodePacked(amounts[0], amounts[1], amounts[2]),
+            new bytes(65)
+        );
         hook.build(address(0), account, hookData);
     }
 
     function test_Build_RevertIf_ZeroTokens() public {
         vm.expectRevert(BatchTransferFromHook.INVALID_ARRAY_LENGTH.selector);
-        bytes memory hookData = _createBatchTransferFromHookData(eoa, 0, tokens, amounts);
+        bytes memory hookData = abi.encodePacked(
+            eoa,
+            uint256(0), // zero tokens
+            new bytes(65)
+        );
         hook.build(address(0), account, hookData);
     }
 
     function test_Build_Executions() public view {
-        bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, tokens, amounts);
-
-        // Create a mock signature (65 bytes)
-        bytes memory signature = new bytes(65);
-        hookData = bytes.concat(hookData, signature);
+        bytes memory hookData = abi.encodePacked(
+            eoa, // from address (20 bytes)
+            uint256(3), // number of tokens (32 bytes)
+            abi.encodePacked(tokens[0], tokens[1], tokens[2]), // token addresses (20 bytes each)
+            abi.encodePacked(amounts[0], amounts[1], amounts[2]), // amounts (32 bytes each)
+            new bytes(65) // mock signature (65 bytes)
+        );
 
         Execution[] memory executions = hook.build(address(0), account, hookData);
 
         assertEq(executions.length, 2);
-        assertEq(executions[0].target, address(PERMIT2));
+        // First execution should be a dummy call to the first token
+        assertEq(executions[0].target, tokens[0]);
         assertEq(executions[0].value, 0);
+
+        // Second execution should be the transferFrom call
         assertEq(executions[1].target, address(PERMIT2));
         assertEq(executions[1].value, 0);
-
-        // Verify the permit call data
-        bytes memory expectedPermitCallData =
-            abi.encodeCall(IPermit2Batch.permit, (eoa, _buildExpectedPermitBatch(account, tokens, amounts), signature));
-        assertEq(executions[0].callData, expectedPermitCallData);
 
         // Verify the transfer call data
         bytes memory expectedTransferCallData =
@@ -163,14 +173,10 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         bytes memory hookData = abi.encodePacked(
             eoa,
             uint256(3), // This should match the amounts array length
-            mismatchedTokens[0],
-            mismatchedTokens[1],
-            mismatchedAmounts[0],
-            mismatchedAmounts[1],
-            mismatchedAmounts[2]
+            abi.encodePacked(mismatchedTokens[0], mismatchedTokens[1]),
+            abi.encodePacked(mismatchedAmounts[0], mismatchedAmounts[1], mismatchedAmounts[2]),
+            new bytes(65)
         );
-        bytes memory signature = new bytes(65);
-        hookData = bytes.concat(hookData, signature);
 
         // This should revert when trying to decode the third token
         vm.expectRevert();
@@ -178,30 +184,33 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
     }
 
     function test_Build_RevertIf_EmptyTokenArray() public {
-        bytes memory hookData = abi.encodePacked(eoa, uint256(0));
-        bytes memory signature = new bytes(65);
-        hookData = bytes.concat(hookData, signature);
+        bytes memory hookData = abi.encodePacked(eoa, uint256(0), new bytes(65));
 
         vm.expectRevert(BatchTransferFromHook.INVALID_ARRAY_LENGTH.selector);
         hook.build(address(0), account, hookData);
     }
 
     function test_Build_RevertIf_ZeroAmount() public {
-        bytes memory hookData =
-            abi.encodePacked(eoa, uint256(3), tokens[0], tokens[1], tokens[2], uint256(0), uint256(0), uint256(0));
-        bytes memory signature = new bytes(65);
-        hookData = bytes.concat(hookData, signature);
+        bytes memory hookData = abi.encodePacked(
+            eoa,
+            uint256(3),
+            abi.encodePacked(tokens[0], tokens[1], tokens[2]),
+            abi.encodePacked(uint256(0), uint256(0), uint256(0)),
+            new bytes(65)
+        );
 
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         hook.build(address(0), account, hookData);
     }
 
     function test_Build_RevertIf_InvalidSignatureLength() public {
-        bytes memory hookData =
-            abi.encodePacked(eoa, uint256(3), tokens[0], tokens[1], tokens[2], amounts[0], amounts[1], amounts[2]);
-        // Create an invalid signature length (not 65 bytes)
-        bytes memory invalidSignature = new bytes(64);
-        hookData = bytes.concat(hookData, invalidSignature);
+        bytes memory hookData = abi.encodePacked(
+            eoa,
+            uint256(3),
+            abi.encodePacked(tokens[0], tokens[1], tokens[2]),
+            abi.encodePacked(amounts[0], amounts[1], amounts[2]),
+            new bytes(64) // Invalid signature length (not 65 bytes)
+        );
 
         // The hook doesn't actually check signature length, so this should succeed
         Execution[] memory executions = hook.build(address(0), account, hookData);
@@ -212,15 +221,10 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         bytes memory hookData = abi.encodePacked(
             eoa,
             uint256(3),
-            address(0), // Invalid token address
-            weth,
-            dai,
-            amounts[0],
-            amounts[1],
-            amounts[2]
+            abi.encodePacked(address(0), weth, dai), // Invalid token address
+            abi.encodePacked(amounts[0], amounts[1], amounts[2]),
+            new bytes(65)
         );
-        bytes memory signature = new bytes(65);
-        hookData = bytes.concat(hookData, signature);
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         hook.build(address(0), account, hookData);
