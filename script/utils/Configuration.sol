@@ -36,6 +36,7 @@ abstract contract Configuration is Constants {
         mapping(uint64 chainId => address spectraRouter) spectraRouters;
         mapping(uint64 chainId => address pendleRouter) pendleRouters;
         mapping(uint64 chainId => address polymerProver) polymerProvers;
+        mapping(uint64 chainId => address permit2) permit2s;
         SuperPositionData[] superPositions;
     }
 
@@ -133,5 +134,12 @@ abstract contract Configuration is Constants {
         configuration.polymerProvers[ARB_SEPOLIA_CHAIN_ID] = POLYMER_PROVER_ARB_SEPOLIA;
         configuration.polymerProvers[BASE_SEPOLIA_CHAIN_ID] = POLYMER_PROVER_BASE_SEPOLIA;
         configuration.polymerProvers[OP_SEPOLIA_CHAIN_ID] = POLYMER_PROVER_OP_SEPOLIA;
+
+        configuration.permit2s[MAINNET_CHAIN_ID] = PERMIT2_MAINNET;
+        configuration.permit2s[BASE_CHAIN_ID] = PERMIT2_BASE;
+        configuration.permit2s[OPTIMISM_CHAIN_ID] = PERMIT2_OPTIMISM;
+        configuration.permit2s[ARB_SEPOLIA_CHAIN_ID] = PERMIT2_ARB_SEPOLIA;
+        configuration.permit2s[BASE_SEPOLIA_CHAIN_ID] = PERMIT2_BASE_SEPOLIA;
+        configuration.permit2s[OP_SEPOLIA_CHAIN_ID] = PERMIT2_OP_SEPOLIA;
     }
 }
