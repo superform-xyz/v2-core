@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
+import "forge-std/console.sol";
+
 import {IncentiveFundContract} from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
 import {SuperAsset} from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
 import {AssetBank} from "../../../../src/periphery/SuperAsset/AssetBank.sol";
@@ -209,16 +211,15 @@ contract IncentiveFundContractTest is Helpers {
         // Test getting average quote from all providers
         (uint256 quoteAmountAvg, uint256 deviationAvg, uint256 totalProvidersAvg, uint256 availableProvidersAvg) =
             oracle.getQuoteFromProvider(baseAmount, address(tokenIn), USD, AVERAGE_PROVIDER);
-
-        // assertGt(deviationAvg, 0, "Deviation should be greater than 0 for multiple providers");
-        // NOTE: Should not this be 3 instead of 6, since there are 3 price feeds for this specific base asset
+        assertEq(quoteAmountAvg, 1e18, "Quote from average provider should be $1e18");
+        assertEq(deviationAvg, 0, "Deviation should be 0 for multiple providers");
         assertEq(totalProvidersAvg, 3, "Total providers should be 3");
         assertEq(availableProvidersAvg, 3, "Available providers should be 3");
     }
 
 
     // --- Test: Initialization ---
-    function test_Initialize() public {
+    function test_Initialize() public view {
         assertEq(address(incentiveFund.superAsset()), address(superAsset));
         assertEq(incentiveFund.assetBank(), address(assetBank));
     }

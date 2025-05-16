@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import "@openzeppelin/contracts/utils/math/Math.sol";
-import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { IIncentiveCalculationContract } from "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
+
 
 /**
  * @author Superform Labs
@@ -24,9 +25,15 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
         uint256[] memory weights,
         uint256 totalCurrentAllocation,
         uint256 totalAllocationTarget
-    ) public pure returns (uint256 res) {
+    ) public pure returns (uint256 res, bool isSuccess) {
         if (currentAllocation.length != allocationTarget.length || currentAllocation.length != weights.length) {
+            // NOTE: This is a really corner a case that should never happen, this is why we let it revert even though in general we do not allow view and pure functions to revert. 
             revert INVALID_ARRAY_LENGTH();
+        }
+
+        // NOTE: This is to ensure we won't divide by zero in the subsequent calculations
+        if(totalCurrentAllocation == 0 || totalAllocationTarget == 0) {
+            return (0, false);
         }
 
         uint256 length = currentAllocation.length;
@@ -39,7 +46,7 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
             // Apply weight and maintain precision
             res += Math.mulDiv(diff2, weights[i], PRECISION);
         }
-        return res;
+        return (res, true);
     }
 
     /// @inheritdoc IIncentiveCalculationContract
@@ -52,26 +59,39 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
         uint256 totalAllocationPostOperation,
         uint256 totalAllocationTarget,
         uint256 energyToUSDExchangeRatio
-    ) public pure returns (int256 incentiveUSD) {
+    ) public pure returns (int256 incentiveUSD, bool isSuccess) {
         if (allocationPreOperation.length != allocationPostOperation.length || allocationPreOperation.length != allocationTarget.length) {
             revert INVALID_ARRAY_LENGTH();
         }
 
-        uint256 energyBefore = energy(
+        uint256 energyBefore;
+        uint256 energyAfter;
+        bool _isSuccess;
+
+        (energyBefore, _isSuccess) = energy(
             allocationPreOperation, 
             allocationTarget, 
             weights,
             totalAllocationPreOperation, 
             totalAllocationTarget
             );
-        uint256 energyAfter = energy(
+
+        if (!_isSuccess) {
+            return (0, false);
+        }
+
+        (energyAfter, _isSuccess) = energy(
             allocationPostOperation, 
             allocationTarget, 
             weights,
             totalAllocationPostOperation, 
             totalAllocationTarget
             );
-        
+
+        if (!_isSuccess) {
+            return (0, false);
+        }
+
         // Calculate energy difference first
         int256 energyDiff = int256(energyBefore) - int256(energyAfter);
         
@@ -81,5 +101,6 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
         } else {
             incentiveUSD = -int256(Math.mulDiv(uint256(-energyDiff), energyToUSDExchangeRatio, PRECISION));
         }
+        return (incentiveUSD, true);
     }
 }

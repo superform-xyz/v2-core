@@ -85,13 +85,16 @@ import { PendleRouterRedeemHook } from "../src/core/hooks/swappers/pendle/Pendle
 // -- oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { SuperOracle } from "../src/periphery/oracles/SuperOracle.sol";
 import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { PendlePTYieldSourceOracle } from "../src/core/accounting/oracles/PendlePTYieldSourceOracle.sol";
+import { SpectraPTYieldSourceOracle } from "../src/core/accounting/oracles/SpectraPTYieldSourceOracle.sol";
 import { StakingYieldSourceOracle } from "../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
+import { SuperOracle } from "../src/periphery/oracles/SuperOracle.sol";
 
 // SuperVault
 
 import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
 contract DeployV2 is Script, Configuration {
@@ -124,6 +127,7 @@ contract DeployV2 is Script, Configuration {
         address superMerkleValidator;
         address superDestinationValidator;
         address superNativePaymaster;
+        address ecdsappsOracle;
     }
 
     struct HookAddresses {
@@ -365,6 +369,18 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, SUPER_VAULT_AGGREGATOR_KEY),
             abi.encodePacked(type(SuperVaultAggregator).creationCode, abi.encode(deployedContracts.superGovernor))
         );
+
+        deployedContracts.ecdsappsOracle = __deployContract(
+            deployer,
+            ECDSAPPS_ORACLE_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, ECDSAPPS_ORACLE_KEY),
+            abi.encodePacked(type(ECDSAPPSOracle).creationCode, abi.encode(address(deployedContracts.superGovernor)))
+        );
+
+        SuperGovernor(deployedContracts.superGovernor).setActivePPSOracle(address(deployedContracts.ecdsappsOracle));
+        SuperGovernor(deployedContracts.superGovernor).addValidator(configuration.validator);
+
         // Deploy Hooks
         HookAddresses memory hookAddresses = _deployHooks(deployer, chainId);
 
@@ -743,7 +759,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (address[] memory oracleAddresses)
     {
-        uint256 len = 4;
+        uint256 len = 6;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         oracleAddresses = new address[](len);
 
@@ -757,6 +773,12 @@ contract DeployV2 is Script, Configuration {
             ERC7540_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(ERC7540YieldSourceOracle).creationCode)
         );
         oracles[3] = OracleDeployment(
+            PENDLE_PT_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(PendlePTYieldSourceOracle).creationCode)
+        );
+        oracles[4] = OracleDeployment(
+            SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(SpectraPTYieldSourceOracle).creationCode)
+        );
+        oracles[5] = OracleDeployment(
             STAKING_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(StakingYieldSourceOracle).creationCode)
         );
 

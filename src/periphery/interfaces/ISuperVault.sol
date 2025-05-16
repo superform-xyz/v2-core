@@ -3,7 +3,7 @@ pragma solidity >=0.8.28;
 
 /// @title ISuperVault
 /// @notice Interface for SuperVault core contract that manages share minting
-/// @author SuperForm Labs
+/// @author Superform Labs
 interface ISuperVault {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS

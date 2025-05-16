@@ -16,7 +16,7 @@ contract IncentiveCalculationContractTest is Helpers {
         calculator = new IncentiveCalculationContract();
     }
 
-    function test_Energy_NormalCase() public {
+    function test_Energy_NormalCase() public view {
         uint256[] memory currentAllocation = new uint256[](3);
         currentAllocation[0] = 300e18; // 30%
         currentAllocation[1] = 500e18; // 50%
@@ -35,7 +35,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalCurrentAllocation = 1000e18;
         uint256 totalAllocationTarget = 1000e18;
 
-        uint256 energy = calculator.energy(
+        (uint256 energy, bool isSuccess) = calculator.energy(
             currentAllocation,
             allocationTarget,
             weights,
@@ -43,12 +43,14 @@ contract IncentiveCalculationContractTest is Helpers {
             totalAllocationTarget
         );
 
+        assertEq(isSuccess, true, "isSuccess should be true");
+
         // Expected result:
         // (30-40)^2 * 1 + (50-40)^2 * 1 + (20-20)^2 * 1 = 200 * PRECISION
         assertEq(energy, 200 * PRECISION);
     }
 
-    function test_Energy_ZeroAllocations() public {
+    function test_Energy_ZeroAllocations() public view {
         uint256[] memory currentAllocation = new uint256[](2);
         currentAllocation[0] = 0;
         currentAllocation[1] = 0;
@@ -61,14 +63,14 @@ contract IncentiveCalculationContractTest is Helpers {
         weights[0] = PRECISION;
         weights[1] = PRECISION;
 
-        uint256 energy = calculator.energy(
+        (uint256 energy, bool isSuccess) = calculator.energy(
             currentAllocation,
             allocationTarget,
             weights,
             1, // Avoid division by zero by using 1 as total when actual total is 0
             1
         );
-
+        assertEq(isSuccess, true, "isSuccess should be true");
         assertEq(energy, 0);
     }
 
@@ -87,7 +89,7 @@ contract IncentiveCalculationContractTest is Helpers {
         );
     }
 
-    function test_Energy_DifferentWeights() public {
+    function test_Energy_DifferentWeights() public view {
         uint256[] memory currentAllocation = new uint256[](2);
         currentAllocation[0] = 600e18; // 60%
         currentAllocation[1] = 400e18; // 40%
@@ -103,20 +105,21 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalCurrentAllocation = 1000e18;
         uint256 totalAllocationTarget = 1000e18;
 
-        uint256 energy = calculator.energy(
+        (uint256 energy, bool isSuccess) = calculator.energy(
             currentAllocation,
             allocationTarget,
             weights,
             totalCurrentAllocation,
             totalAllocationTarget
         );
+        assertEq(isSuccess, true, "isSuccess should be true");
 
         // Expected result:
         // (60-50)^2 * 2 + (40-50)^2 * 1 = 300 * PRECISION
         assertEq(energy, 300 * PRECISION);
     }
 
-    function test_CalculateIncentive_PositiveCase() public {
+    function test_CalculateIncentive_PositiveCase() public view {
         // Initial state: 60-40 split
         uint256[] memory allocationPreOperation = new uint256[](2);
         allocationPreOperation[0] = 600e18;
@@ -141,7 +144,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = 2 * PRECISION; // 2 USD per energy unit
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -151,6 +154,7 @@ contract IncentiveCalculationContractTest is Helpers {
             totalAllocationTarget,
             energyToUSDExchangeRatio
         );
+        assertEq(isSuccess, true, "isSuccess should be true");
 
         // Pre-operation energy: (60-50)^2 + (40-50)^2 = 200
         // Post-operation energy: (50-50)^2 + (50-50)^2 = 0
@@ -159,7 +163,7 @@ contract IncentiveCalculationContractTest is Helpers {
         assertEq(incentive, 400 * int256(PRECISION));
     }
 
-    function test_CalculateIncentive_NegativeCase() public {
+    function test_CalculateIncentive_NegativeCase() public view {
         // Initial state: 50-50 split (at target)
         uint256[] memory allocationPreOperation = new uint256[](2);
         allocationPreOperation[0] = 500e18;
@@ -184,7 +188,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = 2 * PRECISION; // 2 USD per energy unit
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -194,6 +198,7 @@ contract IncentiveCalculationContractTest is Helpers {
             totalAllocationTarget,
             energyToUSDExchangeRatio
         );
+        assertEq(isSuccess, true, "isSuccess should be true");
 
         // Pre-operation energy: (50-50)^2 + (50-50)^2 = 0
         // Post-operation energy: (60-50)^2 + (40-50)^2 = 200
@@ -202,7 +207,7 @@ contract IncentiveCalculationContractTest is Helpers {
         assertEq(incentive, -400 * int256(PRECISION));
     }
 
-    function test_CalculateIncentive_NoChange() public {
+    function test_CalculateIncentive_NoChange() public view {
         // Both pre and post states: 60-40 split
         uint256[] memory allocationPreOperation = new uint256[](2);
         allocationPreOperation[0] = 600e18;
@@ -226,7 +231,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = 2 * PRECISION;
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -236,7 +241,7 @@ contract IncentiveCalculationContractTest is Helpers {
             totalAllocationTarget,
             energyToUSDExchangeRatio
         );
-
+        assertEq(isSuccess, true, "isSuccess should be true");
         // Pre-operation energy equals post-operation energy
         // Energy difference: 0
         // Incentive: 0 USD
@@ -262,7 +267,7 @@ contract IncentiveCalculationContractTest is Helpers {
         );
     }
 
-    function test_CalculateIncentive_DifferentWeights() public {
+    function test_CalculateIncentive_DifferentWeights() public view {
         // Initial state: 60-40 split
         uint256[] memory allocationPreOperation = new uint256[](2);
         allocationPreOperation[0] = 600e18;
@@ -287,7 +292,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = PRECISION; // 1 USD per energy unit
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -297,7 +302,7 @@ contract IncentiveCalculationContractTest is Helpers {
             totalAllocationTarget,
             energyToUSDExchangeRatio
         );
-
+        assertEq(isSuccess, true, "isSuccess should be true");
         // Pre-operation energy: (60-50)^2 * 2 + (40-50)^2 * 1 = 300
         // Post-operation energy: (50-50)^2 * 2 + (50-50)^2 * 1 = 0
         // Energy difference: 300
@@ -305,7 +310,7 @@ contract IncentiveCalculationContractTest is Helpers {
         assertEq(incentive, 300 * int256(PRECISION));
     }
 
-    function test_CalculateIncentive_DifferentTotalAllocations() public {
+    function test_CalculateIncentive_DifferentTotalAllocations() public view {
         // Initial state: total = 1000, 60-40 split
         uint256[] memory allocationPreOperation = new uint256[](2);
         allocationPreOperation[0] = 600e18;
@@ -330,7 +335,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = PRECISION;
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -340,12 +345,13 @@ contract IncentiveCalculationContractTest is Helpers {
             totalAllocationTarget,
             energyToUSDExchangeRatio
         );
+        assertEq(isSuccess, true, "isSuccess should be true");
 
         // Energy should be the same before and after since percentages didn't change
         assertEq(incentive, 0);
     }
 
-    function test_CalculateIncentive_SmallChange() public {
+    function test_CalculateIncentive_SmallChange() public view {
         // Initial state: Slightly off 50-50
         uint256[] memory allocationPreOperation = new uint256[](2);
         allocationPreOperation[0] = 501e18;
@@ -370,7 +376,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = PRECISION;
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -380,6 +386,7 @@ contract IncentiveCalculationContractTest is Helpers {
             totalAllocationTarget,
             energyToUSDExchangeRatio
         );
+        assertEq(isSuccess, true, "isSuccess should be true");
 
         // Small positive incentive since we improved slightly
         assertTrue(incentive > 0);
@@ -387,7 +394,7 @@ contract IncentiveCalculationContractTest is Helpers {
         assertTrue(incentive < int256(PRECISION)); // Less than 1 USD
     }
 
-    function test_CalculateIncentive_LargeValues() public {
+    function test_CalculateIncentive_LargeValues() public view {
         // Initial state: Far from target with large values
         uint256[] memory allocationPreOperation = new uint256[](2);
         allocationPreOperation[0] = 900e18;
@@ -412,7 +419,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = PRECISION;
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -422,6 +429,7 @@ contract IncentiveCalculationContractTest is Helpers {
             totalAllocationTarget,
             energyToUSDExchangeRatio
         );
+        assertEq(isSuccess, true, "isSuccess should be true");
 
         // Pre-operation energy: (90-50)^2 + (10-50)^2 = 1600 + 1600 = 3200
         // Post-operation energy: (55-50)^2 + (45-50)^2 = 25 + 25 = 50
@@ -430,7 +438,7 @@ contract IncentiveCalculationContractTest is Helpers {
         assertEq(incentive, 3150 * int256(PRECISION));
     }
 
-    function test_CalculateIncentive_MultipleAssets() public {
+    function test_CalculateIncentive_MultipleAssets() public view {
         // Initial state with 5 assets
         uint256[] memory allocationPreOperation = new uint256[](5);
         allocationPreOperation[0] = 300e18; // 30%
@@ -467,7 +475,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = PRECISION;
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -477,6 +485,7 @@ contract IncentiveCalculationContractTest is Helpers {
             totalAllocationTarget,
             energyToUSDExchangeRatio
         );
+        assertEq(isSuccess, true, "isSuccess should be true");
 
         // Pre-operation energy: (30-20)^2 + (25-20)^2 + (20-20)^2 + (15-20)^2 + (10-20)^2 = 250
         // Post-operation energy: 0 (perfect alignment)
@@ -485,7 +494,7 @@ contract IncentiveCalculationContractTest is Helpers {
         assertEq(incentive, 250 * int256(PRECISION));
     }
 
-    function test_CalculateIncentive_ExtremeExchangeRatio() public {
+    function test_CalculateIncentive_ExtremeExchangeRatio() public view {
         uint256[] memory allocationPreOperation = new uint256[](2);
         allocationPreOperation[0] = 600e18;
         allocationPreOperation[1] = 400e18;
@@ -507,7 +516,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 extremeRatio = type(uint256).max / (200 * PRECISION); // Maximum safe ratio
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -517,6 +526,7 @@ contract IncentiveCalculationContractTest is Helpers {
             totalAllocationTarget,
             extremeRatio
         );
+        assertEq(isSuccess, true, "isSuccess should be true");
 
         // Should not overflow
         assertTrue(incentive > 0);
@@ -524,7 +534,7 @@ contract IncentiveCalculationContractTest is Helpers {
         assertEq(incentive, int256(Math.mulDiv(200 * PRECISION, extremeRatio, PRECISION)));
     }
 
-    function test_CalculateIncentive_MixedImprovements() public {
+    function test_CalculateIncentive_MixedImprovements() public view {
         // Initial state: 40-30-30
         uint256[] memory allocationPreOperation = new uint256[](3);
         allocationPreOperation[0] = 400e18;
@@ -553,7 +563,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = PRECISION;
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -563,6 +573,7 @@ contract IncentiveCalculationContractTest is Helpers {
             totalAllocationTarget,
             energyToUSDExchangeRatio
         );
+        assertEq(isSuccess, true, "isSuccess should be true");
 
         // Pre-operation energy:
         // Asset 1: (40-30)^2 * 1 = 100
@@ -580,7 +591,7 @@ contract IncentiveCalculationContractTest is Helpers {
         assertEq(incentive, 0);
     }
 
-    function test_CalculateIncentive_ZeroWeights() public {
+    function test_CalculateIncentive_ZeroWeights() public view {
         uint256[] memory allocationPreOperation = new uint256[](3);
         allocationPreOperation[0] = 400e18;
         allocationPreOperation[1] = 300e18;
@@ -606,7 +617,7 @@ contract IncentiveCalculationContractTest is Helpers {
         uint256 totalAllocationTarget = 1000e18;
         uint256 energyToUSDExchangeRatio = PRECISION;
 
-        int256 incentive = calculator.calculateIncentive(
+        (int256 incentive, bool isSuccess) = calculator.calculateIncentive(
             allocationPreOperation,
             allocationPostOperation,
             allocationTarget,
@@ -616,6 +627,7 @@ contract IncentiveCalculationContractTest is Helpers {
             totalAllocationTarget,
             energyToUSDExchangeRatio
         );
+        assertEq(isSuccess, true, "isSuccess should be true");
 
         // Only the third asset's deviation should contribute to the energy
         // Pre: (30-40)^2 * 1 = 100
@@ -624,7 +636,7 @@ contract IncentiveCalculationContractTest is Helpers {
         assertEq(incentive, 0);
     }
 
-    function test_CalculateIncentive_MaxValues() public {
+    function test_CalculateIncentive_MaxValues() public view {
         uint256[] memory allocationPreOperation = new uint256[](2);
         allocationPreOperation[0] = type(uint256).max / 2;
         allocationPreOperation[1] = type(uint256).max / 2;

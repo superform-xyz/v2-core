@@ -8,6 +8,7 @@ import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC
 import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import { ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import { IERC165 } from "openzeppelin-contracts/contracts/interfaces/IERC165.sol";
+import { ECDSA } from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // Interfaces
@@ -17,11 +18,15 @@ import { IERC7540Operator, IERC7540Redeem, IERC7741 } from "../../vendor/standar
 import { IERC7575 } from "../../vendor/standards/ERC7575/IERC7575.sol";
 import { ISuperVaultEscrow } from "../interfaces/ISuperVaultEscrow.sol";
 
+// Libraries
+import { AssetMetadataLib } from "../libraries/AssetMetadataLib.sol";
+
 /// @title SuperVault
-/// @author SuperForm Labs
+/// @author Superform Labs
 /// @notice SuperVault vault contract implementing ERC4626 with synchronous deposits and asynchronous redeems via
 /// ERC7540
 contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, ReentrancyGuard {
+    using AssetMetadataLib for address;
     using SafeERC20 for IERC20;
     using Math for uint256;
 
@@ -45,12 +50,12 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     bytes32 private _NAME_HASH;
     bytes32 private _VERSION_HASH;
     uint256 public deploymentChainId;
+    address public deploymentAddress;
     IERC20 private _asset;
     uint8 private _underlyingDecimals;
     ISuperVaultStrategy public strategy;
     address public escrow;
-
-    uint256 private constant PRECISION = 1e18;
+    uint256 public PRECISION;
 
     /// @inheritdoc IERC7540Operator
     mapping(address owner => mapping(address operator => bool)) public isOperator;
@@ -89,17 +94,17 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         if (asset_ == address(0)) revert INVALID_ASSET();
         if (strategy_ == address(0)) revert INVALID_STRATEGY();
         if (escrow_ == address(0)) revert INVALID_ESCROW();
-
         initialized = true;
 
         // Store name and symbol
         vaultName = name_;
         vaultSymbol = symbol_;
 
-        // Initialize asset and decimals
-        (bool success, uint8 assetDecimals) = _tryGetAssetDecimals(asset_);
-        _underlyingDecimals = success ? assetDecimals : 18;
+        // Set asset and precision
         _asset = IERC20(asset_);
+        (bool success, uint8 assetDecimals) = asset_.tryGetAssetDecimals();
+        _underlyingDecimals = success ? assetDecimals : 18;
+        PRECISION = 10 ** _underlyingDecimals;
         share = address(this);
         strategy = ISuperVaultStrategy(strategy_);
         escrow = escrow_;
@@ -108,6 +113,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         _NAME_HASH = keccak256(bytes(name_));
         _VERSION_HASH = keccak256(bytes("1"));
         deploymentChainId = block.chainid;
+        deploymentAddress = address(this);
         _DOMAIN_SEPARATOR = _calculateDomainSeparator();
     }
 
@@ -134,8 +140,6 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         uint256 currentPPS = strategy.getStoredPPS();
         if (currentPPS == 0) revert INVALID_PPS();
 
-        _checkSuperVaultCap(assets, currentPPS);
-
         shares = Math.mulDiv(assets, PRECISION, currentPPS, Math.Rounding.Floor);
         if (shares == 0) revert ZERO_AMOUNT();
 
@@ -158,8 +162,6 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
 
         assets = Math.mulDiv(shares, currentPPS, PRECISION, Math.Rounding.Ceil);
         if (assets == 0) revert ZERO_AMOUNT();
-
-        _checkSuperVaultCap(assets, currentPPS);
 
         _asset.safeTransferFrom(msg.sender, address(strategy), assets);
 
@@ -202,8 +204,8 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         // Forward to strategy
         strategy.handleOperation(controller, 0, 0, ISuperVaultStrategy.Operation.CancelRedeem);
 
-        // Return shares to user
-        ISuperVaultEscrow(escrow).returnShares(msg.sender, shares);
+        // Return shares to controller
+        ISuperVaultEscrow(escrow).returnShares(controller, shares);
 
         emit RedeemRequestCancelled(controller, msg.sender);
     }
@@ -287,12 +289,14 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
 
     /// @inheritdoc IERC7741
     function DOMAIN_SEPARATOR() public view virtual returns (bytes32) {
-        return block.chainid == deploymentChainId ? _DOMAIN_SEPARATOR : _calculateDomainSeparator();
+        return block.chainid == deploymentChainId && address(this) == deploymentAddress
+            ? _DOMAIN_SEPARATOR
+            : _calculateDomainSeparator();
     }
 
     /// @inheritdoc IERC7741
     function invalidateNonce(bytes32 nonce) external {
-        if (nonce == bytes32(0)) revert INVALID_NONCE();
+        if (nonce == bytes32(0) || _authorizations[msg.sender][nonce]) revert INVALID_NONCE();
         _authorizations[msg.sender][nonce] = true;
     }
 
@@ -330,11 +334,8 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     }
 
     /// @inheritdoc IERC4626
-    function maxDeposit(address) public view override returns (uint256) {
-        (uint256 cap,) = strategy.getConfigInfo();
-        if (cap == 0) return type(uint256).max;
-        uint256 currentAssets = totalAssets();
-        return (cap > currentAssets) ? cap - currentAssets : 0;
+    function maxDeposit(address) public pure override returns (uint256) {
+        return type(uint256).max;
     }
 
     /// @inheritdoc IERC4626
@@ -350,7 +351,9 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
 
     /// @inheritdoc IERC4626
     function maxRedeem(address owner) public view override returns (uint256) {
-        return maxWithdraw(owner).mulDiv(strategy.getAverageWithdrawPrice(owner), PRECISION, Math.Rounding.Ceil);
+        uint256 withdrawPrice = strategy.getAverageWithdrawPrice(owner);
+        if (withdrawPrice == 0) return 0;
+        return maxWithdraw(owner).mulDiv(PRECISION, withdrawPrice, Math.Rounding.Floor);
     }
 
     /// @inheritdoc IERC4626
@@ -477,19 +480,6 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         if (controller != msg.sender && !isOperator[controller][msg.sender]) revert INVALID_CONTROLLER();
     }
 
-    function _checkSuperVaultCap(uint256 assetsToDeposit, uint256 currentPPS) internal view {
-        (uint256 cap,) = strategy.getConfigInfo();
-        if (cap > 0) {
-            uint256 supply = totalSupply();
-            if (supply == 0) return;
-            uint256 currentAssets = Math.mulDiv(supply, currentPPS, PRECISION, Math.Rounding.Floor);
-
-            if (currentAssets + assetsToDeposit > cap) {
-                revert CAP_EXCEEDED();
-            }
-        }
-    }
-
     function _calculateDomainSeparator() internal view returns (bytes32) {
         return keccak256(
             abi.encode(
@@ -502,39 +492,9 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         );
     }
 
-    /// @notice Verify an EIP712 signature
+    /// @notice Verify an EIP712 signature using OpenZeppelin's ECDSA library
     function _isValidSignature(address signer, bytes32 digest, bytes memory signature) internal pure returns (bool) {
-        if (signature.length != 65) return false;
-
-        bytes32 r;
-        bytes32 s;
-        uint8 v;
-
-        assembly {
-            r := mload(add(signature, 0x20))
-            s := mload(add(signature, 0x40))
-            v := byte(0, mload(add(signature, 0x60)))
-        }
-
-        if (v < 27) v += 27;
-        if (v != 27 && v != 28) return false;
-
-        address recoveredSigner = ecrecover(digest, v, r, s);
-        return recoveredSigner != address(0) && recoveredSigner == signer;
-    }
-
-    /**
-     * @dev Attempts to fetch the asset decimals. A return value of false indicates that the attempt failed in some way.
-     */
-    function _tryGetAssetDecimals(address asset_) private view returns (bool ok, uint8 assetDecimals) {
-        (bool success, bytes memory encodedDecimals) =
-            address(asset_).staticcall(abi.encodeCall(IERC20Metadata.decimals, ()));
-        if (success && encodedDecimals.length >= 32) {
-            uint256 returnedDecimals = abi.decode(encodedDecimals, (uint256));
-            if (returnedDecimals <= type(uint8).max) {
-                return (true, uint8(returnedDecimals));
-            }
-        }
-        return (false, 0);
+        address recoveredSigner = ECDSA.recover(digest, signature);
+        return recoveredSigner == signer;
     }
 }

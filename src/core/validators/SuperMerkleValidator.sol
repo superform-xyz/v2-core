@@ -52,7 +52,9 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
 
         // Validate
         bool isValid = _isSignatureValid(signer, _userOp.sender, sigData.validUntil);
-        if (isValid) {
+
+        // store only if destination proof exists and sig is valid
+        if (isValid && sigData.proofDst.length > 0) {
             // we check only the signature validity here
             //    merkle tree was checked already in `_processSignatureAndVerifyLeaf` and reverts if invalid
             _storeSignature(uint256(uint160(_userOp.sender)), _userOp.signature);

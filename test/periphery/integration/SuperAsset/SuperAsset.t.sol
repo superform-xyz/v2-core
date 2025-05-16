@@ -73,13 +73,13 @@ contract SuperAssetTest is Helpers {
         // Deploy mock tokens and vault
         underlyingToken1 = new MockERC20("Underlying Token1", "UTKN1", 18);
         tokenIn = new Mock4626Vault(
-            IERC20(address(underlyingToken1)),
+            address(underlyingToken1),
             "Vault Token",
             "vTKN"
         );
         underlyingToken2 = new MockERC20("Underlying Token2", "UTKN2", 18);
         tokenOut = new Mock4626Vault(
-            IERC20(address(underlyingToken2)),
+            address(underlyingToken2),
             "Vault Token",
             "vTKN"
         );
@@ -365,6 +365,7 @@ contract SuperAssetTest is Helpers {
 
         (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit, bool isSuccess) = 
             superAsset.previewDeposit(address(tokenIn), depositAmount, false);
+        assertEq(isSuccess, false, "isSuccess should be false, because of zero initial allocation");
 
         console.log("test_BasicDepositSimple() Preview");
         console.log("Amount Shares Minted:", expAmountSharesMinted);

@@ -14,7 +14,7 @@ import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperDestinationExecutor } from "../src/core/interfaces/ISuperDestinationExecutor.sol";
 
-// Superform contracts
+// Superform contracts coded
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
 import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
@@ -146,6 +146,7 @@ import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "./mocks/MockRegistry.sol";
 
 import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 
 import { BaseHook } from "../src/core/hooks/BaseHook.sol";
 import { MockSuperExecutor } from "./mocks/MockSuperExecutor.sol";
@@ -223,6 +224,7 @@ struct Addresses {
     SuperGovernor superGovernor;
     SuperNativePaymaster superNativePaymaster;
     SuperVaultAggregator superVaultAggregator;
+    ECDSAPPSOracle ecdsappsOracle;
     ISuperExecutor superExecutorWithSPLock;
     MockTargetExecutor mockTargetExecutor;
     MockBaseHook mockBaseHook; // this is needed for all tests which we need to use executeWithoutHookRestrictions
@@ -334,6 +336,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
         STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
         EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
+        VALIDATOR = _deployAccount(VALIDATOR_KEY, "VALIDATOR");
 
         // Setup forks
         _preDeploymentSetup();
@@ -573,6 +576,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             A[i].superVaultAggregator = new SuperVaultAggregator(address(A[i].superGovernor));
             vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
             contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
+
+            A[i].ecdsappsOracle = new ECDSAPPSOracle(address(A[i].superGovernor));
+            vm.label(address(A[i].ecdsappsOracle), ECDSAPPS_ORACLE_KEY);
+            contractAddresses[chainIds[i]][ECDSAPPS_ORACLE_KEY] = address(A[i].ecdsappsOracle);
+
+            A[i].superGovernor.setActivePPSOracle(address(A[i].ecdsappsOracle));
+            A[i].superGovernor.addValidator(VALIDATOR);
         }
         return A;
     }
@@ -1511,9 +1521,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         polymerProvers[ETH] = CHAIN_1_POLYMER_PROVER;
         vm.label(polymerProvers[ETH], "PolymerProverETH");
         polymerProvers[OP] = CHAIN_10_POLYMER_PROVER;
-        vm.label(polymerProvers[OP], "PolymerProverOP");
+        // vm.label(polymerProvers[OP], "PolymerProverOP");
         polymerProvers[BASE] = CHAIN_8453_POLYMER_PROVER;
-        vm.label(polymerProvers[BASE], "PolymerProverBASE");
+        // vm.label(polymerProvers[BASE], "PolymerProverBASE");
 
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
@@ -1577,12 +1587,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             existingVaults[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_WETH_CORE_KEY][WETH_KEY],
             MORPHO_GAUNTLET_WETH_CORE_KEY
         );
-        existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY] =
-            CHAIN_8453_MorphoGauntletWETHCore;
-        vm.label(
-            existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY],
-            AAVE_BASE_WETH
-        );
+        existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY] = CHAIN_8453_MorphoGauntletWETHCore;
+        vm.label(existingVaults[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY], AAVE_BASE_WETH);
 
         /// @dev 7540 real centrifuge vaults on mainnet
         existingVaults[ETH][ERC7540FullyAsync_KEY][CENTRIFUGE_USDC_VAULT_KEY][USDC_KEY] = CHAIN_1_CentrifugeUSDC;

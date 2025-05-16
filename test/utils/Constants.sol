@@ -19,6 +19,7 @@ abstract contract Constants {
     uint256 public constant TREASURY_KEY = 0x8;
     uint256 public constant SUPER_BUNDLER_KEY = 0x9;
     uint256 public constant BANK_MANAGER_KEY = 0x10;
+    uint256 public constant VALIDATOR_KEY = 0x11;
 
     // RBAC ids
     bytes32 public constant ROLES_ID = keccak256("ROLES");
@@ -257,4 +258,5 @@ abstract contract Constants {
 
     // periphery
     string public constant SUPER_VAULT_AGGREGATOR_KEY = "SUPER_VAULT_AGGREGATOR";
+    string public constant ECDSAPPS_ORACLE_KEY = "ECDSAPPS_ORACLE";
 }

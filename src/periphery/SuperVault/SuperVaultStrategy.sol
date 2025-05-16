@@ -28,9 +28,8 @@ import { ISuperGovernor, FeeType } from "../interfaces/ISuperGovernor.sol";
 import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
 
 /// @title SuperVaultStrategy
-/// @author SuperForm Labs
-/// @notice Strategy implementation for SuperVault that manages yield sources, executes strategies, and uses optimistic
-/// PPS.
+/// @author Superform Labs
+/// @notice Strategy implementation for SuperVault that executes strategies
 contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -40,12 +39,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
     uint256 private constant ONE_HUNDRED_PERCENT = 10_000;
     uint256 private constant ONE_WEEK = 7 days;
-    uint256 private constant PRECISION = 1e18;
     uint256 private constant BPS_PRECISION = 10_000; // For PPS deviation check
     uint256 private constant TOLERANCE_CONSTANT = 10 wei;
 
     // Slippage tolerance in BPS (1%)
     uint256 private constant SV_SLIPPAGE_TOLERANCE_BPS = 100;
+
+    uint256 public PRECISION;
 
     /*//////////////////////////////////////////////////////////////
                                 STATE
@@ -56,7 +56,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     uint8 private _vaultDecimals;
 
     // Global configuration
-    uint256 private superVaultCap;
 
     // Fee configuration
     FeeConfig private feeConfig;
@@ -85,29 +84,21 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                             INITIALIZATION
     //////////////////////////////////////////////////////////////*/
-    function initialize(
-        address vault_,
-        address superGovernor_,
-        uint256 superVaultCap_,
-        FeeConfig memory feeConfig_
-    )
-        external
-    {
+    function initialize(address vault_, address superGovernor_, FeeConfig memory feeConfig_) external {
         if (_initialized) revert ALREADY_INITIALIZED();
         if (vault_ == address(0)) revert INVALID_VAULT();
         if (superGovernor_ == address(0)) revert ZERO_ADDRESS();
-        if (superVaultCap_ == 0) revert INVALID_SUPER_VAULT_CAP();
         if (feeConfig.performanceFeeBps > 0 && feeConfig.recipient == address(0)) revert ZERO_ADDRESS();
 
         _initialized = true;
         _vault = vault_;
         _asset = IERC20(IERC4626(vault_).asset());
         _vaultDecimals = IERC20Metadata(vault_).decimals();
+        PRECISION = 10 ** _vaultDecimals;
         superGovernor = ISuperGovernor(superGovernor_);
-        superVaultCap = superVaultCap_;
         feeConfig = feeConfig_;
 
-        emit Initialized(_vault, superGovernor_, superVaultCap_);
+        emit Initialized(_vault, superGovernor_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -189,6 +180,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                         YIELD SOURCE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
+
+    // @inheritdoc ISuperVaultStrategy
     function manageYieldSource(
         address source,
         address oracle,
@@ -199,25 +192,34 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         external
     {
         _isPrimaryStrategist(msg.sender);
+        _manageYieldSource(source, oracle, actionType, activate, isAsync);
+    }
 
-        if (actionType == 0) {
-            _addYieldSource(source, oracle, isAsync);
-        } else if (actionType == 1) {
-            _updateYieldSourceOracle(source, oracle);
-        } else if (actionType == 2) {
-            _toggleYieldSourceActivation(source, activate);
-        } else {
-            revert ACTION_TYPE_DISALLOWED();
+    // @inheritdoc ISuperVaultStrategy
+    function manageYieldSources(
+        address[] calldata sources,
+        address[] calldata oracles,
+        uint8[] calldata actionTypes,
+        bool[] calldata activates,
+        bool[] calldata isAsyncs
+    )
+        external
+    {
+        _isPrimaryStrategist(msg.sender);
+
+        uint256 length = sources.length;
+        if (length == 0) revert ZERO_LENGTH();
+        if (oracles.length != length) revert INVALID_ARRAY_LENGTH();
+        if (actionTypes.length != length) revert INVALID_ARRAY_LENGTH();
+        if (activates.length != length) revert INVALID_ARRAY_LENGTH();
+        if (isAsyncs.length != length) revert INVALID_ARRAY_LENGTH();
+
+        for (uint256 i; i < length; ++i) {
+            _manageYieldSource(sources[i], oracles[i], actionTypes[i], activates[i], isAsyncs[i]);
         }
     }
 
-    function updateSuperVaultCap(uint256 superVaultCap_) external {
-        _isPrimaryStrategist(msg.sender);
-        if (superVaultCap_ == 0) revert INVALID_SUPER_VAULT_CAP();
-        superVaultCap = superVaultCap_;
-        emit SuperVaultCapUpdated(superVaultCap_);
-    }
-
+    // @inheritdoc ISuperVaultStrategy
     function proposeVaultFeeConfigUpdate(uint256 performanceFeeBps, address recipient) external {
         _isPrimaryStrategist(msg.sender);
         if (performanceFeeBps > ONE_HUNDRED_PERCENT) revert INVALID_PERFORMANCE_FEE_BPS();
@@ -227,6 +229,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         emit VaultFeeConfigProposed(performanceFeeBps, recipient, feeConfigEffectiveTime);
     }
 
+    // @inheritdoc ISuperVaultStrategy
     function executeVaultFeeConfigUpdate() external {
         if (block.timestamp < feeConfigEffectiveTime) revert INVALID_TIMESTAMP();
         if (proposedFeeConfig.recipient == address(0)) revert ZERO_ADDRESS();
@@ -236,6 +239,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         emit VaultFeeConfigUpdated(feeConfig.performanceFeeBps, feeConfig.recipient);
     }
 
+    // @inheritdoc ISuperVaultStrategy
     function manageEmergencyWithdraw(uint8 action, address recipient, uint256 amount) external {
         if (action == 1) {
             _proposeEmergencyWithdraw();
@@ -251,46 +255,112 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    // @inheritdoc ISuperVaultStrategy
     function isInitialized() external view returns (bool) {
         return _initialized;
     }
 
+    // @inheritdoc ISuperVaultStrategy
     function getVaultInfo() external view returns (address vault_, address asset_, uint8 vaultDecimals_) {
         vault_ = _vault;
         asset_ = address(_asset);
         vaultDecimals_ = _vaultDecimals;
     }
 
-    function getConfigInfo() external view returns (uint256 superVaultCap_, FeeConfig memory feeConfig_) {
-        superVaultCap_ = superVaultCap;
+    // @inheritdoc ISuperVaultStrategy
+    function getConfigInfo() external view returns (FeeConfig memory feeConfig_) {
         feeConfig_ = feeConfig;
     }
 
+    // @inheritdoc ISuperVaultStrategy
     function getStoredPPS() external view returns (uint256) {
         return _getSuperVaultAggregator().getPPS(address(this));
     }
 
+    // @inheritdoc ISuperVaultStrategy
     function getYieldSource(address source) external view returns (YieldSource memory) {
         return yieldSources[source];
     }
 
-    function getYieldSourcesList() external view returns (address[] memory) {
-        return yieldSourcesList;
+    // @inheritdoc ISuperVaultStrategy
+    function getYieldSourcesList() external view returns (YieldSourceInfo[] memory) {
+        uint256 length = yieldSourcesList.length;
+        YieldSourceInfo[] memory sourcesInfo = new YieldSourceInfo[](length);
+
+        for (uint256 i; i < length; ++i) {
+            address sourceAddress = yieldSourcesList[i];
+            YieldSource memory source = yieldSources[sourceAddress];
+
+            sourcesInfo[i] =
+                YieldSourceInfo({ sourceAddress: sourceAddress, oracle: source.oracle, isActive: source.isActive });
+        }
+
+        return sourcesInfo;
     }
 
+    // @inheritdoc ISuperVaultStrategy
     function pendingRedeemRequest(address controller) external view returns (uint256 pendingShares) {
         return superVaultState[controller].pendingRedeemRequest;
     }
 
+    // @inheritdoc ISuperVaultStrategy
     function claimableWithdraw(address controller) external view returns (uint256 claimableAssets) {
         return superVaultState[controller].maxWithdraw;
     }
 
+    // @inheritdoc ISuperVaultStrategy
     function getAverageWithdrawPrice(address controller) external view returns (uint256 averageWithdrawPrice) {
         return superVaultState[controller].averageWithdrawPrice;
     }
 
-    // PPS configuration is now managed by SuperVaultAggregator
+    // @inheritdoc ISuperVaultStrategy
+    function previewPerformanceFee(
+        address controller,
+        uint256 sharesToRedeem
+    )
+        external
+        view
+        returns (uint256 totalFee, uint256 superformFee, uint256 recipientFee)
+    {
+        if (sharesToRedeem == 0) return (0, 0, 0);
+
+        // Get controller's state
+        SuperVaultState storage state = superVaultState[controller];
+
+        // Check if controller has enough shares
+        if (sharesToRedeem > state.accumulatorShares) return (0, 0, 0);
+
+        // Get the current price per share
+        uint256 currentPPS = _getSuperVaultAggregator().getPPS(address(this));
+
+        // Calculate historical assets (cost basis)
+        uint256 historicalAssets = 0;
+        if (state.accumulatorShares > 0) {
+            historicalAssets =
+                sharesToRedeem.mulDiv(state.accumulatorCostBasis, state.accumulatorShares, Math.Rounding.Floor);
+        }
+
+        // Calculate current value of shares in asset terms
+        uint256 currentAssetsWithFees = sharesToRedeem.mulDiv(currentPPS, PRECISION, Math.Rounding.Floor);
+
+        // Calculate fee (if any) using same logic as _calculateAndTransferFee
+        if (currentAssetsWithFees > historicalAssets) {
+            uint256 profit = currentAssetsWithFees - historicalAssets;
+            uint256 performanceFeeBps = feeConfig.performanceFeeBps;
+            totalFee = profit.mulDiv(performanceFeeBps, BPS_PRECISION, Math.Rounding.Floor);
+
+            if (totalFee > 0) {
+                // Calculate Superform's portion of the fee using revenueShare from SuperGovernor
+                superformFee = totalFee.mulDiv(
+                    superGovernor.getFee(FeeType.SUPER_VAULT_PERFORMANCE_FEE), ONE_HUNDRED_PERCENT, Math.Rounding.Floor
+                );
+                recipientFee = totalFee - superformFee;
+            }
+        }
+
+        return (totalFee, superformFee, recipientFee);
+    }
 
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
@@ -405,17 +475,17 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         for (uint256 i; i < controllersLength; ++i) {
             SuperVaultState storage state = superVaultState[controllers[i]];
 
-            uint256 finalAssets =
+            uint256 currentAssets =
                 _calculateHistoricalAssetsAndProcessFees(state, controllerRequestedAmount[i], currentPPS);
 
             // Update user state, no partial redeems allowed
             state.pendingRedeemRequest -= controllerRequestedAmount[i];
-            state.maxWithdraw += finalAssets;
+            state.maxWithdraw += currentAssets;
 
             // Call vault callback
             _onRedeemClaimable(
                 controllers[i],
-                finalAssets,
+                currentAssets,
                 controllerRequestedAmount[i],
                 state.averageWithdrawPrice,
                 state.accumulatorShares,
@@ -434,20 +504,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         uint256 currentPricePerShare
     )
         private
-        returns (uint256 finalAssets)
+        returns (uint256 currentAssets)
     {
         // Calculate cost basis based on requested shares
         uint256 historicalAssets = _calculateCostBasis(state, requestedShares);
-
+        uint256 currentAssetsWithFees;
         // Process fees and get final assets
-        finalAssets = _processFees(requestedShares, currentPricePerShare, historicalAssets);
+        (currentAssetsWithFees, currentAssets) = _processFees(requestedShares, currentPricePerShare, historicalAssets);
 
         // Update average withdraw price if needed
         if (requestedShares > 0) {
-            _updateAverageWithdrawPrice(state, requestedShares, finalAssets);
+            _updateAverageWithdrawPrice(state, requestedShares, currentAssetsWithFees);
         }
 
-        return finalAssets;
+        return currentAssets;
     }
 
     /// @notice Calculate cost basis for requested shares using weighted average approach
@@ -478,28 +548,35 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         uint256 historicalAssets
     )
         private
-        returns (uint256 finalAssets)
+        returns (uint256 currentAssetsWithFees, uint256 currentAssets)
     {
         // Calculate current value of the shares at current price
-        uint256 currentValue = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor);
+        currentAssetsWithFees = requestedShares.mulDiv(currentPricePerShare, PRECISION, Math.Rounding.Floor);
 
         // Apply fees only on profit
-        finalAssets = _calculateAndTransferFee(currentValue, historicalAssets);
+        currentAssets = _calculateAndTransferFee(currentAssetsWithFees, historicalAssets);
 
         // Ensure we don't exceed available balance
         uint256 balanceOfStrategy = _getTokenBalance(address(_asset), address(this));
-        finalAssets = finalAssets > balanceOfStrategy ? balanceOfStrategy : finalAssets;
+        currentAssets = currentAssets > balanceOfStrategy ? balanceOfStrategy : currentAssets;
 
-        return finalAssets;
+        return (currentAssetsWithFees, currentAssets);
     }
 
     /// @notice Calculate fee on profit and transfer to recipient
-    /// @param currentAssets Current value of shares in assets
+    /// @param currentAssetsWithFees Current value of shares in assets (not net of fees)
     /// @param historicalAssets Historical value of shares in assets
-    /// @return uint256 Assets after fee deduction
-    function _calculateAndTransferFee(uint256 currentAssets, uint256 historicalAssets) private returns (uint256) {
-        if (currentAssets > historicalAssets) {
-            uint256 profit = currentAssets - historicalAssets;
+    /// @return currentAssets Current assets after fee deduction
+    function _calculateAndTransferFee(
+        uint256 currentAssetsWithFees,
+        uint256 historicalAssets
+    )
+        private
+        returns (uint256 currentAssets)
+    {
+        currentAssets = currentAssetsWithFees;
+        if (currentAssetsWithFees > historicalAssets) {
+            uint256 profit = currentAssetsWithFees - historicalAssets;
             uint256 performanceFeeBps = feeConfig.performanceFeeBps;
             uint256 totalFee = profit.mulDiv(performanceFeeBps, BPS_PRECISION, Math.Rounding.Floor);
             if (totalFee > 0) {
@@ -531,7 +608,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     function _updateAverageWithdrawPrice(
         SuperVaultState storage state,
         uint256 requestedShares,
-        uint256 finalAssets
+        uint256 currentAssetsWithFees
     )
         private
     {
@@ -544,7 +621,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         }
 
         uint256 newTotalShares = existingShares + requestedShares;
-        uint256 newTotalAssets = existingAssets + finalAssets;
+        uint256 newTotalAssets = existingAssets + currentAssetsWithFees;
 
         if (newTotalShares > 0) {
             state.averageWithdrawPrice = newTotalAssets.mulDiv(PRECISION, newTotalShares, Math.Rounding.Floor);
@@ -574,6 +651,32 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     }
 
     // --- End Internal Strategist Check Helpers ---
+
+    /// @notice Internal function to manage a yield source
+    /// @param source Address of the yield source
+    /// @param oracle Address of the oracle
+    /// @param actionType Type of action: 0=Add, 1=UpdateOracle, 2=ToggleActivation
+    /// @param activate Boolean flag for activation when actionType is 2
+    /// @param isAsync Boolean flag for async yield source
+    function _manageYieldSource(
+        address source,
+        address oracle,
+        uint8 actionType,
+        bool activate,
+        bool isAsync
+    )
+        internal
+    {
+        if (actionType == 0) {
+            _addYieldSource(source, oracle, isAsync);
+        } else if (actionType == 1) {
+            _updateYieldSourceOracle(source, oracle);
+        } else if (actionType == 2) {
+            _toggleYieldSourceActivation(source, activate);
+        } else {
+            revert ACTION_TYPE_DISALLOWED();
+        }
+    }
 
     function _addYieldSource(address source, address oracle, bool isAsync) internal {
         if (source == address(0) || oracle == address(0)) revert ZERO_ADDRESS();
@@ -723,13 +826,21 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (assetsToClaim == 0) revert INVALID_AMOUNT();
         if (controller == address(0)) revert ZERO_ADDRESS();
         SuperVaultState storage state = superVaultState[controller];
-        if (state.maxWithdraw < assetsToClaim) revert INVALID_REDEEM_CLAIM();
-        state.maxWithdraw -= assetsToClaim;
-        _asset.safeTransfer(controller, assetsToClaim);
-        emit RedeemRequestFulfilled(controller, controller, assetsToClaim, 0);
-        if (state.maxWithdraw == 0 && state.pendingRedeemRequest == 0) {
-            delete superVaultState[controller];
+
+        // Handle dust collection for rounding errors
+        uint256 actualAmountToClaim = assetsToClaim;
+        uint256 remainingAssets = _asset.balanceOf(address(this));
+
+        // If user is requesting slightly more than available due to rounding errors,
+        // and the difference is small (dust), give them the remaining balance
+        if (assetsToClaim > remainingAssets && assetsToClaim - remainingAssets <= TOLERANCE_CONSTANT) {
+            actualAmountToClaim = remainingAssets;
         }
+
+        if (state.maxWithdraw < actualAmountToClaim) revert INVALID_REDEEM_CLAIM();
+        state.maxWithdraw -= actualAmountToClaim;
+        _asset.safeTransfer(controller, actualAmountToClaim);
+        emit RedeemRequestFulfilled(controller, controller, actualAmountToClaim, 0);
     }
 
     function _safeTokenTransfer(address token, address recipient, uint256 amount) private {

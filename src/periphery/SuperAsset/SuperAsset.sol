@@ -338,6 +338,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         if (token == address(0)) revert ZERO_ADDRESS();
         if (isSupportedERC20[token]) revert ALREADY_WHITELISTED();
         isSupportedERC20[token] = true;
+        _supportedVaults.add(token);
         emit ERC20Whitelisted(token);
     }
 
@@ -346,6 +347,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         if (token == address(0)) revert ZERO_ADDRESS();
         if (!isSupportedERC20[token]) revert NOT_WHITELISTED();
         isSupportedERC20[token] = false;
+        _supportedVaults.remove(token);
         emit ERC20Removed(token);
     }
 
@@ -382,15 +384,16 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // NOTE: If token is not in the whitelist, consider it like if it was and add a corresponding target allocation of 0
         // NOTE: This means adding one slot to the arrays here 
-        s.extraSlot = (_supportedVaults.contains(token) ? 1 : 0);
-        s.length = _supportedVaults.length() + s.extraSlot;
+        s.extraSlot = (_supportedVaults.contains(token) ? 0 : 1);
+        s.length = _supportedVaults.length();
+        s.extendedLength = _supportedVaults.length() + s.extraSlot;
         absoluteAllocationPreOperation = new uint256[](s.length);
         absoluteAllocationPostOperation = new uint256[](s.length);
         absoluteTargetAllocation = new uint256[](s.length);
         vaultWeights = new uint256[](s.length);
 
-        for (uint256 i; i < s.length; i++) {
-            s.vault = _supportedVaults.at(i);
+        for (uint256 i; i < s.extendedLength; i++) {
+            s.vault = (i < s.length) ? _supportedVaults.at(i) : token;
             (s.priceUSD, s.isDepeg, s.isDispersion, s.isOracleOff) = getPriceWithCircuitBreakers(s.vault);
             if (!isSoft && (s.isDepeg || s.isDispersion || s.isOracleOff)) {
                 isSuccess = false;
@@ -419,8 +422,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             absoluteTargetAllocation[i] = targetAllocations[s.vault];
             totalTargetAllocation += absoluteTargetAllocation[i];
             vaultWeights[i] = weights[s.vault];
-            isSuccess = true;
         }
+        isSuccess = true;
     }
 
     /// @inheritdoc ISuperAsset
@@ -459,8 +462,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             s.allocations.isSuccess
         ) = getAllocationsPrePostOperation(tokenIn, int256(amountTokenToDeposit), isSoft);
 
+        // TODO: Handle the case where isSuccess is false
+
         // Calculate incentives (using ICC)
-        amountIncentiveUSD = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
+        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
             s.allocations.absoluteAllocationPreOperation,
             s.allocations.absoluteAllocationPostOperation,
             s.allocations.absoluteTargetAllocation,
@@ -504,8 +509,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             s.allocations.isSuccess
         ) = getAllocationsPrePostOperation(tokenOut, -int256(s.amountTokenOutBeforeFees), isSoft);
 
+        // TODO: Handle the case where isSuccess is false
+
         // Calculate incentives (using ICC)
-        amountIncentiveUSD = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
+        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
             s.allocations.absoluteAllocationPreOperation,
             s.allocations.absoluteAllocationPostOperation,
             s.allocations.absoluteTargetAllocation,

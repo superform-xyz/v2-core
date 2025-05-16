@@ -67,7 +67,6 @@ contract SuperGovernorTest is Helpers {
                 symbol: "SUP",
                 minUpdateInterval: 5,
                 maxStaleness: 300,
-                superVaultCap: 1e9,
                 feeConfig: ISuperVaultStrategy.FeeConfig({ performanceFeeBps: 1000, recipient: address(this) })
             })
         );

@@ -35,6 +35,26 @@ contract SpectraExchangeHookTest is Helpers {
         new SpectraExchangeHook(address(0));
     }
 
+    function test_UsePrevHookAmount() public view {
+        bytes memory commandsData = new bytes(1);
+        commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
+
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
+
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
+
+        bytes memory data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // yieldSource
+            uint8(0), // usePrevHookAmount = false
+            uint256(0), // value
+            txData
+        );
+
+        assertFalse(hook.decodeUsePrevHookAmount(data));
+    }
+
     function test_Build_DepositAssetInPT() public view {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
@@ -51,6 +71,7 @@ contract SpectraExchangeHookTest is Helpers {
             uint256(0), // value
             txData
         );
+        assertEq(hook.decodeUsePrevHookAmount(data), false);
 
         Execution[] memory executions = hook.build(address(0), account, data);
 
