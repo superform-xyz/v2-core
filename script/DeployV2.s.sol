@@ -444,9 +444,10 @@ contract DeployV2 is Script, Configuration {
 
         hooks[0] = HookDeployment(APPROVE_ERC20_HOOK_KEY, type(ApproveERC20Hook).creationCode);
         hooks[1] = HookDeployment(TRANSFER_ERC20_HOOK_KEY, type(TransferERC20Hook).creationCode);
-        hooks[2] = HookDeployment(BATCH_TRANSFER_FROM_HOOK_KEY, abi.encodePacked(
-                type(BatchTransferFromHook).creationCode, abi.encode(configuration.permit2s[chainId])
-            ));
+        hooks[2] = HookDeployment(
+            BATCH_TRANSFER_FROM_HOOK_KEY,
+            abi.encodePacked(type(BatchTransferFromHook).creationCode, abi.encode(configuration.permit2s[chainId]))
+        );
         hooks[3] = HookDeployment(DEPOSIT_4626_VAULT_HOOK_KEY, type(Deposit4626VaultHook).creationCode);
         hooks[4] =
             HookDeployment(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY, type(ApproveAndDeposit4626VaultHook).creationCode);
@@ -524,7 +525,8 @@ contract DeployV2 is Script, Configuration {
                 type(PendleRouterRedeemHook).creationCode, abi.encode(configuration.pendleRouters[chainId])
             )
         );
-        hooks[37] = HookDeployment(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(CancelDepositRequest7540Hook).creationCode);
+        hooks[37] =
+            HookDeployment(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(CancelDepositRequest7540Hook).creationCode);
         hooks[38] = HookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(CancelRedeemRequest7540Hook).creationCode);
         hooks[39] = HookDeployment(
             CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(ClaimCancelDepositRequest7540Hook).creationCode
@@ -609,10 +611,12 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[26].name, FLUID_UNSTAKE_HOOK_KEY) ? addresses[26] : address(0);
         hookAddresses.gearboxClaimRewardHook =
             Strings.equal(hooks[27].name, GEARBOX_CLAIM_REWARD_HOOK_KEY) ? addresses[27] : address(0);
-        hookAddresses.gearboxStakeHook = Strings.equal(hooks[28].name, GEARBOX_STAKE_HOOK_KEY) ? addresses[28] : address(0);
+        hookAddresses.gearboxStakeHook =
+            Strings.equal(hooks[28].name, GEARBOX_STAKE_HOOK_KEY) ? addresses[28] : address(0);
         hookAddresses.approveAndGearboxStakeHook =
             Strings.equal(hooks[29].name, GEARBOX_APPROVE_AND_STAKE_HOOK_KEY) ? addresses[29] : address(0);
-        hookAddresses.gearboxUnstakeHook = Strings.equal(hooks[30].name, GEARBOX_UNSTAKE_HOOK_KEY) ? addresses[30] : address(0);
+        hookAddresses.gearboxUnstakeHook =
+            Strings.equal(hooks[30].name, GEARBOX_UNSTAKE_HOOK_KEY) ? addresses[30] : address(0);
         hookAddresses.yearnClaimOneRewardHook =
             Strings.equal(hooks[31].name, YEARN_CLAIM_ONE_REWARD_HOOK_KEY) ? addresses[31] : address(0);
         hookAddresses.ethenaCooldownSharesHook =
