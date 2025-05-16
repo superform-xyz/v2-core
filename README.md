@@ -11,11 +11,26 @@ The protocol consists of the following components:
 - **Core System**: The primary business logic, interfaces, execution routines, accounting mechanisms, and validation components
 - **Periphery Contracts (OUT OF SCOPE)**: Suite of products built on top of the core contracts, such as SuperVaults
 
+## Repository Structure
+
+```
+src/
+├── core/               # Core protocol contracts
+│   ├── accounting/     # Accounting logic
+│   ├── adapters/       # Bridge implementations
+│   ├── executors/      # Execution logic contracts
+│   ├── hooks/          # Protocol hooks
+│   ├── interfaces/     # Contract interfaces
+│   ├── libraries/      # Shared libraries
+│   ├── paymaster/      # Native paymaster and gas tank contracts
+│   └── validators/     # Validation contract
+└── periphery/          # Periphery contracts (NOT IN SCOPE)
+└── vendor/             # Vendor contracts (NOT IN SCOPE)
+```
+
 ## Key Components
 
-### System Architecture Overview
-
-The following diagram illustrates how users interact with the Superform system and how the different components work together:
+The following diagram illustrates how users interact with the Superform system and how the different components work together.
 
 ```mermaid
 graph TD
@@ -41,10 +56,6 @@ graph TD
     end
     
     Accounting -->|Record balances in| Ledgers[SuperLedger]
-    
-    Monitoring[SuperScan/Monitoring] -.->|Tracks operations| SmartAccount
-    Monitoring -.->|Tracks execution| Executors
-    Monitoring -.->|Tracks balances| Accounting
 
     classDef userFacing fill:#f9f,stroke:#333,stroke-width:2px;
     classDef core fill:#bbf,stroke:#333,stroke-width:1px;
@@ -55,9 +66,8 @@ graph TD
     class Bridges,DestExecutors,DestValidators,Ledgers infra;
 ```
 
-#### User Interaction Flow
+### User Interaction Flow
 
-This sequence diagram illustrates how a user would interact with Superform to execute operations across chains:
 
 ```mermaid
 sequenceDiagram
@@ -97,94 +107,7 @@ sequenceDiagram
     Frontend->>User: Shows completed transaction status
 ```
 
-#### Component Layers
-
-The Superform architecture consists of several specialized layers that work together to enable seamless cross-chain operations:
-
-```mermaid
-graph TB
-    subgraph "User-Facing Layer"
-        Frontend[Superform Frontend]
-        SuperScan[SuperScan Monitoring]
-    end
-    
-    subgraph "Smart Account Layer"
-        SmartAccounts[ERC-7579 Smart Accounts]
-        SuperBundler[SuperBundler]
-    end
-    
-    subgraph "Execution Layer"
-        SuperExecutor[SuperExecutor]
-        SuperDestinationExecutor[SuperDestinationExecutor]
-        SuperHooks[SuperHooks System]
-    end
-    
-    subgraph "Validation Layer"
-        SuperMerkleValidator[SuperMerkleValidator]
-        SuperDestinationValidator[SuperDestinationValidator]
-        SignatureStorage[Signature Storage]
-    end
-    
-    subgraph "Accounting Layer"
-        SuperLedger[SuperLedger]
-        ERC5115Ledger[ERC5115 Ledger]
-        FlatFeeLedger[FlatFee Ledger]
-        LedgerConfig[SuperLedgerConfiguration]
-    end
-    
-    subgraph "Infrastructure Layer"
-        SuperRegistry[SuperRegistry]
-        BridgeAdapters[Bridge Adapters]
-        YieldSourceOracles[Yield Source Oracles]
-    end
-    
-    Frontend --> SmartAccounts
-    Frontend --> SuperScan
-    SmartAccounts --> SuperExecutor
-    SmartAccounts --> SuperDestinationExecutor
-    SuperBundler --> SmartAccounts
-    
-    SuperExecutor --> SuperMerkleValidator
-    SuperExecutor --> SuperHooks
-    SuperExecutor --> SuperLedger
-    
-    SuperDestinationExecutor --> SuperDestinationValidator
-    SuperDestinationExecutor --> SuperHooks
-    SuperDestinationExecutor --> SuperLedger
-    
-    SuperMerkleValidator --> SignatureStorage
-    SuperDestinationValidator --> SignatureStorage
-    
-    SuperLedger --> ERC5115Ledger
-    SuperLedger --> FlatFeeLedger
-    SuperLedger --> LedgerConfig
-    
-    SuperRegistry -.-> SuperExecutor
-    SuperRegistry -.-> SuperMerkleValidator
-    SuperRegistry -.-> SuperLedger
-    SuperRegistry -.-> BridgeAdapters
-    
-    SuperExecutor --> BridgeAdapters
-    BridgeAdapters --> SuperDestinationExecutor
-    
-    LedgerConfig --> YieldSourceOracles
-    
-    classDef userLayer fill:#f9c,stroke:#333,stroke-width:1px;
-    classDef accountLayer fill:#fcf,stroke:#333,stroke-width:1px;
-    classDef execLayer fill:#ccf,stroke:#333,stroke-width:1px;
-    classDef validLayer fill:#cff,stroke:#333,stroke-width:1px;
-    classDef accountingLayer fill:#cfc,stroke:#333,stroke-width:1px;
-    classDef infraLayer fill:#fcc,stroke:#333,stroke-width:1px;
-    
-    class Frontend,SuperScan userLayer;
-    class SmartAccounts,SuperBundler accountLayer;
-    class SuperExecutor,SuperDestinationExecutor,SuperHooks execLayer;
-    class SuperMerkleValidator,SuperDestinationValidator,SignatureStorage validLayer;
-    class SuperLedger,ERC5115Ledger,FlatFeeLedger,LedgerConfig accountingLayer;
-    class SuperRegistry,BridgeAdapters,YieldSourceOracles infraLayer;
-```
-
-#### Module Installation & Account Bootstrapping
+### Module Installation & Account Bootstrapping
 
 Smart accounts that interact with Superform must install four essential ERC7579 modules:
 
@@ -232,7 +155,7 @@ Key Points for Auditors:
 - Accounting Integration: After hook execution, it checks hook types and calls updateAccounting on the SuperLedger when
   required.
 
-#### Transient Storage Mechanism
+##### Transient Storage Mechanism
 
 Transient storage is used during the execution of a SuperExecutor transaction to temporarily hold state changes. This
 mechanism allows efficient inter-hook communication without incurring high gas costs associated with permanent storage
@@ -251,20 +174,18 @@ Key Points for Auditors:
 
 ### Validation Layer
 
-- **SuperValidatorBase**: Base contract providing core validation functionality used across all validator implementations, including signature validation and account ownership verification.
-
-- **SuperMerkleValidator**: A validator contract for ERC4337 entrypoint actions. It enables users to sign once for multiple user operations using merkle proofs, enhancing the chain abstraction experience.
-
-- **SuperDestinationValidator**: Validates cross-chain operation signatures for destination chain operations. It verifies merkle proofs and signatures to ensure only authorized operations are executed.
+SuperValidatorBase is the base contract providing core validation functionality used across all validator implementations, including signature validation and account ownership verification.
 
 #### SuperMerkleValidator and SuperDestinationValidator
 
 SuperMerkleValidator and SuperDestinationValidator are ERC7579-compliant modules used to validate operations through Merkle proof verification, ensuring only authorized operations are executed. They leverage a single owner signature over a Merkle root representing a batch of operations.
 
 SuperMerkleValidator:
+- Role: A validator contract for ERC4337 entrypoint actions. It enables users to sign once for multiple user operations using merkle proofs, enhancing the chain abstraction experience.
 - Usage: Designed for standard ERC-4337 `EntryPoint` interactions. Validates `UserOperation` hashes (`userOpHash`) provided within a Merkle proof, typically constructed by the SuperBundler. Implements `validateUserOp` and EIP-1271 `isValidSignatureWithSender`.
 
 SuperDestinationValidator:
+- Role: Validates cross-chain operation signatures for destination chain operations. It verifies merkle proofs and signatures to ensure only authorized operations are executed.
 - Usage: Specifically designed for validating operations executed *directly* on a destination chain via `SuperDestinationExecutor`, bypassing the ERC-4337 `EntryPoint`. Implements a custom `isValidDestinationSignature` method; `validateUserOp` and `isValidSignatureWithSender` are explicitly **not** implemented and will revert.
 - Merkle Leaf Contents: `keccak256(keccak256(abi.encode(callData, chainId, sender, executor, adapter, tokenSent, intentAmount, validUntil)))`. The leaf commits to the full context of the destination execution parameters.
 - Replay Protection:
@@ -381,23 +302,6 @@ Key Points for Auditors:
 
 Provides centralized address management for configuration and upgradeability.
 
-
-### Repository Structure
-
-```
-src/
-├── core/               # Core protocol contracts
-│   ├── accounting/     # Accounting logic
-│   ├── adapters/       # Bridge implementations
-│   ├── executors/      # Execution logic contracts
-│   ├── hooks/          # Protocol hooks
-│   ├── interfaces/     # Contract interfaces
-│   ├── libraries/      # Shared libraries
-│   ├── paymaster/      # Native paymaster and gas tank contracts
-│   └── validators/     # Validation contract
-└── periphery/         # Peripheral contracts such as SuperVaults (NOT IN SCOPE)
-```
-
 ## Development Setup
 
 ### Prerequisites
@@ -454,22 +358,11 @@ Supply your node rpc directly in the makefile and then
 make ftest
 ```
 
-
-## Edge Cases & Known Issues
+## Areas of Interest
 
 To ensure transparency and facilitate the audit process, the following points outline known issues and potential edge cases our team has identified:
 
-### Hook System
-
-**Issue**: If a hook is compromised, it can potentially manipulate the entire execution flow.
-
-- Mitigation:
-  - For extra safety, hooks are not allowed to target the SuperExecutor directly
-  - All hooks must be registered and go through validation checks
-
 ### Cross-Chain Execution
-
-#### Mechanism Overview
 
 Superform v2 implements a cross-chain execution mechanism using merkle trees and validator contracts to enable secure operations across different blockchains. This system allows users to sign a single transaction that can trigger actions across multiple chains.
 
@@ -491,9 +384,7 @@ graph TD
     Executor2 -->|Records in| Ledger2[SuperLedger Chain B]
     Executor3 -->|Records in| Ledger3[SuperLedger Chain C]
     
-    Executor1 -.->|Events tracked by| SuperScan[SuperScan]
-    Executor2 -.->|Events tracked by| SuperScan
-    Executor3 -.->|Events tracked by| SuperScan
+
     
     classDef userFacing fill:#f9f,stroke:#333,stroke-width:2px;
     classDef operations fill:#ffc,stroke:#333,stroke-width:1px;
@@ -505,7 +396,7 @@ graph TD
     class Chain1,Chain2,Chain3 operations;
     class Executor1,Executor2,Executor3 executors;
     class Ledger1,Ledger2,Ledger3 ledgers;
-    class SuperScan monitoring;
+
 ```
 
 **Core Components**:
@@ -553,9 +444,16 @@ graph TD
 - Reasonable expiration times for signed operations (typically 1 hour)
 - Comprehensive transaction status tracking in the frontend
 - Users should monitor the execution status of both source and destination transactions
-- The Superform frontend and SuperScan provide visibility into all pending and executed operations
+- The Superform frontend provides visibility into all pending and executed operations
 
----
+### Hook System
+
+**Issue**: If a hook is compromised, it can potentially manipulate the entire execution flow.
+
+- Mitigation:
+  - For extra safety, hooks are not allowed to target the SuperExecutor directly
+  - All hooks must be registered and go through validation checks
+
 
 ### SuperBundler Centralization
 
@@ -606,5 +504,3 @@ graph TD
 **Mitigation**:
 - For extra safety, hooks are not allowed to target the SuperExecutor directly
 - All hook executions are validated for proper sequencing and authorization
-
----
