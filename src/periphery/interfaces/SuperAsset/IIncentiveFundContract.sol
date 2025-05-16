@@ -103,8 +103,11 @@ interface IIncentiveFundContract {
     /// @notice Thrown when amount is zero
     error ZERO_AMOUNT();
 
-    /// @notice Thrown when incentive token is not configured
-    error TOKEN_NOT_CONFIGURED();
+    /// @notice Thrown when tokenOut is not configured
+    error TOKEN_OUT_NOT_SET();
+
+    /// @notice Thrown when tokenIn is not configured
+    error TOKEN_IN_NOT_SET();
 
     /// @notice Thrown when any circuit breaker is triggered during price check
     error CIRCUIT_BREAKER_TRIGGERED();
