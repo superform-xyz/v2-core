@@ -24,7 +24,7 @@ src/
 │   ├── libraries/      # Shared libraries
 │   ├── paymaster/      # Native paymaster and gas tank contracts
 │   └── validators/     # Validation contract
-└── periphery/          # Periphery contracts (NOT IN SCOPE)
+├── periphery/          # Periphery contracts (NOT IN SCOPE)
 └── vendor/             # Vendor contracts (NOT IN SCOPE)
 ```
 
@@ -61,13 +61,17 @@ graph TD
     classDef core fill:#bbf,stroke:#333,stroke-width:1px;
     classDef infra fill:#bfb,stroke:#333,stroke-width:1px;
     
-    class User,Frontend,Monitoring userFacing;
+    class User,Frontend userFacing;
     class SmartAccount,Executors,Validators,Accounting,Hooks,Registry core;
     class Bridges,DestExecutors,DestValidators,Ledgers infra;
 ```
 
 ### User Interaction Flow
 
+Smart accounts that interact with Superform must install four essential ERC7579 modules:
+
+- SuperExecutor / SuperDestinationExecutor: Installs hooks and executes operations.
+- SuperMerkleValidator / SuperDestinationValidator: Validates userOps against a Merkle root.
 
 ```mermaid
 sequenceDiagram
@@ -107,20 +111,11 @@ sequenceDiagram
     Frontend->>User: Shows completed transaction status
 ```
 
-### Module Installation & Account Bootstrapping
-
-Smart accounts that interact with Superform must install four essential ERC7579 modules:
-
-- SuperExecutor / SuperDestinationExecutor:
-  - Installs hooks and executes operations.
-- SuperMerkleValidator / SuperDestinationValidator:
-  - Validates userOps against a Merkle root.
-
 ### Execution Layer
 
 #### Hooks
 
-Hooks are Lightweight, modular contracts that perform specific operations (e.g., token approvals, transfers) during an execution flow. Hooks are designed to be composable and can be chained together to create complex transaction flows. If any hook fails, the entire transaction is reverted, ensuring atomicity.
+Hooks are lightweight, modular contracts that perform specific operations (e.g., token approvals, transfers) during an execution flow. Hooks are designed to be composable and can be chained together to create complex transaction flows. If any hook fails, the entire transaction is reverted, ensuring atomicity.
 
 Key Points for Auditors:
 
@@ -230,7 +225,7 @@ Key Points for Auditors:
 
 #### YieldSourceOracles
 
-The system uses a dedicated on-chain oracle system to compute the price per share for accounting.Specialized oracles exist for different vault standards (ERC4626, ERC5115, ERC7540, etc.) that provide accurate price data and TVL information.
+The system uses a dedicated on-chain oracle system to compute the price per share for accounting. Specialized oracles exist for different vault standards (ERC4626, ERC5115, ERC7540, etc.) that provide accurate price data and TVL information.
 
 ### Infrastructure
 
@@ -256,7 +251,7 @@ Bundler Operation
 
 #### Adapters
 
-Adapter are a set of gateway contracts that handle the acceptance of relayed messages and trigger execution on destination chains via 7579 SuperDestinationExecutor.
+Adapters are a set of gateway contracts that handle the acceptance of relayed messages and trigger execution on destination chains via 7579 SuperDestinationExecutor.
 
 Key Points for Auditors:
 
@@ -281,8 +276,7 @@ Key Points for Auditors:
 
 #### SuperNativePaymaster
 
-Definition & Role: SuperNativePaymaster is a specialized paymaster contract that wraps around the ERC4337 EntryPoint, enabling users to pay for operations using erc20 tokens from any chain, on demand. It's primarily used by SuperBundler for gas sponsoring. This is necessary because of the Superbundler's unique fee collection
-mechanism where userOps are executed on user behalf and when required.
+Definition & Role: SuperNativePaymaster is a specialized paymaster contract that wraps around the ERC4337 EntryPoint. It enables users to pay for operations using ERC20 tokens from any chain, on demand. It's primarily used by SuperBundler for gas sponsoring. This functionality is necessary because of the SuperBundler's unique fee collection mechanism where userOps are executed on user behalf and when required.
 
 Key Points for Auditors:
 
@@ -384,8 +378,6 @@ graph TD
     Executor2 -->|Records in| Ledger2[SuperLedger Chain B]
     Executor3 -->|Records in| Ledger3[SuperLedger Chain C]
     
-
-    
     classDef userFacing fill:#f9f,stroke:#333,stroke-width:2px;
     classDef operations fill:#ffc,stroke:#333,stroke-width:1px;
     classDef executors fill:#ccf,stroke:#333,stroke-width:1px;
@@ -420,7 +412,6 @@ graph TD
    - Each merkle root is tracked per user to prevent replay attacks
    - Operations can only be executed once per merkle root per user
 
-#### Known Issues
 
 **Issue 1**: Source chain transaction failures don't automatically invalidate destination chain operations.
 
