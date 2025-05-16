@@ -669,7 +669,7 @@ abstract contract InternalHelpers {
             data = bytes.concat(data, abi.encodePacked(amounts[i]));
         }
 
-        data = bytes.concat(data, abi.encodePacked(sig));
+        data = bytes.concat(data, sig);
     }
 
     function _createTransferERC20HookData(

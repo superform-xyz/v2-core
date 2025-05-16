@@ -92,7 +92,7 @@ contract BatchTransferFromHook is BaseHook {
             details[i] = IAllowanceTransfer.PermitDetails({
                 token: token,
                 amount: uint160(amount),
-                expiration: uint48(block.timestamp + 2 weeks),
+                expiration: uint48(sigDeadline),
                 nonce: uint48(0)
             });
         }
