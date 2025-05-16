@@ -9,23 +9,41 @@ import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedger
 
 /// @title SuperLedgerConfiguration
 /// @author Superform Labs
-/// @notice Configuration for SuperLedger
+/// @notice Configuration management contract for yield source oracles and ledgers
+/// @dev Manages oracle configurations, fee settings, and governance of changes
+///      Implements a proposal-acceptance pattern for configuration changes
+///      Provides role-based access control for managers of different yield sources
 contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    /// @notice Yield source oracle configurations
+    /// @notice Current active yield source oracle configurations
+    /// @dev Maps from oracle ID to its configuration including oracle address, fees, and management info
     mapping(bytes4 yieldSourceOracleId => YieldSourceOracleConfig config) private yieldSourceOracleConfig;
-    /// @notice Yield source oracle configurations proposals
+    
+    /// @notice Proposed yield source oracle configurations pending acceptance
+    /// @dev Stores proposed configuration changes that must be accepted after a timelock period
     mapping(bytes4 yieldSourceOracleId => YieldSourceOracleConfig config) private yieldSourceOracleConfigProposals;
-    /// @notice Yield source oracle configurations proposal expiration time
+    
+    /// @notice Timestamps for when proposals can be accepted
+    /// @dev Implements timelock period for configuration changes to allow for review
     mapping(bytes4 yieldSourceOracleId => uint256 proposalExpirationTime) private
         yieldSourceOracleConfigProposalExpirationTime;
-    /// @notice Pending manager for yield source oracle
+    
+    /// @notice Addresses nominated to receive manager role transfers
+    /// @dev Used in the two-step process for transferring management rights
     mapping(bytes4 => address) private pendingManager;
 
+    /// @notice Maximum allowed fee percentage (50% = 5000 basis points)
+    /// @dev Used to prevent setting excessive fees
     uint256 internal constant MAX_FEE_PERCENT = 5000;
-    uint256 internal constant MAX_FEE_PERCENT_CHANGE = 5000; //50% of current fee percent
+    
+    /// @notice Maximum allowed fee percentage change (50% = 5000 basis points)
+    /// @dev Limits how much fees can be increased or decreased in a single proposal
+    uint256 internal constant MAX_FEE_PERCENT_CHANGE = 5000; 
+    
+    /// @notice Duration of the timelock period for configuration proposals
+    /// @dev After this period elapses, proposals can be accepted
     uint256 internal constant PROPOSAL_EXPIRATION_TIME = 1 weeks;
 
     /*//////////////////////////////////////////////////////////////

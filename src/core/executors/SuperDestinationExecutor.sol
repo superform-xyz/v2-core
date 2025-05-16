@@ -23,29 +23,35 @@ import { ISuperDestinationValidator } from "../interfaces/ISuperDestinationValid
 
 /// @title SuperDestinationExecutor
 /// @author Superform Labs
-/// @notice Generic executor for destination chains of Superform, processing bridged executions.
-/// @notice This contract acts as the core logic gateway for receiving funds (via Adapters)
-/// @notice and executing associated user operations validated by a SuperDestinationValidator.
-/// @dev Receives calls from Adapter contracts (e.g., AcrossV3Adapter) via `processBridgedExecution`.
-/// @dev Handles account creation, nonce management, signature validation, and execution forwarding.
+/// @notice Generic executor for destination chains of Superform, processing bridged executions
+/// @dev Implements ISuperDestinationExecutor for receiving funds via Adapters and executing validated cross-chain operations
+///      Handles account creation, signature validation, and execution forwarding
 contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecutor {
     using SafeERC20 for IERC20;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+    /// @notice Address of the validator contract used to verify cross-chain signatures
+    /// @dev Used to validate signatures in the processBridgedExecution method
     address public immutable superDestinationValidator;
+    
+    /// @notice Factory contract used to create new smart accounts when needed
+    /// @dev Creates deterministic smart accounts during cross-chain operations
     INexusFactory public immutable nexusFactory;
 
-    // Track used merkle roots per user
+    /// @notice Tracks which merkle roots have been used by each user address
+    /// @dev Prevents replay attacks by ensuring each merkle root can only be used once per user
     mapping(address user => mapping(bytes32 merkleRoot => bool used)) public usedMerkleRoots;
 
-    // https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
+    /// @notice Magic value returned by ERC-1271 contracts when a signature is valid
+    /// @dev From EIP-1271 standard: https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
     bytes4 constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
 
-    // @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays + the 4
-    // bytes of the `execute` function selector
-    // @dev saves decoding gas
+    /// @notice Length of an empty execution data structure
+    /// @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays
+    ///      plus the 4 bytes of the `execute` function selector
+    ///      Used to check if actual hook execution data is present without full decoding
     uint256 constant EMPTY_EXECUTION_LENGTH = 228;
 
     /*//////////////////////////////////////////////////////////////
@@ -60,6 +66,10 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
+    /// @notice Initializes the SuperDestinationExecutor with required references
+    /// @param ledgerConfiguration_ Address of the ledger configuration contract for fee calculations
+    /// @param superDestinationValidator_ Address of the validator contract used to verify cross-chain messages
+    /// @param nexusFactory_ Address of the account factory used to create new smart accounts
     constructor(
         address ledgerConfiguration_,
         address superDestinationValidator_,
@@ -67,7 +77,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     )
         SuperExecutorBase(ledgerConfiguration_)
     {
-        // Updated constructor validation
+        // Validate critical contract references
         if (superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
@@ -78,11 +88,13 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperExecutor
     function name() external pure override returns (string memory) {
         // Updated name
         return "SuperDestinationExecutor";
     }
 
+    /// @inheritdoc ISuperExecutor
     function version() external pure override returns (string memory) {
         return "0.0.1";
     }

@@ -10,18 +10,26 @@ import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/Mes
 import { SuperValidatorBase } from "./SuperValidatorBase.sol";
 
 /// @title SuperDestinationValidator
-/// @dev Can't be used for ERC-1271 validation
 /// @author Superform Labs
-/// @notice A destination validator contract
+/// @notice Validates cross-chain operation signatures for destination chain operations
+/// @dev Handles signature verification and merkle proof validation for cross-chain messages
+///      Cannot be used for standard ERC-1271 validation (those methods revert with NOT_IMPLEMENTED)
 contract SuperDestinationValidator is SuperValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+    /// @notice Structure representing data specific to a destination chain operation
+    /// @dev Contains all necessary data to validate and execute a cross-chain operation
     struct DestinationData {
+        /// @notice The encoded call data to be executed
         bytes callData;
+        /// @notice The destination chain ID where execution should occur
         uint64 chainId;
+        /// @notice The account that should execute the operation
         address sender;
+        /// @notice The executor contract address that handles the operation
         address executor;
+        /// @notice The minimum token amount required for execution
         uint256 intentAmount;
     }
 
@@ -75,14 +83,19 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Creates a unique leaf hash for merkle tree verification
+    /// @dev Overrides the base implementation to handle destination-specific data
+    ///      `executor` is included in the leaf to ensure that the leaf is unique for each executor,
+    ///      otherwise it would allow the owner's signature to be replayed if the account mistakenly
+    ///      installs two of the same executors
+    /// @param data Encoded destination data containing execution details
+    /// @param validUntil Timestamp after which the signature becomes invalid
+    /// @return The calculated leaf hash used in merkle tree verification
     function _createLeaf(bytes memory data, uint48 validUntil) internal pure override returns (bytes32) {
         DestinationData memory destinationData = abi.decode(data, (DestinationData));
-        /// @dev `executor` is included in the leaf to ensure that the leaf is unique for each executor
-        ///      otherwise it allows the owner's signature to be replayed if the account mistakenly installs two of the
-        ///      same executors
-        /// @dev `destinationData.initData` is not included because it is not needed for the leaf
-        ///       If precomputed account is != than the executing account, the entire execution reverts before this method is called
-        ///       Check `SuperDestinationExecutor` for more details.
+        // Note: destinationData.initData is not included because it is not needed for the leaf.
+        // If precomputed account is != than the executing account, the entire execution reverts
+        // before this method is called. Check SuperDestinationExecutor for more details.
         return keccak256(
             bytes.concat(
                 keccak256(
@@ -99,6 +112,12 @@ contract SuperDestinationValidator is SuperValidatorBase {
         );
     }
 
+    /// @notice Validates a signature based on signer identity and expiration time
+    /// @dev Overrides the base implementation to check both ownership and expiration
+    /// @param signer The address that signed the message (recovered from signature)
+    /// @param sender The smart account address that should execute the operation
+    /// @param validUntil Timestamp after which the signature becomes invalid
+    /// @return True if the signer is the account owner and signature hasn't expired
     function _isSignatureValid(
         address signer,
         address sender,
@@ -115,6 +134,13 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Processes a signature and verifies it against a merkle proof
+    /// @dev Verifies that the leaf is part of the merkle tree specified by the root
+    ///      and recovers the signer's address from the signature
+    /// @param sigData Signature data including merkle root, proofs, and actual signature
+    /// @param destinationData The destination execution data to create the leaf hash from
+    /// @return signer The address that signed the message
+    /// @return leaf The computed leaf hash used in merkle verification
     function _processSignatureAndVerifyLeaf(
         SignatureData memory sigData,
         DestinationData memory destinationData
@@ -123,16 +149,22 @@ contract SuperDestinationValidator is SuperValidatorBase {
         pure
         returns (address signer, bytes32 leaf)
     {
-        // Verify leaf and root are valid
+        // Create leaf from destination data and verify against merkle root using the proof
         leaf = _createLeaf(abi.encode(destinationData), sigData.validUntil);
         if (!MerkleProof.verify(sigData.proofDst, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
-        // Get signer
+        // Recover signer from signature using standard Ethereum signature recovery
         bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
         signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
     }
 
+    /// @notice Decodes and validates raw destination data
+    /// @dev Checks that the sender and chain ID match current execution context
+    ///      to prevent replay attacks across accounts or chains
+    /// @param destinationDataRaw ABI-encoded destination data bytes
+    /// @param sender_ Expected sender address to validate against
+    /// @return Structured DestinationData for further processing
     function _decodeDestinationData(
         bytes memory destinationDataRaw,
         address sender_
@@ -149,8 +181,15 @@ contract SuperDestinationValidator is SuperValidatorBase {
             uint256 intentAmount
         ) = abi.decode(destinationDataRaw, (bytes, uint64, address, address, uint256));
         if (sender_ != decodedSender) revert INVALID_SENDER();
-        if (chainId != block.chainid) revert INVALID_CHAIN_ID();
-        return DestinationData(callData, chainId, decodedSender, executor, intentAmount);
+        if (chainId != uint64(block.chainid)) revert INVALID_CHAIN_ID();
+
+        return DestinationData({
+            callData: callData,
+            chainId: chainId,
+            sender: decodedSender,
+            executor: executor,
+            intentAmount: intentAmount
+        });
     }
 
     function _decodeSignatureAndDestinationData(
