@@ -182,7 +182,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
 
     function _validateBalances(address account, address[] memory dstTokens, uint256[] memory intentAmounts) private returns (bool) {
         uint256 len = dstTokens.length;
-        for (uint256 i = 0; i < len; i++) {
+        for (uint256 i; i < len; i++) {
             address _token = dstTokens[i];
             uint256 _intentAmount = intentAmounts[i];
 

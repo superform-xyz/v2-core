@@ -39,7 +39,6 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
     address public immutable spokePoolV3;
     address private immutable _validator;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 216;
-    uint8 private constant MAX_INTENT_COUNT = 10;
 
     struct AcrossV3DepositAndExecuteData {
         uint256 value;

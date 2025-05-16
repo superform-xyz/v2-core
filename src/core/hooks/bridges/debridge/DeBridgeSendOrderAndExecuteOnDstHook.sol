@@ -76,7 +76,6 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     address public immutable dlnSource;
     address private immutable _validator;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
-    uint8 private constant MAX_INTENT_COUNT = 10;
 
     constructor(address dlnSource_, address validator_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (dlnSource_ == address(0) || validator_ == address(0)) revert ADDRESS_NOT_VALID();
