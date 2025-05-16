@@ -6,9 +6,6 @@ pragma solidity ^0.8.28;
  * @notice Interface for IncentiveFundContract which manages incentive tokens in the SuperAsset system
  */
 interface IIncentiveFundContract {
-    /// @notice Role identifier for incentive fund manager
-    function INCENTIVE_FUND_MANAGER() external view returns (bytes32);
-
     /// @notice The token users send incentives to
     function tokenInIncentive() external view returns (address);
 
@@ -19,8 +16,9 @@ interface IIncentiveFundContract {
      * @notice Initializes the IncentiveFundContract
      * @param superAsset_ Address of the SuperAsset contract
      * @param assetBank_ Address of the AssetBank contract
+     * @param superGovernor_ Address of the SuperGovernor contract
      */
-    function initialize(address superAsset_, address assetBank_) external;
+    function initialize(address superAsset_, address assetBank_, address superGovernor_) external;
 
     /**
      * @notice Pays incentives to a receiver

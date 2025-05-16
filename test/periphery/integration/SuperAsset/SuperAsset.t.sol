@@ -185,7 +185,7 @@ contract SuperAssetTest is Helpers {
         console.log("AssetBank deployed");
 
         // Deploy and initialize IncentiveFund
-        incentiveFund = new IncentiveFundContract(admin);
+        incentiveFund = new IncentiveFundContract(admin, address(superGovernor));
         console.log("IncentiveFund deployed");
 
         // Initialize SuperAsset
@@ -202,7 +202,7 @@ contract SuperAssetTest is Helpers {
         console.log("SuperAsset initialized");
 
         // Initialize IncentiveFund after SuperAsset is initialized
-        incentiveFund.initialize(address(superAsset), address(assetBank));
+        incentiveFund.initialize(address(superAsset), address(assetBank), address(superGovernor));
 
         // Setup roles and configuration
         superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), admin);
@@ -215,7 +215,7 @@ contract SuperAssetTest is Helpers {
         assertEq(superAsset.isSupportedERC20(address(superAsset)), true, "SuperAsset should be whitelisted");
 
         // Grant necessary roles
-        bytes32 INCENTIVE_FUND_MANAGER = incentiveFund.INCENTIVE_FUND_MANAGER();
+        bytes32 INCENTIVE_FUND_MANAGER = superGovernor.INCENTIVE_FUND_MANAGER();
         incentiveFund.grantRole(INCENTIVE_FUND_MANAGER, manager);
         superGovernor.grantRole(superGovernor.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
         superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));

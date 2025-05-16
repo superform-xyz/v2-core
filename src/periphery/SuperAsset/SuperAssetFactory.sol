@@ -46,7 +46,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
         ));
 
         superAssetImplementation = address(new SuperAsset());
-        incentiveFundImplementation = address(new IncentiveFundContract(admin));
+        incentiveFundImplementation = address(new IncentiveFundContract(admin, superGovernor));
 
         // Deploy single instances
         assetBank = address(new AssetBank(admin, superGovernor));
@@ -82,7 +82,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
         );
 
         // Initialize IncentiveFund
-        IncentiveFundContract(incentiveFund).initialize(superAsset, assetBank);
+        IncentiveFundContract(incentiveFund).initialize(superAsset, assetBank, superGovernor);
 
         // Return addresses (using existing instances for ICC and AssetBank)
         assetBank_ = assetBank;

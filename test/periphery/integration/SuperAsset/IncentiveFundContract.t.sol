@@ -148,7 +148,7 @@ contract IncentiveFundContractTest is Helpers {
 
         assetBank = new AssetBank(admin, address(superGovernor));
 
-        incentiveFund = new IncentiveFundContract(admin);
+        incentiveFund = new IncentiveFundContract(admin, address(superGovernor));
         vm.stopPrank();
 
         superAsset = new SuperAsset();
@@ -174,7 +174,7 @@ contract IncentiveFundContractTest is Helpers {
         superAsset.whitelistERC20(address(tokenOut));
 
         // Initialize IncentiveFundContract after SuperAsset is set up
-        incentiveFund.initialize(address(superAsset), address(assetBank));
+        incentiveFund.initialize(address(superAsset), address(assetBank), address(superGovernor));
 
         // Setup roles for each contract
         bytes32 INCENTIVE_FUND_MANAGER = superGovernor.INCENTIVE_FUND_MANAGER();
@@ -234,18 +234,18 @@ contract IncentiveFundContractTest is Helpers {
 
     function test_Initialize_RevertIfAlreadyInitialized() public {
         vm.expectRevert(IIncentiveFundContract.ALREADY_INITIALIZED.selector);
-        incentiveFund.initialize(address(superAsset), address(assetBank));
+        incentiveFund.initialize(address(superAsset), address(assetBank), address(superGovernor));
         vm.stopPrank();
     }
 
     function test_Initialize_RevertIfZeroAddress() public {
         vm.startPrank(admin);
-        IncentiveFundContract newContract = new IncentiveFundContract(admin);
+        IncentiveFundContract newContract = new IncentiveFundContract(admin, address(superGovernor));
         vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
-        newContract.initialize(address(0), address(assetBank));
+        newContract.initialize(address(0), address(assetBank), address(superGovernor));
 
         vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
-        newContract.initialize(address(superAsset), address(0));
+        newContract.initialize(address(superAsset), address(0), address(superGovernor));
         vm.stopPrank();
     }
 
@@ -293,7 +293,7 @@ contract IncentiveFundContractTest is Helpers {
         vm.startPrank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.INCENTIVE_FUND_MANAGER()
+                IAccessControl.AccessControlUnauthorizedAccount.selector, user, superGovernor.INCENTIVE_FUND_MANAGER()
             )
         );
         incentiveFund.payIncentive(user, 100e18);
@@ -325,7 +325,7 @@ contract IncentiveFundContractTest is Helpers {
         vm.startPrank(user);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.INCENTIVE_FUND_MANAGER()
+                IAccessControl.AccessControlUnauthorizedAccount.selector, user, superGovernor.INCENTIVE_FUND_MANAGER()
             )
         );
         incentiveFund.takeIncentive(user, 100e18);

@@ -8,6 +8,8 @@ import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 import "../interfaces/SuperAsset/ISuperAsset.sol";
+import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
+
 
 /**
  * @author Superform Labs
@@ -22,30 +24,36 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
 
     // --- Constants ---
     /// @notice Role identifier for incentive fund manager
-    bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
+    // bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
+    bytes32 public constant SUPER_GOVERNOR = keccak256("SUPER_GOVERNOR");
 
     // --- State Variables ---
     address public tokenInIncentive;
     address public tokenOutIncentive;
     ISuperAsset public superAsset;
     address public assetBank;
+    ISuperGovernor public superGovernor;
 
     // --- Constructor ---
-    constructor(address admin) {
+    constructor(address admin, address _superGovernor) {
+        if (admin == address(0) || _superGovernor == address(0)) revert ZERO_ADDRESS();
+        superGovernor = ISuperGovernor(_superGovernor);
         _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        _grantRole(INCENTIVE_FUND_MANAGER, admin);
+        // _grantRole(INCENTIVE_FUND_MANAGER, admin);
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function initialize(address superAsset_, address assetBank_) external {
+    function initialize(address superAsset_, address assetBank_, address superGovernor_) external {
         // Ensure this can only be called once
         if (address(superAsset) != address(0)) revert ALREADY_INITIALIZED();
 
         if (superAsset_ == address(0)) revert ZERO_ADDRESS();
         if (assetBank_ == address(0)) revert ZERO_ADDRESS();
+        if (superGovernor_ == address(0)) revert ZERO_ADDRESS();
 
         superAsset = ISuperAsset(superAsset_);
         assetBank = assetBank_;
+        superGovernor = ISuperGovernor(superGovernor_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -66,7 +74,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function payIncentive(address receiver, uint256 amountUSD) external onlyRole(INCENTIVE_FUND_MANAGER) {
+    function payIncentive(address receiver, uint256 amountUSD) external onlyRole(superGovernor.INCENTIVE_FUND_MANAGER()) {
         _validateInput(receiver, amountUSD);
         if (tokenOutIncentive == address(0)) revert TOKEN_OUT_NOT_SET();
 
@@ -87,7 +95,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function takeIncentive(address sender, uint256 amountUSD) external onlyRole(INCENTIVE_FUND_MANAGER) {
+    function takeIncentive(address sender, uint256 amountUSD) external onlyRole(superGovernor.INCENTIVE_FUND_MANAGER()) {
         _validateInput(sender, amountUSD);
         if (tokenInIncentive == address(0)) revert TOKEN_IN_NOT_SET();
 
@@ -108,7 +116,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function withdraw(address receiver, address tokenOut, uint256 amount) external onlyRole(INCENTIVE_FUND_MANAGER) {
+    function withdraw(address receiver, address tokenOut, uint256 amount) external onlyRole(superGovernor.INCENTIVE_FUND_MANAGER()) {
         _validateInput(receiver, amount);
         if (tokenOut == address(0)) revert ZERO_ADDRESS();
 
