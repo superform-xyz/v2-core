@@ -312,7 +312,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     string public OPTIMISM_RPC_URL = vm.envString(OPTIMISM_RPC_URL_KEY); // Native token: ETH
     string public BASE_RPC_URL = vm.envString(BASE_RPC_URL_KEY); // Native token: ETH
 
-    bool constant DEBUG = false;
+    bool constant DEBUG = true;
 
     string constant DEFAULT_ACCOUNT = "NEXUS";
 
@@ -1235,42 +1235,44 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
             console2.log("Registering hooks for chain", chainIds[i]);
             if (DEBUG) {
-                console2.log(address(A[i].deposit4626VaultHook));
-                console2.log(address(A[i].redeem4626VaultHook));
-                console2.log(address(A[i].approveAndRedeem4626VaultHook));
-                console2.log(address(A[i].deposit5115VaultHook));
-                console2.log(address(A[i].redeem5115VaultHook));
-                console2.log(address(A[i].requestDeposit7540VaultHook));
-                console2.log(address(A[i].requestRedeem7540VaultHook));
-                console2.log(address(A[i].approveAndDeposit4626VaultHook));
-                console2.log(address(A[i].approveAndDeposit5115VaultHook));
-                console2.log(address(A[i].approveAndRedeem5115VaultHook));
-                console2.log(address(A[i].approveAndRequestDeposit7540VaultHook));
-                console2.log(address(A[i].approveErc20Hook));
-                console2.log(address(A[i].transferErc20Hook));
-                console2.log(address(A[i].deposit7540VaultHook));
-                console2.log(address(A[i].withdraw7540VaultHook));
-                console2.log(address(A[i].approveAndRedeem7540VaultHook));
-                console2.log(address(A[i].swap1InchHook));
-                console2.log(address(A[i].swapOdosHook));
-                console2.log(address(A[i].approveAndSwapOdosHook));
-                console2.log(address(A[i].acrossSendFundsAndExecuteOnDstHook));
-                console2.log(address(A[i].fluidClaimRewardHook));
-                console2.log(address(A[i].fluidStakeHook));
-                console2.log(address(A[i].approveAndFluidStakeHook));
-                console2.log(address(A[i].fluidUnstakeHook));
-                console2.log(address(A[i].gearboxClaimRewardHook));
-                console2.log(address(A[i].gearboxStakeHook));
-                console2.log(address(A[i].approveAndGearboxStakeHook));
-                console2.log(address(A[i].gearboxUnstakeHook));
-                console2.log(address(A[i].yearnClaimOneRewardHook));
-                console2.log(address(A[i].ethenaCooldownSharesHook));
-                console2.log(address(A[i].ethenaUnstakeHook));
-                console2.log(address(A[i].cancelDepositRequest7540Hook));
-                console2.log(address(A[i].cancelRedeemRequest7540Hook));
-                console2.log(address(A[i].claimCancelDepositRequest7540Hook));
-                console2.log(address(A[i].claimCancelRedeemRequest7540Hook));
-                console2.log(address(A[i].cancelRedeemHook));
+                console2.log("deposit4626VaultHook", address(A[i].deposit4626VaultHook));
+                console2.log("redeem4626VaultHook", address(A[i].redeem4626VaultHook));
+                console2.log("approveAndRedeem4626VaultHook", address(A[i].approveAndRedeem4626VaultHook));
+                console2.log("deposit5115VaultHook", address(A[i].deposit5115VaultHook));
+                console2.log("redeem5115VaultHook", address(A[i].redeem5115VaultHook));
+                console2.log("requestDeposit7540VaultHook", address(A[i].requestDeposit7540VaultHook));
+                console2.log("requestRedeem7540VaultHook", address(A[i].requestRedeem7540VaultHook));
+                console2.log("approveAndDeposit4626VaultHook", address(A[i].approveAndDeposit4626VaultHook));
+                console2.log("approveAndDeposit5115VaultHook", address(A[i].approveAndDeposit5115VaultHook));
+                console2.log("approveAndRedeem5115VaultHook", address(A[i].approveAndRedeem5115VaultHook));
+                console2.log(
+                    "approveAndRequestDeposit7540VaultHook", address(A[i].approveAndRequestDeposit7540VaultHook)
+                );
+                console2.log("approveErc20Hook", address(A[i].approveErc20Hook));
+                console2.log("transferErc20Hook", address(A[i].transferErc20Hook));
+                console2.log("deposit7540VaultHook", address(A[i].deposit7540VaultHook));
+                console2.log("withdraw7540VaultHook", address(A[i].withdraw7540VaultHook));
+                console2.log("approveAndRedeem7540VaultHook", address(A[i].approveAndRedeem7540VaultHook));
+                console2.log("swap1InchHook", address(A[i].swap1InchHook));
+                console2.log("swapOdosHook", address(A[i].swapOdosHook));
+                console2.log("approveAndSwapOdosHook", address(A[i].approveAndSwapOdosHook));
+                console2.log("acrossSendFundsAndExecuteOnDstHook", address(A[i].acrossSendFundsAndExecuteOnDstHook));
+                console2.log("fluidClaimRewardHook", address(A[i].fluidClaimRewardHook));
+                console2.log("fluidStakeHook", address(A[i].fluidStakeHook));
+                console2.log("approveAndFluidStakeHook", address(A[i].approveAndFluidStakeHook));
+                console2.log("fluidUnstakeHook", address(A[i].fluidUnstakeHook));
+                console2.log("gearboxClaimRewardHook", address(A[i].gearboxClaimRewardHook));
+                console2.log("gearboxStakeHook", address(A[i].gearboxStakeHook));
+                console2.log("approveAndGearboxStakeHook", address(A[i].approveAndGearboxStakeHook));
+                console2.log("gearboxUnstakeHook", address(A[i].gearboxUnstakeHook));
+                console2.log("yearnClaimOneRewardHook", address(A[i].yearnClaimOneRewardHook));
+                console2.log("ethenaCooldownSharesHook", address(A[i].ethenaCooldownSharesHook));
+                console2.log("ethenaUnstakeHook", address(A[i].ethenaUnstakeHook));
+                console2.log("cancelDepositRequest7540Hook", address(A[i].cancelDepositRequest7540Hook));
+                console2.log("cancelRedeemRequest7540Hook", address(A[i].cancelRedeemRequest7540Hook));
+                console2.log("claimCancelDepositRequest7540Hook", address(A[i].claimCancelDepositRequest7540Hook));
+                console2.log("claimCancelRedeemRequest7540Hook", address(A[i].claimCancelRedeemRequest7540Hook));
+                console2.log("cancelRedeemHook", address(A[i].cancelRedeemHook));
             }
 
             // Register fulfillRequests hooks

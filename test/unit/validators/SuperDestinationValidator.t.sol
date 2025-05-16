@@ -12,14 +12,13 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 // Superform
 import { SuperDestinationValidator } from "../../../src/core/validators/SuperDestinationValidator.sol";
 import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
-import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
 import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance } from "modulekit/ModuleKit.sol";
 import { MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
 
-contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneModuleKit {
+contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 

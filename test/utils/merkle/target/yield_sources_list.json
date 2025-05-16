@@ -1,0 +1,56 @@
+{
+  "1": [
+    {
+      "symbol": "AaveVault",
+      "address": "0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6"
+    },
+    {
+      "symbol": "FluidVault",
+      "address": "0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33"
+    },
+    {
+      "symbol": "EulerVault",
+      "address": "0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9"
+    },
+    {
+      "symbol": "MorphoVault",
+      "address": "0xdd0f28e19C1780eb6396170735D45153D261490d"
+    },
+    {
+      "symbol": "CentrifugeUSDC",
+      "address": "0x1d01Ef1997d44206d839b78bA6813f60F1B3A970"
+    },
+    {
+      "symbol": "YearnVault",
+      "address": "0x028eC7330ff87667b6dfb0D94b954c820195336c"
+    },
+    {
+      "symbol": "PendleEthena",
+      "address": "0x3Ee118EFC826d30A29645eAf3b2EaaC9E8320185"
+    },
+    {
+      "symbol": "GearboxVault",
+      "address": "0xda00000035fef4082F78dEF6A8903bee419FbF8E"
+    }
+  ],
+  "10": [
+    {
+      "symbol": "AloeUSDC",
+      "address": "0x462654Cc90C9124A406080EadaF0bA349eaA4AF9"
+    }
+  ],
+  "8453": [
+    {
+      "symbol": "MorphoGauntletUSDCPrime",
+      "address": "0xeE8F4eC5672F09119b96Ab6fB59C27E1b7e44b61"
+    },
+    {
+      "symbol": "MorphoGauntletWETHCore",
+      "address": "0x6b13c060F13Af1fdB319F52315BbbF3fb1D88844"
+    },
+    {
+      "symbol": "AaveBaseWETH",
+      "address": "0x468973e3264F2aEba0417A8f2cD0Ec397E738898"
+    }
+  ]
+}
