@@ -98,9 +98,10 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
 
     /// @inheritdoc ISuperDestinationExecutor
     function processBridgedExecution(
-        address tokenSent,
+        address,
         address account,
-        uint256 intentAmount,
+        address[] memory dstTokens,
+        uint256[] memory intentAmounts,
         bytes memory initData,
         bytes memory executorCalldata,
         bytes memory userSignatureData
@@ -108,71 +109,35 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         external
         override
     {
-        // --- Account creation or validation ---
-        if (account.code.length > 0) {
-            string memory accountId = IERC7579Account(account).accountId();
-            if (bytes(accountId).length == 0) revert ADDRESS_NOT_ACCOUNT();
-        }
-        // @dev we need to create the account
-        if (initData.length > 0 && account.code.length == 0) {
-            (bytes memory factoryInitData, bytes32 salt) = abi.decode(initData, (bytes, bytes32));
-            address computedAddress = nexusFactory.createAccount(factoryInitData, salt);
-            if (account != computedAddress) revert INVALID_ACCOUNT();
-        }
+        account = _validateOrCreateAccount(account, initData);
 
-        // Account must exist at this point
-        if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
-
-        // Decode sigData to extract merkleRoot
-        (, bytes32 merkleRoot,,,) = abi.decode(userSignatureData, (uint48, bytes32, bytes32[],bytes32[], bytes));
+        bytes32 merkleRoot = _decodeMerkleRoot(userSignatureData);
 
         // --- Signature Validation ---
         // DestinationData encodes both the adapter (msg.sender) and the executor (address(this))
         //  this is useful to avoid replay attacks on a different group of executor <> sender (adapter)
         // Note: the msgs.sender doesn't necessarily match an adapter address
-        bytes memory destinationData =
-            abi.encode(executorCalldata, uint64(block.chainid), account, address(this), intentAmount);
+        bytes memory destinationData = abi.encode(
+            executorCalldata, uint64(block.chainid), account, address(this), dstTokens, intentAmounts
+        );
 
-        // The userSignatureData is passed directly from the adapter
         bytes4 validationResult = ISuperDestinationValidator(superDestinationValidator).isValidDestinationSignature(
             account, abi.encode(userSignatureData, destinationData)
         );
 
         if (validationResult != SIGNATURE_MAGIC_VALUE) revert INVALID_SIGNATURE();
 
-        // --- Balance Check ---
-        // Token transfer is handled by the callee *before* this call.
-        // We just check if the target account now has sufficient balance.
-        if (tokenSent == address(0)) {
-            if (intentAmount != 0 && account.balance < intentAmount) {
-                emit SuperDestinationExecutorReceivedButNotEnoughBalance(account);
-                return;
-            }
-        } else {
-            IERC20 token = IERC20(tokenSent);
-            if (intentAmount != 0 && token.balanceOf(account) < intentAmount) {
-                emit SuperDestinationExecutorReceivedButNotEnoughBalance(account);
-                return;
-            }
-        }
+        if (!_validateBalances(account, dstTokens, intentAmounts)) return;
 
-        // Check if merkleRoot has already been used
-        // Don't keep a nonce system anymore since roots are unique anyway
-        // Without a nonce, bundler doesn't need to query each chain for the latest nonce
-        // Also without a nonce, execution won't be blocked by a previous parallel execution which increased the nonce
         if (usedMerkleRoots[account][merkleRoot]) revert MERKLE_ROOT_ALREADY_USED();
         usedMerkleRoots[account][merkleRoot] = true;
 
-        // --- Execute User Operation ---
-        // Check if there's actual execution data to process
         if (executorCalldata.length <= EMPTY_EXECUTION_LENGTH) {
             emit SuperDestinationExecutorReceivedButNoHooks(account);
-            return; // Nothing to execute
+            return;
         }
 
-        // Prepare execution parameters
         Execution[] memory execs = new Execution[](1);
-        // Target is address(this) because SuperExecutorBase.execute handles the actual callData forwarding
         execs[0] = Execution({ target: address(this), value: 0, callData: executorCalldata });
 
         ModeCode modeCode = ERC7579ModeLib.encode({
@@ -182,17 +147,59 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
             payload: ModePayload.wrap(bytes22(0))
         });
 
-        // Execute via the target account's ERC7579 interface
         try IERC7579Account(account).executeFromExecutor(modeCode, ERC7579ExecutionLib.encodeBatch(execs)) {
             emit SuperDestinationExecutorExecuted(account);
         } catch Panic(uint256 errorCode) {
             emit SuperDestinationExecutorPanicFailed(account, errorCode);
         } catch Error(string memory reason) {
-            // Log failure but do not revert the state change (nonce increment)
             emit SuperDestinationExecutorFailed(account, reason);
         } catch (bytes memory lowLevelData) {
-            // Log low-level failure but do not revert the state change (nonce increment)
             emit SuperDestinationExecutorFailedLowLevel(account, lowLevelData);
         }
     }
+
+    function _validateOrCreateAccount(address account, bytes memory initData) internal returns (address) {
+        if (account.code.length > 0) {
+            string memory accountId = IERC7579Account(account).accountId();
+            if (bytes(accountId).length == 0) revert ADDRESS_NOT_ACCOUNT();
+        }
+
+        if (initData.length > 0 && account.code.length == 0) {
+            (bytes memory factoryInitData, bytes32 salt) = abi.decode(initData, (bytes, bytes32));
+            address computedAddress = nexusFactory.createAccount(factoryInitData, salt);
+            if (account != computedAddress) revert INVALID_ACCOUNT();
+        }
+
+        if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
+
+        return account;
+    }
+
+    function _decodeMerkleRoot(bytes memory userSignatureData) private pure returns (bytes32) {
+        (, bytes32 merkleRoot,,) = abi.decode(userSignatureData, (uint48, bytes32, bytes32[], bytes));
+        return merkleRoot;
+    }
+
+    function _validateBalances(address account, address[] memory dstTokens, uint256[] memory intentAmounts) private returns (bool) {
+        uint256 len = dstTokens.length;
+        for (uint256 i; i < len; i++) {
+            address _token = dstTokens[i];
+            uint256 _intentAmount = intentAmounts[i];
+
+            if (_token == address(0)) {
+                if (_intentAmount != 0 && account.balance < _intentAmount) {
+                    emit SuperDestinationExecutorReceivedButNotEnoughBalance(account, _token, _intentAmount, account.balance);
+                    return false;
+                }
+            } else {
+                uint256 _balance = IERC20(_token).balanceOf(account);
+                if (_intentAmount != 0 && _balance < _intentAmount) {
+                    emit SuperDestinationExecutorReceivedButNotEnoughBalance(account, _token, _intentAmount, _balance);
+                    return false;
+                }
+            }
+        }
+        return true;
+    }
+
 }

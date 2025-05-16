@@ -10,7 +10,7 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Deposit4626VaultHook
 /// @author Superform Labs
@@ -21,7 +21,7 @@ import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } fro
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
 /// @notice         address vaultBank = BytesLib.toAddress(data, 57);
 /// @notice         uint256 dstChainId = BytesLib.toUint256(data, 77);
-contract Deposit4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract Deposit4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
@@ -70,6 +70,13 @@ contract Deposit4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource()
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

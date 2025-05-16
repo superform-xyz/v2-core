@@ -30,7 +30,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
         address executor;
         address adapter;
         address tokenSent;
-        uint256 intentAmount;
+        address[] dstTokens;
+        uint256[] intentAmounts;
     }
 
     struct SignatureData {
@@ -173,7 +174,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.executor,
-            approveDestinationData.intentAmount,
+            approveDestinationData.dstTokens,
+            approveDestinationData.intentAmounts,
             validUntil
         );
         leaves[1] = _createDestinationValidatorLeaf(
@@ -181,7 +183,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             transferDestinationData.chainId,
             transferDestinationData.sender,
             transferDestinationData.executor,
-            transferDestinationData.intentAmount,
+            transferDestinationData.dstTokens,
+            transferDestinationData.intentAmounts,
             validUntil
         );
         leaves[2] = _createDestinationValidatorLeaf(
@@ -189,7 +192,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             depositDestinationData.chainId,
             depositDestinationData.sender,
             depositDestinationData.executor,
-            depositDestinationData.intentAmount,
+            depositDestinationData.dstTokens,
+            depositDestinationData.intentAmounts,
             validUntil
         );
         leaves[3] = _createDestinationValidatorLeaf(
@@ -197,7 +201,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             withdrawDestinationData.chainId,
             withdrawDestinationData.sender,
             withdrawDestinationData.executor,
-            withdrawDestinationData.intentAmount,
+            withdrawDestinationData.dstTokens,
+            withdrawDestinationData.intentAmounts,
             validUntil
         );
 
@@ -218,7 +223,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.executor,
-            approveDestinationData.intentAmount,
+            approveDestinationData.dstTokens,
+            approveDestinationData.intentAmounts,
             validUntil
         );
         leaves[1] = _createDestinationValidatorLeaf(
@@ -226,7 +232,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             transferDestinationData.chainId,
             transferDestinationData.sender,
             transferDestinationData.executor,
-            transferDestinationData.intentAmount,
+            transferDestinationData.dstTokens,
+            transferDestinationData.intentAmounts,
             validUntil
         );
         leaves[2] = _createDestinationValidatorLeaf(
@@ -234,7 +241,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             depositDestinationData.chainId,
             depositDestinationData.sender,
             depositDestinationData.executor,
-            depositDestinationData.intentAmount,
+            depositDestinationData.dstTokens,
+            depositDestinationData.intentAmounts,
             validUntil
         );
         leaves[3] = _createDestinationValidatorLeaf(
@@ -242,7 +250,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             withdrawDestinationData.chainId,
             withdrawDestinationData.sender,
             withdrawDestinationData.executor,
-            withdrawDestinationData.intentAmount,
+            withdrawDestinationData.dstTokens,
+            withdrawDestinationData.intentAmounts,
             validUntil
         );
 
@@ -279,7 +288,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.executor,
-            approveDestinationData.intentAmount,
+            approveDestinationData.dstTokens,
+            approveDestinationData.intentAmounts,
             validUntil
         );
         leaves[1] = _createDestinationValidatorLeaf(
@@ -287,7 +297,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             transferDestinationData.chainId,
             transferDestinationData.sender,
             transferDestinationData.executor,
-            transferDestinationData.intentAmount,
+            transferDestinationData.dstTokens,
+            transferDestinationData.intentAmounts,
             validUntil
         );
         leaves[2] = _createDestinationValidatorLeaf(
@@ -295,7 +306,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             depositDestinationData.chainId,
             depositDestinationData.sender,
             depositDestinationData.executor,
-            depositDestinationData.intentAmount,
+            depositDestinationData.dstTokens,
+            depositDestinationData.intentAmounts,
             validUntil
         );
         leaves[3] = _createDestinationValidatorLeaf(
@@ -303,7 +315,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             withdrawDestinationData.chainId,
             withdrawDestinationData.sender,
             withdrawDestinationData.executor,
-            withdrawDestinationData.intentAmount,
+            withdrawDestinationData.dstTokens,
+            withdrawDestinationData.intentAmounts,
             validUntil
         );
 
@@ -318,7 +331,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.executor,
-            approveDestinationData.intentAmount
+            approveDestinationData.dstTokens,
+            approveDestinationData.intentAmounts
         );
 
         vm.startPrank(signerAddr);
@@ -362,7 +376,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             destinationData.chainId,
             destinationData.sender,
             destinationData.executor,
-            destinationData.intentAmount
+            destinationData.dstTokens,
+            destinationData.intentAmounts
         );
 
         bytes4 validationResult =
@@ -387,7 +402,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
                         destinationData.sender,
                         destinationData.nonce,
                         destinationData.executor,
-                        destinationData.intentAmount,
+                        destinationData.dstTokens,
+                        destinationData.intentAmounts,
                         validUntil
                     )
                 )
@@ -428,6 +444,10 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
     }
 
     function _createDummyApproveDestinationData(uint256 nonce) private view returns (DestinationData memory) {
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(this);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1e18;
         return DestinationData(
             nonce,
             abi.encodeWithSelector(IERC20.approve.selector, address(this), 1e18),
@@ -436,11 +456,16 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             address(this),
             address(this),
             address(this),
-            1e18
+            dstTokens,
+            intentAmounts
         );
     }
 
     function _createDummyTransferDestinationData(uint256 nonce) private view returns (DestinationData memory) {
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(this);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1e18;
         return DestinationData(
             nonce,
             abi.encodeWithSelector(IERC20.transfer.selector, address(this), 1e18),
@@ -449,11 +474,16 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             address(this),
             address(this),
             address(this),
-            1e18
+            dstTokens,
+            intentAmounts
         );
     }
 
     function _createDummyDepositDestinationData(uint256 nonce) private view returns (DestinationData memory) {
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(this);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1e18;
         return DestinationData(
             nonce,
             abi.encodeWithSelector(IERC4626.deposit.selector, 1e18, address(this)),
@@ -462,11 +492,16 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             address(this),
             address(this),
             address(this),
-            1e18
+            dstTokens,
+            intentAmounts
         );
     }
 
     function _createDummyWithdrawDestinationData(uint256 nonce) private view returns (DestinationData memory) {
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(this);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1e18;
         return DestinationData(
             nonce,
             abi.encodeWithSelector(IERC4626.withdraw.selector, 1e18, address(this)),
@@ -475,7 +510,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             address(this),
             address(this),
             address(this),
-            1e18
+            dstTokens,
+            intentAmounts
         );
     }
 }

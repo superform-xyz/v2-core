@@ -82,14 +82,6 @@ contract ApproveAndDeposit4626VaultHook is
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view returns (bytes memory argsEncoded) {
-        address yieldSource = data.extractYieldSource();
-        address token = BytesLib.toAddress(data, 24);
-
-        argsEncoded = abi.encodePacked(yieldSource, token);
-    }
-
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
@@ -98,6 +90,14 @@ contract ApproveAndDeposit4626VaultHook is
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns (bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource(),
+            BytesLib.toAddress(data, 24) //token
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

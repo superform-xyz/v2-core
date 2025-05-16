@@ -4,8 +4,14 @@ pragma solidity >=0.8.28;
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
+/// @title ISuperHookInspector
+/// @author Superform Labs
+/// @notice Interface for the SuperHookInspector contract that manages hook inspection
 interface ISuperHookInspector {
-    function inspect(bytes calldata data) external view returns (bytes memory argsEncoded);
+    /// @notice Inspect the hook
+    /// @param data The hook data to inspect
+    /// @return argsEncoded The arguments of the hook encoded
+    function inspect(bytes calldata data) external view returns(bytes memory argsEncoded);
 }
 
 /// @title ISuperHookResult

@@ -10,6 +10,7 @@ interface IIncentiveCalculationContract {
      * @param totalCurrentAllocation The total current allocation.
      * @param totalAllocationTarget The total target allocation.
      * @return res The calculated energy value.
+     * @return isSuccess A boolean indicating whether the calculation was successful.
      */
     function energy(
         uint256[] memory currentAllocation,
@@ -17,7 +18,7 @@ interface IIncentiveCalculationContract {
         uint256[] memory weights,
         uint256 totalCurrentAllocation,
         uint256 totalAllocationTarget
-    ) external pure returns (uint256 res);
+    ) external pure returns (uint256 res, bool isSuccess);
 
     /**
      * @notice Calculates the incentive.
@@ -30,6 +31,7 @@ interface IIncentiveCalculationContract {
      * @param totalAllocationTarget The total target allocation.
      * @param energyToUSDExchangeRatio The ratio to convert energy units to USD (scaled by PRECISION).
      * @return incentiveUSD The calculated incentive in USD (scaled by PRECISION).
+     * @return isSuccess A boolean indicating whether the calculation was successful.
      */
     function calculateIncentive(
         uint256[] memory allocationPreOperation,
@@ -40,7 +42,10 @@ interface IIncentiveCalculationContract {
         uint256 totalAllocationPostOperation,
         uint256 totalAllocationTarget,
         uint256 energyToUSDExchangeRatio
-    ) external pure returns (int256 incentiveUSD);
+    ) external view returns (int256 incentiveUSD, bool isSuccess);
+
+    /// --- Events ---
+    event EnergyCalculationFailed();
 
     // --- Errors ---
     /// @notice Thrown when input arrays have different lengths

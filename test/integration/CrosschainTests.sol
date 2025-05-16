@@ -808,7 +808,6 @@ contract CrosschainTests is BaseTest {
         );
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
-
         bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
         srcUserOpData.userOp.signature = signatureData;
 

@@ -8,7 +8,7 @@ import { BytesLib } from "../../../../vendor/BytesLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { SpectraCommands } from "../../../../vendor/spectra/SpectraCommands.sol";
 import { ISpectraRouter } from "../../../../vendor/spectra/ISpectraRouter.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
@@ -22,7 +22,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
 /// @notice         uint256 value = BytesLib.toUint256(data, 57);
 /// @notice         bytes txData_ = BytesLib.slice(data, 57, data.length - 57);
-contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
+contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
@@ -83,6 +83,60 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+
+        bytes calldata txData_ = data[AMOUNT_POSITION:];
+        ValidateTxDataParams memory params;
+        params.selector = bytes4(txData_[0:4]);
+
+        if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
+            (params.commandsData, params.inputs) = abi.decode(txData_[4:], (bytes, bytes[]));
+            params.inputsLength = params.inputs.length;
+            params.updatedInputs = new bytes[](params.inputsLength);
+        } else if (params.selector == bytes4(keccak256("execute(bytes,bytes[],uint256)"))) {
+            (params.commandsData, params.inputs, params.deadline) = abi.decode(txData_[4:], (bytes, bytes[], uint256));
+            params.inputsLength = params.inputs.length;
+            params.updatedInputs = new bytes[](params.inputsLength);
+        } 
+
+        params.commands = _validateCommands(params.commandsData, params.inputsLength);
+        params.commandsLength = params.commands.length;
+
+        bytes memory packed = abi.encodePacked(data.extractYieldSource());
+
+        for (uint256 i; i < params.commandsLength; ++i) {
+            uint256 command = params.commands[i];
+            bytes memory input = params.inputs[i];
+            if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
+                (params.pt, params.assets, params.ptRecipient, params.ytRecipient, params.minShares) =
+                    abi.decode(input, (address, uint256, address, address, uint256));
+
+                packed = abi.encodePacked(
+                    packed,
+                    params.pt,
+                    params.ptRecipient,
+                    params.ytRecipient
+                );
+            } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
+                (params.ibt, params.assets, params.recipient) = abi.decode(input, (address, uint256, address));
+                packed = abi.encodePacked(
+                    packed,
+                    params.ibt,
+                    params.recipient
+                );
+            } else if (command == SpectraCommands.TRANSFER_FROM) {
+                (params.transferToken) = abi.decode(input, (address));
+                packed = abi.encodePacked(
+                    packed,
+                    params.transferToken
+                );
+            }
+        }
+
+        return packed;
     }
 
     /*//////////////////////////////////////////////////////////////

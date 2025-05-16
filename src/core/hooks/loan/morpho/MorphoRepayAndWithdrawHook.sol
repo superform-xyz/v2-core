@@ -18,7 +18,7 @@ import {
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
-import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
@@ -35,7 +35,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isFullRepayment = _decodeBool(data, 145);
-contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
+contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
     using SharesMathLib for uint256;
@@ -159,6 +159,22 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
         } else {
             return outAmount;
         }
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        BuildHookLocalVars memory vars = _decodeHookData(data);
+
+        MarketParams memory marketParams =
+            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+
+        return abi.encodePacked
+        (
+            marketParams.loanToken,
+            marketParams.collateralToken,
+            marketParams.oracle,
+            marketParams.irm
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

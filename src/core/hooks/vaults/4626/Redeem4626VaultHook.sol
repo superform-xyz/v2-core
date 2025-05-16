@@ -79,14 +79,6 @@ contract Redeem4626VaultHook is
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view returns (bytes memory argsEncoded) {
-        address yieldSource = data.extractYieldSource();
-        address owner = BytesLib.toAddress(data, 24);
-
-        argsEncoded = abi.encodePacked(yieldSource, owner);
-    }
-
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
@@ -100,6 +92,14 @@ contract Redeem4626VaultHook is
     /// @inheritdoc ISuperHookOutflow
     function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
         return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns (bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource(),
+            BytesLib.toAddress(data, 24) // owner
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

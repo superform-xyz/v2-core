@@ -14,9 +14,9 @@ const ownerList = require('../target/owner_list.json');
  */
 // Hook contract addresses from deployment
 const hookAddresses = {
-  'ApproveAndRedeem4626VaultHook': '0x14C9f45191be683d53E347B39b515A840f59c637',
-  'ApproveAndDeposit4626VaultHook': '0x5B6e16CA55281E857cb7Ef7257bfFC7636ecE932',
-  'Redeem4626VaultHook': '0xB5289CDa2268D557F26a9e1394D4E34B5Cb30265'
+  'ApproveAndRedeem4626VaultHook': '0x66e1Ed81804cd6c574f18cA88123B3284868D845',
+  'ApproveAndDeposit4626VaultHook': '0x95C5A10d9C6d27985b7bad85635060C0AEcBf356',
+  'Redeem4626VaultHook': '0x7692d9e0d10799199c8285E4c99E1fBC5C64fBf3'
 };
 
 const hookDefinitions = {

@@ -8,7 +8,7 @@ import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import {
     IPendleRouterV4,
     ApproxParams,
@@ -30,7 +30,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
 /// @notice         uint256 value = BytesLib.toUint256(data, 25);
 /// @notice         bytes txData_ = BytesLib.slice(data, 57, data.length - 57);
-contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
+contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 24;
@@ -93,6 +93,101 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        bytes calldata txData_ = data[57:];
+        bytes4 selector = bytes4(txData_[0:4]);
+
+        bytes memory packed;
+        if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
+            // skip selector
+            (
+                address receiver,
+                address market,
+                ,
+                ,
+                TokenInput memory input,
+                LimitOrderData memory limit
+            ) = abi.decode(txData_[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+
+            packed = abi.encodePacked(
+                data.extractYieldSource(),
+                receiver,
+                market,
+                input.tokenIn,
+                input.tokenMintSy,
+                input.pendleSwap,
+                input.swapData.extRouter,
+                limit.limitRouter
+            );
+            
+            uint256 normalFillsLen = limit.normalFills.length;
+            for (uint256 i; i < normalFillsLen; i++) {
+                packed = abi.encodePacked(
+                    packed,
+                    limit.normalFills[i].order.token,
+                    limit.normalFills[i].order.YT,
+                    limit.normalFills[i].order.maker,
+                    limit.normalFills[i].order.receiver
+                );
+            }
+            uint256 flashFillsLen = limit.flashFills.length;
+            for (uint256 i; i < flashFillsLen; i++) {
+                packed = abi.encodePacked(
+                    packed,
+                    limit.flashFills[i].order.token,
+                    limit.flashFills[i].order.YT,
+                    limit.flashFills[i].order.maker,
+                    limit.flashFills[i].order.receiver
+                );
+            }
+
+            
+        } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
+            // skip selector
+            (
+                address receiver,
+                address market,
+                ,
+                TokenOutput memory output,
+                LimitOrderData memory limit
+            ) = abi.decode(txData_[4:], (address, address, uint256, TokenOutput, LimitOrderData));
+            
+            packed = abi.encodePacked(
+                data.extractYieldSource(),
+                receiver,
+                market,
+                output.tokenOut,
+                output.tokenRedeemSy,
+                output.pendleSwap,
+                output.swapData.extRouter
+            );
+
+            uint256 normalFillsLen = limit.normalFills.length;
+            for (uint256 i; i < normalFillsLen; i++) {
+                packed = abi.encodePacked(
+                    packed,
+                    limit.normalFills[i].order.token,
+                    limit.normalFills[i].order.YT,
+                    limit.normalFills[i].order.maker,
+                    limit.normalFills[i].order.receiver
+                );
+            }
+            uint256 flashFillsLen = limit.flashFills.length;
+            for (uint256 i; i < flashFillsLen; i++) {
+                packed = abi.encodePacked(
+                    packed,
+                    limit.flashFills[i].order.token,
+                    limit.flashFills[i].order.YT,
+                    limit.flashFills[i].order.maker,
+                    limit.flashFills[i].order.receiver
+                );
+            }
+        }
+
+        return packed;
     }
 
     /*//////////////////////////////////////////////////////////////

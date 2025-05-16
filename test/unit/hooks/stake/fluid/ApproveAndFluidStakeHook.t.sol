@@ -40,6 +40,12 @@ contract ApproveAndFluidStakeHookTest is Helpers {
         assertEq(hook.decodeUsePrevHookAmount(data), true);
     }
 
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
     function test_Build() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = hook.build(address(0), address(this), data);

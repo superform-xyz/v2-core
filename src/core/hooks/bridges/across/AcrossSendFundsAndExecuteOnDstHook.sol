@@ -10,7 +10,7 @@ import { IAcrossSpokePoolV3 } from "../../../../vendor/bridges/across/IAcrossSpo
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
@@ -32,7 +32,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 216);
 /// @notice         bytes destinationMessage = BytesLib.slice(data, 217, data.length - 217);
-contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
+contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -109,10 +109,14 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
         // append signature to `destinationMessage`
         {
             bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
-            (bytes memory initData, bytes memory executorCalldata, address _account, uint256 intentAmount) =
-                abi.decode(acrossV3DepositAndExecuteData.destinationMessage, (bytes, bytes, address, uint256));
-            acrossV3DepositAndExecuteData.destinationMessage =
-                abi.encode(initData, executorCalldata, _account, intentAmount, signature);
+            (
+                bytes memory initData,
+                bytes memory executorCalldata,
+                address _account,
+                address[] memory dstTokens,
+                uint256[] memory intentAmounts
+            ) = abi.decode(acrossV3DepositAndExecuteData.destinationMessage, (bytes, bytes, address, address[], uint256[]));
+            acrossV3DepositAndExecuteData.destinationMessage = abi.encode(initData, executorCalldata, _account, dstTokens, intentAmounts, signature);
         }
 
         // build execution
@@ -146,6 +150,16 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            BytesLib.toAddress(data, 32),   // recipient
+            BytesLib.toAddress(data, 52),   // inputToken
+            BytesLib.toAddress(data, 72),   // outputToken
+            BytesLib.toAddress(data, 188)   // exclusiveRelayer
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

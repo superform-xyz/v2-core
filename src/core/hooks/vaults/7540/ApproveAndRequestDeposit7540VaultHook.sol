@@ -13,7 +13,8 @@ import {
     ISuperHookInflowOutflow,
     ISuperHookAsync,
     ISuperHookContextAware,
-    ISuperHookAsyncCancelations
+    ISuperHookAsyncCancelations,
+    ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
@@ -33,7 +34,8 @@ contract ApproveAndRequestDeposit7540VaultHook is
     ISuperHookInflowOutflow,
     ISuperHookAsync,
     ISuperHookAsyncCancelations,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 {
     using HookDataDecoder for bytes;
 
@@ -104,6 +106,15 @@ contract ApproveAndRequestDeposit7540VaultHook is
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource(),
+            BytesLib.toAddress(data, 24) //token
+        );
+    }
+
 
     /*//////////////////////////////////////////////////////////////    
                                  INTERNAL METHODS
