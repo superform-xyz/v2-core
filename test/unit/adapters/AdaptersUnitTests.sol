@@ -69,7 +69,7 @@ contract AcrossV3AdapterTest is Helpers {
         bytes memory _data = _buildDestinationData();
 
         _getTokens(address(mockERC20), address(acrossV3Adapter), 1000);
-        vm.mockCall(address(this), abi.encodeWithSignature("processBridgedExecution(address,address,uint256,bytes,bytes,bytes)"), abi.encode(address(mockERC20), address(this), 0, new bytes(0), new bytes(0), new bytes(0)));
+        vm.mockCall(address(this), abi.encodeWithSignature("processBridgedExecution(address,address,address[],uint256[],bytes,bytes,bytes)"), abi.encode(address(mockERC20), address(this), new address[](0), new uint256[](0), new bytes(0), new bytes(0), new bytes(0)));
 
         acrossV3Adapter.handleV3AcrossMessage(address(mockERC20), 1000, address(0), _data);
         assertEq(mockERC20.balanceOf(address(this)), 1000);
@@ -79,9 +79,10 @@ contract AcrossV3AdapterTest is Helpers {
         bytes memory initData = new bytes(0);
         bytes memory executorCalldata = new bytes(0);
         address account = address(this);
-        uint256 intentAmount = 0;
+        address[] memory dstTokens = new address[](0);
+        uint256[] memory intentAmounts = new uint256[](0);
         bytes memory sigData = new bytes(0);
-        return abi.encode(initData, executorCalldata, account, intentAmount, sigData);
+        return abi.encode(initData, executorCalldata, account, dstTokens, intentAmounts, sigData);
     }
 
     // ------------- DEBRIDGE ---------------
@@ -132,7 +133,7 @@ contract AcrossV3AdapterTest is Helpers {
     function test_Debridge_HandleEth() public {
         bytes memory _data = _buildDebridgeDestinationData(address(this));
         deal(address(debridgeAdapter), 1000);
-        vm.mockCall(address(this), abi.encodeWithSignature("processBridgedExecution(address,address,uint256,bytes,bytes,bytes)"), abi.encode(address(mockERC20), address(this), 0, new bytes(0), new bytes(0), new bytes(0)));
+        vm.mockCall(address(this), abi.encodeWithSignature("processBridgedExecution(address,address,address[],uint256[],bytes,bytes,bytes)"), abi.encode(address(mockERC20), address(this), new address[](0), new uint256[](0), new bytes(0), new bytes(0), new bytes(0)));
 
         (bool callSucceeded, bytes memory callResult) =debridgeAdapter.onEtherReceived(bytes32(0), address(0), _data);
         assertTrue(callSucceeded);
@@ -142,7 +143,7 @@ contract AcrossV3AdapterTest is Helpers {
     function test_Debridge_HandleERC20() public {
         bytes memory _data = _buildDebridgeDestinationData(address(this));
         _getTokens(address(mockERC20), address(debridgeAdapter), 1000);
-        vm.mockCall(address(this), abi.encodeWithSignature("processBridgedExecution(address,address,uint256,bytes,bytes,bytes)"), abi.encode(address(mockERC20), address(this), 0, new bytes(0), new bytes(0), new bytes(0)));
+        vm.mockCall(address(this), abi.encodeWithSignature("processBridgedExecution(address,address,address[],uint256[],bytes,bytes,bytes)"), abi.encode(address(mockERC20), address(this), new address[](0), new uint256[](0), new bytes(0), new bytes(0), new bytes(0)));
 
         (bool callSucceeded, bytes memory callResult) = debridgeAdapter.onERC20Received(bytes32(0), address(mockERC20), 0, address(0), _data);
         assertTrue(callSucceeded);
@@ -153,8 +154,9 @@ contract AcrossV3AdapterTest is Helpers {
         bytes memory initData = new bytes(0);
         bytes memory executorCalldata = new bytes(0);
         address account = _acc;
-        uint256 intentAmount = 0;
+        address[] memory dstTokens = new address[](0);
+        uint256[] memory intentAmounts = new uint256[](0);
         bytes memory sigData = new bytes(0);
-        return abi.encode(initData, executorCalldata, account, intentAmount, sigData);
+        return abi.encode(initData, executorCalldata, account, dstTokens, intentAmounts, sigData);
     }
 }

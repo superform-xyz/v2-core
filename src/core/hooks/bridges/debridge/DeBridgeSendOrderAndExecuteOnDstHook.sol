@@ -154,6 +154,17 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         bytes allowedCancelBeneficiarySrc;
     }
 
+    struct ExternalCallParams {
+        bytes destinationMessage;
+        bytes sigData;
+        address fallbackAddress;
+        address executorAddress;
+        uint256 executionFee;
+        bool allowDelayedExecution;
+        bool requireSuccessfulExecution;
+        uint8 version;
+    }
+
     function _createOrder(
         bytes memory data,
         bytes memory sigData
@@ -244,17 +255,6 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         referralCode = BytesLib.toUint32(data, vars.offset);
         vars.offset += 4;
 
-        // create externalCall
-        IDlnSource.ExternalCallEnvelopV1 memory envelope;
-        (bytes memory initData, bytes memory executorCalldata, address account, uint256 intentAmount) =
-            abi.decode(vars.destinationMessage, (bytes, bytes, address, uint256));
-        envelope.payload = abi.encode(initData, executorCalldata, account, intentAmount, sigData);
-        envelope.fallbackAddress = vars.fallbackAddress;
-        envelope.executorAddress = vars.executorAddress;
-        envelope.executionFee = uint160(vars.executionFee);
-        envelope.allowDelayedExecution = vars.allowDelayedExecution;
-        envelope.requireSuccessfullExecution = vars.requireSuccessfulExecution;
-
         orderCreation = IDlnSource.OrderCreation({
             giveTokenAddress: vars.giveTokenAddress,
             giveAmount: vars.giveAmount,
@@ -265,10 +265,42 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
             givePatchAuthoritySrc: vars.givePatchAuthoritySrc,
             orderAuthorityAddressDst: vars.orderAuthorityAddressDst,
             allowedTakerDst: vars.allowedTakerDst,
-            externalCall: abi.encodePacked(vars.version, abi.encode(envelope)),
+            externalCall: _buildExternalCall(ExternalCallParams({
+                destinationMessage: vars.destinationMessage,
+                sigData: sigData,
+                fallbackAddress: vars.fallbackAddress,
+                executorAddress: vars.executorAddress,
+                executionFee: vars.executionFee,
+                allowDelayedExecution: vars.allowDelayedExecution,
+                requireSuccessfulExecution: vars.requireSuccessfulExecution,
+                version: vars.version
+            })),
             allowedCancelBeneficiarySrc: vars.allowedCancelBeneficiarySrc
         });
     }
+
+
+    function _buildExternalCall(ExternalCallParams memory params) internal pure returns (bytes memory) {
+        (
+            bytes memory initData,
+            bytes memory executorCalldata,
+            address account,
+            address[] memory dstTokens,
+            uint256[] memory intentAmounts
+        ) = abi.decode(params.destinationMessage, (bytes, bytes, address, address[], uint256[]));
+
+        IDlnSource.ExternalCallEnvelopV1 memory envelope = IDlnSource.ExternalCallEnvelopV1({
+            payload: abi.encode(initData, executorCalldata, account, dstTokens, intentAmounts, params.sigData),
+            fallbackAddress: params.fallbackAddress,
+            executorAddress: params.executorAddress,
+            executionFee: uint160(params.executionFee),
+            allowDelayedExecution: params.allowDelayedExecution,
+            requireSuccessfullExecution: params.requireSuccessfulExecution
+        });
+
+        return abi.encodePacked(params.version, abi.encode(envelope));
+    }
+
 
     function _preExecute(address, address, bytes calldata) internal override { }
 

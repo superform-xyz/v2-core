@@ -65,7 +65,8 @@ contract DebridgeAdapter is IExternalCallExecutor {
             bytes memory initData,
             bytes memory executorCalldata,
             address account,
-            uint256 intentAmount,
+            address[] memory dstTokens,
+            uint256[] memory intentAmounts,
             bytes memory sigData
         ) = _decodeMessage(_payload);
 
@@ -77,7 +78,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
         if (!success) revert ON_ETHER_RECEIVED_FAILED();
 
         // 2. Call the core executor's standardized function
-        _handleMessageReceived(address(0), initData, executorCalldata, account, intentAmount, sigData);
+        _handleMessageReceived(address(0), initData, executorCalldata, account, dstTokens, intentAmounts, sigData);
 
         return (true, "");
     }
@@ -98,7 +99,8 @@ contract DebridgeAdapter is IExternalCallExecutor {
             bytes memory initData,
             bytes memory executorCalldata,
             address account,
-            uint256 intentAmount,
+            address[] memory dstTokens,
+            uint256[] memory intentAmounts,
             bytes memory sigData
         ) = _decodeMessage(_payload);
 
@@ -109,7 +111,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
         IERC20(_token).safeTransfer(account, _transferredAmount);
 
         // 2. Call the core executor's standardized function
-        _handleMessageReceived(_token, initData, executorCalldata, account, intentAmount, sigData);
+        _handleMessageReceived(_token, initData, executorCalldata, account, dstTokens, intentAmounts, sigData);
 
         return (true, "");
     }
@@ -117,12 +119,13 @@ contract DebridgeAdapter is IExternalCallExecutor {
     /*//////////////////////////////////////////////////////////////
                                 PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _handleMessageReceived(address tokenSent, bytes memory initData, bytes memory executorCalldata, address account, uint256 intentAmount, bytes memory sigData) private {
+    function _handleMessageReceived(address tokenSent, bytes memory initData, bytes memory executorCalldata, address account, address[] memory dstTokens, uint256[] memory intentAmounts, bytes memory sigData) private {
         // Call the core executor's standardized function
         superDestinationExecutor.processBridgedExecution(
             tokenSent,
             account,
-            intentAmount,
+            dstTokens,
+            intentAmounts,
             initData,
             executorCalldata,
             sigData // User signature + validation payload
@@ -136,11 +139,12 @@ contract DebridgeAdapter is IExternalCallExecutor {
             bytes memory initData,
             bytes memory executorCalldata,
             address account,
-            uint256 intentAmount,
+            address[] memory dstTokens,
+            uint256[] memory intentAmounts,
             bytes memory sigData
         )
     {
-        (initData, executorCalldata, account, intentAmount, sigData) =
-            abi.decode(message, (bytes, bytes, address, uint256, bytes));
+        (initData, executorCalldata, account, dstTokens, intentAmounts, sigData) =
+            abi.decode(message, (bytes, bytes, address, address[], uint256[], bytes));
     }
 }
