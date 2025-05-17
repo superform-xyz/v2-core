@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.30;
 
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
@@ -14,7 +14,8 @@ import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -35,7 +36,8 @@ contract ApproveAndRedeem5115VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 {
     using HookDataDecoder for bytes;
 
@@ -107,6 +109,15 @@ contract ApproveAndRedeem5115VaultHook is
     /// @inheritdoc ISuperHookOutflow
     function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
         return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource(),
+            BytesLib.toAddress(data, 24), // tokenIn
+            BytesLib.toAddress(data, 44) // tokenOut
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

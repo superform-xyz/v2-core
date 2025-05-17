@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import "../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
@@ -65,7 +65,6 @@ abstract contract InternalHelpers {
             abi.encodePacked(paymaster, paymasterVerificationGasLimit, postOpGasLimit, paymasterData);
         return userOpData;
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  SWAPPERS
@@ -322,8 +321,9 @@ abstract contract InternalHelpers {
         pure
         returns (bytes memory hookData)
     {
-        hookData =
-            abi.encodePacked(yieldSourceOracleId, vault, tokenIn, amount, minSharesOut, usePrevHookAmount, vaultBank, dstChainId);
+        hookData = abi.encodePacked(
+            yieldSourceOracleId, vault, tokenIn, amount, minSharesOut, usePrevHookAmount, vaultBank, dstChainId
+        );
     }
 
     function _createRedeem4626HookData(
@@ -367,9 +367,7 @@ abstract contract InternalHelpers {
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(
-            yieldSourceOracleId, vault, tokenOut, shares, minTokenOut, false, usePrevHookAmount
-        );
+        hookData = abi.encodePacked(yieldSourceOracleId, vault, tokenOut, shares, minTokenOut, false, usePrevHookAmount);
     }
 
     function _createApproveAndRedeem5115VaultHookData(
@@ -637,19 +635,41 @@ abstract contract InternalHelpers {
         address from,
         uint256 arrayLength,
         address[] memory tokens,
-        uint256[] memory amounts
+        uint256[] memory amounts,
+        bytes memory sig
+    )
+        internal
+        view
+        returns (bytes memory data)
+    {
+        return _createBatchTransferFromHookData(from, arrayLength, block.timestamp + 2 weeks, tokens, amounts, sig);
+    }
+
+    function _createBatchTransferFromHookData(
+        address from,
+        uint256 arrayLength,
+        uint256 sigDeadline,
+        address[] memory tokens,
+        uint256[] memory amounts,
+        bytes memory sig
     )
         internal
         pure
         returns (bytes memory data)
     {
-        data = abi.encodePacked(from, arrayLength);
+        data = abi.encodePacked(from, arrayLength, sigDeadline);
+
+        // Directly encode the token addresses as bytes
         for (uint256 i = 0; i < arrayLength; i++) {
             data = bytes.concat(data, bytes20(tokens[i]));
         }
+
+        // Directly encode the amounts as bytes
         for (uint256 i = 0; i < arrayLength; i++) {
             data = bytes.concat(data, abi.encodePacked(amounts[i]));
         }
+
+        data = bytes.concat(data, sig);
     }
 
     function _createTransferERC20HookData(

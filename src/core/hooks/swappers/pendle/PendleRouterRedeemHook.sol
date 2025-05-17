@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.30;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -11,7 +11,7 @@ import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title PendleRouterRedeemHook
 /// @author Superform Labs
@@ -23,7 +23,7 @@ import { ISuperHook, ISuperHookResult, ISuperHookContextAware } from "../../../i
 /// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 92);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
 /// @notice         bytes output = BytesLib.slice(data, 125, data.length - 125);
-contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
+contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     // Offset for bool usePrevHookAmount (after packed amount, YT, tokenOut, minTokenOut)
@@ -111,6 +111,16 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         // Minimum length to read up to the bool flag + 1 byte for the flag itself
         if (data.length < TOKEN_OUTPUT_OFFSET) revert INVALID_DATA_LENGTH();
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        DecodedParams memory params = _decodeAndValidateData(data);
+        return abi.encodePacked(
+            params.YT,
+            params.PT,
+            params.tokenOut
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

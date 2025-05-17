@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { YearnClaimOneRewardHook } from "../../../../../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
@@ -71,6 +71,12 @@ contract YearnClaimOneRewardHookTest is Helpers {
 
         hook.postExecute(address(0), mockAccount, _encodeData());
         assertEq(hook.outAmount(), 0);
+    }
+
+    function test_Inspector() public view {
+        bytes memory data = _encodeData();
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function _encodeData() internal view returns (bytes memory) {

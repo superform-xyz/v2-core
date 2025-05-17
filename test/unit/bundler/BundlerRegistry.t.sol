@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity >=0.8.30;
 
 import { BundlerRegistry } from "../../../src/periphery/BundlerRegistry.sol";
 import { IBundlerRegistry } from "../../../src/periphery/interfaces/IBundlerRegistry.sol";

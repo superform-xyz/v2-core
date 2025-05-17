@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 abstract contract MerkleTreeHelper {
     mapping(uint64 chainId => bytes32[]) public hookLeavesPerChain;
@@ -43,7 +43,8 @@ abstract contract MerkleTreeHelper {
         uint64 dstChainId,
         address account,
         address executor,
-        uint256 intentAmount,
+        address[] memory dstTokens,
+        uint256[] memory intentAmounts,
         uint48 validUntil
     )
         internal
@@ -53,7 +54,7 @@ abstract contract MerkleTreeHelper {
         return keccak256(
             bytes.concat(
                 keccak256(
-                    abi.encode(executionData, dstChainId, account, executor, intentAmount, validUntil)
+                    abi.encode(executionData, dstChainId, account, executor, dstTokens, intentAmounts, validUntil)
                 )
             )
         );

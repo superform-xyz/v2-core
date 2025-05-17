@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -128,6 +128,81 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_ClaimCancelRedeemRequestHookConstructor() public view {
         assertEq(uint256(claimCancelRedeemRequestHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            INSPECTOR TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_redeemHook_InspectorTests() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = redeemHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_approveAndRequestDepositHook_InspectorTests() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = approveAndRequestDepositHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_approveAndWithdrawHook_InspectorTests() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = approveAndWithdrawHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_cancelDepositRequestHook_InspectorTests() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = cancelDepositRequestHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_cancelRedeemRequestHook_InspectorTests() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = cancelRedeemRequestHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_claimCancelDepositRequestHook_InspectorTests() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = claimCancelDepositRequestHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_claimCancelRedeemRequestHook_InspectorTests() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = claimCancelRedeemRequestHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_depositHook_InspectorTests() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = depositHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_requestDepositHook_InspectorTests() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = requestDepositHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_requestRedeemHook_InspectorTests() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = reqRedeemHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_withdrawHook_InspectorTests() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = withdrawHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_cancelRedeemHook_InspectorTests() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = cancelRedeemHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     /*//////////////////////////////////////////////////////////////

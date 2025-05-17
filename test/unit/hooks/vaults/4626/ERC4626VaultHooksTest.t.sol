@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -404,6 +404,23 @@ contract ERC4626VaultHooksTest is Helpers {
 
         redeemHook.postExecute(address(0), address(this), data);
         assertEq(redeemHook.outAmount(), 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      OTHER TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_inspect() public view {
+        bytes memory argsEncoded = depositHook.inspect(_encodeDepositData());
+        assertGt(argsEncoded.length, 0);
+
+        argsEncoded = redeemHook.inspect(_encodeRedeemData());
+        assertGt(argsEncoded.length, 0);
+
+        argsEncoded = approveAndRedeemHook.inspect(_encodeApproveAndRedeemData());
+        assertGt(argsEncoded.length, 0);
+
+        argsEncoded = approveAndDepositHook.inspect(_encodeApproveAndDepositData());
+        assertGt(argsEncoded.length, 0);
     }
 
     /*//////////////////////////////////////////////////////////////

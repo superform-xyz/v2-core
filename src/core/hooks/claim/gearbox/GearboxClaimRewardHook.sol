@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.30;
 
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
@@ -12,7 +12,8 @@ import {
     ISuperHookResultOutflow,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
@@ -27,7 +28,8 @@ contract GearboxClaimRewardHook is
     BaseClaimRewardHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 {
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) { }
     /*//////////////////////////////////////////////////////////////
@@ -63,6 +65,11 @@ contract GearboxClaimRewardHook is
     /// @inheritdoc ISuperHookOutflow
     function replaceCalldataAmount(bytes memory data, uint256) external pure returns (bytes memory) {
         return data;
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(BytesLib.toAddress(data, 0));
     }
 
     /*//////////////////////////////////////////////////////////////

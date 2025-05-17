@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.30;
 
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
@@ -11,7 +11,7 @@ import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.s
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveAndDeposit4626VaultHook
 /// @author Superform Labs
@@ -24,7 +24,7 @@ import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } fro
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
 /// @notice         address vaultBank = BytesLib.toAddress(data, 77);
 /// @notice         uint256 dstChainId = BytesLib.toUint256(data, 97);
-contract ApproveAndDeposit4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract ApproveAndDeposit4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
@@ -80,6 +80,14 @@ contract ApproveAndDeposit4626VaultHook is BaseHook, ISuperHookInflowOutflow, IS
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource(),
+            BytesLib.toAddress(data, 24) //token
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

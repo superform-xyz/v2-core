@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.30;
 
 // External Dependencies
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -64,9 +64,10 @@ contract AcrossV3Adapter is IAcrossV3Receiver {
             bytes memory initData,
             bytes memory executorCalldata,
             address account,
-            uint256 intentAmount,
+            address[] memory dstTokens,
+            uint256[] memory intentAmounts,
             bytes memory sigData
-        ) = abi.decode(message, (bytes, bytes, address, uint256, bytes));
+        ) = abi.decode(message, (bytes, bytes, address, address[], uint256[], bytes));
 
         // 3. Transfer received funds to the target account *before* calling the executor.
         //    This ensures the executor can reliably check the balance.
@@ -78,7 +79,8 @@ contract AcrossV3Adapter is IAcrossV3Receiver {
         superDestinationExecutor.processBridgedExecution(
             tokenSent,
             account,
-            intentAmount,
+            dstTokens,
+            intentAmounts,
             initData,
             executorCalldata,
             sigData // User signature + validation payload

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { Redeem5115VaultHook } from "../../../../../src/core/hooks/vaults/5115/Redeem5115VaultHook.sol";
@@ -113,6 +113,12 @@ contract Redeem5115VaultHookTest is Helpers {
 
         uint256 replacedAmount = hook.decodeAmount(replacedData);
         assertEq(replacedAmount, 1);
+    }
+
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {

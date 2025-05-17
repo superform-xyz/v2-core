@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+pragma solidity >=0.8.30;
 
 // testing
 import { BaseTest } from "../../../BaseTest.t.sol";

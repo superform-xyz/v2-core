@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { Helpers } from "./utils/Helpers.sol";
 
@@ -1715,8 +1715,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         internal
     {
         if (relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
-            vm.expectEmit(true, true, true, true);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNotEnoughBalance(account);
+            vm.expectEmit(true, false, false, false);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNotEnoughBalance(account, address(0), 0, 0);
         } else if (relayerType == RELAYER_TYPE.ENOUGH_BALANCE) {
             vm.expectEmit(true, true, true, true);
             emit ISuperDestinationExecutor.SuperDestinationExecutorExecuted(account);
@@ -1832,7 +1832,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             accountToUse = messageData.account;
             accountCreationData = bytes("");
         }
-        return (abi.encode(accountCreationData, executionData, messageData.account, messageData.amount), accountToUse);
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = messageData.tokenSent;
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = messageData.amount;
+        return (abi.encode(accountCreationData, executionData, messageData.account, dstTokens, intentAmounts), accountToUse);
     }
 
     function _createMerkleRootAndSignature(
@@ -1849,8 +1853,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
 
         bytes32[] memory leaves = new bytes32[](2);
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = messageData.tokenSent;
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = messageData.amount;
         leaves[0] = _createDestinationValidatorLeaf(
-            executionData, messageData.chainId, accountToUse, messageData.targetExecutor, messageData.amount, validUntil
+            executionData, messageData.chainId, accountToUse, messageData.targetExecutor, dstTokens, intentAmounts, validUntil
         );
         leaves[1] = _createSourceValidatorLeaf(userOpHash, validUntil);
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);

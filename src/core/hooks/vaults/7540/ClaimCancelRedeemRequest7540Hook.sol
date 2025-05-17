@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.30;
 
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
@@ -11,7 +11,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookAsyncCancelations, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ClaimCancelRedeemRequest7540Hook
 /// @author Superform Labs
@@ -19,7 +19,7 @@ import { ISuperHookAsyncCancelations } from "../../../interfaces/ISuperHook.sol"
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         address receiver = BytesLib.toAddress(data, 24);
-contract ClaimCancelRedeemRequest7540Hook is BaseHook, ISuperHookAsyncCancelations {
+contract ClaimCancelRedeemRequest7540Hook is BaseHook, ISuperHookAsyncCancelations, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM_CANCEL_REDEEM_REQUEST) { }
@@ -58,6 +58,15 @@ contract ClaimCancelRedeemRequest7540Hook is BaseHook, ISuperHookAsyncCancelatio
     function isAsyncCancelHook() external pure returns (CancelationType) {
         return CancelationType.OUTFLOW;
     }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource(),
+            BytesLib.toAddress(data, 24) //receiver
+        );
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS

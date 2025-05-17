@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { GearboxStakeHook } from "../../../../../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
@@ -32,6 +32,12 @@ contract GearboxStakeHookTest is Helpers {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+    
     function test_Build() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = hook.build(address(0), address(this), data);

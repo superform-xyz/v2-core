@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -195,6 +195,12 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
 
         hook.postExecute(address(0), address(this), data);
         assertEq(hook.outAmount(), 0);
+    }
+
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {

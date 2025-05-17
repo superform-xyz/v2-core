@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
 import { ModuleKitHelpers } from "modulekit/ModuleKit.sol";
@@ -395,73 +395,94 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.stopPrank();
     }
 
+    function _getDstTokensAndIntents() public view returns (address[] memory, uint256[] memory) {
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(token);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1;
+        return (dstTokens, intentAmounts);
+    }
+
     function test_DestinationExecutor_ProcessBridgedExecution_InvalidAccount() public {
         vm.expectRevert();
-        superDestinationExecutor.processBridgedExecution(address(token), address(this), 1, "", "", "");
+        (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
+        superDestinationExecutor.processBridgedExecution(address(token), address(this), dstTokens, intentAmounts, "", "", "");
 
         vm.mockCall(address(this), abi.encodeWithSignature("accountId()"), abi.encode(""));
         vm.expectRevert(SuperDestinationExecutor.ADDRESS_NOT_ACCOUNT.selector);
-        superDestinationExecutor.processBridgedExecution(address(token), address(this), 1, "", "", "");
+        superDestinationExecutor.processBridgedExecution(address(token), address(this), dstTokens, intentAmounts, "", "", "");
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_Revert_AccountCreated() public {
         vm.expectRevert(SuperDestinationExecutor.ACCOUNT_NOT_CREATED.selector);
-        superDestinationExecutor.processBridgedExecution(address(token), address(0), 1, "", "", "");
+        (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
+        superDestinationExecutor.processBridgedExecution(address(token), address(0), dstTokens, intentAmounts, "", "", "");
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_InvalidSignature() public {
         vm.expectRevert();
-        superDestinationExecutor.processBridgedExecution(address(token), address(account), 1, "", "", "");
+        (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
+        superDestinationExecutor.processBridgedExecution(address(token), address(account), dstTokens, intentAmounts, "", "", "");
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_InvalidExecutionData() public {
         bytes memory signatureData = abi.encode(uint48(1), bytes32(abi.encodePacked("account")), new bytes32[](0), "");
         vm.expectRevert();
-        superDestinationExecutor.processBridgedExecution(address(token), address(account), 1, "", "", signatureData);
+        (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
+        superDestinationExecutor.processBridgedExecution(address(token), address(account), dstTokens, intentAmounts, "", "", signatureData);
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_InvalidProof() public {
         bytes memory initData = ""; // no initData
         (bytes memory signatureData, bytes memory executorCalldata, ,) = _createDestinationValidData(false);
+        (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
-        superDestinationExecutor.processBridgedExecution(address(token), address(account), 1, initData, executorCalldata, signatureData);
+        superDestinationExecutor.processBridgedExecution(address(token), address(account), dstTokens, intentAmounts, initData, executorCalldata, signatureData);
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_Erc20_BalanceNotMet() public {
         bytes memory initData = ""; // no initData
         (bytes memory signatureData, , bytes memory executionDataForLeaf,) = _createDestinationValidData(true);
-        superDestinationExecutor.processBridgedExecution(address(token), address(account), 1, initData, executionDataForLeaf, signatureData);
+        (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
+        superDestinationExecutor.processBridgedExecution(address(token), address(account), dstTokens, intentAmounts, initData, executionDataForLeaf, signatureData);
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_Erc20_BalanceMet() public {
         bytes memory initData = ""; // no initData
         (bytes memory signatureData, , bytes memory executionDataForLeaf,) = _createDestinationValidData(true);
+        (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         _getTokens(address(token), address(account), 1);
-        superDestinationExecutor.processBridgedExecution(address(token), address(account), 1, initData, executionDataForLeaf, signatureData);
+        superDestinationExecutor.processBridgedExecution(address(token), address(account), dstTokens, intentAmounts, initData, executionDataForLeaf, signatureData);
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_Eth_BalanceNotMet() public {
         bytes memory initData = ""; // no initData
         (bytes memory signatureData, , bytes memory executionDataForLeaf,) = _createDestinationValidData(true);
+        (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         deal(address(account), 0);
-        superDestinationExecutor.processBridgedExecution(address(0), address(account), 1, initData, executionDataForLeaf, signatureData);
+        superDestinationExecutor.processBridgedExecution(address(0), address(account), dstTokens, intentAmounts, initData, executionDataForLeaf, signatureData);
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_Eth_BalanceMet() public {
         bytes memory initData = ""; // no initData
         (bytes memory signatureData, , bytes memory executionDataForLeaf,) = _createDestinationValidData(true);
+        (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         deal(address(account), 1);
-        superDestinationExecutor.processBridgedExecution(address(0), address(account), 1, initData, executionDataForLeaf, signatureData);
+        superDestinationExecutor.processBridgedExecution(address(0), address(account), dstTokens, intentAmounts, initData, executionDataForLeaf, signatureData);
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_UsedRoot() public {
         bytes memory initData = ""; // no initData
-        (bytes memory signatureData, , bytes memory executionDataForLeaf,) = _createDestinationValidData(true);
-        deal(address(account), 1);
-        superDestinationExecutor.processBridgedExecution(address(0), address(account), 1, initData, executionDataForLeaf, signatureData);
+        (bytes memory signatureData, ,bytes memory executionDataForLeaf,) = _createDestinationValidData(true);
+        address[] memory dstTokens2 = new address[](1);
+        dstTokens2[0] = address(token);
+        uint256[] memory intentAmounts2 = new uint256[](1);
+        intentAmounts2[0] = 1;
+        _getTokens(address(token), address(account), 1);
+        superDestinationExecutor.processBridgedExecution(address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData);
 
         vm.expectRevert(SuperDestinationExecutor.MERKLE_ROOT_ALREADY_USED.selector);
-        superDestinationExecutor.processBridgedExecution(address(0), address(account), 1, initData, executionDataForLeaf, signatureData);
+        superDestinationExecutor.processBridgedExecution(address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData);
     }
 
     function _createDestinationValidData(bool validSignature) private returns (bytes memory signatureData, bytes memory executorCalldata, bytes memory executionDataForLeaf, uint48 validUntil) {
@@ -474,8 +495,12 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         validUntil = uint48(block.timestamp + 100 days);
         executionDataForLeaf = abi.encode(executorCalldata, uint64(block.chainid), account, address(superDestinationExecutor), 1);
         bytes32[] memory leaves = new bytes32[](1);
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(token);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1;
         leaves[0] = _createDestinationValidatorLeaf(
-            executionDataForLeaf, uint64(block.chainid), account, address(superDestinationExecutor), 1, validUntil
+            executionDataForLeaf, uint64(block.chainid), account, address(superDestinationExecutor), dstTokens, intentAmounts, validUntil
         );
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);

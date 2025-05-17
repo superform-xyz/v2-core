@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity >=0.8.30;
 
 import { Helpers } from "../../../utils/Helpers.sol";
 import { PendleRouterRedeemHook } from "../../../../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
@@ -110,6 +110,13 @@ contract PendleRouterRedeemHookTest is Helpers {
         );
 
         assertEq(executions[2].callData, expectedCallData);
+    }
+
+    function test_Inspect() public view {
+        bytes memory data =
+            _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_PreExecute() public {

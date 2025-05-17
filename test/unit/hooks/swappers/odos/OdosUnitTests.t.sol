@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { SwapOdosHook } from "../../../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
@@ -238,6 +238,12 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         assertEq(executions.length, 4);
     }
 
+    function test_ApproveAndSwapOdosHook_inspect() public view {
+        bytes memory data = _buildApproveAndSwapOdosData(false);
+        bytes memory argsEncoded = approveAndSwapOdosHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
     function _buildApproveAndSwapOdosData(bool usePrevious) internal view returns (bytes memory) {
         bytes memory data = bytes.concat(
             bytes20(inputToken),
@@ -383,6 +389,12 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         Execution[] memory executions = swapOdosHook.build(address(prevHook), account, data);
 
         assertEq(executions.length, 1);
+    }
+
+    function test_SwapOdosHook_inspect() public view {
+        bytes memory data = _buildSwapOdosData(false);
+        bytes memory argsEncoded = swapOdosHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function _buildSwapOdosData(bool usePrevious) internal view returns (bytes memory) {

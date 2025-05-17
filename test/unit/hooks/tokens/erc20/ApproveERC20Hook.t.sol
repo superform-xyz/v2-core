@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ApproveERC20Hook } from "../../../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
@@ -102,6 +102,12 @@ contract ApproveERC20HookTest is Helpers {
 
         hook.postExecute(mockPrevHook, address(this), _encodeData(true));
         assertEq(hook.outAmount(), 0);
+    }
+
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function _encodeData(bool usePrev) internal view returns (bytes memory) {

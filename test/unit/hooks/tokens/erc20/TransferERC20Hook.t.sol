@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { TransferERC20Hook } from "../../../../../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
@@ -79,6 +79,12 @@ contract TransferERC20HookTest is Helpers {
 
         hook.postExecute(address(0), address(this), _encodeData(false));
         assertEq(hook.outAmount(), 0);
+    }
+
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function _encodeData(bool usePrev) internal view returns (bytes memory) {

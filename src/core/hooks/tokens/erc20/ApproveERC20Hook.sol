@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.30;
 
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
@@ -10,7 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveERC20Hook
 /// @author Superform Labs
@@ -20,7 +20,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         address spender = BytesLib.toAddress(data, 20);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 40);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
-contract ApproveERC20Hook is BaseHook, ISuperHookContextAware {
+contract ApproveERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }
@@ -65,6 +65,14 @@ contract ApproveERC20Hook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            BytesLib.toAddress(data, 0), //token
+            BytesLib.toAddress(data, 20) //spender
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

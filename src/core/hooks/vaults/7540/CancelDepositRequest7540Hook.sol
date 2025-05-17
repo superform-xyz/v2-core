@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.30;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -9,13 +9,14 @@ import { IERC7540CancelDeposit } from "../../../../vendor/standards/ERC7540/IERC
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title CancelDepositRequest7540Hook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-contract CancelDepositRequest7540Hook is BaseHook {
+contract CancelDepositRequest7540Hook is BaseHook, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CANCEL_DEPOSIT_REQUEST) { }
@@ -43,6 +44,13 @@ contract CancelDepositRequest7540Hook is BaseHook {
             value: 0,
             callData: abi.encodeCall(IERC7540CancelDeposit.cancelDepositRequest, (0, account))
         });
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource()
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

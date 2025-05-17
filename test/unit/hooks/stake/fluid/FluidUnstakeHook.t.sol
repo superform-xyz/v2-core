@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { FluidUnstakeHook } from "../../../../../src/core/hooks/stake/fluid/FluidUnstakeHook.sol";
@@ -30,6 +30,12 @@ contract FluidUnstakeHookTest is Helpers {
 
     function test_Constructor() public view {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
+    }
+
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_DecodeUsePrevHookAmount() public view {

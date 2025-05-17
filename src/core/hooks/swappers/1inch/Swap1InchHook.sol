@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.30;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -8,8 +8,7 @@ import "../../../../vendor/1inch/I1InchAggregationRouterV6.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 import "forge-std/console2.sol";
 
@@ -21,7 +20,7 @@ import "forge-std/console2.sol";
 /// @notice         uint256 value = BytesLib.toUint256(data, 40);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 /// @notice         bytes txData_ = BytesLib.slice(data, 73, data.length - 73);
-contract Swap1InchHook is BaseHook, ISuperHookContextAware {
+contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using AddressLib for Address;
     using ProtocolLib for Address;
 
@@ -91,6 +90,41 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        bytes calldata txData_ = data[73:];
+        bytes4 selector = bytes4(txData_[:4]);
+
+        bytes memory packed;
+
+        if (selector == I1InchAggregationRouterV6.unoswapTo.selector) {
+            (Address to, Address token,,, Address dex) =
+                abi.decode(txData_[4:], (Address, Address, uint256, uint256, Address));
+            packed = abi.encodePacked(to.get(), token.get(), dex.get());
+        } else if (selector == I1InchAggregationRouterV6.swap.selector) {
+            (IAggregationExecutor executor, I1InchAggregationRouterV6.SwapDescription memory desc,) =
+                abi.decode(txData_[4:], (IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription, bytes));
+            packed = abi.encodePacked(address(executor), address(desc.srcToken), address(desc.dstToken), address(desc.srcReceiver), address(desc.dstReceiver));
+        } else if (selector == I1InchAggregationRouterV6.clipperSwapTo.selector) {
+            (
+                IClipperExchange clipperExchange,
+                address recipient,
+                Address srcToken,
+                IERC20 dstToken,
+                ,
+                ,
+                ,
+                ,
+                
+            ) = abi.decode(
+                txData_[4:], (IClipperExchange, address, Address, IERC20, uint256, uint256, uint256, bytes32, bytes32)
+            );
+            packed = abi.encodePacked(address(clipperExchange), recipient, srcToken.get(), address(dstToken));
+        } 
+
+        return packed;
     }
 
     /*//////////////////////////////////////////////////////////////

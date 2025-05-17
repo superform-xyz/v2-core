@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 // external
 import { ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
@@ -32,7 +32,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
         address executor;
         address adapter;
         address tokenSent;
-        uint256 intentAmount;
+        address[] dstTokens;
+        uint256[] intentAmounts;
     }
 
     struct SignatureData {
@@ -175,7 +176,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.executor,
-            approveDestinationData.intentAmount,
+            approveDestinationData.dstTokens,
+            approveDestinationData.intentAmounts,
             validUntil
         );
         leaves[1] = _createDestinationValidatorLeaf(
@@ -183,7 +185,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             transferDestinationData.chainId,
             transferDestinationData.sender,
             transferDestinationData.executor,
-            transferDestinationData.intentAmount,
+            transferDestinationData.dstTokens,
+            transferDestinationData.intentAmounts,
             validUntil
         );
         leaves[2] = _createDestinationValidatorLeaf(
@@ -191,7 +194,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             depositDestinationData.chainId,
             depositDestinationData.sender,
             depositDestinationData.executor,
-            depositDestinationData.intentAmount,
+            depositDestinationData.dstTokens,
+            depositDestinationData.intentAmounts,
             validUntil
         );
         leaves[3] = _createDestinationValidatorLeaf(
@@ -199,7 +203,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             withdrawDestinationData.chainId,
             withdrawDestinationData.sender,
             withdrawDestinationData.executor,
-            withdrawDestinationData.intentAmount,
+            withdrawDestinationData.dstTokens,
+            withdrawDestinationData.intentAmounts,
             validUntil
         );
 
@@ -220,7 +225,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.executor,
-            approveDestinationData.intentAmount,
+            approveDestinationData.dstTokens,
+            approveDestinationData.intentAmounts,
             validUntil
         );
         leaves[1] = _createDestinationValidatorLeaf(
@@ -228,7 +234,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             transferDestinationData.chainId,
             transferDestinationData.sender,
             transferDestinationData.executor,
-            transferDestinationData.intentAmount,
+            transferDestinationData.dstTokens,
+            transferDestinationData.intentAmounts,
             validUntil
         );
         leaves[2] = _createDestinationValidatorLeaf(
@@ -236,7 +243,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             depositDestinationData.chainId,
             depositDestinationData.sender,
             depositDestinationData.executor,
-            depositDestinationData.intentAmount,
+            depositDestinationData.dstTokens,
+            depositDestinationData.intentAmounts,
             validUntil
         );
         leaves[3] = _createDestinationValidatorLeaf(
@@ -244,7 +252,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             withdrawDestinationData.chainId,
             withdrawDestinationData.sender,
             withdrawDestinationData.executor,
-            withdrawDestinationData.intentAmount,
+            withdrawDestinationData.dstTokens,
+            withdrawDestinationData.intentAmounts,
             validUntil
         );
 
@@ -281,7 +290,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.executor,
-            approveDestinationData.intentAmount,
+            approveDestinationData.dstTokens,
+            approveDestinationData.intentAmounts,
             validUntil
         );
         leaves[1] = _createDestinationValidatorLeaf(
@@ -289,7 +299,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             transferDestinationData.chainId,
             transferDestinationData.sender,
             transferDestinationData.executor,
-            transferDestinationData.intentAmount,
+            transferDestinationData.dstTokens,
+            transferDestinationData.intentAmounts,
             validUntil
         );
         leaves[2] = _createDestinationValidatorLeaf(
@@ -297,7 +308,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             depositDestinationData.chainId,
             depositDestinationData.sender,
             depositDestinationData.executor,
-            depositDestinationData.intentAmount,
+            depositDestinationData.dstTokens,
+            depositDestinationData.intentAmounts,
             validUntil
         );
         leaves[3] = _createDestinationValidatorLeaf(
@@ -305,7 +317,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             withdrawDestinationData.chainId,
             withdrawDestinationData.sender,
             withdrawDestinationData.executor,
-            withdrawDestinationData.intentAmount,
+            withdrawDestinationData.dstTokens,
+            withdrawDestinationData.intentAmounts,
             validUntil
         );
 
@@ -320,7 +333,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             approveDestinationData.chainId,
             approveDestinationData.sender,
             approveDestinationData.executor,
-            approveDestinationData.intentAmount
+            approveDestinationData.dstTokens,
+            approveDestinationData.intentAmounts
         );
 
         vm.startPrank(signerAddr);
@@ -364,7 +378,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             destinationData.chainId,
             destinationData.sender,
             destinationData.executor,
-            destinationData.intentAmount
+            destinationData.dstTokens,
+            destinationData.intentAmounts
         );
 
         bytes4 validationResult =
@@ -389,7 +404,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
                         destinationData.sender,
                         destinationData.nonce,
                         destinationData.executor,
-                        destinationData.intentAmount,
+                        destinationData.dstTokens,
+                        destinationData.intentAmounts,
                         validUntil
                     )
                 )
@@ -430,6 +446,10 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
     }
 
     function _createDummyApproveDestinationData(uint256 nonce) private view returns (DestinationData memory) {
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(this);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1e18;
         return DestinationData(
             nonce,
             abi.encodeWithSelector(IERC20.approve.selector, address(this), 1e18),
@@ -438,11 +458,16 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             address(this),
             address(this),
             address(this),
-            1e18
+            dstTokens,
+            intentAmounts
         );
     }
 
     function _createDummyTransferDestinationData(uint256 nonce) private view returns (DestinationData memory) {
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(this);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1e18;
         return DestinationData(
             nonce,
             abi.encodeWithSelector(IERC20.transfer.selector, address(this), 1e18),
@@ -451,11 +476,16 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             address(this),
             address(this),
             address(this),
-            1e18
+            dstTokens,
+            intentAmounts
         );
     }
 
     function _createDummyDepositDestinationData(uint256 nonce) private view returns (DestinationData memory) {
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(this);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1e18;
         return DestinationData(
             nonce,
             abi.encodeWithSelector(IERC4626.deposit.selector, 1e18, address(this)),
@@ -464,11 +494,16 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             address(this),
             address(this),
             address(this),
-            1e18
+            dstTokens,
+            intentAmounts
         );
     }
 
     function _createDummyWithdrawDestinationData(uint256 nonce) private view returns (DestinationData memory) {
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(this);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1e18;
         return DestinationData(
             nonce,
             abi.encodeWithSelector(IERC4626.withdraw.selector, 1e18, address(this)),
@@ -477,7 +512,8 @@ contract SuperDestinationValidatorTest is MerkleReader, MerkleTreeHelper, Rhines
             address(this),
             address(this),
             address(this),
-            1e18
+            dstTokens,
+            intentAmounts
         );
     }
 }

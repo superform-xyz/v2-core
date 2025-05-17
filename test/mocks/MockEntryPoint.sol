@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";

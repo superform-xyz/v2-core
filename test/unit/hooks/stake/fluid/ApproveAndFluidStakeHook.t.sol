@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ApproveAndFluidStakeHook } from "../../../../../src/core/hooks/stake/fluid/ApproveAndFluidStakeHook.sol";
@@ -38,6 +38,12 @@ contract ApproveAndFluidStakeHookTest is Helpers {
 
         data = _encodeData(true);
         assertEq(hook.decodeUsePrevHookAmount(data), true);
+    }
+
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_Build() public view {

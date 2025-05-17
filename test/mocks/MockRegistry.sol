@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 // external
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
@@ -129,6 +129,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
         virtual
         returns (bool)
     {
+        /// @dev block.timestamp could vary between chains
         return signer == _accountOwners[sender] && validUntil >= block.timestamp;
     }
 }

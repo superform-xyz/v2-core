@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 // external
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -53,6 +53,8 @@ import { MockSwapOdosHook } from "../../mocks/unused-hooks/MockSwapOdosHook.sol"
 import { MockOdosRouterV2 } from "../../mocks/MockOdosRouterV2.sol";
 import { SuperMerkleValidator } from "../../../src/core/validators/SuperMerkleValidator.sol";
 import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
+import { VaultBank } from "../../../src/periphery/VaultBank/VaultBank.sol";
+import { SuperGovernor } from "../../../src/periphery/SuperGovernor.sol";
 
 contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHelpers, ERC7579Precompiles, SignatureHelper, MerkleTreeHelper {
     using BytesLib for bytes;
@@ -71,6 +73,8 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
     address ledgerConfig;
     ISuperLedger public ledger;
     MockSuperPositionFactory public mockSuperPositionFactory;
+    SuperGovernor public superGovernor;
+    VaultBank public vaultBank;
 
     uint256 eoaKey;
     address account7702;
@@ -155,6 +159,11 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
 
         mockOdosRouter = address(new MockOdosRouterV2());
         mockSwapOdosHook = address(new MockSwapOdosHook(mockOdosRouter));
+
+        superGovernor = new SuperGovernor(address(this), address(this), address(this), address(this), address(this));
+        superGovernor.addExecutor(address(superExecutor));
+        superGovernor.addExecutor(address(newSuperExecutor));
+        vaultBank = new VaultBank(address(superGovernor));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -275,6 +284,41 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         executeOp(userOpData);
 
         assertEq(feeRecipient.balance, amount * 1e2/1e4);
+    }
+
+    function test_ShouldExecuteAll_AndLockAssetsInVaultBank(uint256 amount) external {
+        AccountInstance memory testInstance = makeAccountInstance(keccak256(abi.encode("TEST")));
+        address testAccount = testInstance.account;
+
+        testInstance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
+        testInstance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: abi.encode(signer)});
+
+        amount = _bound(amount);
+
+        _getTokens(underlying, testAccount, amount);
+
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = address(approveHook);
+        hooksAddresses[1] = address(deposit4626Hook);
+
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
+        hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(vaultBank), 8453
+        );
+        uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOpsWithValidator(testInstance, superExecutor, abi.encode(entry), address(validator));
+
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+        bytes memory sigData = _createSourceData(validUntil, userOpData);
+        userOpData.userOp.signature = sigData;
+        executeOp(userOpData);
+
+        uint256 accSharesAfter = vaultInstance.balanceOf(address(vaultBank));
+        assertEq(accSharesAfter, sharesPreviewed);
     }
 
     function test_ShouldExecuteAll_MerkleValidator(uint256 amount) external {

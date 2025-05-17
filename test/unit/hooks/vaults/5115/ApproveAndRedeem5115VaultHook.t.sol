@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 import { ApproveAndRedeem5115VaultHook } from
     "../../../../../src/core/hooks/vaults/5115/ApproveAndRedeem5115VaultHook.sol";
@@ -135,6 +135,12 @@ contract ApproveAndRedeem5115VaultHookTest is Helpers {
 
         hook.postExecute(address(0), address(this), data);
         assertEq(hook.outAmount(), 0);
+    }
+
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function _encodeData(bool usePrevHookAmount) internal view returns (bytes memory) {

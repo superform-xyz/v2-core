@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 /// @title ISuperDestinationExecutor Interface
 /// @author Superform Labs
@@ -13,10 +13,11 @@ interface ISuperDestinationExecutor {
     //////////////////////////////////////////////////////////////*/
     /// @notice Emitted when a bridged execution is received but the account has insufficient balance
     /// @param account The target account that lacks sufficient balance for execution
-    event SuperDestinationExecutorReceivedButNotEnoughBalance(address indexed account);
-    
-    /// @notice Emitted when a bridged execution is received but no hooks are specified
-    /// @param account The target account for the attempted execution
+    /// @param token The token that is required but not available
+    /// @param intentAmount The amount of tokens required for execution
+    /// @param available The amount of tokens currently available
+    event SuperDestinationExecutorReceivedButNotEnoughBalance(address indexed account, address indexed token, uint256 intentAmount, uint256 available);
+
     event SuperDestinationExecutorReceivedButNoHooks(address indexed account);
     
     /// @notice Emitted when a bridged execution completes successfully
@@ -32,6 +33,11 @@ interface ISuperDestinationExecutor {
     /// @param account The account on which the execution failed
     /// @param lowLevelData Raw bytes data from the low-level failure
     event SuperDestinationExecutorFailedLowLevel(address indexed account, bytes lowLevelData);
+    
+    /// @notice Emitted when a bridged execution fails with a panic code
+    /// @param account The account on which the execution failed
+    /// @param errorCode The panic code explaining why the execution failed
+    event SuperDestinationExecutorPanicFailed(address indexed account, uint256 errorCode);
     
     /// @notice Emitted when a new account is created during bridged execution
     /// @param account The address of the newly created account
@@ -63,14 +69,16 @@ interface ISuperDestinationExecutor {
     ///      Typically called by a bridge adapter contract after receiving a cross-chain message
     /// @param tokenSent The token address that was bridged to be used in the execution
     /// @param targetAccount The destination smart contract account to execute the operation on
-    /// @param intentAmount The minimum token amount required in the account to proceed
+    /// @param dstTokens The tokens required in the target account to proceed with the execution.
+    /// @param intentAmounts The amounts required in the target account to proceed with the execution.
     /// @param initData Optional initialization data for creating a new account if needed
     /// @param executorCalldata The encoded execution data (typically a SuperExecutor entry)
     /// @param userSignatureData Verification data (signature or merkle proof) to validate the request
     function processBridgedExecution(
         address tokenSent,
         address targetAccount,
-        uint256 intentAmount,
+        address[] memory dstTokens,
+        uint256[] memory intentAmounts,
         bytes memory initData,
         bytes memory executorCalldata,
         bytes memory userSignatureData

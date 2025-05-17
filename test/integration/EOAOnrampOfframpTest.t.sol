@@ -1,14 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.30;
 
-import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
+import { console } from "forge-std/console.sol";
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IPermit2 } from "../../src/vendor/uniswap/permit2/IPermit2.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
-import { IAllowanceTransfer } from "../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
 import { TrustedForwarder } from "modulekit/module-bases/utils/TrustedForwarder.sol";
 import { IPermit2Batch } from "../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
 import { BatchTransferFromHook } from "../../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
+import { IAllowanceTransfer } from "../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
 import { TransferERC20Hook } from "../../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
 
 contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
@@ -23,9 +25,11 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
     address[] public tokens;
 
     uint256[] public amounts;
+    uint256 public sigDeadline;
 
-    bytes32 public constant DOMAIN_SEPARATOR = 0x866a5aba21966af95d6c7ab78eb2b2fc913915c28be3b9aa07cc04ff903e3f28;
+    bytes32 public DOMAIN_SEPARATOR;
 
+    // Permit2 typehashes
     bytes32 public constant _PERMIT_BATCH_TYPEHASH = keccak256(
         "PermitBatch(PermitDetails[] details,address spender,uint256 sigDeadline)PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)"
     );
@@ -51,6 +55,8 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         amounts[1] = 1e18;
         amounts[2] = 1e18;
 
+        sigDeadline = block.timestamp + 2 weeks;
+
         eoa = vm.addr(0x12341234);
         vm.label(eoa, "EOA");
 
@@ -60,12 +66,24 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
 
         permit2 = IAllowanceTransfer(PERMIT2);
         permit2Batch = IPermit2Batch(PERMIT2);
+
+        try IPermit2(PERMIT2).DOMAIN_SEPARATOR() returns (bytes32 domainSeparator) {
+            DOMAIN_SEPARATOR = domainSeparator;
+            console.log("Got DOMAIN_SEPARATOR from contract");
+        } catch {
+            DOMAIN_SEPARATOR = 0x866a5aba21966af95d6c7ab78eb2b2fc913915c28be3b9aa07cc04ff903e3f28;
+            console.log("Using hardcoded DOMAIN_SEPARATOR");
+        }
     }
 
     function test_EOAOnrampOfframp() public {
         uint256 usdcBalanceBefore = IERC20(usdc).balanceOf(accountEth);
         uint256 wethBalanceBefore = IERC20(weth).balanceOf(accountEth);
         uint256 daiBalanceBefore = IERC20(dai).balanceOf(accountEth);
+
+        BatchTransferFromHook hook = new BatchTransferFromHook(PERMIT2);
+        address[] memory hooks = new address[](1);
+        hooks[0] = address(hook);
 
         vm.startPrank(eoa);
         IERC20(usdc).approve(PERMIT2, 10e18);
@@ -74,21 +92,20 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         vm.stopPrank();
 
         IAllowanceTransfer.PermitBatch memory permitBatch =
-            defaultERC20PermitBatchAllowance(tokens, amounts, uint48(block.timestamp + 1 weeks), uint48(0));
+            defaultERC20PermitBatchAllowance(tokens, amounts, uint48(block.timestamp + 2 weeks), uint48(0));
 
         bytes memory sig = getPermitBatchSignature(permitBatch, 0x12341234, DOMAIN_SEPARATOR);
 
-        vm.prank(eoa);
-        permit2Batch.permit(eoa, permitBatch, sig);
+        bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, sigDeadline, tokens, amounts, sig);
 
-        address[] memory hooks = new address[](1);
-        hooks[0] = address(new BatchTransferFromHook(PERMIT2));
+        bytes[] memory hookDataArray = new bytes[](1);
+        hookDataArray[0] = hookData;
 
-        bytes[] memory hookData = new bytes[](1);
-        hookData[0] = _createBatchTransferFromHookData(eoa, 3, tokens, amounts);
+        uint256 expectedLength = 20 + 32 + 32 + (20 * 3) + (32 * 3) + 65;
+        assertEq(hookData.length, expectedLength);
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookData });
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
 
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
@@ -146,11 +163,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
             });
         }
 
-        return IAllowanceTransfer.PermitBatch({
-            details: details,
-            spender: accountEth,
-            sigDeadline: block.timestamp + 1 weeks
-        });
+        return IAllowanceTransfer.PermitBatch({ details: details, spender: accountEth, sigDeadline: sigDeadline });
     }
 
     function getPermitBatchSignature(
