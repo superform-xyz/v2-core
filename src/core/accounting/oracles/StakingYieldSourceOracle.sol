@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import { IStakingVault } from "../../../vendor/staking/IStakingVault.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {IStakingVault} from "../../../vendor/staking/IStakingVault.sol";
 
 // Superform
-import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
+import {AbstractYieldSourceOracle} from "./AbstractYieldSourceOracle.sol";
 
 /// @title StakingYieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for Staking Yield Sources
 contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
-    constructor() AbstractYieldSourceOracle() { }
+    constructor() AbstractYieldSourceOracle() {}
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
@@ -39,10 +39,7 @@ contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getBalanceOfOwner(
-        address yieldSourceAddress,
-        address ownerOfShares
-    )
+    function getBalanceOfOwner(address yieldSourceAddress, address ownerOfShares)
         public
         view
         override
@@ -52,10 +49,7 @@ contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getTVLByOwnerOfShares(
-        address yieldSourceAddress,
-        address ownerOfShares
-    )
+    function getTVLByOwnerOfShares(address yieldSourceAddress, address ownerOfShares)
         public
         view
         override
@@ -70,10 +64,7 @@ contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function isValidUnderlyingAsset(
-        address yieldSourceAddress,
-        address expectedUnderlying
-    )
+    function isValidUnderlyingAsset(address yieldSourceAddress, address expectedUnderlying)
         public
         view
         override
@@ -83,10 +74,7 @@ contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function isValidUnderlyingAssets(
-        address[] memory yieldSourceAddresses,
-        address[] memory expectedUnderlying
-    )
+    function isValidUnderlyingAssets(address[] memory yieldSourceAddresses, address[] memory expectedUnderlying)
         external
         view
         override

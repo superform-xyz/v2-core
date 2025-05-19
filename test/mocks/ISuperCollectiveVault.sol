@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 interface ISuperCollectiveVault {
     /*//////////////////////////////////////////////////////////////
@@ -54,10 +54,7 @@ interface ISuperCollectiveVault {
         address rewardToken,
         uint256 amount,
         bytes32[] calldata proof
-    )
-        external
-        view
-        returns (bool);
+    ) external view returns (bool);
 
     /*//////////////////////////////////////////////////////////////
                                  OWNER METHODS
@@ -103,9 +100,7 @@ interface ISuperCollectiveVault {
         uint256[] calldata val,
         uint16 maxReturnDataCopy,
         bytes calldata data
-    )
-        external
-        payable;
+    ) external payable;
     /// @notice Distribute rewards to an account
     /// @param merkleRoot The merkle root to distribute the rewards from
     /// @param account The account to distribute the rewards to
@@ -118,6 +113,5 @@ interface ISuperCollectiveVault {
         address rewardToken,
         uint256 amount,
         bytes32[] calldata proof
-    )
-        external;
+    ) external;
 }

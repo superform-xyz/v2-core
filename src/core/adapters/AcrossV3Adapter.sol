@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // External Dependencies
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 // Protocol Interfaces
-import { IAcrossV3Receiver } from "../../vendor/bridges/across/IAcrossV3Receiver.sol";
+import {IAcrossV3Receiver} from "../../vendor/bridges/across/IAcrossV3Receiver.sol";
 
 // Superform Interfaces
-import { ISuperDestinationExecutor } from "../interfaces/ISuperDestinationExecutor.sol";
+import {ISuperDestinationExecutor} from "../interfaces/ISuperDestinationExecutor.sol";
 
 /// @title AcrossV3Adapter
 /// @author Superform Labs
@@ -48,10 +48,7 @@ contract AcrossV3Adapter is IAcrossV3Receiver {
         uint256 amount,
         address, // relayer; not used
         bytes memory message
-    )
-        external
-        override
-    {
+    ) external override {
         // 1. Validate Sender
         if (msg.sender != acrossSpokePool) {
             revert INVALID_SENDER();

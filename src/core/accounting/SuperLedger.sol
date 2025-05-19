@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { BaseLedger } from "./BaseLedger.sol";
+import {BaseLedger} from "./BaseLedger.sol";
 
 /// @title SuperLedger
 /// @author Superform Labs
@@ -13,10 +13,7 @@ contract SuperLedger is BaseLedger {
     /// @notice Initializes the SuperLedger with its configuration and executor permissions
     /// @param ledgerConfiguration_ Address of the SuperLedgerConfiguration contract
     /// @param allowedExecutors_ Array of addresses authorized to execute accounting operations
-    constructor(
-        address ledgerConfiguration_,
-        address[] memory allowedExecutors_
-    )
+    constructor(address ledgerConfiguration_, address[] memory allowedExecutors_)
         BaseLedger(ledgerConfiguration_, allowedExecutors_)
-    { }
+    {}
 }

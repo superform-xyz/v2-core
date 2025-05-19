@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { ISuperHook, Execution } from "../../core/interfaces/ISuperHook.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {ISuperHook, Execution} from "../../core/interfaces/ISuperHook.sol";
 
 /// @title ISuperVaultStrategy
 /// @author Superform Labs
@@ -218,13 +218,7 @@ interface ISuperVaultStrategy {
     /// @param actionType Type of action: 0=Add, 1=UpdateOracle, 2=ToggleActivation
     /// @param activate Boolean flag for activation when actionType is 2
     /// @param isAsync Boolean flag for async yield source
-    function manageYieldSource(
-        address source,
-        address oracle,
-        uint8 actionType,
-        bool activate,
-        bool isAsync
-    )
+    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate, bool isAsync)
         external;
 
     /// @notice Batch manage multiple yield sources in a single transaction
@@ -239,8 +233,7 @@ interface ISuperVaultStrategy {
         uint8[] calldata actionTypes,
         bool[] calldata activates,
         bool[] calldata isAsyncs
-    )
-        external;
+    ) external;
 
     /// @notice Propose or execute a hook root update
     /// @notice Propose changes to vault-specific fee configuration
@@ -291,10 +284,7 @@ interface ISuperVaultStrategy {
     /// @return totalFee The estimated fee that would be taken in asset terms
     /// @return superformFee The portion of the fee that would go to Superform treasury
     /// @return recipientFee The portion of the fee that would go to the fee recipient
-    function previewPerformanceFee(
-        address controller,
-        uint256 sharesToRedeem
-    )
+    function previewPerformanceFee(address controller, uint256 sharesToRedeem)
         external
         view
         returns (uint256 totalFee, uint256 superformFee, uint256 recipientFee);

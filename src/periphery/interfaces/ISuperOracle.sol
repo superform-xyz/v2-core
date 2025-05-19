@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 /// @title ISuperOracle
 /// @author Superform Labs
@@ -134,12 +134,7 @@ interface ISuperOracle {
     /// @param quote Quote asset address
     /// @param oracleProvider Id of oracle provider to use
     /// @return quoteAmount The quote amount
-    function getQuoteFromProvider(
-        uint256 baseAmount,
-        address base,
-        address quote,
-        bytes32 oracleProvider
-    )
+    function getQuoteFromProvider(uint256 baseAmount, address base, address quote, bytes32 oracleProvider)
         external
         view
         returns (uint256 quoteAmount, uint256 deviation, uint256 totalProviders, uint256 availableProviders);
@@ -154,8 +149,7 @@ interface ISuperOracle {
         address[] calldata quotes,
         bytes32[] calldata providers,
         address[] calldata feeds
-    )
-        external;
+    ) external;
 
     /// @notice Execute queued oracle update after timelock period
     function executeOracleUpdate() external;

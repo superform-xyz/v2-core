@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 contract MockStandardizedYield {
     /// @dev check `assetInfo()` for more information
@@ -45,6 +45,7 @@ contract MockStandardizedYield {
         assetAddress = assetToken;
         assetDecimals = 18;
     }
+
     function setAssetType(uint256 _assetType) external {
         assetTokenType = AssetType(_assetType);
     }
@@ -68,13 +69,15 @@ contract MockStandardizedYield {
     function getTokensIn() external view returns (address[] memory) {
         return tokensIn;
     }
+
     function setTokensIn(address[] memory _tokensIn) external {
         tokensIn = _tokensIn;
-    }   
+    }
 
     function getTokensOut() external view returns (address[] memory) {
         return tokensOut;
     }
+
     function setTokensOut(address[] memory _tokensOut) external {
         tokensOut = _tokensOut;
     }
@@ -87,6 +90,7 @@ contract MockStandardizedYield {
         balanceOf[acc] = amount;
         totalSupply = amount;
     }
+
     function setTotalAsset(uint256 amount) external {
         totalSupply = amount;
     }

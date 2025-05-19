@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // External
-import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { Clones } from "openzeppelin-contracts/contracts/proxy/Clones.sol";
-import { EnumerableSet } from "openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
-import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
+import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {Clones} from "openzeppelin-contracts/contracts/proxy/Clones.sol";
+import {EnumerableSet} from "openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
+import {MerkleProof} from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
-import { SuperVault } from "./SuperVault.sol";
-import { SuperVaultStrategy } from "./SuperVaultStrategy.sol";
-import { SuperVaultEscrow } from "./SuperVaultEscrow.sol";
-import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
-import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
+import {SuperVault} from "./SuperVault.sol";
+import {SuperVaultStrategy} from "./SuperVaultStrategy.sol";
+import {SuperVaultEscrow} from "./SuperVaultEscrow.sol";
+import {ISuperGovernor} from "../interfaces/ISuperGovernor.sol";
+import {ISuperVaultAggregator} from "../interfaces/ISuperVaultAggregator.sol";
 // Libraries
-import { AssetMetadataLib } from "../libraries/AssetMetadataLib.sol";
+import {AssetMetadataLib} from "../libraries/AssetMetadataLib.sol";
 
 /// @title SuperVaultAggregator
 /// @author Superform Labs
@@ -162,12 +162,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
                           PPS UPDATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperVaultAggregator
-    function forwardPPS(
-        address updateAuthority,
-        address strategy,
-        uint256 pps,
-        uint256 timestamp
-    )
+    function forwardPPS(address updateAuthority, address strategy, uint256 pps, uint256 timestamp)
         external
         onlyPPSOracle
         validStrategy(strategy)
@@ -180,11 +175,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     }
 
     /// @inheritdoc ISuperVaultAggregator
-    function batchForwardPPS(
-        address[] calldata strategies,
-        uint256[] calldata ppss,
-        uint256[] calldata timestamps
-    )
+    function batchForwardPPS(address[] calldata strategies, uint256[] calldata ppss, uint256[] calldata timestamps)
         external
         onlyPPSOracle
     {
@@ -632,11 +623,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         bytes calldata hookArgs,
         bytes32[] calldata globalProof,
         bytes32[] calldata strategyProof
-    )
-        external
-        view
-        returns (bool isValid)
-    {
+    ) external view returns (bool isValid) {
         // If both roots are vetoed, all hook validations fail
         bool globalHooksVetoed = _globalHooksRootVetoed;
         bool strategyHooksVetoed = _strategyData[strategy].hooksRootVetoed;
@@ -654,11 +641,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         bytes[] calldata hooksArgs,
         bytes32[][] calldata globalProofs,
         bytes32[][] calldata strategyProofs
-    )
-        external
-        view
-        returns (bool[] memory validHooks)
-    {
+    ) external view returns (bool[] memory validHooks) {
         uint256 length = hooksArgs.length;
 
         // Ensure array lengths match
@@ -729,13 +712,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /// @param timestamp Timestamp of the PPS measurement
     /// @param upkeepCost The amount of upkeep to charge (if not exempt)
 
-    function _forwardPPS(
-        address strategy,
-        bool isExempt,
-        uint256 pps,
-        uint256 timestamp,
-        uint256 upkeepCost
-    )
+    function _forwardPPS(address strategy, bool isExempt, uint256 pps, uint256 timestamp, uint256 upkeepCost)
         internal
     {
         // Check rate limiting
@@ -770,11 +747,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /// @param updateAuthority Address initiating the update
     /// @param timestamp Timestamp of the PPS measurement
     /// @return isExempt True if the authority is exempt from paying upkeep
-    function _isExemptFromUpkeep(
-        address strategy,
-        address updateAuthority,
-        uint256 timestamp
-    )
+    function _isExemptFromUpkeep(address strategy, address updateAuthority, uint256 timestamp)
         internal
         returns (bool)
     {
@@ -830,11 +803,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         bytes32[] calldata strategyProof,
         bool globalVetoed,
         bool strategyVetoed
-    )
-        internal
-        view
-        returns (bool)
-    {
+    ) internal view returns (bool) {
         uint256 lengthGlobalProof = globalProof.length;
         uint256 lengthStrategyProof = strategyProof.length;
 

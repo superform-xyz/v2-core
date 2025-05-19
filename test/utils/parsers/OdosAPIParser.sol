@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Surl } from "@surl/Surl.sol";
-import { strings } from "@stringutils/strings.sol";
+import {Surl} from "@surl/Surl.sol";
+import {strings} from "@stringutils/strings.sol";
 import "@openzeppelin/contracts/utils/Strings.sol";
 import "forge-std/StdUtils.sol";
 
-import { IOdosRouterV2 } from "../../../src/vendor/odos/IOdosRouterV2.sol";
-import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+import {IOdosRouterV2} from "../../../src/vendor/odos/IOdosRouterV2.sol";
+import {BytesLib} from "../../../src/vendor/BytesLib.sol";
 
-import { BaseAPIParser } from "./BaseAPIParser.sol";
+import {BaseAPIParser} from "./BaseAPIParser.sol";
 
 abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
     using Surl for *;
@@ -32,28 +32,38 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
     }
 
     struct OdosDecodedSwap {
-       IOdosRouterV2.swapTokenInfo tokenInfo;
-       bytes pathDefinition;
-       address executor;
-       uint32 referralCode;
+        IOdosRouterV2.swapTokenInfo tokenInfo;
+        bytes pathDefinition;
+        address executor;
+        uint32 referralCode;
     }
 
     string constant API_QUOTE_URL = "https://api.odos.xyz/sor/quote/v2";
     string constant API_ASSEMBLE_URL = "https://api.odos.xyz/sor/assemble";
-    uint256 private constant addressListStart = 
-        80084422859880547211683076133703299733277748156566366325829078699459944778998;
-    
+    uint256 private constant addressListStart =
+        80_084_422_859_880_547_211_683_076_133_703_299_733_277_748_156_566_366_325_829_078_699_459_944_778_998;
+
     /*//////////////////////////////////////////////////////////////
                             API_QUOTE_URL
     //////////////////////////////////////////////////////////////*/
-    function buildQuoteV2RequestBody(QuoteInputToken[] memory _inputTokens, QuoteOutputToken[] memory _outputTokens, address _account, uint256 _chainId, bool _compact) internal pure returns (string memory) {
+    function buildQuoteV2RequestBody(
+        QuoteInputToken[] memory _inputTokens,
+        QuoteOutputToken[] memory _outputTokens,
+        address _account,
+        uint256 _chainId,
+        bool _compact
+    ) internal pure returns (string memory) {
         string memory inputTokensStr = "[";
         for (uint256 i = 0; i < _inputTokens.length; i++) {
             inputTokensStr = string.concat(
                 inputTokensStr,
                 i > 0 ? "," : "",
-                '{"tokenAddress":"', toChecksumString(_inputTokens[i].tokenAddress), '",',
-                '"amount":"', _inputTokens[i].amount.toString(), '"}'
+                '{"tokenAddress":"',
+                toChecksumString(_inputTokens[i].tokenAddress),
+                '",',
+                '"amount":"',
+                _inputTokens[i].amount.toString(),
+                '"}'
             );
         }
         inputTokensStr = string.concat(inputTokensStr, "]");
@@ -63,26 +73,46 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
             outputTokensStr = string.concat(
                 outputTokensStr,
                 i > 0 ? "," : "",
-                '{"tokenAddress":"', toChecksumString(_outputTokens[i].tokenAddress), '",',
-                '"proportion":', _outputTokens[i].proportion.toString(), '}'
+                '{"tokenAddress":"',
+                toChecksumString(_outputTokens[i].tokenAddress),
+                '",',
+                '"proportion":',
+                _outputTokens[i].proportion.toString(),
+                "}"
             );
         }
         outputTokensStr = string.concat(outputTokensStr, "]");
 
         return string.concat(
             "{",
-                '"chainId":', _chainId.toString(), ",",
-                '"inputTokens":', inputTokensStr, ",",
-                '"outputTokens":', outputTokensStr, ",",
-                '"slippageLimitPercent":0.3,',
-                '"userAddr":"', toChecksumString(_account), '",',
-                '"referralCode":0,',
-                '"disableRFQs":true,',
-                '"compact":', _compact ? "true" : "false",
+            '"chainId":',
+            _chainId.toString(),
+            ",",
+            '"inputTokens":',
+            inputTokensStr,
+            ",",
+            '"outputTokens":',
+            outputTokensStr,
+            ",",
+            '"slippageLimitPercent":0.3,',
+            '"userAddr":"',
+            toChecksumString(_account),
+            '",',
+            '"referralCode":0,',
+            '"disableRFQs":true,',
+            '"compact":',
+            _compact ? "true" : "false",
             "}"
         );
     }
-    function surlCallQuoteV2(QuoteInputToken[] memory _inputTokens, QuoteOutputToken[] memory _outputTokens, address _account, uint256 _chainId, bool _compact) internal returns (string memory) {
+
+    function surlCallQuoteV2(
+        QuoteInputToken[] memory _inputTokens,
+        QuoteOutputToken[] memory _outputTokens,
+        address _account,
+        uint256 _chainId,
+        bool _compact
+    ) internal returns (string memory) {
         string[] memory headers = new string[](1);
         headers[0] = "Content-Type: application/json";
 
@@ -107,16 +137,13 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
     //////////////////////////////////////////////////////////////*/
     function buildAssembleRequestBody(string memory _pathId, address _userAddr) internal pure returns (string memory) {
         return string.concat(
-            "{",
-                '"pathId":"', _pathId, '",',
-                '"userAddr":"', toChecksumString(_userAddr), '",',
-                '"simulate":false'
-            "}"
+            "{", '"pathId":"', _pathId, '",', '"userAddr":"', toChecksumString(_userAddr), '",', '"simulate":false' "}"
         );
     }
+
     function surlCallAssemble(string memory _pathId, address _userAddr) internal returns (string memory) {
         string[] memory headers = new string[](1);
-        headers[0] = "Content-Type: application/json";  
+        headers[0] = "Content-Type: application/json";
 
         string memory body = buildAssembleRequestBody(_pathId, _userAddr);
         (uint256 status, bytes memory data) = API_ASSEMBLE_URL.post(headers, body);
@@ -132,7 +159,6 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
         return swapData.toString();
     }
 
-
     /*//////////////////////////////////////////////////////////////
                             DECODE SWAP
     //////////////////////////////////////////////////////////////*/
@@ -144,18 +170,28 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
         bytes4 selector = bytes4(txData.slice(0, 4));
         bytes memory data = txData.slice(4, txData.length - 4);
         if (selector == IOdosRouterV2.swap.selector) {
-            (decoded.tokenInfo, decoded.pathDefinition, decoded.executor, decoded.referralCode) = abi.decode(data, (IOdosRouterV2.swapTokenInfo, bytes, address, uint32));
+            (decoded.tokenInfo, decoded.pathDefinition, decoded.executor, decoded.referralCode) =
+                abi.decode(data, (IOdosRouterV2.swapTokenInfo, bytes, address, uint32));
         } else if (selector == IOdosRouterV2.swapCompact.selector) {
             (decoded.executor, decoded.referralCode, decoded.pathDefinition, decoded.tokenInfo) = _decode(data);
         }
 
         return decoded;
     }
-    
+
     /*//////////////////////////////////////////////////////////////
                             PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _decode(bytes memory rawData) private view returns (address executor, uint32 referralCode, bytes memory pathDefinition, IOdosRouterV2.swapTokenInfo memory tokenInfo) {
+    function _decode(bytes memory rawData)
+        private
+        view
+        returns (
+            address executor,
+            uint32 referralCode,
+            bytes memory pathDefinition,
+            IOdosRouterV2.swapTokenInfo memory tokenInfo
+        )
+    {
         bytes memory data = rawData;
 
         tokenInfo = IOdosRouterV2.swapTokenInfo({
@@ -229,15 +265,11 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
             executor, pos := getAddress(pos, dataPtr)
 
             tmp, pos := getAddress(pos, dataPtr)
-            if eq(tmp, 0) {
-                tmp := executor
-            }
+            if eq(tmp, 0) { tmp := executor }
             mstore(add(tokenInfoPtr, 0x40), tmp) // inputReceiver
 
             tmp, pos := getAddress(pos, dataPtr)
-            if eq(tmp, 0) {
-                tmp := msgSender
-            }
+            if eq(tmp, 0) { tmp := msgSender }
             mstore(add(tokenInfoPtr, 0xC0), tmp) // outputReceiver
 
             referralCode := shr(224, mload(add(dataPtr, pos)))
@@ -249,11 +281,7 @@ abstract contract OdosAPIParser is StdUtils, BaseAPIParser {
             let dest := add(pathDefinition, 0x20)
             mstore(0x40, add(dest, pathLen))
             let pathData := add(add(dataPtr, pos), 1)
-            for { let i := 0 } lt(i, pathLen) { i := add(i, 32) } {
-                mstore(add(dest, i), mload(add(pathData, i)))
-            }
+            for { let i := 0 } lt(i, pathLen) { i := add(i, 32) } { mstore(add(dest, i), mload(add(pathData, i))) }
         }
     }
-
 }
-

@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
-import { IBundlerRegistry } from "./interfaces/IBundlerRegistry.sol";
+import {IBundlerRegistry} from "./interfaces/IBundlerRegistry.sol";
 
 contract BundlerRegistry is IBundlerRegistry, Ownable2Step {
     /*//////////////////////////////////////////////////////////////
@@ -12,7 +12,7 @@ contract BundlerRegistry is IBundlerRegistry, Ownable2Step {
     mapping(address bundlerAddress => Bundler bundlerData) public bundlers;
     mapping(uint256 bundlerId => address bundlerAddress) public bundlerIds;
 
-    constructor(address owner_) Ownable(owner_) { }
+    constructor(address owner_) Ownable(owner_) {}
 
     /*//////////////////////////////////////////////////////////////
                                 VIEW FUNCTIONS

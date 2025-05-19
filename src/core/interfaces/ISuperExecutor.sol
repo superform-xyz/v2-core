@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 /// @title ISuperExecutor
 /// @author Superform Labs
@@ -16,7 +16,6 @@ interface ISuperExecutor {
         /// @dev Hooks are executed in the exact order provided, with state passed between them
         ///      Zero address entries are not allowed
         address[] hooksAddresses;
-        
         /// @notice Corresponding hook-specific input data for each hook
         /// @dev Each bytes array contains ABI-encoded parameters for the corresponding hook
         ///      The encoding format is specific to each hook implementation
@@ -29,49 +28,49 @@ interface ISuperExecutor {
     /// @notice Thrown when trying to execute with an empty hooks array
     /// @dev A valid execution requires at least one hook to process
     error NO_HOOKS();
-    
+
     /// @notice Thrown when a fee calculation results in an invalid amount
     /// @dev Typically occurs when a fee exceeds the available amount or is negative
     ///      Important for maintaining economic integrity in the system
     error INVALID_FEE();
-    
+
     /// @notice Thrown when an unauthorized address attempts a restricted operation
     /// @dev Security measure to ensure only approved addresses can perform certain actions
     ///      Critical for maintaining system security and integrity
     error NOT_AUTHORIZED();
-    
+
     /// @notice Thrown when the hooks addresses and data arrays have different lengths
     /// @dev Each hook address must have a corresponding data element
     ///      This ensures data integrity during execution sequences
     error LENGTH_MISMATCH();
-    
+
     /// @notice Thrown when trying to use an executor that hasn't been initialized for an account
     /// @dev Executors must be properly initialized before use to ensure correct state
     error NOT_INITIALIZED();
-    
+
     /// @notice Thrown when a manager address is required but not set
     /// @dev The manager is needed for certain privileged operations
     ///      Particularly important for rebalancing governance
     error MANAGER_NOT_SET();
-    
+
     /// @notice Thrown when an operation references an invalid chain ID
     /// @dev Cross-chain operations must use valid destination chain identifiers
     ///      Essential for multi-chain SuperUSD deployments
     error INVALID_CHAIN_ID();
-    
+
     /// @notice Thrown when an invalid address (typically zero address) is provided
     /// @dev Prevents operations with problematic address values
     ///      Zero addresses are generally not allowed as hooks or recipients
     error ADDRESS_NOT_VALID();
-    
+
     /// @notice Thrown when trying to initialize an executor that's already initialized
     /// @dev Prevents duplicate initialization which could reset important state
     error ALREADY_INITIALIZED();
-    
+
     /// @notice Thrown when a fee transfer fails to complete correctly
     /// @dev Used to detect potential issues with the fee transfer mechanism
     error FEE_NOT_TRANSFERRED();
-    
+
     /// @notice Thrown when an account has insufficient balance to pay required fees
     /// @dev Ensures operations only proceed when proper compensation can be provided
     error INSUFFICIENT_BALANCE_FOR_FEE();
@@ -85,7 +84,9 @@ interface ISuperExecutor {
     /// @param spToken The SuperPosition token address to be minted
     /// @param amount The amount of tokens to mint, in the token's native units
     /// @param dstChainId The destination chain ID where the mint will occur
-    event SuperPositionMintRequested(address indexed account, address indexed spToken, uint256 amount, uint256 indexed dstChainId);
+    event SuperPositionMintRequested(
+        address indexed account, address indexed spToken, uint256 amount, uint256 indexed dstChainId
+    );
 
     /*//////////////////////////////////////////////////////////////
                                   VIEW METHODS

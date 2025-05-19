@@ -1,31 +1,31 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // testing
-import { BaseTest } from "../../../BaseTest.t.sol";
-import { TotalAssetHelper } from "./TotalAssetHelper.sol";
+import {BaseTest} from "../../../BaseTest.t.sol";
+import {TotalAssetHelper} from "./TotalAssetHelper.sol";
 
 // external
-import { console2 } from "forge-std/console2.sol";
-import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import {console2} from "forge-std/console2.sol";
+import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
-import { ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
+import {ModuleKitHelpers, AccountInstance, UserOpData} from "modulekit/ModuleKit.sol";
 
 // superform
-import { SuperVault } from "../../../../src/periphery/SuperVault/SuperVault.sol";
-import { SuperVaultStrategy } from "../../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
-import { SuperVaultEscrow } from "../../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
-import { SuperVaultAggregator } from "../../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
-import { SuperGovernor } from "../../../../src/periphery/SuperGovernor.sol";
-import { ISuperVaultStrategy } from "../../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
-import { ISuperExecutor } from "../../../../src/core/interfaces/ISuperExecutor.sol";
-import { FeeType } from "../../../../src/periphery/interfaces/ISuperGovernor.sol";
-import { ISuperVaultAggregator } from "../../../../src/periphery/interfaces/ISuperVaultAggregator.sol";
-import { IECDSAPPSOracle } from "../../../../src/periphery/interfaces/IECDSAPPSOracle.sol";
-import { MerkleReader } from "../../../utils/merkle/helper/MerkleReader.sol";
-import { ISuperHookInspector } from "../../../../src/core/interfaces/ISuperHook.sol";
+import {SuperVault} from "../../../../src/periphery/SuperVault/SuperVault.sol";
+import {SuperVaultStrategy} from "../../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import {SuperVaultEscrow} from "../../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
+import {SuperVaultAggregator} from "../../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import {SuperGovernor} from "../../../../src/periphery/SuperGovernor.sol";
+import {ISuperVaultStrategy} from "../../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
+import {ISuperExecutor} from "../../../../src/core/interfaces/ISuperExecutor.sol";
+import {FeeType} from "../../../../src/periphery/interfaces/ISuperGovernor.sol";
+import {ISuperVaultAggregator} from "../../../../src/periphery/interfaces/ISuperVaultAggregator.sol";
+import {IECDSAPPSOracle} from "../../../../src/periphery/interfaces/IECDSAPPSOracle.sol";
+import {MerkleReader} from "../../../utils/merkle/helper/MerkleReader.sol";
+import {ISuperHookInspector} from "../../../../src/core/interfaces/ISuperHook.sol";
 
 contract BaseSuperVaultTest is MerkleReader, BaseTest {
     using ModuleKitHelpers for *;
@@ -160,10 +160,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
      * @return strategyAddr The address of the deployed SuperVaultStrategy
      * @return escrowAddr The address of the deployed SuperVaultEscrow
      */
-    function _deployVault(
-        address _asset,
-        string memory _superVaultSymbol
-    )
+    function _deployVault(address _asset, string memory _superVaultSymbol)
         internal
         returns (address vaultAddr, address strategyAddr, address escrowAddr)
     {
@@ -178,7 +175,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
                 mainStrategist: STRATEGIST,
                 minUpdateInterval: 5,
                 maxStaleness: 300,
-                feeConfig: ISuperVaultStrategy.FeeConfig({ performanceFeeBps: 1000, recipient: address(this) })
+                feeConfig: ISuperVaultStrategy.FeeConfig({performanceFeeBps: 1000, recipient: address(this)})
             })
         );
 
@@ -222,7 +219,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
         UserOpData memory userOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(entry));
         executeOp(userOpData);
     }
@@ -267,7 +264,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         );
 
         ISuperExecutor.ExecutorEntry memory redeemEntry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: redeemHooksAddresses, hooksData: redeemHooksData });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: redeemHooksAddresses, hooksData: redeemHooksData});
         UserOpData memory redeemUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(redeemEntry));
 
         if (shouldRevert) {
@@ -286,7 +283,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: claimHooksAddresses, hooksData: claimHooksData});
         UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
     }
@@ -478,9 +475,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         uint256 allocationAmountVault2,
         address vault1,
         address vault2
-    )
-        internal
-    {
+    ) internal {
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
@@ -535,9 +530,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         address vault1,
         address vault2,
         bytes4 revertSelector
-    )
-        internal
-    {
+    ) internal {
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
@@ -596,9 +589,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         address vault2,
         uint256[] memory expectedAssetsOrSharesOut,
         bytes4 revertSelector
-    )
-        internal
-    {
+    ) internal {
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
@@ -653,9 +644,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         uint256 allocationAmountVault1,
         uint256 allocationAmountVault2,
         uint256 allocationAmountVault3
-    )
-        internal
-    {
+    ) internal {
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](3);
@@ -721,9 +710,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         uint256 redeemSharesVault2,
         address vault1,
         address vault2
-    )
-        internal
-    {
+    ) internal {
         address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
@@ -781,9 +768,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         address vault2,
         uint256[] memory expectedAssetsOrSharesOut,
         bytes4 revertSelector
-    )
-        internal
-    {
+    ) internal {
         address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
@@ -1263,9 +1248,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         address sourceVault,
         address targetVault,
         uint256 assetsToMove
-    )
-        internal
-    {
+    ) internal {
         uint256 sharesToRedeem = IERC4626(sourceVault).convertToShares(assetsToMove);
 
         vm.startPrank(STRATEGIST);
@@ -1313,9 +1296,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         address targetVault,
         uint256 targetAssets,
         uint256 currentAssets
-    )
-        internal
-    {
+    ) internal {
         uint256 assetsToMove = targetAssets - currentAssets;
         uint256 sharesToRedeem = IERC4626(sourceVault).convertToShares(assetsToMove);
 
@@ -1357,11 +1338,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         vm.stopPrank();
     }
 
-    function _deriveSuperVaultFees(
-        uint256 requestedShares,
-        uint256 currentPricePerShare,
-        uint256 precision
-    )
+    function _deriveSuperVaultFees(uint256 requestedShares, uint256 currentPricePerShare, uint256 precision)
         internal
         returns (uint256, uint256)
     {
@@ -1396,10 +1373,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         state.accumulatorCostBasis += assets;
     }
 
-    function _deriveSuperVaultFeesFromAssets(
-        uint256 currentAssets,
-        uint256 historicalAssets
-    )
+    function _deriveSuperVaultFeesFromAssets(uint256 currentAssets, uint256 historicalAssets)
         internal
         view
         returns (uint256, uint256)

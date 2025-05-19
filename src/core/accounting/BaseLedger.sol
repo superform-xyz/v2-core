@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // Superform
-import { SuperLedgerConfiguration } from "./SuperLedgerConfiguration.sol";
-import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
-import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
-import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import {SuperLedgerConfiguration} from "./SuperLedgerConfiguration.sol";
+import {ISuperLedger} from "../interfaces/accounting/ISuperLedger.sol";
+import {IYieldSourceOracle} from "../interfaces/accounting/IYieldSourceOracle.sol";
+import {ISuperLedgerConfiguration} from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 /// @title BaseLedger
 /// @author Superform Labs
@@ -22,7 +22,7 @@ abstract contract BaseLedger is ISuperLedger {
     /// @notice Tracks the total shares each user has for each yield source
     /// @dev Used for calculating proportional cost basis when consuming partial positions
     mapping(address user => mapping(address yieldSource => uint256 shares)) public usersAccumulatorShares;
-    
+
     /// @notice Tracks the total cost basis (in asset terms) for each user's yield source position
     /// @dev Cost basis represents the acquisition value used to determine yield for fee calculations
     mapping(address user => mapping(address yieldSource => uint256 costBasis)) public usersAccumulatorCostBasis;
@@ -62,19 +62,12 @@ abstract contract BaseLedger is ISuperLedger {
         bool isInflow,
         uint256 amountSharesOrAssets,
         uint256 usedShares
-    )
-        external
-        returns (uint256 feeAmount)
-    {
+    ) external returns (uint256 feeAmount) {
         return _updateAccounting(user, yieldSource, yieldSourceOracleId, isInflow, amountSharesOrAssets, usedShares);
     }
 
     /// @inheritdoc ISuperLedger
-    function calculateCostBasisView(
-        address user,
-        address yieldSource,
-        uint256 usedShares
-    )
+    function calculateCostBasisView(address user, address yieldSource, uint256 usedShares)
         public
         view
         returns (uint256 costBasis)
@@ -94,11 +87,7 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 amountAssets,
         uint256 usedShares,
         uint256 feePercent
-    )
-        public
-        view
-        returns (uint256 feeAmount)
-    {
+    ) public view returns (uint256 feeAmount) {
         uint256 costBasis = calculateCostBasisView(user, yieldSourceAddress, usedShares);
         feeAmount = _calculateFees(costBasis, amountAssets, feePercent);
     }
@@ -115,13 +104,7 @@ abstract contract BaseLedger is ISuperLedger {
     /// @param yieldSource Address of the yield-bearing asset
     /// @param pps Current price per share of the yield source
     /// @param decimals Decimal precision of the yield source
-    function _takeSnapshot(
-        address user,
-        uint256 amountShares,
-        address yieldSource,
-        uint256 pps,
-        uint256 decimals
-    )
+    function _takeSnapshot(address user, uint256 amountShares, address yieldSource, uint256 pps, uint256 decimals)
         internal
         virtual
     {
@@ -134,12 +117,7 @@ abstract contract BaseLedger is ISuperLedger {
     ///      In the base implementation, simply returns the input amount unchanged
     /// @param amountSharesOrAssets The amount of shares or assets being withdrawn
     /// @return The volume to use for fee calculations
-    function _getOutflowProcessVolume(
-        uint256 amountSharesOrAssets,
-        uint256,
-        uint256,
-        uint8
-    )
+    function _getOutflowProcessVolume(uint256 amountSharesOrAssets, uint256, uint256, uint8)
         internal
         pure
         virtual
@@ -155,11 +133,7 @@ abstract contract BaseLedger is ISuperLedger {
     /// @param yieldSource Address of the yield-bearing asset
     /// @param usedShares Amount of shares being consumed
     /// @return costBasis The calculated cost basis for the consumed shares
-    function _calculateCostBasis(
-        address user,
-        address yieldSource,
-        uint256 usedShares
-    )
+    function _calculateCostBasis(address user, address yieldSource, uint256 usedShares)
         internal
         returns (uint256 costBasis)
     {
@@ -184,11 +158,7 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 amountAssets,
         uint256 usedShares,
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
-    )
-        internal
-        virtual
-        returns (uint256 feeAmount)
-    {
+    ) internal virtual returns (uint256 feeAmount) {
         uint256 costBasis = _calculateCostBasis(user, yieldSource, usedShares);
         feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
     }
@@ -201,11 +171,7 @@ abstract contract BaseLedger is ISuperLedger {
     /// @param amountAssets Current value of the shares in asset terms
     /// @param feePercent Fee percentage in basis points (e.g., 1000 = 10%)
     /// @return feeAmount The calculated fee amount based on profit
-    function _calculateFees(
-        uint256 costBasis,
-        uint256 amountAssets,
-        uint256 feePercent
-    )
+    function _calculateFees(uint256 costBasis, uint256 amountAssets, uint256 feePercent)
         internal
         pure
         virtual
@@ -238,12 +204,7 @@ abstract contract BaseLedger is ISuperLedger {
         bool isInflow,
         uint256 amountSharesOrAssets,
         uint256 usedShares
-    )
-        internal
-        virtual
-        onlyExecutor
-        returns (uint256 feeAmount)
-    {
+    ) internal virtual onlyExecutor returns (uint256 feeAmount) {
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
             superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 /// @title ISuperDestinationValidator
 /// @author Superform Labs
@@ -12,7 +12,7 @@ interface ISuperDestinationValidator {
     //////////////////////////////////////////////////////////////*/
     /// @notice Thrown when the sender account has not been initialized
     error NOT_INITIALIZED();
-    
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/

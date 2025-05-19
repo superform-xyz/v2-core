@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 // superform
-import { BaseLedger } from "./BaseLedger.sol";
+import {BaseLedger} from "./BaseLedger.sol";
 
 /// @title ERC5115Ledger
 /// @author Superform Labs
@@ -16,12 +16,9 @@ contract ERC5115Ledger is BaseLedger {
     /// @notice Initializes the ERC5115Ledger with configuration and executor permissions
     /// @param ledgerConfiguration_ Address of the SuperLedgerConfiguration contract
     /// @param allowedExecutors_ Array of addresses authorized to execute accounting operations
-    constructor(
-        address ledgerConfiguration_,
-        address[] memory allowedExecutors_
-    )
+    constructor(address ledgerConfiguration_, address[] memory allowedExecutors_)
         BaseLedger(ledgerConfiguration_, allowedExecutors_)
-    { }
+    {}
 
     /// @notice Calculates the asset volume for outflow processing in ERC-5115 vaults
     /// @dev Overrides the base implementation to handle ERC-5115 specific price conversion
@@ -30,12 +27,7 @@ contract ERC5115Ledger is BaseLedger {
     /// @param pps Current price per share from the oracle
     /// @param decimals Decimal precision of the yield source
     /// @return The asset amount equivalent to the withdrawn shares
-    function _getOutflowProcessVolume(
-        uint256 /* notUsed */,
-        uint256 usedShares,
-        uint256 pps,
-        uint8 decimals
-    )
+    function _getOutflowProcessVolume(uint256, /* notUsed */ uint256 usedShares, uint256 pps, uint8 decimals)
         internal
         pure
         override

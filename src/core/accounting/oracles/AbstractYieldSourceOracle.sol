@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // Superform
-import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
+import {IYieldSourceOracle} from "../../interfaces/accounting/IYieldSourceOracle.sol";
 
 /// @title AbstractYieldSourceOracle
 /// @author Superform Labs
@@ -19,22 +19,14 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     function decimals(address yieldSourceAddress) external view virtual returns (uint8);
 
     /// @inheritdoc IYieldSourceOracle
-    function getShareOutput(
-        address yieldSourceAddress,
-        address assetIn,
-        uint256 assetsIn
-    )
+    function getShareOutput(address yieldSourceAddress, address assetIn, uint256 assetsIn)
         external
         view
         virtual
         returns (uint256);
 
     /// @inheritdoc IYieldSourceOracle
-    function getAssetOutput(
-        address yieldSourceAddress,
-        address assetIn,
-        uint256 sharesIn
-    )
+    function getAssetOutput(address yieldSourceAddress, address assetIn, uint256 sharesIn)
         external
         view
         virtual
@@ -44,10 +36,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     function getPricePerShare(address yieldSourceAddress) public view virtual returns (uint256);
 
     /// @inheritdoc IYieldSourceOracle
-    function getTVLByOwnerOfShares(
-        address yieldSourceAddress,
-        address ownerOfShares
-    )
+    function getTVLByOwnerOfShares(address yieldSourceAddress, address ownerOfShares)
         public
         view
         virtual
@@ -72,20 +61,14 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     }
 
     /// @inheritdoc IYieldSourceOracle
-    function getBalanceOfOwner(
-        address yieldSourceAddress,
-        address ownerOfShares
-    )
+    function getBalanceOfOwner(address yieldSourceAddress, address ownerOfShares)
         external
         view
         virtual
         returns (uint256);
 
     /// @inheritdoc IYieldSourceOracle
-    function getTVLByOwnerOfSharesMultiple(
-        address[] memory yieldSourceAddresses,
-        address[][] memory ownersOfShares
-    )
+    function getTVLByOwnerOfSharesMultiple(address[] memory yieldSourceAddresses, address[][] memory ownersOfShares)
         external
         view
         returns (uint256[][] memory userTvls)
@@ -123,20 +106,14 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     }
 
     /// @inheritdoc IYieldSourceOracle
-    function isValidUnderlyingAsset(
-        address yieldSourceAddress,
-        address expectedUnderlying
-    )
+    function isValidUnderlyingAsset(address yieldSourceAddress, address expectedUnderlying)
         external
         view
         virtual
         returns (bool);
 
     /// @inheritdoc IYieldSourceOracle
-    function isValidUnderlyingAssets(
-        address[] memory yieldSourceAddresses,
-        address[] memory expectedUnderlying
-    )
+    function isValidUnderlyingAssets(address[] memory yieldSourceAddresses, address[] memory expectedUnderlying)
         external
         view
         virtual

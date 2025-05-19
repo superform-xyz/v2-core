@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Helpers } from "../../utils/Helpers.sol";
+import {Helpers} from "../../utils/Helpers.sol";
 
-import { MockERC20 } from "../../mocks/MockERC20.sol";
-import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
-import { Mock7540Vault } from "../../mocks/Mock7540Vault.sol";
-import { Mock5115Vault } from "../../mocks/Mock5115Vault.sol";
+import {MockERC20} from "../../mocks/MockERC20.sol";
+import {Mock4626Vault} from "../../mocks/Mock4626Vault.sol";
+import {Mock7540Vault} from "../../mocks/Mock7540Vault.sol";
+import {Mock5115Vault} from "../../mocks/Mock5115Vault.sol";
 
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IStakingVault } from "../../../src/vendor/staking/IStakingVault.sol";
+import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IStakingVault} from "../../../src/vendor/staking/IStakingVault.sol";
 
-import { ERC4626YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import { ERC5115YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { ERC7540YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import { StakingYieldSourceOracle } from "../../../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
+import {ERC4626YieldSourceOracle} from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import {ERC5115YieldSourceOracle} from "../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import {ERC7540YieldSourceOracle} from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import {StakingYieldSourceOracle} from "../../../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
 
 contract YieldSourceOraclesTest is Helpers {
     MockERC20 public asset;

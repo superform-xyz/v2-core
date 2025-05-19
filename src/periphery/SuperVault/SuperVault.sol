@@ -1,25 +1,25 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // External
-import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import { ReentrancyGuard } from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
-import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
-import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import { ERC20, IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
-import { IERC165 } from "openzeppelin-contracts/contracts/interfaces/IERC165.sol";
-import { ECDSA } from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import {IERC20Metadata} from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
+import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import {ERC20, IERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import {IERC165} from "openzeppelin-contracts/contracts/interfaces/IERC165.sol";
+import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
+import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // Interfaces
-import { ISuperVault } from "../interfaces/ISuperVault.sol";
-import { ISuperVaultStrategy } from "../interfaces/ISuperVaultStrategy.sol";
-import { IERC7540Operator, IERC7540Redeem, IERC7741 } from "../../vendor/standards/ERC7540/IERC7540Vault.sol";
-import { IERC7575 } from "../../vendor/standards/ERC7575/IERC7575.sol";
-import { ISuperVaultEscrow } from "../interfaces/ISuperVaultEscrow.sol";
+import {ISuperVault} from "../interfaces/ISuperVault.sol";
+import {ISuperVaultStrategy} from "../interfaces/ISuperVaultStrategy.sol";
+import {IERC7540Operator, IERC7540Redeem, IERC7741} from "../../vendor/standards/ERC7540/IERC7540Vault.sol";
+import {IERC7575} from "../../vendor/standards/ERC7575/IERC7575.sol";
+import {ISuperVaultEscrow} from "../interfaces/ISuperVaultEscrow.sol";
 
 // Libraries
-import { AssetMetadataLib } from "../libraries/AssetMetadataLib.sol";
+import {AssetMetadataLib} from "../libraries/AssetMetadataLib.sol";
 
 /// @title SuperVault
 /// @author Superform Labs
@@ -81,13 +81,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     /// @param symbol_ The symbol of the vault token
     /// @param strategy_ The strategy contract address
     /// @param escrow_ The escrow contract address
-    function initialize(
-        address asset_,
-        string memory name_,
-        string memory symbol_,
-        address strategy_,
-        address escrow_
-    )
+    function initialize(address asset_, string memory name_, string memory symbol_, address strategy_, address escrow_)
         external
     {
         if (initialized) revert ALREADY_INITIALIZED();
@@ -226,10 +220,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         bytes32 nonce,
         uint256 deadline,
         bytes memory signature
-    )
-        external
-        returns (bool)
-    {
+    ) external returns (bool) {
         if (controller == operator) revert UNAUTHORIZED();
         if (block.timestamp > deadline) revert TIMELOCK_NOT_EXPIRED();
         if (_authorizations[controller][nonce]) revert UNAUTHORIZED();
@@ -258,10 +249,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
 
     //--ERC7540--
 
-    function pendingRedeemRequest(
-        uint256, /*requestId*/
-        address controller
-    )
+    function pendingRedeemRequest(uint256, /*requestId*/ address controller)
         external
         view
         returns (uint256 pendingShares)
@@ -269,10 +257,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         return strategy.pendingRedeemRequest(controller);
     }
 
-    function claimableRedeemRequest(
-        uint256, /*requestId*/
-        address controller
-    )
+    function claimableRedeemRequest(uint256, /*requestId*/ address controller)
         external
         view
         returns (uint256 claimableShares)
@@ -377,11 +362,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     }
 
     /// @inheritdoc IERC4626
-    function withdraw(
-        uint256 assets,
-        address receiver,
-        address owner
-    )
+    function withdraw(uint256 assets, address receiver, address owner)
         public
         override
         nonReentrant
@@ -406,11 +387,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     }
 
     /// @inheritdoc IERC4626
-    function redeem(
-        uint256 shares,
-        address receiver,
-        address owner
-    )
+    function redeem(uint256 shares, address receiver, address owner)
         public
         override
         nonReentrant
@@ -454,9 +431,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         uint256 averageWithdrawPrice,
         uint256 accumulatorShares,
         uint256 accumulatorCostBasis
-    )
-        external
-    {
+    ) external {
         if (msg.sender != address(strategy)) revert UNAUTHORIZED();
         emit RedeemClaimable(
             user, REQUEST_ID, assets, shares, averageWithdrawPrice, accumulatorShares, accumulatorCostBasis

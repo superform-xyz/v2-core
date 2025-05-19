@@ -1,19 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Test } from "forge-std/Test.sol";
-import { Vm } from "forge-std/Vm.sol";
+import {Test} from "forge-std/Test.sol";
+import {Vm} from "forge-std/Vm.sol";
 
-import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 abstract contract SignatureHelper is Test {
-    function _createSignature(
-        string memory hashNamespace,
-        bytes32 merkleRoot,
-        address signer,
-        uint256 signerPrivateKey
-    )
+    function _createSignature(string memory hashNamespace, bytes32 merkleRoot, address signer, uint256 signerPrivateKey)
         internal
         pure
         returns (bytes memory signature)

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IOdosRouterV2 } from "../../../../vendor/odos/IOdosRouterV2.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {BytesLib} from "../../../../vendor/BytesLib.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {IOdosRouterV2} from "../../../../vendor/odos/IOdosRouterV2.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
-import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {BaseHook} from "../../BaseHook.sol";
+import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
+import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
 
 /// @title SwapOdosHook
 /// @author Superform Labs
@@ -39,11 +39,7 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
-        address prevHook,
-        address account,
-        bytes memory data
-    )
+    function build(address prevHook, address account, bytes memory data)
         external
         view
         override
@@ -81,7 +77,7 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns(bytes memory) {
+    function inspect(bytes calldata data) external pure returns (bytes memory) {
         uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 157);
         address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
 
@@ -117,11 +113,7 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
         return IERC20(outputToken).balanceOf(account);
     }
 
-    function _getSwapInfo(
-        address account,
-        address prevHook,
-        bytes memory data
-    )
+    function _getSwapInfo(address account, address prevHook, bytes memory data)
         private
         view
         returns (IOdosRouterV2.swapTokenInfo memory)

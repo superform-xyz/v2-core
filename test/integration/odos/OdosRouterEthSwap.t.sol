@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // Tests
-import { strings } from "@stringutils/strings.sol";
-import { SuperNativePaymaster } from "../../../src/core/paymaster/SuperNativePaymaster.sol";
-import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
-import { AccountInstance, UserOpData, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
-import { MockValidatorModule } from "../../mocks/MockValidatorModule.sol";
-import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
-import { OdosAPIParser } from "../../utils/parsers/OdosAPIParser.sol";
-import { SwapOdosHook } from "../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
-import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import {strings} from "@stringutils/strings.sol";
+import {SuperNativePaymaster} from "../../../src/core/paymaster/SuperNativePaymaster.sol";
+import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
+import {AccountInstance, UserOpData, ModuleKitHelpers} from "modulekit/ModuleKit.sol";
+import {MockValidatorModule} from "../../mocks/MockValidatorModule.sol";
+import {MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR} from "modulekit/accounts/kernel/types/Constants.sol";
+import {ISuperExecutor} from "../../../src/core/interfaces/ISuperExecutor.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {MinimalBaseIntegrationTest} from "../MinimalBaseIntegrationTest.t.sol";
+import {OdosAPIParser} from "../../utils/parsers/OdosAPIParser.sol";
+import {SwapOdosHook} from "../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
+import {IEntryPoint} from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 
 contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
     using ModuleKitHelpers for *;
@@ -31,7 +31,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
 
         MockValidatorModule validator = new MockValidatorModule();
 
-        instanceOnEth.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: "" });
+        instanceOnEth.installModule({moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: ""});
 
         token = CHAIN_1_USDC;
 
@@ -51,10 +51,10 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
         hookData[0] = _createApproveHookData(token, CHAIN_1_ODOS_ROUTER, amount, false);
 
         QuoteInputToken[] memory quoteInputTokens = new QuoteInputToken[](1);
-        quoteInputTokens[0] = QuoteInputToken({ tokenAddress: address(0), amount: amount });
+        quoteInputTokens[0] = QuoteInputToken({tokenAddress: address(0), amount: amount});
 
         QuoteOutputToken[] memory quoteOutputTokens = new QuoteOutputToken[](1);
-        quoteOutputTokens[0] = QuoteOutputToken({ tokenAddress: token, proportion: 1 });
+        quoteOutputTokens[0] = QuoteOutputToken({tokenAddress: token, proportion: 1});
         string memory path = surlCallQuoteV2(quoteInputTokens, quoteOutputTokens, accountEth, ETH, false);
         string memory requestBody = surlCallAssemble(path, accountEth);
 
@@ -65,7 +65,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
             odosDecodedSwap.tokenInfo.inputReceiver,
             odosDecodedSwap.tokenInfo.outputToken,
             odosDecodedSwap.tokenInfo.outputQuote,
-            odosDecodedSwap.tokenInfo.outputMin - odosDecodedSwap.tokenInfo.outputMin *1e4/1e5,
+            odosDecodedSwap.tokenInfo.outputMin - odosDecodedSwap.tokenInfo.outputMin * 1e4 / 1e5,
             odosDecodedSwap.pathDefinition,
             odosDecodedSwap.executor,
             odosDecodedSwap.referralCode,
@@ -74,7 +74,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
         hookData[1] = odosCalldata;
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hookAddresses_, hooksData: hookData});
         UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
 
         uint256 tokenBalanceBefore = IERC20(token).balanceOf(accountEth);
@@ -96,10 +96,10 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
         hookData[0] = _createApproveHookData(token, CHAIN_1_ODOS_ROUTER, amount, false);
 
         QuoteInputToken[] memory quoteInputTokens = new QuoteInputToken[](1);
-        quoteInputTokens[0] = QuoteInputToken({ tokenAddress: address(0), amount: amount });
+        quoteInputTokens[0] = QuoteInputToken({tokenAddress: address(0), amount: amount});
 
         QuoteOutputToken[] memory quoteOutputTokens = new QuoteOutputToken[](1);
-        quoteOutputTokens[0] = QuoteOutputToken({ tokenAddress: token, proportion: 1 });
+        quoteOutputTokens[0] = QuoteOutputToken({tokenAddress: token, proportion: 1});
         string memory path = surlCallQuoteV2(quoteInputTokens, quoteOutputTokens, accountEth, ETH, false);
         string memory requestBody = surlCallAssemble(path, accountEth);
 
@@ -110,7 +110,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
             odosDecodedSwap.tokenInfo.inputReceiver,
             odosDecodedSwap.tokenInfo.outputToken,
             odosDecodedSwap.tokenInfo.outputQuote,
-            odosDecodedSwap.tokenInfo.outputMin - odosDecodedSwap.tokenInfo.outputMin *1e4/1e5,
+            odosDecodedSwap.tokenInfo.outputMin - odosDecodedSwap.tokenInfo.outputMin * 1e4 / 1e5,
             odosDecodedSwap.pathDefinition,
             odosDecodedSwap.executor,
             odosDecodedSwap.referralCode,
@@ -122,7 +122,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
         SuperNativePaymaster superNativePaymaster = SuperNativePaymaster(paymaster);
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hookAddresses_, hooksData: hookData});
 
         UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute), paymaster);
 
@@ -134,7 +134,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
         address bundler = vm.addr(1234);
         vm.deal(bundler, 30 ether);
         vm.prank(bundler);
-        superNativePaymaster.handleOps{ value: 20 ether }(ops);
+        superNativePaymaster.handleOps{value: 20 ether}(ops);
 
         uint256 tokenBalanceAfter = IERC20(token).balanceOf(accountEth);
         assertGt(tokenBalanceAfter, tokenBalanceBefore);

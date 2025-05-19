@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
-import { IEntryPoint } from "@account-abstraction/interfaces/IEntryPoint.sol";
-import { IEntryPointSimulations } from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
-import { UserOperationLib } from "../../src/vendor/account-abstraction/UserOperationLib.sol";
+import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
+import {IEntryPoint} from "@account-abstraction/interfaces/IEntryPoint.sol";
+import {IEntryPointSimulations} from "@account-abstraction/interfaces/IEntryPointSimulations.sol";
+import {UserOperationLib} from "../../src/vendor/account-abstraction/UserOperationLib.sol";
 
 import "forge-std/console2.sol";
 
@@ -99,7 +99,7 @@ contract MockEntryPoint {
         withdrawAmount = amount;
         info.deposit -= uint112(amount);
 
-        (bool success,) = withdrawAddress_.call{ value: amount }("");
+        (bool success,) = withdrawAddress_.call{value: amount}("");
         require(success, "Failed to withdraw");
     }
 
@@ -138,16 +138,12 @@ contract MockEntryPoint {
 
         // Pay the beneficiary
         if (beneficiary != address(0)) {
-            (bool success,) = beneficiary.call{ value: 0.01 ether }("");
+            (bool success,) = beneficiary.call{value: 0.01 ether}("");
             require(success, "Failed to pay beneficiary");
         }
     }
 
-    function simulateHandleOp(
-        PackedUserOperation calldata,
-        address,
-        bytes calldata
-    )
+    function simulateHandleOp(PackedUserOperation calldata, address, bytes calldata)
         external
         pure
         returns (ExecutionResult memory)
@@ -175,9 +171,9 @@ contract MockEntryPoint {
                 validAfter: 0,
                 validUntil: type(uint256).max
             }),
-            senderInfo: StakeInfo({ stake: 0, unstakeDelaySec: 0 }),
-            factoryInfo: StakeInfo({ stake: 0, unstakeDelaySec: 0 }),
-            paymasterInfo: StakeInfo({ stake: 2e6, unstakeDelaySec: 0 })
+            senderInfo: StakeInfo({stake: 0, unstakeDelaySec: 0}),
+            factoryInfo: StakeInfo({stake: 0, unstakeDelaySec: 0}),
+            paymasterInfo: StakeInfo({stake: 2e6, unstakeDelaySec: 0})
         });
     }
 
@@ -227,28 +223,21 @@ contract MockEntryPoint {
         uint256 amount = info.stake;
         info.stake = 0;
         emit StakeWithdrawn(msg.sender, withdrawAddress_, amount);
-        (bool success,) = withdrawAddress_.call{ value: amount }("");
+        (bool success,) = withdrawAddress_.call{value: amount}("");
         require(success, "Failed to withdraw stake");
     }
 
     // Required interface implementations
-    function getSenderAddress(bytes calldata initCode) external { }
+    function getSenderAddress(bytes calldata initCode) external {}
 
     // Stub implementations for interface compatibility
-    function handleAggregatedOps(
-        PackedUserOperation[][] calldata opsPerAggregator,
-        address payable beneficiary
-    )
+    function handleAggregatedOps(PackedUserOperation[][] calldata opsPerAggregator, address payable beneficiary)
         external
     {
         // Not implemented
     }
 
-    function innerHandleOp(
-        bytes calldata,
-        PackedUserOperation calldata,
-        bytes calldata
-    )
+    function innerHandleOp(bytes calldata, PackedUserOperation calldata, bytes calldata)
         external
         pure
         returns (uint256)

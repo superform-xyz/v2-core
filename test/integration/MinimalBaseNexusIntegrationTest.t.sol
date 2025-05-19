@@ -1,37 +1,37 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { Execution } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
+import {Execution} from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import "modulekit/accounts/common/lib/ModeLib.sol";
-import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {ExecutionLib} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
-import { Helpers } from "../utils/Helpers.sol";
-import { MerkleTreeHelper } from "../utils/MerkleTreeHelper.sol";
-import { InternalHelpers } from "../utils/InternalHelpers.sol";
+import {Helpers} from "../utils/Helpers.sol";
+import {MerkleTreeHelper} from "../utils/MerkleTreeHelper.sol";
+import {InternalHelpers} from "../utils/InternalHelpers.sol";
 
-import { INexus } from "../../src/vendor/nexus/INexus.sol";
-import { INexusFactory } from "../../src/vendor/nexus/INexusFactory.sol";
-import { BootstrapConfig, INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
-import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
+import {INexus} from "../../src/vendor/nexus/INexus.sol";
+import {INexusFactory} from "../../src/vendor/nexus/INexusFactory.sol";
+import {BootstrapConfig, INexusBootstrap} from "../../src/vendor/nexus/INexusBootstrap.sol";
+import {IERC7484} from "../../src/vendor/nexus/IERC7484.sol";
 
 // Superform
-import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
-import { SuperMerkleValidator } from "../../src/core/validators/SuperMerkleValidator.sol";
-import { SuperLedgerConfiguration } from "../../src/core/accounting/SuperLedgerConfiguration.sol";
-import { SuperExecutor } from "../../src/core/executors/SuperExecutor.sol";
-import { ERC4626YieldSourceOracle } from "../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import { ERC5115YieldSourceOracle } from "../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { ERC7540YieldSourceOracle } from "../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import { SuperLedger } from "../../src/core/accounting/SuperLedger.sol";
-import { ERC5115Ledger } from "../../src/core/accounting/ERC5115Ledger.sol";
-import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { ApproveERC20Hook } from "../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
-import { Deposit4626VaultHook } from "../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
-import { Redeem4626VaultHook } from "../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import {IMinimalEntryPoint, PackedUserOperation} from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
+import {ISuperExecutor} from "../../src/core/interfaces/ISuperExecutor.sol";
+import {SuperMerkleValidator} from "../../src/core/validators/SuperMerkleValidator.sol";
+import {SuperLedgerConfiguration} from "../../src/core/accounting/SuperLedgerConfiguration.sol";
+import {SuperExecutor} from "../../src/core/executors/SuperExecutor.sol";
+import {ERC4626YieldSourceOracle} from "../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import {ERC5115YieldSourceOracle} from "../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import {ERC7540YieldSourceOracle} from "../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import {SuperLedger} from "../../src/core/accounting/SuperLedger.sol";
+import {ERC5115Ledger} from "../../src/core/accounting/ERC5115Ledger.sol";
+import {ISuperLedgerConfiguration} from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import {ISuperLedger} from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import {ApproveERC20Hook} from "../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import {Deposit4626VaultHook} from "../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import {Redeem4626VaultHook} from "../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
 
 abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, InternalHelpers {
     SuperMerkleValidator public superMerkleValidator;
@@ -114,43 +114,34 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
     /*//////////////////////////////////////////////////////////////
                                  ACCOUNT CREATION METHODS
     //////////////////////////////////////////////////////////////*/
-    function _createWithNexus(
-        address registry,
-        address[] memory attesters,
-        uint8 threshold,
-        uint256 value
-    )
+    function _createWithNexus(address registry, address[] memory attesters, uint8 threshold, uint256 value)
         internal
         returns (address)
     {
         bytes memory initData = _getNexusInitData(registry, attesters, threshold);
 
         address computedAddress = nexusFactory.computeAccountAddress(initData, initSalt);
-        address deployedAddress = nexusFactory.createAccount{ value: value }(initData, initSalt);
+        address deployedAddress = nexusFactory.createAccount{value: value}(initData, initSalt);
 
         if (deployedAddress != computedAddress) revert("Nexus SCA addresses mismatch");
         return computedAddress;
     }
 
-    function _getNexusInitData(
-        address registry,
-        address[] memory attesters,
-        uint8 threshold
-    )
+    function _getNexusInitData(address registry, address[] memory attesters, uint8 threshold)
         internal
         view
         returns (bytes memory)
     {
         // create validators
         BootstrapConfig[] memory validators = new BootstrapConfig[](1);
-        validators[0] = BootstrapConfig({ module: address(superMerkleValidator), data: abi.encode(signer) });
+        validators[0] = BootstrapConfig({module: address(superMerkleValidator), data: abi.encode(signer)});
 
         // create executors
         BootstrapConfig[] memory executors = new BootstrapConfig[](1);
-        executors[0] = BootstrapConfig({ module: address(superExecutorModule), data: "" });
+        executors[0] = BootstrapConfig({module: address(superExecutorModule), data: ""});
 
         // create hooks
-        BootstrapConfig memory hook = BootstrapConfig({ module: address(0), data: "" });
+        BootstrapConfig memory hook = BootstrapConfig({module: address(0), data: ""});
 
         // create fallbacks
         BootstrapConfig[] memory fallbacks = new BootstrapConfig[](0);
@@ -225,11 +216,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         nonce = IMinimalEntryPoint(ENTRYPOINT_ADDR).getNonce(account, nonceKey);
     }
 
-    function _createPackedUserOperation(
-        address account,
-        uint256 nonce,
-        bytes memory callData
-    )
+    function _createPackedUserOperation(address account, uint256 nonce, bytes memory callData)
         internal
         pure
         returns (PackedUserOperation memory)

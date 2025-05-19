@@ -1,23 +1,18 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { SwapOdosHook } from "../../../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
-import { ApproveAndSwapOdosHook } from "../../../../../src/core/hooks/swappers/odos/ApproveAndSwapOdosHook.sol";
-import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
-import { MockERC20 } from "../../../../mocks/MockERC20.sol";
-import { MockHook } from "../../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { IOdosRouterV2 } from "../../../../../src/vendor/odos/IOdosRouterV2.sol";
-import { Helpers } from "../../../../utils/Helpers.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {SwapOdosHook} from "../../../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
+import {ApproveAndSwapOdosHook} from "../../../../../src/core/hooks/swappers/odos/ApproveAndSwapOdosHook.sol";
+import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
+import {MockERC20} from "../../../../mocks/MockERC20.sol";
+import {MockHook} from "../../../../mocks/MockHook.sol";
+import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
+import {IOdosRouterV2} from "../../../../../src/vendor/odos/IOdosRouterV2.sol";
+import {Helpers} from "../../../../utils/Helpers.sol";
 
 contract MockOdosRouter is IOdosRouterV2 {
-    function swap(
-        swapTokenInfo calldata,
-        bytes calldata,
-        address,
-        uint32
-    )
+    function swap(swapTokenInfo calldata, bytes calldata, address, uint32)
         external
         payable
         override
@@ -26,13 +21,7 @@ contract MockOdosRouter is IOdosRouterV2 {
         return 0;
     }
 
-    function swapPermit2(
-        permit2Info memory,
-        swapTokenInfo memory,
-        bytes calldata,
-        address,
-        uint32
-    )
+    function swapPermit2(permit2Info memory, swapTokenInfo memory, bytes calldata, address, uint32)
         external
         pure
         override
@@ -65,7 +54,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     uint32 referralCode = 123;
     bool usePrevHookAmount;
 
-    receive() external payable { }
+    receive() external payable {}
 
     function setUp() public {
         account = address(this);

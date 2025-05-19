@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { console } from "forge-std/console.sol";
-import { UserOpData } from "modulekit/ModuleKit.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IPermit2 } from "../../src/vendor/uniswap/permit2/IPermit2.sol";
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
-import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
-import { TrustedForwarder } from "modulekit/module-bases/utils/TrustedForwarder.sol";
-import { IPermit2Batch } from "../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
-import { BatchTransferFromHook } from "../../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
-import { IAllowanceTransfer } from "../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
-import { TransferERC20Hook } from "../../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
+import {console} from "forge-std/console.sol";
+import {UserOpData} from "modulekit/ModuleKit.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IPermit2} from "../../src/vendor/uniswap/permit2/IPermit2.sol";
+import {ISuperExecutor} from "../../src/core/interfaces/ISuperExecutor.sol";
+import {MinimalBaseIntegrationTest} from "./MinimalBaseIntegrationTest.t.sol";
+import {TrustedForwarder} from "modulekit/module-bases/utils/TrustedForwarder.sol";
+import {IPermit2Batch} from "../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
+import {BatchTransferFromHook} from "../../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
+import {IAllowanceTransfer} from "../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import {TransferERC20Hook} from "../../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
 
 contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
     address public eoa;
@@ -105,7 +105,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         assertEq(hookData.length, expectedLength);
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooks, hooksData: hookDataArray});
 
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
@@ -131,7 +131,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         offrampHookData[2] = _createTransferERC20HookData(dai, eoa, 1e18, false);
 
         ISuperExecutor.ExecutorEntry memory offrampEntry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: offrampHooks, hooksData: offrampHookData });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: offrampHooks, hooksData: offrampHookData});
 
         UserOpData memory offrampUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(offrampEntry));
 
@@ -147,11 +147,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         uint256[] memory permitAmounts,
         uint48 expiration,
         uint48 nonce
-    )
-        internal
-        view
-        returns (IAllowanceTransfer.PermitBatch memory)
-    {
+    ) internal view returns (IAllowanceTransfer.PermitBatch memory) {
         IAllowanceTransfer.PermitDetails[] memory details = new IAllowanceTransfer.PermitDetails[](permitTokens.length);
 
         for (uint256 i = 0; i < permitTokens.length; ++i) {
@@ -163,18 +159,14 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
             });
         }
 
-        return IAllowanceTransfer.PermitBatch({ details: details, spender: accountEth, sigDeadline: sigDeadline });
+        return IAllowanceTransfer.PermitBatch({details: details, spender: accountEth, sigDeadline: sigDeadline});
     }
 
     function getPermitBatchSignature(
         IAllowanceTransfer.PermitBatch memory permit,
         uint256 privateKey,
         bytes32 domainSeparator
-    )
-        internal
-        pure
-        returns (bytes memory sig)
-    {
+    ) internal pure returns (bytes memory sig) {
         bytes32[] memory permitHashes = new bytes32[](permit.details.length);
         for (uint256 i = 0; i < permit.details.length; ++i) {
             permitHashes[i] = keccak256(abi.encode(_PERMIT_DETAILS_TYPEHASH, permit.details[i]));

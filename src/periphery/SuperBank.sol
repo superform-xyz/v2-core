@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // External
-import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
+import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
-import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 // Superform
-import { ISuperBank } from "./interfaces/ISuperBank.sol";
-import { ISuperGovernor, FeeType } from "./interfaces/ISuperGovernor.sol";
-import { ISuperHook, Execution } from "../core/interfaces/ISuperHook.sol";
-import { Bank } from "./Bank.sol";
+import {ISuperBank} from "./interfaces/ISuperBank.sol";
+import {ISuperGovernor, FeeType} from "./interfaces/ISuperGovernor.sol";
+import {ISuperHook, Execution} from "../core/interfaces/ISuperHook.sol";
+import {Bank} from "./Bank.sol";
 
 /// @title SuperBank
 /// @notice Compounds protocol revenue into UP and distributes it to sUP and treasury.
@@ -30,7 +30,9 @@ contract SuperBank is ISuperBank, Bank {
     }
 
     modifier onlyBankManager() {
-        if (!IAccessControl(address(SUPER_GOVERNOR)).hasRole(SUPER_GOVERNOR.BANK_MANAGER_ROLE(), msg.sender)) revert INVALID_BANK_MANAGER();
+        if (!IAccessControl(address(SUPER_GOVERNOR)).hasRole(SUPER_GOVERNOR.BANK_MANAGER_ROLE(), msg.sender)) {
+            revert INVALID_BANK_MANAGER();
+        }
         _;
     }
 
@@ -39,7 +41,7 @@ contract SuperBank is ISuperBank, Bank {
     //////////////////////////////////////////////////////////////*/
 
     // Receive function to accept direct ETH transfers if needed for hooks/executions
-    receive() external payable { }
+    receive() external payable {}
 
     /// @inheritdoc ISuperBank
     function distribute(uint256 upAmount_) external onlyBankManager {

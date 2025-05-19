@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-import { MinimalBaseNexusIntegrationTest } from "./MinimalBaseNexusIntegrationTest.t.sol";
-import { INexus } from "../../src/vendor/nexus/INexus.sol";
-import { MockRegistry } from "../mocks/MockRegistry.sol";
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import {MinimalBaseNexusIntegrationTest} from "./MinimalBaseNexusIntegrationTest.t.sol";
+import {INexus} from "../../src/vendor/nexus/INexus.sol";
+import {MockRegistry} from "../mocks/MockRegistry.sol";
+import {ISuperExecutor} from "../../src/core/interfaces/ISuperExecutor.sol";
 
 contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     MockRegistry public nexusRegistry;
@@ -84,7 +84,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         hooksAddresses[0] = approveHook;
         hooksData[0] = _createApproveHookData(CHAIN_1_WETH, address(MANAGER), amount, false);
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
 
         // prepare data & execute through entry point
         _executeThroughEntrypoint(nexusAccount, entry);
@@ -115,7 +115,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         hooksAddresses[0] = approveHook;
         hooksData[0] = _createApproveHookData(CHAIN_1_WETH, address(MANAGER), amount, false);
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
 
         // prepare data & execute through entry point
         _executeThroughEntrypoint(nexusAccount, entry);
@@ -150,7 +150,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
 
         // prepare data & execute through entry point
         _executeThroughEntrypoint(nexusAccount, entry);

@@ -1,28 +1,28 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { IIrm } from "../../../../vendor/morpho/IIrm.sol";
-import { MathLib } from "../../../../vendor/morpho/MathLib.sol";
-import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SharesMathLib } from "../../../../vendor/morpho/SharesMathLib.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import { MarketParamsLib } from "../../../../vendor/morpho/MarketParamsLib.sol";
-import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import {IIrm} from "../../../../vendor/morpho/IIrm.sol";
+import {MathLib} from "../../../../vendor/morpho/MathLib.sol";
+import {IOracle} from "../../../../vendor/morpho/IOracle.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SharesMathLib} from "../../../../vendor/morpho/SharesMathLib.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import {MarketParamsLib} from "../../../../vendor/morpho/MarketParamsLib.sol";
+import {ERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
 import {
     IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market
 } from "../../../../vendor/morpho/IMorpho.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
-import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
-import { ISuperHook, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
-import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
-import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import {BaseHook} from "../../BaseHook.sol";
+import {BaseMorphoLoanHook} from "./BaseMorphoLoanHook.sol";
+import {ISuperHook, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
+import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
+import {ISuperHookLoans} from "../../../interfaces/ISuperHook.sol";
+import {ISuperHookResult} from "../../../interfaces/ISuperHook.sol";
+import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
 
 /// @title MorphoRepayAndWithdrawHook
 /// @author Superform Labs
@@ -67,11 +67,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(
-        address prevHook,
-        address account,
-        bytes memory data
-    )
+    function build(address prevHook, address account, bytes memory data)
         external
         view
         override
@@ -93,9 +89,9 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
 
         executions = new Execution[](5);
         executions[0] =
-            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+            Execution({target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0))});
         executions[3] =
-            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+            Execution({target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0))});
         if (vars.isFullRepayment) {
             uint128 borrowBalance = deriveShareBalance(id, account);
             uint256 shareBalance = uint256(borrowBalance);
@@ -112,7 +108,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
                 value: 0,
                 callData: abi.encodeCall(IMorphoBase.repay, (marketParams, 0, shareBalance, account, "")) // 0 assets as
                     // we are repaying in full
-             });
+            });
             executions[4] = Execution({
                 target: morpho,
                 value: 0,
@@ -137,7 +133,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
                 value: 0,
                 callData: abi.encodeCall(IMorphoBase.repay, (marketParams, vars.amount, 0, account, "")) // 0 shares as
                     // partial repayment
-             });
+            });
             executions[4] = Execution({
                 target: morpho,
                 value: 0,
@@ -162,23 +158,20 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns(bytes memory) {
+    function inspect(bytes calldata data) external pure returns (bytes memory) {
         BuildHookLocalVars memory vars = _decodeHookData(data);
 
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        return abi.encodePacked
-        (
-            marketParams.loanToken,
-            marketParams.collateralToken,
-            marketParams.oracle,
-            marketParams.irm
+        return abi.encodePacked(
+            marketParams.loanToken, marketParams.collateralToken, marketParams.oracle, marketParams.irm
         );
     }
     /*//////////////////////////////////////////////////////////////
                             PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
+
     function deriveInterest(MarketParams memory marketParams) public view returns (uint256 interest) {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
@@ -198,10 +191,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         collateralAmount = uint256(collateral);
     }
 
-    function deriveCollateralAmountFromLoanAmount(
-        address oracle,
-        uint256 loanAmount
-    )
+    function deriveCollateralAmountFromLoanAmount(address oracle, uint256 loanAmount)
         public
         view
         returns (uint256 collateralAmount)
@@ -212,12 +202,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         collateralAmount = Math.mulDiv(loanAmount, PRICE_SCALING_FACTOR, price);
     }
 
-    function deriveCollateralForPartialRepayment(
-        Id id,
-        address account,
-        uint256 amount,
-        uint256 fullCollateral
-    )
+    function deriveCollateralForPartialRepayment(Id id, address account, uint256 amount, uint256 fullCollateral)
         public
         view
         returns (uint256 withdrawableCollateral)
