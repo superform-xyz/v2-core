@@ -23,7 +23,6 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     //////////////////////////////////////////////////////////////*/
     address public immutable superAssetImplementation;
     address public immutable incentiveFundImplementation;
-
     // Single instances
     address public immutable assetBank;
     address public immutable incentiveCalculationContract;

@@ -9,13 +9,14 @@ import { IERC7540CancelRedeem } from "../../../../vendor/standards/ERC7540/IERC7
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title CancelRedeemRequest7540Hook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-contract CancelRedeemRequest7540Hook is BaseHook {
+contract CancelRedeemRequest7540Hook is BaseHook, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CANCEL_REDEEM_REQUEST) { }
@@ -45,6 +46,12 @@ contract CancelRedeemRequest7540Hook is BaseHook {
         });
     }
 
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource()
+        );
+    }
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/

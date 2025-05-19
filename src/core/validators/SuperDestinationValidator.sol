@@ -22,7 +22,8 @@ contract SuperDestinationValidator is SuperValidatorBase {
         uint64 chainId;
         address sender;
         address executor;
-        uint256 intentAmount;
+        address[] dstTokens;
+        uint256[] intentAmounts;
     }
 
     bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
@@ -92,7 +93,8 @@ contract SuperDestinationValidator is SuperValidatorBase {
                         destinationData.chainId,
                         destinationData.sender,
                         destinationData.executor,
-                        destinationData.intentAmount,
+                        destinationData.dstTokens,
+                        destinationData.intentAmounts,
                         validUntil
                     )
                 )
@@ -148,11 +150,12 @@ contract SuperDestinationValidator is SuperValidatorBase {
             uint64 chainId,
             address decodedSender,
             address executor,
-            uint256 intentAmount
-        ) = abi.decode(destinationDataRaw, (bytes, uint64, address, address, uint256));
+            address[] memory dstTokens,
+            uint256[] memory intentAmounts
+        ) = abi.decode(destinationDataRaw, (bytes, uint64, address, address, address[], uint256[]));
         if (sender_ != decodedSender) revert INVALID_SENDER();
         if (chainId != block.chainid) revert INVALID_CHAIN_ID();
-        return DestinationData(callData, chainId, decodedSender, executor, intentAmount);
+        return DestinationData(callData, chainId, decodedSender, executor, dstTokens, intentAmounts);
     }
 
     function _decodeSignatureAndDestinationData(

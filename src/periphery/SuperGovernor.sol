@@ -90,6 +90,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bytes32 private constant _SUPER_GOVERNOR_ROLE = keccak256("SUPER_GOVERNOR_ROLE");
     bytes32 private constant _GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
     bytes32 private constant _BANK_MANAGER_ROLE = keccak256("BANK_MANAGER_ROLE");
+    bytes32 private constant _GUARDIAN_ROLE = keccak256("GUARDIAN_ROLE");
 
     // --- Roles ---
     bytes32 public constant _INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
@@ -131,6 +132,9 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         _grantRole(_SUPER_GOVERNOR_ROLE, superGovernor);
         _grantRole(_GOVERNOR_ROLE, governor);
         _grantRole(_BANK_MANAGER_ROLE, bankManager);
+
+        // Setup GUARDIAN_ROLE without assigning any address
+        _setRoleAdmin(_GUARDIAN_ROLE, DEFAULT_ADMIN_ROLE);
 
         // Set role admins
         _setRoleAdmin(_GOVERNOR_ROLE, DEFAULT_ADMIN_ROLE);
@@ -204,6 +208,39 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         // Call the interface method to change the strategist
         // This function can only be called by the SuperGovernor and bypasses the timelock
         ISuperVaultAggregator(aggregator).changePrimaryStrategist(strategy_, newStrategist_);
+    }
+
+    /// @notice Proposes a new global hooks Merkle root in the SuperVaultAggregator
+    /// @dev Only callable by GOVERNOR_ROLE
+    /// @param newRoot New Merkle root for global hooks validation
+    function proposeGlobalHooksRoot(bytes32 newRoot) external onlyRole(_GOVERNOR_ROLE) {
+        address aggregator = _addressRegistry[SUPER_VAULT_AGGREGATOR];
+        if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
+
+        ISuperVaultAggregator(aggregator).proposeGlobalHooksRoot(newRoot);
+    }
+
+    /// @notice Sets veto status for the global hooks Merkle root
+    /// @dev Only callable by GUARDIAN_ROLE
+    /// @param vetoed_ Whether to veto (true) or unveto (false) the global hooks root
+    function setGlobalHooksRootVetoStatus(bool vetoed_) external onlyRole(_GUARDIAN_ROLE) {
+        address aggregator = _addressRegistry[SUPER_VAULT_AGGREGATOR];
+        if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
+
+        ISuperVaultAggregator(aggregator).setGlobalHooksRootVetoStatus(vetoed_);
+    }
+
+    /// @notice Sets veto status for a strategy-specific hooks Merkle root
+    /// @dev Only callable by GUARDIAN_ROLE
+    /// @param strategy_ Address of the strategy to affect
+    /// @param vetoed_ Whether to veto (true) or unveto (false) the strategy hooks root
+    function setStrategyHooksRootVetoStatus(address strategy_, bool vetoed_) external onlyRole(_GUARDIAN_ROLE) {
+        if (strategy_ == address(0)) revert INVALID_ADDRESS();
+
+        address aggregator = _addressRegistry[SUPER_VAULT_AGGREGATOR];
+        if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
+
+        ISuperVaultAggregator(aggregator).setStrategyHooksRootVetoStatus(strategy_, vetoed_);
     }
 
     /// @inheritdoc ISuperGovernor
@@ -631,6 +668,11 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /// @inheritdoc ISuperGovernor
+    function GUARDIAN_ROLE() external pure returns (bytes32) {
+        return _GUARDIAN_ROLE;
+    }
+
+    /// @inheritdoc ISuperGovernor
     function getAddress(bytes32 key) external view returns (address) {
         address value = _addressRegistry[key];
         if (value == address(0)) revert CONTRACT_NOT_FOUND();
@@ -665,6 +707,11 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function isValidator(address validator) external view returns (bool) {
         return _isValidator[validator];
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function isGuardian(address guardian) external view returns (bool) {
+        return hasRole(_GUARDIAN_ROLE, guardian);
     }
 
     /// @inheritdoc ISuperGovernor

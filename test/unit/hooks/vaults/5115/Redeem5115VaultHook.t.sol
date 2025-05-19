@@ -115,6 +115,12 @@ contract Redeem5115VaultHookTest is Helpers {
         assertEq(replacedAmount, 1);
     }
 
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, amount, false, usePrevHook, address(0), uint256(0));
     }

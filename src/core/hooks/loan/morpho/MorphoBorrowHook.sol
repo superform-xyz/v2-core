@@ -11,7 +11,7 @@ import { IMorphoBase, MarketParams } from "../../../../vendor/morpho/IMorpho.sol
 
 // Superform
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
-import { ISuperHook } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
@@ -29,7 +29,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 145, 32), 0);
 /// @notice         bool placeholder = _decodeBool(data, 177);
-contract MorphoBorrowHook is BaseMorphoLoanHook {
+contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -116,6 +116,22 @@ contract MorphoBorrowHook is BaseMorphoLoanHook {
     /// @inheritdoc ISuperHookLoans
     function getUsedAssets(address, bytes memory) external view returns (uint256) {
         return outAmount;
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        BorrowHookLocalVars memory vars = _decodeBorrowHookData(data);
+
+        MarketParams memory marketParams =
+            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+
+        return abi.encodePacked
+        (
+            marketParams.loanToken,
+            marketParams.collateralToken,
+            marketParams.oracle,
+            marketParams.irm
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

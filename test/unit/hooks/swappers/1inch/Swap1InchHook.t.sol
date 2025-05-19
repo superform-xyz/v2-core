@@ -183,6 +183,11 @@ contract Swap1InchHookTest is Helpers {
         executions = hook.build(address(0), account, hookData);
     }
 
+    function test_UnoSwap_inspect() public view {
+        bytes memory data = _buildCurveHookData(0, false, dstReceiver, 1000, 100, false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
 
     function test_PreExecute() public {
         MockERC20 token = new MockERC20("Test Token", "TT", 18);
@@ -241,6 +246,12 @@ contract Swap1InchHookTest is Helpers {
         executions = hook.build(address(this), account, hookData);
     }
 
+    function test_GenericSwap_inspect() public view {
+        bytes memory data =  _buildGenericSwapData(0, dstToken, dstReceiver, 1000, 100, false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
     function test_Build_ClipperSwap() public {
         address account = address(this); 
 
@@ -265,6 +276,12 @@ contract Swap1InchHookTest is Helpers {
         executions = hook.build(address(this), account, hookData);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, mockRouter);
+    }
+
+    function test_ClipperSwap_inspect() public view {
+        bytes memory data =  _buildClipperData(1000, 100, dstReceiver, dstToken, false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function _buildClipperData(uint256 _amount, uint256 _minAmount, address _dstReceiver, address _dstToken, bool usePrev) private view returns (bytes memory) {

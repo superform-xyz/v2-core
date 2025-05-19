@@ -12,7 +12,7 @@ import { IStandardizedYield } from "../../../../vendor/pendle/IStandardizedYield
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveAndDeposit5115VaultHook
 /// @author Superform Labs
@@ -26,7 +26,7 @@ import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware } fro
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 108);
 /// @notice         address vaultBank = BytesLib.toAddress(data, 109);
 /// @notice         uint256 dstChainId = BytesLib.toUint256(data, 129);
-contract ApproveAndDeposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware {
+contract ApproveAndDeposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
@@ -86,6 +86,14 @@ contract ApproveAndDeposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, IS
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource(),
+            BytesLib.toAddress(data, 24) // tokenIn
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -407,6 +407,23 @@ contract ERC4626VaultHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
+                      OTHER TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_inspect() public view {
+        bytes memory argsEncoded = depositHook.inspect(_encodeDepositData());
+        assertGt(argsEncoded.length, 0);
+
+        argsEncoded = redeemHook.inspect(_encodeRedeemData());
+        assertGt(argsEncoded.length, 0);
+
+        argsEncoded = approveAndRedeemHook.inspect(_encodeApproveAndRedeemData());
+        assertGt(argsEncoded.length, 0);
+
+        argsEncoded = approveAndDepositHook.inspect(_encodeApproveAndDepositData());
+        assertGt(argsEncoded.length, 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                         HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function _encodeApproveAndDepositData() internal view returns (bytes memory) {

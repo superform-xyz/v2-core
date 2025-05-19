@@ -258,6 +258,8 @@ interface ISuperGovernor is IAccessControl {
     /// @notice The identifier of the role that grants access to superasset strategist functions
     function SUPERASSET_STRATEGIST() external view returns (bytes32);
 
+    /// @notice The identifier of the role that grants access to guardian functions
+    function GUARDIAN_ROLE() external view returns (bytes32);
 
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
@@ -278,9 +280,10 @@ interface ISuperGovernor is IAccessControl {
                         SUPER VAULT AGGREGATOR MANAGEMENT
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Changes the primary strategist for a strategy through governance
-    /// @param strategy_ Address of the strategy
-    /// @param newStrategist_ Address of the new strategist to set as primary
+    /// @notice Change the primary strategist for a strategy
+    /// @dev Only SuperGovernor can call this function directly
+    /// @param strategy_ The strategy address
+    /// @param newStrategist_ The new primary strategist address
     function changePrimaryStrategist(address strategy_, address newStrategist_) external;
 
     /// @notice Permanently freezes all strategist takeovers globally
@@ -410,6 +413,22 @@ interface ISuperGovernor is IAccessControl {
     /// @param hook The address of the hook to execute the update for.
     function executeSuperBankHookMerkleRootUpdate(address hook) external;
 
+    /// @notice Proposes a new global hooks Merkle root
+    /// @dev Only GOVERNOR_ROLE can call this function
+    /// @param newRoot New Merkle root for global hooks validation
+    function proposeGlobalHooksRoot(bytes32 newRoot) external;
+
+    /// @notice Sets veto status for global hooks Merkle root
+    /// @dev Only GUARDIAN_ROLE can call this function
+    /// @param vetoed Whether to veto (true) or unveto (false) the global hooks root
+    function setGlobalHooksRootVetoStatus(bool vetoed) external;
+
+    /// @notice Sets veto status for a strategy-specific hooks Merkle root
+    /// @dev Only GUARDIAN_ROLE can call this function
+    /// @param strategy Address of the strategy to affect
+    /// @param vetoed Whether to veto (true) or unveto (false) the strategy hooks root
+    function setStrategyHooksRootVetoStatus(address strategy, bool vetoed) external;
+
     /*//////////////////////////////////////////////////////////////
                          EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -445,6 +464,11 @@ interface ISuperGovernor is IAccessControl {
     /// @param validator The address to check
     /// @return True if the address is an approved validator, false otherwise
     function isValidator(address validator) external view returns (bool);
+
+    /// @notice Checks if an address has the guardian role
+    /// @param guardian Address to check
+    /// @return true if the address has the GUARDIAN_ROLE
+    function isGuardian(address guardian) external view returns (bool);
 
     /// @notice Checks if an address is an approved relayer
     /// @param relayer The address to check
