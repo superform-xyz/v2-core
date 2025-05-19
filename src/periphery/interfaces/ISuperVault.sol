@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 /// @title ISuperVault
 /// @notice Interface for SuperVault core contract that manages share minting
@@ -71,6 +71,5 @@ interface ISuperVault {
         uint256 averageWithdrawPrice,
         uint256 accumulatorShares,
         uint256 accumulatorCostBasis
-    )
-        external;
+    ) external;
 }

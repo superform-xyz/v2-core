@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { IIrm } from "../../../../vendor/morpho/IIrm.sol";
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
-import { MathLib } from "../../../../vendor/morpho/MathLib.sol";
-import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
-import { MarketParamsLib } from "../../../../vendor/morpho/MarketParamsLib.sol";
-import { MarketParams, Market, IMorpho, Id } from "../../../../vendor/morpho/IMorpho.sol";
+import {IIrm} from "../../../../vendor/morpho/IIrm.sol";
+import {BytesLib} from "../../../../vendor/BytesLib.sol";
+import {MathLib} from "../../../../vendor/morpho/MathLib.sol";
+import {IOracle} from "../../../../vendor/morpho/IOracle.sol";
+import {MarketParamsLib} from "../../../../vendor/morpho/MarketParamsLib.sol";
+import {MarketParams, Market, IMorpho, Id} from "../../../../vendor/morpho/IMorpho.sol";
 
 // superform
-import { BaseLoanHook } from "../BaseLoanHook.sol";
-import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import {BaseLoanHook} from "../BaseLoanHook.sol";
+import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
+import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
 
 abstract contract BaseMorphoLoanHook is BaseLoanHook {
     using MarketParamsLib for MarketParams;
@@ -98,17 +98,8 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
         address oracle,
         address irm,
         uint256 lltv
-    )
-        internal
-        pure
-        returns (MarketParams memory)
-    {
-        return MarketParams({
-            loanToken: loanToken,
-            collateralToken: collateralToken,
-            oracle: oracle,
-            irm: irm,
-            lltv: lltv
-        });
+    ) internal pure returns (MarketParams memory) {
+        return
+            MarketParams({loanToken: loanToken, collateralToken: collateralToken, oracle: oracle, irm: irm, lltv: lltv});
     }
 }

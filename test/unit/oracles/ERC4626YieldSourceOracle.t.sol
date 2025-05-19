@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { MockERC20 } from "../../mocks/MockERC20.sol";
-import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
-import { ERC4626YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import { Helpers } from "../../utils/Helpers.sol";
+import {MockERC20} from "../../mocks/MockERC20.sol";
+import {Mock4626Vault} from "../../mocks/Mock4626Vault.sol";
+import {ERC4626YieldSourceOracle} from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {Helpers} from "../../utils/Helpers.sol";
 
 contract ERC4626YieldSourceOracleTest is Helpers {
     ERC4626YieldSourceOracle public oracle;

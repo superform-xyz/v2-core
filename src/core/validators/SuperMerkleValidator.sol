@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 // Superform
-import { SuperValidatorBase } from "./SuperValidatorBase.sol";
-import { ISuperSignatureStorage } from "../interfaces/ISuperSignatureStorage.sol";
+import {SuperValidatorBase} from "./SuperValidatorBase.sol";
+import {ISuperSignatureStorage} from "../interfaces/ISuperSignatureStorage.sol";
 
 /// @title SuperMerkleValidator
 /// @author Superform Labs
@@ -23,7 +23,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     /// @notice Magic value returned when a signature is valid according to EIP-1271
     /// @dev The value 0x1626ba7e is specified by the EIP-1271 standard
     bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
-    
+
     /// @notice Storage key for transient signature data
     /// @dev Uses the transient storage pattern to store signature data temporarily
     ///      This is more gas efficient than regular storage for temporary data
@@ -42,10 +42,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     //////////////////////////////////////////////////////////////*/
     /// @notice Validate a user operation
     /// @param _userOp The user operation to validate
-    function validateUserOp(
-        PackedUserOperation calldata _userOp,
-        bytes32 _userOpHash
-    )
+    function validateUserOp(PackedUserOperation calldata _userOp, bytes32 _userOpHash)
         external
         override
         returns (ValidationData)
@@ -72,11 +69,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     }
 
     /// @notice Validate a signature with sender
-    function isValidSignatureWithSender(
-        address,
-        bytes32 dataHash,
-        bytes calldata data
-    )
+    function isValidSignatureWithSender(address, bytes32 dataHash, bytes calldata data)
         external
         view
         override
@@ -121,10 +114,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     /// @param userOpHash The hash of the user operation being verified
     /// @return signer The address that signed the message
     /// @return leaf The computed leaf hash used in merkle verification
-    function _processSignatureAndVerifyLeaf(
-        SignatureData memory sigData,
-        bytes32 userOpHash
-    )
+    function _processSignatureAndVerifyLeaf(SignatureData memory sigData, bytes32 userOpHash)
         private
         pure
         returns (address signer, bytes32 leaf)

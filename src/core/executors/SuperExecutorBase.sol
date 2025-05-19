@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
-import { IModule } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ERC7579ExecutorBase} from "modulekit/Modules.sol";
+import {IModule} from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 // Superform
-import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
-import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
-import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
-import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
-import { IVaultBank } from "../../periphery/interfaces/IVaultBank.sol";
+import {ISuperExecutor} from "../interfaces/ISuperExecutor.sol";
+import {ISuperLedger} from "../interfaces/accounting/ISuperLedger.sol";
+import {ISuperLedgerConfiguration} from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
+import {ISuperHook, ISuperHookResult, ISuperHookResultOutflow} from "../interfaces/ISuperHook.sol";
+import {HookDataDecoder} from "../libraries/HookDataDecoder.sol";
+import {IVaultBank} from "../../periphery/interfaces/IVaultBank.sol";
 
 /// @title SuperExecutorBase
 /// @author Superform Labs
@@ -26,11 +26,7 @@ import { IVaultBank } from "../../periphery/interfaces/IVaultBank.sol";
 ///      3. Fee handling - Calculates and transfers fees for yield-generating operations
 ///      4. Cross-chain operations - Handles locking assets for cross-chain positions
 ///      5. ERC-7579 compliance - Integrates with smart account architecture
-abstract contract SuperExecutorBase is
-    ERC7579ExecutorBase,
-    ISuperExecutor,
-    ReentrancyGuard
-{
+abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, ReentrancyGuard {
     using HookDataDecoder for bytes;
     using Math for uint256;
 
@@ -40,7 +36,7 @@ abstract contract SuperExecutorBase is
     /// @notice Tracks which accounts have initialized this executor
     /// @dev Used to ensure only initialized accounts can execute operations
     mapping(address => bool) internal _initialized;
-    
+
     /// @notice Configuration for yield sources and accounting
     /// @dev Provides access to ledger information and fee settings
     ISuperLedgerConfiguration public immutable ledgerConfiguration;
@@ -48,7 +44,7 @@ abstract contract SuperExecutorBase is
     /// @notice Tolerance for fee transfer verification (numerator)
     /// @dev Used to account for tokens with transfer fees or rounding errors
     uint256 internal constant FEE_TOLERANCE = 10_000;
-    
+
     /// @notice Denominator for fee tolerance calculation
     /// @dev FEE_TOLERANCE/FEE_TOLERANCE_DENOMINATOR represents the maximum allowed deviation
     uint256 internal constant FEE_TOLERANCE_DENOMINATOR = 100_000;
@@ -57,7 +53,7 @@ abstract contract SuperExecutorBase is
     /// @dev Sets up the immutable references needed for accounting and fee calculations
     /// @param superLedgerConfiguration_ Address of the ledger configuration contract
     constructor(address superLedgerConfiguration_) {
-        if (superLedgerConfiguration_ == address(0)) revert ADDRESS_NOT_VALID(); 
+        if (superLedgerConfiguration_ == address(0)) revert ADDRESS_NOT_VALID();
         ledgerConfiguration = ISuperLedgerConfiguration(superLedgerConfiguration_);
     }
 
@@ -157,9 +153,9 @@ abstract contract SuperExecutorBase is
                 account,
                 yieldSource,
                 yieldSourceOracleId,
-                _type == ISuperHook.HookType.INFLOW,  // True for inflow, false for outflow
-                ISuperHookResult(address(hook)).outAmount(),  // Amount of shares or assets processed
-                ISuperHookResultOutflow(address(hook)).usedShares()  // Shares consumed (for outflows)
+                _type == ISuperHook.HookType.INFLOW, // True for inflow, false for outflow
+                ISuperHookResult(address(hook)).outAmount(), // Amount of shares or assets processed
+                ISuperHookResultOutflow(address(hook)).usedShares() // Shares consumed (for outflows)
             );
 
             // Handle fee collection for outflows if a fee was generated
@@ -190,26 +186,21 @@ abstract contract SuperExecutorBase is
     /// @param assetToken The ERC20 token to transfer
     /// @param feeRecipient The address to receive the fee
     /// @param feeAmount The amount of tokens to transfer as a fee
-    function _performErc20FeeTransfer(
-        address account,
-        address assetToken,
-        address feeRecipient,
-        uint256 feeAmount
-    )
+    function _performErc20FeeTransfer(address account, address assetToken, address feeRecipient, uint256 feeAmount)
         internal
         virtual
     {
         // Record balance before transfer to verify successful execution
         uint256 balanceBefore = IERC20(assetToken).balanceOf(feeRecipient);
-        
+
         // Execute the transfer from the account to the fee recipient
         _execute(account, assetToken, 0, abi.encodeCall(IERC20.transfer, (feeRecipient, feeAmount)));
-        
+
         // Verify the transfer was successful within acceptable tolerance
         uint256 balanceAfter = IERC20(assetToken).balanceOf(feeRecipient);
         uint256 actualFee = balanceAfter - balanceBefore;
         uint256 maxAllowedDeviation = feeAmount.mulDiv(FEE_TOLERANCE, FEE_TOLERANCE_DENOMINATOR);
-        
+
         // Ensure the actual fee received is within the allowed deviation range
         if (actualFee < feeAmount - maxAllowedDeviation || actualFee > feeAmount + maxAllowedDeviation) {
             revert FEE_NOT_TRANSFERRED();
@@ -228,7 +219,7 @@ abstract contract SuperExecutorBase is
 
         // Execute the native token transfer from the account to the fee recipient
         _execute(account, feeRecipient, feeAmount, "");
-        
+
         // Verify the transfer was successful (exact amount requirement for native tokens)
         uint256 balanceAfter = feeRecipient.balance;
         if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
@@ -246,26 +237,21 @@ abstract contract SuperExecutorBase is
     /// @param hook The hook to process
     /// @param prevHook The previous hook in the sequence (or address(0) if first)
     /// @param hookData The data provided to the hook for execution
-    function _processHook(
-        address account,
-        ISuperHook hook,
-        address prevHook,
-        bytes memory hookData
-    )
+    function _processHook(address account, ISuperHook hook, address prevHook, bytes memory hookData)
         internal
         nonReentrant
     {
         // Stage 1: Initialize the hook execution context
         hook.preExecute(prevHook, account, hookData);
-        
+
         // Stage 2: Build execution instructions
         Execution[] memory executions = hook.build(prevHook, account, hookData);
-        
+
         // Stage 3: Execute the operations defined by the hook
         if (executions.length > 0) {
             _execute(account, executions);
         }
-        
+
         // Stage 4: Finalize and set hook outputs
         hook.postExecute(prevHook, account, hookData);
 
@@ -288,7 +274,7 @@ abstract contract SuperExecutorBase is
         // Get cross-chain operation details from the hook
         address vaultBank = ISuperHookResult(address(hook)).vaultBank();
         uint256 dstChainId = ISuperHookResult(address(hook)).dstChainId();
-        
+
         // Process cross-chain operation if a vault bank is specified
         if (vaultBank != address(0)) {
             address spToken = ISuperHookResult(hook).spToken();
@@ -305,7 +291,7 @@ abstract contract SuperExecutorBase is
 
             // Ensure destination chain is different from current chain
             if (dstChainId == block.chainid) revert INVALID_CHAIN_ID();
-            
+
             // Lock assets in the vault bank for cross-chain transfer
             IVaultBank(vaultBank).lockAsset(account, spToken, amount, uint64(dstChainId));
 

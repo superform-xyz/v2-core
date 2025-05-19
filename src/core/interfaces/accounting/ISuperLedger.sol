@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 /// @title ISuperLedgerData
 /// @author Superform Labs
@@ -44,7 +44,7 @@ interface ISuperLedgerData {
         uint256 amount,
         uint256 pps
     );
-    
+
     /// @notice Emitted when shares are consumed from a user's ledger
     /// @param user The user whose ledger is being updated
     /// @param yieldSourceOracle The oracle providing price information
@@ -65,10 +65,7 @@ interface ISuperLedgerData {
     /// @param yieldSourceOracleId The ID of the oracle for this yield source
     /// @param amount The amount of shares/assets in the skipped operation
     event AccountingOutflowSkipped(
-        address indexed user, 
-        address indexed yieldSource, 
-        bytes4 indexed yieldSourceOracleId, 
-        uint256 amount
+        address indexed user, address indexed yieldSource, bytes4 indexed yieldSourceOracleId, uint256 amount
     );
 
     /*//////////////////////////////////////////////////////////////
@@ -76,37 +73,37 @@ interface ISuperLedgerData {
     //////////////////////////////////////////////////////////////*/
     /// @notice Thrown when a referenced hook cannot be found
     error HOOK_NOT_FOUND();
-    
+
     /// @notice Thrown when a user attempts to consume more shares than they have available
     error INSUFFICIENT_SHARES();
-    
+
     /// @notice Thrown when a price returned from an oracle is invalid (typically zero)
     error INVALID_PRICE();
-    
+
     /// @notice Thrown when attempting to charge a fee without a valid fee percentage
     error FEE_NOT_SET();
-    
+
     /// @notice Thrown when setting a fee percentage outside the allowed range
     error INVALID_FEE_PERCENT();
-    
+
     /// @notice Thrown when a critical address parameter is set to the zero address
     error ZERO_ADDRESS_NOT_ALLOWED();
-    
+
     /// @notice Thrown when an unauthorized address attempts a restricted operation
     error NOT_AUTHORIZED();
-    
+
     /// @notice Thrown when a non-manager address attempts a manager-only operation
     error NOT_MANAGER();
-    
+
     /// @notice Thrown when a manager is required but not set
     error MANAGER_NOT_SET();
-    
+
     /// @notice Thrown when providing an empty array where at least one element is required
     error ZERO_LENGTH();
-    
+
     /// @notice Thrown when an ID parameter is set to zero
     error ZERO_ID_NOT_ALLOWED();
-    
+
     /// @notice Thrown when an operation references an invalid ledger
     error INVALID_LEDGER();
 }
@@ -129,7 +126,7 @@ interface ISuperLedger is ISuperLedgerData {
     /// @param yieldSource The yield source address (e.g. aUSDC, cUSDC, etc.)
     /// @param yieldSourceOracleId ID for looking up the oracle configuration for this yield source
     /// @param isInflow Whether this is an inflow (true) or outflow (false)
-    /// @param amountSharesOrAssets The amount of shares (for inflow) or assets (for outflow) 
+    /// @param amountSharesOrAssets The amount of shares (for inflow) or assets (for outflow)
     /// @param usedShares The amount of shares used for outflow calculation (0 for inflows)
     /// @return feeAmount The amount of fee to be collected in the asset being withdrawn (0 for inflows)
     function updateAccounting(
@@ -139,9 +136,7 @@ interface ISuperLedger is ISuperLedgerData {
         bool isInflow,
         uint256 amountSharesOrAssets,
         uint256 usedShares
-    )
-        external
-        returns (uint256 feeAmount);
+    ) external returns (uint256 feeAmount);
 
     /// @notice Previews fees for a given amount of assets obtained from shares without modifying state
     /// @dev Used to estimate fees before executing a transaction
@@ -159,10 +154,7 @@ interface ISuperLedger is ISuperLedgerData {
         uint256 amountAssets,
         uint256 usedShares,
         uint256 feePercent
-    )
-        external
-        view
-        returns (uint256 feeAmount);
+    ) external view returns (uint256 feeAmount);
 
     /// @notice Calculates the cost basis for a given user and amount of shares without modifying state
     /// @dev Cost basis represents the original asset value of the shares when they were acquired
@@ -173,11 +165,7 @@ interface ISuperLedger is ISuperLedgerData {
     /// @param yieldSource The yield source address (e.g. aUSDC, cUSDC, etc.)
     /// @param usedShares The amount of shares to calculate cost basis for
     /// @return costBasis The original asset value of the specified shares
-    function calculateCostBasisView(
-        address user,
-        address yieldSource,
-        uint256 usedShares
-    )
+    function calculateCostBasisView(address user, address yieldSource, uint256 usedShares)
         external
         view
         returns (uint256 costBasis);

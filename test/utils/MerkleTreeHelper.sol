@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { StdCheats } from "forge-std/StdCheats.sol";
-import { Helpers } from "./Helpers.sol";
+import {StdCheats} from "forge-std/StdCheats.sol";
+import {Helpers} from "./Helpers.sol";
 
 abstract contract MerkleTreeHelper is StdCheats, Helpers {
     mapping(uint64 chainId => bytes32[]) public hookLeavesPerChain;
@@ -12,10 +12,7 @@ abstract contract MerkleTreeHelper is StdCheats, Helpers {
     /*//////////////////////////////////////////////////////////////
                                  HOOKS TREE HELPERS
     //////////////////////////////////////////////////////////////*/
-    function _createHooksTree(
-        uint64 chainId,
-        address[] memory hooksAddresses
-    )
+    function _createHooksTree(uint64 chainId, address[] memory hooksAddresses)
         internal
         returns (bytes32[][] memory proof, bytes32 root)
     {
@@ -49,11 +46,7 @@ abstract contract MerkleTreeHelper is StdCheats, Helpers {
         address[] memory dstTokens,
         uint256[] memory intentAmounts,
         uint48 validUntil
-    )
-        internal
-        pure
-        returns (bytes32)
-    {
+    ) internal pure returns (bytes32) {
         return keccak256(
             bytes.concat(
                 keccak256(

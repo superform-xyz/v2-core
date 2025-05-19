@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { InternalHelpers } from "../../../utils/InternalHelpers.sol";
-import { Helpers } from "../../../utils/Helpers.sol";
+import {InternalHelpers} from "../../../utils/InternalHelpers.sol";
+import {Helpers} from "../../../utils/Helpers.sol";
 
-import { SpectraPTYieldSourceOracle } from "../../../../src/core/accounting/oracles/SpectraPTYieldSourceOracle.sol";
-import { IYieldSourceOracle } from "../../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
-import { MockSpectraPrincipalToken } from "../../../mocks/MockSpectraPrincipalToken.sol";
-import { MockERC20 } from "../../../mocks/MockERC20.sol";
+import {SpectraPTYieldSourceOracle} from "../../../../src/core/accounting/oracles/SpectraPTYieldSourceOracle.sol";
+import {IYieldSourceOracle} from "../../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
+import {MockSpectraPrincipalToken} from "../../../mocks/MockSpectraPrincipalToken.sol";
+import {MockERC20} from "../../../mocks/MockERC20.sol";
 
 contract SpectraPTYieldSourceOracleTest is InternalHelpers, Helpers {
     SpectraPTYieldSourceOracle public oracle;
@@ -83,10 +83,9 @@ contract SpectraPTYieldSourceOracleTest is InternalHelpers, Helpers {
     function test_isValidUnderlyingAsset() public {
         address _mockUnderlying = address(0x789);
         mockPT.setUnderlying(_mockUnderlying);
-        
+
         assertTrue(
-            oracle.isValidUnderlyingAsset(address(mockPT), _mockUnderlying),
-            "Should return true for correct underlying"
+            oracle.isValidUnderlyingAsset(address(mockPT), _mockUnderlying), "Should return true for correct underlying"
         );
         assertFalse(
             oracle.isValidUnderlyingAsset(address(mockPT), address(0x999)),
@@ -97,9 +96,10 @@ contract SpectraPTYieldSourceOracleTest is InternalHelpers, Helpers {
     function test_isValidUnderlyingAssets() public {
         address mockUnderlying1 = address(0x789);
         address mockUnderlying2 = address(0x987);
-        
-        MockSpectraPrincipalToken mockPT2 = new MockSpectraPrincipalToken(address(yt), address(ibt), address(mockUnderlying2));
-        
+
+        MockSpectraPrincipalToken mockPT2 =
+            new MockSpectraPrincipalToken(address(yt), address(ibt), address(mockUnderlying2));
+
         mockPT.setUnderlying(mockUnderlying1);
         mockPT2.setUnderlying(mockUnderlying2);
 
@@ -112,7 +112,7 @@ contract SpectraPTYieldSourceOracleTest is InternalHelpers, Helpers {
         expectedUnderlyings[1] = mockUnderlying2;
 
         bool[] memory results = oracle.isValidUnderlyingAssets(ptAddresses, expectedUnderlyings);
-        
+
         assertTrue(results[0], "First PT should have valid underlying");
         assertTrue(results[1], "Second PT should have valid underlying");
     }

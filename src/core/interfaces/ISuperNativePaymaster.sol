@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { PackedUserOperation } from "@ERC4337/account-abstraction/contracts/interfaces/PackedUserOperation.sol";
+import {PackedUserOperation} from "@ERC4337/account-abstraction/contracts/interfaces/PackedUserOperation.sol";
 
 /// @title ISuperNativePaymaster
 /// @author Superform Labs
@@ -15,19 +15,19 @@ interface ISuperNativePaymaster {
     /// @notice Thrown when a critical address parameter is set to the zero address
     /// @dev Used in constructor when validating EntryPoint address
     error ZERO_ADDRESS();
-    
+
     /// @notice Thrown when an operation requires value but none was provided
     /// @dev Used when checking for sufficient balance for operations
     error EMPTY_MESSAGE_VALUE();
-    
+
     /// @notice Thrown when there isn't enough balance to cover an operation
     /// @dev Used during handleOps to ensure sufficient funds to execute operations
     error INSUFFICIENT_BALANCE();
-    
+
     /// @notice Thrown when an invalid gas limit is specified
     /// @dev Used to prevent gas limit abuse or errors
     error INVALID_MAX_GAS_LIMIT();
-    
+
     /// @notice Thrown when a node operator premium exceeds the maximum allowed
     /// @dev Node operator premium is capped at 10,000 basis points (100%)
     error INVALID_NODE_OPERATOR_PREMIUM();
@@ -39,7 +39,7 @@ interface ISuperNativePaymaster {
     /// @dev Includes the context data from the operation for tracking
     /// @param context The encoded context data from the operation
     event SuperNativePaymasterPostOp(bytes context);
-    
+
     /// @notice Emitted when a refund is sent to an account
     /// @dev Refunds are provided when users overpay for gas costs
     /// @param sender The address receiving the refund
@@ -55,7 +55,7 @@ interface ISuperNativePaymaster {
     ///      Called by a bundler or gateway contract to process operations
     /// @param ops Array of packed user operations to execute
     function handleOps(PackedUserOperation[] calldata ops) external payable;
-    
+
     /// @notice Calculate the refund amount based on gas parameters
     /// @dev Takes into account node operator premium when calculating refunds
     ///      Returns zero if the actual cost (with premium) exceeds the maximum cost
@@ -81,8 +81,5 @@ interface ISuperNativePaymaster {
         uint256 maxFeePerGas,
         uint256 actualGasCost,
         uint256 nodeOperatorPremium
-    )
-        external
-        pure
-        returns (uint256 refund);
+    ) external pure returns (uint256 refund);
 }

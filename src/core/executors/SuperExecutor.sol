@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { SuperExecutorBase } from "./SuperExecutorBase.sol";
+import {SuperExecutorBase} from "./SuperExecutorBase.sol";
 
 /// @title SuperExecutor
 /// @author Superform Labs
@@ -11,7 +11,7 @@ import { SuperExecutorBase } from "./SuperExecutorBase.sol";
 contract SuperExecutor is SuperExecutorBase {
     /// @notice Initializes the SuperExecutor with ledger configuration
     /// @param ledgerConfiguration_ Address of the ledger configuration contract for fee calculations
-    constructor(address ledgerConfiguration_) SuperExecutorBase(ledgerConfiguration_) { }
+    constructor(address ledgerConfiguration_) SuperExecutorBase(ledgerConfiguration_) {}
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

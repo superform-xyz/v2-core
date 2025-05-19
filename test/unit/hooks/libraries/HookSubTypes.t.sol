@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Helpers } from "../../../utils/Helpers.sol";
-import { HookSubTypes } from "../../../../src/core/libraries/HookSubTypes.sol";
+import {Helpers} from "../../../utils/Helpers.sol";
+import {HookSubTypes} from "../../../../src/core/libraries/HookSubTypes.sol";
 
 contract HookSubTypesTest is Helpers {
     function test_Constants() public pure {

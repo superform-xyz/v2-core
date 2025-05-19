@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {BytesLib} from "../../../../vendor/BytesLib.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {IERC7540} from "../../../../vendor/vaults/7540/IERC7540.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
+import {BaseHook} from "../../BaseHook.sol";
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
@@ -17,8 +17,8 @@ import {
     ISuperHookContextAware,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
-import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
+import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
 
 /// @title RequestDeposit7540VaultHook
 /// @author Superform Labs
@@ -40,16 +40,12 @@ contract RequestDeposit7540VaultHook is
     uint256 private constant AMOUNT_POSITION = 24;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
-    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.ERC7540) { }
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.ERC7540) {}
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
-        address prevHook,
-        address account,
-        bytes memory data
-    )
+    function build(address prevHook, address account, bytes memory data)
         external
         view
         override
@@ -99,10 +95,8 @@ contract RequestDeposit7540VaultHook is
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns(bytes memory) {
-        return abi.encodePacked(
-            data.extractYieldSource()
-        );
+    function inspect(bytes calldata data) external pure returns (bytes memory) {
+        return abi.encodePacked(data.extractYieldSource());
     }
 
     /*//////////////////////////////////////////////////////////////

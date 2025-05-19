@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 /**
  * @title SuperHook System
@@ -28,10 +27,10 @@ interface ISuperHookInspector {
     /// @notice Inspect the hook
     /// @param data The hook data to inspect
     /// @return argsEncoded The arguments of the hook encoded
-    function inspect(bytes calldata data) external view returns(bytes memory argsEncoded);
+    function inspect(bytes calldata data) external view returns (bytes memory argsEncoded);
 }
 
-/// @title ISuperHookResult 
+/// @title ISuperHookResult
 /// @author Superform Labs
 /// @notice Interface that exposes the result of a hook execution
 /// @dev All hooks must implement this interface to provide standardized access to execution results.
@@ -44,27 +43,27 @@ interface ISuperHookResult {
     /// @dev This is the primary output value used by subsequent hooks and for accounting
     /// @return The amount of tokens (assets or shares) processed
     function outAmount() external view returns (uint256);
-    
-    /// @notice The type of hook 
+
+    /// @notice The type of hook
     /// @dev Used to determine how accounting should process this hook's results
     /// @return The hook type (NONACCOUNTING, INFLOW, or OUTFLOW)
     function hookType() external view returns (ISuperHook.HookType);
-    
+
     /// @notice The SuperPosition (SP) token associated with this hook
     /// @dev For vault hooks, this would be the tokenized position representing shares
     /// @return The address of the SP token, or address(0) if not applicable
     function spToken() external view returns (address);
-    
+
     /// @notice The underlying asset token being processed
     /// @dev For most hooks, this is the actual token being deposited or withdrawn
     /// @return The address of the asset token, or address(0) for native assets
     function asset() external view returns (address);
-    
+
     /// @notice The vault bank address used to lock SuperPositions
     /// @dev Only relevant for cross-chain operations where positions are locked
     /// @return The vault bank address, or address(0) if not applicable
     function vaultBank() external view returns (address);
-    
+
     /// @notice The destination chain ID for cross-chain operations
     /// @dev Used to identify the target chain for cross-chain position transfers
     /// @return The destination chain ID, or 0 if not a cross-chain operation
@@ -177,9 +176,10 @@ interface ISuperHookAsyncCancelations {
     /// @notice Types of cancellations that can be performed
     /// @dev Distinguishes between different operation types that can be canceled
     enum CancelationType {
-        NONE,    // Not a cancelation hook
-        INFLOW,  // Cancels a pending deposit operation
-        OUTFLOW  // Cancels a pending withdrawal operation
+        NONE, // Not a cancelation hook
+        INFLOW, // Cancels a pending deposit operation
+        OUTFLOW // Cancels a pending withdrawal operation
+
     }
 
     /// @notice Identifies the type of async operation this hook can cancel
@@ -202,8 +202,9 @@ interface ISuperHook {
     /// @dev Used to determine how the hook affects accounting and what operations it performs
     enum HookType {
         NONACCOUNTING, // Hook doesn't affect accounting (e.g., a swap or bridge)
-        INFLOW,        // Hook processes deposits or positions being added
-        OUTFLOW        // Hook processes withdrawals or positions being removed
+        INFLOW, // Hook processes deposits or positions being added
+        OUTFLOW // Hook processes withdrawals or positions being removed
+
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -217,11 +218,7 @@ interface ISuperHook {
     /// @param account The account to perform executions for (usually an ERC7579 account)
     /// @param data The hook-specific parameters and configuration data
     /// @return executions Array of Execution structs defining calls to make
-    function build(
-        address prevHook,
-        address account,
-        bytes memory data
-    )
+    function build(address prevHook, address account, bytes memory data)
         external
         view
         returns (Execution[] memory executions);

@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Helpers } from "../../utils/Helpers.sol";
+import {Helpers} from "../../utils/Helpers.sol";
 
-import { MockSuperPositionFactory, MockSuperPosition } from "../../mocks/MockSuperPositionFactory.sol";
-import { MockERC20 } from "../../mocks/MockERC20.sol";
+import {MockSuperPositionFactory, MockSuperPosition} from "../../mocks/MockSuperPositionFactory.sol";
+import {MockERC20} from "../../mocks/MockERC20.sol";
 
 contract SuperPositionsFactoryTest is Helpers {
     MockSuperPositionFactory public factory;
@@ -24,10 +24,7 @@ contract SuperPositionsFactoryTest is Helpers {
         address yieldSourceAddress2,
         bytes4 yieldSourceOracleId2,
         uint64 chainId2
-    )
-        public
-        view
-    {
+    ) public view {
         vm.assume(
             yieldSourceAddress1 != yieldSourceAddress2 || yieldSourceOracleId1 != yieldSourceOracleId2
                 || chainId1 != chainId2
@@ -46,10 +43,7 @@ contract SuperPositionsFactoryTest is Helpers {
         address yieldSourceAddress,
         bytes4 yieldSourceOracleId,
         uint64 chainId
-    )
-        public
-        view
-    {
+    ) public view {
         uint256 spId1 = factory.getSPId(yieldSourceAddress, yieldSourceOracleId, chainId);
         uint256 spId2 = factory.getSPId(yieldSourceAddress, yieldSourceOracleId, chainId);
 

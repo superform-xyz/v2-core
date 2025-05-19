@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 /// @title ISuperRegistry
 /// @author Superform Labs
@@ -24,12 +24,12 @@ interface ISuperRegistry {
     /// @dev Used by protected contracts to enforce access control
     ///      Executors have elevated privileges to perform operations across the system
     error NOT_EXECUTOR();
-    
+
     /// @notice Thrown when an operation references an invalid or unauthorized account
     /// @dev Ensures operations are performed only on valid accounts
     ///      Important for maintaining system integrity during rebalancing
     error INVALID_ACCOUNT();
-    
+
     /// @notice Thrown when an invalid address (typically zero address) is provided
     /// @dev Prevents critical components from being set to unusable addresses
     ///      Particularly important for oracle and circuit breaker components
@@ -46,7 +46,7 @@ interface ISuperRegistry {
     ///      - Executors for processing transactions
     ///      - Oracle providers for required data
     ///      - Bridge adapters for cross-chain communication
-    ///      
+    ///
     ///      Access is strictly controlled to prevent unauthorized modifications
     ///      that could compromise the system security
     /// @param id_ The bytes32 identifier for the component
@@ -60,7 +60,7 @@ interface ISuperRegistry {
     ///      2. Executing cross-chain operations
     ///      3. Managing the execution flow through hooks
     ///      4. Ensuring proper transaction validation
-    ///      
+    ///
     ///      This function is highly access-controlled as executors can modify
     ///      system state and trigger critical events across chains
     /// @param id_ The bytes32 identifier for the executor
@@ -77,7 +77,7 @@ interface ISuperRegistry {
     ///      - Executor contracts for transaction processing
     ///      - Bridge adapters for cross-chain communication
     ///      - Hook implementations for execution extensions
-    ///      
+    ///
     ///      Components must verify addresses are not zero before interaction
     /// @param id_ The bytes32 identifier to look up
     /// @return The address associated with the identifier, or address(0) if not found
@@ -90,7 +90,7 @@ interface ISuperRegistry {
     ///      2. Execute user transactions
     ///      3. Interact with validator modules
     ///      4. Manage critical system parameters
-    ///      
+    ///
     ///      This check is critical for maintaining system security and preventing unauthorized operations
     /// @param executor The address to check for executor permissions
     /// @return True if the address is a registered executor, false otherwise

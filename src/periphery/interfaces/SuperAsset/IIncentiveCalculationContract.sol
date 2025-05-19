@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 
 interface IIncentiveCalculationContract {
     /**
@@ -18,7 +18,10 @@ interface IIncentiveCalculationContract {
         uint256[] memory weights,
         uint256 totalCurrentAllocation,
         uint256 totalAllocationTarget
-    ) external pure returns (uint256 res, bool isSuccess);
+    )
+        external
+        pure
+        returns (uint256 res, bool isSuccess);
 
     /**
      * @notice Calculates the incentive.
@@ -42,7 +45,10 @@ interface IIncentiveCalculationContract {
         uint256 totalAllocationPostOperation,
         uint256 totalAllocationTarget,
         uint256 energyToUSDExchangeRatio
-    ) external view returns (int256 incentiveUSD, bool isSuccess);
+    )
+        external
+        view
+        returns (int256 incentiveUSD, bool isSuccess);
 
     /// --- Events ---
     event EnergyCalculationFailed();

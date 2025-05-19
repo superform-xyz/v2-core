@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "../../../src/vendor/okx/IOkxSwapRouter.sol";
 import "../../../src/vendor/okx/PMMLib.sol";
 
 // Superform
-import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
+import {BaseHook} from "../../../src/core/hooks/BaseHook.sol";
 
 /// @title SwapperOkxHook
 /// @author Superform Labs
@@ -47,11 +47,7 @@ contract SwapOkxHook is BaseHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
 
-    function build(
-        address,
-        address,
-        bytes calldata data
-    )
+    function build(address, address, bytes calldata data)
         external
         view
         override
@@ -65,7 +61,7 @@ contract SwapOkxHook is BaseHook {
         _validateTxData(dstToken, dstReceiver, txData_, value);
 
         executions = new Execution[](1);
-        executions[0] = Execution({ target: address(router), value: value, callData: txData_ });
+        executions[0] = Execution({target: address(router), value: value, callData: txData_});
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -82,12 +78,7 @@ contract SwapOkxHook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _validateTxData(
-        address dstToken,
-        address dstReceiver,
-        bytes calldata txData_,
-        uint256 value
-    )
+    function _validateTxData(address dstToken, address dstReceiver, bytes calldata txData_, uint256 value)
         private
         pure
     {

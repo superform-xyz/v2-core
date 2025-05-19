@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import "../../../../vendor/1inch/I1InchAggregationRouterV6.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
-import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {BaseHook} from "../../BaseHook.sol";
+import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
+import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
 
 import "forge-std/console2.sol";
 
@@ -56,11 +56,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
-        address prevHook,
-        address,
-        bytes calldata data
-    )
+    function build(address prevHook, address, bytes calldata data)
         external
         view
         override
@@ -72,8 +68,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         bytes calldata txData_ = data[73:];
 
-        bytes memory updatedTxData =
-            _validateTxData(dstToken, dstReceiver, prevHook, usePrevHookAmount, txData_);
+        bytes memory updatedTxData = _validateTxData(dstToken, dstReceiver, prevHook, usePrevHookAmount, txData_);
 
         executions = new Execution[](1);
         executions[0] = Execution({
@@ -93,7 +88,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns(bytes memory) {
+    function inspect(bytes calldata data) external pure returns (bytes memory) {
         bytes calldata txData_ = data[73:];
         bytes4 selector = bytes4(txData_[:4]);
 
@@ -106,23 +101,19 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         } else if (selector == I1InchAggregationRouterV6.swap.selector) {
             (IAggregationExecutor executor, I1InchAggregationRouterV6.SwapDescription memory desc,) =
                 abi.decode(txData_[4:], (IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription, bytes));
-            packed = abi.encodePacked(address(executor), address(desc.srcToken), address(desc.dstToken), address(desc.srcReceiver), address(desc.dstReceiver));
+            packed = abi.encodePacked(
+                address(executor),
+                address(desc.srcToken),
+                address(desc.dstToken),
+                address(desc.srcReceiver),
+                address(desc.dstReceiver)
+            );
         } else if (selector == I1InchAggregationRouterV6.clipperSwapTo.selector) {
-            (
-                IClipperExchange clipperExchange,
-                address recipient,
-                Address srcToken,
-                IERC20 dstToken,
-                ,
-                ,
-                ,
-                ,
-                
-            ) = abi.decode(
+            (IClipperExchange clipperExchange, address recipient, Address srcToken, IERC20 dstToken,,,,,) = abi.decode(
                 txData_[4:], (IClipperExchange, address, Address, IERC20, uint256, uint256, uint256, bytes32, bytes32)
             );
             packed = abi.encodePacked(address(clipperExchange), recipient, srcToken.get(), address(dstToken));
-        } 
+        }
 
         return packed;
     }
@@ -147,11 +138,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         address prevHook,
         bool usePrevHookAmount,
         bytes calldata txData_
-    )
-        private
-        view
-        returns (bytes memory updatedTxData)
-    {
+    ) private view returns (bytes memory updatedTxData) {
         bytes4 selector = bytes4(txData_[:4]);
 
         if (selector == I1InchAggregationRouterV6.unoswapTo.selector) {
@@ -159,8 +146,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
             updatedTxData = _validateUnoswap(txData_[4:], dstReceiver, dstToken, prevHook, usePrevHookAmount);
         } else if (selector == I1InchAggregationRouterV6.swap.selector) {
             /// @dev support for generic router call
-            updatedTxData =
-                _validateGenericSwap(txData_[4:], dstReceiver, dstToken, prevHook, usePrevHookAmount);
+            updatedTxData = _validateGenericSwap(txData_[4:], dstReceiver, dstToken, prevHook, usePrevHookAmount);
         } else if (selector == I1InchAggregationRouterV6.clipperSwapTo.selector) {
             updatedTxData = _validateClipperSwap(txData_[4:], dstReceiver, dstToken, prevHook, usePrevHookAmount);
         } else {
@@ -174,11 +160,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         address toToken,
         address prevHook,
         bool usePrevHookAmount
-    )
-        private
-        view
-        returns (bytes memory updatedTxData)
-    {
+    ) private view returns (bytes memory updatedTxData) {
         (Address to, Address token, uint256 amount, uint256 minReturn, Address dex) =
             abi.decode(txData_, (Address, Address, uint256, uint256, Address));
 
@@ -256,11 +238,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         address toToken,
         address prevHook,
         bool usePrevHookAmount
-    )
-        private
-        view
-        returns (bytes memory updatedTxData)
-    {
+    ) private view returns (bytes memory updatedTxData) {
         (IAggregationExecutor executor, I1InchAggregationRouterV6.SwapDescription memory desc, bytes memory data) =
             abi.decode(txData_, (IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription, bytes));
 
@@ -299,11 +277,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         address toToken,
         address prevHook,
         bool usePrevHookAmount
-    )
-        private
-        view
-        returns (bytes memory updatedTxData)
-    {
+    ) private view returns (bytes memory updatedTxData) {
         (
             IClipperExchange clipperExchange,
             address recipient,

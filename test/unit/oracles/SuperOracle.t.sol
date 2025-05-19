@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // Superform
 
-import { SuperOracle } from "../../../src/periphery/oracles/SuperOracle.sol";
-import { ISuperOracle } from "../../../src/periphery/interfaces/ISuperOracle.sol";
-import { MockERC20 } from "../../mocks/MockERC20.sol";
-import { Helpers } from "../../utils/Helpers.sol";
-import { MockAggregator } from "../../periphery/mocks/MockAggregator.sol";
+import {SuperOracle} from "../../../src/periphery/oracles/SuperOracle.sol";
+import {ISuperOracle} from "../../../src/periphery/interfaces/ISuperOracle.sol";
+import {MockERC20} from "../../mocks/MockERC20.sol";
+import {Helpers} from "../../utils/Helpers.sol";
+import {MockAggregator} from "../../periphery/mocks/MockAggregator.sol";
 
 contract SuperOracleTest is Helpers {
     bytes32 public constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
@@ -255,11 +255,11 @@ contract SuperOracleTest is Helpers {
 
     function test_RevertIfStaleData() public {
         vm.warp(block.timestamp + 2 days);
-        
+
         // Set the updatedAt for all providers to the current timestamp
         mockFeed2.setUpdatedAt(block.timestamp);
         mockFeed3.setUpdatedAt(block.timestamp);
-        
+
         // Make only provider 1 data stale (older than default 1 day)
         mockFeed1.setUpdatedAt(block.timestamp - 2 days);
 

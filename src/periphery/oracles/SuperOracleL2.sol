@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // Superform
-import { SuperOracleBase } from "./SuperOracleBase.sol";
-import { ISuperOracleL2 } from "../interfaces/ISuperOracleL2.sol";
+import {SuperOracleBase} from "./SuperOracleBase.sol";
+import {ISuperOracleL2} from "../interfaces/ISuperOracleL2.sol";
 
 // external
-import { IERC20 } from "forge-std/interfaces/IERC20.sol";
-import { BoringERC20 } from "../../vendor/BoringSolidity/BoringERC20.sol";
-import { AggregatorV3Interface } from "../../vendor/chainlink/AggregatorV3Interface.sol";
+import {IERC20} from "forge-std/interfaces/IERC20.sol";
+import {BoringERC20} from "../../vendor/BoringSolidity/BoringERC20.sol";
+import {AggregatorV3Interface} from "../../vendor/chainlink/AggregatorV3Interface.sol";
 
 /// @title SuperOracleL2
 /// @author Superform Labs
@@ -30,9 +30,7 @@ contract SuperOracleL2 is SuperOracleBase, ISuperOracleL2 {
         address[] memory quotes,
         bytes32[] memory providers,
         address[] memory feeds
-    )
-        SuperOracleBase(owner_, bases, quotes, providers, feeds)
-    { }
+    ) SuperOracleBase(owner_, bases, quotes, providers, feeds) {}
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
@@ -49,13 +47,7 @@ contract SuperOracleL2 is SuperOracleBase, ISuperOracleL2 {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    function _getQuoteFromOracle(
-        address oracle,
-        uint256 baseAmount,
-        address base,
-        address quote,
-        bool revertOnError
-    )
+    function _getQuoteFromOracle(address oracle, uint256 baseAmount, address base, address quote, bool revertOnError)
         internal
         view
         override

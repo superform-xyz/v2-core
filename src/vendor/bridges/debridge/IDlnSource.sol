@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 interface IDlnSource {
     struct OrderCreation {
@@ -57,10 +57,7 @@ interface IDlnSource {
         bytes calldata _affiliateFee,
         uint32 _referralCode,
         bytes calldata _permitEnvelope
-    )
-        external
-        payable
-        returns (bytes32 orderId);
+    ) external payable returns (bytes32 orderId);
 
     function globalFixedNativeFee() external view returns (uint256);
 }

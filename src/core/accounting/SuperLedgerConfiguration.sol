@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
-import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
+import {ISuperLedgerConfiguration} from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 /// @title SuperLedgerConfiguration
 /// @author Superform Labs
@@ -20,16 +20,16 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     /// @notice Current active yield source oracle configurations
     /// @dev Maps from oracle ID to its configuration including oracle address, fees, and management info
     mapping(bytes4 yieldSourceOracleId => YieldSourceOracleConfig config) private yieldSourceOracleConfig;
-    
+
     /// @notice Proposed yield source oracle configurations pending acceptance
     /// @dev Stores proposed configuration changes that must be accepted after a timelock period
     mapping(bytes4 yieldSourceOracleId => YieldSourceOracleConfig config) private yieldSourceOracleConfigProposals;
-    
+
     /// @notice Timestamps for when proposals can be accepted
     /// @dev Implements timelock period for configuration changes to allow for review
     mapping(bytes4 yieldSourceOracleId => uint256 proposalExpirationTime) private
         yieldSourceOracleConfigProposalExpirationTime;
-    
+
     /// @notice Addresses nominated to receive manager role transfers
     /// @dev Used in the two-step process for transferring management rights
     mapping(bytes4 => address) private pendingManager;
@@ -37,11 +37,11 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     /// @notice Maximum allowed fee percentage (50% = 5000 basis points)
     /// @dev Used to prevent setting excessive fees
     uint256 internal constant MAX_FEE_PERCENT = 5000;
-    
+
     /// @notice Maximum allowed fee percentage change (50% = 5000 basis points)
     /// @dev Limits how much fees can be increased or decreased in a single proposal
-    uint256 internal constant MAX_FEE_PERCENT_CHANGE = 5000; 
-    
+    uint256 internal constant MAX_FEE_PERCENT_CHANGE = 5000;
+
     /// @notice Duration of the timelock period for configuration proposals
     /// @dev After this period elapses, proposals can be accepted
     uint256 internal constant PROPOSAL_EXPIRATION_TIME = 1 weeks;
@@ -207,10 +207,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         uint256 feePercent,
         address feeRecipient,
         address ledgerContract
-    )
-        internal
-        virtual
-    {
+    ) internal virtual {
         _validateYieldSourceOracleConfig(
             yieldSourceOracleId, yieldSourceOracle, feePercent, feeRecipient, ledgerContract
         );
@@ -238,11 +235,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         uint256 feePercent,
         address feeRecipient,
         address ledgerContract
-    )
-        internal
-        view
-        virtual
-    {
+    ) internal view virtual {
         if (yieldSourceOracle == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (feeRecipient == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (ledgerContract == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();

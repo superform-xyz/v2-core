@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import { IEntryPointSimulations } from "modulekit/external/ERC4337.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
-import { UserOperationLib } from "../../vendor/account-abstraction/UserOperationLib.sol";
-import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+import {IEntryPoint} from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import {IEntryPointSimulations} from "modulekit/external/ERC4337.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import {UserOperationLib} from "../../vendor/account-abstraction/UserOperationLib.sol";
+import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
 // superform
-import { BasePaymaster } from "../../vendor/account-abstraction/BasePaymaster.sol";
-import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
+import {BasePaymaster} from "../../vendor/account-abstraction/BasePaymaster.sol";
+import {ISuperNativePaymaster} from "../interfaces/ISuperNativePaymaster.sol";
 
 /// @title SuperNativePaymaster
 /// @author Superform Labs
@@ -38,11 +38,7 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         uint256 maxFeePerGas,
         uint256 actualGasCost,
         uint256 nodeOperatorPremium
-    )
-        public
-        pure
-        returns (uint256 refund)
-    {
+    ) public pure returns (uint256 refund) {
         if (nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) revert INVALID_NODE_OPERATOR_PREMIUM();
         uint256 costWithPremium =
             Math.mulDiv(actualGasCost, MAX_NODE_OPERATOR_PREMIUM + nodeOperatorPremium, MAX_NODE_OPERATOR_PREMIUM);
@@ -60,7 +56,7 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     function handleOps(PackedUserOperation[] calldata ops) public payable {
         uint256 balance = address(this).balance;
         if (balance > 0) {
-            (bool success,) = payable(address(entryPoint)).call{ value: balance }("");
+            (bool success,) = payable(address(entryPoint)).call{value: balance}("");
             if (!success) revert INSUFFICIENT_BALANCE();
         }
         // note: msg.sender is the SuperBundler on same chain, or a cross-chain Gateway contract on the destination
@@ -72,11 +68,7 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _validatePaymasterUserOp(
-        PackedUserOperation calldata userOp,
-        bytes32,
-        uint256
-    )
+    function _validatePaymasterUserOp(PackedUserOperation calldata userOp, bytes32, uint256)
         internal
         virtual
         override
@@ -98,12 +90,7 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     ///                                    Now this is the 2nd call, after user's op was deliberately reverted.
     /// @param context The context value returned by validatePaymasterUserOp.
     /// @param actualGasCost The actual gas used so far (without this postOp call).
-    function _postOp(
-        PostOpMode,
-        bytes calldata context,
-        uint256 actualGasCost,
-        uint256
-    )
+    function _postOp(PostOpMode, bytes calldata context, uint256 actualGasCost, uint256)
         /**
          * actualUserOpFeePerGas
          */

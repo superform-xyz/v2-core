@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { ApproveAndGearboxStakeHook } from "../../../../../src/core/hooks/stake/gearbox/ApproveAndGearboxStakeHook.sol";
-import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
-import { MockERC20 } from "../../../../mocks/MockERC20.sol";
-import { MockHook } from "../../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { Helpers } from "../../../../utils/Helpers.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {ApproveAndGearboxStakeHook} from "../../../../../src/core/hooks/stake/gearbox/ApproveAndGearboxStakeHook.sol";
+import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
+import {MockERC20} from "../../../../mocks/MockERC20.sol";
+import {MockHook} from "../../../../mocks/MockHook.sol";
+import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
+import {Helpers} from "../../../../utils/Helpers.sol";
 
 contract ApproveAndGearboxStakeHookTest is Helpers {
     ApproveAndGearboxStakeHook public hook;
@@ -76,7 +76,7 @@ contract ApproveAndGearboxStakeHookTest is Helpers {
         hook.postExecute(address(0), address(this), data);
         assertEq(hook.outAmount(), 0);
     }
-    
+
     function test_Inspector() public view {
         bytes memory data = _encodeData(false);
         bytes memory argsEncoded = hook.inspect(data);
@@ -90,7 +90,6 @@ contract ApproveAndGearboxStakeHookTest is Helpers {
         data = _encodeData(true);
         assertEq(hook.decodeUsePrevHookAmount(data), true);
     }
-
 
     function _assertExecutions(Execution[] memory executions) internal view {
         assertEq(executions.length, 4);

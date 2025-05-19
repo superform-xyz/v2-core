@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // superform
-import { BaseLedger } from "./BaseLedger.sol";
-import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
+import {BaseLedger} from "./BaseLedger.sol";
+import {ISuperLedgerConfiguration} from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 /// @title FlatFeeLedger
 /// @author Superform Labs
@@ -15,12 +15,9 @@ contract FlatFeeLedger is BaseLedger {
     /// @notice Initializes the FlatFeeLedger with configuration and executor permissions
     /// @param ledgerConfiguration_ Address of the SuperLedgerConfiguration contract
     /// @param allowedExecutors_ Array of addresses authorized to execute accounting operations
-    constructor(
-        address ledgerConfiguration_,
-        address[] memory allowedExecutors_
-    )
+    constructor(address ledgerConfiguration_, address[] memory allowedExecutors_)
         BaseLedger(ledgerConfiguration_, allowedExecutors_)
-    { }
+    {}
 
     /// @notice Processes outflow operations with a flat fee calculation
     /// @dev Overrides the base implementation to apply fees to the entire amount
@@ -35,12 +32,7 @@ contract FlatFeeLedger is BaseLedger {
         uint256 amountAssets,
         uint256,
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
-    )
-        internal
-        virtual
-        override
-        returns (uint256 feeAmount)
-    {
+    ) internal virtual override returns (uint256 feeAmount) {
         // Apply fee to the entire amount by using zero cost basis
         // This treats the entire amount as profit subject to the fee percentage
         feeAmount = _calculateFees(0, amountAssets, config.feePercent);

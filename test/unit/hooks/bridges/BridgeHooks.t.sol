@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { AcrossSendFundsAndExecuteOnDstHook } from
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {AcrossSendFundsAndExecuteOnDstHook} from
     "../../../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
-import { DeBridgeSendOrderAndExecuteOnDstHook } from
+import {DeBridgeSendOrderAndExecuteOnDstHook} from
     "../../../../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
-import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
-import { IAcrossSpokePoolV3 } from "../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
-import { MockHook } from "../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
-import { Helpers } from "../../../utils/Helpers.sol";
-import { DlnExternalCallLib } from "../../../../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
+import {ISuperHook} from "../../../../src/core/interfaces/ISuperHook.sol";
+import {IAcrossSpokePoolV3} from "../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
+import {MockHook} from "../../../mocks/MockHook.sol";
+import {BaseHook} from "../../../../src/core/hooks/BaseHook.sol";
+import {Helpers} from "../../../utils/Helpers.sol";
+import {DlnExternalCallLib} from "../../../../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
 
 contract MockSignatureStorage {
     function retrieveSignatureData(address) external view returns (bytes memory) {
@@ -192,9 +192,7 @@ contract BridgeHooks is Helpers {
         uint256 prevHookAmount = 0;
 
         vm.mockCall(
-            mockSpokePool,
-            abi.encodeWithSelector(IAcrossSpokePoolV3.wrappedNativeToken.selector),
-            abi.encode(0)
+            mockSpokePool, abi.encodeWithSelector(IAcrossSpokePoolV3.wrappedNativeToken.selector), abi.encode(0)
         );
 
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
@@ -247,7 +245,6 @@ contract BridgeHooks is Helpers {
     function test_AcrossV3_PostExecute() public {
         acrossV3hook.postExecute(address(0), address(0), "");
     }
-    
 
     function test_AcrossV3_DecodePrevHookAmount() public view {
         bytes memory data = _encodeAcrossData(false);
@@ -282,7 +279,6 @@ contract BridgeHooks is Helpers {
     }
 
     function test_Debrigdge_Build_UsePrevAmount() public {
-
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
         MockHook(mockPrevHook).setOutAmount(100);
 
@@ -306,6 +302,7 @@ contract BridgeHooks is Helpers {
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         deBridgehook.build(address(0), mockAccount, data);
     }
+
     function test_ExecutionCaller() public view {
         assertEq(BaseHook(address(deBridgehook)).getExecutionCaller(), address(0));
     }
@@ -321,7 +318,6 @@ contract BridgeHooks is Helpers {
     function test_Debridge_PostExecute() public {
         deBridgehook.postExecute(address(0), address(0), "");
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
@@ -343,7 +339,7 @@ contract BridgeHooks is Helpers {
         );
     }
 
-     struct DebridgeOrderData {
+    struct DebridgeOrderData {
         bool usePrevHookAmount;
         uint256 value;
         address giveTokenAddress;
@@ -372,7 +368,6 @@ contract BridgeHooks is Helpers {
         view
         returns (bytes memory hookData)
     {
-
         DebridgeOrderData memory data = DebridgeOrderData({
             usePrevHookAmount: usePrevHookAmount,
             value: amount,
@@ -409,19 +404,14 @@ contract BridgeHooks is Helpers {
         hookData = bytes.concat(part1, part2, part3);
     }
 
-
-     function _createDebridgeExternalCallEnvelope(
+    function _createDebridgeExternalCallEnvelope(
         address executorAddress,
         uint160 executionFee,
         address fallbackAddress,
         bytes memory payload,
         bool allowDelayedExecution,
         bool requireSuccessfulExecution // Note: Keep typo from library 'requireSuccessfullExecution'
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
+    ) internal pure returns (bytes memory) {
         DlnExternalCallLib.ExternalCallEnvelopV1 memory dataEnvelope = DlnExternalCallLib.ExternalCallEnvelopV1({
             executorAddress: executorAddress,
             executionFee: executionFee,
@@ -435,7 +425,6 @@ contract BridgeHooks is Helpers {
         return abi.encodePacked(uint8(1), abi.encode(dataEnvelope));
     }
 
-   
     function _encodeDebridgePart1(DebridgeOrderData memory d) internal pure returns (bytes memory) {
         return abi.encodePacked(
             d.usePrevHookAmount,
@@ -478,8 +467,6 @@ contract BridgeHooks is Helpers {
             d.referralCode
         );
     }
-
-    
 
     function _decodeBool(bytes memory data, uint256 offset) internal pure returns (bool) {
         return data[offset] != 0;

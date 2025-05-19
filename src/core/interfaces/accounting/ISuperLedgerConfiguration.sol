@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 /// @title ISuperLedgerConfiguration
 /// @author Superform Labs
@@ -47,34 +47,34 @@ interface ISuperLedgerConfiguration {
     //////////////////////////////////////////////////////////////*/
     /// @notice Thrown when a function restricted to managers is called by a non-manager address
     error NOT_MANAGER();
-    
+
     /// @notice Thrown when providing an empty array where at least one element is required
     error ZERO_LENGTH();
-    
+
     /// @notice Thrown when attempting to create a configuration that already exists
     error CONFIG_EXISTS();
-    
+
     /// @notice Thrown when referencing a configuration that doesn't exist
     error CONFIG_NOT_FOUND();
-    
+
     /// @notice Thrown when trying to accept a configuration proposal before the waiting period ends
     error CANNOT_ACCEPT_YET();
-    
+
     /// @notice Thrown when a manager mismatch is detected during configuration operations
     error MANAGER_NOT_MATCHED();
-    
+
     /// @notice Thrown when a zero ID is provided for a configuration
     error ZERO_ID_NOT_ALLOWED();
-    
+
     /// @notice Thrown when setting a fee percentage outside the allowed range (0-10000)
     error INVALID_FEE_PERCENT();
-    
+
     /// @notice Thrown when attempting to accept a manager role without being the pending manager
     error NOT_PENDING_MANAGER();
-    
+
     /// @notice Thrown when attempting to propose changes to a configuration that already has pending changes
     error CHANGE_ALREADY_PROPOSED();
-    
+
     /// @notice Thrown when a critical address parameter is set to the zero address
     error ZERO_ADDRESS_NOT_ALLOWED();
 
@@ -96,7 +96,7 @@ interface ISuperLedgerConfiguration {
         address feeRecipient,
         address ledger
     );
-    
+
     /// @notice Emitted when changes to a yield source oracle configuration are proposed
     /// @param yieldSourceOracleId Unique identifier for the yield source oracle
     /// @param yieldSourceOracle Proposed oracle contract address
@@ -112,7 +112,7 @@ interface ISuperLedgerConfiguration {
         address feeRecipient,
         address ledger
     );
-    
+
     /// @notice Emitted when proposed changes to a yield source oracle configuration are accepted
     /// @param yieldSourceOracleId Unique identifier for the yield source oracle
     /// @param yieldSourceOracle New oracle contract address
@@ -128,7 +128,7 @@ interface ISuperLedgerConfiguration {
         address feeRecipient,
         address ledger
     );
-    
+
     /// @notice Emitted when the transfer of manager role is initiated
     /// @param yieldSourceOracleId Unique identifier for the yield source oracle
     /// @param currentManager Address of the current manager
@@ -136,7 +136,7 @@ interface ISuperLedgerConfiguration {
     event ManagerRoleTransferStarted(
         bytes4 indexed yieldSourceOracleId, address indexed currentManager, address indexed newManager
     );
-    
+
     /// @notice Emitted when the transfer of manager role is completed
     /// @param yieldSourceOracleId Unique identifier for the yield source oracle
     /// @param newManager Address of the new manager who accepted the role

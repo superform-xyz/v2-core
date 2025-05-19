@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
-import { ISuperSignatureStorage } from "../interfaces/ISuperSignatureStorage.sol";
+import {ERC7579ValidatorBase} from "modulekit/Modules.sol";
+import {ISuperSignatureStorage} from "../interfaces/ISuperSignatureStorage.sol";
 
 /// @title SuperValidatorBase
 /// @author Superform Labs
@@ -30,7 +30,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     /// @notice Tracks which accounts have initialized this validator
     /// @dev Used to prevent unauthorized use of the validator
     mapping(address account => bool initialized) internal _initialized;
-    
+
     /// @notice Maps accounts to their owners
     /// @dev Used to verify signatures against the correct owner address
     mapping(address account => address owner) internal _accountOwners;
@@ -87,6 +87,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     function _namespace() internal pure virtual returns (string memory) {
         return "SuperValidator";
     }
+
     function _createLeaf(bytes memory data, uint48 validUntil) internal view virtual returns (bytes32);
 
     /// @notice Decodes raw signature data into a structured SignatureData object
@@ -119,11 +120,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     /// @param sender The account address being operated on
     /// @param validUntil Timestamp after which the signature is no longer valid
     /// @return True if the signature is valid, false otherwise
-    function _isSignatureValid(
-        address signer, 
-        address sender,
-        uint48 validUntil
-    ) 
+    function _isSignatureValid(address signer, address sender, uint48 validUntil)
         internal
         view
         virtual

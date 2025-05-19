@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { BytesLib } from "../../vendor/BytesLib.sol";
+import {BytesLib} from "../../vendor/BytesLib.sol";
 
 /// @title HookDataDecoder
 /// @author Superform Labs

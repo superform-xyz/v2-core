@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
-import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
+import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 // Superform
-import { ISuperGovernor, FeeType } from "./interfaces/ISuperGovernor.sol";
-import { ISuperVaultAggregator } from "./interfaces/ISuperVaultAggregator.sol";
+import {ISuperGovernor, FeeType} from "./interfaces/ISuperGovernor.sol";
+import {ISuperVaultAggregator} from "./interfaces/ISuperVaultAggregator.sol";
 
 /// @title SuperGovernor
 /// @author Superform Labs
@@ -182,10 +182,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperGovernor
-    function changePrimaryStrategist(
-        address strategy_,
-        address newStrategist_
-    )
+    function changePrimaryStrategist(address strategy_, address newStrategist_)
         external
         onlyRole(_SUPER_GOVERNOR_ROLE)
     {
