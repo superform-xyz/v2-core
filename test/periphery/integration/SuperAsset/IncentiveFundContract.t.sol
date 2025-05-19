@@ -265,12 +265,12 @@ contract IncentiveFundContractTest is Helpers {
 
         // Admin can set tokens
         vm.startPrank(admin);
-        // vm.expectEmit(true, false, false, true);
-        // emit SettlementTokenInSet(address(tokenIn));
+        vm.expectEmit(true, false, false, true);
+        emit SettlementTokenInSet(address(tokenIn));
         incentiveFund.setTokenInIncentive(address(tokenIn));
 
-        // vm.expectEmit(true, false, false, true);
-        // emit SettlementTokenOutSet(address(tokenOut));
+        vm.expectEmit(true, false, false, true);
+        emit SettlementTokenOutSet(address(tokenOut));
         incentiveFund.setTokenOutIncentive(address(tokenOut));
         vm.stopPrank();
 
