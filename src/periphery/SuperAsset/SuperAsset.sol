@@ -31,13 +31,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     string private tokenName;
     string private tokenSymbol;
 
-    // --- Roles ---
-    bytes32 public constant VAULT_MANAGER_ROLE = keccak256("VAULT_MANAGER_ROLE");
-    bytes32 public constant SWAP_FEE_MANAGER_ROLE = keccak256("SWAP_FEE_MANAGER_ROLE");
-    bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
-    bytes32 public constant MINTER_ROLE = keccak256("MINTER_ROLE");
-    bytes32 public constant BURNER_ROLE = keccak256("BURNER_ROLE");
-
     // --- Constants ---
     uint256 public constant PRECISION = 1e18;
     uint256 public constant MAX_SWAP_FEE_PERCENTAGE = 10**4; // Max 10% (1000 basis points)
@@ -124,10 +117,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         swapFeeInPercentage = swapFeeInPercentage_;
         swapFeeOutPercentage = swapFeeOutPercentage_;
         
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(MINTER_ROLE, msg.sender);
-        _grantRole(BURNER_ROLE, msg.sender);
-
         // Initialize ERC20 name and symbol
         tokenName = name_;
         tokenSymbol = symbol_;
