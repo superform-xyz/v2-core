@@ -175,9 +175,6 @@ contract IncentiveFundContractTest is Helpers {
             100 // swapFeeOutPercentage (0.1%)
         );
 
-        // Grant VAULT_MANAGER_ROLE to admin for token management
-        superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), admin);
-
         // Configure SuperAsset
         superAsset.setSuperOracle(address(oracle));
         superAsset.whitelistERC20(address(tokenIn));
@@ -187,10 +184,6 @@ contract IncentiveFundContractTest is Helpers {
         incentiveFund.initialize(address(superAsset), address(assetBank), address(superGovernor));
         console.log("Incentive Fund Initialized");
 
-        // TODO: Remove all of the following non SuperGovernor related roles 
-        superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
-        superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
-        superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
         vm.stopPrank();
 
         // Set up initial token balances for testing

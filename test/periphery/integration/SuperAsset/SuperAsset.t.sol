@@ -230,14 +230,6 @@ contract SuperAssetTest is Helpers {
         superAsset.whitelistERC20(address(superAsset));
         assertEq(superAsset.isSupportedERC20(address(superAsset)), true, "SuperAsset should be whitelisted");
 
-        // Grant necessary roles
-        // bytes32 INCENTIVE_FUND_MANAGER = superGovernor.INCENTIVE_FUND_MANAGER();
-        // incentiveFund.grantRole(INCENTIVE_FUND_MANAGER, manager);
-        // superGovernor.grantRole(superGovernor.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
-        // superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
-        // superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
-        // superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
-
         console.log("Start Minting");
 
         underlyingToken1.mint(user, 1000e18);
