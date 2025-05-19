@@ -20,7 +20,7 @@ src/
 │   ├── hooks/          # Protocol hooks
 │   ├── interfaces/     # Contract interfaces
 │   ├── libraries/      # Shared libraries
-│   ├── paymaster/      # Native paymaster and gas tank contracts
+│   ├── paymaster/      # Native paymaster
 │   └── validators/     # Validation contract
 ├── periphery/          # Periphery contracts (NOT IN SCOPE)
 └── vendor/             # Vendor contracts (NOT IN SCOPE)
@@ -41,7 +41,7 @@ graph TD
         Executors -->|Tracks positions in| Accounting[Accounting Layer]
         Executors -->|Uses| Hooks[Hook System]
         
-        Registry[SuperRegistry] -.->|Configures| Executors
+        Registry[SuperGovernor] -.->|Configures| Executors
         Registry -.->|Configures| Validators
         Registry -.->|Configures| Accounting
         Registry -.->|Registers| Hooks
@@ -171,7 +171,7 @@ SuperValidatorBase is the base contract providing core validation functionality 
 
 #### SuperMerkleValidator and SuperDestinationValidator
 
-SuperMerkleValidator and SuperDestinationValidator are ERC7579-compliant modules used to validate operations through Merkle proof verification, ensuring only authorized operations are executed. They leverage a single owner signature over a Merkle root representing a batch of operations.
+SuperMerkleValidator and SuperDestinationValidator are used to validate operations through Merkle proof verification, ensuring only authorized operations are executed. They leverage a single owner signature over a Merkle root representing a batch of operations.
 
 SuperMerkleValidator:
 - Role: A validator contract for ERC4337 entrypoint actions. It enables users to sign once for multiple user operations using merkle proofs, enhancing the chain abstraction experience.
@@ -185,7 +185,7 @@ SuperDestinationValidator:
     - Includes `block.chainid` in the leaf and verifies it during signature validation to prevent cross-chain replay.
     - Incorporates a `validUntil` timestamp in the leaf, checked against `block.timestamp`.
     - Includes the `executor` address in the leaf to prevent replay across different executor modules installed on the same account.
-    - Uses a unique namespace (`SuperDestinationValidator-v0.0.1`) in the final signed message hash.
+    - Uses a unique namespace (`SuperValidator`) in the final signed message hash.
 
 
 Key Points for Auditors:
