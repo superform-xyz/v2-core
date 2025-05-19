@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity >=0.8.28;
 
 import { Helpers } from "../../../utils/Helpers.sol";
 import { PendleRouterSwapHook } from "../../../../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";

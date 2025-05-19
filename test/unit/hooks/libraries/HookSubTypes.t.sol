@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.28;
 
 import { Helpers } from "../../../utils/Helpers.sol";
 import { HookSubTypes } from "../../../../src/core/libraries/HookSubTypes.sol";

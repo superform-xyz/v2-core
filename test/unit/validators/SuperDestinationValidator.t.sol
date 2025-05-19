@@ -12,6 +12,7 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 // Superform
 import { SuperDestinationValidator } from "../../../src/core/validators/SuperDestinationValidator.sol";
 import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
+import { ISuperSignatureStorage } from "../../../src/core/interfaces/ISuperSignatureStorage.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
@@ -135,7 +136,7 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
 
     function test_DestinationValidator_OnUninstall_RevertIf_NotInitialized() public {
         vm.startPrank(makeAddr("account"));
-        vm.expectRevert(SuperValidatorBase.NOT_INITIALIZED.selector);
+        vm.expectRevert(ISuperSignatureStorage.NOT_INITIALIZED.selector);
         validator.onUninstall("");
         vm.stopPrank();
     }

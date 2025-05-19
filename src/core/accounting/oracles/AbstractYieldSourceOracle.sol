@@ -1,12 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity >=0.8.28;
 
 // Superform
 import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
 
 /// @title AbstractYieldSourceOracle
 /// @author Superform Labs
-/// @notice Abstract contract for yield source oracles with common functionality
+/// @notice Abstract base contract that implements common functionality for yield source oracles
+/// @dev Provides implementations for batch methods to reduce redundancy across concrete oracles
+///      Concrete oracle implementations must extend this class and implement the abstract methods
+///      The oracle pattern separates price/yield discovery from the core accounting system
 abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
@@ -62,6 +65,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         uint256 length = yieldSourceAddresses.length;
         pricesPerShare = new uint256[](length);
 
+        // Iterate through all yield sources and get individual prices
         for (uint256 i = 0; i < length; ++i) {
             pricesPerShare[i] = getPricePerShare(yieldSourceAddresses[i]);
         }
@@ -91,6 +95,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
 
         userTvls = new uint256[][](length);
 
+        // Process each yield source
         for (uint256 i = 0; i < length; ++i) {
             address yieldSource = yieldSourceAddresses[i];
             address[] memory owners = ownersOfShares[i];
@@ -98,6 +103,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
 
             userTvls[i] = new uint256[](ownersLength);
 
+            // For each yield source, process each owner
             for (uint256 j = 0; j < ownersLength; ++j) {
                 uint256 userTvl = getTVLByOwnerOfShares(yieldSource, owners[j]);
                 userTvls[i][j] = userTvl;
@@ -110,6 +116,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         uint256 length = yieldSourceAddresses.length;
         tvls = new uint256[](length);
 
+        // Get TVL for each yield source
         for (uint256 i = 0; i < length; ++i) {
             tvls[i] = getTVL(yieldSourceAddresses[i]);
         }
