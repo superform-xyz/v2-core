@@ -69,7 +69,6 @@ abstract contract InternalHelpers {
     /*//////////////////////////////////////////////////////////////
                                  SWAPPERS
     //////////////////////////////////////////////////////////////*/
-
     function _create1InchGenericRouterSwapHookData(
         address dstReceiver,
         address dstToken,
