@@ -130,6 +130,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperAsset
+    function getIncentiveFundContract() external view returns (address) {
+        return incentiveFundContract;
+    }
+
+    /// @inheritdoc ISuperAsset
     function mint(address to, uint256 amount) external {
         if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.SUPERASSET_MANAGER(), msg.sender)) revert UNAUTHORIZED();
         _mint(to, amount);

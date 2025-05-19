@@ -21,6 +21,24 @@ interface ISuperAssetFactory {
     }
 
     /**
+     * @notice Sets roles for a SuperAsset
+     * @param superAsset Address of the SuperAsset contract
+     * @param superAssetStrategist Address of the strategist
+     * @param superAssetManager Address of the manager
+     * @param incentiveFundManager Address of the incentive fund manager
+     */
+    function setRoles(address superAsset, address superAssetStrategist, address superAssetManager, address incentiveFundManager) external;
+
+    /**
+     * @notice Gets roles for a SuperAsset
+     * @param superAsset Address of the SuperAsset contract
+     * @return superAssetStrategist Address of the strategist
+     * @return superAssetManager Address of the manager
+     * @return incentiveFundManager Address of the incentive fund manager
+     */
+    function getRoles(address superAsset) external view returns (address superAssetStrategist, address superAssetManager, address incentiveFundManager);
+
+    /**
      * @notice Creates a new SuperAsset instance with its dependencies
      * @param params Parameters for creating the SuperAsset
      * @return superAsset Address of the deployed SuperAsset contract
@@ -51,4 +69,8 @@ interface ISuperAssetFactory {
         string name,
         string symbol
     );
+
+    // --- Errors ---
+    // Factory errors
+    error ZERO_ADDRESS();
 }

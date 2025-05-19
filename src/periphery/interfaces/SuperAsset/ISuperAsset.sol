@@ -81,6 +81,12 @@ interface ISuperAsset is IERC20 {
     ) external;
 
     /**
+     * @notice Returns the address of the IncentiveFundContract
+     * @return Address of the IncentiveFundContract
+     */
+    function getIncentiveFundContract() external view returns (address);
+
+    /**
      * @notice Mints new tokens. Can only be called by accounts with MINTER_ROLE.
      * @param to The address that will receive the minted tokens
      * @param amount The amount of tokens to mint

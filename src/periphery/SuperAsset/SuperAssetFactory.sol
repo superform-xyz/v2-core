@@ -28,22 +28,17 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     address public immutable incentiveCalculationContract;
     address public immutable superGovernor;
 
+    mapping(address superAsset => address superAssetStrategist) public superAssetStrategist;
+    mapping(address superAsset => address superAssetManager) public superAssetManager;
+    mapping(address superAsset => address incentiveFundManager) public incentiveFundManager;
+
     // --- Roles ---
     bytes32 public constant DEPLOYER_ROLE = keccak256("DEPLOYER_ROLE");
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address admin) {
-        // Deploy SuperGovernor first
-        superGovernor = address(new SuperGovernor(
-            admin, // superGovernor role
-            admin, // governor role
-            admin, // bankManager role
-            admin, // treasury (using admin for simplicity)
-            admin  // prover (using admin for simplicity)
-        ));
-
+    constructor() {
         superAssetImplementation = address(new SuperAsset());
         incentiveFundImplementation = address(new IncentiveFundContract(superGovernor));
 
@@ -53,6 +48,22 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(DEPLOYER_ROLE, msg.sender);
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function setRoles(address superAsset, address _superAssetStrategist, address _superAssetManager, address _incentiveFundManager) external onlyRole(DEPLOYER_ROLE) {
+        if (_superAssetStrategist == address(0)) revert ZERO_ADDRESS();
+        if (_superAssetManager == address(0)) revert ZERO_ADDRESS();
+        if (_incentiveFundManager == address(0)) revert ZERO_ADDRESS();
+        
+        superAssetStrategist[superAsset] = _superAssetStrategist;
+        superAssetManager[superAsset] = _superAssetManager;
+        incentiveFundManager[superAsset] = _incentiveFundManager;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function getRoles(address superAsset) external view returns (address _superAssetStrategist, address _superAssetManager, address _incentiveFundManager) {
+        return (superAssetStrategist[superAsset], superAssetManager[superAsset], incentiveFundManager[superAsset]);
     }
 
     /*//////////////////////////////////////////////////////////////
