@@ -46,7 +46,7 @@ contract PendleRouterSwapHookTest is Helpers {
 
         market = makeAddr("market");
 
-        pendleRouter = new MockPendleRouter();
+        pendleRouter = new MockPendleRouter(address(inputToken), address(ptToken), address(ytToken));
         inputToken = new MockERC20("Input Token", "IN", 18);
         vm.label(address(inputToken), "Input Token");
         outputToken = new MockERC20("Output Token", "OUT", 18);
