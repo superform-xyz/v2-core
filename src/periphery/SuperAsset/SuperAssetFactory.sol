@@ -46,7 +46,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
         ));
 
         superAssetImplementation = address(new SuperAsset());
-        incentiveFundImplementation = address(new IncentiveFundContract(admin, superGovernor));
+        incentiveFundImplementation = address(new IncentiveFundContract(superGovernor));
 
         // Deploy single instances
         assetBank = address(new AssetBank(superGovernor));

@@ -116,4 +116,7 @@ interface IIncentiveFundContract {
     /// @notice Thrown when contract is already initialized
     error ALREADY_INITIALIZED();
 
+    /// @notice Thrown when the caller is not authorized
+    error UNAUTHORIZED();
+
 }

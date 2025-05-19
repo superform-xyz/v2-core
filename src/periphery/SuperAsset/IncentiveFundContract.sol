@@ -9,6 +9,7 @@ import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 import "../interfaces/SuperAsset/ISuperAsset.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
+import "forge-std/console.sol";
 
 
 /**
@@ -25,21 +26,19 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     // --- Constants ---
     /// @notice Role identifier for incentive fund manager
     // bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
-    bytes32 public constant SUPER_GOVERNOR = keccak256("SUPER_GOVERNOR");
+    // bytes32 public constant SUPER_GOVERNOR = keccak256("SUPER_GOVERNOR");
 
     // --- State Variables ---
     address public tokenInIncentive;
     address public tokenOutIncentive;
     ISuperAsset public superAsset;
     address public assetBank;
-    ISuperGovernor public superGovernor;
+    ISuperGovernor public _SUPER_GOVERNOR;
 
     // --- Constructor ---
-    constructor(address admin, address _superGovernor) {
-        if (admin == address(0) || _superGovernor == address(0)) revert ZERO_ADDRESS();
-        superGovernor = ISuperGovernor(_superGovernor);
-        _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        // _grantRole(INCENTIVE_FUND_MANAGER, admin);
+    constructor(address _superGovernor) {
+        if (_superGovernor == address(0)) revert ZERO_ADDRESS();
+        _SUPER_GOVERNOR = ISuperGovernor(_superGovernor);
     }
 
     /// @inheritdoc IIncentiveFundContract
@@ -53,28 +52,32 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
 
         superAsset = ISuperAsset(superAsset_);
         assetBank = assetBank_;
-        superGovernor = ISuperGovernor(superGovernor_);
+        _SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
     }
 
     /*//////////////////////////////////////////////////////////////
                 EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IIncentiveFundContract
-    function setTokenInIncentive(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setTokenInIncentive(address token) external {
+        // Check if the caller has the INCENTIVE_FUND_MANAGER role
+        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER(), msg.sender)) revert UNAUTHORIZED();
         if (token == address(0)) revert ZERO_ADDRESS();
         tokenInIncentive = token;
         emit SettlementTokenInSet(token);
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function setTokenOutIncentive(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setTokenOutIncentive(address token) external {
+        // Check if the caller has the INCENTIVE_FUND_MANAGER role
+        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER(), msg.sender)) revert UNAUTHORIZED();
         if (token == address(0)) revert ZERO_ADDRESS();
         tokenOutIncentive = token;
         emit SettlementTokenOutSet(token);
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function payIncentive(address receiver, uint256 amountUSD) external onlyRole(superGovernor.INCENTIVE_FUND_MANAGER()) {
+    function payIncentive(address receiver, uint256 amountUSD) external onlyRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER()) {
         _validateInput(receiver, amountUSD);
         if (tokenOutIncentive == address(0)) revert TOKEN_OUT_NOT_SET();
 
@@ -95,7 +98,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function takeIncentive(address sender, uint256 amountUSD) external onlyRole(superGovernor.INCENTIVE_FUND_MANAGER()) {
+    function takeIncentive(address sender, uint256 amountUSD) external onlyRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER()) {
         _validateInput(sender, amountUSD);
         if (tokenInIncentive == address(0)) revert TOKEN_IN_NOT_SET();
 
@@ -116,7 +119,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function withdraw(address receiver, address tokenOut, uint256 amount) external onlyRole(superGovernor.INCENTIVE_FUND_MANAGER()) {
+    function withdraw(address receiver, address tokenOut, uint256 amount) external onlyRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER()) {
         _validateInput(receiver, amount);
         if (tokenOut == address(0)) revert ZERO_ADDRESS();
 

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
+import "@openzeppelin/contracts/access/IAccessControl.sol";
+
 /*//////////////////////////////////////////////////////////////
                                   ENUMS
     //////////////////////////////////////////////////////////////*/
@@ -15,7 +17,7 @@ enum FeeType {
 /// @notice Interface for the SuperGovernor contract
 /// @dev Central registry for all deployed contracts in the Superform periphery
 
-interface ISuperGovernor {
+interface ISuperGovernor is IAccessControl {
     /*//////////////////////////////////////////////////////////////
                                   STRUCTS
     //////////////////////////////////////////////////////////////*/
