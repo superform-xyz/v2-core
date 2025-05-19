@@ -151,6 +151,11 @@ contract IncentiveFundContractTest is Helpers {
         superGovernor.grantRole(incentiveFundManager, admin);
         assertTrue(superGovernor.hasRole(incentiveFundManager, admin));
 
+        bytes32 superAssetManager = superGovernor.SUPERASSET_MANAGER();
+        // Grant roles to manager and contracts
+        superGovernor.grantRole(superAssetManager, admin);
+        assertTrue(superGovernor.hasRole(superAssetManager, admin));
+
         assetBank = new AssetBank(address(superGovernor));
 
         incentiveFund = new IncentiveFundContract(address(superGovernor));
