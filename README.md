@@ -180,13 +180,15 @@ SuperMerkleValidator:
 SuperDestinationValidator:
 - Role: Validates cross-chain operation signatures for destination chain operations. It verifies merkle proofs and signatures to ensure only authorized operations are executed.
 - Usage: Specifically designed for validating operations executed *directly* on a destination chain via `SuperDestinationExecutor`, bypassing the ERC-4337 `EntryPoint`. Implements a custom `isValidDestinationSignature` method; `validateUserOp` and `isValidSignatureWithSender` are explicitly **not** implemented and will revert.
-- Merkle Leaf Contents: `keccak256(keccak256(abi.encode(callData, chainId, sender, executor, adapter, tokenSent, intentAmount, validUntil)))`. The leaf commits to the full context of the destination execution parameters.
+- Merkle Leaf Contents: `keccak256(keccak256(abi.encode(callData, chainId, sender, executor, adapter, dstTokens[], intentAmounts[], validUntil)))`. The leaf commits to the full context of the destination execution parameters.
 - Replay Protection:
     - Includes `block.chainid` in the leaf and verifies it during signature validation to prevent cross-chain replay.
     - Incorporates a `validUntil` timestamp in the leaf, checked against `block.timestamp`.
     - Includes the `executor` address in the leaf to prevent replay across different executor modules installed on the same account.
     - Uses a unique namespace (`SuperValidator`) in the final signed message hash.
-
+- Notes:
+    - The destination account must use the same signer as the source account. If the validator is uninstalled and then reinstalled with a different configuration, the flow will no longer function correctly.
+    - Execution occurs only if the account holds a balance greater than the corresponding intentAmounts[] for each token in dstTokens[].
 
 Key Points for Auditors:
 
