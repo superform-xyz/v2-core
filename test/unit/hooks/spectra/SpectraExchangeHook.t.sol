@@ -22,9 +22,9 @@ contract SpectraExchangeHookTest is Helpers {
     address public account;
 
     function setUp() public {
-        router = new MockSpectraRouter();
-        hook = new SpectraExchangeHook(address(router));
         token = new MockERC20("Test Token", "TEST", 18);
+        router = new MockSpectraRouter(address(token));
+        hook = new SpectraExchangeHook(address(router));
         account = address(this);
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, address(token));
