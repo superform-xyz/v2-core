@@ -321,7 +321,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     address public mockBaseHook;
 
     bool public useLatestFork = false;
-    bool public useRealOdosRouter = true;
+    bool public useRealOdosRouter = false;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
