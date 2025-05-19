@@ -286,18 +286,14 @@ contract IncentiveFundContractTest is Helpers {
 
         // Non-manager cannot pay incentive
         vm.startPrank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, superGovernor.INCENTIVE_FUND_MANAGER()
-            )
-        );
+        vm.expectRevert(IIncentiveFundContract.UNAUTHORIZED.selector);
         incentiveFund.payIncentive(user, 100e18);
         vm.stopPrank();
 
         // Manager can pay incentive
         uint256 balanceBefore = tokenOut.balanceOf(user);
 
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         incentiveFund.payIncentive(user, 100e18);
         vm.stopPrank();
 
@@ -318,18 +314,14 @@ contract IncentiveFundContractTest is Helpers {
 
         // Non-manager cannot take incentive
         vm.startPrank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, superGovernor.INCENTIVE_FUND_MANAGER()
-            )
-        );
+        vm.expectRevert(IIncentiveFundContract.UNAUTHORIZED.selector);
         incentiveFund.takeIncentive(user, 100e18);
         vm.stopPrank();
 
         // Manager can take incentive
         uint256 balanceBefore = tokenIn.balanceOf(user);
 
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         incentiveFund.takeIncentive(user, 100e18);
         vm.stopPrank();
 
@@ -345,7 +337,7 @@ contract IncentiveFundContractTest is Helpers {
         vm.stopPrank();
 
         // Manager pays incentive
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         vm.expectEmit(true, true, false, true);
         emit IncentivePaid(user, address(tokenOut), 100e18);
         incentiveFund.payIncentive(user, 100e18);
@@ -357,7 +349,7 @@ contract IncentiveFundContractTest is Helpers {
     }
 
     function test_PayIncentive_RevertIfNoTokenSet() public {
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         vm.expectRevert(IIncentiveFundContract.TOKEN_OUT_NOT_SET.selector);
         incentiveFund.payIncentive(user, 100e18);
         vm.stopPrank();
@@ -370,10 +362,13 @@ contract IncentiveFundContractTest is Helpers {
         vm.stopPrank();
 
         // Try to pay more than contract's balance
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IERC20Errors.ERC20InsufficientBalance.selector, address(incentiveFund), 1000e18, 2000e18
+                IERC20Errors.ERC20InsufficientBalance.selector,
+                address(incentiveFund),  // account
+                1000e18,                 // current balance
+                2000e18                  // required amount
             )
         );
         incentiveFund.payIncentive(user, 2000e18);
@@ -392,7 +387,7 @@ contract IncentiveFundContractTest is Helpers {
         vm.stopPrank();
 
         // Manager takes incentive
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         vm.expectEmit(true, true, false, true);
         emit IncentiveTaken(user, address(tokenIn), 100e18);
         incentiveFund.takeIncentive(user, 100e18);
@@ -404,7 +399,7 @@ contract IncentiveFundContractTest is Helpers {
     }
 
     function test_TakeIncentive_RevertIfNoTokenSet() public {
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         vm.expectRevert(IIncentiveFundContract.TOKEN_IN_NOT_SET.selector);
         incentiveFund.takeIncentive(user, 100e18);
         vm.stopPrank();
@@ -417,9 +412,14 @@ contract IncentiveFundContractTest is Helpers {
         vm.stopPrank();
 
         // Try to take without approval
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         vm.expectRevert(
-            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(incentiveFund), 0, 100e18)
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InsufficientAllowance.selector,
+                address(incentiveFund),  // spender
+                0,                       // allowance
+                100e18                   // needed
+            )
         );
         incentiveFund.takeIncentive(user, 100e18);
         vm.stopPrank();
@@ -437,7 +437,7 @@ contract IncentiveFundContractTest is Helpers {
         vm.stopPrank();
 
         // Try to take more than user's balance
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, user, 1000e18, 2000e18));
         incentiveFund.takeIncentive(user, 2000e18);
         vm.stopPrank();
