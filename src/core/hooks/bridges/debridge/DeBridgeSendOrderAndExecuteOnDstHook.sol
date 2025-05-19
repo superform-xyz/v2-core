@@ -10,13 +10,14 @@ import { IDlnSource } from "../../../../vendor/bridges/debridge/IDlnSource.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title DeBridgeSendOrderAndExecuteOnDstHook
 /// @author Superform Labs
 /// @dev `externalCall` field won't contain the signature for the destination executor
 /// @dev      signature is retrieved from the validator contract transient storage
-/// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to sign it
+/// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to
+/// sign it
 /// @dev data has the following structure
 /// @notice         bool usePrevHookAmount = _decodeBool(0);
 /// @notice         uint256 value = BytesLib.toUint256(data, 1);
@@ -46,7 +47,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         uint256 affiliateFee_paramLength = BytesLib.toUint256(data, 562 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength);
 /// @notice         bytes affiliateFee = BytesLib.slice(data, 594 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength, affiliateFee_paramLength);
 /// @notice         uint256 referralCode = BytesLib.toUint256(data, 626 + destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
-contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
+contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -74,12 +75,9 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         returns (Execution[] memory executions)
     {
         bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
-        (
-            IDlnSource.OrderCreation memory orderCreation,
-            uint256 value,
-            bytes memory affiliateFee,
-            uint32 referralCode
-        ) = _createOrder(data, signature);
+
+        (IDlnSource.OrderCreation memory orderCreation, uint256 value, bytes memory affiliateFee, uint32 referralCode) =
+            _createOrder(data, signature);
 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         if (usePrevHookAmount) {
@@ -109,6 +107,25 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
     }
 
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        (
+            IDlnSource.OrderCreation memory orderCreation,
+            ,
+            ,
+            
+        ) = _createOrder(data, "");
+        
+        return abi.encodePacked(
+            orderCreation.giveTokenAddress,
+            address(bytes20(orderCreation.takeTokenAddress)),
+            address(bytes20(orderCreation.receiverDst)),
+            address(bytes20(orderCreation.givePatchAuthoritySrc)),
+            address(bytes20(orderCreation.orderAuthorityAddressDst)),
+            address(bytes20(orderCreation.allowedCancelBeneficiarySrc))
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -135,7 +152,21 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         bytes allowedCancelBeneficiarySrc;
     }
 
-    function _createOrder(bytes memory data, bytes memory sigData)
+    struct ExternalCallParams {
+        bytes destinationMessage;
+        bytes sigData;
+        address fallbackAddress;
+        address executorAddress;
+        uint256 executionFee;
+        bool allowDelayedExecution;
+        bool requireSuccessfulExecution;
+        uint8 version;
+    }
+
+    function _createOrder(
+        bytes memory data,
+        bytes memory sigData
+    )
         internal
         pure
         returns (
@@ -222,21 +253,6 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         referralCode = BytesLib.toUint32(data, vars.offset);
         vars.offset += 4;
 
-        // create externalCall
-        IDlnSource.ExternalCallEnvelopV1 memory envelope;
-        (
-            bytes memory initData,
-            bytes memory executorCalldata,
-            address account,
-            uint256 intentAmount
-        ) = abi.decode(vars.destinationMessage, (bytes, bytes, address, uint256));
-        envelope.payload = abi.encode(initData, executorCalldata, account, intentAmount, sigData);
-        envelope.fallbackAddress = vars.fallbackAddress;
-        envelope.executorAddress = vars.executorAddress;
-        envelope.executionFee = uint160(vars.executionFee);
-        envelope.allowDelayedExecution = vars.allowDelayedExecution;
-        envelope.requireSuccessfullExecution = vars.requireSuccessfulExecution;
-
         orderCreation = IDlnSource.OrderCreation({
             giveTokenAddress: vars.giveTokenAddress,
             giveAmount: vars.giveAmount,
@@ -247,9 +263,39 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
             givePatchAuthoritySrc: vars.givePatchAuthoritySrc,
             orderAuthorityAddressDst: vars.orderAuthorityAddressDst,
             allowedTakerDst: vars.allowedTakerDst,
-            externalCall: abi.encodePacked(vars.version, abi.encode(envelope)),
+            externalCall: _buildExternalCall(ExternalCallParams({
+                destinationMessage: vars.destinationMessage,
+                sigData: sigData,
+                fallbackAddress: vars.fallbackAddress,
+                executorAddress: vars.executorAddress,
+                executionFee: vars.executionFee,
+                allowDelayedExecution: vars.allowDelayedExecution,
+                requireSuccessfulExecution: vars.requireSuccessfulExecution,
+                version: vars.version
+            })),
             allowedCancelBeneficiarySrc: vars.allowedCancelBeneficiarySrc
         });
+    }
+
+    function _buildExternalCall(ExternalCallParams memory params) internal pure returns (bytes memory) {
+        (
+            bytes memory initData,
+            bytes memory executorCalldata,
+            address account,
+            address[] memory dstTokens,
+            uint256[] memory intentAmounts
+        ) = abi.decode(params.destinationMessage, (bytes, bytes, address, address[], uint256[]));
+
+        IDlnSource.ExternalCallEnvelopV1 memory envelope = IDlnSource.ExternalCallEnvelopV1({
+            payload: abi.encode(initData, executorCalldata, account, dstTokens, intentAmounts, params.sigData),
+            fallbackAddress: params.fallbackAddress,
+            executorAddress: params.executorAddress,
+            executionFee: uint160(params.executionFee),
+            allowDelayedExecution: params.allowDelayedExecution,
+            requireSuccessfullExecution: params.requireSuccessfulExecution
+        });
+
+        return abi.encodePacked(params.version, abi.encode(envelope));
     }
 
     function _preExecute(address, address, bytes calldata) internal override { }

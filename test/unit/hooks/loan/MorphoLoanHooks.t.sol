@@ -103,6 +103,8 @@ contract MorphoLoanHooksTest is Helpers {
         collateralToken = address(mockCollateralToken);
     }
 
+   
+
     function test_Constructors() public view {
         assertEq(address(borrowHook.morpho()), address(mockMorpho));
         assertEq(uint256(borrowHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
@@ -132,6 +134,8 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeBorrowData(false);
         Execution[] memory executions = borrowHook.build(address(0), address(this), data);
 
+        assertFalse(borrowHook.decodeUsePrevHookAmount(data));
+
         assertEq(executions.length, 4);
 
         // Check approve(0) call
@@ -149,6 +153,12 @@ contract MorphoLoanHooksTest is Helpers {
         // Check borrow call
         assertEq(executions[3].target, address(mockMorpho));
         assertEq(executions[3].value, 0);
+    }
+
+    function test_BorrowHook_Inspector() public view {
+        bytes memory data = _encodeBorrowData(false);
+        bytes memory argsEncoded = borrowHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_BorrowHook_Build_RevertIf_ZeroAddress() public {
@@ -242,6 +252,12 @@ contract MorphoLoanHooksTest is Helpers {
         assertGt(executions[3].callData.length, 0);
     }
 
+    function test_RepayHook_Inspector() public view {
+        bytes memory data = _encodeRepayData(false, false);
+        bytes memory argsEncoded = repayHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
     function test_RepayHook_Build_RevertIf_InvalidLoanToken() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         repayHook.build(
@@ -307,6 +323,13 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(executions[4].target, address(mockMorpho));
         assertEq(executions[4].value, 0);
         assertGt(executions[4].callData.length, 0);
+    }
+
+    
+    function test_RepayAndWithdrawHook_Inspector() public view {
+        bytes memory data = _encodeRepayAndWithdrawData(false, false);
+        bytes memory argsEncoded = repayAndWithdrawHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_RepayAndWithdrawHook_Build_RevertIf_InvalidLoanToken() public {
@@ -400,14 +423,14 @@ contract MorphoLoanHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                         GET USED ASSETS TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_GetUsedAssets() public {
+    function test_RepayHook_GetUsedAssets() public view {
         bytes memory data = _encodeRepayData(false, false);
         uint256 usedAssets = repayHook.getUsedAssets(address(this), data);
 
         assertEq(usedAssets, 0);
     }
 
-    function test_RepayAndWithdrawHook_GetUsedAssets() public {
+    function test_RepayAndWithdrawHook_GetUsedAssets() public view {
         bytes memory data = _encodeRepayAndWithdrawData(false, false);
         uint256 usedAssets = repayAndWithdrawHook.getUsedAssets(address(this), data);
 
@@ -417,8 +440,8 @@ contract MorphoLoanHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                           DERIVE INTEREST TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_DeriveInterest() public {
-        bytes memory data = _encodeRepayData(false, false);
+    function test_RepayHook_DeriveInterest() public view {
+        _encodeRepayData(false, false);
         uint256 interest = repayHook.deriveInterest(
             MarketParams({
                 loanToken: loanToken,
@@ -431,8 +454,8 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(interest, 0);
     }
 
-    function test_RepayAndWithdrawHook_DeriveInterest() public {
-        bytes memory data = _encodeRepayAndWithdrawData(false, false);
+    function test_RepayAndWithdrawHook_DeriveInterest() public view {
+        _encodeRepayAndWithdrawData(false, false);
         uint256 interest = repayAndWithdrawHook.deriveInterest(
             MarketParams({
                 loanToken: loanToken,
@@ -448,7 +471,7 @@ contract MorphoLoanHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                         DERIVE SHARE BALANCE TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_DeriveShareBalance() public {
+    function test_RepayHook_DeriveShareBalance() public view {
         MarketParams memory params = MarketParams({
             loanToken: loanToken,
             collateralToken: collateralToken,
@@ -461,7 +484,7 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(borrowShares, 100e18); // From MockMorpho position() return value
     }
 
-    function test_RepayAndWithdrawHook_DeriveShareBalance() public {
+    function test_RepayAndWithdrawHook_DeriveShareBalance() public view {
         MarketParams memory params = MarketParams({
             loanToken: loanToken,
             collateralToken: collateralToken,
@@ -477,7 +500,7 @@ contract MorphoLoanHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                 DERIVE COLLATERAL FOR FULL REPAYMENT TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_RepayAndWithdrawHook_DeriveCollateralForFullRepayment() public {
+    function test_RepayAndWithdrawHook_DeriveCollateralForFullRepayment() public view {
         MarketParams memory params = MarketParams({
             loanToken: loanToken,
             collateralToken: collateralToken,
@@ -493,14 +516,14 @@ contract MorphoLoanHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
               DERIVE COLLATERAL AMOUNT FROM LOAN AMOUNT TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_DeriveCollateralAmountFromLoanAmount() public {
+    function test_RepayHook_DeriveCollateralAmountFromLoanAmount() public view {
         uint256 loanAmount = 100e18;
         uint256 collateral = repayHook.deriveCollateralAmountFromLoanAmount(address(mockOracle), loanAmount);
 
         assertEq(collateral, 200e18);
     }
 
-    function test_RepayAndWithdrawHook_DeriveCollateralAmountFromLoanAmount() public {
+    function test_RepayAndWithdrawHook_DeriveCollateralAmountFromLoanAmount() public view {
         uint256 loanAmount = 100e18;
         uint256 collateral = repayAndWithdrawHook.deriveCollateralAmountFromLoanAmount(address(mockOracle), loanAmount);
 
@@ -510,7 +533,7 @@ contract MorphoLoanHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
               DERIVE COLLATERAL FOR PARTIAL REPAYMENT TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_RepayAndWithdrawHook_DeriveCollateralForPartialRepayment() public {
+    function test_RepayAndWithdrawHook_DeriveCollateralForPartialRepayment() public view {
         MarketParams memory params = MarketParams({
             loanToken: loanToken,
             collateralToken: collateralToken,
@@ -531,7 +554,7 @@ contract MorphoLoanHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                         ASSETS TO SHARES TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_RepayAndWithdrawHook_AssetsToShares() public {
+    function test_RepayAndWithdrawHook_AssetsToShares() public view {
         uint256 assets = 100e18;
         MarketParams memory params = MarketParams({
             loanToken: loanToken,
@@ -547,7 +570,7 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(shares, assetsToShares);
     }
 
-    function test_RepayAndWithdrawHook_SharesToAssets() public {
+    function test_RepayAndWithdrawHook_SharesToAssets() public view {
         uint256 shares = 100e18;
         MarketParams memory params = MarketParams({
             loanToken: loanToken,
@@ -558,7 +581,22 @@ contract MorphoLoanHooksTest is Helpers {
         });
         Id id = params.id();
         uint256 assets = repayAndWithdrawHook.sharesToAssets(params, address(this));
-        uint256 shareBalance = repayAndWithdrawHook.deriveShareBalance(id, address(this));
+        uint256 sharesToAssets =
+            shares.toAssetsUp(mockMorpho.market(id).totalBorrowAssets, mockMorpho.market(id).totalBorrowShares);
+        assertEq(assets, sharesToAssets);
+    }
+
+    function test_RepayHook_SharesToAssets() public view {
+        uint256 shares = 100e18;
+        MarketParams memory params = MarketParams({
+            loanToken: loanToken,
+            collateralToken: collateralToken,
+            oracle: address(mockOracle),
+            irm: address(mockIRM),
+            lltv: lltv
+        });
+        Id id = params.id();
+        uint256 assets = repayHook.sharesToAssets(params, address(this));
         uint256 sharesToAssets =
             shares.toAssetsUp(mockMorpho.market(id).totalBorrowAssets, mockMorpho.market(id).totalBorrowShares);
         assertEq(assets, sharesToAssets);
@@ -593,6 +631,37 @@ contract MorphoLoanHooksTest is Helpers {
 
         repayAndWithdrawHook.postExecute(address(0), address(this), data);
         assertEq(repayAndWithdrawHook.outAmount(), 0);
+    }
+    /*//////////////////////////////////////////////////////////////
+                        BASE LOAN HOOK
+    //////////////////////////////////////////////////////////////*/
+    function test_DecodeUsePrevHookAmount() public view {
+        bytes memory data = _encodeRepayData(false, false);
+        assertEq(repayHook.decodeUsePrevHookAmount(data), false);
+
+        data = _encodeRepayData(true, false);
+        assertEq(repayHook.decodeUsePrevHookAmount(data), true);
+    }
+
+    function test_getLoanTokenAddress() public view {
+        bytes memory data = _encodeRepayData(false, false);
+        assertNotEq(repayHook.getLoanTokenAddress(data), address(0));
+    }
+
+    function test_getCollateralTokenAddress() public view {
+        bytes memory data = _encodeRepayData(false, false);
+        assertNotEq(repayHook.getCollateralTokenAddress(data), address(0));
+    }
+
+    function test_getCollateralTokenBalance() public view {
+        bytes memory data = _encodeRepayData(false, false);
+        assertEq(repayHook.getCollateralTokenBalance(address(this), data), 0);
+    }
+
+    function test_getLoanTokenBalance() public {
+        loanToken = address(mockCollateralToken);
+        bytes memory data = _encodeRepayData(false, false);
+        assertEq(repayHook.getLoanTokenBalance(address(this), data), 0);
     }
 
     /*//////////////////////////////////////////////////////////////

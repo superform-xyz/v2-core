@@ -112,6 +112,13 @@ contract PendleRouterRedeemHookTest is Helpers {
         assertEq(executions[2].callData, expectedCallData);
     }
 
+    function test_Inspect() public view {
+        bytes memory data =
+            _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
     function test_PreExecute() public {
         bytes memory data =
             _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
@@ -131,6 +138,14 @@ contract PendleRouterRedeemHookTest is Helpers {
         tokenOut.mint(account, 300);
         hook.postExecute(address(0), account, data);
         assertEq(hook.outAmount(), 300);
+    }
+
+    function test_UsePrevHookAmount() public view {
+        bytes memory data = _createRedeemData(1000, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, true);
+        assertTrue(hook.decodeUsePrevHookAmount(data));
+
+        data = _createRedeemData(1000, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
+        assertFalse(hook.decodeUsePrevHookAmount(data));
     }
 
     function test_Build_RevertIf_InvalidYT() public {

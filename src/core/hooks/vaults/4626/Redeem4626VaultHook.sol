@@ -13,7 +13,8 @@ import {
     ISuperHookResultOutflow,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -26,7 +27,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address owner = BytesLib.toAddress(data, 24);
 /// @notice         uint256 shares = BytesLib.toUint256(data, 44);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
-contract Redeem4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
+contract Redeem4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
@@ -85,6 +86,14 @@ contract Redeem4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOut
     /// @inheritdoc ISuperHookOutflow
     function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
         return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource(),
+            BytesLib.toAddress(data, 24) // owner
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

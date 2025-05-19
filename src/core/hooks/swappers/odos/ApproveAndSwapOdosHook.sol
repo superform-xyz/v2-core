@@ -10,8 +10,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveAndSwapOdosHook
 /// @author Superform Labs
@@ -28,7 +27,7 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/IS
 /// @notice         bytes pathDefinition = BytesLib.slice(data, 209, pathDefinition_paramLength);
 /// @notice         address executor = BytesLib.toAddress(data, 209 + pathDefinition_paramLength);
 /// @notice         uint32 referralCode = BytesLib.toUint32(data, 209 + pathDefinition_paramLength + 20);
-contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
+contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     IOdosRouterV2 public immutable odosRouterV2;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
@@ -101,6 +100,20 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware {
     /// @inheritdoc ISuperHookContextAware
     function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
         return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+    }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 177);
+        address executor = BytesLib.toAddress(data, 209 + pathDefinition_paramLength);
+      
+        return abi.encodePacked(
+            BytesLib.toAddress(data, 0), //inputToken
+            BytesLib.toAddress(data, 52), //inputReceiver
+            BytesLib.toAddress(data, 72), //outputToken
+            BytesLib.toAddress(data, 157), //spender
+            executor
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

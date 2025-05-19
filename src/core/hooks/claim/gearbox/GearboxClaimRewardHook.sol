@@ -12,7 +12,8 @@ import {
     ISuperHookResultOutflow,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
@@ -27,7 +28,8 @@ contract GearboxClaimRewardHook is
     BaseClaimRewardHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 {
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) { }
     /*//////////////////////////////////////////////////////////////
@@ -65,13 +67,18 @@ contract GearboxClaimRewardHook is
         return data;
     }
 
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata data) external pure returns(bytes memory) {
+        return abi.encodePacked(BytesLib.toAddress(data, 0));
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address, bytes calldata data) internal override {
         asset = BytesLib.toAddress(data, 20);
         if (asset == address(0)) revert ASSET_ZERO_ADDRESS();
-        
+
         outAmount = _getBalance(data);
     }
 

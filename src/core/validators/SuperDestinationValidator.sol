@@ -22,8 +22,11 @@ contract SuperDestinationValidator is SuperValidatorBase {
         uint64 chainId;
         address sender;
         address executor;
-        uint256 intentAmount;
+        address[] dstTokens;
+        uint256[] intentAmounts;
     }
+
+    bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -43,7 +46,6 @@ contract SuperDestinationValidator is SuperValidatorBase {
     }
 
     /// @notice Validate a signature with sender
-    /// @dev EIP1271 compatible
     function isValidSignatureWithSender(
         address,
         bytes32,
@@ -69,7 +71,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
 
         // Validate
         bool isValid = _isSignatureValid(signer, sender, sigData.validUntil);
-        return isValid ? bytes4(0x1626ba7e) : bytes4("");
+        return isValid ? VALID_SIGNATURE : bytes4("");
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -79,7 +81,10 @@ contract SuperDestinationValidator is SuperValidatorBase {
         DestinationData memory destinationData = abi.decode(data, (DestinationData));
         /// @dev `executor` is included in the leaf to ensure that the leaf is unique for each executor
         ///      otherwise it allows the owner's signature to be replayed if the account mistakenly installs two of the
-        /// same executors
+        ///      same executors
+        /// @dev `destinationData.initData` is not included because it is not needed for the leaf
+        ///       If precomputed account is != than the executing account, the entire execution reverts before this method is called
+        ///       Check `SuperDestinationExecutor` for more details.
         return keccak256(
             bytes.concat(
                 keccak256(
@@ -88,7 +93,8 @@ contract SuperDestinationValidator is SuperValidatorBase {
                         destinationData.chainId,
                         destinationData.sender,
                         destinationData.executor,
-                        destinationData.intentAmount,
+                        destinationData.dstTokens,
+                        destinationData.intentAmounts,
                         validUntil
                     )
                 )
@@ -106,6 +112,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
         override
         returns (bool)
     {
+        /// @dev block.timestamp could vary between chains
         return signer == _accountOwners[sender] && validUntil >= block.timestamp;
     }
 
@@ -143,11 +150,12 @@ contract SuperDestinationValidator is SuperValidatorBase {
             uint64 chainId,
             address decodedSender,
             address executor,
-            uint256 intentAmount
-        ) = abi.decode(destinationDataRaw, (bytes, uint64, address, address, uint256));
+            address[] memory dstTokens,
+            uint256[] memory intentAmounts
+        ) = abi.decode(destinationDataRaw, (bytes, uint64, address, address, address[], uint256[]));
         if (sender_ != decodedSender) revert INVALID_SENDER();
         if (chainId != block.chainid) revert INVALID_CHAIN_ID();
-        return DestinationData(callData, chainId, decodedSender, executor, intentAmount);
+        return DestinationData(callData, chainId, decodedSender, executor, dstTokens, intentAmounts);
     }
 
     function _decodeSignatureAndDestinationData(

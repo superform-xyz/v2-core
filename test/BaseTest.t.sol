@@ -146,6 +146,7 @@ import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "./mocks/MockRegistry.sol";
 
 import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 
 import { BaseHook } from "../src/core/hooks/BaseHook.sol";
 import { MockSuperExecutor } from "./mocks/MockSuperExecutor.sol";
@@ -223,6 +224,7 @@ struct Addresses {
     SuperGovernor superGovernor;
     SuperNativePaymaster superNativePaymaster;
     SuperVaultAggregator superVaultAggregator;
+    ECDSAPPSOracle ecdsappsOracle;
     ISuperExecutor superExecutorWithSPLock;
     MockTargetExecutor mockTargetExecutor;
     MockBaseHook mockBaseHook; // this is needed for all tests which we need to use executeWithoutHookRestrictions
@@ -334,6 +336,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
         STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
         EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
+        VALIDATOR = _deployAccount(VALIDATOR_KEY, "VALIDATOR");
 
         // Setup forks
         _preDeploymentSetup();
@@ -573,6 +576,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             A[i].superVaultAggregator = new SuperVaultAggregator(address(A[i].superGovernor));
             vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
             contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
+
+            A[i].ecdsappsOracle = new ECDSAPPSOracle(address(A[i].superGovernor));
+            vm.label(address(A[i].ecdsappsOracle), ECDSAPPS_ORACLE_KEY);
+            contractAddresses[chainIds[i]][ECDSAPPS_ORACLE_KEY] = address(A[i].ecdsappsOracle);
+
+            A[i].superGovernor.setActivePPSOracle(address(A[i].ecdsappsOracle));
+            A[i].superGovernor.addValidator(VALIDATOR);
         }
         return A;
     }
@@ -1511,9 +1521,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         polymerProvers[ETH] = CHAIN_1_POLYMER_PROVER;
         vm.label(polymerProvers[ETH], "PolymerProverETH");
         polymerProvers[OP] = CHAIN_10_POLYMER_PROVER;
-        vm.label(polymerProvers[OP], "PolymerProverOP");
+        // vm.label(polymerProvers[OP], "PolymerProverOP");
         polymerProvers[BASE] = CHAIN_8453_POLYMER_PROVER;
-        vm.label(polymerProvers[BASE], "PolymerProverBASE");
+        // vm.label(polymerProvers[BASE], "PolymerProverBASE");
 
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
@@ -1705,8 +1715,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         internal
     {
         if (relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
-            vm.expectEmit(true, true, true, true);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNotEnoughBalance(account);
+            vm.expectEmit(true, false, false, false);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNotEnoughBalance(account, address(0), 0, 0);
         } else if (relayerType == RELAYER_TYPE.ENOUGH_BALANCE) {
             vm.expectEmit(true, true, true, true);
             emit ISuperDestinationExecutor.SuperDestinationExecutorExecuted(account);
@@ -1822,7 +1832,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             accountToUse = messageData.account;
             accountCreationData = bytes("");
         }
-        return (abi.encode(accountCreationData, executionData, messageData.account, messageData.amount), accountToUse);
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = messageData.tokenSent;
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = messageData.amount;
+        return (abi.encode(accountCreationData, executionData, messageData.account, dstTokens, intentAmounts), accountToUse);
     }
 
     function _createMerkleRootAndSignature(
@@ -1839,8 +1853,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
 
         bytes32[] memory leaves = new bytes32[](2);
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = messageData.tokenSent;
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = messageData.amount;
         leaves[0] = _createDestinationValidatorLeaf(
-            executionData, messageData.chainId, accountToUse, messageData.targetExecutor, messageData.amount, validUntil
+            executionData, messageData.chainId, accountToUse, messageData.targetExecutor, dstTokens, intentAmounts, validUntil
         );
         leaves[1] = _createSourceValidatorLeaf(userOpHash, validUntil);
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);

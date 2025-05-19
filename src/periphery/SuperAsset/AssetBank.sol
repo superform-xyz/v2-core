@@ -17,9 +17,9 @@ contract AssetBank is AccessControl, IAssetBank {
     bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
 
     // --- Constructor ---
-    constructor() {
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(INCENTIVE_FUND_MANAGER, msg.sender);
+    constructor(address admin) {
+        _grantRole(DEFAULT_ADMIN_ROLE, admin);
+        _grantRole(INCENTIVE_FUND_MANAGER, admin);
     }
 
     /// @inheritdoc IAssetBank
@@ -27,7 +27,11 @@ contract AssetBank is AccessControl, IAssetBank {
         address receiver,
         address tokenOut,
         uint256 amount
-    ) external override onlyRole(INCENTIVE_FUND_MANAGER) {
+    )
+        external
+        override
+        onlyRole(INCENTIVE_FUND_MANAGER)
+    {
         if (receiver == address(0) || tokenOut == address(0)) revert ZERO_ADDRESS();
         if (amount == 0) revert ZERO_AMOUNT();
 
@@ -36,5 +40,5 @@ contract AssetBank is AccessControl, IAssetBank {
     }
 
     /// @notice Allows the contract to receive ETH
-    receive() external payable {}
+    receive() external payable { }
 }

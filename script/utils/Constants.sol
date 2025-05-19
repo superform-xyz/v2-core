@@ -110,6 +110,14 @@ abstract contract Constants {
     address internal constant NEXUS_FACTORY_BASE_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address internal constant NEXUS_FACTORY_OP_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
 
+    // Permit2 addresses per chain
+    address internal constant PERMIT2_MAINNET = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    address internal constant PERMIT2_BASE = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    address internal constant PERMIT2_OPTIMISM = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    address internal constant PERMIT2_ARB_SEPOLIA = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    address internal constant PERMIT2_BASE_SEPOLIA = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    address internal constant PERMIT2_OP_SEPOLIA = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+
     // Polymer Prover addresses per chain
     address internal constant POLYMER_PROVER_MAINNET = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76;
     address internal constant POLYMER_PROVER_BASE = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
@@ -130,6 +138,7 @@ abstract contract Constants {
     string internal constant YEARN_CLAIM_ONE_REWARD_HOOK_KEY = "YearnClaimOneRewardHook";
     string internal constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
     string internal constant TRANSFER_ERC20_HOOK_KEY = "TransferERC20Hook";
+    string internal constant BATCH_TRANSFER_FROM_HOOK_KEY = "BatchTransferFromHook";
     string internal constant DEPOSIT_4626_VAULT_HOOK_KEY = "Deposit4626VaultHook";
     string internal constant REDEEM_4626_VAULT_HOOK_KEY = "Redeem4626VaultHook";
     string internal constant DEPOSIT_5115_VAULT_HOOK_KEY = "Deposit5115VaultHook";
@@ -172,7 +181,7 @@ abstract contract Constants {
     string internal constant SUPER_VAULT_AGGREGATOR_KEY = "SuperVaultAggregator";
     string internal constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
     string internal constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";
-    string internal constant SUPER_GAS_TANK_KEY = "SuperGasTank";
+    string internal constant ECDSAPPS_ORACLE_KEY = "ECDSAPPSOracle";
     // oracle keys
     string internal constant SUPER_ORACLE_KEY = "SuperOracle";
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";

@@ -30,6 +30,14 @@ contract ApproveERC20HookTest is Helpers {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
+    function test_UsePrevHookAmount() public view {
+        bytes memory data = _encodeData(true);
+        assertTrue(hook.decodeUsePrevHookAmount(data));
+
+        data = _encodeData(false);
+        assertFalse(hook.decodeUsePrevHookAmount(data));
+    }
+
     function test_Build() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = hook.build(address(0), address(0), data);
@@ -94,6 +102,12 @@ contract ApproveERC20HookTest is Helpers {
 
         hook.postExecute(mockPrevHook, address(this), _encodeData(true));
         assertEq(hook.outAmount(), 0);
+    }
+
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function _encodeData(bool usePrev) internal view returns (bytes memory) {

@@ -32,6 +32,12 @@ contract GearboxStakeHookTest is Helpers {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
+    function test_Inspector() public view {
+        bytes memory data = _encodeData(false);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+    
     function test_Build() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = hook.build(address(0), address(this), data);
@@ -78,6 +84,14 @@ contract GearboxStakeHookTest is Helpers {
 
         hook.postExecute(address(0), address(this), data);
         assertEq(hook.outAmount(), 0);
+    }
+
+    function test_DecodeUsePrevHookAmount() public view {
+        bytes memory data = _encodeData(false);
+        assertEq(hook.decodeUsePrevHookAmount(data), false);
+
+        data = _encodeData(true);
+        assertEq(hook.decodeUsePrevHookAmount(data), true);
     }
 
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {

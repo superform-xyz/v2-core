@@ -16,7 +16,8 @@ import { ISuperHookResult, ISuperHookContextAware } from "../../src/core/interfa
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
 /// @dev `message` field won't contain the signature for the destination executor
 /// @dev      signature is retrieved from the validator contract transient storage
-/// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to sign it
+/// @dev      This is needed to avoid circular dependency between merkle root which contains the signature needed to
+/// sign it
 /// @dev data has the following structure
 /// @notice         uint256 value = BytesLib.toUint256(data, 0);
 /// @notice         address recipient = BytesLib.toAddress(data, 32);

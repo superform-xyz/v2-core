@@ -30,6 +30,22 @@ contract YearnClaimOneRewardHookTest is Helpers {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.OUTFLOW));
     }
 
+    function test_decodeAmount() public view {
+        bytes memory data = _encodeData();
+        assertEq(hook.decodeAmount(data), 0);
+    }
+
+    function test_replaceCalldataAmount() public view {
+        bytes memory data = _encodeData();
+        bytes memory newData = hook.replaceCalldataAmount(data, mockAmount);
+        assertEq(newData, data);
+    }
+
+    function test_decodeUsePrevHookAmount() public view {
+        bytes memory data = _encodeData();
+        assertEq(hook.decodeUsePrevHookAmount(data), false);
+    }
+
     function test_Build() public view {
         bytes memory data = _encodeData();
         Execution[] memory executions = hook.build(address(0), mockAccount, data);
@@ -55,6 +71,12 @@ contract YearnClaimOneRewardHookTest is Helpers {
 
         hook.postExecute(address(0), mockAccount, _encodeData());
         assertEq(hook.outAmount(), 0);
+    }
+
+    function test_Inspector() public view {
+        bytes memory data = _encodeData();
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function _encodeData() internal view returns (bytes memory) {

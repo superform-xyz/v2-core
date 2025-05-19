@@ -108,6 +108,60 @@ contract PendleRouterSwapHookTest is Helpers {
         assertEq(executions[0].value, 0);
     }
 
+    function test_SwapExactTokenForPt_Inspector() public view {
+         TokenInput memory input = TokenInput({
+            tokenIn: address(inputToken),
+            netTokenIn: inputAmount,
+            tokenMintSy: address(inputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        ApproxParams memory guessPtOut =
+            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(0),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: new FillOrderParams[](0),
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactTokenForPt.selector, receiver, market, minPtOut, guessPtOut, input, limit
+        );
+
+        bytes memory data = abi.encodePacked(bytes4(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_UsePrevHookAmount() public view {
+        TokenOutput memory output = TokenOutput({
+            tokenOut: address(outputToken),
+            minTokenOut: 950,
+            tokenRedeemSy: address(outputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(0),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: new FillOrderParams[](0),
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
+        );
+
+        bytes memory data = abi.encodePacked(bytes4(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        assertFalse(hook.decodeUsePrevHookAmount(data));
+    }
+
     function test_Build_SwapExactPtForToken() public view {
         TokenOutput memory output = TokenOutput({
             tokenOut: address(outputToken),
@@ -135,6 +189,32 @@ contract PendleRouterSwapHookTest is Helpers {
         assertEq(executions.length, 1);
         assertEq(executions[0].target, address(pendleRouter));
         assertEq(executions[0].value, 0);
+    }
+
+      function test_SwapExactPtForToken_Inspector() public view {
+         TokenOutput memory output = TokenOutput({
+            tokenOut: address(outputToken),
+            minTokenOut: 950,
+            tokenRedeemSy: address(outputToken),
+            pendleSwap: address(this),
+            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+        });
+
+        LimitOrderData memory limit = LimitOrderData({
+            limitRouter: address(0),
+            epsSkipMarket: 0,
+            normalFills: new FillOrderParams[](0),
+            flashFills: new FillOrderParams[](0),
+            optData: ""
+        });
+
+        bytes memory txData = abi.encodeWithSelector(
+            IPendleRouterV4.swapExactPtForToken.selector, receiver, market, exactPtIn, output, limit
+        );
+
+        bytes memory data = abi.encodePacked(bytes4(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
+        bytes memory argsEncoded = hook.inspect(data);
+        assertGt(argsEncoded.length, 0);
     }
 
     function test_Build_WithPrevHookAmount() public {
@@ -202,7 +282,7 @@ contract PendleRouterSwapHookTest is Helpers {
         assertEq(hook.outAmount(), 500);
     }
 
-    function test_PostExecuteX() public {
+    function test_PostExecute() public {
         TokenInput memory input = TokenInput({
             tokenIn: address(inputToken),
             netTokenIn: inputAmount,
@@ -653,4 +733,5 @@ contract PendleRouterSwapHookTest is Helpers {
         vm.expectRevert(PendleRouterSwapHook.MAKING_AMOUNT_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
+
 }
