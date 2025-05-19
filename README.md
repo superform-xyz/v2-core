@@ -2,14 +2,15 @@
 
 Superform v2 is a modular DeFi protocol for yield abstraction that allows dynamic execution and flexible composition of user operations via ERC7579 modules.
 
-This document provides technical details, reasoning behind design choices, and discussion of potential edge cases and risks in Superform's v2 contracts. Given the scope of ongoing reviews, the focus will be on Superform v2-core.
+This document provides technical details, reasoning behind design choices, and discussion of potential edge cases and risks in Superform's v2 contracts. Given the scope of ongoing reviews, the focus will be on Superform **v2-core only**
 
 The protocol consists of the following components:
 
 - **Core System**: The primary business logic, interfaces, execution routines, accounting mechanisms, and validation components
-- **Periphery Contracts (OUT OF SCOPE)**: Suite of products built on top of the core contracts, such as SuperVaults
+- **Periphery Contracts (OUT OF SCOPE)**: Suite of products built on top of the core contracts
 
 ## Repository Structure
+**ONLY SRC/CORE DIRECTORY IS IN SCOPE FOR THIS AUDIT**
 
 ```
 src/
@@ -28,7 +29,7 @@ src/
 
 ## Key Components
 
-The following diagram illustrates how users interact with the Superform system and how the different components work together.
+The following diagram illustrates how users interact with the Superform system and how the different components work together. This diagram outlines only the components of the core system, as the audit scope is limited to the **src/core** directory.
 
 ```mermaid
 graph TD
