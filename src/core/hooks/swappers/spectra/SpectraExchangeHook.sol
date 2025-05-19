@@ -185,7 +185,6 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
     {
         ValidateTxDataParams memory params;
         params.selector = bytes4(data[0:4]);
-        // todo: this requires optimization so we don't do abi.encodeWithSelector but rather abi.encodePacked
 
         if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
             (params.commandsData, params.inputs) = abi.decode(data[4:], (bytes, bytes[]));
