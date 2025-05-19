@@ -44,6 +44,8 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
     address public redeem4626Hook;
     uint256 public blockNumber;
 
+    bool public useRealOdosRouter = false;
+
     function setUp() public virtual {
         blockNumber != 0
             ? vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), blockNumber)
