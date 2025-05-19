@@ -99,6 +99,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         address icc_,
         address ifc_,
         address assetBank_,
+        address superGovernor_,
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_
     ) external {
@@ -121,7 +122,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         tokenName = name_;
         tokenSymbol = symbol_;
 
-        _SUPER_GOVERNOR = ISuperGovernor(IAssetBank(assetBank_).SUPER_GOVERNOR());
+        _SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
     }
 
     /*//////////////////////////////////////////////////////////////

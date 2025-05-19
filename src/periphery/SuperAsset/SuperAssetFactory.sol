@@ -64,7 +64,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     function createSuperAsset(AssetCreationParams calldata params)
         external
         onlyRole(DEPLOYER_ROLE)
-        returns (address superAsset, address assetBank_, address incentiveFund, address incentiveCalc)
+        returns (address superAsset, address incentiveFund)
     {
         // Deploy IncentiveFund (this one needs to be unique per SuperAsset)
         incentiveFund = incentiveFundImplementation.clone();
@@ -77,6 +77,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
             incentiveCalculationContract, // Use single instance
             incentiveFund,
             assetBank, // Use single instance
+            superGovernor,
             params.swapFeeInPercentage,
             params.swapFeeOutPercentage
         );
@@ -85,8 +86,8 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
         IncentiveFundContract(incentiveFund).initialize(superAsset, assetBank, superGovernor);
 
         // Return addresses (using existing instances for ICC and AssetBank)
-        assetBank_ = assetBank;
-        incentiveCalc = incentiveCalculationContract;
+        // assetBank_ = assetBank;
+        // incentiveCalc = incentiveCalculationContract;
 
         emit SuperAssetCreated(
             superAsset, assetBank, incentiveFund, incentiveCalculationContract, params.name, params.symbol

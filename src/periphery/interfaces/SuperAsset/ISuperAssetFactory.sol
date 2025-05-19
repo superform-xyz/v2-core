@@ -24,17 +24,13 @@ interface ISuperAssetFactory {
      * @notice Creates a new SuperAsset instance with its dependencies
      * @param params Parameters for creating the SuperAsset
      * @return superAsset Address of the deployed SuperAsset contract
-     * @return assetBank Address of the deployed AssetBank contract
      * @return incentiveFund Address of the deployed IncentiveFundContract
-     * @return incentiveCalc Address of the deployed IncentiveCalculationContract
      */
     function createSuperAsset(AssetCreationParams calldata params) 
         external 
         returns (
             address superAsset,
-            address assetBank,
-            address incentiveFund,
-            address incentiveCalc
+            address incentiveFund
         );
 
     // --- Events ---

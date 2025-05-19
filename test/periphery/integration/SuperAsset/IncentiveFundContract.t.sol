@@ -171,6 +171,7 @@ contract IncentiveFundContractTest is Helpers {
             address(icc), // icc (IncentiveCalculationContract)
             address(incentiveFund), // ifc (IncentiveFundContract)
             address(assetBank), // assetBank
+            address(superGovernor),
             100, // swapFeeInPercentage (0.1%)
             100 // swapFeeOutPercentage (0.1%)
         );

@@ -212,6 +212,7 @@ contract SuperAssetTest is Helpers {
             address(icc), // icc
             address(incentiveFund), // ifc
             address(assetBank), // assetBank
+            address(superGovernor),
             100, // swapFeeInPercentage (0.1%)
             100 // swapFeeOutPercentage (0.1%)
         );
@@ -276,6 +277,7 @@ contract SuperAssetTest is Helpers {
             address(icc), // icc
             address(incentiveFund), // ifc
             address(assetBank), // assetBank
+            address(superGovernor),
             100, // swapFeeInPercentage
             100 // swapFeeOutPercentage
         );
