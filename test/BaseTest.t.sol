@@ -1202,6 +1202,24 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
+            
+            // Generate Merkle tree with the actual deployed hook addresses
+            // This is critical for coverage tests where addresses may differ
+            string[] memory cmd = new string[](3);
+            cmd[0] = "node";
+            cmd[1] = "test/utils/merkle/merkle-js/build-hook-merkle-trees.js";
+            cmd[2] = string.concat(
+                vm.toString(address(A[i].approveAndRedeem4626VaultHook)), ",",
+                vm.toString(address(A[i].approveAndDeposit4626VaultHook)), ",",
+                vm.toString(address(A[i].redeem4626VaultHook))
+            );
+            
+            if (DEBUG) {
+                console2.log("Regenerating Merkle tree with actual hook addresses:");
+                console2.log(cmd[2]);
+            }
+            
+            vm.ffi(cmd);
         }
 
         return A;
@@ -1718,7 +1736,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     {
         if (relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
             vm.expectEmit(true, false, false, false);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNotEnoughBalance(account, address(0), 0, 0);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNotEnoughBalance(
+                account, address(0), 0, 0
+            );
         } else if (relayerType == RELAYER_TYPE.ENOUGH_BALANCE) {
             vm.expectEmit(true, true, true, true);
             emit ISuperDestinationExecutor.SuperDestinationExecutorExecuted(account);
@@ -1838,7 +1858,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         dstTokens[0] = messageData.tokenSent;
         uint256[] memory intentAmounts = new uint256[](1);
         intentAmounts[0] = messageData.amount;
-        return (abi.encode(accountCreationData, executionData, messageData.account, dstTokens, intentAmounts), accountToUse);
+        return (
+            abi.encode(accountCreationData, executionData, messageData.account, dstTokens, intentAmounts), accountToUse
+        );
     }
 
     function _createMerkleRootAndSignature(
@@ -1860,7 +1882,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint256[] memory intentAmounts = new uint256[](1);
         intentAmounts[0] = messageData.amount;
         leaves[0] = _createDestinationValidatorLeaf(
-            executionData, messageData.chainId, accountToUse, messageData.targetExecutor, dstTokens, intentAmounts, validUntil
+            executionData,
+            messageData.chainId,
+            accountToUse,
+            messageData.targetExecutor,
+            dstTokens,
+            intentAmounts,
+            validUntil
         );
         leaves[1] = _createSourceValidatorLeaf(userOpHash, validUntil);
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
