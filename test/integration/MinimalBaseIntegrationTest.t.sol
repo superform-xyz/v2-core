@@ -99,4 +99,8 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
         deposit4626Hook = address(new Deposit4626VaultHook());
         redeem4626Hook = address(new Redeem4626VaultHook());
     }
+
+    function _toggleUseRealOdosRouter(bool _useRealOdosRouter) public {
+        useRealOdosRouter = _useRealOdosRouter;
+    }
 }
