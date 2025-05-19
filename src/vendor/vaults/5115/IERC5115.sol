@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.30;
+pragma solidity >=0.8.28;
 
 interface IERC5115 {
     function asset() external view returns (address assetTokenAddress);

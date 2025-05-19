@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.30;
+pragma solidity >=0.8.28;
 
 // external
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.30;
+pragma solidity >=0.8.28;
 
 /// @title ISuperVaultPPSOracle
 /// @notice Interface for the contract providing the reference PPS calculation logic.

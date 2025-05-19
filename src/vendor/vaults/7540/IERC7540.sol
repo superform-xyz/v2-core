@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.30;
+pragma solidity >=0.8.28;
 
 interface IERC7575 {
     event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares);

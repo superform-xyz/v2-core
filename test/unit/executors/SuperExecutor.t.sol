@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.30;
+pragma solidity >=0.8.28;
 
 import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
 import { ModuleKitHelpers } from "modulekit/ModuleKit.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.30;
+pragma solidity >=0.8.28;
 
 import { Surl } from "@surl/Surl.sol";
 import { strings } from "@stringutils/strings.sol";

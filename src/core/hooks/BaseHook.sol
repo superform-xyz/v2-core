@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.30;
+pragma solidity >=0.8.28;
 
 // External
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";

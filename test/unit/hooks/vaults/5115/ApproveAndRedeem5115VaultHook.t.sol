@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.30;
+pragma solidity >=0.8.28;
 
 import { ApproveAndRedeem5115VaultHook } from
     "../../../../../src/core/hooks/vaults/5115/ApproveAndRedeem5115VaultHook.sol";

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.30;
+pragma solidity >=0.8.28;
 
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import "../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
