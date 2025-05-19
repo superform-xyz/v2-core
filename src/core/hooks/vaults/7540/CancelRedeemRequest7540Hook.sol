@@ -52,7 +52,6 @@ contract CancelRedeemRequest7540Hook is BaseHook, ISuperHookInspector {
             data.extractYieldSource()
         );
     }
-
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/

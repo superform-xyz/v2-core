@@ -72,7 +72,6 @@ contract FluidUnstakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspect
     function inspect(bytes calldata data) external pure returns(bytes memory) {
         return abi.encodePacked(data.extractYieldSource());
     }
-
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
