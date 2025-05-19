@@ -10,6 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "@openzeppelin/merkle-tree": "^1.0.7"
+    "@openzeppelin/merkle-tree": "^1.0.7",
+    "ethers": "^5.8.0"
   }
 }

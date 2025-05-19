@@ -81,9 +81,7 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         uint256 amount,
         uint64 fromChainId,
         bytes calldata proof
-    )
-        external
-        onlyRelayer
+    ) external
     {   
         // validate and mark `proof.nonce[fromChainId]` as used
         _validateUnlockAssetProof(account, token, amount, fromChainId, proof);

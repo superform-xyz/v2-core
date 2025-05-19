@@ -16,7 +16,8 @@ import {
     ISuperHookOutflow,
     ISuperHookInflowOutflow,
     ISuperHookResultOutflow,
-    ISuperHookContextAware
+    ISuperHookContextAware,
+    ISuperHookInspector
 } from "../../core/interfaces/ISuperHook.sol";
 import { IYieldSourceOracle } from "../../core/interfaces/accounting/IYieldSourceOracle.sol";
 
@@ -71,6 +72,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     uint256 public emergencyWithdrawableEffectiveTime;
 
     // Yield source configuration
+    // @dev todo whenever a new yield source is added we can move it to allowed target
     mapping(address source => YieldSource sourceConfig) private yieldSources;
     mapping(address source => YieldSource sourceConfig) private asyncYieldSources;
     address[] private yieldSourcesList;
@@ -133,12 +135,29 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         uint256 hooksLength = args.hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
         if (args.expectedAssetsOrSharesOut.length != hooksLength) revert INVALID_ARRAY_LENGTH();
+        if (args.globalProofs.length != hooksLength) revert INVALID_ARRAY_LENGTH();
+        if (args.strategyProofs.length != hooksLength) revert INVALID_ARRAY_LENGTH();
+
+        // Get aggregator reference for hook validation
+        ISuperVaultAggregator aggregator = _getSuperVaultAggregator();
 
         address prevHook;
-
         for (uint256 i; i < hooksLength; ++i) {
             address hook = args.hooks[i];
             if (!_isRegisteredHook(hook)) revert INVALID_HOOK();
+
+            // Check if the hook was validated
+            if (
+                !aggregator.validateHook(
+                    address(this),
+                    ISuperHookInspector(hook).inspect(args.hookCalldata[i]),
+                    args.globalProofs[i],
+                    args.strategyProofs[i]
+                )
+            ) {
+                revert HOOK_VALIDATION_FAILED();
+            }
+
             prevHook =
                 _processSingleHookExecution(hook, prevHook, args.hookCalldata[i], args.expectedAssetsOrSharesOut[i]);
         }
@@ -155,14 +174,28 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (controllersLength == 0) revert ZERO_LENGTH();
         if (args.expectedAssetsOrSharesOut.length != hooksLength) revert INVALID_ARRAY_LENGTH();
         if (args.controllers.length != controllersLength) revert INVALID_ARRAY_LENGTH();
+        if (args.globalProofs.length != hooksLength) revert INVALID_ARRAY_LENGTH();
+        if (args.strategyProofs.length != hooksLength) revert INVALID_ARRAY_LENGTH();
 
         uint256 processedShares;
-        uint256 currentPPS = _getSuperVaultAggregator().getPPS(address(this));
+        ISuperVaultAggregator aggregator = _getSuperVaultAggregator();
+        uint256 currentPPS = aggregator.getPPS(address(this));
         if (currentPPS == 0) revert INVALID_PPS();
 
         for (uint256 i; i < hooksLength; ++i) {
             address hook = args.hooks[i];
             if (!_isFulfillRequestsHook(hook)) revert INVALID_HOOK();
+            // Check if the hook was validated
+            if (
+                !aggregator.validateHook(
+                    address(this),
+                    ISuperHookInspector(hook).inspect(args.hookCalldata[i]),
+                    args.globalProofs[i],
+                    args.strategyProofs[i]
+                )
+            ) {
+                revert HOOK_VALIDATION_FAILED();
+            }
 
             uint256 amountSharesSpent = _processSingleFulfillHookExecution(
                 hook, args.hookCalldata[i], args.expectedAssetsOrSharesOut[i], currentPPS
@@ -798,6 +831,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     function _handleDeposit(address controller, uint256 assets, uint256 shares) private {
         if (assets == 0 || shares == 0) revert INVALID_AMOUNT();
         if (controller == address(0)) revert ZERO_ADDRESS();
+
+        // Check if global hooks root is vetoed, and revert if it is
+        if (_getSuperVaultAggregator().isGlobalHooksRootVetoed()) {
+            revert OPERATIONS_BLOCKED_BY_VETO();
+        }
+
         SuperVaultState storage state = superVaultState[controller];
         state.accumulatorShares += shares;
         state.accumulatorCostBasis += assets;

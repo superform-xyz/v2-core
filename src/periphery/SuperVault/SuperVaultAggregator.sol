@@ -7,6 +7,7 @@ import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/Sa
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { Clones } from "openzeppelin-contracts/contracts/proxy/Clones.sol";
 import { EnumerableSet } from "openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
+import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
 import { SuperVault } from "./SuperVault.sol";
@@ -53,8 +54,17 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     // Constant for PPS decimals
     uint256 public constant PPS_DECIMALS = 18;
 
-    // Timelock for strategist changes
+    // Timelock for strategist changes and Merkle root updates
     uint256 private constant _STRATEGIST_CHANGE_TIMELOCK = 7 days;
+    uint256 private constant _HOOKS_ROOT_UPDATE_TIMELOCK = 15 minutes;
+
+    // Global hooks Merkle root data
+    bytes32 private _globalHooksRoot;
+    bytes32 private _proposedGlobalHooksRoot;
+    uint256 private _globalHooksRootEffectiveTime;
+    bool private _globalHooksRootVetoed;
+
+    // No need for separate mappings since we now store this data in the StrategyData struct
 
     /*//////////////////////////////////////////////////////////////
                                MODIFIERS
@@ -109,9 +119,11 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         // No need for external registration
 
         // Create minimal proxies
-        superVault = VAULT_IMPLEMENTATION.clone();
-        escrow = ESCROW_IMPLEMENTATION.clone();
-        strategy = STRATEGY_IMPLEMENTATION.clone();
+        // todo add asset as part of this @Vik
+        // @dev cloneDeterministic disallows a clone to have the same name and symbol pair
+        superVault = VAULT_IMPLEMENTATION.cloneDeterministic(keccak256(abi.encodePacked(params.name, params.symbol)));
+        escrow = ESCROW_IMPLEMENTATION.cloneDeterministic(keccak256(abi.encodePacked(params.name, params.symbol)));
+        strategy = STRATEGY_IMPLEMENTATION.cloneDeterministic(keccak256(abi.encodePacked(params.name, params.symbol)));
 
         // Initialize superVault
         SuperVault(superVault).initialize(params.asset, params.name, params.symbol, strategy, escrow);
@@ -311,7 +323,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
     /// @inheritdoc ISuperVaultAggregator
     function changePrimaryStrategist(address strategy, address newStrategist) external validStrategy(strategy) {
-        // Only SuperGovernor can directly change the primary strategist
+        // Only SuperGovernor can call this
         if (msg.sender != address(SUPER_GOVERNOR)) {
             revert UNAUTHORIZED_UPDATE_AUTHORITY();
         }
@@ -382,6 +394,130 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         _strategyData[strategy].strategistChangeProposer = address(0);
 
         emit PrimaryStrategistChanged(strategy, oldStrategist, newStrategist);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        HOOK VALIDATION FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperVaultAggregator
+    function proposeGlobalHooksRoot(bytes32 newRoot) external {
+        // Only SUPER_GOVERNOR can update the global hooks root
+        if (msg.sender != address(SUPER_GOVERNOR)) {
+            revert UNAUTHORIZED_UPDATE_AUTHORITY();
+        }
+
+        // Set new root with timelock
+        _proposedGlobalHooksRoot = newRoot;
+        _globalHooksRootEffectiveTime = block.timestamp + _HOOKS_ROOT_UPDATE_TIMELOCK;
+
+        emit GlobalHooksRootUpdateProposed(newRoot, _globalHooksRootEffectiveTime);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function executeGlobalHooksRootUpdate() external {
+        // Ensure there is a pending proposal
+        if (_proposedGlobalHooksRoot == bytes32(0)) {
+            revert NO_PENDING_GLOBAL_ROOT_CHANGE();
+        }
+
+        // Check if timelock period has elapsed
+        if (block.timestamp < _globalHooksRootEffectiveTime) {
+            revert ROOT_UPDATE_NOT_READY();
+        }
+
+        // Update the global hooks root
+        bytes32 oldRoot = _globalHooksRoot;
+        _globalHooksRoot = _proposedGlobalHooksRoot;
+        _globalHooksRootEffectiveTime = 0;
+        _proposedGlobalHooksRoot = bytes32(0);
+
+        emit GlobalHooksRootUpdated(oldRoot, _globalHooksRoot);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function setGlobalHooksRootVetoStatus(bool vetoed) external {
+        // Only SuperGovernor can call this
+        if (msg.sender != address(SUPER_GOVERNOR)) {
+            revert UNAUTHORIZED_UPDATE_AUTHORITY();
+        }
+
+        // Don't emit event if status doesn't change
+        if (_globalHooksRootVetoed == vetoed) {
+            return;
+        }
+
+        // Update veto status
+        _globalHooksRootVetoed = vetoed;
+
+        emit GlobalHooksRootVetoStatusChanged(vetoed, _globalHooksRoot);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function proposeStrategyHooksRoot(address strategy, bytes32 newRoot) external validStrategy(strategy) {
+        // Only the main strategist can propose strategy-specific hooks root
+        if (_strategyData[strategy].mainStrategist != msg.sender) {
+            revert UNAUTHORIZED_UPDATE_AUTHORITY();
+        }
+
+        // Set proposed root with timelock
+        _strategyData[strategy].proposedHooksRoot = newRoot;
+        _strategyData[strategy].hooksRootEffectiveTime = block.timestamp + _HOOKS_ROOT_UPDATE_TIMELOCK;
+
+        emit StrategyHooksRootUpdateProposed(
+            strategy, msg.sender, newRoot, _strategyData[strategy].hooksRootEffectiveTime
+        );
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function executeStrategyHooksRootUpdate(address strategy) external validStrategy(strategy) {
+        // Ensure there is a pending proposal
+        if (_strategyData[strategy].proposedHooksRoot == bytes32(0)) {
+            revert NO_PENDING_STRATEGIST_CHANGE(); // Reusing error for simplicity
+        }
+
+        // Check if timelock period has elapsed
+        if (block.timestamp < _strategyData[strategy].hooksRootEffectiveTime) {
+            revert ROOT_UPDATE_NOT_READY();
+        }
+
+        // Update the strategy's hooks root
+        bytes32 oldRoot = _strategyData[strategy].strategistHooksRoot;
+        _strategyData[strategy].strategistHooksRoot = _strategyData[strategy].proposedHooksRoot;
+
+        // Reset proposal state
+        _strategyData[strategy].proposedHooksRoot = bytes32(0);
+        _strategyData[strategy].hooksRootEffectiveTime = 0;
+
+        emit StrategyHooksRootUpdated(strategy, oldRoot, _strategyData[strategy].strategistHooksRoot);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function setStrategyHooksRootVetoStatus(address strategy, bool vetoed) external validStrategy(strategy) {
+        // Only SuperGovernor can call this
+        if (msg.sender != address(SUPER_GOVERNOR)) {
+            revert UNAUTHORIZED_UPDATE_AUTHORITY();
+        }
+
+        // Don't emit event if status doesn't change
+        if (_strategyData[strategy].hooksRootVetoed == vetoed) {
+            return;
+        }
+
+        // Update veto status
+        _strategyData[strategy].hooksRootVetoed = vetoed;
+
+        emit StrategyHooksRootVetoStatusChanged(strategy, vetoed, _strategyData[strategy].strategistHooksRoot);
+    }
+    /// @inheritdoc ISuperVaultAggregator
+
+    function isGlobalHooksRootVetoed() external view returns (bool vetoed) {
+        return _globalHooksRootVetoed;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function isStrategyHooksRootVetoed(address strategy) external view returns (bool vetoed) {
+        return _strategyData[strategy].hooksRootVetoed;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -490,15 +626,109 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         return _superVaultEscrows.at(index);
     }
 
+    /// @inheritdoc ISuperVaultAggregator
+    function validateHook(
+        address strategy,
+        bytes calldata hookArgs,
+        bytes32[] calldata globalProof,
+        bytes32[] calldata strategyProof
+    )
+        external
+        view
+        returns (bool isValid)
+    {
+        // If both roots are vetoed, all hook validations fail
+        bool globalHooksVetoed = _globalHooksRootVetoed;
+        bool strategyHooksVetoed = _strategyData[strategy].hooksRootVetoed;
+        if (globalHooksVetoed && strategyHooksVetoed) {
+            return false;
+        }
+
+        return
+            _validateSingleHook(strategy, hookArgs, globalProof, strategyProof, globalHooksVetoed, strategyHooksVetoed);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function validateHooks(
+        address strategy,
+        bytes[] calldata hooksArgs,
+        bytes32[][] calldata globalProofs,
+        bytes32[][] calldata strategyProofs
+    )
+        external
+        view
+        returns (bool[] memory validHooks)
+    {
+        uint256 length = hooksArgs.length;
+
+        // Ensure array lengths match
+        if (globalProofs.length != length || strategyProofs.length != length) {
+            revert INVALID_ARRAY_LENGTH();
+        }
+
+        // Get veto statuses only once
+        bool globalHooksVetoed = _globalHooksRootVetoed;
+        bool strategyHooksVetoed = _strategyData[strategy].hooksRootVetoed;
+
+        // If both roots are vetoed, all hooks are invalid
+        if (globalHooksVetoed && strategyHooksVetoed) {
+            validHooks = new bool[](length);
+            // All values default to false in Solidity, so no need to set them
+            return validHooks;
+        }
+
+        // Validate each hook
+        validHooks = new bool[](length);
+        for (uint256 i; i < length; i++) {
+            validHooks[i] = _validateSingleHook(
+                strategy, hooksArgs[i], globalProofs[i], strategyProofs[i], globalHooksVetoed, strategyHooksVetoed
+            );
+        }
+
+        return validHooks;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getGlobalHooksRoot() external view returns (bytes32 root) {
+        return _globalHooksRoot;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getProposedGlobalHooksRoot() external view returns (bytes32 root, uint256 effectiveTime) {
+        return (_proposedGlobalHooksRoot, _globalHooksRootEffectiveTime);
+    }
+
+    /// @notice Checks if the global hooks root is active (timelock period has passed)
+    /// @return isActive True if the global hooks root is active
+    function isGlobalHooksRootActive() external view returns (bool) {
+        return block.timestamp >= _globalHooksRootEffectiveTime && _globalHooksRoot != bytes32(0);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getStrategyHooksRoot(address strategy) external view returns (bytes32 root) {
+        return _strategyData[strategy].strategistHooksRoot;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getProposedStrategyHooksRoot(address strategy)
+        external
+        view
+        returns (bytes32 root, uint256 effectiveTime)
+    {
+        return (_strategyData[strategy].proposedHooksRoot, _strategyData[strategy].hooksRootEffectiveTime);
+    }
+
     /*//////////////////////////////////////////////////////////////
                          INTERNAL HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
     /// @notice Internal implementation of forwarding PPS updates
     /// @param strategy Address of the strategy being updated
     /// @param isExempt Whether the update is exempt from paying upkeep
     /// @param pps New PPS value
     /// @param timestamp Timestamp of the PPS measurement
     /// @param upkeepCost The amount of upkeep to charge (if not exempt)
+
     function _forwardPPS(
         address strategy,
         bool isExempt,
@@ -573,6 +803,66 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
             }
         }
 
+        return false;
+    }
+
+    /// @notice Creates a leaf node for Merkle verification from hook arguments
+    /// @param hookArgs The packed-encoded hook arguments (from solidityPack in JS)
+    /// @return leaf The leaf node hash
+    function _createLeaf(bytes calldata hookArgs) internal pure returns (bytes32) {
+        return keccak256(bytes.concat(keccak256(abi.encode(hookArgs))));
+    }
+
+    /**
+     * @dev Internal function to validate a single hook
+     * @param strategy Address of the strategy
+     * @param hookArgs Hook arguments
+     * @param globalProof Merkle proof for global root
+     * @param strategyProof Merkle proof for strategy root
+     * @param globalVetoed Whether global hooks are vetoed
+     * @param strategyVetoed Whether strategy hooks are vetoed
+     * @return True if hook is valid, false otherwise
+     */
+    function _validateSingleHook(
+        address strategy,
+        bytes calldata hookArgs,
+        bytes32[] calldata globalProof,
+        bytes32[] calldata strategyProof,
+        bool globalVetoed,
+        bool strategyVetoed
+    )
+        internal
+        view
+        returns (bool)
+    {
+        uint256 lengthGlobalProof = globalProof.length;
+        uint256 lengthStrategyProof = strategyProof.length;
+
+        // If both proofs are empty, the hook is not allowed
+        if (lengthGlobalProof == 0 && lengthStrategyProof == 0) {
+            return false;
+        }
+
+        // Create leaf node from the hook arguments
+        bytes32 leaf = _createLeaf(hookArgs);
+
+        // First try to verify against the global root if provided
+        if (lengthGlobalProof > 0 && !globalVetoed) {
+            // Only validate against global root if it exists
+            if (_globalHooksRoot != bytes32(0) && MerkleProof.verify(globalProof, _globalHooksRoot, leaf)) {
+                return true;
+            }
+        }
+
+        // Then try to verify against the strategy-specific root if provided
+        if (lengthStrategyProof > 0 && !strategyVetoed) {
+            bytes32 strategyRoot = _strategyData[strategy].strategistHooksRoot;
+            if (strategyRoot != bytes32(0) && MerkleProof.verify(strategyProof, strategyRoot, leaf)) {
+                return true;
+            }
+        }
+
+        // If we get here, verification failed
         return false;
     }
 }

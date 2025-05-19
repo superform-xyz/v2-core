@@ -71,7 +71,6 @@ contract TransferERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspec
         );
     }
 
-
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
