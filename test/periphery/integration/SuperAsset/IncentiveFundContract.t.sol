@@ -184,11 +184,8 @@ contract IncentiveFundContractTest is Helpers {
 
         // TODO: Remove all of the following non SuperGovernor related roles 
         superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
-        console.log("Incentive Fund T3");
         superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
-        console.log("Incentive Fund T5");
         superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
-        console.log("Incentive Fund T6");
         vm.stopPrank();
 
         // Set up initial token balances for testing

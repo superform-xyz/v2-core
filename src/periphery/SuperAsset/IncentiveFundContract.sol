@@ -77,7 +77,8 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function payIncentive(address receiver, uint256 amountUSD) external onlyRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER()) {
+    function payIncentive(address receiver, uint256 amountUSD) external {
+        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER(), msg.sender)) revert UNAUTHORIZED();
         _validateInput(receiver, amountUSD);
         if (tokenOutIncentive == address(0)) revert TOKEN_OUT_NOT_SET();
 
@@ -98,7 +99,8 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function takeIncentive(address sender, uint256 amountUSD) external onlyRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER()) {
+    function takeIncentive(address sender, uint256 amountUSD) external {
+        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER(), msg.sender)) revert UNAUTHORIZED();
         _validateInput(sender, amountUSD);
         if (tokenInIncentive == address(0)) revert TOKEN_IN_NOT_SET();
 
@@ -119,7 +121,8 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function withdraw(address receiver, address tokenOut, uint256 amount) external onlyRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER()) {
+    function withdraw(address receiver, address tokenOut, uint256 amount) external {
+        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER(), msg.sender)) revert UNAUTHORIZED();
         _validateInput(receiver, amount);
         if (tokenOut == address(0)) revert ZERO_ADDRESS();
 
