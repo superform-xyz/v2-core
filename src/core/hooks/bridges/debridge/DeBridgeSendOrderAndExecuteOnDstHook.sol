@@ -276,7 +276,6 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         });
     }
 
-
     function _buildExternalCall(ExternalCallParams memory params) internal pure returns (bytes memory) {
         (
             bytes memory initData,
@@ -297,7 +296,6 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
 
         return abi.encodePacked(params.version, abi.encode(envelope));
     }
-
 
     function _preExecute(address, address, bytes calldata) internal override { }
 
