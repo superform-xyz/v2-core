@@ -9,7 +9,6 @@ import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 import "../interfaces/SuperAsset/ISuperAsset.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
-import "forge-std/console.sol";
 
 
 /**
@@ -22,11 +21,6 @@ import "forge-std/console.sol";
  */
 contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     using SafeERC20 for IERC20;
-
-    // --- Constants ---
-    /// @notice Role identifier for incentive fund manager
-    // bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
-    // bytes32 public constant SUPER_GOVERNOR = keccak256("SUPER_GOVERNOR");
 
     // --- State Variables ---
     address public tokenInIncentive;
