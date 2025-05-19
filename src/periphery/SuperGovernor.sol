@@ -93,6 +93,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
 
     // --- Roles ---
     bytes32 public constant _INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
+    bytes32 public constant _SUPERASSET_MANAGER = keccak256("SUPERASSET_MANAGER");
 
 
     // Common contract keys
@@ -614,6 +615,11 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function INCENTIVE_FUND_MANAGER() external pure returns (bytes32) {
         return _INCENTIVE_FUND_MANAGER;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function SUPERASSET_MANAGER() external pure returns (bytes32) {
+        return _SUPERASSET_MANAGER;
     }
 
     /// @inheritdoc ISuperGovernor

@@ -12,6 +12,7 @@ import "../interfaces/SuperAsset/IAssetBank.sol";
 import "../interfaces/SuperAsset/ISuperAsset.sol";
 import "../interfaces/ISuperOracle.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 
 
 
@@ -129,6 +130,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Initialize ERC20 name and symbol
         tokenName = name_;
         tokenSymbol = symbol_;
+
+        ISuperGovernor(IAssetBank(assetBank_).SUPER_GOVERNOR());
     }
 
     /*//////////////////////////////////////////////////////////////

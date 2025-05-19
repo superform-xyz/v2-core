@@ -181,7 +181,7 @@ contract SuperAssetTest is Helpers {
         console.log("SuperGovernor deployed");
 
         // Deploy and initialize AssetBank
-        assetBank = new AssetBank(admin, address(superGovernor));
+        assetBank = new AssetBank(address(superGovernor));
         console.log("AssetBank deployed");
 
         // Deploy and initialize IncentiveFund

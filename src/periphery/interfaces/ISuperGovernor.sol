@@ -250,6 +250,9 @@ interface ISuperGovernor {
     /// @notice The identifier of the role that grants access to incentive fund management functions
     function INCENTIVE_FUND_MANAGER() external view returns (bytes32);
 
+    /// @notice The identifier of the role that grants access to superasset management functions
+    function SUPERASSET_MANAGER() external view returns (bytes32);
+
 
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS

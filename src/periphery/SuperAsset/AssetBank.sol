@@ -13,19 +13,18 @@ import { IAssetBank } from "../interfaces/SuperAsset/IAssetBank.sol";
  */
 contract AssetBank is AccessControl, IAssetBank {
     using SafeERC20 for IERC20;
-    ISuperGovernor public immutable SUPER_GOVERNOR;
-
-    // --- Roles ---
-    // bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
+    ISuperGovernor public immutable _SUPER_GOVERNOR;
 
     // --- Constructor ---
-    constructor(address admin, address superGovernor) {
-        if (admin == address(0) || superGovernor == address(0)) revert ZERO_ADDRESS();
-        SUPER_GOVERNOR = ISuperGovernor(superGovernor);
+    constructor(address superGovernor) {
+        if (superGovernor == address(0)) revert ZERO_ADDRESS();
+        _SUPER_GOVERNOR = ISuperGovernor(superGovernor);
 
-        _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        // _grantRole(INCENTIVE_FUND_MANAGER, admin);
-        // _grantRole(_SUPER_GOVERNOR_ROLE, superGovernor);
+    }
+
+    /// @inheritdoc IAssetBank
+    function SUPER_GOVERNOR() external view returns (address) {
+        return address(_SUPER_GOVERNOR);
     }
 
     /// @inheritdoc IAssetBank
@@ -36,7 +35,7 @@ contract AssetBank is AccessControl, IAssetBank {
     )
         external
         override
-        onlyRole(SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER())
+        onlyRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER())
     {
         if (receiver == address(0) || tokenOut == address(0)) revert ZERO_ADDRESS();
         if (amount == 0) revert ZERO_AMOUNT();

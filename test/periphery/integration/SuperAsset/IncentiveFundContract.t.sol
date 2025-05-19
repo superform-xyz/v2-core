@@ -146,7 +146,7 @@ contract IncentiveFundContractTest is Helpers {
             makeAddr("prover") // prover
         );
 
-        assetBank = new AssetBank(admin, address(superGovernor));
+        assetBank = new AssetBank(address(superGovernor));
 
         incentiveFund = new IncentiveFundContract(admin, address(superGovernor));
         vm.stopPrank();

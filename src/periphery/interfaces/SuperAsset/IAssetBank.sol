@@ -21,6 +21,12 @@ interface IAssetBank {
     ) external;
 
     /**
+     * @notice Returns the address of the SuperGovernor contract
+     * @return The address of the SuperGovernor contract
+     */
+    function SUPER_GOVERNOR() external view returns (address);
+
+    /**
      * @notice Emitted when tokens are withdrawn during rebalancing
      * @param receiver Address that received the tokens
      * @param tokenOut Token that was withdrawn
