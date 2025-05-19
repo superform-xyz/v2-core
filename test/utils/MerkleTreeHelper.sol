@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity >=0.8.28;
 
-abstract contract MerkleTreeHelper {
+import { StdCheats } from "forge-std/StdCheats.sol";
+import { Helpers } from "./Helpers.sol";
+
+abstract contract MerkleTreeHelper is StdCheats, Helpers {
     mapping(uint64 chainId => bytes32[]) public hookLeavesPerChain;
     mapping(uint64 chainId => bytes32[][]) public hookProofsPerChain;
     mapping(uint64 chainId => bytes32) public hookRootPerChain;

@@ -15,7 +15,6 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 import { SuperMerkleValidator } from "../../../src/core/validators/SuperMerkleValidator.sol";
 import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
 
-import { MerkleReader } from "../../utils/merkle/helper/MerkleReader.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
@@ -24,21 +23,24 @@ import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } fr
 // Helper contract to test transient sig storage
 contract SignatureTransientTester {
     SuperMerkleValidator public validator;
-    
+
     constructor(address _validator) {
         validator = SuperMerkleValidator(_validator);
     }
-    
+
     function validateAndRetrieve(
         PackedUserOperation calldata userOp,
         bytes32 userOpHash
-    ) external returns (bytes memory) {
+    )
+        external
+        returns (bytes memory)
+    {
         validator.validateUserOp(userOp, userOpHash);
         return validator.retrieveSignatureData(userOp.sender);
     }
 }
 
-contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneModuleKit {
+contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
@@ -144,7 +146,8 @@ contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneM
         bytes memory _validSigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
 
         vm.prank(account);
-        bytes4 result = validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+        bytes4 result =
+            validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
 
         assertEq(result, VALID_SIGNATURE);
     }
@@ -165,7 +168,6 @@ contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneM
         vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
         validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
         vm.stopPrank();
-
     }
 
     function test_Validate_isValidSignatureWithSender_InvalidSignature() public {
@@ -181,7 +183,8 @@ contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneM
         bytes memory _validSigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
 
         vm.prank(account);
-        bytes4 result = validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+        bytes4 result =
+            validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
 
         assertEq(result, bytes4(""));
     }
@@ -221,10 +224,10 @@ contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneM
         bytes memory retrievedSig = validator.retrieveSignatureData(account);
         assertEq(retrievedSig, "");
     }
-    
+
     function test_ValidateUserOp_RetrieveSignatureData() public {
         SignatureTransientTester tester = new SignatureTransientTester(address(validator));
-        
+
         uint48 validUntil = uint48(block.timestamp + 1 hours);
 
         bytes32[] memory leaves = new bytes32[](1);
@@ -237,15 +240,12 @@ contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneM
         dstProofs[0] = keccak256(abi.encode("PROOF"));
         bytes memory sigData = abi.encode(validUntil, root, proof[0], dstProofs, signature);
         approveUserOp.userOp.signature = sigData;
-        
-        bytes memory retrievedSig = tester.validateAndRetrieve(
-            approveUserOp.userOp, 
-            approveUserOp.userOpHash
-        );
-        
+
+        bytes memory retrievedSig = tester.validateAndRetrieve(approveUserOp.userOp, approveUserOp.userOpHash);
+
         assertEq(retrievedSig, sigData, "Retrieved signature should match the provided signature");
     }
-    
+
     function test_ValidateUserOp_1LeafMerkleTree_InvalidProof() public {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
 
@@ -275,7 +275,8 @@ contract SuperMerkleValidatorTest is MerkleReader, MerkleTreeHelper, RhinestoneM
 
         approveUserOp.userOp.signature = _validSigData;
         vm.prank(account);
-        bytes4 result = validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
+        bytes4 result =
+            validator.isValidSignatureWithSender(account, approveUserOp.userOpHash, abi.encode(_validSigData));
         assertNotEq(result, VALID_SIGNATURE);
     }
 

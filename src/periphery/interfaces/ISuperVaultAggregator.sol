@@ -34,6 +34,13 @@ interface ISuperVaultAggregator {
         address proposedStrategist;
         uint256 strategistChangeEffectiveTime;
         address strategistChangeProposer;
+        // Hook validation data
+        bytes32 strategistHooksRoot;
+        // Hook root update proposal data
+        bytes32 proposedHooksRoot;
+        uint256 hooksRootEffectiveTime;
+        // Veto status
+        bool hooksRootVetoed;
     }
 
     /// @notice Parameters for creating a new SuperVault trio
@@ -153,6 +160,53 @@ interface ISuperVaultAggregator {
     /// @param newCost New upkeep cost per update
     event UpkeepCostUpdated(uint256 oldCost, uint256 newCost);
 
+    /// @notice Emitted when the global hooks Merkle root is being updated
+    /// @param root New root value
+    /// @param effectiveTime Timestamp when the root becomes effective
+    event GlobalHooksRootUpdateProposed(bytes32 indexed root, uint256 effectiveTime);
+
+    /// @notice Emitted when the global hooks Merkle root is updated
+    /// @param oldRoot Previous root value
+    /// @param newRoot New root value
+    event GlobalHooksRootUpdated(bytes32 indexed oldRoot, bytes32 newRoot);
+
+    /// @notice Emitted when a strategy-specific hooks Merkle root is updated
+    /// @param strategy Address of the strategy
+    /// @param oldRoot Previous root value (may be zero)
+    /// @param newRoot New root value
+    event StrategyHooksRootUpdated(address indexed strategy, bytes32 oldRoot, bytes32 newRoot);
+
+    /// @notice Emitted when a strategy-specific hooks Merkle root is proposed
+    /// @param strategy Address of the strategy
+    /// @param proposer Address of the account proposing the new root
+    /// @param root New root value
+    /// @param effectiveTime Timestamp when the root becomes effective
+    event StrategyHooksRootUpdateProposed(
+        address indexed strategy, address indexed proposer, bytes32 root, uint256 effectiveTime
+    );
+
+    /// @notice Emitted when a proposed global hooks root update is vetoed by SuperGovernor
+    /// @param vetoed Whether the root is being vetoed (true) or unvetoed (false)
+    /// @param root The root value affected
+    event GlobalHooksRootVetoStatusChanged(bool vetoed, bytes32 indexed root);
+
+    /// @notice Emitted when a proposed strategy hooks root update is vetoed by SuperGovernor
+    /// @param strategy Address of the strategy affected
+    /// @param vetoed Whether the root is being vetoed (true) or unvetoed (false)
+    /// @param root The root value affected
+    event StrategyHooksRootVetoStatusChanged(address indexed strategy, bool vetoed, bytes32 indexed root);
+
+    /// @notice Emitted when a proposed global hooks root update is vetoed by a guardian
+    /// @param guardian Address of the guardian who vetoed the update
+    /// @param root The vetoed root value
+    event GlobalHooksRootVetoed(address indexed guardian, bytes32 indexed root);
+
+    /// @notice Emitted when a proposed strategy hooks root update is vetoed by a guardian
+    /// @param guardian Address of the guardian who vetoed the update
+    /// @param strategy Address of the strategy whose root update was vetoed
+    /// @param root The vetoed root value
+    event StrategyHooksRootVetoed(address indexed guardian, address indexed strategy, bytes32 indexed root);
+
     /*///////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -188,6 +242,18 @@ interface ISuperVaultAggregator {
     error CANNOT_REMOVE_LAST_STRATEGIST();
     /// @notice Thrown when attempting to add a strategist that already exists
     error STRATEGIST_ALREADY_EXISTS();
+    /// @notice Thrown when there is no pending global hooks root change
+    error NO_PENDING_GLOBAL_ROOT_CHANGE();
+    /// @notice Thrown when attempting to execute an in-progress strategist change before timelock elapsed
+    error STRATEGIST_CHANGE_NOT_READY();
+    /// @notice Thrown when attempting to execute a hooks root change before timelock has elapsed
+    error ROOT_UPDATE_NOT_READY();
+    /// @notice Thrown when a provided hook fails Merkle proof validation
+    error HOOK_VALIDATION_FAILED();
+    /// @notice Thrown when a non-guardian tries to veto a root update
+    error NOT_A_GUARDIAN();
+    /// @notice Thrown when trying to veto a root update that doesn't exist
+    error NO_PENDING_ROOT_UPDATE();
     /// @notice Thrown when strategist is not found
     error STRATEGIST_NOT_FOUND();
     /// @notice Thrown when there is no pending strategist change proposal
@@ -196,6 +262,8 @@ interface ISuperVaultAggregator {
     error UNAUTHORIZED_CALLER();
     /// @notice Thrown when the timelock for a proposed change has not expired
     error TIMELOCK_NOT_EXPIRED();
+    /// @notice Thrown when an array length is invalid
+    error INVALID_ARRAY_LENGTH();
 
     /*//////////////////////////////////////////////////////////////
                             VAULT CREATION
@@ -287,6 +355,50 @@ interface ISuperVaultAggregator {
     /// @notice Executes a previously proposed change to the primary strategist after timelock
     /// @param strategy Address of the strategy
     function executeChangePrimaryStrategist(address strategy) external;
+
+    /*//////////////////////////////////////////////////////////////
+                        HOOK VALIDATION FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Proposes an update to the global hooks Merkle root
+    /// @dev Only callable by SUPER_GOVERNOR
+    /// @param newRoot New Merkle root for global hooks validation
+    function proposeGlobalHooksRoot(bytes32 newRoot) external;
+
+    /// @notice Executes a previously proposed global hooks root update after timelock period
+    /// @dev Can be called by anyone after the timelock period has elapsed
+    function executeGlobalHooksRootUpdate() external;
+
+    /// @notice Proposes an update to a strategy-specific hooks Merkle root
+    /// @dev Only callable by the main strategist for the strategy
+    /// @param strategy Address of the strategy
+    /// @param newRoot New Merkle root for strategy-specific hooks
+    function proposeStrategyHooksRoot(address strategy, bytes32 newRoot) external;
+
+    /// @notice Executes a previously proposed strategy hooks root update after timelock period
+    /// @dev Can be called by anyone after the timelock period has elapsed
+    /// @param strategy Address of the strategy whose root update to execute
+    function executeStrategyHooksRootUpdate(address strategy) external;
+
+    /// @notice Set veto status for the global hooks root
+    /// @dev Only callable by SuperGovernor
+    /// @param vetoed Whether to veto (true) or unveto (false) the global hooks root
+    function setGlobalHooksRootVetoStatus(bool vetoed) external;
+
+    /// @notice Set veto status for a strategy-specific hooks root
+    /// @dev Only callable by SuperGovernor
+    /// @param strategy Address of the strategy to affect
+    /// @param vetoed Whether to veto (true) or unveto (false) the strategy hooks root
+    function setStrategyHooksRootVetoStatus(address strategy, bool vetoed) external;
+
+    /// @notice Check if the global hooks root is currently vetoed
+    /// @return vetoed True if the global hooks root is vetoed
+    function isGlobalHooksRootVetoed() external view returns (bool vetoed);
+
+    /// @notice Check if a strategy hooks root is currently vetoed
+    /// @param strategy Address of the strategy to check
+    /// @return vetoed True if the strategy hooks root is vetoed
+    function isStrategyHooksRootVetoed(address strategy) external view returns (bool vetoed);
 
     /*//////////////////////////////////////////////////////////////
                               VIEW FUNCTIONS
@@ -387,4 +499,63 @@ interface ISuperVaultAggregator {
     /// @param index The index of the SuperVaultEscrow
     /// @return The SuperVaultEscrow address at the given index
     function superVaultEscrows(uint256 index) external view returns (address);
+
+    /// @notice Validates a hook against both global and strategy-specific Merkle roots
+    /// @param strategy Address of the strategy
+    /// @param hookArgs Encoded arguments for the hook operation
+    /// @param globalProof Merkle proof for the global root
+    /// @param strategyProof Merkle proof for the strategy-specific root
+    /// @return isValid True if the hook is valid against either root
+    function validateHook(
+        address strategy,
+        bytes calldata hookArgs,
+        bytes32[] calldata globalProof,
+        bytes32[] calldata strategyProof
+    )
+        external
+        view
+        returns (bool isValid);
+
+    /// @notice Batch validates multiple hooks against Merkle roots
+    /// @param strategy Address of the strategy
+    /// @param hooksArgs Array of encoded arguments for each hook operation
+    /// @param globalProofs Array of Merkle proofs for the global root
+    /// @param strategyProofs Array of Merkle proofs for the strategy-specific root
+    /// @return validHooks Array of booleans indicating which hooks are valid
+    function validateHooks(
+        address strategy,
+        bytes[] calldata hooksArgs,
+        bytes32[][] calldata globalProofs,
+        bytes32[][] calldata strategyProofs
+    )
+        external
+        view
+        returns (bool[] memory validHooks);
+
+    /// @notice Gets the current global hooks Merkle root
+    /// @return root The current global hooks Merkle root
+    function getGlobalHooksRoot() external view returns (bytes32 root);
+
+    /// @notice Gets the proposed global hooks root and effective time
+    /// @return root The proposed global hooks Merkle root
+    /// @return effectiveTime The timestamp when the proposed root becomes effective
+    function getProposedGlobalHooksRoot() external view returns (bytes32 root, uint256 effectiveTime);
+
+    /// @notice Checks if the global hooks root is active (timelock period has passed)
+    /// @return isActive True if the global hooks root is active
+    function isGlobalHooksRootActive() external view returns (bool);
+
+    /// @notice Gets the hooks Merkle root for a specific strategy
+    /// @param strategy Address of the strategy
+    /// @return root The strategy-specific hooks Merkle root
+    function getStrategyHooksRoot(address strategy) external view returns (bytes32 root);
+
+    /// @notice Gets the proposed strategy hooks root and effective time
+    /// @param strategy Address of the strategy
+    /// @return root The proposed strategy hooks Merkle root
+    /// @return effectiveTime The timestamp when the proposed root becomes effective
+    function getProposedStrategyHooksRoot(address strategy)
+        external
+        view
+        returns (bytes32 root, uint256 effectiveTime);
 }

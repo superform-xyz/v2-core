@@ -18,6 +18,7 @@ import { Mock4626Vault } from "../../../mocks/Mock4626Vault.sol";
 import { ISuperVaultStrategy } from "../../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { ERC7540YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { ISuperLedger } from "../../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperHookInspector } from "../../../../src/core/interfaces/ISuperHook.sol";
 
 contract SuperVaultTest is BaseSuperVaultTest {
     using Math for uint256;
@@ -1464,7 +1465,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         uint256 finalPendleVaultBalance;
         uint256 initialTotalValue;
         uint256 finalTotalValue;
-        Mock4626Vault newVault;
+        IERC4626 newVault;
         address pendleVault;
         // Price per share tracking
         uint256 initialFluidVaultPPS;
@@ -1540,14 +1541,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         _completeDepositFlow(vars.depositAmount);
 
         // add new vault as yield source
-        vars.newVault = new Mock4626Vault(address(asset), "New Vault", "NV");
-
-        //  -- add funds to the newVault to respect LARGE_DEPOSIT
-        _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);
-        asset.approve(address(vars.newVault), type(uint256).max);
-        vars.newVault.deposit(2 * LARGE_DEPOSIT, address(this));
-
-        vm.warp(block.timestamp + 20 days);
+        vars.newVault = IERC4626(0x797DD80692c3b2dAdabCe8e30C07fDE5307D48a9);
 
         // -- add it as a new yield source
         vm.startPrank(STRATEGIST);
@@ -1558,7 +1552,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
-        vars.initialPendleVaultBalance = vars.newVault.balanceOf(address(strategy));
+        vars.initialPendleVaultBalance = IERC4626(vars.newVault).balanceOf(address(strategy));
 
         console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
         console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
@@ -1615,11 +1609,19 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
 
         vm.startPrank(STRATEGIST);
+
+        bytes[] memory argsForProofs = new bytes[](3);
+        argsForProofs[0] = ISuperHookInspector(hooksAddresses[0]).inspect(hooksData[0]);
+        argsForProofs[1] = ISuperHookInspector(hooksAddresses[1]).inspect(hooksData[1]);
+        argsForProofs[2] = ISuperHookInspector(hooksAddresses[2]).inspect(hooksData[2]);
+
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 hooks: hooksAddresses,
                 hookCalldata: hooksData,
-                expectedAssetsOrSharesOut: new uint256[](3)
+                expectedAssetsOrSharesOut: new uint256[](3),
+                globalProofs: _getMerkleProofsForHooks(hooksAddresses, argsForProofs),
+                strategyProofs: new bytes32[][](3)
             })
         );
         // check new balances
