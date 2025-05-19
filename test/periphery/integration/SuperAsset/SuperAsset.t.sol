@@ -180,6 +180,22 @@ contract SuperAssetTest is Helpers {
         );
         console.log("SuperGovernor deployed");
 
+        // Setup roles for each contract
+        bytes32 incentiveFundManager = superGovernor.INCENTIVE_FUND_MANAGER();
+        // Grant roles to manager and contracts
+        superGovernor.grantRole(incentiveFundManager, admin);
+        assertTrue(superGovernor.hasRole(incentiveFundManager, admin));
+
+        bytes32 superAssetManager = superGovernor.SUPERASSET_MANAGER();
+        // Grant roles to manager and contracts
+        superGovernor.grantRole(superAssetManager, admin);
+        assertTrue(superGovernor.hasRole(superAssetManager, admin));
+
+        bytes32 superAssetStrategist = superGovernor.SUPERASSET_STRATEGIST();
+        // Grant roles to manager and contracts
+        superGovernor.grantRole(superAssetStrategist, admin);
+        assertTrue(superGovernor.hasRole(superAssetStrategist, admin));
+
         // Deploy and initialize AssetBank
         assetBank = new AssetBank(address(superGovernor));
         console.log("AssetBank deployed");
@@ -205,7 +221,7 @@ contract SuperAssetTest is Helpers {
         incentiveFund.initialize(address(superAsset), address(assetBank), address(superGovernor));
 
         // Setup roles and configuration
-        superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), admin);
+        // superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), admin);
         superAsset.setSuperOracle(address(oracle));
         superAsset.whitelistERC20(address(tokenIn));
         assertEq(superAsset.isSupportedERC20(address(tokenIn)), true, "Token In should be whitelisted");
@@ -215,12 +231,12 @@ contract SuperAssetTest is Helpers {
         assertEq(superAsset.isSupportedERC20(address(superAsset)), true, "SuperAsset should be whitelisted");
 
         // Grant necessary roles
-        bytes32 INCENTIVE_FUND_MANAGER = superGovernor.INCENTIVE_FUND_MANAGER();
-        incentiveFund.grantRole(INCENTIVE_FUND_MANAGER, manager);
-        superGovernor.grantRole(superGovernor.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
-        superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
-        superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
-        superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
+        // bytes32 INCENTIVE_FUND_MANAGER = superGovernor.INCENTIVE_FUND_MANAGER();
+        // incentiveFund.grantRole(INCENTIVE_FUND_MANAGER, manager);
+        // superGovernor.grantRole(superGovernor.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
+        // superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
+        // superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
+        // superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
 
         console.log("Start Minting");
 
@@ -279,11 +295,7 @@ contract SuperAssetTest is Helpers {
 
         // Non-manager cannot whitelist
         vm.startPrank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, superAsset.VAULT_MANAGER_ROLE()
-            )
-        );
+        vm.expectRevert(ISuperAsset.UNAUTHORIZED.selector);
         superAsset.whitelistERC20(newToken);
         vm.stopPrank();
 
@@ -301,11 +313,7 @@ contract SuperAssetTest is Helpers {
 
         // Non-admin cannot set oracle
         vm.startPrank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, superAsset.DEFAULT_ADMIN_ROLE()
-            )
-        );
+        vm.expectRevert(ISuperAsset.UNAUTHORIZED.selector);
         superAsset.setSuperOracle(newOracle);
         vm.stopPrank();
 
@@ -323,11 +331,7 @@ contract SuperAssetTest is Helpers {
 
         // Non-admin cannot set fees
         vm.startPrank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, superAsset.DEFAULT_ADMIN_ROLE()
-            )
-        );
+        vm.expectRevert(ISuperAsset.UNAUTHORIZED.selector);
         superAsset.setSwapFeeInPercentage(newFee);
         vm.stopPrank();
 

@@ -93,7 +93,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
 
     // --- Roles ---
     bytes32 public constant _INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
+    // Question: do we need one for each SuperAsset, so for SuperUSD, SuperBTC, ... ? 
+    // NOTE: Atm assuming we have only one SuperAsset
     bytes32 public constant _SUPERASSET_MANAGER = keccak256("SUPERASSET_MANAGER");
+    bytes32 public constant _SUPERASSET_STRATEGIST = keccak256("SUPERASSET_STRATEGIST");
 
 
     // Common contract keys
@@ -620,6 +623,11 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function SUPERASSET_MANAGER() external pure returns (bytes32) {
         return _SUPERASSET_MANAGER;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function SUPERASSET_STRATEGIST() external pure returns (bytes32) {
+        return _SUPERASSET_STRATEGIST;
     }
 
     /// @inheritdoc ISuperGovernor
