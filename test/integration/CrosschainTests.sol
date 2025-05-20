@@ -2,39 +2,39 @@
 pragma solidity 0.8.30;
 
 // Tests
-import {BaseTest} from "../BaseTest.t.sol";
-import {console2} from "forge-std/console2.sol";
+import { BaseTest } from "../BaseTest.t.sol";
+import { console2 } from "forge-std/console2.sol";
 
 // Superform
-import {ISuperExecutor} from "../../src/core/interfaces/ISuperExecutor.sol";
-import {IYieldSourceOracle} from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
-import {ISuperLedger, ISuperLedgerData} from "../../src/core/interfaces/accounting/ISuperLedger.sol";
-import {AcrossV3Adapter} from "../../src/core/adapters/AcrossV3Adapter.sol";
-import {DebridgeAdapter} from "../../src/core/adapters/DebridgeAdapter.sol";
-import {MockTargetExecutor} from "../mocks/MockTargetExecutor.sol";
-import {MockAcrossHook} from "../mocks/MockAcrossHook.sol";
-import {MockRegistry} from "../mocks/MockRegistry.sol";
+import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
+import { ISuperLedger, ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { AcrossV3Adapter } from "../../src/core/adapters/AcrossV3Adapter.sol";
+import { DebridgeAdapter } from "../../src/core/adapters/DebridgeAdapter.sol";
+import { MockTargetExecutor } from "../mocks/MockTargetExecutor.sol";
+import { MockAcrossHook } from "../mocks/MockAcrossHook.sol";
+import { MockRegistry } from "../mocks/MockRegistry.sol";
 
 // Vault Interfaces
-import {IERC7540} from "../../src/vendor/vaults/7540/IERC7540.sol";
-import {IDlnSource} from "../../src/vendor/bridges/debridge/IDlnSource.sol";
+import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
+import { IDlnSource } from "../../src/vendor/bridges/debridge/IDlnSource.sol";
 
-import {RestrictionManagerLike} from "../mocks/centrifuge/IRestrictionManagerLike.sol";
-import {IInvestmentManager} from "../mocks/centrifuge/IInvestmentManager.sol";
-import {IPoolManager} from "../mocks/centrifuge/IPoolManager.sol";
-import {ITranche} from "../mocks/centrifuge/ITranch.sol";
-import {IRoot} from "../mocks/centrifuge/IRoot.sol";
-import {ISuperDestinationExecutor} from "../../src/core/interfaces/ISuperDestinationExecutor.sol";
-import {IERC7484} from "../../src/vendor/nexus/IERC7484.sol";
+import { RestrictionManagerLike } from "../mocks/centrifuge/IRestrictionManagerLike.sol";
+import { IInvestmentManager } from "../mocks/centrifuge/IInvestmentManager.sol";
+import { IPoolManager } from "../mocks/centrifuge/IPoolManager.sol";
+import { ITranche } from "../mocks/centrifuge/ITranch.sol";
+import { IRoot } from "../mocks/centrifuge/IRoot.sol";
+import { ISuperDestinationExecutor } from "../../src/core/interfaces/ISuperDestinationExecutor.sol";
+import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
 
 // External
-import {UserOpData, AccountInstance} from "modulekit/ModuleKit.sol";
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {IValidator} from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
-import {IERC7579Account} from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
-import {BootstrapConfig, INexusBootstrap} from "../../src/vendor/nexus/INexusBootstrap.sol";
-import {MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR} from "modulekit/accounts/kernel/types/Constants.sol";
+import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
+import { BootstrapConfig, INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
+import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
 
 contract CrosschainTests is BaseTest {
     IERC7540 public vaultInstance7540ETH;
@@ -302,12 +302,12 @@ contract CrosschainTests is BaseTest {
         // PREPARE ETH DATA
         // create validators
         BootstrapConfig[] memory validators = new BootstrapConfig[](1);
-        validators[0] = BootstrapConfig({module: address(validatorOnETH), data: abi.encode(this)});
+        validators[0] = BootstrapConfig({ module: address(validatorOnETH), data: abi.encode(this) });
         // create executors
         BootstrapConfig[] memory executors = new BootstrapConfig[](1);
-        executors[0] = BootstrapConfig({module: address(superExecutorOnETH), data: ""});
+        executors[0] = BootstrapConfig({ module: address(superExecutorOnETH), data: "" });
         // create hooks
-        BootstrapConfig memory hook = BootstrapConfig({module: address(0), data: ""});
+        BootstrapConfig memory hook = BootstrapConfig({ module: address(0), data: "" });
         // create fallbacks
         BootstrapConfig[] memory fallbacks = new BootstrapConfig[](0);
         address[] memory attesters = new address[](1);
@@ -340,7 +340,7 @@ contract CrosschainTests is BaseTest {
         );
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: srcHooksAddresses, hooksData: srcHooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
         UserOpData memory srcUserOpData = _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
 
         // EXECUTE ETH
@@ -450,7 +450,7 @@ contract CrosschainTests is BaseTest {
                 allowedCancelBeneficiarySrc: "", //allowedCancelBeneficiarySrc
                 affiliateFee: "", //affiliateFee
                 referralCode: 0 //referralCode
-            })
+             })
         );
         srcHooksData[1] = debridgeData;
 
@@ -1091,7 +1091,7 @@ contract CrosschainTests is BaseTest {
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: srcHooksAddresses, hooksData: srcHooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
 
         UserOpData memory srcUserOpData = _getExecOpsWithValidator(
             instanceOnETH, superExecutorOnETH, abi.encode(entry), address(sourceValidatorOnETH)
@@ -1230,12 +1230,12 @@ contract CrosschainTests is BaseTest {
                 allowedCancelBeneficiarySrc: "", //allowedCancelBeneficiarySrc
                 affiliateFee: "", //affiliateFee
                 referralCode: 0 //referralCode
-            })
+             })
         );
         srcHooksData[5] = debridgeData;
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: srcHooksAddresses, hooksData: srcHooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
 
         UserOpData memory srcUserOpData = _getExecOpsWithValidator(
             instanceOnETH, superExecutorOnETH, abi.encode(entry), address(sourceValidatorOnETH)
@@ -1337,7 +1337,7 @@ contract CrosschainTests is BaseTest {
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: srcHooksAddresses, hooksData: srcHooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
 
         UserOpData memory srcUserOpData = _getExecOpsWithValidator(
             instanceOnETH, superExecutorOnETH, abi.encode(entry), address(sourceValidatorOnETH)
@@ -1764,10 +1764,13 @@ contract CrosschainTests is BaseTest {
         bytes[] memory hooksData,
         uint64 chainId,
         bool withValidator
-    ) internal returns (UserOpData memory) {
+    )
+        internal
+        returns (UserOpData memory)
+    {
         if (chainId == ETH) {
             ISuperExecutor.ExecutorEntry memory entryToExecute =
-                ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
             if (withValidator) {
                 return _getExecOpsWithValidator(
                     instanceOnETH, superExecutorOnETH, abi.encode(entryToExecute), address(sourceValidatorOnETH)
@@ -1776,7 +1779,7 @@ contract CrosschainTests is BaseTest {
             return _getExecOps(instanceOnETH, superExecutorOnETH, abi.encode(entryToExecute));
         } else if (chainId == OP) {
             ISuperExecutor.ExecutorEntry memory entryToExecute =
-                ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
             if (withValidator) {
                 return _getExecOpsWithValidator(
                     instanceOnOP, superExecutorOnOP, abi.encode(entryToExecute), address(sourceValidatorOnOP)
@@ -1785,7 +1788,7 @@ contract CrosschainTests is BaseTest {
             return _getExecOps(instanceOnOP, superExecutorOnOP, abi.encode(entryToExecute));
         } else {
             ISuperExecutor.ExecutorEntry memory entryToExecute =
-                ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
             if (withValidator) {
                 return _getExecOpsWithValidator(
                     instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute), address(sourceValidatorOnBase)
@@ -1801,10 +1804,8 @@ contract CrosschainTests is BaseTest {
 
         // BASE IS DST
         SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP + 1 days);
-        // Transfer users USDC to this contract so that balance checks are correct
-        uint256 amountToRemove = IERC20(underlyingBase_USDC).balanceOf(accountBase);
-        vm.prank(accountBase);
-        IERC20(underlyingBase_USDC).transfer(address(this), amountToRemove);
+        // Remove token from account for balance checks
+        deal(underlyingBase_USDC, accountBase, 0);
 
         bytes memory targetExecutorMessage;
         TargetExecutorMessage memory messageData;
