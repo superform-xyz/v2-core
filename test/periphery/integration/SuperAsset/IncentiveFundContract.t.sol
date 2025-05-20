@@ -16,6 +16,7 @@ import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.so
 import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import { MockAggregator } from "../../mocks/MockAggregator.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
+import { SuperAssetFactory, ISuperAssetFactory } from "../../../../src/periphery/SuperAsset/SuperAssetFactory.sol";
 
 contract IncentiveFundContractTest is Helpers {
     // --- Events ---
@@ -49,6 +50,7 @@ contract IncentiveFundContractTest is Helpers {
     MockAggregator public mockFeed5;
     MockAggregator public mockFeed6;
     IncentiveCalculationContract public icc;
+    SuperAssetFactory public factory;
     address public admin;
     address public manager;
     address public user;
@@ -135,6 +137,8 @@ contract IncentiveFundContractTest is Helpers {
         oracle.setFeedMaxStaleness(address(mockFeed6), 1 days);
         vm.stopPrank();
 
+        console.log("SuperOracle Deployed and Configured");
+
         vm.startPrank(admin);
         
         // Deploy SuperGovernor first
@@ -145,6 +149,8 @@ contract IncentiveFundContractTest is Helpers {
             makeAddr("treasury"), // treasury
             makeAddr("prover") // prover
         );
+        console.log("SuperGovernor deployed");
+
         // Setup roles for each contract
         bytes32 incentiveFundManager = superGovernor.INCENTIVE_FUND_MANAGER();
         // Grant roles to manager and contracts
@@ -157,24 +163,49 @@ contract IncentiveFundContractTest is Helpers {
         assertTrue(superGovernor.hasRole(superAssetManager, admin));
 
         assetBank = new AssetBank(address(superGovernor));
+        console.log("AssetBank deployed");
 
-        incentiveFund = new IncentiveFundContract(address(superGovernor));
+
+        // Create SuperAsset using factory
+        ISuperAssetFactory.AssetCreationParams memory params = ISuperAssetFactory.AssetCreationParams({
+            name: "SuperAsset",
+            symbol: "SA",
+            swapFeeInPercentage: 100, // 0.1% swap fee in
+            swapFeeOutPercentage: 100, // 0.1% swap fee out
+            superAssetManager: admin,
+            superAssetStrategist: admin,
+            incentiveFundManager: admin
+        });
+
+        factory = new SuperAssetFactory(address(superGovernor), address(icc), address(assetBank));
+        console.log("SuperAssetFactory deployed");
+
+        console.log("SuperAssetFactory deployed");
+        // incentiveFund = new IncentiveFundContract(address(superGovernor));
+
+        (address superAssetAddr, address incentiveFundAddr) = factory.createSuperAsset(params);
+        console.log("SuperAsset and IncentiveFund deployed via factory");
+        superAsset = SuperAsset(superAssetAddr);
+        incentiveFund = IncentiveFundContract(incentiveFundAddr);
+        console.log("SuperAsset and IncentiveFund deployed via factory");
+
+
         vm.stopPrank();
 
-        superAsset = new SuperAsset();
 
         vm.startPrank(admin);
         // Initialize SuperAsset
-        superAsset.initialize(
-            "SuperAsset", // name
-            "SA", // symbol
-            address(icc), // icc (IncentiveCalculationContract)
-            address(incentiveFund), // ifc (IncentiveFundContract)
-            address(assetBank), // assetBank
-            address(superGovernor),
-            100, // swapFeeInPercentage (0.1%)
-            100 // swapFeeOutPercentage (0.1%)
-        );
+        // superAsset.initialize(
+        //     "SuperAsset", // name
+        //     "SA", // symbol
+        //     address(icc), // icc (IncentiveCalculationContract)
+        //     address(incentiveFund), // ifc (IncentiveFundContract)
+        //     address(assetBank), // assetBank
+        //     address(superGovernor),
+        //     100, // swapFeeInPercentage (0.1%)
+        //     100 // swapFeeOutPercentage (0.1%)
+        // );
+        // console.log("SuperAsset Initialized");
 
         // Configure SuperAsset
         superAsset.setSuperOracle(address(oracle));
@@ -182,8 +213,8 @@ contract IncentiveFundContractTest is Helpers {
         superAsset.whitelistERC20(address(tokenOut));
 
         // Initialize IncentiveFundContract after SuperAsset is set up
-        incentiveFund.initialize(address(superAsset), address(assetBank), address(superGovernor));
-        console.log("Incentive Fund Initialized");
+        // incentiveFund.initialize(address(superAsset), address(assetBank), address(superGovernor), address(factory));
+        // console.log("Incentive Fund Initialized");
 
         vm.stopPrank();
 
@@ -234,7 +265,7 @@ contract IncentiveFundContractTest is Helpers {
 
     function test_Initialize_RevertIfAlreadyInitialized() public {
         vm.expectRevert(IIncentiveFundContract.ALREADY_INITIALIZED.selector);
-        incentiveFund.initialize(address(superAsset), address(assetBank), address(superGovernor));
+        incentiveFund.initialize(address(superAsset), address(assetBank), address(superGovernor), address(factory));
         vm.stopPrank();
     }
 
@@ -242,10 +273,10 @@ contract IncentiveFundContractTest is Helpers {
         vm.startPrank(admin);
         IncentiveFundContract newContract = new IncentiveFundContract(address(superGovernor));
         vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
-        newContract.initialize(address(0), address(assetBank), address(superGovernor));
+        newContract.initialize(address(0), address(assetBank), address(superGovernor), address(factory));
 
         vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
-        newContract.initialize(address(superAsset), address(0), address(superGovernor));
+        newContract.initialize(address(superAsset), address(0), address(superGovernor), address(factory));
         vm.stopPrank();
     }
 

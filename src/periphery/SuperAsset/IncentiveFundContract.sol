@@ -9,6 +9,7 @@ import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 import "../interfaces/SuperAsset/ISuperAsset.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
+import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
 
 
 /**
@@ -28,6 +29,7 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     ISuperAsset public superAsset;
     address public assetBank;
     ISuperGovernor public _SUPER_GOVERNOR;
+    ISuperAssetFactory public _SUPER_ASSET_FACTORY;
 
     // --- Constructor ---
     constructor(address _superGovernor) {
@@ -36,17 +38,19 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function initialize(address superAsset_, address assetBank_, address superGovernor_) external {
+    function initialize(address superAsset_, address assetBank_, address superGovernor_, address superAssetFactory_) external {
         // Ensure this can only be called once
         if (address(superAsset) != address(0)) revert ALREADY_INITIALIZED();
 
         if (superAsset_ == address(0)) revert ZERO_ADDRESS();
         if (assetBank_ == address(0)) revert ZERO_ADDRESS();
         if (superGovernor_ == address(0)) revert ZERO_ADDRESS();
+        if (superAssetFactory_ == address(0)) revert ZERO_ADDRESS();
 
         superAsset = ISuperAsset(superAsset_);
         assetBank = assetBank_;
         _SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
+        _SUPER_ASSET_FACTORY = ISuperAssetFactory(superAssetFactory_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -55,7 +59,8 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     /// @inheritdoc IIncentiveFundContract
     function setTokenInIncentive(address token) external {
         // Check if the caller has the INCENTIVE_FUND_MANAGER role
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (,,address manager) = _SUPER_ASSET_FACTORY.getRoles(address(superAsset));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         if (token == address(0)) revert ZERO_ADDRESS();
         tokenInIncentive = token;
         emit SettlementTokenInSet(token);
@@ -64,7 +69,8 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     /// @inheritdoc IIncentiveFundContract
     function setTokenOutIncentive(address token) external {
         // Check if the caller has the INCENTIVE_FUND_MANAGER role
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (,,address manager) = _SUPER_ASSET_FACTORY.getRoles(address(superAsset));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         if (token == address(0)) revert ZERO_ADDRESS();
         tokenOutIncentive = token;
         emit SettlementTokenOutSet(token);
@@ -72,7 +78,8 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
 
     /// @inheritdoc IIncentiveFundContract
     function payIncentive(address receiver, uint256 amountUSD) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (,,address manager) = _SUPER_ASSET_FACTORY.getRoles(address(superAsset));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         _validateInput(receiver, amountUSD);
         if (tokenOutIncentive == address(0)) revert TOKEN_OUT_NOT_SET();
 
@@ -94,7 +101,8 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
 
     /// @inheritdoc IIncentiveFundContract
     function takeIncentive(address sender, uint256 amountUSD) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (,,address manager) = _SUPER_ASSET_FACTORY.getRoles(address(superAsset));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         _validateInput(sender, amountUSD);
         if (tokenInIncentive == address(0)) revert TOKEN_IN_NOT_SET();
 
@@ -116,7 +124,8 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
 
     /// @inheritdoc IIncentiveFundContract
     function withdraw(address receiver, address tokenOut, uint256 amount) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (,,address manager) = _SUPER_ASSET_FACTORY.getRoles(address(superAsset));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         _validateInput(receiver, amount);
         if (tokenOut == address(0)) revert ZERO_ADDRESS();
 

@@ -96,7 +96,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
         );
 
         // Initialize IncentiveFund
-        IncentiveFundContract(incentiveFund).initialize(superAsset, assetBank, superGovernor);
+        IncentiveFundContract(incentiveFund).initialize(superAsset, assetBank, superGovernor, address(this));
 
         superAssetManager[superAsset] = params.superAssetManager;
         superAssetStrategist[superAsset] = params.superAssetStrategist;
