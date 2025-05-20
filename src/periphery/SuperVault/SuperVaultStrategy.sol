@@ -168,6 +168,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     function fulfillRedeemRequests(FulfillArgs calldata args) external nonReentrant {
         _isStrategist(msg.sender);
 
+        // Check if strategy is paused
+        if (_isPaused()) revert STRATEGY_PAUSED();
+
         uint256 hooksLength = args.hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
         uint256 controllersLength = args.controllers.length;
@@ -790,7 +793,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (assets == 0 || shares == 0) revert INVALID_AMOUNT();
         if (controller == address(0)) revert ZERO_ADDRESS();
 
-        // Check if global hooks root is vetoed, and revert if it is
+        // Check if strategy is paused or if global hooks root is vetoed
+        if (_isPaused()) revert STRATEGY_PAUSED();
         if (_getSuperVaultAggregator().isGlobalHooksRootVetoed()) {
             revert OPERATIONS_BLOCKED_BY_VETO();
         }
@@ -858,5 +862,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
     function _requireVault() internal view {
         if (msg.sender != _vault) revert ACCESS_DENIED();
+    }
+
+    /// @notice Checks if the strategy is currently paused
+    /// @dev This calls SuperVaultAggregator.isStrategyPaused to determine pause status
+    /// @return True if the strategy is paused, false otherwise
+    function _isPaused() internal view returns (bool) {
+        return _getSuperVaultAggregator().isStrategyPaused(address(this));
     }
 }
