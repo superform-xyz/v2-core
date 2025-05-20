@@ -13,7 +13,6 @@ interface ISuperYieldSourceOracle {
     /// @dev Helper struct to avoid stack too deep errors in getTVLByOwnerOfSharesMultipleQuote
     struct TVLMultipleQuoteVars {
         uint256 length;
-        // Removed IOracle registry as it's already a state variable
         address yieldSource;
         address[] owners;
         uint256 ownersLength;
