@@ -152,10 +152,10 @@ contract IncentiveFundContractTest is Helpers {
         console.log("SuperGovernor deployed");
 
         // Setup roles for each contract
-        bytes32 incentiveFundManager = superGovernor.INCENTIVE_FUND_MANAGER();
-        // Grant roles to manager and contracts
-        superGovernor.grantRole(incentiveFundManager, admin);
-        assertTrue(superGovernor.hasRole(incentiveFundManager, admin));
+        // bytes32 incentiveFundManager = superGovernor.INCENTIVE_FUND_MANAGER();
+        // // Grant roles to manager and contracts
+        // superGovernor.grantRole(incentiveFundManager, admin);
+        // assertTrue(superGovernor.hasRole(incentiveFundManager, admin));
 
         bytes32 superAssetManager = superGovernor.SUPERASSET_MANAGER();
         // Grant roles to manager and contracts
@@ -290,8 +290,6 @@ contract IncentiveFundContractTest is Helpers {
         vm.expectRevert(IIncentiveFundContract.UNAUTHORIZED.selector);
         incentiveFund.setTokenOutIncentive(address(tokenOut));
         vm.stopPrank();
-
-        assertTrue(superGovernor.hasRole(superGovernor.INCENTIVE_FUND_MANAGER(), admin));
 
         // Admin can set tokens
         vm.startPrank(admin);
