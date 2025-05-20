@@ -2,30 +2,30 @@
 pragma solidity 0.8.30;
 
 // testing
-import {BaseTest} from "../../../BaseTest.t.sol";
-import {TotalAssetHelper} from "./TotalAssetHelper.sol";
+import { BaseTest } from "../../../BaseTest.t.sol";
+import { TotalAssetHelper } from "./TotalAssetHelper.sol";
 
 // external
-import {console2} from "forge-std/console2.sol";
-import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { console2 } from "forge-std/console2.sol";
+import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
-import {ModuleKitHelpers, AccountInstance, UserOpData} from "modulekit/ModuleKit.sol";
+import { ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 
 // superform
-import {SuperVault} from "../../../../src/periphery/SuperVault/SuperVault.sol";
-import {SuperVaultStrategy} from "../../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
-import {SuperVaultEscrow} from "../../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
-import {SuperVaultAggregator} from "../../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
-import {SuperGovernor} from "../../../../src/periphery/SuperGovernor.sol";
-import {ISuperVaultStrategy} from "../../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
-import {ISuperExecutor} from "../../../../src/core/interfaces/ISuperExecutor.sol";
-import {FeeType} from "../../../../src/periphery/interfaces/ISuperGovernor.sol";
-import {ISuperVaultAggregator} from "../../../../src/periphery/interfaces/ISuperVaultAggregator.sol";
-import {IECDSAPPSOracle} from "../../../../src/periphery/interfaces/IECDSAPPSOracle.sol";
-import {MerkleReader} from "../../../utils/merkle/helper/MerkleReader.sol";
-import {ISuperHookInspector} from "../../../../src/core/interfaces/ISuperHook.sol";
+import { SuperVault } from "../../../../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultStrategy } from "../../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
+import { SuperVaultAggregator } from "../../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { SuperGovernor } from "../../../../src/periphery/SuperGovernor.sol";
+import { ISuperVaultStrategy } from "../../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
+import { ISuperExecutor } from "../../../../src/core/interfaces/ISuperExecutor.sol";
+import { FeeType } from "../../../../src/periphery/interfaces/ISuperGovernor.sol";
+import { ISuperVaultAggregator } from "../../../../src/periphery/interfaces/ISuperVaultAggregator.sol";
+import { IECDSAPPSOracle } from "../../../../src/periphery/interfaces/IECDSAPPSOracle.sol";
+import { MerkleReader } from "../../../utils/merkle/helper/MerkleReader.sol";
+import { ISuperHookInspector } from "../../../../src/core/interfaces/ISuperHook.sol";
 
 contract BaseSuperVaultTest is MerkleReader, BaseTest {
     using ModuleKitHelpers for *;
@@ -160,7 +160,10 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
      * @return strategyAddr The address of the deployed SuperVaultStrategy
      * @return escrowAddr The address of the deployed SuperVaultEscrow
      */
-    function _deployVault(address _asset, string memory _superVaultSymbol)
+    function _deployVault(
+        address _asset,
+        string memory _superVaultSymbol
+    )
         internal
         returns (address vaultAddr, address strategyAddr, address escrowAddr)
     {
@@ -175,7 +178,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
                 mainStrategist: STRATEGIST,
                 minUpdateInterval: 5,
                 maxStaleness: 300,
-                feeConfig: ISuperVaultStrategy.FeeConfig({performanceFeeBps: 1000, recipient: address(this)})
+                feeConfig: ISuperVaultStrategy.FeeConfig({ performanceFeeBps: 1000, recipient: address(this) })
             })
         );
 
@@ -219,7 +222,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(entry));
         executeOp(userOpData);
     }
@@ -264,7 +267,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         );
 
         ISuperExecutor.ExecutorEntry memory redeemEntry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: redeemHooksAddresses, hooksData: redeemHooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: redeemHooksAddresses, hooksData: redeemHooksData });
         UserOpData memory redeemUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(redeemEntry));
 
         if (shouldRevert) {
@@ -283,7 +286,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: claimHooksAddresses, hooksData: claimHooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
         UserOpData memory claimUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
     }
@@ -475,7 +478,9 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         uint256 allocationAmountVault2,
         address vault1,
         address vault2
-    ) internal {
+    )
+        internal
+    {
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
@@ -530,7 +535,9 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         address vault1,
         address vault2,
         bytes4 revertSelector
-    ) internal {
+    )
+        internal
+    {
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
@@ -589,7 +596,9 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         address vault2,
         uint256[] memory expectedAssetsOrSharesOut,
         bytes4 revertSelector
-    ) internal {
+    )
+        internal
+    {
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
@@ -644,7 +653,9 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         uint256 allocationAmountVault1,
         uint256 allocationAmountVault2,
         uint256 allocationAmountVault3
-    ) internal {
+    )
+        internal
+    {
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](3);
@@ -710,7 +721,9 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         uint256 redeemSharesVault2,
         address vault1,
         address vault2
-    ) internal {
+    )
+        internal
+    {
         address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
@@ -768,7 +781,9 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         address vault2,
         uint256[] memory expectedAssetsOrSharesOut,
         bytes4 revertSelector
-    ) internal {
+    )
+        internal
+    {
         address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](2);
@@ -1248,7 +1263,9 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         address sourceVault,
         address targetVault,
         uint256 assetsToMove
-    ) internal {
+    )
+        internal
+    {
         uint256 sharesToRedeem = IERC4626(sourceVault).convertToShares(assetsToMove);
 
         vm.startPrank(STRATEGIST);
@@ -1296,7 +1313,9 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         address targetVault,
         uint256 targetAssets,
         uint256 currentAssets
-    ) internal {
+    )
+        internal
+    {
         uint256 assetsToMove = targetAssets - currentAssets;
         uint256 sharesToRedeem = IERC4626(sourceVault).convertToShares(assetsToMove);
 
@@ -1338,7 +1357,11 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         vm.stopPrank();
     }
 
-    function _deriveSuperVaultFees(uint256 requestedShares, uint256 currentPricePerShare, uint256 precision)
+    function _deriveSuperVaultFees(
+        uint256 requestedShares,
+        uint256 currentPricePerShare,
+        uint256 precision
+    )
         internal
         returns (uint256, uint256)
     {
@@ -1373,7 +1396,10 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         state.accumulatorCostBasis += assets;
     }
 
-    function _deriveSuperVaultFeesFromAssets(uint256 currentAssets, uint256 historicalAssets)
+    function _deriveSuperVaultFeesFromAssets(
+        uint256 currentAssets,
+        uint256 historicalAssets
+    )
         internal
         view
         returns (uint256, uint256)
@@ -1411,51 +1437,102 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
     }
 
     /**
+     * @notice Structure to hold local variables for the _updateSuperVaultPPS function
+     * @dev This helps reduce stack depth issues and organize parameters
+     */
+    struct UpdatePPSVars {
+        uint256 totalSupplyAmount;
+        uint256 currentTotalAssets;
+        uint256 precision;
+        uint256 pps;
+        uint256 ppsStdev;
+        uint256 validatorSet;
+        uint256 totalValidators;
+        uint256 timestamp;
+        bytes32 messageHash;
+        bytes32 ethSignedMessageHash;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+        bytes signature;
+        bytes[] proofs;
+    }
+
+    /**
      * @notice Updates the PPS (Price Per Share) using TotalAssetHelper
      * @return pps The calculated and updated price per share value
      * @dev This function uses TotalAssetHelper to get totalAssets, calculates PPS,
      *      creates a signature, and updates the PPS through the ECDSAPPSOracle contract
      */
     function _updateSuperVaultPPS(address strategyAddr, address vault_) internal returns (uint256 pps) {
-        uint256 totalSupplyAmount = SuperVault(vault_).totalSupply();
+        UpdatePPSVars memory vars;
+        
+        vars.totalSupplyAmount = SuperVault(vault_).totalSupply();
 
         // Get current totalAssets from TotalAssetHelper
-        (uint256 currentTotalAssets,) = totalAssetHelper.totalAssets(strategyAddr);
-        uint256 precision = SuperVault(vault_).PRECISION();
+        (vars.currentTotalAssets,) = totalAssetHelper.totalAssets(strategyAddr);
+        vars.precision = SuperVault(vault_).PRECISION();
+        
         // Calculate price per share based on current totalAssets and totalSupply
-        if (totalSupplyAmount == 0) {
+        if (vars.totalSupplyAmount == 0) {
             // For first deposit, set initial PPS to 1 unit in price decimals
-            pps = precision;
+            vars.pps = vars.precision;
         } else {
             // Calculate current PPS in price decimals using total assets from helper
-            pps = currentTotalAssets.mulDiv(precision, totalSupplyAmount, Math.Rounding.Floor);
+            vars.pps = vars.currentTotalAssets.mulDiv(vars.precision, vars.totalSupplyAmount, Math.Rounding.Floor);
         }
 
         // Get the current timestamp for the signature
-        uint256 timestamp = block.timestamp;
+        vars.timestamp = block.timestamp;
 
-        // Create the message hash
-        bytes32 messageHash = keccak256(abi.encodePacked(strategyAddr, pps, timestamp));
+        // Set the additional parameters as requested: ppsStdev=0, validatorSet=1, totalValidators=1
+        vars.ppsStdev = 0;
+        vars.validatorSet = 1;
+        vars.totalValidators = 1;
+
+        // Create the message hash with all parameters
+        vars.messageHash = keccak256(
+            abi.encodePacked(
+                strategyAddr, 
+                vars.pps, 
+                vars.ppsStdev, 
+                vars.validatorSet, 
+                vars.totalValidators, 
+                vars.timestamp
+            )
+        );
 
         // Create the Ethereum signed message hash
-        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+        vars.ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", vars.messageHash));
 
         // Create signature (r, s, v) components using the constant KEEPER address
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(VALIDATOR_KEY, ethSignedMessageHash);
+        (vars.v, vars.r, vars.s) = vm.sign(VALIDATOR_KEY, vars.ethSignedMessageHash);
 
         // Combine the signature components into a single bytes signature
-        bytes memory signature = abi.encodePacked(r, s, v);
+        vars.signature = abi.encodePacked(vars.r, vars.s, vars.v);
 
         // Create an array of proofs with the signature
-        bytes[] memory proofs = new bytes[](1);
-        proofs[0] = signature;
+        vars.proofs = new bytes[](1);
+        vars.proofs[0] = vars.signature;
 
-        // Call updatePPS on the ECDSAPPSOracle
-        ecdsappsOracle.updatePPS(strategyAddr, proofs, pps, timestamp);
+        // Call updatePPS on the ECDSAPPSOracle with the new parameters
+        ecdsappsOracle.updatePPS(
+            IECDSAPPSOracle.UpdatePPSArgs({
+                strategy: strategyAddr,
+                proofs: vars.proofs,
+                pps: vars.pps,
+                ppsStdev: vars.ppsStdev,
+                validatorSet: vars.validatorSet,
+                totalValidators: vars.totalValidators,
+                timestamp: vars.timestamp
+            })
+        );
 
         // Log the updated PPS for debugging
-        console2.log("Updated PPS:", pps);
+        console2.log("Updated PPS for strategy", strategyAddr, vars.pps);
 
+        // Return the calculated PPS value
+        pps = vars.pps;
         return pps;
     }
 
