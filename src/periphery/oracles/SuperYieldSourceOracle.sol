@@ -13,9 +13,6 @@ import { ISuperYieldSourceOracle } from "../interfaces/ISuperYieldSourceOracle.s
 contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
     IOracle public immutable superOracle;
 
-    /// @dev Thrown when array lengths do not match in batch functions.
-    error ARRAY_LENGTH_MISMATCH();
-
     constructor(address superOracle_) {
         superOracle = IOracle(superOracle_);
     }
