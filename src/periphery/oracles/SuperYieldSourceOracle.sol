@@ -23,7 +23,6 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
                         GENERALIZED QUOTING FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperYieldSourceOracle
     function getPricePerShareQuote(
         address yieldSourceAddress,
@@ -208,4 +207,42 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
             tvlsQuote[i] = superOracle.getQuote(baseAmount, baseAddresses[i], quoteAddresses[i]);
         }
     }
+
+    /*//////////////////////////////////////////////////////////////
+                        YIELD SOURCE ORACLE FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperYieldSourceOracle
+    function getPricePerShareMultiple(
+        address[] memory yieldSourceAddresses,
+        address[] memory yieldSourceOracles,
+        address[] memory baseAddresses
+    )
+        external
+        view
+        returns (uint256[] memory pricesPerShare)
+    { }
+
+    /// @inheritdoc ISuperYieldSourceOracle
+    function getTVLByOwnerOfSharesMultiple(
+        address[] memory yieldSourceAddresses,
+        address[] memory yieldSourceOracles,
+        address[][] memory ownersOfShares,
+        address[] memory baseAddresses
+    )
+        external
+        view
+        returns (uint256[][] memory userTvls, uint256[] memory totalTvls)
+    { }
+
+    /// @inheritdoc ISuperYieldSourceOracle
+    function getTVLMultiple(
+        address[] memory yieldSourceAddresses,
+        address[] memory yieldSourceOracles
+    )
+        external
+        view
+        returns (uint256[] memory tvls)
+    { }
+    
+    
 }
