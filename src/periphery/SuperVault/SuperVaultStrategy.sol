@@ -2,12 +2,12 @@
 pragma solidity 0.8.30;
 
 // External
-import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
-import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {IERC20Metadata} from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import { ReentrancyGuard } from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
+import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // Core Interfaces
 import {
@@ -19,14 +19,14 @@ import {
     ISuperHookContextAware,
     ISuperHookInspector
 } from "../../core/interfaces/ISuperHook.sol";
-import {IYieldSourceOracle} from "../../core/interfaces/accounting/IYieldSourceOracle.sol";
+import { IYieldSourceOracle } from "../../core/interfaces/accounting/IYieldSourceOracle.sol";
 
 // Periphery Interfaces
-import {ISuperVault} from "../interfaces/ISuperVault.sol";
-import {HookDataDecoder} from "../../core/libraries/HookDataDecoder.sol";
-import {ISuperVaultStrategy} from "../interfaces/ISuperVaultStrategy.sol";
-import {ISuperGovernor, FeeType} from "../interfaces/ISuperGovernor.sol";
-import {ISuperVaultAggregator} from "../interfaces/ISuperVaultAggregator.sol";
+import { ISuperVault } from "../interfaces/ISuperVault.sol";
+import { HookDataDecoder } from "../../core/libraries/HookDataDecoder.sol";
+import { ISuperVaultStrategy } from "../interfaces/ISuperVaultStrategy.sol";
+import { ISuperGovernor, FeeType } from "../interfaces/ISuperGovernor.sol";
+import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
 
 /// @title SuperVaultStrategy
 /// @author Superform Labs
@@ -74,11 +74,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     // Yield source configuration
     // @dev todo whenever a new yield source is added we can move it to allowed target
     mapping(address source => YieldSource sourceConfig) private yieldSources;
-    mapping(address source => YieldSource sourceConfig) private asyncYieldSources;
     address[] private yieldSourcesList;
-    address[] private asyncYieldSourcesList;
-
-    // PPS is now managed by SuperVaultAggregator
 
     // --- Redeem Request State ---
     mapping(address controller => SuperVaultState state) private superVaultState;
@@ -215,11 +211,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     // @inheritdoc ISuperVaultStrategy
-    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate, bool isAsync)
-        external
-    {
+    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) external {
         _isPrimaryStrategist(msg.sender);
-        _manageYieldSource(source, oracle, actionType, activate, isAsync);
+        _manageYieldSource(source, oracle, actionType, activate);
     }
 
     // @inheritdoc ISuperVaultStrategy
@@ -227,9 +221,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         address[] calldata sources,
         address[] calldata oracles,
         uint8[] calldata actionTypes,
-        bool[] calldata activates,
-        bool[] calldata isAsyncs
-    ) external {
+        bool[] calldata activates
+    )
+        external
+    {
         _isPrimaryStrategist(msg.sender);
 
         uint256 length = sources.length;
@@ -237,10 +232,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (oracles.length != length) revert INVALID_ARRAY_LENGTH();
         if (actionTypes.length != length) revert INVALID_ARRAY_LENGTH();
         if (activates.length != length) revert INVALID_ARRAY_LENGTH();
-        if (isAsyncs.length != length) revert INVALID_ARRAY_LENGTH();
 
         for (uint256 i; i < length; ++i) {
-            _manageYieldSource(sources[i], oracles[i], actionTypes[i], activates[i], isAsyncs[i]);
+            _manageYieldSource(sources[i], oracles[i], actionTypes[i], activates[i]);
         }
     }
 
@@ -249,7 +243,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         _isPrimaryStrategist(msg.sender);
         if (performanceFeeBps > ONE_HUNDRED_PERCENT) revert INVALID_PERFORMANCE_FEE_BPS();
         if (recipient == address(0)) revert ZERO_ADDRESS();
-        proposedFeeConfig = FeeConfig({performanceFeeBps: performanceFeeBps, recipient: recipient});
+        proposedFeeConfig = FeeConfig({ performanceFeeBps: performanceFeeBps, recipient: recipient });
         feeConfigEffectiveTime = block.timestamp + ONE_WEEK;
         emit VaultFeeConfigProposed(performanceFeeBps, recipient, feeConfigEffectiveTime);
     }
@@ -318,7 +312,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
             YieldSource memory source = yieldSources[sourceAddress];
 
             sourcesInfo[i] =
-                YieldSourceInfo({sourceAddress: sourceAddress, oracle: source.oracle, isActive: source.isActive});
+                YieldSourceInfo({ sourceAddress: sourceAddress, oracle: source.oracle, isActive: source.isActive });
         }
 
         return sourcesInfo;
@@ -340,7 +334,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     }
 
     // @inheritdoc ISuperVaultStrategy
-    function previewPerformanceFee(address controller, uint256 sharesToRedeem)
+    function previewPerformanceFee(
+        address controller,
+        uint256 sharesToRedeem
+    )
         external
         view
         returns (uint256 totalFee, uint256 superformFee, uint256 recipientFee)
@@ -395,7 +392,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         address prevHook,
         bytes memory hookCalldata,
         uint256 expectedAssetsOrSharesOut
-    ) internal returns (address) {
+    )
+        internal
+        returns (address)
+    {
         ExecutionVars memory vars;
 
         vars.hookContract = ISuperHook(hook);
@@ -417,7 +417,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         vars.executions = vars.hookContract.build(prevHook, address(this), hookCalldata);
         for (uint256 j; j < vars.executions.length; ++j) {
             (vars.success,) =
-                vars.executions[j].target.call{value: vars.executions[j].value}(vars.executions[j].callData);
+                vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
             if (!vars.success) revert OPERATION_FAILED();
         }
         vars.hookContract.postExecute(prevHook, address(this), hookCalldata);
@@ -432,7 +432,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         bytes memory hookCalldata,
         uint256 expectedAssetOutput,
         uint256 currentPPS
-    ) internal returns (uint256) {
+    )
+        internal
+        returns (uint256)
+    {
         OutflowExecutionVars memory vars;
         vars.hookContract = ISuperHook(hook);
         vars.hookType = ISuperHookResult(hook).hookType();
@@ -454,7 +457,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         vars.executions = vars.hookContract.build(address(0), address(this), hookCalldata);
         for (uint256 j; j < vars.executions.length; ++j) {
             (vars.success,) =
-                vars.executions[j].target.call{value: vars.executions[j].value}(vars.executions[j].callData);
+                vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
             if (!vars.success) revert OPERATION_FAILED();
         }
 
@@ -475,7 +478,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         uint256 controllersLength,
         uint256 processedShares,
         uint256 currentPPS
-    ) internal {
+    )
+        internal
+    {
         uint256 totalRequestedAmount = 0;
         uint256[] memory controllerRequestedAmount = new uint256[](controllersLength);
         for (uint256 i; i < controllersLength; ++i) {
@@ -516,7 +521,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         SuperVaultState storage state,
         uint256 requestedShares,
         uint256 currentPricePerShare
-    ) private returns (uint256 currentAssets) {
+    )
+        private
+        returns (uint256 currentAssets)
+    {
         // Calculate cost basis based on requested shares
         uint256 historicalAssets = _calculateCostBasis(state, requestedShares);
         uint256 currentAssetsWithFees;
@@ -534,7 +542,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /// @notice Calculate cost basis for requested shares using weighted average approach
     /// @param state User's vault state
     /// @param requestedShares Shares being redeemed
-    function _calculateCostBasis(SuperVaultState storage state, uint256 requestedShares)
+    function _calculateCostBasis(
+        SuperVaultState storage state,
+        uint256 requestedShares
+    )
         private
         returns (uint256 costBasis)
     {
@@ -550,7 +561,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         return costBasis;
     }
 
-    function _processFees(uint256 requestedShares, uint256 currentPricePerShare, uint256 historicalAssets)
+    function _processFees(
+        uint256 requestedShares,
+        uint256 currentPricePerShare,
+        uint256 historicalAssets
+    )
         private
         returns (uint256 currentAssetsWithFees, uint256 currentAssets)
     {
@@ -571,7 +586,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /// @param currentAssetsWithFees Current value of shares in assets (not net of fees)
     /// @param historicalAssets Historical value of shares in assets
     /// @return currentAssets Current assets after fee deduction
-    function _calculateAndTransferFee(uint256 currentAssetsWithFees, uint256 historicalAssets)
+    function _calculateAndTransferFee(
+        uint256 currentAssetsWithFees,
+        uint256 historicalAssets
+    )
         private
         returns (uint256 currentAssets)
     {
@@ -610,7 +628,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         SuperVaultState storage state,
         uint256 requestedShares,
         uint256 currentAssetsWithFees
-    ) private {
+    )
+        private
+    {
         uint256 existingShares;
         uint256 existingAssets;
 
@@ -656,12 +676,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /// @param oracle Address of the oracle
     /// @param actionType Type of action: 0=Add, 1=UpdateOracle, 2=ToggleActivation
     /// @param activate Boolean flag for activation when actionType is 2
-    /// @param isAsync Boolean flag for async yield source
-    function _manageYieldSource(address source, address oracle, uint8 actionType, bool activate, bool isAsync)
-        internal
-    {
+    function _manageYieldSource(address source, address oracle, uint8 actionType, bool activate) internal {
         if (actionType == 0) {
-            _addYieldSource(source, oracle, isAsync);
+            _addYieldSource(source, oracle);
         } else if (actionType == 1) {
             _updateYieldSourceOracle(source, oracle);
         } else if (actionType == 2) {
@@ -671,15 +688,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         }
     }
 
-    function _addYieldSource(address source, address oracle, bool isAsync) internal {
+    function _addYieldSource(address source, address oracle) internal {
         if (source == address(0) || oracle == address(0)) revert ZERO_ADDRESS();
         if (yieldSources[source].oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
-        yieldSources[source] = YieldSource({oracle: oracle, isActive: true});
+        yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
         yieldSourcesList.push(source);
-        if (isAsync) {
-            asyncYieldSources[source] = YieldSource({oracle: oracle, isActive: true});
-            asyncYieldSourcesList.push(source);
-        }
+
         emit YieldSourceAdded(source, oracle);
     }
 
@@ -689,9 +703,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
         address oldOracle = yieldSource.oracle;
         yieldSource.oracle = oracle;
-        if (asyncYieldSources[source].oracle != address(0)) {
-            asyncYieldSources[source].oracle = oracle;
-        }
+
         emit YieldSourceOracleUpdated(source, oldOracle, oracle);
     }
 
@@ -701,7 +713,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (activate) {
             if (yieldSource.isActive) revert YIELD_SOURCE_ALREADY_ACTIVE();
             yieldSource.isActive = true;
-            if (asyncYieldSources[source].oracle != address(0)) asyncYieldSources[source].isActive = true;
             emit YieldSourceReactivated(source);
         } else {
             if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
@@ -709,7 +720,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
                 revert INVALID_AMOUNT();
             }
             yieldSource.isActive = false;
-            if (asyncYieldSources[source].oracle != address(0)) asyncYieldSources[source].isActive = false;
             emit YieldSourceDeactivated(source);
         }
     }
@@ -780,7 +790,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         uint256 averageWithdrawPrice,
         uint256 accumulatorShares,
         uint256 accumulatorCostBasis
-    ) private {
+    )
+        private
+    {
         ISuperVault(_vault).onRedeemClaimable(
             controller, assetsFulfilled, sharesFulfilled, averageWithdrawPrice, accumulatorShares, accumulatorCostBasis
         );
