@@ -172,9 +172,9 @@ contract SuperAssetTest is Helpers {
         superGovernor.grantRole(superGovernor.SUPER_GOVERNOR_ROLE(), admin);
         superGovernor.grantRole(superGovernor.GOVERNOR_ROLE(), admin);
         superGovernor.grantRole(superGovernor.BANK_MANAGER_ROLE(), admin);
-        superGovernor.grantRole(superGovernor.INCENTIVE_FUND_MANAGER(), admin);
-        superGovernor.grantRole(superGovernor.SUPERASSET_MANAGER(), admin);
-        superGovernor.grantRole(superGovernor.SUPERASSET_STRATEGIST(), admin);
+        // superGovernor.grantRole(superGovernor.INCENTIVE_FUND_MANAGER(), admin);
+        // superGovernor.grantRole(superGovernor.SUPERASSET_MANAGER(), admin);
+        // superGovernor.grantRole(superGovernor.SUPERASSET_STRATEGIST(), admin);
         factory.grantRole(factory.DEPLOYER_ROLE(), admin);
         vm.stopPrank();
         console.log("SuperGovernor Roles Granted");
