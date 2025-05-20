@@ -214,25 +214,39 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
     /// @inheritdoc ISuperYieldSourceOracle
     function getPricePerShareMultiple(
         address[] memory yieldSourceAddresses,
-        address[] memory yieldSourceOracles,
-        address[] memory baseAddresses
+        address[] memory yieldSourceOracles
     )
         external
         view
         returns (uint256[] memory pricesPerShare)
-    { }
+    { 
+        uint256 length = yieldSourceAddresses.length;
+        pricesPerShare = new uint256[](length);
+
+        for (uint256 i; i < length; ++i) {
+            IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
+            pricesPerShare[i] = yS.getPricePerShare(yieldSourceAddresses[i]);
+        }
+    }
 
     /// @inheritdoc ISuperYieldSourceOracle
     function getTVLByOwnerOfSharesMultiple(
         address[] memory yieldSourceAddresses,
         address[] memory yieldSourceOracles,
-        address[][] memory ownersOfShares,
-        address[] memory baseAddresses
+        address[] memory ownersOfShares
     )
         external
         view
-        returns (uint256[][] memory userTvls, uint256[] memory totalTvls)
-    { }
+        returns (uint256[] memory userTvls)
+    { 
+        uint256 length = yieldSourceAddresses.length;
+        userTvls = new uint256[](length);
+
+        for (uint256 i; i < length; ++i) {
+            IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
+            userTvls[i] = yS.getTVLByOwnerOfShares(yieldSourceAddresses[i], ownersOfShares[i]);
+        }
+    }
 
     /// @inheritdoc ISuperYieldSourceOracle
     function getTVLMultiple(
@@ -242,7 +256,15 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         external
         view
         returns (uint256[] memory tvls)
-    { }
+    { 
+        uint256 length = yieldSourceAddresses.length;
+        tvls = new uint256[](length);
+
+        for (uint256 i; i < length; ++i) {
+            IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
+            tvls[i] = yS.getTVL(yieldSourceAddresses[i]);
+        }
+    }
     
     
 }
