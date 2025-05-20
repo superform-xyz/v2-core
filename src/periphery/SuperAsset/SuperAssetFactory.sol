@@ -91,6 +91,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
             incentiveFund,
             assetBank, // Use single instance
             superGovernor,
+            address(this),
             params.swapFeeInPercentage,
             params.swapFeeOutPercentage
         );

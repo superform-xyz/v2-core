@@ -66,6 +66,7 @@ interface ISuperAsset is IERC20 {
      * @param ifc_ Address of the IncentiveFundContract
      * @param assetBank_ Address of the AssetBank contract
      * @param superGovernor_ Address of the SuperGovernor contract
+     * @param superAssetFactory_ Address of the SuperAssetFactory contract
      * @param swapFeeInPercentage_ Initial swap fee percentage for deposits
      * @param swapFeeOutPercentage_ Initial swap fee percentage for redemptions
      */
@@ -76,6 +77,7 @@ interface ISuperAsset is IERC20 {
         address ifc_,
         address assetBank_,
         address superGovernor_,
+        address superAssetFactory_,
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_
     ) external;

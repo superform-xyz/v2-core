@@ -14,7 +14,7 @@ import "../interfaces/ISuperOracle.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 
-
+import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
 
 /**
  * @author Superform Labs
@@ -54,6 +54,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     ISuperOracle public superOracle;
     ISuperGovernor public _SUPER_GOVERNOR;
+    ISuperAssetFactory public _SUPER_ASSET_FACTORY;
 
     uint256 public swapFeeInPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
     uint256 public swapFeeOutPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
@@ -100,6 +101,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         address ifc_,
         address assetBank_,
         address superGovernor_,
+        address superAssetFactory_,
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_
     ) external {
@@ -123,6 +125,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         tokenSymbol = symbol_;
 
         _SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
+        _SUPER_ASSET_FACTORY = ISuperAssetFactory(superAssetFactory_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -153,21 +156,24 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function setSwapFeeInPercentage(uint256 _feePercentage) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.SUPERASSET_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (, address manager,) = _SUPER_ASSET_FACTORY.getRoles(address(this));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         swapFeeInPercentage = _feePercentage;
     }
 
     /// @inheritdoc ISuperAsset
     function setSwapFeeOutPercentage(uint256 _feePercentage) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.SUPERASSET_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (, address manager,) = _SUPER_ASSET_FACTORY.getRoles(address(this));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         swapFeeOutPercentage = _feePercentage;
     }
 
     /// @inheritdoc ISuperAsset
     function setSuperOracle(address oracle) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.SUPERASSET_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (, address manager,) = _SUPER_ASSET_FACTORY.getRoles(address(this));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         if (oracle == address(0)) revert ZERO_ADDRESS();
         superOracle = ISuperOracle(oracle);
         emit SuperOracleSet(oracle);
@@ -175,7 +181,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function setWeight(address vault, uint256 weight) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.SUPERASSET_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (, address manager,) = _SUPER_ASSET_FACTORY.getRoles(address(this));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         if (vault == address(0)) revert ZERO_ADDRESS();
         if (!isSupportedUnderlyingVault[vault]) revert NOT_VAULT();
         weights[vault] = weight;
@@ -184,7 +191,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.SUPERASSET_STRATEGIST(), msg.sender)) revert UNAUTHORIZED();
+        (address strategist, ,) = _SUPER_ASSET_FACTORY.getRoles(address(this));
+        if (strategist != msg.sender) revert UNAUTHORIZED();
         if (tokens.length != allocations.length) revert INVALID_INPUT();
         
         uint256 totalAllocation;
@@ -202,7 +210,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function setTargetAllocation(address token, uint256 allocation) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.SUPERASSET_STRATEGIST(), msg.sender)) revert UNAUTHORIZED();
+        (address strategist, ,) = _SUPER_ASSET_FACTORY.getRoles(address(this));
+        if (strategist != msg.sender) revert UNAUTHORIZED();
         if (token == address(0)) revert ZERO_ADDRESS();
         if (!isSupportedUnderlyingVault[token] && !isSupportedERC20[token]) revert NOT_SUPPORTED_TOKEN();
 
@@ -215,7 +224,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function setEnergyToUSDExchangeRatio(uint256 newRatio) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.SUPERASSET_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (, address manager,) = _SUPER_ASSET_FACTORY.getRoles(address(this));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         energyToUSDExchangeRatio = newRatio;
         emit EnergyToUSDExchangeRatioSet(newRatio);
     }
@@ -325,7 +335,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function whitelistVault(address vault) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.SUPERASSET_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (, address manager,) = _SUPER_ASSET_FACTORY.getRoles(address(this));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         if (vault == address(0)) revert ZERO_ADDRESS();
         if (isSupportedUnderlyingVault[vault]) revert ALREADY_WHITELISTED();
         isSupportedUnderlyingVault[vault] = true;
@@ -335,7 +346,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function removeVault(address vault) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.SUPERASSET_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (, address manager,) = _SUPER_ASSET_FACTORY.getRoles(address(this));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         if (vault == address(0)) revert ZERO_ADDRESS();
         if (!isSupportedUnderlyingVault[vault]) revert NOT_WHITELISTED();
         isSupportedUnderlyingVault[vault] = false;
@@ -345,7 +357,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function whitelistERC20(address token) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.SUPERASSET_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (, address manager,) = _SUPER_ASSET_FACTORY.getRoles(address(this));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         if (token == address(0)) revert ZERO_ADDRESS();
         if (isSupportedERC20[token]) revert ALREADY_WHITELISTED();
         isSupportedERC20[token] = true;
@@ -355,7 +368,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function removeERC20(address token) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.SUPERASSET_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (, address manager,) = _SUPER_ASSET_FACTORY.getRoles(address(this));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         if (token == address(0)) revert ZERO_ADDRESS();
         if (!isSupportedERC20[token]) revert NOT_WHITELISTED();
         isSupportedERC20[token] = false;
