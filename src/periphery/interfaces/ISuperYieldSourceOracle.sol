@@ -4,9 +4,13 @@ pragma solidity ^0.8.30;
 /// @title ISuperYieldSourceOracle
 /// @notice Interface for SuperYieldSourceOracle, providing functions to quote yield source metrics in various assets.
 interface ISuperYieldSourceOracle {
-    error INVALID_BASE_ASSET();
-    /// @dev Helper struct to avoid stack too deep errors in getTVLByOwnerOfSharesMultipleQuote
+    /// @dev Thrown when the base asset is not valid for the yield source.
+    error INVALID_BASE_ASSET();    
 
+    /// @dev Thrown when array lengths do not match in batch functions.
+    error ARRAY_LENGTH_MISMATCH();
+    
+    /// @dev Helper struct to avoid stack too deep errors in getTVLByOwnerOfSharesMultipleQuote
     struct TVLMultipleQuoteVars {
         uint256 length;
         // Removed IOracle registry as it's already a state variable
