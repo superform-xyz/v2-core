@@ -218,28 +218,18 @@ interface ISuperVaultStrategy {
     /// @param oracle Address of the oracle (used for adding/updating)
     /// @param actionType Type of action: 0=Add, 1=UpdateOracle, 2=ToggleActivation
     /// @param activate Boolean flag for activation when actionType is 2
-    /// @param isAsync Boolean flag for async yield source
-    function manageYieldSource(
-        address source,
-        address oracle,
-        uint8 actionType,
-        bool activate,
-        bool isAsync
-    )
-        external;
+    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) external;
 
     /// @notice Batch manage multiple yield sources in a single transaction
     /// @param sources Array of yield source addresses
     /// @param oracles Array of oracle addresses (used for adding/updating)
     /// @param actionTypes Array of action types: 0=Add, 1=UpdateOracle, 2=ToggleActivation
     /// @param activates Array of boolean flags for activation when actionType is 2
-    /// @param isAsyncs Array of boolean flags for async yield sources
     function manageYieldSources(
         address[] calldata sources,
         address[] calldata oracles,
         uint8[] calldata actionTypes,
-        bool[] calldata activates,
-        bool[] calldata isAsyncs
+        bool[] calldata activates
     )
         external;
 

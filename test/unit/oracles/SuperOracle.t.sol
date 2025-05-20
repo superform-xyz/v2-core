@@ -2,12 +2,11 @@
 pragma solidity 0.8.30;
 
 // Superform
-
-import {SuperOracle} from "../../../src/periphery/oracles/SuperOracle.sol";
-import {ISuperOracle} from "../../../src/periphery/interfaces/ISuperOracle.sol";
-import {MockERC20} from "../../mocks/MockERC20.sol";
-import {Helpers} from "../../utils/Helpers.sol";
-import {MockAggregator} from "../../periphery/mocks/MockAggregator.sol";
+import { Helpers } from "../../utils/Helpers.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { MockAggregator } from "../../periphery/mocks/MockAggregator.sol";
+import { SuperOracle } from "../../../src/periphery/oracles/SuperOracle.sol";
+import { ISuperOracle } from "../../../src/periphery/interfaces/ISuperOracle.sol";
 
 contract SuperOracleTest is Helpers {
     bytes32 public constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
@@ -629,5 +628,243 @@ contract SuperOracleTest is Helpers {
         assertEq(btcTotalProviders, 1, "Total providers should be 1");
         assertEq(btcAvailableProviders, 1, "Only 1 provider should be available for BTC/USD");
         assertEq(btcQuoteAmount, 2e6, "Quote should be $20000 from the only BTC/USD provider");
+    }
+
+    // NEW TESTS BELOW
+
+    function test_RevertIfZeroArrayLength() public {
+        // Try to queue provider removal with empty array
+        bytes32[] memory emptyArray = new bytes32[](0);
+        vm.expectRevert(ISuperOracle.ZERO_ARRAY_LENGTH.selector);
+        superOracle.queueProviderRemoval(emptyArray);
+
+        // Try to set batch staleness with empty arrays
+        address[] memory emptyAddresses = new address[](0);
+        uint256[] memory emptyValues = new uint256[](0);
+        vm.expectRevert(ISuperOracle.ZERO_ARRAY_LENGTH.selector);
+        superOracle.setFeedMaxStalenessBatch(emptyAddresses, emptyValues);
+    }
+
+    function test_RevertOnExecuteWithNoPendingUpdate() public {
+        // Attempt to execute oracle update with no pending update
+        vm.expectRevert(ISuperOracle.NO_PENDING_UPDATE.selector);
+        superOracle.executeOracleUpdate();
+
+        // Attempt to execute provider removal with no pending removal
+        vm.expectRevert(ISuperOracle.NO_PENDING_UPDATE.selector);
+        superOracle.executeProviderRemoval();
+    }
+
+    function test_OnlyOwnerCanPerformAdminActions() public {
+        // Create a non-owner address
+        address nonOwner = address(0x1234);
+        vm.startPrank(nonOwner);
+
+        // Try to set max staleness (should revert)
+        vm.expectRevert();
+        superOracle.setMaxStaleness(1 days);
+
+        // Try to set feed max staleness (should revert)
+        vm.expectRevert();
+        superOracle.setFeedMaxStaleness(address(mockFeed1), 12 hours);
+
+        // Try to set feed max staleness batch (should revert)
+        address[] memory feeds = new address[](1);
+        feeds[0] = address(mockFeed1);
+        uint256[] memory values = new uint256[](1);
+        values[0] = 12 hours;
+        vm.expectRevert();
+        superOracle.setFeedMaxStalenessBatch(feeds, values);
+
+        // Try to queue oracle update (should revert)
+        address[] memory bases = new address[](1);
+        bases[0] = address(mockETH);
+        address[] memory quotes = new address[](1);
+        quotes[0] = address(mockUSD);
+        bytes32[] memory providers = new bytes32[](1);
+        providers[0] = NEW_PROVIDER;
+        address[] memory oracles = new address[](1);
+        oracles[0] = address(mockFeed4);
+        vm.expectRevert();
+        superOracle.queueOracleUpdate(bases, quotes, providers, oracles);
+
+        // Try to queue provider removal (should revert)
+        bytes32[] memory providersToRemove = new bytes32[](1);
+        providersToRemove[0] = PROVIDER_1;
+        vm.expectRevert();
+        superOracle.queueProviderRemoval(providersToRemove);
+
+        vm.stopPrank();
+    }
+
+    function test_DefaultFeedStalenessWhenZeroProvided() public {
+        // Set maxDefaultStaleness to a specific value
+        uint256 defaultStaleness = 3 days;
+        superOracle.setMaxStaleness(defaultStaleness);
+
+        // Set feed staleness to 0, which should default to maxDefaultStaleness
+        superOracle.setFeedMaxStaleness(address(mockFeed1), 0);
+
+        // Check that the feed staleness was set to the default
+        assertEq(
+            superOracle.feedMaxStaleness(address(mockFeed1)),
+            defaultStaleness,
+            "Feed staleness should default to maxDefaultStaleness"
+        );
+    }
+
+    function test_SingleElementArrayOracles() public {
+        // Test the constructor with just a single element
+        address[] memory bases = new address[](1);
+        bases[0] = address(mockBTC);
+
+        address[] memory quotes = new address[](1);
+        quotes[0] = address(mockUSD);
+
+        bytes32[] memory providers = new bytes32[](1);
+        providers[0] = NEW_PROVIDER;
+
+        address[] memory feeds = new address[](1);
+        feeds[0] = address(mockFeed4);
+
+        // Create a new oracle instance with single element arrays
+        SuperOracle newOracle = new SuperOracle(address(this), bases, quotes, providers, feeds);
+
+        // Verify the single provider was set
+        bytes32[] memory activeProviders = newOracle.getActiveProviders();
+        assertEq(activeProviders.length, 1, "Should have 1 active provider");
+        assertEq(activeProviders[0], NEW_PROVIDER, "Active provider should be NEW_PROVIDER");
+
+        // Verify we can get the quote from this provider
+        (uint256 quoteAmount,,,) = newOracle.getQuoteFromProvider(
+            1e8, // 1 BTC
+            address(mockBTC),
+            address(mockUSD),
+            NEW_PROVIDER
+        );
+
+        assertEq(quoteAmount, 2e6, "Quote should be $20000");
+    }
+
+    function test_StdDevWithSingleProvider() public {
+        // First remove two providers so we only have one
+        bytes32[] memory providersToRemove = new bytes32[](2);
+        providersToRemove[0] = PROVIDER_1;
+        providersToRemove[1] = PROVIDER_2;
+
+        superOracle.queueProviderRemoval(providersToRemove);
+        vm.warp(block.timestamp + 1 weeks + 1 seconds);
+        mockFeed3.setUpdatedAt(block.timestamp);
+        superOracle.executeProviderRemoval();
+
+        // Get quote with average provider, which should only use PROVIDER_3
+        (, uint256 deviation,,) =
+            superOracle.getQuoteFromProvider(1e18, address(mockETH), address(mockUSD), AVERAGE_PROVIDER);
+
+        // With only one provider, standard deviation should be zero
+        assertEq(deviation, 0, "Deviation should be zero with single provider");
+    }
+
+    function test_RevertIfQuoteForRemovedProvider() public {
+        // Remove PROVIDER_1
+        bytes32[] memory providersToRemove = new bytes32[](1);
+        providersToRemove[0] = PROVIDER_1;
+
+        superOracle.queueProviderRemoval(providersToRemove);
+        vm.warp(block.timestamp + 1 weeks + 1 seconds);
+        superOracle.executeProviderRemoval();
+
+        // When a provider is removed, its oracle mapping still exists but isProviderSet is false
+        // The getOracleAddress function checks isProviderSet and returns address(0) if false
+        address oracle = superOracle.getOracleAddress(address(mockETH), address(mockUSD), PROVIDER_1);
+        assertEq(oracle, address(0), "Oracle address should be address(0) for removed provider");
+
+        // When getting a quote, the oracle exists but its data is considered untrusted
+        vm.expectRevert(ISuperOracle.ORACLE_UNTRUSTED_DATA.selector);
+        superOracle.getQuoteFromProvider(1e18, address(mockETH), address(mockUSD), PROVIDER_1);
+    }
+
+    function test_ZeroAnswerInOracle() public {
+        // Set a zero price in one of the feeds
+        mockFeed1.setAnswer(0);
+
+        // Should revert when trying to get a quote directly from this provider
+        vm.expectRevert(ISuperOracle.ORACLE_UNTRUSTED_DATA.selector);
+        superOracle.getQuoteFromProvider(1e18, address(mockETH), address(mockUSD), PROVIDER_1);
+
+        // Average provider should exclude the provider with zero price
+        (uint256 quoteAmount,, uint256 totalProviders, uint256 availableProviders) =
+            superOracle.getQuoteFromProvider(1e18, address(mockETH), address(mockUSD), AVERAGE_PROVIDER);
+
+        // Average of provider 2 ($1000) and provider 3 ($900)
+        assertEq(quoteAmount, 0.95e6, "Average quote should be $950 excluding provider with zero price");
+        assertEq(totalProviders, 3, "Total providers should still be 3");
+        assertEq(availableProviders, 2, "Available providers should be 2 (1 is zero)");
+    }
+
+    function test_TransferOwnership() public {
+        address newOwner = address(0x1234);
+
+        // Transfer ownership
+        superOracle.transferOwnership(newOwner);
+
+        // Try to use a restricted function (should still work because ownership is not transferred yet)
+        superOracle.setMaxStaleness(1 days);
+
+        // Accept the ownership as the new owner
+        vm.startPrank(newOwner);
+        superOracle.acceptOwnership();
+        vm.stopPrank();
+
+        // Try to use a restricted function as the old owner (should revert)
+        vm.expectRevert();
+        superOracle.setMaxStaleness(12 hours);
+
+        // New owner should be able to use restricted functions
+        vm.startPrank(newOwner);
+        superOracle.setMaxStaleness(12 hours);
+        vm.stopPrank();
+    }
+
+    function test_HundredPercentDeviationCase() public {
+        // Create a scenario with extreme price differences
+        mockFeed1.setAnswer(2e8); // $2000
+        mockFeed2.setAnswer(1e7); // $100
+        mockFeed3.setAnswer(1e8); // $1000
+
+        // Get average quote with these extreme deviations
+        (, uint256 deviation,,) =
+            superOracle.getQuoteFromProvider(1e18, address(mockETH), address(mockUSD), AVERAGE_PROVIDER);
+
+        // Should have very high deviation
+        assertGt(deviation, 0, "Deviation should be > 0 with extreme price differences");
+    }
+
+    function test_OracleUpdateWithExistingProvider() public {
+        // Update an oracle address for an existing provider
+        address[] memory bases = new address[](1);
+        bases[0] = address(mockETH);
+
+        address[] memory quotes = new address[](1);
+        quotes[0] = address(mockUSD);
+
+        bytes32[] memory providers = new bytes32[](1);
+        providers[0] = PROVIDER_1; // Existing provider
+
+        address[] memory feeds = new address[](1);
+        feeds[0] = address(mockFeed4); // Different feed
+
+        // Queue and execute the update
+        superOracle.queueOracleUpdate(bases, quotes, providers, feeds);
+        vm.warp(block.timestamp + 1 weeks + 1 seconds);
+        mockFeed4.setUpdatedAt(block.timestamp);
+        superOracle.executeOracleUpdate();
+
+        // Verify that the oracle address was updated for the existing provider
+        (uint256 quoteAmount,,,) =
+            superOracle.getQuoteFromProvider(1e18, address(mockETH), address(mockUSD), PROVIDER_1);
+
+        // Should now return the quote from the new feed (mockFeed4)
+        assertEq(quoteAmount, 2e6, "Quote should be $2000 from the updated feed");
     }
 }

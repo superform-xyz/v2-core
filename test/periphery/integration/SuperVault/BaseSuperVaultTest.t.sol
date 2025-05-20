@@ -129,15 +129,13 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
             address(fluidVault),
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             0,
-            false, // addYieldSource
-            false
+            false // addYieldSource
         );
         strategy.manageYieldSource(
             address(aaveVault),
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             0,
-            false, // addYieldSource
-            false
+            false // addYieldSource
         );
 
         vm.stopPrank();
