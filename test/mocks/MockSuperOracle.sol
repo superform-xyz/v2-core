@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.30;
 
-import { IOracle } from "../../../src/vendor/awesome-oracles/IOracle.sol";
+import { IOracle } from "../../src/vendor/awesome-oracles/IOracle.sol";
 
 // Mock SuperOracle implementation for testing
 contract MockSuperOracle is IOracle {
