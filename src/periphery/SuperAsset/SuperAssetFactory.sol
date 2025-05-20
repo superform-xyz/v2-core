@@ -25,7 +25,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     address public immutable incentiveFundImplementation;
     // Single instances
     address public immutable assetBank;
-    address public immutable incentiveCalculationContract;
+    address public incentiveCalculationContract;
     address public immutable superGovernor;
 
     mapping(address superAsset => address superAssetStrategist) public superAssetStrategist;
@@ -38,13 +38,16 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor() {
+    constructor(address _superGovernor, address _incentiveCalculationContract, address _assetBank) {
+        require(_superGovernor != address(0), "SuperAssetFactory: zero address");
+        superGovernor = _superGovernor;
+
         superAssetImplementation = address(new SuperAsset());
         incentiveFundImplementation = address(new IncentiveFundContract(superGovernor));
 
         // Deploy single instances
-        assetBank = address(new AssetBank(superGovernor));
-        incentiveCalculationContract = address(new IncentiveCalculationContract());
+        assetBank = _assetBank;
+        incentiveCalculationContract = _incentiveCalculationContract;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(DEPLOYER_ROLE, msg.sender);
@@ -94,6 +97,11 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
 
         // Initialize IncentiveFund
         IncentiveFundContract(incentiveFund).initialize(superAsset, assetBank, superGovernor);
+
+        superAssetManager[superAsset] = params.superAssetManager;
+        superAssetStrategist[superAsset] = params.superAssetStrategist;
+        incentiveFundManager[superAsset] = params.incentiveFundManager;
+
 
         // Return addresses (using existing instances for ICC and AssetBank)
         // assetBank_ = assetBank;

@@ -17,6 +17,7 @@ import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.so
 import { Helpers } from "../../../utils/Helpers.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { SuperAssetFactory, ISuperAssetFactory } from "../../../../src/periphery/SuperAsset/SuperAssetFactory.sol";
 
 contract SuperAssetTest is Helpers {
     // --- Constants ---
@@ -38,6 +39,7 @@ contract SuperAssetTest is Helpers {
     SuperOracle public oracle;
     Mock4626Vault public tokenIn;
     Mock4626Vault public tokenOut;
+    SuperAssetFactory public factory;
     MockERC20 public underlyingToken1;
     MockERC20 public underlyingToken2;
     MockAggregator public mockFeedSuperAssetShares1;
@@ -66,9 +68,19 @@ contract SuperAssetTest is Helpers {
         user11 = makeAddr("user11");
 
         vm.startPrank(admin);
-        // Deploy and initialize SuperAsset
-        superAsset = new SuperAsset();
-        console.log("SuperAsset deployed");
+        // Deploy SuperGovernor first
+        superGovernor = new SuperGovernor(
+            admin, // superGovernor role
+            admin, // governor role
+            admin, // bankManager role
+            makeAddr("treasury"), // treasury
+            makeAddr("prover") // prover
+        );
+        console.log("SuperGovernor deployed");
+
+        // Deploy SuperAssetFactory first
+        // factory = new SuperAssetFactory(address(superGovernor));
+        // console.log("SuperAssetFactory deployed");
 
         // Deploy mock tokens and vault
         underlyingToken1 = new MockERC20("Underlying Token1", "UTKN1", 18);
@@ -149,12 +161,55 @@ contract SuperAssetTest is Helpers {
         feeds[7] = address(mockFeedSuperVault1Shares);
         feeds[8] = address(mockFeedSuperVault2Shares);
 
+
+        // Deploy factory and contracts
+        assetBank = new AssetBank(address(superGovernor));
+        factory = new SuperAssetFactory(address(superGovernor), address(icc), address(assetBank));
+        console.log("Factory and AssetBank deployed");
+
+        // Grant roles
+        vm.startPrank(admin);
+        superGovernor.grantRole(superGovernor.SUPER_GOVERNOR_ROLE(), admin);
+        superGovernor.grantRole(superGovernor.GOVERNOR_ROLE(), admin);
+        superGovernor.grantRole(superGovernor.BANK_MANAGER_ROLE(), admin);
+        superGovernor.grantRole(superGovernor.INCENTIVE_FUND_MANAGER(), admin);
+        superGovernor.grantRole(superGovernor.SUPERASSET_MANAGER(), admin);
+        superGovernor.grantRole(superGovernor.SUPERASSET_STRATEGIST(), admin);
+        factory.grantRole(factory.DEPLOYER_ROLE(), admin);
+        vm.stopPrank();
+        console.log("SuperGovernor Roles Granted");
+
+        // Create SuperAsset using factory
+        ISuperAssetFactory.AssetCreationParams memory params = ISuperAssetFactory.AssetCreationParams({
+            name: "SuperAsset",
+            symbol: "SA",
+            swapFeeInPercentage: 100, // 0.1% swap fee in
+            swapFeeOutPercentage: 100, // 0.1% swap fee out
+            superAssetManager: admin,
+            superAssetStrategist: admin,
+            incentiveFundManager: admin
+        });
+
+        vm.prank(admin);
+        (address superAssetAddr, address incentiveFundAddr) = factory.createSuperAsset(params);
+        console.log("SuperAsset and IncentiveFund deployed via factory");
+        superAsset = SuperAsset(superAssetAddr);
+        incentiveFund = IncentiveFundContract(incentiveFundAddr);
+        console.log("SuperAsset and IncentiveFund deployed via factory");
+
+        // Add SuperOracle Init
+        // NOTE: Initially superAsset was not defined, now it is because it gets instantiated with the factory
+        bases[6] = address(superAsset);
         // Deploy and configure oracle with regular providers only
+        console.log("Trying to deploy SuperOracle");
+        vm.prank(admin);
         oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
+        vm.prank(admin);
         oracle.setMaxStaleness(2 weeks);
         console.log("Oracle deployed");
 
         // Set staleness for each feed
+        vm.startPrank(admin);
         oracle.setFeedMaxStaleness(address(mockFeed1), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed2), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed3), 1 days);
@@ -164,65 +219,12 @@ contract SuperAssetTest is Helpers {
         oracle.setFeedMaxStaleness(address(mockFeedSuperAssetShares1), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeedSuperVault1Shares), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeedSuperVault2Shares), 1 days);
+        vm.stopPrank();
 
         console.log("Feed staleness set");
 
-        // Deploy contracts
+        // Set SuperAsset oracle
         vm.startPrank(admin);
-
-        // Deploy SuperGovernor first
-        superGovernor = new SuperGovernor(
-            admin, // superGovernor role
-            admin, // governor role
-            admin, // bankManager role
-            makeAddr("treasury"), // treasury
-            makeAddr("prover") // prover
-        );
-        console.log("SuperGovernor deployed");
-
-        // Setup roles for each contract
-        bytes32 incentiveFundManager = superGovernor.INCENTIVE_FUND_MANAGER();
-        // Grant roles to manager and contracts
-        superGovernor.grantRole(incentiveFundManager, admin);
-        assertTrue(superGovernor.hasRole(incentiveFundManager, admin));
-
-        bytes32 superAssetManager = superGovernor.SUPERASSET_MANAGER();
-        // Grant roles to manager and contracts
-        superGovernor.grantRole(superAssetManager, admin);
-        assertTrue(superGovernor.hasRole(superAssetManager, admin));
-
-        bytes32 superAssetStrategist = superGovernor.SUPERASSET_STRATEGIST();
-        // Grant roles to manager and contracts
-        superGovernor.grantRole(superAssetStrategist, admin);
-        assertTrue(superGovernor.hasRole(superAssetStrategist, admin));
-
-        // Deploy and initialize AssetBank
-        assetBank = new AssetBank(address(superGovernor));
-        console.log("AssetBank deployed");
-
-        // Deploy and initialize IncentiveFund
-        incentiveFund = new IncentiveFundContract(address(superGovernor));
-        console.log("IncentiveFund deployed");
-
-        // Initialize SuperAsset
-        console.log("About to initialize SuperAsset");
-        superAsset.initialize(
-            "SuperAsset", // name
-            "SA", // symbol
-            address(icc), // icc
-            address(incentiveFund), // ifc
-            address(assetBank), // assetBank
-            address(superGovernor),
-            100, // swapFeeInPercentage (0.1%)
-            100 // swapFeeOutPercentage (0.1%)
-        );
-        console.log("SuperAsset initialized");
-
-        // Initialize IncentiveFund after SuperAsset is initialized
-        incentiveFund.initialize(address(superAsset), address(assetBank), address(superGovernor));
-
-        // Setup roles and configuration
-        // superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), admin);
         superAsset.setSuperOracle(address(oracle));
         superAsset.whitelistERC20(address(tokenIn));
         assertEq(superAsset.isSupportedERC20(address(tokenIn)), true, "Token In should be whitelisted");
@@ -230,6 +232,7 @@ contract SuperAssetTest is Helpers {
         assertEq(superAsset.isSupportedERC20(address(tokenOut)), true, "Token Out should be whitelisted");
         superAsset.whitelistERC20(address(superAsset));
         assertEq(superAsset.isSupportedERC20(address(superAsset)), true, "SuperAsset should be whitelisted");
+        vm.stopPrank();
 
         console.log("Start Minting");
 
@@ -259,12 +262,16 @@ contract SuperAssetTest is Helpers {
     }
 
     // --- Test: Initialization ---
-    function test_Initialize() public view {
+    function test_Initialize1() public view {
         assertEq(superAsset.name(), "SuperAsset");
         assertEq(superAsset.symbol(), "SA");
+        console.log("Check 1");
         assertEq(superAsset.incentiveCalculationContract(), address(icc));
+        console.log("Check 2");
         assertEq(superAsset.incentiveFundContract(), address(incentiveFund));
+        console.log("Check 3");
         assertEq(superAsset.assetBank(), address(assetBank));
+        console.log("Check 6");
         assertEq(superAsset.swapFeeInPercentage(), 100);
         assertEq(superAsset.swapFeeOutPercentage(), 100);
     }
