@@ -342,11 +342,26 @@ contract SuperYieldSourceOracleTest is Helpers {
         yieldSourceOracles[0] = address(mockYieldSourceOracle);
         yieldSourceOracles[1] = address(mockYieldSourceOracle);
 
-        uint256[] memory prices = yieldSourceOracle.getPricePerShareMultiple(yieldSources, yieldSourceOracles);
+        uint256[] memory prices =
+            yieldSourceOracle.getPricePerShareMultiple(yieldSources, yieldSourceOracles, address(validAsset));
 
         assertEq(prices.length, 2, "Should return 2 prices");
         assertEq(prices[0], PRICE_PER_SHARE, "First price should match expected value");
         assertEq(prices[1], PRICE_PER_SHARE, "Second price should match expected value");
+    }
+
+    function test_getPricePerShareMultiple_InvalidBaseAsset() public {
+        address[] memory yieldSources = new address[](2);
+        address[] memory yieldSourceOracles = new address[](2);
+
+        yieldSources[0] = address(yieldSource);
+        yieldSources[1] = address(yieldSource);
+
+        yieldSourceOracles[0] = address(mockYieldSourceOracle);
+        yieldSourceOracles[1] = address(mockYieldSourceOracle);
+
+        vm.expectRevert(abi.encodeWithSelector(ISuperYieldSourceOracle.INVALID_BASE_ASSET.selector));
+        yieldSourceOracle.getPricePerShareMultiple(yieldSources, yieldSourceOracles, address(invalidAsset));
     }
 
     function test_getTVLByOwnerOfSharesMultiple() public view {
@@ -363,12 +378,31 @@ contract SuperYieldSourceOracleTest is Helpers {
         owners[0] = user1;
         owners[1] = user2;
 
-        uint256[] memory tvls =
-            yieldSourceOracle.getTVLByOwnerOfSharesMultiple(yieldSources, yieldSourceOracles, owners);
+        uint256[] memory tvls = yieldSourceOracle.getTVLByOwnerOfSharesMultiple(
+            yieldSources, yieldSourceOracles, owners, address(validAsset)
+        );
 
         assertEq(tvls.length, 2, "Should return 2 TVLs");
         assertEq(tvls[0], TVL_BY_OWNER, "First TVL should match expected value");
         assertEq(tvls[1], TVL_BY_OWNER, "Second TVL should match expected value");
+    }
+
+    function test_getTVLByOwnerOfSharesMultiple_InvalidBaseAsset() public {
+        address[] memory yieldSources = new address[](2);
+        address[] memory yieldSourceOracles = new address[](2);
+        address[] memory owners = new address[](2);
+
+        yieldSources[0] = address(yieldSource);
+        yieldSources[1] = address(yieldSource);
+
+        yieldSourceOracles[0] = address(mockYieldSourceOracle);
+        yieldSourceOracles[1] = address(mockYieldSourceOracle);
+
+        owners[0] = user1;
+        owners[1] = user2;
+
+        vm.expectRevert(abi.encodeWithSelector(ISuperYieldSourceOracle.INVALID_BASE_ASSET.selector));
+        yieldSourceOracle.getTVLByOwnerOfSharesMultiple(yieldSources, yieldSourceOracles, owners, address(invalidAsset));
     }
 
     function test_getTVLMultiple() public view {
@@ -381,10 +415,24 @@ contract SuperYieldSourceOracleTest is Helpers {
         yieldSourceOracles[0] = address(mockYieldSourceOracle);
         yieldSourceOracles[1] = address(mockYieldSourceOracle);
 
-        uint256[] memory tvls = yieldSourceOracle.getTVLMultiple(yieldSources, yieldSourceOracles);
+        uint256[] memory tvls = yieldSourceOracle.getTVLMultiple(yieldSources, yieldSourceOracles, address(validAsset));
 
         assertEq(tvls.length, 2, "Should return 2 TVLs");
         assertEq(tvls[0], TVL_AMOUNT, "First TVL should match expected value");
         assertEq(tvls[1], TVL_AMOUNT, "Second TVL should match expected value");
+    }
+
+    function test_getTVLMultiple_InvalidBaseAsset() public {
+        address[] memory yieldSources = new address[](2);
+        address[] memory yieldSourceOracles = new address[](2);
+
+        yieldSources[0] = address(yieldSource);
+        yieldSources[1] = address(yieldSource);
+
+        yieldSourceOracles[0] = address(mockYieldSourceOracle);
+        yieldSourceOracles[1] = address(mockYieldSourceOracle);
+
+        vm.expectRevert(abi.encodeWithSelector(ISuperYieldSourceOracle.INVALID_BASE_ASSET.selector));
+        yieldSourceOracle.getTVLMultiple(yieldSources, yieldSourceOracles, address(invalidAsset));
     }
 }

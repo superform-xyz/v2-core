@@ -211,17 +211,21 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
     /// @inheritdoc ISuperYieldSourceOracle
     function getPricePerShareMultiple(
         address[] memory yieldSourceAddresses,
-        address[] memory yieldSourceOracles
+        address[] memory yieldSourceOracles,
+        address baseAsset
     )
         external
         view
         returns (uint256[] memory pricesPerShare)
-    { 
+    {
         uint256 length = yieldSourceAddresses.length;
         pricesPerShare = new uint256[](length);
 
         for (uint256 i; i < length; ++i) {
             IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
+            if (!yS.isValidUnderlyingAsset(yieldSourceAddresses[i], baseAsset)) {
+                revert INVALID_BASE_ASSET();
+            }
             pricesPerShare[i] = yS.getPricePerShare(yieldSourceAddresses[i]);
         }
     }
@@ -230,17 +234,21 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
     function getTVLByOwnerOfSharesMultiple(
         address[] memory yieldSourceAddresses,
         address[] memory yieldSourceOracles,
-        address[] memory ownersOfShares
+        address[] memory ownersOfShares,
+        address baseAsset
     )
         external
         view
         returns (uint256[] memory userTvls)
-    { 
+    {
         uint256 length = yieldSourceAddresses.length;
         userTvls = new uint256[](length);
 
         for (uint256 i; i < length; ++i) {
             IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
+            if (!yS.isValidUnderlyingAsset(yieldSourceAddresses[i], baseAsset)) {
+                revert INVALID_BASE_ASSET();
+            }
             userTvls[i] = yS.getTVLByOwnerOfShares(yieldSourceAddresses[i], ownersOfShares[i]);
         }
     }
@@ -248,20 +256,22 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
     /// @inheritdoc ISuperYieldSourceOracle
     function getTVLMultiple(
         address[] memory yieldSourceAddresses,
-        address[] memory yieldSourceOracles
+        address[] memory yieldSourceOracles,
+        address baseAsset
     )
         external
         view
         returns (uint256[] memory tvls)
-    { 
+    {
         uint256 length = yieldSourceAddresses.length;
         tvls = new uint256[](length);
 
         for (uint256 i; i < length; ++i) {
             IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
+            if (!yS.isValidUnderlyingAsset(yieldSourceAddresses[i], baseAsset)) {
+                revert INVALID_BASE_ASSET();
+            }
             tvls[i] = yS.getTVL(yieldSourceAddresses[i]);
         }
     }
-    
-    
 }
