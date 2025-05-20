@@ -35,7 +35,7 @@ contract AssetBank is AccessControl, IAssetBank {
     )
         external
         override
-        onlyRole(_SUPER_GOVERNOR.INCENTIVE_FUND_MANAGER())
+        onlyRole(_SUPER_GOVERNOR.GUARDIAN_ROLE()) // TODO: Fix it with the right role
     {
         if (receiver == address(0) || tokenOut == address(0)) revert ZERO_ADDRESS();
         if (amount == 0) revert ZERO_AMOUNT();

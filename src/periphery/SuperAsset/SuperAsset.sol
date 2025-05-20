@@ -139,13 +139,15 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function mint(address to, uint256 amount) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.SUPERASSET_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (, address manager,) = _SUPER_ASSET_FACTORY.getRoles(address(this));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         _mint(to, amount);
     }
 
     /// @inheritdoc ISuperAsset
     function burn(address from, uint256 amount) external {
-        if (!_SUPER_GOVERNOR.hasRole(_SUPER_GOVERNOR.SUPERASSET_MANAGER(), msg.sender)) revert UNAUTHORIZED();
+        (, address manager,) = _SUPER_ASSET_FACTORY.getRoles(address(this));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         _burn(from, amount);
     }
 

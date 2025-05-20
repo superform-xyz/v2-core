@@ -93,11 +93,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bytes32 private constant _GUARDIAN_ROLE = keccak256("GUARDIAN_ROLE");
 
     // --- Roles ---
-    bytes32 public constant _INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
-    // Question: do we need one for each SuperAsset, so for SuperUSD, SuperBTC, ... ? 
-    // NOTE: Atm assuming we have only one SuperAsset
-    bytes32 public constant _SUPERASSET_MANAGER = keccak256("SUPERASSET_MANAGER");
-    bytes32 public constant _SUPERASSET_STRATEGIST = keccak256("SUPERASSET_STRATEGIST");
+    // TODO: Remove these roles here since they will be managed inside the SuperAssetFactory 
+    // bytes32 public constant _INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
+    // bytes32 public constant _SUPERASSET_MANAGER = keccak256("SUPERASSET_MANAGER");
+    // bytes32 public constant _SUPERASSET_STRATEGIST = keccak256("SUPERASSET_STRATEGIST");
 
 
     // Common contract keys
@@ -650,21 +649,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function BANK_MANAGER_ROLE() external pure returns (bytes32) {
         return _BANK_MANAGER_ROLE;
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function INCENTIVE_FUND_MANAGER() external pure returns (bytes32) {
-        return _INCENTIVE_FUND_MANAGER;
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function SUPERASSET_MANAGER() external pure returns (bytes32) {
-        return _SUPERASSET_MANAGER;
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function SUPERASSET_STRATEGIST() external pure returns (bytes32) {
-        return _SUPERASSET_STRATEGIST;
     }
 
     /// @inheritdoc ISuperGovernor

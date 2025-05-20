@@ -249,15 +249,6 @@ interface ISuperGovernor is IAccessControl {
     /// @notice The identifier of the role that grants access to bank management functions
     function BANK_MANAGER_ROLE() external view returns (bytes32);
 
-    /// @notice The identifier of the role that grants access to incentive fund management functions
-    function INCENTIVE_FUND_MANAGER() external view returns (bytes32);
-
-    /// @notice The identifier of the role that grants access to superasset management functions
-    function SUPERASSET_MANAGER() external view returns (bytes32);
-
-    /// @notice The identifier of the role that grants access to superasset strategist functions
-    function SUPERASSET_STRATEGIST() external view returns (bytes32);
-
     /// @notice The identifier of the role that grants access to guardian functions
     function GUARDIAN_ROLE() external view returns (bytes32);
 
