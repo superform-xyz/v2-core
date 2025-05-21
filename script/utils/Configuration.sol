@@ -27,6 +27,9 @@ abstract contract Configuration is Constants {
         address bundler;
         address treasury;
         address validator;
+        address superDeployer;
+        address prodMultisig;
+        address testDeployer;
         mapping(uint64 chainId => address acrossSpokePoolV3) acrossSpokePoolV3s;
         mapping(uint64 chainId => address debridgeDstDln) debridgeDstDln;
         mapping(uint64 chainId => address routers) aggregationRouters;
@@ -50,6 +53,8 @@ abstract contract Configuration is Constants {
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
+
+    // Common addresses
     function _setConfiguration(uint256 env, string memory saltNamespace) internal {
         SALT_NAMESPACE = bytes(saltNamespace);
         chainNames[MAINNET_CHAIN_ID] = ETHEREUM_KEY;
@@ -63,18 +68,24 @@ abstract contract Configuration is Constants {
         chainNames[OP_SEPOLIA_CHAIN_ID] = OP_SEPOLIA_KEY;
 
         // common configuration
-        if (env == 0) {
-            configuration.owner = PROD_MULTISIG;
-            configuration.paymaster = PROD_MULTISIG;
-            configuration.bundler = PROD_MULTISIG;
-            configuration.treasury = PROD_MULTISIG;
-            configuration.validator = PROD_MULTISIG;
+        if (env == 0 || env == 2) {
+            configuration.owner = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
+            configuration.paymaster = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
+            configuration.bundler = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
+            configuration.treasury = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
+            configuration.validator = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
+            configuration.superDeployer = 0xf5A04F50Bc5Fd84C2B429434D95357dc9ecCb3B0;
+            configuration.prodMultisig = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
+            configuration.testDeployer = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
         } else {
-            configuration.owner = TEST_DEPLOYER;
-            configuration.paymaster = TEST_DEPLOYER;
-            configuration.bundler = TEST_DEPLOYER;
-            configuration.treasury = TEST_DEPLOYER;
+            configuration.owner = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+            configuration.paymaster = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+            configuration.bundler = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+            configuration.treasury = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
             configuration.validator = 0xd95f4bc7733d9E94978244C0a27c1815878a59BB;
+            configuration.superDeployer = 0xcC6150c10Cd5DD89645ca116A96C6c1Ed4B7F25E;
+            configuration.prodMultisig = 0x76e9b0063546d97A9c2FDbC9682C5FA347B253BA;
+            configuration.testDeployer = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
         }
 
         // chain specific configuration

@@ -44,11 +44,6 @@ abstract contract Constants {
     uint64 internal constant BASE_SEPOLIA_CHAIN_ID = 84_532;
     uint64 internal constant OP_SEPOLIA_CHAIN_ID = 11_155_420;
 
-    // Common addresses
-    address internal constant SUPER_DEPLOYER = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
-    address internal constant PROD_MULTISIG = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
-    address internal constant TEST_DEPLOYER = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
-
     // Across Spoke Pool addresses per chain
     address internal constant ACROSS_SPOKE_POOL_MAINNET = 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5;
     address internal constant ACROSS_SPOKE_POOL_BASE = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;

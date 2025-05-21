@@ -61,6 +61,6 @@ wrap_comments = true
 path = "test/mocks/TransientStorageExecutor.sol"
 
 [etherscan]
-sepolia = {key = "${ETHERSCANV2_API_KEY_TEST}"}
-op_sepolia = {key = "${ETHERSCANV2_API_KEY_TEST}"}
-base_sepolia = {key = "${ETHERSCANV2_API_KEY_TEST}"}
+11155111 = {key = "${ETHERSCANV2_API_KEY_TEST}"}
+11155420 = {key = "${ETHERSCANV2_API_KEY_TEST}"}
+84532 = {key = "${ETHERSCANV2_API_KEY_TEST}"}
