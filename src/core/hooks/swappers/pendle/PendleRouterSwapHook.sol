@@ -199,7 +199,6 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
         address prevHook,
         address pendleMarket
     ) private view returns (bytes memory updatedTxData) {
-        // todo: this requires optimization so we don't do abi.encodeWithSelector but rather abi.encodePacked
         bytes4 selector = bytes4(data[0:4]);
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
             // skip selector
