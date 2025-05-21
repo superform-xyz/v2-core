@@ -38,9 +38,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
-    uint256 private constant ONE_HUNDRED_PERCENT = 10_000;
     uint256 private constant ONE_WEEK = 7 days;
-    uint256 private constant BPS_PRECISION = 10_000; // For PPS deviation check
+    uint256 private constant BPS_PRECISION = 10_000;
     uint256 private constant TOLERANCE_CONSTANT = 10 wei;
 
     // Slippage tolerance in BPS (1%)
@@ -57,6 +56,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     uint8 private _vaultDecimals;
 
     // Global configuration
+    uint256 private _maxPPSSlippage;
 
     // Fee configuration
     FeeConfig private feeConfig;
@@ -95,6 +95,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         PRECISION = 10 ** _vaultDecimals;
         superGovernor = ISuperGovernor(superGovernor_);
         feeConfig = feeConfig_;
+        _maxPPSSlippage = 500; // 500 bps = 5% todo: is this an acceptable starting value
 
         emit Initialized(_vault, superGovernor_);
     }
@@ -244,7 +245,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     // @inheritdoc ISuperVaultStrategy
     function proposeVaultFeeConfigUpdate(uint256 performanceFeeBps, address recipient) external {
         _isPrimaryStrategist(msg.sender);
-        if (performanceFeeBps > ONE_HUNDRED_PERCENT) revert INVALID_PERFORMANCE_FEE_BPS();
+        if (performanceFeeBps > BPS_PRECISION) revert INVALID_PERFORMANCE_FEE_BPS();
         if (recipient == address(0)) revert ZERO_ADDRESS();
         proposedFeeConfig = FeeConfig({ performanceFeeBps: performanceFeeBps, recipient: recipient });
         feeConfigEffectiveTime = block.timestamp + ONE_WEEK;
@@ -259,6 +260,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         delete proposedFeeConfig;
         feeConfigEffectiveTime = 0;
         emit VaultFeeConfigUpdated(feeConfig.performanceFeeBps, feeConfig.recipient);
+    }
+
+    // @inheritdoc ISuperVaultStrategy
+    function updateMaxPPSSlippage(uint256 maxSlippageBps) external {
+        _isPrimaryStrategist(msg.sender);
+        if (maxSlippageBps > BPS_PRECISION) revert INVALID_MAX_SLIPPAGE_BPS();
+        _maxPPSSlippage = maxSlippageBps;
+        emit MaxPPSSlippageUpdated(maxSlippageBps);
     }
 
     // @inheritdoc ISuperVaultStrategy
@@ -375,7 +384,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee using revenueShare from SuperGovernor
                 superformFee = totalFee.mulDiv(
-                    superGovernor.getFee(FeeType.SUPER_VAULT_PERFORMANCE_FEE), ONE_HUNDRED_PERCENT, Math.Rounding.Floor
+                    superGovernor.getFee(FeeType.SUPER_VAULT_PERFORMANCE_FEE), BPS_PRECISION, Math.Rounding.Floor
                 );
                 recipientFee = totalFee - superformFee;
             }
@@ -497,12 +506,25 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         for (uint256 i; i < controllersLength; ++i) {
             SuperVaultState storage state = superVaultState[controllers[i]];
 
+            // Check for PPS slippage if there's a recorded request PPS and max slippage is set
+            if (state.averageRequestPPS > 0 && _maxPPSSlippage > 0) {
+                uint256 averageRequestPPS = state.averageRequestPPS;
+                // Calculate the percentage decrease from request PPS to current PPS
+                if (currentPPS < averageRequestPPS) {
+                    uint256 decrease =
+                        ((averageRequestPPS - currentPPS).mulDiv(BPS_PRECISION, averageRequestPPS, Math.Rounding.Floor));
+                    // If decrease exceeds maximum allowed slippage, revert
+                    if (decrease > _maxPPSSlippage) revert SLIPPAGE_EXCEEDED();
+                }
+            }
+
             uint256 currentAssets =
                 _calculateHistoricalAssetsAndProcessFees(state, controllerRequestedAmount[i], currentPPS);
 
             // Update user state, no partial redeems allowed
             state.pendingRedeemRequest -= controllerRequestedAmount[i];
             state.maxWithdraw += currentAssets;
+            state.averageRequestPPS = 0; // Reset PPS value after fulfillment
 
             // Call vault callback
             _onRedeemClaimable(
@@ -604,7 +626,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee using revenueShare from SuperGovernor
                 uint256 superformFee = totalFee.mulDiv(
-                    superGovernor.getFee(FeeType.SUPER_VAULT_PERFORMANCE_FEE), ONE_HUNDRED_PERCENT, Math.Rounding.Floor
+                    superGovernor.getFee(FeeType.SUPER_VAULT_PERFORMANCE_FEE), BPS_PRECISION, Math.Rounding.Floor
                 );
                 uint256 recipientFee = totalFee - superformFee;
 
@@ -821,8 +843,30 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (shares == 0) revert INVALID_AMOUNT();
         if (controller == address(0)) revert ZERO_ADDRESS();
         SuperVaultState storage state = superVaultState[controller];
-        if (state.pendingRedeemRequest > 0) revert ASYNC_REQUEST_BLOCKING();
-        state.pendingRedeemRequest = shares;
+
+        // Get current PPS from aggregator to use as baseline for slippage protection
+        ISuperVaultAggregator aggregator = _getSuperVaultAggregator();
+        uint256 currentPPS = aggregator.getPPS(address(this));
+        if (currentPPS == 0) revert INVALID_PPS();
+
+        // Calculate weighted average of PPS if there's an existing request
+        if (state.pendingRedeemRequest > 0) {
+            // Calculate weighted average of PPS based on share amounts
+            uint256 existingSharesInRequest = state.pendingRedeemRequest;
+            uint256 newTotalSharesInRequest = existingSharesInRequest + shares;
+
+            // Use weighted average formula: (existingShares * existingPPS + newShares * currentPPS) / totalShares
+            state.averageRequestPPS =
+                ((existingSharesInRequest * state.averageRequestPPS) + (shares * currentPPS)) / newTotalSharesInRequest;
+
+            // Update total shares
+            state.pendingRedeemRequest = newTotalSharesInRequest;
+        } else {
+            // First request for this controller
+            state.pendingRedeemRequest = shares;
+            state.averageRequestPPS = currentPPS;
+        }
+
         emit RedeemRequestPlaced(controller, controller, shares);
     }
 
