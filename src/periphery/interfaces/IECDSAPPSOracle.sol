@@ -48,19 +48,19 @@ interface IECDSAPPSOracle {
     /// @param timestamp Timestamp when the value was generated
     /// @param sender Address that submitted the update
     event PPSValidated(
-        address indexed strategy, 
-        uint256 pps, 
+        address indexed strategy,
+        uint256 pps,
         uint256 ppsStdev,
         uint256 validatorSet,
         uint256 totalValidators,
-        uint256 timestamp, 
+        uint256 timestamp,
         address indexed sender
     );
 
     /*//////////////////////////////////////////////////////////////
                             STRUCTS
     //////////////////////////////////////////////////////////////*/
-    
+
     /// @notice Arguments for updating PPS for a single strategy
     /// @param strategy Address of the strategy
     /// @param proofs Array of cryptographic proofs of the PPS value from different validators
@@ -68,7 +68,7 @@ interface IECDSAPPSOracle {
     /// @param ppsStdev Standard deviation of the price-per-share
     /// @param validatorSet Number of validators who calculated this PPS
     /// @param totalValidators Total number of validators in the network
-    /// @param timestamp Timestamp when the value was generated
+    /// @param timestamp The time and therefore the blockchain(s) state(s) (plural important) this PPS refers to
     struct UpdatePPSArgs {
         address strategy;
         bytes[] proofs;
@@ -86,7 +86,7 @@ interface IECDSAPPSOracle {
     /// @param ppsStdevs Array of standard deviations of price-per-share values
     /// @param validatorSets Array of numbers of validators who calculated each PPS
     /// @param totalValidators Array of total number of validators in the network for each update
-    /// @param timestamps Array of timestamps when values were generated
+    /// @param timestamps The time and therefore the blockchain(s) state(s) (plural important) this PPS refers to
     struct BatchUpdatePPSArgs {
         address[] strategies;
         bytes[][] proofsArray;
