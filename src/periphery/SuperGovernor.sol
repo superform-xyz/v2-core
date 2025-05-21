@@ -157,7 +157,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperGovernor
     function setAddress(bytes32 key, address value) external onlyRole(_SUPER_GOVERNOR_ROLE) {
         if (value == address(0)) revert INVALID_ADDRESS();
@@ -180,7 +179,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /*//////////////////////////////////////////////////////////////
                         SUPER VAULT AGGREGATOR MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperGovernor
     function changePrimaryStrategist(address strategy_, address newStrategist_)
         external
@@ -457,7 +455,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /*//////////////////////////////////////////////////////////////
                       UPKEEP COST MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-
+    /// @inheritdoc ISuperGovernor
     function proposeUpkeepCostPerUpdate(uint256 newCost_) external onlyRole(_SUPER_GOVERNOR_ROLE) {
         _proposedUpkeepCostPerUpdate = newCost_;
         _upkeepCostEffectiveTime = block.timestamp + TIMELOCK;
