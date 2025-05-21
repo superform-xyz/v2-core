@@ -10,10 +10,6 @@ import "../interfaces/SuperAsset/ISuperAsset.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
 
-
-import "forge-std/console.sol";
-
-
 /**
  * @author Superform Labs
  * @title Incentive Fund Contract
@@ -31,12 +27,6 @@ contract IncentiveFundContract is IIncentiveFundContract {
     ISuperAsset public superAsset;
     ISuperGovernor public _SUPER_GOVERNOR;
     ISuperAssetFactory public _SUPER_ASSET_FACTORY;
-
-    // --- Constructor ---
-    // constructor() {
-    //     if (_superGovernor == address(0)) revert ZERO_ADDRESS();
-    //     _SUPER_GOVERNOR = ISuperGovernor(_superGovernor);
-    // }
 
     /// @inheritdoc IIncentiveFundContract
     function initialize(address _superGovernor, address superAsset_) external {
@@ -56,10 +46,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IIncentiveFundContract
     function setTokenInIncentive(address token) external {
-        console.log("setTokenInIncentive()");
-        console.log("_SUPER_GOVERNOR = ", address(_SUPER_GOVERNOR));
         ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        console.log("Factory = ", address(factory));
         // Check if the caller has the INCENTIVE_FUND_MANAGER role
         address manager = factory.getIncentiveFundManager(address(superAsset));
         if (manager != msg.sender) revert UNAUTHORIZED();
