@@ -44,7 +44,7 @@ type PackedUserOperation struct {
 
 // SuperMerkleValidatorMetaData contains all meta data concerning the SuperMerkleValidator contract.
 var SuperMerkleValidatorMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"function\",\"name\":\"getAccountOwner\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isInitialized\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isModuleType\",\"inputs\":[{\"name\":\"typeID\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"isValidSignatureWithSender\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"dataHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"namespace\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"onInstall\",\"inputs\":[{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"onUninstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"validateUserOp\",\"inputs\":[{\"name\":\"_userOp\",\"type\":\"tuple\",\"internalType\":\"structPackedUserOperation\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"name\":\"_userOpHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"ERC7579ValidatorBase.ValidationData\"}],\"stateMutability\":\"view\"},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ECDSAInvalidSignature\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ECDSAInvalidSignatureLength\",\"inputs\":[{\"name\":\"length\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ECDSAInvalidSignatureS\",\"inputs\":[{\"name\":\"s\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"INVALID_PROOF\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ModuleAlreadyInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"NOT_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"function\",\"name\":\"getAccountOwner\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isInitialized\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isModuleType\",\"inputs\":[{\"name\":\"typeID\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"isValidSignatureWithSender\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"dataHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"namespace\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"onInstall\",\"inputs\":[{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"onUninstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"retrieveSignatureData\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"validateUserOp\",\"inputs\":[{\"name\":\"_userOp\",\"type\":\"tuple\",\"internalType\":\"structPackedUserOperation\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"name\":\"_userOpHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"ERC7579ValidatorBase.ValidationData\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ECDSAInvalidSignature\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ECDSAInvalidSignatureLength\",\"inputs\":[{\"name\":\"length\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ECDSAInvalidSignatureS\",\"inputs\":[{\"name\":\"s\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"INVALID_PROOF\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ModuleAlreadyInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"NOT_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]}]",
 }
 
 // SuperMerkleValidatorABI is the input ABI used to generate the binding from.
@@ -348,35 +348,35 @@ func (_SuperMerkleValidator *SuperMerkleValidatorCallerSession) Namespace() (str
 	return _SuperMerkleValidator.Contract.Namespace(&_SuperMerkleValidator.CallOpts)
 }
 
-// ValidateUserOp is a free data retrieval call binding the contract method 0x97003203.
+// RetrieveSignatureData is a free data retrieval call binding the contract method 0x0f65bac5.
 //
-// Solidity: function validateUserOp((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes) _userOp, bytes32 _userOpHash) view returns(uint256)
-func (_SuperMerkleValidator *SuperMerkleValidatorCaller) ValidateUserOp(opts *bind.CallOpts, _userOp PackedUserOperation, _userOpHash [32]byte) (*big.Int, error) {
+// Solidity: function retrieveSignatureData(address account) view returns(bytes)
+func (_SuperMerkleValidator *SuperMerkleValidatorCaller) RetrieveSignatureData(opts *bind.CallOpts, account common.Address) ([]byte, error) {
 	var out []interface{}
-	err := _SuperMerkleValidator.contract.Call(opts, &out, "validateUserOp", _userOp, _userOpHash)
+	err := _SuperMerkleValidator.contract.Call(opts, &out, "retrieveSignatureData", account)
 
 	if err != nil {
-		return *new(*big.Int), err
+		return *new([]byte), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+	out0 := *abi.ConvertType(out[0], new([]byte)).(*[]byte)
 
 	return out0, err
 
 }
 
-// ValidateUserOp is a free data retrieval call binding the contract method 0x97003203.
+// RetrieveSignatureData is a free data retrieval call binding the contract method 0x0f65bac5.
 //
-// Solidity: function validateUserOp((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes) _userOp, bytes32 _userOpHash) view returns(uint256)
-func (_SuperMerkleValidator *SuperMerkleValidatorSession) ValidateUserOp(_userOp PackedUserOperation, _userOpHash [32]byte) (*big.Int, error) {
-	return _SuperMerkleValidator.Contract.ValidateUserOp(&_SuperMerkleValidator.CallOpts, _userOp, _userOpHash)
+// Solidity: function retrieveSignatureData(address account) view returns(bytes)
+func (_SuperMerkleValidator *SuperMerkleValidatorSession) RetrieveSignatureData(account common.Address) ([]byte, error) {
+	return _SuperMerkleValidator.Contract.RetrieveSignatureData(&_SuperMerkleValidator.CallOpts, account)
 }
 
-// ValidateUserOp is a free data retrieval call binding the contract method 0x97003203.
+// RetrieveSignatureData is a free data retrieval call binding the contract method 0x0f65bac5.
 //
-// Solidity: function validateUserOp((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes) _userOp, bytes32 _userOpHash) view returns(uint256)
-func (_SuperMerkleValidator *SuperMerkleValidatorCallerSession) ValidateUserOp(_userOp PackedUserOperation, _userOpHash [32]byte) (*big.Int, error) {
-	return _SuperMerkleValidator.Contract.ValidateUserOp(&_SuperMerkleValidator.CallOpts, _userOp, _userOpHash)
+// Solidity: function retrieveSignatureData(address account) view returns(bytes)
+func (_SuperMerkleValidator *SuperMerkleValidatorCallerSession) RetrieveSignatureData(account common.Address) ([]byte, error) {
+	return _SuperMerkleValidator.Contract.RetrieveSignatureData(&_SuperMerkleValidator.CallOpts, account)
 }
 
 // OnInstall is a paid mutator transaction binding the contract method 0x6d61fe70.
@@ -419,4 +419,25 @@ func (_SuperMerkleValidator *SuperMerkleValidatorSession) OnUninstall(arg0 []byt
 // Solidity: function onUninstall(bytes ) returns()
 func (_SuperMerkleValidator *SuperMerkleValidatorTransactorSession) OnUninstall(arg0 []byte) (*types.Transaction, error) {
 	return _SuperMerkleValidator.Contract.OnUninstall(&_SuperMerkleValidator.TransactOpts, arg0)
+}
+
+// ValidateUserOp is a paid mutator transaction binding the contract method 0x97003203.
+//
+// Solidity: function validateUserOp((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes) _userOp, bytes32 _userOpHash) returns(uint256)
+func (_SuperMerkleValidator *SuperMerkleValidatorTransactor) ValidateUserOp(opts *bind.TransactOpts, _userOp PackedUserOperation, _userOpHash [32]byte) (*types.Transaction, error) {
+	return _SuperMerkleValidator.contract.Transact(opts, "validateUserOp", _userOp, _userOpHash)
+}
+
+// ValidateUserOp is a paid mutator transaction binding the contract method 0x97003203.
+//
+// Solidity: function validateUserOp((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes) _userOp, bytes32 _userOpHash) returns(uint256)
+func (_SuperMerkleValidator *SuperMerkleValidatorSession) ValidateUserOp(_userOp PackedUserOperation, _userOpHash [32]byte) (*types.Transaction, error) {
+	return _SuperMerkleValidator.Contract.ValidateUserOp(&_SuperMerkleValidator.TransactOpts, _userOp, _userOpHash)
+}
+
+// ValidateUserOp is a paid mutator transaction binding the contract method 0x97003203.
+//
+// Solidity: function validateUserOp((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes) _userOp, bytes32 _userOpHash) returns(uint256)
+func (_SuperMerkleValidator *SuperMerkleValidatorTransactorSession) ValidateUserOp(_userOp PackedUserOperation, _userOpHash [32]byte) (*types.Transaction, error) {
+	return _SuperMerkleValidator.Contract.ValidateUserOp(&_SuperMerkleValidator.TransactOpts, _userOp, _userOpHash)
 }

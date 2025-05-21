@@ -31,11 +31,11 @@ var (
 
 // ISuperVaultStrategyExecuteArgs is an auto generated low-level Go binding around an user-defined struct.
 type ISuperVaultStrategyExecuteArgs struct {
-	Users                     []common.Address
 	Hooks                     []common.Address
 	HookCalldata              [][]byte
-	HookProofs                [][][32]byte
 	ExpectedAssetsOrSharesOut []*big.Int
+	GlobalProofs              [][][32]byte
+	StrategyProofs            [][][32]byte
 }
 
 // ISuperVaultStrategyFeeConfig is an auto generated low-level Go binding around an user-defined struct.
@@ -44,21 +44,32 @@ type ISuperVaultStrategyFeeConfig struct {
 	Recipient         common.Address
 }
 
+// ISuperVaultStrategyFulfillArgs is an auto generated low-level Go binding around an user-defined struct.
+type ISuperVaultStrategyFulfillArgs struct {
+	Controllers               []common.Address
+	Hooks                     []common.Address
+	HookCalldata              [][]byte
+	ExpectedAssetsOrSharesOut []*big.Int
+	GlobalProofs              [][][32]byte
+	StrategyProofs            [][][32]byte
+}
+
 // ISuperVaultStrategyYieldSource is an auto generated low-level Go binding around an user-defined struct.
 type ISuperVaultStrategyYieldSource struct {
 	Oracle   common.Address
 	IsActive bool
 }
 
-// ISuperVaultStrategyYieldSourceTVL is an auto generated low-level Go binding around an user-defined struct.
-type ISuperVaultStrategyYieldSourceTVL struct {
-	Source common.Address
-	Tvl    *big.Int
+// ISuperVaultStrategyYieldSourceInfo is an auto generated low-level Go binding around an user-defined struct.
+type ISuperVaultStrategyYieldSourceInfo struct {
+	SourceAddress common.Address
+	Oracle        common.Address
+	IsActive      bool
 }
 
 // SuperVaultStrategyMetaData contains all meta data concerning the SuperVaultStrategy contract.
 var SuperVaultStrategyMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"function\",\"name\":\"addresses\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"roleAddress\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"claimedTokens\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"emergencyWithdrawable\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"emergencyWithdrawableEffectiveTime\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"executeHooks\",\"inputs\":[{\"name\":\"args\",\"type\":\"tuple\",\"internalType\":\"structISuperVaultStrategy.ExecuteArgs\",\"components\":[{\"name\":\"users\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"hooks\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"hookCalldata\",\"type\":\"bytes[]\",\"internalType\":\"bytes[]\"},{\"name\":\"hookProofs\",\"type\":\"bytes32[][]\",\"internalType\":\"bytes32[][]\"},{\"name\":\"expectedAssetsOrSharesOut\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeVaultFeeConfigUpdate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getConfigInfo\",\"inputs\":[],\"outputs\":[{\"name\":\"superVaultCap_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"feeConfig_\",\"type\":\"tuple\",\"internalType\":\"structISuperVaultStrategy.FeeConfig\",\"components\":[{\"name\":\"performanceFeeBps\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"recipient\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getHookInfo\",\"inputs\":[],\"outputs\":[{\"name\":\"hookRoot_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"proposedHookRoot_\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"hookRootEffectiveTime_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getSuperVaultState\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"stateType\",\"type\":\"uint8\",\"internalType\":\"uint8\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getVaultInfo\",\"inputs\":[],\"outputs\":[{\"name\":\"vault_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"asset_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"vaultDecimals_\",\"type\":\"uint8\",\"internalType\":\"uint8\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getYieldSource\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structISuperVaultStrategy.YieldSource\",\"components\":[{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getYieldSourceAssetsInTransitInflows\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getYieldSourceSharesInTransitOutflows\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getYieldSourcesList\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"handleOperation\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"operation\",\"type\":\"uint8\",\"internalType\":\"enumISuperVaultStrategy.Operation\"}],\"outputs\":[{\"name\":\"assetsOrSharesOut\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"vault_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"manager_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"strategist_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"emergencyAdmin_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"peripheryRegistry_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"superVaultCap_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isHookAllowed\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"proof\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isInitialized\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"manageEmergencyWithdraw\",\"inputs\":[{\"name\":\"action\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"recipient\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"manageYieldSource\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"actionType\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"activate\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isAsync\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"matchRequests\",\"inputs\":[{\"name\":\"redeemUsers\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"depositUsers\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"pause\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"paused\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingDepositRequest\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"pendingAssets\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingRedeemRequest\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"pendingShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"proposeOrExecuteHookRoot\",\"inputs\":[{\"name\":\"newRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeVaultFeeConfigUpdate\",\"inputs\":[{\"name\":\"performanceFeeBps\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"recipient\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposedEmergencyWithdrawable\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"setAddress\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"totalAssets\",\"inputs\":[],\"outputs\":[{\"name\":\"totalAssets_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"sourceTVLs\",\"type\":\"tuple[]\",\"internalType\":\"structISuperVaultStrategy.YieldSourceTVL[]\",\"components\":[{\"name\":\"source\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"tvl\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"unpause\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"updateSuperVaultCap\",\"inputs\":[{\"name\":\"superVaultCap_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"AsyncYieldSourceInflowFulfillmentProcessed\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AsyncYieldSourceOutflowFulfillmentProcessed\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EmergencyWithdrawableProposed\",\"inputs\":[{\"name\":\"newWithdrawable\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EmergencyWithdrawableUpdated\",\"inputs\":[{\"name\":\"withdrawable\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EmergencyWithdrawal\",\"inputs\":[{\"name\":\"recipient\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ExecutionCompleted\",\"inputs\":[{\"name\":\"hooks\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"isFulfillment\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"},{\"name\":\"usersProcessed\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"processedShares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FeeConfigUpdated\",\"inputs\":[{\"name\":\"feeBps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"recipient\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FeePaid\",\"inputs\":[{\"name\":\"recipient\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"bps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HookRootProposed\",\"inputs\":[{\"name\":\"proposedRoot\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HookRootUpdated\",\"inputs\":[{\"name\":\"newRoot\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HooksExecuted\",\"inputs\":[{\"name\":\"hooks\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"manager\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"strategist\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"emergencyAdmin\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"superVaultCap\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Paused\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperVaultCapUpdated\",\"inputs\":[{\"name\":\"superVaultCap\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Unpaused\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"VaultFeeConfigProposed\",\"inputs\":[{\"name\":\"performanceFeeBps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"recipient\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"VaultFeeConfigUpdated\",\"inputs\":[{\"name\":\"performanceFeeBps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"recipient\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceAdded\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"oracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceDeactivated\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceInflowFulfillmentProcessed\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceOracleUpdated\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"oldOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceOutflowFulfillmentProcessed\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceReactivated\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ACCESS_DENIED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ACTION_TYPE_DISALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ALREADY_EXISTS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ASYNC_REQUEST_BLOCKING\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CANNOT_CHANGE_TOTAL_ASSETS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CLAIMING_MORE_THAN_IN_TRANSIT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"DEPOSIT_FAILURE_INVALID_TARGET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EnforcedPause\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ExpectedPause\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FULFILMENT_TYPE_UNSET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INCOMPLETE_DEPOSIT_MATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_FUNDS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_SHARES\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_AMOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ARRAY_LENGTH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ASSET_BALANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ASSET_VALUE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_BALANCE_CHANGE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_CANCELATION_TYPE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_CONTROLLER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_DEPOSIT_FILL\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_EMERGENCY_ADMIN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_EMERGENCY_WITHDRAWAL\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FULFILMENT_TYPE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_HOOK\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_HOOK_ROOT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_HOOK_TYPE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_MANAGER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_MAX_ALLOCATION_RATE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ORACLE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_PERFORMANCE_FEE_BPS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_PERIPHERY_REGISTRY\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_REDEEM_FILL\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_STRATEGIST\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_SUPER_VAULT_CAP\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_TIMESTAMP\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_VAULT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_VAULT_CAP\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_VAULT_THRESHOLD\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"LIMIT_EXCEEDED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MINIMUM_OUTPUT_AMOUNT_ASSETS_OR_SHARES_NOT_MET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MINIMUM_PREVIOUS_HOOK_OUT_AMOUNT_NOT_MET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_VALID_OUTFLOW_REQUEST\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OPERATION_FAILED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"REDEEMED_MORE_THAN_REQUESTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"REQUEST_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"RESIZED_ARRAY_LENGTH_ERROR\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SUPER_VAULT_CAP_EXCEEDED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SafeERC20FailedOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"VAULT_THRESHOLD_EXCEEDED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"YIELD_SOURCE_ALREADY_ACTIVE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"YIELD_SOURCE_ALREADY_EXISTS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"YIELD_SOURCE_NOT_ACTIVE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"YIELD_SOURCE_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"YIELD_SOURCE_ORACLE_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_EXPECTED_VALUE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_LENGTH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_OUTPUT_AMOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_SHARES_FULFILLED\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"function\",\"name\":\"PRECISION\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"claimableWithdraw\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"claimableAssets\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"emergencyWithdrawable\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"emergencyWithdrawableEffectiveTime\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"executeHooks\",\"inputs\":[{\"name\":\"args\",\"type\":\"tuple\",\"internalType\":\"structISuperVaultStrategy.ExecuteArgs\",\"components\":[{\"name\":\"hooks\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"hookCalldata\",\"type\":\"bytes[]\",\"internalType\":\"bytes[]\"},{\"name\":\"expectedAssetsOrSharesOut\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"globalProofs\",\"type\":\"bytes32[][]\",\"internalType\":\"bytes32[][]\"},{\"name\":\"strategyProofs\",\"type\":\"bytes32[][]\",\"internalType\":\"bytes32[][]\"}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeVaultFeeConfigUpdate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"fulfillRedeemRequests\",\"inputs\":[{\"name\":\"args\",\"type\":\"tuple\",\"internalType\":\"structISuperVaultStrategy.FulfillArgs\",\"components\":[{\"name\":\"controllers\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"hooks\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"hookCalldata\",\"type\":\"bytes[]\",\"internalType\":\"bytes[]\"},{\"name\":\"expectedAssetsOrSharesOut\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"globalProofs\",\"type\":\"bytes32[][]\",\"internalType\":\"bytes32[][]\"},{\"name\":\"strategyProofs\",\"type\":\"bytes32[][]\",\"internalType\":\"bytes32[][]\"}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getAverageWithdrawPrice\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"averageWithdrawPrice\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getConfigInfo\",\"inputs\":[],\"outputs\":[{\"name\":\"feeConfig_\",\"type\":\"tuple\",\"internalType\":\"structISuperVaultStrategy.FeeConfig\",\"components\":[{\"name\":\"performanceFeeBps\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"recipient\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getStoredPPS\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getVaultInfo\",\"inputs\":[],\"outputs\":[{\"name\":\"vault_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"asset_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"vaultDecimals_\",\"type\":\"uint8\",\"internalType\":\"uint8\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getYieldSource\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structISuperVaultStrategy.YieldSource\",\"components\":[{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getYieldSourcesList\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"tuple[]\",\"internalType\":\"structISuperVaultStrategy.YieldSourceInfo[]\",\"components\":[{\"name\":\"sourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"handleOperation\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"operation\",\"type\":\"uint8\",\"internalType\":\"enumISuperVaultStrategy.Operation\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"vault_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"superGovernor_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"feeConfig_\",\"type\":\"tuple\",\"internalType\":\"structISuperVaultStrategy.FeeConfig\",\"components\":[{\"name\":\"performanceFeeBps\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"recipient\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isInitialized\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"manageEmergencyWithdraw\",\"inputs\":[{\"name\":\"action\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"recipient\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"manageYieldSource\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"actionType\",\"type\":\"uint8\",\"internalType\":\"uint8\"},{\"name\":\"activate\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"manageYieldSources\",\"inputs\":[{\"name\":\"sources\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"oracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"actionTypes\",\"type\":\"uint8[]\",\"internalType\":\"uint8[]\"},{\"name\":\"activates\",\"type\":\"bool[]\",\"internalType\":\"bool[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"pendingRedeemRequest\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"pendingShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewPerformanceFee\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"sharesToRedeem\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"totalFee\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"superformFee\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"recipientFee\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"proposeVaultFeeConfigUpdate\",\"inputs\":[{\"name\":\"performanceFeeBps\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"recipient\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposedEmergencyWithdrawable\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"updateMaxPPSSlippage\",\"inputs\":[{\"name\":\"maxSlippageBps\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"DepositHandled\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EmergencyWithdrawableProposed\",\"inputs\":[{\"name\":\"newWithdrawable\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EmergencyWithdrawableUpdated\",\"inputs\":[{\"name\":\"withdrawable\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EmergencyWithdrawal\",\"inputs\":[{\"name\":\"recipient\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FeePaid\",\"inputs\":[{\"name\":\"recipient\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"performanceFeeBps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FulfillHookExecuted\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"targetedYieldSource\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"hookCalldata\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HookExecuted\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"prevHook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"targetedYieldSource\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"usePrevHookAmount\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"},{\"name\":\"hookCalldata\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HookRootProposed\",\"inputs\":[{\"name\":\"proposedRoot\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HookRootUpdated\",\"inputs\":[{\"name\":\"newRoot\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HooksExecuted\",\"inputs\":[{\"name\":\"hooks\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Initialized\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"superGovernor\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MaxPPSSlippageUpdated\",\"inputs\":[{\"name\":\"maxSlippageBps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PPSUpdated\",\"inputs\":[{\"name\":\"newPPS\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"calculationBlock\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RedeemRequestCanceled\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RedeemRequestFulfilled\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"receiver\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RedeemRequestPlaced\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RedeemRequestsFulfilled\",\"inputs\":[{\"name\":\"hooks\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"controllers\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"processedShares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"currentPPS\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"VaultFeeConfigProposed\",\"inputs\":[{\"name\":\"performanceFeeBps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"recipient\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"VaultFeeConfigUpdated\",\"inputs\":[{\"name\":\"performanceFeeBps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"recipient\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceAdded\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"oracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceDeactivated\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceOracleUpdated\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"oldOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceReactivated\",\"inputs\":[{\"name\":\"source\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ACCESS_DENIED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ACTION_TYPE_DISALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ASYNC_REQUEST_BLOCKING\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CALCULATION_BLOCK_TOO_OLD\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"HOOK_VALIDATION_FAILED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_FUNDS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_SHARES\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_AMOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ARRAY_LENGTH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_EMERGENCY_ADMIN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_EMERGENCY_WITHDRAWAL\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_HOOK\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_HOOK_ROOT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_HOOK_TYPE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_MANAGER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_MAX_SLIPPAGE_BPS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_PERFORMANCE_FEE_BPS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_PERIPHERY_REGISTRY\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_PPS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_REDEEM_CLAIM\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_REDEEM_FILL\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_STRATEGIST\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_TIMESTAMP\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_VAULT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MINIMUM_OUTPUT_AMOUNT_ASSETS_NOT_MET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MINIMUM_PREVIOUS_HOOK_OUT_AMOUNT_NOT_MET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OPERATIONS_BLOCKED_BY_VETO\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OPERATION_FAILED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"PPS_OUT_OF_BOUNDS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"PPS_UPDATE_RATE_LIMITED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"REQUEST_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SLIPPAGE_EXCEEDED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"STAKE_TOO_LOW\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"STRATEGIST_NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"STRATEGY_PAUSED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SafeERC20FailedOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"YIELD_SOURCE_ALREADY_ACTIVE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"YIELD_SOURCE_ALREADY_EXISTS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"YIELD_SOURCE_NOT_ACTIVE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"YIELD_SOURCE_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_EXPECTED_VALUE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_LENGTH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_OUTPUT_AMOUNT\",\"inputs\":[]}]",
 }
 
 // SuperVaultStrategyABI is the input ABI used to generate the binding from.
@@ -207,43 +218,12 @@ func (_SuperVaultStrategy *SuperVaultStrategyTransactorRaw) Transact(opts *bind.
 	return _SuperVaultStrategy.Contract.contract.Transact(opts, method, params...)
 }
 
-// Addresses is a free data retrieval call binding the contract method 0x699f200f.
+// PRECISION is a free data retrieval call binding the contract method 0xaaf5eb68.
 //
-// Solidity: function addresses(bytes32 role) view returns(address roleAddress)
-func (_SuperVaultStrategy *SuperVaultStrategyCaller) Addresses(opts *bind.CallOpts, role [32]byte) (common.Address, error) {
+// Solidity: function PRECISION() view returns(uint256)
+func (_SuperVaultStrategy *SuperVaultStrategyCaller) PRECISION(opts *bind.CallOpts) (*big.Int, error) {
 	var out []interface{}
-	err := _SuperVaultStrategy.contract.Call(opts, &out, "addresses", role)
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// Addresses is a free data retrieval call binding the contract method 0x699f200f.
-//
-// Solidity: function addresses(bytes32 role) view returns(address roleAddress)
-func (_SuperVaultStrategy *SuperVaultStrategySession) Addresses(role [32]byte) (common.Address, error) {
-	return _SuperVaultStrategy.Contract.Addresses(&_SuperVaultStrategy.CallOpts, role)
-}
-
-// Addresses is a free data retrieval call binding the contract method 0x699f200f.
-//
-// Solidity: function addresses(bytes32 role) view returns(address roleAddress)
-func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) Addresses(role [32]byte) (common.Address, error) {
-	return _SuperVaultStrategy.Contract.Addresses(&_SuperVaultStrategy.CallOpts, role)
-}
-
-// ClaimedTokens is a free data retrieval call binding the contract method 0xa960c65f.
-//
-// Solidity: function claimedTokens(address token) view returns(uint256 amount)
-func (_SuperVaultStrategy *SuperVaultStrategyCaller) ClaimedTokens(opts *bind.CallOpts, token common.Address) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperVaultStrategy.contract.Call(opts, &out, "claimedTokens", token)
+	err := _SuperVaultStrategy.contract.Call(opts, &out, "PRECISION")
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -255,18 +235,49 @@ func (_SuperVaultStrategy *SuperVaultStrategyCaller) ClaimedTokens(opts *bind.Ca
 
 }
 
-// ClaimedTokens is a free data retrieval call binding the contract method 0xa960c65f.
+// PRECISION is a free data retrieval call binding the contract method 0xaaf5eb68.
 //
-// Solidity: function claimedTokens(address token) view returns(uint256 amount)
-func (_SuperVaultStrategy *SuperVaultStrategySession) ClaimedTokens(token common.Address) (*big.Int, error) {
-	return _SuperVaultStrategy.Contract.ClaimedTokens(&_SuperVaultStrategy.CallOpts, token)
+// Solidity: function PRECISION() view returns(uint256)
+func (_SuperVaultStrategy *SuperVaultStrategySession) PRECISION() (*big.Int, error) {
+	return _SuperVaultStrategy.Contract.PRECISION(&_SuperVaultStrategy.CallOpts)
 }
 
-// ClaimedTokens is a free data retrieval call binding the contract method 0xa960c65f.
+// PRECISION is a free data retrieval call binding the contract method 0xaaf5eb68.
 //
-// Solidity: function claimedTokens(address token) view returns(uint256 amount)
-func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) ClaimedTokens(token common.Address) (*big.Int, error) {
-	return _SuperVaultStrategy.Contract.ClaimedTokens(&_SuperVaultStrategy.CallOpts, token)
+// Solidity: function PRECISION() view returns(uint256)
+func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) PRECISION() (*big.Int, error) {
+	return _SuperVaultStrategy.Contract.PRECISION(&_SuperVaultStrategy.CallOpts)
+}
+
+// ClaimableWithdraw is a free data retrieval call binding the contract method 0xdc697818.
+//
+// Solidity: function claimableWithdraw(address controller) view returns(uint256 claimableAssets)
+func (_SuperVaultStrategy *SuperVaultStrategyCaller) ClaimableWithdraw(opts *bind.CallOpts, controller common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _SuperVaultStrategy.contract.Call(opts, &out, "claimableWithdraw", controller)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// ClaimableWithdraw is a free data retrieval call binding the contract method 0xdc697818.
+//
+// Solidity: function claimableWithdraw(address controller) view returns(uint256 claimableAssets)
+func (_SuperVaultStrategy *SuperVaultStrategySession) ClaimableWithdraw(controller common.Address) (*big.Int, error) {
+	return _SuperVaultStrategy.Contract.ClaimableWithdraw(&_SuperVaultStrategy.CallOpts, controller)
+}
+
+// ClaimableWithdraw is a free data retrieval call binding the contract method 0xdc697818.
+//
+// Solidity: function claimableWithdraw(address controller) view returns(uint256 claimableAssets)
+func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) ClaimableWithdraw(controller common.Address) (*big.Int, error) {
+	return _SuperVaultStrategy.Contract.ClaimableWithdraw(&_SuperVaultStrategy.CallOpts, controller)
 }
 
 // EmergencyWithdrawable is a free data retrieval call binding the contract method 0x3e9d39ab.
@@ -331,107 +342,12 @@ func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) EmergencyWithdrawabl
 	return _SuperVaultStrategy.Contract.EmergencyWithdrawableEffectiveTime(&_SuperVaultStrategy.CallOpts)
 }
 
-// GetConfigInfo is a free data retrieval call binding the contract method 0x78a1bf05.
+// GetAverageWithdrawPrice is a free data retrieval call binding the contract method 0xcd773844.
 //
-// Solidity: function getConfigInfo() view returns(uint256 superVaultCap_, (uint256,address) feeConfig_)
-func (_SuperVaultStrategy *SuperVaultStrategyCaller) GetConfigInfo(opts *bind.CallOpts) (struct {
-	SuperVaultCap *big.Int
-	FeeConfig     ISuperVaultStrategyFeeConfig
-}, error) {
+// Solidity: function getAverageWithdrawPrice(address controller) view returns(uint256 averageWithdrawPrice)
+func (_SuperVaultStrategy *SuperVaultStrategyCaller) GetAverageWithdrawPrice(opts *bind.CallOpts, controller common.Address) (*big.Int, error) {
 	var out []interface{}
-	err := _SuperVaultStrategy.contract.Call(opts, &out, "getConfigInfo")
-
-	outstruct := new(struct {
-		SuperVaultCap *big.Int
-		FeeConfig     ISuperVaultStrategyFeeConfig
-	})
-	if err != nil {
-		return *outstruct, err
-	}
-
-	outstruct.SuperVaultCap = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-	outstruct.FeeConfig = *abi.ConvertType(out[1], new(ISuperVaultStrategyFeeConfig)).(*ISuperVaultStrategyFeeConfig)
-
-	return *outstruct, err
-
-}
-
-// GetConfigInfo is a free data retrieval call binding the contract method 0x78a1bf05.
-//
-// Solidity: function getConfigInfo() view returns(uint256 superVaultCap_, (uint256,address) feeConfig_)
-func (_SuperVaultStrategy *SuperVaultStrategySession) GetConfigInfo() (struct {
-	SuperVaultCap *big.Int
-	FeeConfig     ISuperVaultStrategyFeeConfig
-}, error) {
-	return _SuperVaultStrategy.Contract.GetConfigInfo(&_SuperVaultStrategy.CallOpts)
-}
-
-// GetConfigInfo is a free data retrieval call binding the contract method 0x78a1bf05.
-//
-// Solidity: function getConfigInfo() view returns(uint256 superVaultCap_, (uint256,address) feeConfig_)
-func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) GetConfigInfo() (struct {
-	SuperVaultCap *big.Int
-	FeeConfig     ISuperVaultStrategyFeeConfig
-}, error) {
-	return _SuperVaultStrategy.Contract.GetConfigInfo(&_SuperVaultStrategy.CallOpts)
-}
-
-// GetHookInfo is a free data retrieval call binding the contract method 0x650fb029.
-//
-// Solidity: function getHookInfo() view returns(bytes32 hookRoot_, bytes32 proposedHookRoot_, uint256 hookRootEffectiveTime_)
-func (_SuperVaultStrategy *SuperVaultStrategyCaller) GetHookInfo(opts *bind.CallOpts) (struct {
-	HookRoot              [32]byte
-	ProposedHookRoot      [32]byte
-	HookRootEffectiveTime *big.Int
-}, error) {
-	var out []interface{}
-	err := _SuperVaultStrategy.contract.Call(opts, &out, "getHookInfo")
-
-	outstruct := new(struct {
-		HookRoot              [32]byte
-		ProposedHookRoot      [32]byte
-		HookRootEffectiveTime *big.Int
-	})
-	if err != nil {
-		return *outstruct, err
-	}
-
-	outstruct.HookRoot = *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
-	outstruct.ProposedHookRoot = *abi.ConvertType(out[1], new([32]byte)).(*[32]byte)
-	outstruct.HookRootEffectiveTime = *abi.ConvertType(out[2], new(*big.Int)).(**big.Int)
-
-	return *outstruct, err
-
-}
-
-// GetHookInfo is a free data retrieval call binding the contract method 0x650fb029.
-//
-// Solidity: function getHookInfo() view returns(bytes32 hookRoot_, bytes32 proposedHookRoot_, uint256 hookRootEffectiveTime_)
-func (_SuperVaultStrategy *SuperVaultStrategySession) GetHookInfo() (struct {
-	HookRoot              [32]byte
-	ProposedHookRoot      [32]byte
-	HookRootEffectiveTime *big.Int
-}, error) {
-	return _SuperVaultStrategy.Contract.GetHookInfo(&_SuperVaultStrategy.CallOpts)
-}
-
-// GetHookInfo is a free data retrieval call binding the contract method 0x650fb029.
-//
-// Solidity: function getHookInfo() view returns(bytes32 hookRoot_, bytes32 proposedHookRoot_, uint256 hookRootEffectiveTime_)
-func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) GetHookInfo() (struct {
-	HookRoot              [32]byte
-	ProposedHookRoot      [32]byte
-	HookRootEffectiveTime *big.Int
-}, error) {
-	return _SuperVaultStrategy.Contract.GetHookInfo(&_SuperVaultStrategy.CallOpts)
-}
-
-// GetSuperVaultState is a free data retrieval call binding the contract method 0xcf8a6ea9.
-//
-// Solidity: function getSuperVaultState(address owner, uint8 stateType) view returns(uint256)
-func (_SuperVaultStrategy *SuperVaultStrategyCaller) GetSuperVaultState(opts *bind.CallOpts, owner common.Address, stateType uint8) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperVaultStrategy.contract.Call(opts, &out, "getSuperVaultState", owner, stateType)
+	err := _SuperVaultStrategy.contract.Call(opts, &out, "getAverageWithdrawPrice", controller)
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -443,18 +359,80 @@ func (_SuperVaultStrategy *SuperVaultStrategyCaller) GetSuperVaultState(opts *bi
 
 }
 
-// GetSuperVaultState is a free data retrieval call binding the contract method 0xcf8a6ea9.
+// GetAverageWithdrawPrice is a free data retrieval call binding the contract method 0xcd773844.
 //
-// Solidity: function getSuperVaultState(address owner, uint8 stateType) view returns(uint256)
-func (_SuperVaultStrategy *SuperVaultStrategySession) GetSuperVaultState(owner common.Address, stateType uint8) (*big.Int, error) {
-	return _SuperVaultStrategy.Contract.GetSuperVaultState(&_SuperVaultStrategy.CallOpts, owner, stateType)
+// Solidity: function getAverageWithdrawPrice(address controller) view returns(uint256 averageWithdrawPrice)
+func (_SuperVaultStrategy *SuperVaultStrategySession) GetAverageWithdrawPrice(controller common.Address) (*big.Int, error) {
+	return _SuperVaultStrategy.Contract.GetAverageWithdrawPrice(&_SuperVaultStrategy.CallOpts, controller)
 }
 
-// GetSuperVaultState is a free data retrieval call binding the contract method 0xcf8a6ea9.
+// GetAverageWithdrawPrice is a free data retrieval call binding the contract method 0xcd773844.
 //
-// Solidity: function getSuperVaultState(address owner, uint8 stateType) view returns(uint256)
-func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) GetSuperVaultState(owner common.Address, stateType uint8) (*big.Int, error) {
-	return _SuperVaultStrategy.Contract.GetSuperVaultState(&_SuperVaultStrategy.CallOpts, owner, stateType)
+// Solidity: function getAverageWithdrawPrice(address controller) view returns(uint256 averageWithdrawPrice)
+func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) GetAverageWithdrawPrice(controller common.Address) (*big.Int, error) {
+	return _SuperVaultStrategy.Contract.GetAverageWithdrawPrice(&_SuperVaultStrategy.CallOpts, controller)
+}
+
+// GetConfigInfo is a free data retrieval call binding the contract method 0x78a1bf05.
+//
+// Solidity: function getConfigInfo() view returns((uint256,address) feeConfig_)
+func (_SuperVaultStrategy *SuperVaultStrategyCaller) GetConfigInfo(opts *bind.CallOpts) (ISuperVaultStrategyFeeConfig, error) {
+	var out []interface{}
+	err := _SuperVaultStrategy.contract.Call(opts, &out, "getConfigInfo")
+
+	if err != nil {
+		return *new(ISuperVaultStrategyFeeConfig), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(ISuperVaultStrategyFeeConfig)).(*ISuperVaultStrategyFeeConfig)
+
+	return out0, err
+
+}
+
+// GetConfigInfo is a free data retrieval call binding the contract method 0x78a1bf05.
+//
+// Solidity: function getConfigInfo() view returns((uint256,address) feeConfig_)
+func (_SuperVaultStrategy *SuperVaultStrategySession) GetConfigInfo() (ISuperVaultStrategyFeeConfig, error) {
+	return _SuperVaultStrategy.Contract.GetConfigInfo(&_SuperVaultStrategy.CallOpts)
+}
+
+// GetConfigInfo is a free data retrieval call binding the contract method 0x78a1bf05.
+//
+// Solidity: function getConfigInfo() view returns((uint256,address) feeConfig_)
+func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) GetConfigInfo() (ISuperVaultStrategyFeeConfig, error) {
+	return _SuperVaultStrategy.Contract.GetConfigInfo(&_SuperVaultStrategy.CallOpts)
+}
+
+// GetStoredPPS is a free data retrieval call binding the contract method 0x2653517d.
+//
+// Solidity: function getStoredPPS() view returns(uint256)
+func (_SuperVaultStrategy *SuperVaultStrategyCaller) GetStoredPPS(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _SuperVaultStrategy.contract.Call(opts, &out, "getStoredPPS")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetStoredPPS is a free data retrieval call binding the contract method 0x2653517d.
+//
+// Solidity: function getStoredPPS() view returns(uint256)
+func (_SuperVaultStrategy *SuperVaultStrategySession) GetStoredPPS() (*big.Int, error) {
+	return _SuperVaultStrategy.Contract.GetStoredPPS(&_SuperVaultStrategy.CallOpts)
+}
+
+// GetStoredPPS is a free data retrieval call binding the contract method 0x2653517d.
+//
+// Solidity: function getStoredPPS() view returns(uint256)
+func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) GetStoredPPS() (*big.Int, error) {
+	return _SuperVaultStrategy.Contract.GetStoredPPS(&_SuperVaultStrategy.CallOpts)
 }
 
 // GetVaultInfo is a free data retrieval call binding the contract method 0x7f98aa71.
@@ -538,80 +516,18 @@ func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) GetYieldSource(sourc
 	return _SuperVaultStrategy.Contract.GetYieldSource(&_SuperVaultStrategy.CallOpts, source)
 }
 
-// GetYieldSourceAssetsInTransitInflows is a free data retrieval call binding the contract method 0x4a5abce1.
-//
-// Solidity: function getYieldSourceAssetsInTransitInflows(address source) view returns(uint256)
-func (_SuperVaultStrategy *SuperVaultStrategyCaller) GetYieldSourceAssetsInTransitInflows(opts *bind.CallOpts, source common.Address) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperVaultStrategy.contract.Call(opts, &out, "getYieldSourceAssetsInTransitInflows", source)
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// GetYieldSourceAssetsInTransitInflows is a free data retrieval call binding the contract method 0x4a5abce1.
-//
-// Solidity: function getYieldSourceAssetsInTransitInflows(address source) view returns(uint256)
-func (_SuperVaultStrategy *SuperVaultStrategySession) GetYieldSourceAssetsInTransitInflows(source common.Address) (*big.Int, error) {
-	return _SuperVaultStrategy.Contract.GetYieldSourceAssetsInTransitInflows(&_SuperVaultStrategy.CallOpts, source)
-}
-
-// GetYieldSourceAssetsInTransitInflows is a free data retrieval call binding the contract method 0x4a5abce1.
-//
-// Solidity: function getYieldSourceAssetsInTransitInflows(address source) view returns(uint256)
-func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) GetYieldSourceAssetsInTransitInflows(source common.Address) (*big.Int, error) {
-	return _SuperVaultStrategy.Contract.GetYieldSourceAssetsInTransitInflows(&_SuperVaultStrategy.CallOpts, source)
-}
-
-// GetYieldSourceSharesInTransitOutflows is a free data retrieval call binding the contract method 0x10793bdb.
-//
-// Solidity: function getYieldSourceSharesInTransitOutflows(address source) view returns(uint256)
-func (_SuperVaultStrategy *SuperVaultStrategyCaller) GetYieldSourceSharesInTransitOutflows(opts *bind.CallOpts, source common.Address) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperVaultStrategy.contract.Call(opts, &out, "getYieldSourceSharesInTransitOutflows", source)
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// GetYieldSourceSharesInTransitOutflows is a free data retrieval call binding the contract method 0x10793bdb.
-//
-// Solidity: function getYieldSourceSharesInTransitOutflows(address source) view returns(uint256)
-func (_SuperVaultStrategy *SuperVaultStrategySession) GetYieldSourceSharesInTransitOutflows(source common.Address) (*big.Int, error) {
-	return _SuperVaultStrategy.Contract.GetYieldSourceSharesInTransitOutflows(&_SuperVaultStrategy.CallOpts, source)
-}
-
-// GetYieldSourceSharesInTransitOutflows is a free data retrieval call binding the contract method 0x10793bdb.
-//
-// Solidity: function getYieldSourceSharesInTransitOutflows(address source) view returns(uint256)
-func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) GetYieldSourceSharesInTransitOutflows(source common.Address) (*big.Int, error) {
-	return _SuperVaultStrategy.Contract.GetYieldSourceSharesInTransitOutflows(&_SuperVaultStrategy.CallOpts, source)
-}
-
 // GetYieldSourcesList is a free data retrieval call binding the contract method 0x7b26e709.
 //
-// Solidity: function getYieldSourcesList() view returns(address[])
-func (_SuperVaultStrategy *SuperVaultStrategyCaller) GetYieldSourcesList(opts *bind.CallOpts) ([]common.Address, error) {
+// Solidity: function getYieldSourcesList() view returns((address,address,bool)[])
+func (_SuperVaultStrategy *SuperVaultStrategyCaller) GetYieldSourcesList(opts *bind.CallOpts) ([]ISuperVaultStrategyYieldSourceInfo, error) {
 	var out []interface{}
 	err := _SuperVaultStrategy.contract.Call(opts, &out, "getYieldSourcesList")
 
 	if err != nil {
-		return *new([]common.Address), err
+		return *new([]ISuperVaultStrategyYieldSourceInfo), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([]common.Address)).(*[]common.Address)
+	out0 := *abi.ConvertType(out[0], new([]ISuperVaultStrategyYieldSourceInfo)).(*[]ISuperVaultStrategyYieldSourceInfo)
 
 	return out0, err
 
@@ -619,47 +535,16 @@ func (_SuperVaultStrategy *SuperVaultStrategyCaller) GetYieldSourcesList(opts *b
 
 // GetYieldSourcesList is a free data retrieval call binding the contract method 0x7b26e709.
 //
-// Solidity: function getYieldSourcesList() view returns(address[])
-func (_SuperVaultStrategy *SuperVaultStrategySession) GetYieldSourcesList() ([]common.Address, error) {
+// Solidity: function getYieldSourcesList() view returns((address,address,bool)[])
+func (_SuperVaultStrategy *SuperVaultStrategySession) GetYieldSourcesList() ([]ISuperVaultStrategyYieldSourceInfo, error) {
 	return _SuperVaultStrategy.Contract.GetYieldSourcesList(&_SuperVaultStrategy.CallOpts)
 }
 
 // GetYieldSourcesList is a free data retrieval call binding the contract method 0x7b26e709.
 //
-// Solidity: function getYieldSourcesList() view returns(address[])
-func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) GetYieldSourcesList() ([]common.Address, error) {
+// Solidity: function getYieldSourcesList() view returns((address,address,bool)[])
+func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) GetYieldSourcesList() ([]ISuperVaultStrategyYieldSourceInfo, error) {
 	return _SuperVaultStrategy.Contract.GetYieldSourcesList(&_SuperVaultStrategy.CallOpts)
-}
-
-// IsHookAllowed is a free data retrieval call binding the contract method 0x0a8cd26c.
-//
-// Solidity: function isHookAllowed(address hook, bytes32[] proof) view returns(bool)
-func (_SuperVaultStrategy *SuperVaultStrategyCaller) IsHookAllowed(opts *bind.CallOpts, hook common.Address, proof [][32]byte) (bool, error) {
-	var out []interface{}
-	err := _SuperVaultStrategy.contract.Call(opts, &out, "isHookAllowed", hook, proof)
-
-	if err != nil {
-		return *new(bool), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
-
-	return out0, err
-
-}
-
-// IsHookAllowed is a free data retrieval call binding the contract method 0x0a8cd26c.
-//
-// Solidity: function isHookAllowed(address hook, bytes32[] proof) view returns(bool)
-func (_SuperVaultStrategy *SuperVaultStrategySession) IsHookAllowed(hook common.Address, proof [][32]byte) (bool, error) {
-	return _SuperVaultStrategy.Contract.IsHookAllowed(&_SuperVaultStrategy.CallOpts, hook, proof)
-}
-
-// IsHookAllowed is a free data retrieval call binding the contract method 0x0a8cd26c.
-//
-// Solidity: function isHookAllowed(address hook, bytes32[] proof) view returns(bool)
-func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) IsHookAllowed(hook common.Address, proof [][32]byte) (bool, error) {
-	return _SuperVaultStrategy.Contract.IsHookAllowed(&_SuperVaultStrategy.CallOpts, hook, proof)
 }
 
 // IsInitialized is a free data retrieval call binding the contract method 0x392e53cd.
@@ -693,68 +578,6 @@ func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) IsInitialized() (boo
 	return _SuperVaultStrategy.Contract.IsInitialized(&_SuperVaultStrategy.CallOpts)
 }
 
-// Paused is a free data retrieval call binding the contract method 0x5c975abb.
-//
-// Solidity: function paused() view returns(bool)
-func (_SuperVaultStrategy *SuperVaultStrategyCaller) Paused(opts *bind.CallOpts) (bool, error) {
-	var out []interface{}
-	err := _SuperVaultStrategy.contract.Call(opts, &out, "paused")
-
-	if err != nil {
-		return *new(bool), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
-
-	return out0, err
-
-}
-
-// Paused is a free data retrieval call binding the contract method 0x5c975abb.
-//
-// Solidity: function paused() view returns(bool)
-func (_SuperVaultStrategy *SuperVaultStrategySession) Paused() (bool, error) {
-	return _SuperVaultStrategy.Contract.Paused(&_SuperVaultStrategy.CallOpts)
-}
-
-// Paused is a free data retrieval call binding the contract method 0x5c975abb.
-//
-// Solidity: function paused() view returns(bool)
-func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) Paused() (bool, error) {
-	return _SuperVaultStrategy.Contract.Paused(&_SuperVaultStrategy.CallOpts)
-}
-
-// PendingDepositRequest is a free data retrieval call binding the contract method 0xc3702989.
-//
-// Solidity: function pendingDepositRequest(address controller) view returns(uint256 pendingAssets)
-func (_SuperVaultStrategy *SuperVaultStrategyCaller) PendingDepositRequest(opts *bind.CallOpts, controller common.Address) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperVaultStrategy.contract.Call(opts, &out, "pendingDepositRequest", controller)
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// PendingDepositRequest is a free data retrieval call binding the contract method 0xc3702989.
-//
-// Solidity: function pendingDepositRequest(address controller) view returns(uint256 pendingAssets)
-func (_SuperVaultStrategy *SuperVaultStrategySession) PendingDepositRequest(controller common.Address) (*big.Int, error) {
-	return _SuperVaultStrategy.Contract.PendingDepositRequest(&_SuperVaultStrategy.CallOpts, controller)
-}
-
-// PendingDepositRequest is a free data retrieval call binding the contract method 0xc3702989.
-//
-// Solidity: function pendingDepositRequest(address controller) view returns(uint256 pendingAssets)
-func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) PendingDepositRequest(controller common.Address) (*big.Int, error) {
-	return _SuperVaultStrategy.Contract.PendingDepositRequest(&_SuperVaultStrategy.CallOpts, controller)
-}
-
 // PendingRedeemRequest is a free data retrieval call binding the contract method 0x53dc1dd3.
 //
 // Solidity: function pendingRedeemRequest(address controller) view returns(uint256 pendingShares)
@@ -784,6 +607,56 @@ func (_SuperVaultStrategy *SuperVaultStrategySession) PendingRedeemRequest(contr
 // Solidity: function pendingRedeemRequest(address controller) view returns(uint256 pendingShares)
 func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) PendingRedeemRequest(controller common.Address) (*big.Int, error) {
 	return _SuperVaultStrategy.Contract.PendingRedeemRequest(&_SuperVaultStrategy.CallOpts, controller)
+}
+
+// PreviewPerformanceFee is a free data retrieval call binding the contract method 0xa660de9f.
+//
+// Solidity: function previewPerformanceFee(address controller, uint256 sharesToRedeem) view returns(uint256 totalFee, uint256 superformFee, uint256 recipientFee)
+func (_SuperVaultStrategy *SuperVaultStrategyCaller) PreviewPerformanceFee(opts *bind.CallOpts, controller common.Address, sharesToRedeem *big.Int) (struct {
+	TotalFee     *big.Int
+	SuperformFee *big.Int
+	RecipientFee *big.Int
+}, error) {
+	var out []interface{}
+	err := _SuperVaultStrategy.contract.Call(opts, &out, "previewPerformanceFee", controller, sharesToRedeem)
+
+	outstruct := new(struct {
+		TotalFee     *big.Int
+		SuperformFee *big.Int
+		RecipientFee *big.Int
+	})
+	if err != nil {
+		return *outstruct, err
+	}
+
+	outstruct.TotalFee = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+	outstruct.SuperformFee = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
+	outstruct.RecipientFee = *abi.ConvertType(out[2], new(*big.Int)).(**big.Int)
+
+	return *outstruct, err
+
+}
+
+// PreviewPerformanceFee is a free data retrieval call binding the contract method 0xa660de9f.
+//
+// Solidity: function previewPerformanceFee(address controller, uint256 sharesToRedeem) view returns(uint256 totalFee, uint256 superformFee, uint256 recipientFee)
+func (_SuperVaultStrategy *SuperVaultStrategySession) PreviewPerformanceFee(controller common.Address, sharesToRedeem *big.Int) (struct {
+	TotalFee     *big.Int
+	SuperformFee *big.Int
+	RecipientFee *big.Int
+}, error) {
+	return _SuperVaultStrategy.Contract.PreviewPerformanceFee(&_SuperVaultStrategy.CallOpts, controller, sharesToRedeem)
+}
+
+// PreviewPerformanceFee is a free data retrieval call binding the contract method 0xa660de9f.
+//
+// Solidity: function previewPerformanceFee(address controller, uint256 sharesToRedeem) view returns(uint256 totalFee, uint256 superformFee, uint256 recipientFee)
+func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) PreviewPerformanceFee(controller common.Address, sharesToRedeem *big.Int) (struct {
+	TotalFee     *big.Int
+	SuperformFee *big.Int
+	RecipientFee *big.Int
+}, error) {
+	return _SuperVaultStrategy.Contract.PreviewPerformanceFee(&_SuperVaultStrategy.CallOpts, controller, sharesToRedeem)
 }
 
 // ProposedEmergencyWithdrawable is a free data retrieval call binding the contract method 0x1ac69304.
@@ -817,68 +690,23 @@ func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) ProposedEmergencyWit
 	return _SuperVaultStrategy.Contract.ProposedEmergencyWithdrawable(&_SuperVaultStrategy.CallOpts)
 }
 
-// TotalAssets is a free data retrieval call binding the contract method 0x01e1d114.
+// ExecuteHooks is a paid mutator transaction binding the contract method 0x2f82b89a.
 //
-// Solidity: function totalAssets() view returns(uint256 totalAssets_, (address,uint256)[] sourceTVLs)
-func (_SuperVaultStrategy *SuperVaultStrategyCaller) TotalAssets(opts *bind.CallOpts) (struct {
-	TotalAssets *big.Int
-	SourceTVLs  []ISuperVaultStrategyYieldSourceTVL
-}, error) {
-	var out []interface{}
-	err := _SuperVaultStrategy.contract.Call(opts, &out, "totalAssets")
-
-	outstruct := new(struct {
-		TotalAssets *big.Int
-		SourceTVLs  []ISuperVaultStrategyYieldSourceTVL
-	})
-	if err != nil {
-		return *outstruct, err
-	}
-
-	outstruct.TotalAssets = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-	outstruct.SourceTVLs = *abi.ConvertType(out[1], new([]ISuperVaultStrategyYieldSourceTVL)).(*[]ISuperVaultStrategyYieldSourceTVL)
-
-	return *outstruct, err
-
-}
-
-// TotalAssets is a free data retrieval call binding the contract method 0x01e1d114.
-//
-// Solidity: function totalAssets() view returns(uint256 totalAssets_, (address,uint256)[] sourceTVLs)
-func (_SuperVaultStrategy *SuperVaultStrategySession) TotalAssets() (struct {
-	TotalAssets *big.Int
-	SourceTVLs  []ISuperVaultStrategyYieldSourceTVL
-}, error) {
-	return _SuperVaultStrategy.Contract.TotalAssets(&_SuperVaultStrategy.CallOpts)
-}
-
-// TotalAssets is a free data retrieval call binding the contract method 0x01e1d114.
-//
-// Solidity: function totalAssets() view returns(uint256 totalAssets_, (address,uint256)[] sourceTVLs)
-func (_SuperVaultStrategy *SuperVaultStrategyCallerSession) TotalAssets() (struct {
-	TotalAssets *big.Int
-	SourceTVLs  []ISuperVaultStrategyYieldSourceTVL
-}, error) {
-	return _SuperVaultStrategy.Contract.TotalAssets(&_SuperVaultStrategy.CallOpts)
-}
-
-// ExecuteHooks is a paid mutator transaction binding the contract method 0x03425748.
-//
-// Solidity: function executeHooks((address[],address[],bytes[],bytes32[][],uint256[]) args) returns()
+// Solidity: function executeHooks((address[],bytes[],uint256[],bytes32[][],bytes32[][]) args) returns()
 func (_SuperVaultStrategy *SuperVaultStrategyTransactor) ExecuteHooks(opts *bind.TransactOpts, args ISuperVaultStrategyExecuteArgs) (*types.Transaction, error) {
 	return _SuperVaultStrategy.contract.Transact(opts, "executeHooks", args)
 }
 
-// ExecuteHooks is a paid mutator transaction binding the contract method 0x03425748.
+// ExecuteHooks is a paid mutator transaction binding the contract method 0x2f82b89a.
 //
-// Solidity: function executeHooks((address[],address[],bytes[],bytes32[][],uint256[]) args) returns()
+// Solidity: function executeHooks((address[],bytes[],uint256[],bytes32[][],bytes32[][]) args) returns()
 func (_SuperVaultStrategy *SuperVaultStrategySession) ExecuteHooks(args ISuperVaultStrategyExecuteArgs) (*types.Transaction, error) {
 	return _SuperVaultStrategy.Contract.ExecuteHooks(&_SuperVaultStrategy.TransactOpts, args)
 }
 
-// ExecuteHooks is a paid mutator transaction binding the contract method 0x03425748.
+// ExecuteHooks is a paid mutator transaction binding the contract method 0x2f82b89a.
 //
-// Solidity: function executeHooks((address[],address[],bytes[],bytes32[][],uint256[]) args) returns()
+// Solidity: function executeHooks((address[],bytes[],uint256[],bytes32[][],bytes32[][]) args) returns()
 func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) ExecuteHooks(args ISuperVaultStrategyExecuteArgs) (*types.Transaction, error) {
 	return _SuperVaultStrategy.Contract.ExecuteHooks(&_SuperVaultStrategy.TransactOpts, args)
 }
@@ -904,46 +732,67 @@ func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) ExecuteVaultFeeC
 	return _SuperVaultStrategy.Contract.ExecuteVaultFeeConfigUpdate(&_SuperVaultStrategy.TransactOpts)
 }
 
-// HandleOperation is a paid mutator transaction binding the contract method 0x165329ff.
+// FulfillRedeemRequests is a paid mutator transaction binding the contract method 0x1140092c.
 //
-// Solidity: function handleOperation(address controller, uint256 amount, uint8 operation) returns(uint256 assetsOrSharesOut)
-func (_SuperVaultStrategy *SuperVaultStrategyTransactor) HandleOperation(opts *bind.TransactOpts, controller common.Address, amount *big.Int, operation uint8) (*types.Transaction, error) {
-	return _SuperVaultStrategy.contract.Transact(opts, "handleOperation", controller, amount, operation)
+// Solidity: function fulfillRedeemRequests((address[],address[],bytes[],uint256[],bytes32[][],bytes32[][]) args) returns()
+func (_SuperVaultStrategy *SuperVaultStrategyTransactor) FulfillRedeemRequests(opts *bind.TransactOpts, args ISuperVaultStrategyFulfillArgs) (*types.Transaction, error) {
+	return _SuperVaultStrategy.contract.Transact(opts, "fulfillRedeemRequests", args)
 }
 
-// HandleOperation is a paid mutator transaction binding the contract method 0x165329ff.
+// FulfillRedeemRequests is a paid mutator transaction binding the contract method 0x1140092c.
 //
-// Solidity: function handleOperation(address controller, uint256 amount, uint8 operation) returns(uint256 assetsOrSharesOut)
-func (_SuperVaultStrategy *SuperVaultStrategySession) HandleOperation(controller common.Address, amount *big.Int, operation uint8) (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.HandleOperation(&_SuperVaultStrategy.TransactOpts, controller, amount, operation)
+// Solidity: function fulfillRedeemRequests((address[],address[],bytes[],uint256[],bytes32[][],bytes32[][]) args) returns()
+func (_SuperVaultStrategy *SuperVaultStrategySession) FulfillRedeemRequests(args ISuperVaultStrategyFulfillArgs) (*types.Transaction, error) {
+	return _SuperVaultStrategy.Contract.FulfillRedeemRequests(&_SuperVaultStrategy.TransactOpts, args)
 }
 
-// HandleOperation is a paid mutator transaction binding the contract method 0x165329ff.
+// FulfillRedeemRequests is a paid mutator transaction binding the contract method 0x1140092c.
 //
-// Solidity: function handleOperation(address controller, uint256 amount, uint8 operation) returns(uint256 assetsOrSharesOut)
-func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) HandleOperation(controller common.Address, amount *big.Int, operation uint8) (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.HandleOperation(&_SuperVaultStrategy.TransactOpts, controller, amount, operation)
+// Solidity: function fulfillRedeemRequests((address[],address[],bytes[],uint256[],bytes32[][],bytes32[][]) args) returns()
+func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) FulfillRedeemRequests(args ISuperVaultStrategyFulfillArgs) (*types.Transaction, error) {
+	return _SuperVaultStrategy.Contract.FulfillRedeemRequests(&_SuperVaultStrategy.TransactOpts, args)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x95b6ef0c.
+// HandleOperation is a paid mutator transaction binding the contract method 0xe2036753.
 //
-// Solidity: function initialize(address vault_, address manager_, address strategist_, address emergencyAdmin_, address peripheryRegistry_, uint256 superVaultCap_) returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactor) Initialize(opts *bind.TransactOpts, vault_ common.Address, manager_ common.Address, strategist_ common.Address, emergencyAdmin_ common.Address, peripheryRegistry_ common.Address, superVaultCap_ *big.Int) (*types.Transaction, error) {
-	return _SuperVaultStrategy.contract.Transact(opts, "initialize", vault_, manager_, strategist_, emergencyAdmin_, peripheryRegistry_, superVaultCap_)
+// Solidity: function handleOperation(address controller, uint256 assets, uint256 shares, uint8 operation) returns()
+func (_SuperVaultStrategy *SuperVaultStrategyTransactor) HandleOperation(opts *bind.TransactOpts, controller common.Address, assets *big.Int, shares *big.Int, operation uint8) (*types.Transaction, error) {
+	return _SuperVaultStrategy.contract.Transact(opts, "handleOperation", controller, assets, shares, operation)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x95b6ef0c.
+// HandleOperation is a paid mutator transaction binding the contract method 0xe2036753.
 //
-// Solidity: function initialize(address vault_, address manager_, address strategist_, address emergencyAdmin_, address peripheryRegistry_, uint256 superVaultCap_) returns()
-func (_SuperVaultStrategy *SuperVaultStrategySession) Initialize(vault_ common.Address, manager_ common.Address, strategist_ common.Address, emergencyAdmin_ common.Address, peripheryRegistry_ common.Address, superVaultCap_ *big.Int) (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.Initialize(&_SuperVaultStrategy.TransactOpts, vault_, manager_, strategist_, emergencyAdmin_, peripheryRegistry_, superVaultCap_)
+// Solidity: function handleOperation(address controller, uint256 assets, uint256 shares, uint8 operation) returns()
+func (_SuperVaultStrategy *SuperVaultStrategySession) HandleOperation(controller common.Address, assets *big.Int, shares *big.Int, operation uint8) (*types.Transaction, error) {
+	return _SuperVaultStrategy.Contract.HandleOperation(&_SuperVaultStrategy.TransactOpts, controller, assets, shares, operation)
 }
 
-// Initialize is a paid mutator transaction binding the contract method 0x95b6ef0c.
+// HandleOperation is a paid mutator transaction binding the contract method 0xe2036753.
 //
-// Solidity: function initialize(address vault_, address manager_, address strategist_, address emergencyAdmin_, address peripheryRegistry_, uint256 superVaultCap_) returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) Initialize(vault_ common.Address, manager_ common.Address, strategist_ common.Address, emergencyAdmin_ common.Address, peripheryRegistry_ common.Address, superVaultCap_ *big.Int) (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.Initialize(&_SuperVaultStrategy.TransactOpts, vault_, manager_, strategist_, emergencyAdmin_, peripheryRegistry_, superVaultCap_)
+// Solidity: function handleOperation(address controller, uint256 assets, uint256 shares, uint8 operation) returns()
+func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) HandleOperation(controller common.Address, assets *big.Int, shares *big.Int, operation uint8) (*types.Transaction, error) {
+	return _SuperVaultStrategy.Contract.HandleOperation(&_SuperVaultStrategy.TransactOpts, controller, assets, shares, operation)
+}
+
+// Initialize is a paid mutator transaction binding the contract method 0x61525ad8.
+//
+// Solidity: function initialize(address vault_, address superGovernor_, (uint256,address) feeConfig_) returns()
+func (_SuperVaultStrategy *SuperVaultStrategyTransactor) Initialize(opts *bind.TransactOpts, vault_ common.Address, superGovernor_ common.Address, feeConfig_ ISuperVaultStrategyFeeConfig) (*types.Transaction, error) {
+	return _SuperVaultStrategy.contract.Transact(opts, "initialize", vault_, superGovernor_, feeConfig_)
+}
+
+// Initialize is a paid mutator transaction binding the contract method 0x61525ad8.
+//
+// Solidity: function initialize(address vault_, address superGovernor_, (uint256,address) feeConfig_) returns()
+func (_SuperVaultStrategy *SuperVaultStrategySession) Initialize(vault_ common.Address, superGovernor_ common.Address, feeConfig_ ISuperVaultStrategyFeeConfig) (*types.Transaction, error) {
+	return _SuperVaultStrategy.Contract.Initialize(&_SuperVaultStrategy.TransactOpts, vault_, superGovernor_, feeConfig_)
+}
+
+// Initialize is a paid mutator transaction binding the contract method 0x61525ad8.
+//
+// Solidity: function initialize(address vault_, address superGovernor_, (uint256,address) feeConfig_) returns()
+func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) Initialize(vault_ common.Address, superGovernor_ common.Address, feeConfig_ ISuperVaultStrategyFeeConfig) (*types.Transaction, error) {
+	return _SuperVaultStrategy.Contract.Initialize(&_SuperVaultStrategy.TransactOpts, vault_, superGovernor_, feeConfig_)
 }
 
 // ManageEmergencyWithdraw is a paid mutator transaction binding the contract method 0xf4b3ea58.
@@ -967,88 +816,46 @@ func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) ManageEmergencyW
 	return _SuperVaultStrategy.Contract.ManageEmergencyWithdraw(&_SuperVaultStrategy.TransactOpts, action, recipient, amount)
 }
 
-// ManageYieldSource is a paid mutator transaction binding the contract method 0x162fb691.
+// ManageYieldSource is a paid mutator transaction binding the contract method 0x2528f691.
 //
-// Solidity: function manageYieldSource(address source, address oracle, uint8 actionType, bool activate, bool isAsync) returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactor) ManageYieldSource(opts *bind.TransactOpts, source common.Address, oracle common.Address, actionType uint8, activate bool, isAsync bool) (*types.Transaction, error) {
-	return _SuperVaultStrategy.contract.Transact(opts, "manageYieldSource", source, oracle, actionType, activate, isAsync)
+// Solidity: function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) returns()
+func (_SuperVaultStrategy *SuperVaultStrategyTransactor) ManageYieldSource(opts *bind.TransactOpts, source common.Address, oracle common.Address, actionType uint8, activate bool) (*types.Transaction, error) {
+	return _SuperVaultStrategy.contract.Transact(opts, "manageYieldSource", source, oracle, actionType, activate)
 }
 
-// ManageYieldSource is a paid mutator transaction binding the contract method 0x162fb691.
+// ManageYieldSource is a paid mutator transaction binding the contract method 0x2528f691.
 //
-// Solidity: function manageYieldSource(address source, address oracle, uint8 actionType, bool activate, bool isAsync) returns()
-func (_SuperVaultStrategy *SuperVaultStrategySession) ManageYieldSource(source common.Address, oracle common.Address, actionType uint8, activate bool, isAsync bool) (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.ManageYieldSource(&_SuperVaultStrategy.TransactOpts, source, oracle, actionType, activate, isAsync)
+// Solidity: function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) returns()
+func (_SuperVaultStrategy *SuperVaultStrategySession) ManageYieldSource(source common.Address, oracle common.Address, actionType uint8, activate bool) (*types.Transaction, error) {
+	return _SuperVaultStrategy.Contract.ManageYieldSource(&_SuperVaultStrategy.TransactOpts, source, oracle, actionType, activate)
 }
 
-// ManageYieldSource is a paid mutator transaction binding the contract method 0x162fb691.
+// ManageYieldSource is a paid mutator transaction binding the contract method 0x2528f691.
 //
-// Solidity: function manageYieldSource(address source, address oracle, uint8 actionType, bool activate, bool isAsync) returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) ManageYieldSource(source common.Address, oracle common.Address, actionType uint8, activate bool, isAsync bool) (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.ManageYieldSource(&_SuperVaultStrategy.TransactOpts, source, oracle, actionType, activate, isAsync)
+// Solidity: function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) returns()
+func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) ManageYieldSource(source common.Address, oracle common.Address, actionType uint8, activate bool) (*types.Transaction, error) {
+	return _SuperVaultStrategy.Contract.ManageYieldSource(&_SuperVaultStrategy.TransactOpts, source, oracle, actionType, activate)
 }
 
-// MatchRequests is a paid mutator transaction binding the contract method 0x4bb4a4fa.
+// ManageYieldSources is a paid mutator transaction binding the contract method 0xa8e34b93.
 //
-// Solidity: function matchRequests(address[] redeemUsers, address[] depositUsers) returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactor) MatchRequests(opts *bind.TransactOpts, redeemUsers []common.Address, depositUsers []common.Address) (*types.Transaction, error) {
-	return _SuperVaultStrategy.contract.Transact(opts, "matchRequests", redeemUsers, depositUsers)
+// Solidity: function manageYieldSources(address[] sources, address[] oracles, uint8[] actionTypes, bool[] activates) returns()
+func (_SuperVaultStrategy *SuperVaultStrategyTransactor) ManageYieldSources(opts *bind.TransactOpts, sources []common.Address, oracles []common.Address, actionTypes []uint8, activates []bool) (*types.Transaction, error) {
+	return _SuperVaultStrategy.contract.Transact(opts, "manageYieldSources", sources, oracles, actionTypes, activates)
 }
 
-// MatchRequests is a paid mutator transaction binding the contract method 0x4bb4a4fa.
+// ManageYieldSources is a paid mutator transaction binding the contract method 0xa8e34b93.
 //
-// Solidity: function matchRequests(address[] redeemUsers, address[] depositUsers) returns()
-func (_SuperVaultStrategy *SuperVaultStrategySession) MatchRequests(redeemUsers []common.Address, depositUsers []common.Address) (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.MatchRequests(&_SuperVaultStrategy.TransactOpts, redeemUsers, depositUsers)
+// Solidity: function manageYieldSources(address[] sources, address[] oracles, uint8[] actionTypes, bool[] activates) returns()
+func (_SuperVaultStrategy *SuperVaultStrategySession) ManageYieldSources(sources []common.Address, oracles []common.Address, actionTypes []uint8, activates []bool) (*types.Transaction, error) {
+	return _SuperVaultStrategy.Contract.ManageYieldSources(&_SuperVaultStrategy.TransactOpts, sources, oracles, actionTypes, activates)
 }
 
-// MatchRequests is a paid mutator transaction binding the contract method 0x4bb4a4fa.
+// ManageYieldSources is a paid mutator transaction binding the contract method 0xa8e34b93.
 //
-// Solidity: function matchRequests(address[] redeemUsers, address[] depositUsers) returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) MatchRequests(redeemUsers []common.Address, depositUsers []common.Address) (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.MatchRequests(&_SuperVaultStrategy.TransactOpts, redeemUsers, depositUsers)
-}
-
-// Pause is a paid mutator transaction binding the contract method 0x8456cb59.
-//
-// Solidity: function pause() returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactor) Pause(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _SuperVaultStrategy.contract.Transact(opts, "pause")
-}
-
-// Pause is a paid mutator transaction binding the contract method 0x8456cb59.
-//
-// Solidity: function pause() returns()
-func (_SuperVaultStrategy *SuperVaultStrategySession) Pause() (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.Pause(&_SuperVaultStrategy.TransactOpts)
-}
-
-// Pause is a paid mutator transaction binding the contract method 0x8456cb59.
-//
-// Solidity: function pause() returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) Pause() (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.Pause(&_SuperVaultStrategy.TransactOpts)
-}
-
-// ProposeOrExecuteHookRoot is a paid mutator transaction binding the contract method 0xa1649678.
-//
-// Solidity: function proposeOrExecuteHookRoot(bytes32 newRoot) returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactor) ProposeOrExecuteHookRoot(opts *bind.TransactOpts, newRoot [32]byte) (*types.Transaction, error) {
-	return _SuperVaultStrategy.contract.Transact(opts, "proposeOrExecuteHookRoot", newRoot)
-}
-
-// ProposeOrExecuteHookRoot is a paid mutator transaction binding the contract method 0xa1649678.
-//
-// Solidity: function proposeOrExecuteHookRoot(bytes32 newRoot) returns()
-func (_SuperVaultStrategy *SuperVaultStrategySession) ProposeOrExecuteHookRoot(newRoot [32]byte) (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.ProposeOrExecuteHookRoot(&_SuperVaultStrategy.TransactOpts, newRoot)
-}
-
-// ProposeOrExecuteHookRoot is a paid mutator transaction binding the contract method 0xa1649678.
-//
-// Solidity: function proposeOrExecuteHookRoot(bytes32 newRoot) returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) ProposeOrExecuteHookRoot(newRoot [32]byte) (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.ProposeOrExecuteHookRoot(&_SuperVaultStrategy.TransactOpts, newRoot)
+// Solidity: function manageYieldSources(address[] sources, address[] oracles, uint8[] actionTypes, bool[] activates) returns()
+func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) ManageYieldSources(sources []common.Address, oracles []common.Address, actionTypes []uint8, activates []bool) (*types.Transaction, error) {
+	return _SuperVaultStrategy.Contract.ManageYieldSources(&_SuperVaultStrategy.TransactOpts, sources, oracles, actionTypes, activates)
 }
 
 // ProposeVaultFeeConfigUpdate is a paid mutator transaction binding the contract method 0x563ceec3.
@@ -1072,72 +879,30 @@ func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) ProposeVaultFeeC
 	return _SuperVaultStrategy.Contract.ProposeVaultFeeConfigUpdate(&_SuperVaultStrategy.TransactOpts, performanceFeeBps, recipient)
 }
 
-// SetAddress is a paid mutator transaction binding the contract method 0xca446dd9.
+// UpdateMaxPPSSlippage is a paid mutator transaction binding the contract method 0x545fe28a.
 //
-// Solidity: function setAddress(bytes32 role, address account) returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactor) SetAddress(opts *bind.TransactOpts, role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperVaultStrategy.contract.Transact(opts, "setAddress", role, account)
+// Solidity: function updateMaxPPSSlippage(uint256 maxSlippageBps) returns()
+func (_SuperVaultStrategy *SuperVaultStrategyTransactor) UpdateMaxPPSSlippage(opts *bind.TransactOpts, maxSlippageBps *big.Int) (*types.Transaction, error) {
+	return _SuperVaultStrategy.contract.Transact(opts, "updateMaxPPSSlippage", maxSlippageBps)
 }
 
-// SetAddress is a paid mutator transaction binding the contract method 0xca446dd9.
+// UpdateMaxPPSSlippage is a paid mutator transaction binding the contract method 0x545fe28a.
 //
-// Solidity: function setAddress(bytes32 role, address account) returns()
-func (_SuperVaultStrategy *SuperVaultStrategySession) SetAddress(role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.SetAddress(&_SuperVaultStrategy.TransactOpts, role, account)
+// Solidity: function updateMaxPPSSlippage(uint256 maxSlippageBps) returns()
+func (_SuperVaultStrategy *SuperVaultStrategySession) UpdateMaxPPSSlippage(maxSlippageBps *big.Int) (*types.Transaction, error) {
+	return _SuperVaultStrategy.Contract.UpdateMaxPPSSlippage(&_SuperVaultStrategy.TransactOpts, maxSlippageBps)
 }
 
-// SetAddress is a paid mutator transaction binding the contract method 0xca446dd9.
+// UpdateMaxPPSSlippage is a paid mutator transaction binding the contract method 0x545fe28a.
 //
-// Solidity: function setAddress(bytes32 role, address account) returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) SetAddress(role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.SetAddress(&_SuperVaultStrategy.TransactOpts, role, account)
+// Solidity: function updateMaxPPSSlippage(uint256 maxSlippageBps) returns()
+func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) UpdateMaxPPSSlippage(maxSlippageBps *big.Int) (*types.Transaction, error) {
+	return _SuperVaultStrategy.Contract.UpdateMaxPPSSlippage(&_SuperVaultStrategy.TransactOpts, maxSlippageBps)
 }
 
-// Unpause is a paid mutator transaction binding the contract method 0x3f4ba83a.
-//
-// Solidity: function unpause() returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactor) Unpause(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _SuperVaultStrategy.contract.Transact(opts, "unpause")
-}
-
-// Unpause is a paid mutator transaction binding the contract method 0x3f4ba83a.
-//
-// Solidity: function unpause() returns()
-func (_SuperVaultStrategy *SuperVaultStrategySession) Unpause() (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.Unpause(&_SuperVaultStrategy.TransactOpts)
-}
-
-// Unpause is a paid mutator transaction binding the contract method 0x3f4ba83a.
-//
-// Solidity: function unpause() returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) Unpause() (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.Unpause(&_SuperVaultStrategy.TransactOpts)
-}
-
-// UpdateSuperVaultCap is a paid mutator transaction binding the contract method 0x2bb0e253.
-//
-// Solidity: function updateSuperVaultCap(uint256 superVaultCap_) returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactor) UpdateSuperVaultCap(opts *bind.TransactOpts, superVaultCap_ *big.Int) (*types.Transaction, error) {
-	return _SuperVaultStrategy.contract.Transact(opts, "updateSuperVaultCap", superVaultCap_)
-}
-
-// UpdateSuperVaultCap is a paid mutator transaction binding the contract method 0x2bb0e253.
-//
-// Solidity: function updateSuperVaultCap(uint256 superVaultCap_) returns()
-func (_SuperVaultStrategy *SuperVaultStrategySession) UpdateSuperVaultCap(superVaultCap_ *big.Int) (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.UpdateSuperVaultCap(&_SuperVaultStrategy.TransactOpts, superVaultCap_)
-}
-
-// UpdateSuperVaultCap is a paid mutator transaction binding the contract method 0x2bb0e253.
-//
-// Solidity: function updateSuperVaultCap(uint256 superVaultCap_) returns()
-func (_SuperVaultStrategy *SuperVaultStrategyTransactorSession) UpdateSuperVaultCap(superVaultCap_ *big.Int) (*types.Transaction, error) {
-	return _SuperVaultStrategy.Contract.UpdateSuperVaultCap(&_SuperVaultStrategy.TransactOpts, superVaultCap_)
-}
-
-// SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedIterator is returned from FilterAsyncYieldSourceInflowFulfillmentProcessed and is used to iterate over the raw logs and unpacked data for AsyncYieldSourceInflowFulfillmentProcessed events raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedIterator struct {
-	Event *SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessed // Event containing the contract specifics and raw log
+// SuperVaultStrategyDepositHandledIterator is returned from FilterDepositHandled and is used to iterate over the raw logs and unpacked data for DepositHandled events raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyDepositHandledIterator struct {
+	Event *SuperVaultStrategyDepositHandled // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -1151,7 +916,7 @@ type SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedIterator struct
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedIterator) Next() bool {
+func (it *SuperVaultStrategyDepositHandledIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1160,7 +925,7 @@ func (it *SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedIterator) 
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessed)
+			it.Event = new(SuperVaultStrategyDepositHandled)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1175,7 +940,7 @@ func (it *SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedIterator) 
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessed)
+		it.Event = new(SuperVaultStrategyDepositHandled)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1191,52 +956,53 @@ func (it *SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedIterator) 
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedIterator) Error() error {
+func (it *SuperVaultStrategyDepositHandledIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedIterator) Close() error {
+func (it *SuperVaultStrategyDepositHandledIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessed represents a AsyncYieldSourceInflowFulfillmentProcessed event raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessed struct {
-	Source common.Address
-	Assets *big.Int
-	Raw    types.Log // Blockchain specific contextual infos
+// SuperVaultStrategyDepositHandled represents a DepositHandled event raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyDepositHandled struct {
+	Controller common.Address
+	Assets     *big.Int
+	Shares     *big.Int
+	Raw        types.Log // Blockchain specific contextual infos
 }
 
-// FilterAsyncYieldSourceInflowFulfillmentProcessed is a free log retrieval operation binding the contract event 0x097ee89902a07bbcea1711381c46d7e547aa590fe492f93b88272d6734ef70a3.
+// FilterDepositHandled is a free log retrieval operation binding the contract event 0xa7a45ea372219103bc7d0bb545ac15937334185abf185241b18414600ed19110.
 //
-// Solidity: event AsyncYieldSourceInflowFulfillmentProcessed(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterAsyncYieldSourceInflowFulfillmentProcessed(opts *bind.FilterOpts, source []common.Address) (*SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedIterator, error) {
+// Solidity: event DepositHandled(address indexed controller, uint256 assets, uint256 shares)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterDepositHandled(opts *bind.FilterOpts, controller []common.Address) (*SuperVaultStrategyDepositHandledIterator, error) {
 
-	var sourceRule []interface{}
-	for _, sourceItem := range source {
-		sourceRule = append(sourceRule, sourceItem)
+	var controllerRule []interface{}
+	for _, controllerItem := range controller {
+		controllerRule = append(controllerRule, controllerItem)
 	}
 
-	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "AsyncYieldSourceInflowFulfillmentProcessed", sourceRule)
+	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "DepositHandled", controllerRule)
 	if err != nil {
 		return nil, err
 	}
-	return &SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedIterator{contract: _SuperVaultStrategy.contract, event: "AsyncYieldSourceInflowFulfillmentProcessed", logs: logs, sub: sub}, nil
+	return &SuperVaultStrategyDepositHandledIterator{contract: _SuperVaultStrategy.contract, event: "DepositHandled", logs: logs, sub: sub}, nil
 }
 
-// WatchAsyncYieldSourceInflowFulfillmentProcessed is a free log subscription operation binding the contract event 0x097ee89902a07bbcea1711381c46d7e547aa590fe492f93b88272d6734ef70a3.
+// WatchDepositHandled is a free log subscription operation binding the contract event 0xa7a45ea372219103bc7d0bb545ac15937334185abf185241b18414600ed19110.
 //
-// Solidity: event AsyncYieldSourceInflowFulfillmentProcessed(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchAsyncYieldSourceInflowFulfillmentProcessed(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessed, source []common.Address) (event.Subscription, error) {
+// Solidity: event DepositHandled(address indexed controller, uint256 assets, uint256 shares)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchDepositHandled(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyDepositHandled, controller []common.Address) (event.Subscription, error) {
 
-	var sourceRule []interface{}
-	for _, sourceItem := range source {
-		sourceRule = append(sourceRule, sourceItem)
+	var controllerRule []interface{}
+	for _, controllerItem := range controller {
+		controllerRule = append(controllerRule, controllerItem)
 	}
 
-	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "AsyncYieldSourceInflowFulfillmentProcessed", sourceRule)
+	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "DepositHandled", controllerRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1246,8 +1012,8 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchAsyncYieldSourceInfl
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessed)
-				if err := _SuperVaultStrategy.contract.UnpackLog(event, "AsyncYieldSourceInflowFulfillmentProcessed", log); err != nil {
+				event := new(SuperVaultStrategyDepositHandled)
+				if err := _SuperVaultStrategy.contract.UnpackLog(event, "DepositHandled", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1268,447 +1034,12 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchAsyncYieldSourceInfl
 	}), nil
 }
 
-// ParseAsyncYieldSourceInflowFulfillmentProcessed is a log parse operation binding the contract event 0x097ee89902a07bbcea1711381c46d7e547aa590fe492f93b88272d6734ef70a3.
+// ParseDepositHandled is a log parse operation binding the contract event 0xa7a45ea372219103bc7d0bb545ac15937334185abf185241b18414600ed19110.
 //
-// Solidity: event AsyncYieldSourceInflowFulfillmentProcessed(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseAsyncYieldSourceInflowFulfillmentProcessed(log types.Log) (*SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessed, error) {
-	event := new(SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessed)
-	if err := _SuperVaultStrategy.contract.UnpackLog(event, "AsyncYieldSourceInflowFulfillmentProcessed", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOutIterator is returned from FilterAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut and is used to iterate over the raw logs and unpacked data for AsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut events raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOutIterator struct {
-	Event *SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOutIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOutIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOutIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut represents a AsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut event raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut struct {
-	Source common.Address
-	Assets *big.Int
-	Raw    types.Log // Blockchain specific contextual infos
-}
-
-// FilterAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut is a free log retrieval operation binding the contract event 0x75363f690c3bec01cf9532514b503c9b421a299cd62bd5103fd30e4e9a409650.
-//
-// Solidity: event AsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut(opts *bind.FilterOpts, source []common.Address) (*SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOutIterator, error) {
-
-	var sourceRule []interface{}
-	for _, sourceItem := range source {
-		sourceRule = append(sourceRule, sourceItem)
-	}
-
-	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "AsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut", sourceRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOutIterator{contract: _SuperVaultStrategy.contract, event: "AsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut", logs: logs, sub: sub}, nil
-}
-
-// WatchAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut is a free log subscription operation binding the contract event 0x75363f690c3bec01cf9532514b503c9b421a299cd62bd5103fd30e4e9a409650.
-//
-// Solidity: event AsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut, source []common.Address) (event.Subscription, error) {
-
-	var sourceRule []interface{}
-	for _, sourceItem := range source {
-		sourceRule = append(sourceRule, sourceItem)
-	}
-
-	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "AsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut", sourceRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut)
-				if err := _SuperVaultStrategy.contract.UnpackLog(event, "AsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut is a log parse operation binding the contract event 0x75363f690c3bec01cf9532514b503c9b421a299cd62bd5103fd30e4e9a409650.
-//
-// Solidity: event AsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut(log types.Log) (*SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut, error) {
-	event := new(SuperVaultStrategyAsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut)
-	if err := _SuperVaultStrategy.contract.UnpackLog(event, "AsyncYieldSourceInflowFulfillmentProcessedExcessSharesOut", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedIterator is returned from FilterAsyncYieldSourceOutflowFulfillmentProcessed and is used to iterate over the raw logs and unpacked data for AsyncYieldSourceOutflowFulfillmentProcessed events raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedIterator struct {
-	Event *SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessed // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessed)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessed)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessed represents a AsyncYieldSourceOutflowFulfillmentProcessed event raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessed struct {
-	Source common.Address
-	Assets *big.Int
-	Raw    types.Log // Blockchain specific contextual infos
-}
-
-// FilterAsyncYieldSourceOutflowFulfillmentProcessed is a free log retrieval operation binding the contract event 0xb03e54d42036393c901088d8f7e8914434fdea9c4e4bfbabcaf2789e1b1c76be.
-//
-// Solidity: event AsyncYieldSourceOutflowFulfillmentProcessed(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterAsyncYieldSourceOutflowFulfillmentProcessed(opts *bind.FilterOpts, source []common.Address) (*SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedIterator, error) {
-
-	var sourceRule []interface{}
-	for _, sourceItem := range source {
-		sourceRule = append(sourceRule, sourceItem)
-	}
-
-	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "AsyncYieldSourceOutflowFulfillmentProcessed", sourceRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedIterator{contract: _SuperVaultStrategy.contract, event: "AsyncYieldSourceOutflowFulfillmentProcessed", logs: logs, sub: sub}, nil
-}
-
-// WatchAsyncYieldSourceOutflowFulfillmentProcessed is a free log subscription operation binding the contract event 0xb03e54d42036393c901088d8f7e8914434fdea9c4e4bfbabcaf2789e1b1c76be.
-//
-// Solidity: event AsyncYieldSourceOutflowFulfillmentProcessed(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchAsyncYieldSourceOutflowFulfillmentProcessed(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessed, source []common.Address) (event.Subscription, error) {
-
-	var sourceRule []interface{}
-	for _, sourceItem := range source {
-		sourceRule = append(sourceRule, sourceItem)
-	}
-
-	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "AsyncYieldSourceOutflowFulfillmentProcessed", sourceRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessed)
-				if err := _SuperVaultStrategy.contract.UnpackLog(event, "AsyncYieldSourceOutflowFulfillmentProcessed", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseAsyncYieldSourceOutflowFulfillmentProcessed is a log parse operation binding the contract event 0xb03e54d42036393c901088d8f7e8914434fdea9c4e4bfbabcaf2789e1b1c76be.
-//
-// Solidity: event AsyncYieldSourceOutflowFulfillmentProcessed(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseAsyncYieldSourceOutflowFulfillmentProcessed(log types.Log) (*SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessed, error) {
-	event := new(SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessed)
-	if err := _SuperVaultStrategy.contract.UnpackLog(event, "AsyncYieldSourceOutflowFulfillmentProcessed", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOutIterator is returned from FilterAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut and is used to iterate over the raw logs and unpacked data for AsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut events raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOutIterator struct {
-	Event *SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOutIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOutIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOutIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut represents a AsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut event raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut struct {
-	Source common.Address
-	Assets *big.Int
-	Raw    types.Log // Blockchain specific contextual infos
-}
-
-// FilterAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut is a free log retrieval operation binding the contract event 0xbd26d323cd7c3458d5cf5bf2fc36956c4809fb7554ba55f13e201008b8ba6a41.
-//
-// Solidity: event AsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut(opts *bind.FilterOpts, source []common.Address) (*SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOutIterator, error) {
-
-	var sourceRule []interface{}
-	for _, sourceItem := range source {
-		sourceRule = append(sourceRule, sourceItem)
-	}
-
-	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "AsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut", sourceRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOutIterator{contract: _SuperVaultStrategy.contract, event: "AsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut", logs: logs, sub: sub}, nil
-}
-
-// WatchAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut is a free log subscription operation binding the contract event 0xbd26d323cd7c3458d5cf5bf2fc36956c4809fb7554ba55f13e201008b8ba6a41.
-//
-// Solidity: event AsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut, source []common.Address) (event.Subscription, error) {
-
-	var sourceRule []interface{}
-	for _, sourceItem := range source {
-		sourceRule = append(sourceRule, sourceItem)
-	}
-
-	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "AsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut", sourceRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut)
-				if err := _SuperVaultStrategy.contract.UnpackLog(event, "AsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut is a log parse operation binding the contract event 0xbd26d323cd7c3458d5cf5bf2fc36956c4809fb7554ba55f13e201008b8ba6a41.
-//
-// Solidity: event AsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut(log types.Log) (*SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut, error) {
-	event := new(SuperVaultStrategyAsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut)
-	if err := _SuperVaultStrategy.contract.UnpackLog(event, "AsyncYieldSourceOutflowFulfillmentProcessedExcessAssetsOut", log); err != nil {
+// Solidity: event DepositHandled(address indexed controller, uint256 assets, uint256 shares)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseDepositHandled(log types.Log) (*SuperVaultStrategyDepositHandled, error) {
+	event := new(SuperVaultStrategyDepositHandled)
+	if err := _SuperVaultStrategy.contract.UnpackLog(event, "DepositHandled", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
@@ -2129,288 +1460,6 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseEmergencyWithdrawal(
 	return event, nil
 }
 
-// SuperVaultStrategyExecutionCompletedIterator is returned from FilterExecutionCompleted and is used to iterate over the raw logs and unpacked data for ExecutionCompleted events raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyExecutionCompletedIterator struct {
-	Event *SuperVaultStrategyExecutionCompleted // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperVaultStrategyExecutionCompletedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperVaultStrategyExecutionCompleted)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperVaultStrategyExecutionCompleted)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultStrategyExecutionCompletedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperVaultStrategyExecutionCompletedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperVaultStrategyExecutionCompleted represents a ExecutionCompleted event raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyExecutionCompleted struct {
-	Hooks           []common.Address
-	IsFulfillment   bool
-	UsersProcessed  *big.Int
-	ProcessedShares *big.Int
-	Raw             types.Log // Blockchain specific contextual infos
-}
-
-// FilterExecutionCompleted is a free log retrieval operation binding the contract event 0x2fa8a9095cfd1b99771cb3aa4eddfa7aacb563c30364df76aa5996d6019a004c.
-//
-// Solidity: event ExecutionCompleted(address[] hooks, bool isFulfillment, uint256 usersProcessed, uint256 processedShares)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterExecutionCompleted(opts *bind.FilterOpts) (*SuperVaultStrategyExecutionCompletedIterator, error) {
-
-	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "ExecutionCompleted")
-	if err != nil {
-		return nil, err
-	}
-	return &SuperVaultStrategyExecutionCompletedIterator{contract: _SuperVaultStrategy.contract, event: "ExecutionCompleted", logs: logs, sub: sub}, nil
-}
-
-// WatchExecutionCompleted is a free log subscription operation binding the contract event 0x2fa8a9095cfd1b99771cb3aa4eddfa7aacb563c30364df76aa5996d6019a004c.
-//
-// Solidity: event ExecutionCompleted(address[] hooks, bool isFulfillment, uint256 usersProcessed, uint256 processedShares)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchExecutionCompleted(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyExecutionCompleted) (event.Subscription, error) {
-
-	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "ExecutionCompleted")
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultStrategyExecutionCompleted)
-				if err := _SuperVaultStrategy.contract.UnpackLog(event, "ExecutionCompleted", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseExecutionCompleted is a log parse operation binding the contract event 0x2fa8a9095cfd1b99771cb3aa4eddfa7aacb563c30364df76aa5996d6019a004c.
-//
-// Solidity: event ExecutionCompleted(address[] hooks, bool isFulfillment, uint256 usersProcessed, uint256 processedShares)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseExecutionCompleted(log types.Log) (*SuperVaultStrategyExecutionCompleted, error) {
-	event := new(SuperVaultStrategyExecutionCompleted)
-	if err := _SuperVaultStrategy.contract.UnpackLog(event, "ExecutionCompleted", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperVaultStrategyFeeConfigUpdatedIterator is returned from FilterFeeConfigUpdated and is used to iterate over the raw logs and unpacked data for FeeConfigUpdated events raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyFeeConfigUpdatedIterator struct {
-	Event *SuperVaultStrategyFeeConfigUpdated // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperVaultStrategyFeeConfigUpdatedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperVaultStrategyFeeConfigUpdated)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperVaultStrategyFeeConfigUpdated)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultStrategyFeeConfigUpdatedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperVaultStrategyFeeConfigUpdatedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperVaultStrategyFeeConfigUpdated represents a FeeConfigUpdated event raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyFeeConfigUpdated struct {
-	FeeBps    *big.Int
-	Recipient common.Address
-	Raw       types.Log // Blockchain specific contextual infos
-}
-
-// FilterFeeConfigUpdated is a free log retrieval operation binding the contract event 0xe125ae54d7ba2b06e6f44852861516acb2dd2692cf41fb127fa03252f15b334e.
-//
-// Solidity: event FeeConfigUpdated(uint256 feeBps, address indexed recipient)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterFeeConfigUpdated(opts *bind.FilterOpts, recipient []common.Address) (*SuperVaultStrategyFeeConfigUpdatedIterator, error) {
-
-	var recipientRule []interface{}
-	for _, recipientItem := range recipient {
-		recipientRule = append(recipientRule, recipientItem)
-	}
-
-	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "FeeConfigUpdated", recipientRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperVaultStrategyFeeConfigUpdatedIterator{contract: _SuperVaultStrategy.contract, event: "FeeConfigUpdated", logs: logs, sub: sub}, nil
-}
-
-// WatchFeeConfigUpdated is a free log subscription operation binding the contract event 0xe125ae54d7ba2b06e6f44852861516acb2dd2692cf41fb127fa03252f15b334e.
-//
-// Solidity: event FeeConfigUpdated(uint256 feeBps, address indexed recipient)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchFeeConfigUpdated(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyFeeConfigUpdated, recipient []common.Address) (event.Subscription, error) {
-
-	var recipientRule []interface{}
-	for _, recipientItem := range recipient {
-		recipientRule = append(recipientRule, recipientItem)
-	}
-
-	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "FeeConfigUpdated", recipientRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultStrategyFeeConfigUpdated)
-				if err := _SuperVaultStrategy.contract.UnpackLog(event, "FeeConfigUpdated", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseFeeConfigUpdated is a log parse operation binding the contract event 0xe125ae54d7ba2b06e6f44852861516acb2dd2692cf41fb127fa03252f15b334e.
-//
-// Solidity: event FeeConfigUpdated(uint256 feeBps, address indexed recipient)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseFeeConfigUpdated(log types.Log) (*SuperVaultStrategyFeeConfigUpdated, error) {
-	event := new(SuperVaultStrategyFeeConfigUpdated)
-	if err := _SuperVaultStrategy.contract.UnpackLog(event, "FeeConfigUpdated", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
 // SuperVaultStrategyFeePaidIterator is returned from FilterFeePaid and is used to iterate over the raw logs and unpacked data for FeePaid events raised by the SuperVaultStrategy contract.
 type SuperVaultStrategyFeePaidIterator struct {
 	Event *SuperVaultStrategyFeePaid // Event containing the contract specifics and raw log
@@ -2480,15 +1529,15 @@ func (it *SuperVaultStrategyFeePaidIterator) Close() error {
 
 // SuperVaultStrategyFeePaid represents a FeePaid event raised by the SuperVaultStrategy contract.
 type SuperVaultStrategyFeePaid struct {
-	Recipient common.Address
-	Assets    *big.Int
-	Bps       *big.Int
-	Raw       types.Log // Blockchain specific contextual infos
+	Recipient         common.Address
+	Amount            *big.Int
+	PerformanceFeeBps *big.Int
+	Raw               types.Log // Blockchain specific contextual infos
 }
 
 // FilterFeePaid is a free log retrieval operation binding the contract event 0xf3816d9cce3442fbfe3e4d36ad047b3362efdc9f2e283e77b0ecd768a0a01ef2.
 //
-// Solidity: event FeePaid(address indexed recipient, uint256 assets, uint256 bps)
+// Solidity: event FeePaid(address indexed recipient, uint256 amount, uint256 performanceFeeBps)
 func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterFeePaid(opts *bind.FilterOpts, recipient []common.Address) (*SuperVaultStrategyFeePaidIterator, error) {
 
 	var recipientRule []interface{}
@@ -2505,7 +1554,7 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterFeePaid(opts *bind.
 
 // WatchFeePaid is a free log subscription operation binding the contract event 0xf3816d9cce3442fbfe3e4d36ad047b3362efdc9f2e283e77b0ecd768a0a01ef2.
 //
-// Solidity: event FeePaid(address indexed recipient, uint256 assets, uint256 bps)
+// Solidity: event FeePaid(address indexed recipient, uint256 amount, uint256 performanceFeeBps)
 func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchFeePaid(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyFeePaid, recipient []common.Address) (event.Subscription, error) {
 
 	var recipientRule []interface{}
@@ -2547,10 +1596,328 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchFeePaid(opts *bind.W
 
 // ParseFeePaid is a log parse operation binding the contract event 0xf3816d9cce3442fbfe3e4d36ad047b3362efdc9f2e283e77b0ecd768a0a01ef2.
 //
-// Solidity: event FeePaid(address indexed recipient, uint256 assets, uint256 bps)
+// Solidity: event FeePaid(address indexed recipient, uint256 amount, uint256 performanceFeeBps)
 func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseFeePaid(log types.Log) (*SuperVaultStrategyFeePaid, error) {
 	event := new(SuperVaultStrategyFeePaid)
 	if err := _SuperVaultStrategy.contract.UnpackLog(event, "FeePaid", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// SuperVaultStrategyFulfillHookExecutedIterator is returned from FilterFulfillHookExecuted and is used to iterate over the raw logs and unpacked data for FulfillHookExecuted events raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyFulfillHookExecutedIterator struct {
+	Event *SuperVaultStrategyFulfillHookExecuted // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperVaultStrategyFulfillHookExecutedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperVaultStrategyFulfillHookExecuted)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperVaultStrategyFulfillHookExecuted)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperVaultStrategyFulfillHookExecutedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperVaultStrategyFulfillHookExecutedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SuperVaultStrategyFulfillHookExecuted represents a FulfillHookExecuted event raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyFulfillHookExecuted struct {
+	Hook                common.Address
+	TargetedYieldSource common.Address
+	HookCalldata        []byte
+	Raw                 types.Log // Blockchain specific contextual infos
+}
+
+// FilterFulfillHookExecuted is a free log retrieval operation binding the contract event 0x8965eeca9fa7abfe57ce06ca140a412809309fe05703f910e28d53e9e8ec8ba1.
+//
+// Solidity: event FulfillHookExecuted(address indexed hook, address indexed targetedYieldSource, bytes hookCalldata)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterFulfillHookExecuted(opts *bind.FilterOpts, hook []common.Address, targetedYieldSource []common.Address) (*SuperVaultStrategyFulfillHookExecutedIterator, error) {
+
+	var hookRule []interface{}
+	for _, hookItem := range hook {
+		hookRule = append(hookRule, hookItem)
+	}
+	var targetedYieldSourceRule []interface{}
+	for _, targetedYieldSourceItem := range targetedYieldSource {
+		targetedYieldSourceRule = append(targetedYieldSourceRule, targetedYieldSourceItem)
+	}
+
+	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "FulfillHookExecuted", hookRule, targetedYieldSourceRule)
+	if err != nil {
+		return nil, err
+	}
+	return &SuperVaultStrategyFulfillHookExecutedIterator{contract: _SuperVaultStrategy.contract, event: "FulfillHookExecuted", logs: logs, sub: sub}, nil
+}
+
+// WatchFulfillHookExecuted is a free log subscription operation binding the contract event 0x8965eeca9fa7abfe57ce06ca140a412809309fe05703f910e28d53e9e8ec8ba1.
+//
+// Solidity: event FulfillHookExecuted(address indexed hook, address indexed targetedYieldSource, bytes hookCalldata)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchFulfillHookExecuted(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyFulfillHookExecuted, hook []common.Address, targetedYieldSource []common.Address) (event.Subscription, error) {
+
+	var hookRule []interface{}
+	for _, hookItem := range hook {
+		hookRule = append(hookRule, hookItem)
+	}
+	var targetedYieldSourceRule []interface{}
+	for _, targetedYieldSourceItem := range targetedYieldSource {
+		targetedYieldSourceRule = append(targetedYieldSourceRule, targetedYieldSourceItem)
+	}
+
+	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "FulfillHookExecuted", hookRule, targetedYieldSourceRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperVaultStrategyFulfillHookExecuted)
+				if err := _SuperVaultStrategy.contract.UnpackLog(event, "FulfillHookExecuted", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseFulfillHookExecuted is a log parse operation binding the contract event 0x8965eeca9fa7abfe57ce06ca140a412809309fe05703f910e28d53e9e8ec8ba1.
+//
+// Solidity: event FulfillHookExecuted(address indexed hook, address indexed targetedYieldSource, bytes hookCalldata)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseFulfillHookExecuted(log types.Log) (*SuperVaultStrategyFulfillHookExecuted, error) {
+	event := new(SuperVaultStrategyFulfillHookExecuted)
+	if err := _SuperVaultStrategy.contract.UnpackLog(event, "FulfillHookExecuted", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// SuperVaultStrategyHookExecutedIterator is returned from FilterHookExecuted and is used to iterate over the raw logs and unpacked data for HookExecuted events raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyHookExecutedIterator struct {
+	Event *SuperVaultStrategyHookExecuted // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperVaultStrategyHookExecutedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperVaultStrategyHookExecuted)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperVaultStrategyHookExecuted)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperVaultStrategyHookExecutedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperVaultStrategyHookExecutedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SuperVaultStrategyHookExecuted represents a HookExecuted event raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyHookExecuted struct {
+	Hook                common.Address
+	PrevHook            common.Address
+	TargetedYieldSource common.Address
+	UsePrevHookAmount   bool
+	HookCalldata        []byte
+	Raw                 types.Log // Blockchain specific contextual infos
+}
+
+// FilterHookExecuted is a free log retrieval operation binding the contract event 0xedec66be61a678e975773689d9e1b08597890550d0a45c11e6e4014a7a67c713.
+//
+// Solidity: event HookExecuted(address indexed hook, address indexed prevHook, address indexed targetedYieldSource, bool usePrevHookAmount, bytes hookCalldata)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterHookExecuted(opts *bind.FilterOpts, hook []common.Address, prevHook []common.Address, targetedYieldSource []common.Address) (*SuperVaultStrategyHookExecutedIterator, error) {
+
+	var hookRule []interface{}
+	for _, hookItem := range hook {
+		hookRule = append(hookRule, hookItem)
+	}
+	var prevHookRule []interface{}
+	for _, prevHookItem := range prevHook {
+		prevHookRule = append(prevHookRule, prevHookItem)
+	}
+	var targetedYieldSourceRule []interface{}
+	for _, targetedYieldSourceItem := range targetedYieldSource {
+		targetedYieldSourceRule = append(targetedYieldSourceRule, targetedYieldSourceItem)
+	}
+
+	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "HookExecuted", hookRule, prevHookRule, targetedYieldSourceRule)
+	if err != nil {
+		return nil, err
+	}
+	return &SuperVaultStrategyHookExecutedIterator{contract: _SuperVaultStrategy.contract, event: "HookExecuted", logs: logs, sub: sub}, nil
+}
+
+// WatchHookExecuted is a free log subscription operation binding the contract event 0xedec66be61a678e975773689d9e1b08597890550d0a45c11e6e4014a7a67c713.
+//
+// Solidity: event HookExecuted(address indexed hook, address indexed prevHook, address indexed targetedYieldSource, bool usePrevHookAmount, bytes hookCalldata)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchHookExecuted(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyHookExecuted, hook []common.Address, prevHook []common.Address, targetedYieldSource []common.Address) (event.Subscription, error) {
+
+	var hookRule []interface{}
+	for _, hookItem := range hook {
+		hookRule = append(hookRule, hookItem)
+	}
+	var prevHookRule []interface{}
+	for _, prevHookItem := range prevHook {
+		prevHookRule = append(prevHookRule, prevHookItem)
+	}
+	var targetedYieldSourceRule []interface{}
+	for _, targetedYieldSourceItem := range targetedYieldSource {
+		targetedYieldSourceRule = append(targetedYieldSourceRule, targetedYieldSourceItem)
+	}
+
+	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "HookExecuted", hookRule, prevHookRule, targetedYieldSourceRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperVaultStrategyHookExecuted)
+				if err := _SuperVaultStrategy.contract.UnpackLog(event, "HookExecuted", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseHookExecuted is a log parse operation binding the contract event 0xedec66be61a678e975773689d9e1b08597890550d0a45c11e6e4014a7a67c713.
+//
+// Solidity: event HookExecuted(address indexed hook, address indexed prevHook, address indexed targetedYieldSource, bool usePrevHookAmount, bytes hookCalldata)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseHookExecuted(log types.Log) (*SuperVaultStrategyHookExecuted, error) {
+	event := new(SuperVaultStrategyHookExecuted)
+	if err := _SuperVaultStrategy.contract.UnpackLog(event, "HookExecuted", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
@@ -3029,58 +2396,47 @@ func (it *SuperVaultStrategyInitializedIterator) Close() error {
 
 // SuperVaultStrategyInitialized represents a Initialized event raised by the SuperVaultStrategy contract.
 type SuperVaultStrategyInitialized struct {
-	Vault          common.Address
-	Manager        common.Address
-	Strategist     common.Address
-	EmergencyAdmin common.Address
-	SuperVaultCap  *big.Int
-	Raw            types.Log // Blockchain specific contextual infos
+	Vault         common.Address
+	SuperGovernor common.Address
+	Raw           types.Log // Blockchain specific contextual infos
 }
 
-// FilterInitialized is a free log retrieval operation binding the contract event 0xb9bf2986b44bc4d312da1451b923a8676446e697dc0d76abe92d41a005207713.
+// FilterInitialized is a free log retrieval operation binding the contract event 0x3cd5ec01b1ae7cfec6ca1863e2cd6aa25d6d1702825803ff2b7cc95010fffdc2.
 //
-// Solidity: event Initialized(address indexed vault, address indexed manager, address indexed strategist, address emergencyAdmin, uint256 superVaultCap)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterInitialized(opts *bind.FilterOpts, vault []common.Address, manager []common.Address, strategist []common.Address) (*SuperVaultStrategyInitializedIterator, error) {
+// Solidity: event Initialized(address indexed vault, address indexed superGovernor)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterInitialized(opts *bind.FilterOpts, vault []common.Address, superGovernor []common.Address) (*SuperVaultStrategyInitializedIterator, error) {
 
 	var vaultRule []interface{}
 	for _, vaultItem := range vault {
 		vaultRule = append(vaultRule, vaultItem)
 	}
-	var managerRule []interface{}
-	for _, managerItem := range manager {
-		managerRule = append(managerRule, managerItem)
-	}
-	var strategistRule []interface{}
-	for _, strategistItem := range strategist {
-		strategistRule = append(strategistRule, strategistItem)
+	var superGovernorRule []interface{}
+	for _, superGovernorItem := range superGovernor {
+		superGovernorRule = append(superGovernorRule, superGovernorItem)
 	}
 
-	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "Initialized", vaultRule, managerRule, strategistRule)
+	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "Initialized", vaultRule, superGovernorRule)
 	if err != nil {
 		return nil, err
 	}
 	return &SuperVaultStrategyInitializedIterator{contract: _SuperVaultStrategy.contract, event: "Initialized", logs: logs, sub: sub}, nil
 }
 
-// WatchInitialized is a free log subscription operation binding the contract event 0xb9bf2986b44bc4d312da1451b923a8676446e697dc0d76abe92d41a005207713.
+// WatchInitialized is a free log subscription operation binding the contract event 0x3cd5ec01b1ae7cfec6ca1863e2cd6aa25d6d1702825803ff2b7cc95010fffdc2.
 //
-// Solidity: event Initialized(address indexed vault, address indexed manager, address indexed strategist, address emergencyAdmin, uint256 superVaultCap)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchInitialized(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyInitialized, vault []common.Address, manager []common.Address, strategist []common.Address) (event.Subscription, error) {
+// Solidity: event Initialized(address indexed vault, address indexed superGovernor)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchInitialized(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyInitialized, vault []common.Address, superGovernor []common.Address) (event.Subscription, error) {
 
 	var vaultRule []interface{}
 	for _, vaultItem := range vault {
 		vaultRule = append(vaultRule, vaultItem)
 	}
-	var managerRule []interface{}
-	for _, managerItem := range manager {
-		managerRule = append(managerRule, managerItem)
-	}
-	var strategistRule []interface{}
-	for _, strategistItem := range strategist {
-		strategistRule = append(strategistRule, strategistItem)
+	var superGovernorRule []interface{}
+	for _, superGovernorItem := range superGovernor {
+		superGovernorRule = append(superGovernorRule, superGovernorItem)
 	}
 
-	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "Initialized", vaultRule, managerRule, strategistRule)
+	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "Initialized", vaultRule, superGovernorRule)
 	if err != nil {
 		return nil, err
 	}
@@ -3112,9 +2468,9 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchInitialized(opts *bi
 	}), nil
 }
 
-// ParseInitialized is a log parse operation binding the contract event 0xb9bf2986b44bc4d312da1451b923a8676446e697dc0d76abe92d41a005207713.
+// ParseInitialized is a log parse operation binding the contract event 0x3cd5ec01b1ae7cfec6ca1863e2cd6aa25d6d1702825803ff2b7cc95010fffdc2.
 //
-// Solidity: event Initialized(address indexed vault, address indexed manager, address indexed strategist, address emergencyAdmin, uint256 superVaultCap)
+// Solidity: event Initialized(address indexed vault, address indexed superGovernor)
 func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseInitialized(log types.Log) (*SuperVaultStrategyInitialized, error) {
 	event := new(SuperVaultStrategyInitialized)
 	if err := _SuperVaultStrategy.contract.UnpackLog(event, "Initialized", log); err != nil {
@@ -3124,9 +2480,9 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseInitialized(log type
 	return event, nil
 }
 
-// SuperVaultStrategyPausedIterator is returned from FilterPaused and is used to iterate over the raw logs and unpacked data for Paused events raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyPausedIterator struct {
-	Event *SuperVaultStrategyPaused // Event containing the contract specifics and raw log
+// SuperVaultStrategyMaxPPSSlippageUpdatedIterator is returned from FilterMaxPPSSlippageUpdated and is used to iterate over the raw logs and unpacked data for MaxPPSSlippageUpdated events raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyMaxPPSSlippageUpdatedIterator struct {
+	Event *SuperVaultStrategyMaxPPSSlippageUpdated // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -3140,7 +2496,7 @@ type SuperVaultStrategyPausedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *SuperVaultStrategyPausedIterator) Next() bool {
+func (it *SuperVaultStrategyMaxPPSSlippageUpdatedIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -3149,7 +2505,7 @@ func (it *SuperVaultStrategyPausedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(SuperVaultStrategyPaused)
+			it.Event = new(SuperVaultStrategyMaxPPSSlippageUpdated)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -3164,7 +2520,7 @@ func (it *SuperVaultStrategyPausedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(SuperVaultStrategyPaused)
+		it.Event = new(SuperVaultStrategyMaxPPSSlippageUpdated)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -3180,41 +2536,41 @@ func (it *SuperVaultStrategyPausedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultStrategyPausedIterator) Error() error {
+func (it *SuperVaultStrategyMaxPPSSlippageUpdatedIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *SuperVaultStrategyPausedIterator) Close() error {
+func (it *SuperVaultStrategyMaxPPSSlippageUpdatedIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// SuperVaultStrategyPaused represents a Paused event raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyPaused struct {
-	Account common.Address
-	Raw     types.Log // Blockchain specific contextual infos
+// SuperVaultStrategyMaxPPSSlippageUpdated represents a MaxPPSSlippageUpdated event raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyMaxPPSSlippageUpdated struct {
+	MaxSlippageBps *big.Int
+	Raw            types.Log // Blockchain specific contextual infos
 }
 
-// FilterPaused is a free log retrieval operation binding the contract event 0x62e78cea01bee320cd4e420270b5ea74000d11b0c9f74754ebdbfc544b05a258.
+// FilterMaxPPSSlippageUpdated is a free log retrieval operation binding the contract event 0x601e6af9a1eaa6a1c282472f960e4f70d707620a2d5320eb83176b21fbb7af59.
 //
-// Solidity: event Paused(address account)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterPaused(opts *bind.FilterOpts) (*SuperVaultStrategyPausedIterator, error) {
+// Solidity: event MaxPPSSlippageUpdated(uint256 maxSlippageBps)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterMaxPPSSlippageUpdated(opts *bind.FilterOpts) (*SuperVaultStrategyMaxPPSSlippageUpdatedIterator, error) {
 
-	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "Paused")
+	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "MaxPPSSlippageUpdated")
 	if err != nil {
 		return nil, err
 	}
-	return &SuperVaultStrategyPausedIterator{contract: _SuperVaultStrategy.contract, event: "Paused", logs: logs, sub: sub}, nil
+	return &SuperVaultStrategyMaxPPSSlippageUpdatedIterator{contract: _SuperVaultStrategy.contract, event: "MaxPPSSlippageUpdated", logs: logs, sub: sub}, nil
 }
 
-// WatchPaused is a free log subscription operation binding the contract event 0x62e78cea01bee320cd4e420270b5ea74000d11b0c9f74754ebdbfc544b05a258.
+// WatchMaxPPSSlippageUpdated is a free log subscription operation binding the contract event 0x601e6af9a1eaa6a1c282472f960e4f70d707620a2d5320eb83176b21fbb7af59.
 //
-// Solidity: event Paused(address account)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchPaused(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyPaused) (event.Subscription, error) {
+// Solidity: event MaxPPSSlippageUpdated(uint256 maxSlippageBps)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchMaxPPSSlippageUpdated(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyMaxPPSSlippageUpdated) (event.Subscription, error) {
 
-	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "Paused")
+	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "MaxPPSSlippageUpdated")
 	if err != nil {
 		return nil, err
 	}
@@ -3224,8 +2580,8 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchPaused(opts *bind.Wa
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultStrategyPaused)
-				if err := _SuperVaultStrategy.contract.UnpackLog(event, "Paused", log); err != nil {
+				event := new(SuperVaultStrategyMaxPPSSlippageUpdated)
+				if err := _SuperVaultStrategy.contract.UnpackLog(event, "MaxPPSSlippageUpdated", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -3246,21 +2602,21 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchPaused(opts *bind.Wa
 	}), nil
 }
 
-// ParsePaused is a log parse operation binding the contract event 0x62e78cea01bee320cd4e420270b5ea74000d11b0c9f74754ebdbfc544b05a258.
+// ParseMaxPPSSlippageUpdated is a log parse operation binding the contract event 0x601e6af9a1eaa6a1c282472f960e4f70d707620a2d5320eb83176b21fbb7af59.
 //
-// Solidity: event Paused(address account)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParsePaused(log types.Log) (*SuperVaultStrategyPaused, error) {
-	event := new(SuperVaultStrategyPaused)
-	if err := _SuperVaultStrategy.contract.UnpackLog(event, "Paused", log); err != nil {
+// Solidity: event MaxPPSSlippageUpdated(uint256 maxSlippageBps)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseMaxPPSSlippageUpdated(log types.Log) (*SuperVaultStrategyMaxPPSSlippageUpdated, error) {
+	event := new(SuperVaultStrategyMaxPPSSlippageUpdated)
+	if err := _SuperVaultStrategy.contract.UnpackLog(event, "MaxPPSSlippageUpdated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
 	return event, nil
 }
 
-// SuperVaultStrategySuperVaultCapUpdatedIterator is returned from FilterSuperVaultCapUpdated and is used to iterate over the raw logs and unpacked data for SuperVaultCapUpdated events raised by the SuperVaultStrategy contract.
-type SuperVaultStrategySuperVaultCapUpdatedIterator struct {
-	Event *SuperVaultStrategySuperVaultCapUpdated // Event containing the contract specifics and raw log
+// SuperVaultStrategyPPSUpdatedIterator is returned from FilterPPSUpdated and is used to iterate over the raw logs and unpacked data for PPSUpdated events raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyPPSUpdatedIterator struct {
+	Event *SuperVaultStrategyPPSUpdated // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -3274,7 +2630,7 @@ type SuperVaultStrategySuperVaultCapUpdatedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *SuperVaultStrategySuperVaultCapUpdatedIterator) Next() bool {
+func (it *SuperVaultStrategyPPSUpdatedIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -3283,7 +2639,7 @@ func (it *SuperVaultStrategySuperVaultCapUpdatedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(SuperVaultStrategySuperVaultCapUpdated)
+			it.Event = new(SuperVaultStrategyPPSUpdated)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -3298,7 +2654,7 @@ func (it *SuperVaultStrategySuperVaultCapUpdatedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(SuperVaultStrategySuperVaultCapUpdated)
+		it.Event = new(SuperVaultStrategyPPSUpdated)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -3314,41 +2670,42 @@ func (it *SuperVaultStrategySuperVaultCapUpdatedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultStrategySuperVaultCapUpdatedIterator) Error() error {
+func (it *SuperVaultStrategyPPSUpdatedIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *SuperVaultStrategySuperVaultCapUpdatedIterator) Close() error {
+func (it *SuperVaultStrategyPPSUpdatedIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// SuperVaultStrategySuperVaultCapUpdated represents a SuperVaultCapUpdated event raised by the SuperVaultStrategy contract.
-type SuperVaultStrategySuperVaultCapUpdated struct {
-	SuperVaultCap *big.Int
-	Raw           types.Log // Blockchain specific contextual infos
+// SuperVaultStrategyPPSUpdated represents a PPSUpdated event raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyPPSUpdated struct {
+	NewPPS           *big.Int
+	CalculationBlock *big.Int
+	Raw              types.Log // Blockchain specific contextual infos
 }
 
-// FilterSuperVaultCapUpdated is a free log retrieval operation binding the contract event 0x2b3deb0c59064ab2c93dc8db35e806828ecd039562bc7a65451f752d2046c2a0.
+// FilterPPSUpdated is a free log retrieval operation binding the contract event 0xb6cc0c2ff0c9234f0af39df37dc4a66ff11533ec5936b359e86bb1f63a5f9b0e.
 //
-// Solidity: event SuperVaultCapUpdated(uint256 superVaultCap)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterSuperVaultCapUpdated(opts *bind.FilterOpts) (*SuperVaultStrategySuperVaultCapUpdatedIterator, error) {
+// Solidity: event PPSUpdated(uint256 newPPS, uint256 calculationBlock)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterPPSUpdated(opts *bind.FilterOpts) (*SuperVaultStrategyPPSUpdatedIterator, error) {
 
-	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "SuperVaultCapUpdated")
+	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "PPSUpdated")
 	if err != nil {
 		return nil, err
 	}
-	return &SuperVaultStrategySuperVaultCapUpdatedIterator{contract: _SuperVaultStrategy.contract, event: "SuperVaultCapUpdated", logs: logs, sub: sub}, nil
+	return &SuperVaultStrategyPPSUpdatedIterator{contract: _SuperVaultStrategy.contract, event: "PPSUpdated", logs: logs, sub: sub}, nil
 }
 
-// WatchSuperVaultCapUpdated is a free log subscription operation binding the contract event 0x2b3deb0c59064ab2c93dc8db35e806828ecd039562bc7a65451f752d2046c2a0.
+// WatchPPSUpdated is a free log subscription operation binding the contract event 0xb6cc0c2ff0c9234f0af39df37dc4a66ff11533ec5936b359e86bb1f63a5f9b0e.
 //
-// Solidity: event SuperVaultCapUpdated(uint256 superVaultCap)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchSuperVaultCapUpdated(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategySuperVaultCapUpdated) (event.Subscription, error) {
+// Solidity: event PPSUpdated(uint256 newPPS, uint256 calculationBlock)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchPPSUpdated(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyPPSUpdated) (event.Subscription, error) {
 
-	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "SuperVaultCapUpdated")
+	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "PPSUpdated")
 	if err != nil {
 		return nil, err
 	}
@@ -3358,8 +2715,8 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchSuperVaultCapUpdated
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultStrategySuperVaultCapUpdated)
-				if err := _SuperVaultStrategy.contract.UnpackLog(event, "SuperVaultCapUpdated", log); err != nil {
+				event := new(SuperVaultStrategyPPSUpdated)
+				if err := _SuperVaultStrategy.contract.UnpackLog(event, "PPSUpdated", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -3380,21 +2737,21 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchSuperVaultCapUpdated
 	}), nil
 }
 
-// ParseSuperVaultCapUpdated is a log parse operation binding the contract event 0x2b3deb0c59064ab2c93dc8db35e806828ecd039562bc7a65451f752d2046c2a0.
+// ParsePPSUpdated is a log parse operation binding the contract event 0xb6cc0c2ff0c9234f0af39df37dc4a66ff11533ec5936b359e86bb1f63a5f9b0e.
 //
-// Solidity: event SuperVaultCapUpdated(uint256 superVaultCap)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseSuperVaultCapUpdated(log types.Log) (*SuperVaultStrategySuperVaultCapUpdated, error) {
-	event := new(SuperVaultStrategySuperVaultCapUpdated)
-	if err := _SuperVaultStrategy.contract.UnpackLog(event, "SuperVaultCapUpdated", log); err != nil {
+// Solidity: event PPSUpdated(uint256 newPPS, uint256 calculationBlock)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParsePPSUpdated(log types.Log) (*SuperVaultStrategyPPSUpdated, error) {
+	event := new(SuperVaultStrategyPPSUpdated)
+	if err := _SuperVaultStrategy.contract.UnpackLog(event, "PPSUpdated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
 	return event, nil
 }
 
-// SuperVaultStrategyUnpausedIterator is returned from FilterUnpaused and is used to iterate over the raw logs and unpacked data for Unpaused events raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyUnpausedIterator struct {
-	Event *SuperVaultStrategyUnpaused // Event containing the contract specifics and raw log
+// SuperVaultStrategyRedeemRequestCanceledIterator is returned from FilterRedeemRequestCanceled and is used to iterate over the raw logs and unpacked data for RedeemRequestCanceled events raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyRedeemRequestCanceledIterator struct {
+	Event *SuperVaultStrategyRedeemRequestCanceled // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -3408,7 +2765,7 @@ type SuperVaultStrategyUnpausedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *SuperVaultStrategyUnpausedIterator) Next() bool {
+func (it *SuperVaultStrategyRedeemRequestCanceledIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -3417,7 +2774,7 @@ func (it *SuperVaultStrategyUnpausedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(SuperVaultStrategyUnpaused)
+			it.Event = new(SuperVaultStrategyRedeemRequestCanceled)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -3432,7 +2789,7 @@ func (it *SuperVaultStrategyUnpausedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(SuperVaultStrategyUnpaused)
+		it.Event = new(SuperVaultStrategyRedeemRequestCanceled)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -3448,41 +2805,52 @@ func (it *SuperVaultStrategyUnpausedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultStrategyUnpausedIterator) Error() error {
+func (it *SuperVaultStrategyRedeemRequestCanceledIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *SuperVaultStrategyUnpausedIterator) Close() error {
+func (it *SuperVaultStrategyRedeemRequestCanceledIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// SuperVaultStrategyUnpaused represents a Unpaused event raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyUnpaused struct {
-	Account common.Address
-	Raw     types.Log // Blockchain specific contextual infos
+// SuperVaultStrategyRedeemRequestCanceled represents a RedeemRequestCanceled event raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyRedeemRequestCanceled struct {
+	Controller common.Address
+	Shares     *big.Int
+	Raw        types.Log // Blockchain specific contextual infos
 }
 
-// FilterUnpaused is a free log retrieval operation binding the contract event 0x5db9ee0a495bf2e6ff9c91a7834c1ba4fdd244a5e8aa4e537bd38aeae4b073aa.
+// FilterRedeemRequestCanceled is a free log retrieval operation binding the contract event 0x95c79fa73e29b5366d4d76636d7cee6df5062a878e67ddfaa9685f3a4b0ccc93.
 //
-// Solidity: event Unpaused(address account)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterUnpaused(opts *bind.FilterOpts) (*SuperVaultStrategyUnpausedIterator, error) {
+// Solidity: event RedeemRequestCanceled(address indexed controller, uint256 shares)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterRedeemRequestCanceled(opts *bind.FilterOpts, controller []common.Address) (*SuperVaultStrategyRedeemRequestCanceledIterator, error) {
 
-	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "Unpaused")
+	var controllerRule []interface{}
+	for _, controllerItem := range controller {
+		controllerRule = append(controllerRule, controllerItem)
+	}
+
+	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "RedeemRequestCanceled", controllerRule)
 	if err != nil {
 		return nil, err
 	}
-	return &SuperVaultStrategyUnpausedIterator{contract: _SuperVaultStrategy.contract, event: "Unpaused", logs: logs, sub: sub}, nil
+	return &SuperVaultStrategyRedeemRequestCanceledIterator{contract: _SuperVaultStrategy.contract, event: "RedeemRequestCanceled", logs: logs, sub: sub}, nil
 }
 
-// WatchUnpaused is a free log subscription operation binding the contract event 0x5db9ee0a495bf2e6ff9c91a7834c1ba4fdd244a5e8aa4e537bd38aeae4b073aa.
+// WatchRedeemRequestCanceled is a free log subscription operation binding the contract event 0x95c79fa73e29b5366d4d76636d7cee6df5062a878e67ddfaa9685f3a4b0ccc93.
 //
-// Solidity: event Unpaused(address account)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchUnpaused(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyUnpaused) (event.Subscription, error) {
+// Solidity: event RedeemRequestCanceled(address indexed controller, uint256 shares)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchRedeemRequestCanceled(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyRedeemRequestCanceled, controller []common.Address) (event.Subscription, error) {
 
-	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "Unpaused")
+	var controllerRule []interface{}
+	for _, controllerItem := range controller {
+		controllerRule = append(controllerRule, controllerItem)
+	}
+
+	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "RedeemRequestCanceled", controllerRule)
 	if err != nil {
 		return nil, err
 	}
@@ -3492,8 +2860,8 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchUnpaused(opts *bind.
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultStrategyUnpaused)
-				if err := _SuperVaultStrategy.contract.UnpackLog(event, "Unpaused", log); err != nil {
+				event := new(SuperVaultStrategyRedeemRequestCanceled)
+				if err := _SuperVaultStrategy.contract.UnpackLog(event, "RedeemRequestCanceled", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -3514,12 +2882,458 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchUnpaused(opts *bind.
 	}), nil
 }
 
-// ParseUnpaused is a log parse operation binding the contract event 0x5db9ee0a495bf2e6ff9c91a7834c1ba4fdd244a5e8aa4e537bd38aeae4b073aa.
+// ParseRedeemRequestCanceled is a log parse operation binding the contract event 0x95c79fa73e29b5366d4d76636d7cee6df5062a878e67ddfaa9685f3a4b0ccc93.
 //
-// Solidity: event Unpaused(address account)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseUnpaused(log types.Log) (*SuperVaultStrategyUnpaused, error) {
-	event := new(SuperVaultStrategyUnpaused)
-	if err := _SuperVaultStrategy.contract.UnpackLog(event, "Unpaused", log); err != nil {
+// Solidity: event RedeemRequestCanceled(address indexed controller, uint256 shares)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseRedeemRequestCanceled(log types.Log) (*SuperVaultStrategyRedeemRequestCanceled, error) {
+	event := new(SuperVaultStrategyRedeemRequestCanceled)
+	if err := _SuperVaultStrategy.contract.UnpackLog(event, "RedeemRequestCanceled", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// SuperVaultStrategyRedeemRequestFulfilledIterator is returned from FilterRedeemRequestFulfilled and is used to iterate over the raw logs and unpacked data for RedeemRequestFulfilled events raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyRedeemRequestFulfilledIterator struct {
+	Event *SuperVaultStrategyRedeemRequestFulfilled // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperVaultStrategyRedeemRequestFulfilledIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperVaultStrategyRedeemRequestFulfilled)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperVaultStrategyRedeemRequestFulfilled)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperVaultStrategyRedeemRequestFulfilledIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperVaultStrategyRedeemRequestFulfilledIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SuperVaultStrategyRedeemRequestFulfilled represents a RedeemRequestFulfilled event raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyRedeemRequestFulfilled struct {
+	Controller common.Address
+	Receiver   common.Address
+	Assets     *big.Int
+	Shares     *big.Int
+	Raw        types.Log // Blockchain specific contextual infos
+}
+
+// FilterRedeemRequestFulfilled is a free log retrieval operation binding the contract event 0x24111f527e6debb0efcfd4c847fc0ae4d8858cdfc72cc2fce0e757a3fce414f7.
+//
+// Solidity: event RedeemRequestFulfilled(address indexed controller, address indexed receiver, uint256 assets, uint256 shares)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterRedeemRequestFulfilled(opts *bind.FilterOpts, controller []common.Address, receiver []common.Address) (*SuperVaultStrategyRedeemRequestFulfilledIterator, error) {
+
+	var controllerRule []interface{}
+	for _, controllerItem := range controller {
+		controllerRule = append(controllerRule, controllerItem)
+	}
+	var receiverRule []interface{}
+	for _, receiverItem := range receiver {
+		receiverRule = append(receiverRule, receiverItem)
+	}
+
+	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "RedeemRequestFulfilled", controllerRule, receiverRule)
+	if err != nil {
+		return nil, err
+	}
+	return &SuperVaultStrategyRedeemRequestFulfilledIterator{contract: _SuperVaultStrategy.contract, event: "RedeemRequestFulfilled", logs: logs, sub: sub}, nil
+}
+
+// WatchRedeemRequestFulfilled is a free log subscription operation binding the contract event 0x24111f527e6debb0efcfd4c847fc0ae4d8858cdfc72cc2fce0e757a3fce414f7.
+//
+// Solidity: event RedeemRequestFulfilled(address indexed controller, address indexed receiver, uint256 assets, uint256 shares)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchRedeemRequestFulfilled(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyRedeemRequestFulfilled, controller []common.Address, receiver []common.Address) (event.Subscription, error) {
+
+	var controllerRule []interface{}
+	for _, controllerItem := range controller {
+		controllerRule = append(controllerRule, controllerItem)
+	}
+	var receiverRule []interface{}
+	for _, receiverItem := range receiver {
+		receiverRule = append(receiverRule, receiverItem)
+	}
+
+	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "RedeemRequestFulfilled", controllerRule, receiverRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperVaultStrategyRedeemRequestFulfilled)
+				if err := _SuperVaultStrategy.contract.UnpackLog(event, "RedeemRequestFulfilled", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseRedeemRequestFulfilled is a log parse operation binding the contract event 0x24111f527e6debb0efcfd4c847fc0ae4d8858cdfc72cc2fce0e757a3fce414f7.
+//
+// Solidity: event RedeemRequestFulfilled(address indexed controller, address indexed receiver, uint256 assets, uint256 shares)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseRedeemRequestFulfilled(log types.Log) (*SuperVaultStrategyRedeemRequestFulfilled, error) {
+	event := new(SuperVaultStrategyRedeemRequestFulfilled)
+	if err := _SuperVaultStrategy.contract.UnpackLog(event, "RedeemRequestFulfilled", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// SuperVaultStrategyRedeemRequestPlacedIterator is returned from FilterRedeemRequestPlaced and is used to iterate over the raw logs and unpacked data for RedeemRequestPlaced events raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyRedeemRequestPlacedIterator struct {
+	Event *SuperVaultStrategyRedeemRequestPlaced // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperVaultStrategyRedeemRequestPlacedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperVaultStrategyRedeemRequestPlaced)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperVaultStrategyRedeemRequestPlaced)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperVaultStrategyRedeemRequestPlacedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperVaultStrategyRedeemRequestPlacedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SuperVaultStrategyRedeemRequestPlaced represents a RedeemRequestPlaced event raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyRedeemRequestPlaced struct {
+	Controller common.Address
+	Owner      common.Address
+	Shares     *big.Int
+	Raw        types.Log // Blockchain specific contextual infos
+}
+
+// FilterRedeemRequestPlaced is a free log retrieval operation binding the contract event 0xbeb06d4f35e676c2ef7181fbfd7bf2499fe739db0a96517ae96c40ebaf2f5c6b.
+//
+// Solidity: event RedeemRequestPlaced(address indexed controller, address indexed owner, uint256 shares)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterRedeemRequestPlaced(opts *bind.FilterOpts, controller []common.Address, owner []common.Address) (*SuperVaultStrategyRedeemRequestPlacedIterator, error) {
+
+	var controllerRule []interface{}
+	for _, controllerItem := range controller {
+		controllerRule = append(controllerRule, controllerItem)
+	}
+	var ownerRule []interface{}
+	for _, ownerItem := range owner {
+		ownerRule = append(ownerRule, ownerItem)
+	}
+
+	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "RedeemRequestPlaced", controllerRule, ownerRule)
+	if err != nil {
+		return nil, err
+	}
+	return &SuperVaultStrategyRedeemRequestPlacedIterator{contract: _SuperVaultStrategy.contract, event: "RedeemRequestPlaced", logs: logs, sub: sub}, nil
+}
+
+// WatchRedeemRequestPlaced is a free log subscription operation binding the contract event 0xbeb06d4f35e676c2ef7181fbfd7bf2499fe739db0a96517ae96c40ebaf2f5c6b.
+//
+// Solidity: event RedeemRequestPlaced(address indexed controller, address indexed owner, uint256 shares)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchRedeemRequestPlaced(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyRedeemRequestPlaced, controller []common.Address, owner []common.Address) (event.Subscription, error) {
+
+	var controllerRule []interface{}
+	for _, controllerItem := range controller {
+		controllerRule = append(controllerRule, controllerItem)
+	}
+	var ownerRule []interface{}
+	for _, ownerItem := range owner {
+		ownerRule = append(ownerRule, ownerItem)
+	}
+
+	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "RedeemRequestPlaced", controllerRule, ownerRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperVaultStrategyRedeemRequestPlaced)
+				if err := _SuperVaultStrategy.contract.UnpackLog(event, "RedeemRequestPlaced", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseRedeemRequestPlaced is a log parse operation binding the contract event 0xbeb06d4f35e676c2ef7181fbfd7bf2499fe739db0a96517ae96c40ebaf2f5c6b.
+//
+// Solidity: event RedeemRequestPlaced(address indexed controller, address indexed owner, uint256 shares)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseRedeemRequestPlaced(log types.Log) (*SuperVaultStrategyRedeemRequestPlaced, error) {
+	event := new(SuperVaultStrategyRedeemRequestPlaced)
+	if err := _SuperVaultStrategy.contract.UnpackLog(event, "RedeemRequestPlaced", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// SuperVaultStrategyRedeemRequestsFulfilledIterator is returned from FilterRedeemRequestsFulfilled and is used to iterate over the raw logs and unpacked data for RedeemRequestsFulfilled events raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyRedeemRequestsFulfilledIterator struct {
+	Event *SuperVaultStrategyRedeemRequestsFulfilled // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperVaultStrategyRedeemRequestsFulfilledIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperVaultStrategyRedeemRequestsFulfilled)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperVaultStrategyRedeemRequestsFulfilled)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperVaultStrategyRedeemRequestsFulfilledIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperVaultStrategyRedeemRequestsFulfilledIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SuperVaultStrategyRedeemRequestsFulfilled represents a RedeemRequestsFulfilled event raised by the SuperVaultStrategy contract.
+type SuperVaultStrategyRedeemRequestsFulfilled struct {
+	Hooks           []common.Address
+	Controllers     []common.Address
+	ProcessedShares *big.Int
+	CurrentPPS      *big.Int
+	Raw             types.Log // Blockchain specific contextual infos
+}
+
+// FilterRedeemRequestsFulfilled is a free log retrieval operation binding the contract event 0xb60c22109df38dfaf6625c7de9afef9f213602f043bfa783be1c0ef783ed843e.
+//
+// Solidity: event RedeemRequestsFulfilled(address[] hooks, address[] controllers, uint256 processedShares, uint256 currentPPS)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterRedeemRequestsFulfilled(opts *bind.FilterOpts) (*SuperVaultStrategyRedeemRequestsFulfilledIterator, error) {
+
+	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "RedeemRequestsFulfilled")
+	if err != nil {
+		return nil, err
+	}
+	return &SuperVaultStrategyRedeemRequestsFulfilledIterator{contract: _SuperVaultStrategy.contract, event: "RedeemRequestsFulfilled", logs: logs, sub: sub}, nil
+}
+
+// WatchRedeemRequestsFulfilled is a free log subscription operation binding the contract event 0xb60c22109df38dfaf6625c7de9afef9f213602f043bfa783be1c0ef783ed843e.
+//
+// Solidity: event RedeemRequestsFulfilled(address[] hooks, address[] controllers, uint256 processedShares, uint256 currentPPS)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchRedeemRequestsFulfilled(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyRedeemRequestsFulfilled) (event.Subscription, error) {
+
+	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "RedeemRequestsFulfilled")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperVaultStrategyRedeemRequestsFulfilled)
+				if err := _SuperVaultStrategy.contract.UnpackLog(event, "RedeemRequestsFulfilled", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseRedeemRequestsFulfilled is a log parse operation binding the contract event 0xb60c22109df38dfaf6625c7de9afef9f213602f043bfa783be1c0ef783ed843e.
+//
+// Solidity: event RedeemRequestsFulfilled(address[] hooks, address[] controllers, uint256 processedShares, uint256 currentPPS)
+func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseRedeemRequestsFulfilled(log types.Log) (*SuperVaultStrategyRedeemRequestsFulfilled, error) {
+	event := new(SuperVaultStrategyRedeemRequestsFulfilled)
+	if err := _SuperVaultStrategy.contract.UnpackLog(event, "RedeemRequestsFulfilled", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
@@ -4114,151 +3928,6 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseYieldSourceDeactivat
 	return event, nil
 }
 
-// SuperVaultStrategyYieldSourceInflowFulfillmentProcessedIterator is returned from FilterYieldSourceInflowFulfillmentProcessed and is used to iterate over the raw logs and unpacked data for YieldSourceInflowFulfillmentProcessed events raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyYieldSourceInflowFulfillmentProcessedIterator struct {
-	Event *SuperVaultStrategyYieldSourceInflowFulfillmentProcessed // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperVaultStrategyYieldSourceInflowFulfillmentProcessedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperVaultStrategyYieldSourceInflowFulfillmentProcessed)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperVaultStrategyYieldSourceInflowFulfillmentProcessed)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultStrategyYieldSourceInflowFulfillmentProcessedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperVaultStrategyYieldSourceInflowFulfillmentProcessedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperVaultStrategyYieldSourceInflowFulfillmentProcessed represents a YieldSourceInflowFulfillmentProcessed event raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyYieldSourceInflowFulfillmentProcessed struct {
-	Source common.Address
-	Assets *big.Int
-	Raw    types.Log // Blockchain specific contextual infos
-}
-
-// FilterYieldSourceInflowFulfillmentProcessed is a free log retrieval operation binding the contract event 0x2544eb80ba191928b329105f173d4b4619f3340a3d4d01f14925def998128e57.
-//
-// Solidity: event YieldSourceInflowFulfillmentProcessed(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterYieldSourceInflowFulfillmentProcessed(opts *bind.FilterOpts, source []common.Address) (*SuperVaultStrategyYieldSourceInflowFulfillmentProcessedIterator, error) {
-
-	var sourceRule []interface{}
-	for _, sourceItem := range source {
-		sourceRule = append(sourceRule, sourceItem)
-	}
-
-	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "YieldSourceInflowFulfillmentProcessed", sourceRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperVaultStrategyYieldSourceInflowFulfillmentProcessedIterator{contract: _SuperVaultStrategy.contract, event: "YieldSourceInflowFulfillmentProcessed", logs: logs, sub: sub}, nil
-}
-
-// WatchYieldSourceInflowFulfillmentProcessed is a free log subscription operation binding the contract event 0x2544eb80ba191928b329105f173d4b4619f3340a3d4d01f14925def998128e57.
-//
-// Solidity: event YieldSourceInflowFulfillmentProcessed(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchYieldSourceInflowFulfillmentProcessed(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyYieldSourceInflowFulfillmentProcessed, source []common.Address) (event.Subscription, error) {
-
-	var sourceRule []interface{}
-	for _, sourceItem := range source {
-		sourceRule = append(sourceRule, sourceItem)
-	}
-
-	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "YieldSourceInflowFulfillmentProcessed", sourceRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultStrategyYieldSourceInflowFulfillmentProcessed)
-				if err := _SuperVaultStrategy.contract.UnpackLog(event, "YieldSourceInflowFulfillmentProcessed", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseYieldSourceInflowFulfillmentProcessed is a log parse operation binding the contract event 0x2544eb80ba191928b329105f173d4b4619f3340a3d4d01f14925def998128e57.
-//
-// Solidity: event YieldSourceInflowFulfillmentProcessed(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseYieldSourceInflowFulfillmentProcessed(log types.Log) (*SuperVaultStrategyYieldSourceInflowFulfillmentProcessed, error) {
-	event := new(SuperVaultStrategyYieldSourceInflowFulfillmentProcessed)
-	if err := _SuperVaultStrategy.contract.UnpackLog(event, "YieldSourceInflowFulfillmentProcessed", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
 // SuperVaultStrategyYieldSourceOracleUpdatedIterator is returned from FilterYieldSourceOracleUpdated and is used to iterate over the raw logs and unpacked data for YieldSourceOracleUpdated events raised by the SuperVaultStrategy contract.
 type SuperVaultStrategyYieldSourceOracleUpdatedIterator struct {
 	Event *SuperVaultStrategyYieldSourceOracleUpdated // Event containing the contract specifics and raw log
@@ -4415,151 +4084,6 @@ func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchYieldSourceOracleUpd
 func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseYieldSourceOracleUpdated(log types.Log) (*SuperVaultStrategyYieldSourceOracleUpdated, error) {
 	event := new(SuperVaultStrategyYieldSourceOracleUpdated)
 	if err := _SuperVaultStrategy.contract.UnpackLog(event, "YieldSourceOracleUpdated", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperVaultStrategyYieldSourceOutflowFulfillmentProcessedIterator is returned from FilterYieldSourceOutflowFulfillmentProcessed and is used to iterate over the raw logs and unpacked data for YieldSourceOutflowFulfillmentProcessed events raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyYieldSourceOutflowFulfillmentProcessedIterator struct {
-	Event *SuperVaultStrategyYieldSourceOutflowFulfillmentProcessed // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperVaultStrategyYieldSourceOutflowFulfillmentProcessedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperVaultStrategyYieldSourceOutflowFulfillmentProcessed)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperVaultStrategyYieldSourceOutflowFulfillmentProcessed)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultStrategyYieldSourceOutflowFulfillmentProcessedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperVaultStrategyYieldSourceOutflowFulfillmentProcessedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperVaultStrategyYieldSourceOutflowFulfillmentProcessed represents a YieldSourceOutflowFulfillmentProcessed event raised by the SuperVaultStrategy contract.
-type SuperVaultStrategyYieldSourceOutflowFulfillmentProcessed struct {
-	Source common.Address
-	Assets *big.Int
-	Raw    types.Log // Blockchain specific contextual infos
-}
-
-// FilterYieldSourceOutflowFulfillmentProcessed is a free log retrieval operation binding the contract event 0xc29771abfe922fe31214775793a74f7fe76938290013da1f03f9924f84ea9eb5.
-//
-// Solidity: event YieldSourceOutflowFulfillmentProcessed(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) FilterYieldSourceOutflowFulfillmentProcessed(opts *bind.FilterOpts, source []common.Address) (*SuperVaultStrategyYieldSourceOutflowFulfillmentProcessedIterator, error) {
-
-	var sourceRule []interface{}
-	for _, sourceItem := range source {
-		sourceRule = append(sourceRule, sourceItem)
-	}
-
-	logs, sub, err := _SuperVaultStrategy.contract.FilterLogs(opts, "YieldSourceOutflowFulfillmentProcessed", sourceRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperVaultStrategyYieldSourceOutflowFulfillmentProcessedIterator{contract: _SuperVaultStrategy.contract, event: "YieldSourceOutflowFulfillmentProcessed", logs: logs, sub: sub}, nil
-}
-
-// WatchYieldSourceOutflowFulfillmentProcessed is a free log subscription operation binding the contract event 0xc29771abfe922fe31214775793a74f7fe76938290013da1f03f9924f84ea9eb5.
-//
-// Solidity: event YieldSourceOutflowFulfillmentProcessed(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) WatchYieldSourceOutflowFulfillmentProcessed(opts *bind.WatchOpts, sink chan<- *SuperVaultStrategyYieldSourceOutflowFulfillmentProcessed, source []common.Address) (event.Subscription, error) {
-
-	var sourceRule []interface{}
-	for _, sourceItem := range source {
-		sourceRule = append(sourceRule, sourceItem)
-	}
-
-	logs, sub, err := _SuperVaultStrategy.contract.WatchLogs(opts, "YieldSourceOutflowFulfillmentProcessed", sourceRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultStrategyYieldSourceOutflowFulfillmentProcessed)
-				if err := _SuperVaultStrategy.contract.UnpackLog(event, "YieldSourceOutflowFulfillmentProcessed", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseYieldSourceOutflowFulfillmentProcessed is a log parse operation binding the contract event 0xc29771abfe922fe31214775793a74f7fe76938290013da1f03f9924f84ea9eb5.
-//
-// Solidity: event YieldSourceOutflowFulfillmentProcessed(address indexed source, uint256 assets)
-func (_SuperVaultStrategy *SuperVaultStrategyFilterer) ParseYieldSourceOutflowFulfillmentProcessed(log types.Log) (*SuperVaultStrategyYieldSourceOutflowFulfillmentProcessed, error) {
-	event := new(SuperVaultStrategyYieldSourceOutflowFulfillmentProcessed)
-	if err := _SuperVaultStrategy.contract.UnpackLog(event, "YieldSourceOutflowFulfillmentProcessed", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
