@@ -77,10 +77,6 @@ contract SuperAssetTest is Helpers {
         console.log("SuperGovernor deployed");
         superGovernor.setAddress(superGovernor.SUPERASSET_FACTORY_DEPLOYER(), admin);
 
-        // Deploy SuperAssetFactory first
-        // factory = new SuperAssetFactory(address(superGovernor));
-        // console.log("SuperAssetFactory deployed");
-
         // Deploy mock tokens and vault
         underlyingToken1 = new MockERC20("Underlying Token1", "UTKN1", 18);
         tokenIn = new Mock4626Vault(address(underlyingToken1), "Vault Token", "vTKN");
@@ -171,10 +167,6 @@ contract SuperAssetTest is Helpers {
         superGovernor.grantRole(superGovernor.SUPER_GOVERNOR_ROLE(), admin);
         superGovernor.grantRole(superGovernor.GOVERNOR_ROLE(), admin);
         superGovernor.grantRole(superGovernor.BANK_MANAGER_ROLE(), admin);
-        // superGovernor.grantRole(superGovernor.INCENTIVE_FUND_MANAGER(), admin);
-        // superGovernor.grantRole(superGovernor.SUPERASSET_MANAGER(), admin);
-        // superGovernor.grantRole(superGovernor.SUPERASSET_STRATEGIST(), admin);
-        // factory.grantRole(factory.DEPLOYER_ROLE(), admin);
         vm.stopPrank();
         console.log("SuperGovernor Roles Granted");
 
