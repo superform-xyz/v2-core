@@ -22,7 +22,7 @@ ftest-vvv :; forge test -vvv --jobs 10
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_CancelRedeem -vv --jobs 10
+test-vvv :; forge test --match-test test_SuperVault_StakeClaimFlow -vv --jobs 10
 
 test-integration :; forge test --match-contract SuperVaultTest -vv --jobs 10
 

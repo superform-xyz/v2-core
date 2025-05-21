@@ -2228,14 +2228,15 @@ contract SuperVaultTest is BaseSuperVaultTest {
         uint256 initialUserAssets = asset.balanceOf(accountEth);
         uint256 feeBalanceBefore = asset.balanceOf(TREASURY);
 
+        console2.log("DEPOSITING");
         _deposit(amount, address(gearboxVault), address(asset));
 
-        // Step 2: Fulfill Deposit
+        console2.log("DEPOSITING FREE ASSETS");
         _depositFreeAssetsFromSingleAmount_Gearbox(amount);
 
         uint256 amountToStake = gearboxVault.balanceOf(address(strategyGearSuperVault));
 
-        // Step 3: Execute Arbitrary Hooks
+        console2.log("STAKING");
         _executeStakeHook(amountToStake);
 
         assertGt(
@@ -2324,6 +2325,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         strategyGearSuperVault = SuperVaultStrategy(strategyAddr);
 
         // Add a new yield source as manager
+        vm.startPrank(STRATEGIST);
         strategyGearSuperVault.manageYieldSource(
             address(gearboxVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, false
         );
@@ -2386,7 +2388,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
                 hookCalldata: fulfillHooksData,
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
                 globalProofs: _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs),
-                strategyProofs: new bytes32[][](2)
+                strategyProofs: new bytes32[][](1)
             })
         );
         vm.stopPrank();
