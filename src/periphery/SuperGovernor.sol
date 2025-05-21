@@ -92,13 +92,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bytes32 private constant _BANK_MANAGER_ROLE = keccak256("BANK_MANAGER_ROLE");
     bytes32 private constant _GUARDIAN_ROLE = keccak256("GUARDIAN_ROLE");
 
-    // --- Roles ---
-    // TODO: Remove these roles here since they will be managed inside the SuperAssetFactory 
-    // bytes32 public constant _INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
-    // bytes32 public constant _SUPERASSET_MANAGER = keccak256("SUPERASSET_MANAGER");
-    // bytes32 public constant _SUPERASSET_STRATEGIST = keccak256("SUPERASSET_STRATEGIST");
-
-
     // Common contract keys
     bytes32 public constant TREASURY = keccak256("TREASURY");
     bytes32 public constant SUPER_ORACLE = keccak256("SUPER_ORACLE");
