@@ -103,7 +103,6 @@ contract SuperAssetFactory is ISuperAssetFactory {
             incentiveCalculationContract, // Use single instance
             incentiveFund,
             superGovernor,
-            address(this),
             params.swapFeeInPercentage,
             params.swapFeeOutPercentage
         );
