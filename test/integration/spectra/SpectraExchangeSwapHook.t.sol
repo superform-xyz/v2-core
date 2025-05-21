@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // Tests
 
-import { SpectraExchangeHook } from "../../../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { UserOpData } from "modulekit/ModuleKit.sol";
-import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
+import {SpectraExchangeHook} from "../../../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
+import {ISuperExecutor} from "../../../src/core/interfaces/ISuperExecutor.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {UserOpData} from "modulekit/ModuleKit.sol";
+import {MinimalBaseIntegrationTest} from "../MinimalBaseIntegrationTest.t.sol";
 
 contract SpectraExchangeHookTest is MinimalBaseIntegrationTest {
     address public spectraRouter;
@@ -45,7 +45,7 @@ contract SpectraExchangeHookTest is MinimalBaseIntegrationTest {
         hookData[1] = _createSpectraExchangeSwapHookData(false, 0, ptToken, tokenIn, amount, accountEth);
 
         ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hookAddresses_, hooksData: hookData});
         UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
         executeOp(opData);
 

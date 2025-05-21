@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 // External
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
@@ -144,16 +144,20 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
         // Initialize StrategyData individually to avoid mapping assignment issues
         _strategyData[strategy].pps = 10 ** underlyingDecimals; // 1.0 as initial PPS
+        _strategyData[strategy].ppsStdev = 0; // Initialize standard deviation to 0
         _strategyData[strategy].lastUpdateTimestamp = block.timestamp;
         _strategyData[strategy].minUpdateInterval = params.minUpdateInterval;
         _strategyData[strategy].maxStaleness = params.maxStaleness;
         _strategyData[strategy].isPaused = false;
         _strategyData[strategy].mainStrategist = params.mainStrategist;
         _strategyData[strategy].authorizedCallers = new address[](0);
-        // Secondary strategists is handled through the AddressSet methods, not assignment
+
+        // Set default threshold values
+        _strategyData[strategy].dispersionThreshold = type(uint256).max; // Default: max (disabled)
+        _strategyData[strategy].deviationThreshold = type(uint256).max; // Default: max (disabled)
 
         emit VaultDeployed(superVault, strategy, escrow, params.asset, params.name, params.symbol);
-        emit PPSUpdated(strategy, _strategyData[strategy].pps, _strategyData[strategy].lastUpdateTimestamp);
+        emit PPSUpdated(strategy, _strategyData[strategy].pps, 0, 0, 0, _strategyData[strategy].lastUpdateTimestamp);
 
         return (superVault, strategy, escrow);
     }
@@ -164,36 +168,41 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /// @inheritdoc ISuperVaultAggregator
     function forwardPPS(
         address updateAuthority,
-        address strategy,
-        uint256 pps,
-        uint256 timestamp
+        ForwardPPSArgs calldata args
     )
         external
         onlyPPSOracle
-        validStrategy(strategy)
+        validStrategy(args.strategy)
     {
         // Check if the update is exempt from paying upkeep
-        bool isExempt = _isExemptFromUpkeep(strategy, updateAuthority, timestamp);
+        bool isExempt = _isExemptFromUpkeep(args.strategy, updateAuthority, args.timestamp);
 
-        // Forward the PPS update with upkeep cost if not exempt
-        _forwardPPS(strategy, isExempt, pps, timestamp, SUPER_GOVERNOR.getUpkeepCostPerUpdate());
+        // Create a new ForwardPPSArgs struct with updated isExempt and upkeepCost
+        _forwardPPS(
+            ForwardPPSArgs({
+                strategy: args.strategy,
+                isExempt: isExempt,
+                pps: args.pps,
+                ppsStdev: args.ppsStdev,
+                validatorSet: args.validatorSet,
+                totalValidators: args.totalValidators,
+                timestamp: args.timestamp,
+                upkeepCost: SUPER_GOVERNOR.getUpkeepCostPerUpdate()
+            })
+        );
     }
 
     /// @inheritdoc ISuperVaultAggregator
-    function batchForwardPPS(
-        address[] calldata strategies,
-        uint256[] calldata ppss,
-        uint256[] calldata timestamps
-    )
-        external
-        onlyPPSOracle
-    {
+    function batchForwardPPS(BatchForwardPPSArgs calldata args) external onlyPPSOracle {
         // Check array lengths
-        if (strategies.length != ppss.length || strategies.length != timestamps.length) {
+        if (
+            args.strategies.length != args.ppss.length || args.strategies.length != args.ppsStdevs.length
+                || args.strategies.length != args.validatorSets.length || args.strategies.length != args.timestamps.length
+        ) {
             revert ARRAY_LENGTH_MISMATCH();
         }
 
-        uint256 strategiesLength = strategies.length;
+        uint256 strategiesLength = args.strategies.length;
         if (strategiesLength == 0) revert ZERO_ARRAY_LENGTH();
 
         // Calculate upkeep cost per strategy
@@ -201,7 +210,22 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
         // Process all valid strategies
         for (uint256 i; i < strategiesLength; i++) {
-            _forwardPPS(strategies[i], false, ppss[i], timestamps[i], upkeepPerStrategy);
+            // Skip invalid strategies without reverting
+            if (!_superVaultStrategies.contains(args.strategies[i])) continue;
+
+            // Forward update, not exempt from upkeep in batch updates
+            _forwardPPS(
+                ForwardPPSArgs({
+                    strategy: args.strategies[i],
+                    isExempt: false,
+                    pps: args.ppss[i],
+                    ppsStdev: args.ppsStdevs[i],
+                    validatorSet: args.validatorSets[i],
+                    totalValidators: args.totalValidators[i],
+                    timestamp: args.timestamps[i],
+                    upkeepCost: upkeepPerStrategy
+                })
+            );
         }
     }
 
@@ -319,6 +343,33 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         if (!_strategyData[strategy].secondaryStrategists.remove(strategist)) revert STRATEGIST_NOT_FOUND();
 
         emit SecondaryStrategistRemoved(strategy, strategist);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function updatePPSVerificationThresholds(
+        address strategy,
+        uint256 dispersionThreshold_,
+        uint256 deviationThreshold_,
+        uint256 mnThreshold_
+    )
+        external
+        validStrategy(strategy)
+    {
+        // Check that caller is either the main strategist or a secondary strategist
+        if (
+            msg.sender != _strategyData[strategy].mainStrategist
+                && !_strategyData[strategy].secondaryStrategists.contains(msg.sender)
+        ) {
+            revert UNAUTHORIZED_UPDATE_AUTHORITY();
+        }
+
+        // Update the thresholds
+        _strategyData[strategy].dispersionThreshold = dispersionThreshold_;
+        _strategyData[strategy].deviationThreshold = deviationThreshold_;
+        _strategyData[strategy].mnThreshold = mnThreshold_;
+
+        // Emit the event
+        emit PPSVerificationThresholdsUpdated(strategy, dispersionThreshold_, deviationThreshold_, mnThreshold_);
     }
 
     /// @inheritdoc ISuperVaultAggregator
@@ -525,8 +576,18 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperVaultAggregator
-    function getPPS(address strategy) external view returns (uint256 pps) {
+    function getPPS(address strategy) external view validStrategy(strategy) returns (uint256 pps) {
         return _strategyData[strategy].pps;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getPPSWithStdDev(address strategy)
+        external
+        view
+        validStrategy(strategy)
+        returns (uint256 pps, uint256 ppsStdev)
+    {
+        return (_strategyData[strategy].pps, _strategyData[strategy].ppsStdev);
     }
 
     /// @inheritdoc ISuperVaultAggregator
@@ -542,6 +603,20 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /// @inheritdoc ISuperVaultAggregator
     function getMaxStaleness(address strategy) external view returns (uint256 staleness) {
         return _strategyData[strategy].maxStaleness;
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getPPSVerificationThresholds(address strategy)
+        external
+        view
+        validStrategy(strategy)
+        returns (uint256 dispersionThreshold, uint256 deviationThreshold, uint256 mnThreshold)
+    {
+        return (
+            _strategyData[strategy].dispersionThreshold,
+            _strategyData[strategy].deviationThreshold,
+            _strategyData[strategy].mnThreshold
+        );
     }
 
     /// @inheritdoc ISuperVaultAggregator
@@ -723,46 +798,82 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Internal implementation of forwarding PPS updates
-    /// @param strategy Address of the strategy being updated
-    /// @param isExempt Whether the update is exempt from paying upkeep
-    /// @param pps New PPS value
-    /// @param timestamp Timestamp of the PPS measurement
-    /// @param upkeepCost The amount of upkeep to charge (if not exempt)
-
-    function _forwardPPS(
-        address strategy,
-        bool isExempt,
-        uint256 pps,
-        uint256 timestamp,
-        uint256 upkeepCost
-    )
-        internal
-    {
+    /// @param args Struct containing all parameters for PPS update
+    function _forwardPPS(ForwardPPSArgs memory args) internal {
         // Check rate limiting
-        uint256 minInterval = _strategyData[strategy].minUpdateInterval;
-        uint256 lastUpdate = _strategyData[strategy].lastUpdateTimestamp;
+        uint256 minInterval = _strategyData[args.strategy].minUpdateInterval;
+        uint256 lastUpdate = _strategyData[args.strategy].lastUpdateTimestamp;
         if (block.timestamp - lastUpdate < minInterval) {
             revert UPDATE_TOO_FREQUENT();
         }
 
         // Get the strategy's strategist to deduct upkeep cost from
-        address strategist = _strategyData[strategy].mainStrategist;
+        address strategist = _strategyData[args.strategy].mainStrategist;
 
-        // If not exempt, deduct upkeep from strategist's balance
-        if (!isExempt) {
-            if (_strategistUpkeepBalance[strategist] < upkeepCost) {
+        // Flag to track if any check failed
+        bool checksFailed = false;
+
+        // C2.1) Dispersion Check: Check if the standard deviation is too high relative to mean
+        if (_strategyData[args.strategy].dispersionThreshold != type(uint256).max && args.pps > 0) {
+            // Calculate dispersion as stddev/mean
+            uint256 dispersion = (args.ppsStdev * 1e18) / args.pps; // Scaled by 1e18 for precision
+            if (dispersion > _strategyData[args.strategy].dispersionThreshold) {
+                checksFailed = true;
+                emit StrategyCheckFailed(args.strategy, "HIGH_PPS_DISPERSION");
+            }
+        }
+
+        // C2.2) Deviation Check: Check if new PPS deviates too much from current PPS
+        uint256 currentPPS = _strategyData[args.strategy].pps;
+        if (_strategyData[args.strategy].deviationThreshold != type(uint256).max && currentPPS > 0) {
+            // Calculate absolute deviation, scaled by 1e18
+            uint256 absDiff = args.pps > currentPPS ? (args.pps - currentPPS) : (currentPPS - args.pps);
+            uint256 relativeDeviation = (absDiff * 1e18) / currentPPS;
+            if (relativeDeviation > _strategyData[args.strategy].deviationThreshold) {
+                checksFailed = true;
+                emit StrategyCheckFailed(args.strategy, "HIGH_PPS_DEVIATION");
+            }
+        }
+
+        // C2.3) M/N Check: Check if enough validators participated
+        if (args.totalValidators > 0 && _strategyData[args.strategy].mnThreshold > 0) {
+            // Calculate participation rate, scaled by 1e18
+            uint256 participationRate = (args.validatorSet * 1e18) / args.totalValidators;
+            if (participationRate < _strategyData[args.strategy].mnThreshold) {
+                checksFailed = true;
+                emit StrategyCheckFailed(args.strategy, "INSUFFICIENT_VALIDATOR_PARTICIPATION");
+            }
+        }
+
+        // Pause strategy if any check failed
+        if (checksFailed && !_strategyData[args.strategy].isPaused) {
+            _strategyData[args.strategy].isPaused = true;
+            emit StrategyPaused(args.strategy);
+        }
+        // Unpause strategy if all checks passed and strategy was previously paused
+        else if (!checksFailed && _strategyData[args.strategy].isPaused) {
+            _strategyData[args.strategy].isPaused = false;
+            emit StrategyUnpaused(args.strategy);
+        }
+
+        // Handle upkeep costs unless exempt
+        if (!args.isExempt) {
+            // Check if strategist has sufficient upkeep balance
+            if (_strategistUpkeepBalance[strategist] < args.upkeepCost) {
                 revert INSUFFICIENT_UPKEEP();
             }
 
-            _strategistUpkeepBalance[strategist] -= upkeepCost;
-            emit UpkeepSpent(strategist, upkeepCost);
+            // Deduct the upkeep cost and emit event
+            _strategistUpkeepBalance[strategist] -= args.upkeepCost;
+            emit UpkeepSpent(strategist, args.upkeepCost);
         }
 
-        // Update PPS and timestamp in StrategyData
-        _strategyData[strategy].pps = pps;
-        _strategyData[strategy].lastUpdateTimestamp = timestamp;
+        // Update PPS, ppsStdev and timestamp in StrategyData
+        _strategyData[args.strategy].pps = args.pps;
+        _strategyData[args.strategy].ppsStdev = args.ppsStdev;
+        _strategyData[args.strategy].lastUpdateTimestamp = args.timestamp;
 
-        emit PPSUpdated(strategy, pps, timestamp);
+        emit PPSUpdated(args.strategy, args.pps, args.ppsStdev, args.validatorSet, args.totalValidators, args.timestamp);
     }
 
     /// @notice Check if an update authority is exempt from paying upkeep costs

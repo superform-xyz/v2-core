@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { ModuleKitHelpers, UserOpData } from "modulekit/ModuleKit.sol";
+import {ModuleKitHelpers, UserOpData} from "modulekit/ModuleKit.sol";
 
 // Superform
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
+import {ISuperExecutor} from "../../src/core/interfaces/ISuperExecutor.sol";
+import {ISuperLedgerData} from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import {MinimalBaseIntegrationTest} from "./MinimalBaseIntegrationTest.t.sol";
 import "forge-std/console2.sol";
 
 /// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault
@@ -32,7 +32,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         executeOp(userOpData);
     }
@@ -49,7 +49,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
 
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         vm.expectEmit(true, true, true, false);
@@ -71,7 +71,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         );
 
         ISuperExecutor.ExecutorEntry memory entryWithdraw =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
 
         userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryWithdraw));
 

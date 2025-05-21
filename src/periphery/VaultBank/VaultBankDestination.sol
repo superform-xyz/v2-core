@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // Superform
-import { VaultBankSuperPosition } from "./VaultBankSuperPosition.sol";
-import { IVaultBankDestination } from "../interfaces/IVaultBank.sol";
+import {VaultBankSuperPosition} from "./VaultBankSuperPosition.sol";
+import {IVaultBankDestination} from "../interfaces/IVaultBank.sol";
 
 abstract contract VaultBankDestination is IVaultBankDestination {
     /*//////////////////////////////////////////////////////////////
@@ -12,8 +12,7 @@ abstract contract VaultBankDestination is IVaultBankDestination {
     // synthetic assets
     mapping(uint64 srcChainId => mapping(address srcTokenAddress => address superPositions)) internal
         _tokenToSuperPosition;
-    mapping(address spToken => mapping(uint64 srcChainId => address srcTokenAddress)) internal
-        _superPositionToToken;
+    mapping(address spToken => mapping(uint64 srcChainId => address srcTokenAddress)) internal _superPositionToToken;
     mapping(address spToken => bool wasCreated) internal _syntheticAssets;
 
     /*//////////////////////////////////////////////////////////////
@@ -43,10 +42,7 @@ abstract contract VaultBankDestination is IVaultBankDestination {
         string calldata _srcName,
         string calldata _srcSymbol,
         uint8 _srcDecimals
-    )
-        internal
-        returns (address)
-    {
+    ) internal returns (address) {
         address _created = _tokenToSuperPosition[srcChainId][srcAsset];
         if (_created != address(0)) return _created;
 

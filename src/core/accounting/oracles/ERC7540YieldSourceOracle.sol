@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
-import { IERC7540 } from "../../../vendor/vaults/7540/IERC7540.sol";
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
+import {IERC7540} from "../../../vendor/vaults/7540/IERC7540.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
-import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
+import {AbstractYieldSourceOracle} from "./AbstractYieldSourceOracle.sol";
 
 /// @title ERC7540YieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for synchronous deposit and redeem 7540 Vaults
 contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
-    constructor() AbstractYieldSourceOracle() { }
+    constructor() AbstractYieldSourceOracle() {}
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
@@ -25,11 +25,7 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getShareOutput(
-        address yieldSourceAddress,
-        address,
-        uint256 assetsIn
-    )
+    function getShareOutput(address yieldSourceAddress, address, uint256 assetsIn)
         external
         view
         override
@@ -39,11 +35,7 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getAssetOutput(
-        address yieldSourceAddress,
-        address,
-        uint256 sharesIn
-    )
+    function getAssetOutput(address yieldSourceAddress, address, uint256 sharesIn)
         external
         view
         override
@@ -60,10 +52,7 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getBalanceOfOwner(
-        address yieldSourceAddress,
-        address ownerOfShares
-    )
+    function getBalanceOfOwner(address yieldSourceAddress, address ownerOfShares)
         public
         view
         override
@@ -73,10 +62,7 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getTVLByOwnerOfShares(
-        address yieldSourceAddress,
-        address ownerOfShares
-    )
+    function getTVLByOwnerOfShares(address yieldSourceAddress, address ownerOfShares)
         public
         view
         override
@@ -93,10 +79,7 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function isValidUnderlyingAsset(
-        address yieldSourceAddress,
-        address expectedUnderlying
-    )
+    function isValidUnderlyingAsset(address yieldSourceAddress, address expectedUnderlying)
         public
         view
         override
@@ -106,10 +89,7 @@ contract ERC7540YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function isValidUnderlyingAssets(
-        address[] memory yieldSourceAddresses,
-        address[] memory expectedUnderlying
-    )
+    function isValidUnderlyingAssets(address[] memory yieldSourceAddresses, address[] memory expectedUnderlying)
         external
         view
         override

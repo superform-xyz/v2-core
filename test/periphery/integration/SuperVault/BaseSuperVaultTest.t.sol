@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+pragma solidity 0.8.30;
 
 // testing
 import { BaseTest } from "../../../BaseTest.t.sol";
@@ -129,15 +129,13 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
             address(fluidVault),
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             0,
-            false, // addYieldSource
-            false
+            false // addYieldSource
         );
         strategy.manageYieldSource(
             address(aaveVault),
             _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             0,
-            false, // addYieldSource
-            false
+            false // addYieldSource
         );
 
         vm.stopPrank();
@@ -1437,51 +1435,102 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
     }
 
     /**
+     * @notice Structure to hold local variables for the _updateSuperVaultPPS function
+     * @dev This helps reduce stack depth issues and organize parameters
+     */
+    struct UpdatePPSVars {
+        uint256 totalSupplyAmount;
+        uint256 currentTotalAssets;
+        uint256 precision;
+        uint256 pps;
+        uint256 ppsStdev;
+        uint256 validatorSet;
+        uint256 totalValidators;
+        uint256 timestamp;
+        bytes32 messageHash;
+        bytes32 ethSignedMessageHash;
+        uint8 v;
+        bytes32 r;
+        bytes32 s;
+        bytes signature;
+        bytes[] proofs;
+    }
+
+    /**
      * @notice Updates the PPS (Price Per Share) using TotalAssetHelper
      * @return pps The calculated and updated price per share value
      * @dev This function uses TotalAssetHelper to get totalAssets, calculates PPS,
      *      creates a signature, and updates the PPS through the ECDSAPPSOracle contract
      */
     function _updateSuperVaultPPS(address strategyAddr, address vault_) internal returns (uint256 pps) {
-        uint256 totalSupplyAmount = SuperVault(vault_).totalSupply();
+        UpdatePPSVars memory vars;
+        
+        vars.totalSupplyAmount = SuperVault(vault_).totalSupply();
 
         // Get current totalAssets from TotalAssetHelper
-        (uint256 currentTotalAssets,) = totalAssetHelper.totalAssets(strategyAddr);
-        uint256 precision = SuperVault(vault_).PRECISION();
+        (vars.currentTotalAssets,) = totalAssetHelper.totalAssets(strategyAddr);
+        vars.precision = SuperVault(vault_).PRECISION();
+        
         // Calculate price per share based on current totalAssets and totalSupply
-        if (totalSupplyAmount == 0) {
+        if (vars.totalSupplyAmount == 0) {
             // For first deposit, set initial PPS to 1 unit in price decimals
-            pps = precision;
+            vars.pps = vars.precision;
         } else {
             // Calculate current PPS in price decimals using total assets from helper
-            pps = currentTotalAssets.mulDiv(precision, totalSupplyAmount, Math.Rounding.Floor);
+            vars.pps = vars.currentTotalAssets.mulDiv(vars.precision, vars.totalSupplyAmount, Math.Rounding.Floor);
         }
 
         // Get the current timestamp for the signature
-        uint256 timestamp = block.timestamp;
+        vars.timestamp = block.timestamp;
 
-        // Create the message hash
-        bytes32 messageHash = keccak256(abi.encodePacked(strategyAddr, pps, timestamp));
+        // Set the additional parameters as requested: ppsStdev=0, validatorSet=1, totalValidators=1
+        vars.ppsStdev = 0;
+        vars.validatorSet = 1;
+        vars.totalValidators = 1;
+
+        // Create the message hash with all parameters
+        vars.messageHash = keccak256(
+            abi.encodePacked(
+                strategyAddr, 
+                vars.pps, 
+                vars.ppsStdev, 
+                vars.validatorSet, 
+                vars.totalValidators, 
+                vars.timestamp
+            )
+        );
 
         // Create the Ethereum signed message hash
-        bytes32 ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", messageHash));
+        vars.ethSignedMessageHash = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32", vars.messageHash));
 
         // Create signature (r, s, v) components using the constant KEEPER address
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(VALIDATOR_KEY, ethSignedMessageHash);
+        (vars.v, vars.r, vars.s) = vm.sign(VALIDATOR_KEY, vars.ethSignedMessageHash);
 
         // Combine the signature components into a single bytes signature
-        bytes memory signature = abi.encodePacked(r, s, v);
+        vars.signature = abi.encodePacked(vars.r, vars.s, vars.v);
 
         // Create an array of proofs with the signature
-        bytes[] memory proofs = new bytes[](1);
-        proofs[0] = signature;
+        vars.proofs = new bytes[](1);
+        vars.proofs[0] = vars.signature;
 
-        // Call updatePPS on the ECDSAPPSOracle
-        ecdsappsOracle.updatePPS(strategyAddr, proofs, pps, timestamp);
+        // Call updatePPS on the ECDSAPPSOracle with the new parameters
+        ecdsappsOracle.updatePPS(
+            IECDSAPPSOracle.UpdatePPSArgs({
+                strategy: strategyAddr,
+                proofs: vars.proofs,
+                pps: vars.pps,
+                ppsStdev: vars.ppsStdev,
+                validatorSet: vars.validatorSet,
+                totalValidators: vars.totalValidators,
+                timestamp: vars.timestamp
+            })
+        );
 
         // Log the updated PPS for debugging
-        console2.log("Updated PPS:", pps);
+        console2.log("Updated PPS for strategy", strategyAddr, vars.pps);
 
+        // Return the calculated PPS value
+        pps = vars.pps;
         return pps;
     }
 

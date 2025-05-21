@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
@@ -10,7 +10,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * fee handling, and incentive calculations.
  */
 interface ISuperAsset is IERC20 {
-
     struct PreviewErrors {
         bool isDepeg;
         bool isDispersion;
@@ -23,7 +22,7 @@ interface ISuperAsset is IERC20 {
         uint256 extraSlot;
         address vault;
         uint256 priceUSD;
-        bool isDepeg; 
+        bool isDepeg;
         bool isDispersion;
         bool isOracleOff;
         uint256 balance;
@@ -57,7 +56,6 @@ interface ISuperAsset is IERC20 {
         uint256 amountTokenOutBeforeFees;
     }
 
-
     /**
      * @notice Initializes the SuperAsset contract
      * @param name_ Name of the token
@@ -80,7 +78,8 @@ interface ISuperAsset is IERC20 {
         address superAssetFactory_,
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_
-    ) external;
+    )
+        external;
 
     /**
      * @notice Returns the address of the IncentiveFundContract
@@ -109,18 +108,21 @@ interface ISuperAsset is IERC20 {
      * @return absoluteTargetAllocation Array of target absolute allocations
      * @return totalTargetAllocation Sum of all target allocations
      */
-    function getAllocations() external view returns (
-        uint256[] memory absoluteCurrentAllocation,
-        uint256 totalCurrentAllocation,
-        uint256[] memory absoluteTargetAllocation,
-        uint256 totalTargetAllocation
-    );
+    function getAllocations()
+        external
+        view
+        returns (
+            uint256[] memory absoluteCurrentAllocation,
+            uint256 totalCurrentAllocation,
+            uint256[] memory absoluteTargetAllocation,
+            uint256 totalTargetAllocation
+        );
 
     /**
      * @notice Gets the allocations before and after an operation
      * @param token The token address involved in the operation
      * @param deltaToken The change in token amount (positive for deposit, negative for withdrawal)
-     * @param isSoft Whether the operation is soft or strict on checks 
+     * @param isSoft Whether the operation is soft or strict on checks
      * @return absoluteAllocationPreOperation Array of pre-operation absolute allocations
      * @return totalAllocationPreOperation Sum of all pre-operation allocations
      * @return absoluteAllocationPostOperation Array of post-operation absolute allocations
@@ -130,15 +132,23 @@ interface ISuperAsset is IERC20 {
      * @return vaultWeights Array of vault weights
      * @return isSuccess Whether the operation was successful
      */
-    function getAllocationsPrePostOperation(address token, int256 deltaToken, bool isSoft) external view returns (
-        uint256[] memory absoluteAllocationPreOperation, 
-        uint256 totalAllocationPreOperation, 
-        uint256[] memory absoluteAllocationPostOperation, 
-        uint256 totalAllocationPostOperation, 
-        uint256[] memory absoluteTargetAllocation, 
-        uint256 totalTargetAllocation,
-        uint256[] memory vaultWeights,
-        bool isSuccess);
+    function getAllocationsPrePostOperation(
+        address token,
+        int256 deltaToken,
+        bool isSoft
+    )
+        external
+        view
+        returns (
+            uint256[] memory absoluteAllocationPreOperation,
+            uint256 totalAllocationPreOperation,
+            uint256[] memory absoluteAllocationPostOperation,
+            uint256 totalAllocationPostOperation,
+            uint256[] memory absoluteTargetAllocation,
+            uint256 totalTargetAllocation,
+            uint256[] memory vaultWeights,
+            bool isSuccess
+        );
 
     /**
      * @notice Sets the swap fee percentage for deposits (input operations)
@@ -166,8 +176,10 @@ interface ISuperAsset is IERC20 {
         address receiver,
         address tokenIn,
         uint256 amountTokenToDeposit,
-        uint256 minSharesOut            // Slippage Protection
-    ) external returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit);
+        uint256 minSharesOut // Slippage Protection
+    )
+        external
+        returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit);
 
     /**
      * @notice Redeems SuperUSD shares for underlying assets from a whitelisted vault.
@@ -184,7 +196,9 @@ interface ISuperAsset is IERC20 {
         uint256 amountSharesToRedeem,
         address tokenOut,
         uint256 minTokenOut
-    ) external returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem);
+    )
+        external
+        returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem);
 
     /**
      * @notice Swaps an underlying asset for another.
@@ -206,7 +220,16 @@ interface ISuperAsset is IERC20 {
         uint256 amountTokenToDeposit,
         address tokenOut,
         uint256 minTokenOut
-    ) external returns (uint256 amountSharesIntermediateStep, uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentivesIn, int256 amountIncentivesOut);
+    )
+        external
+        returns (
+            uint256 amountSharesIntermediateStep,
+            uint256 amountTokenOutAfterFees,
+            uint256 swapFeeIn,
+            uint256 swapFeeOut,
+            int256 amountIncentivesIn,
+            int256 amountIncentivesOut
+        );
 
     /**
      * @notice Whitelists a vault
@@ -248,10 +271,14 @@ interface ISuperAsset is IERC20 {
      * @return amountIncentiveUSD The amount of incentives in USD.
      * @return isSuccess Whether the preview was successful
      */
-    function previewDeposit(address tokenIn, uint256 amountTokenToDeposit, bool isSoft)
-    external 
-    view
-    returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess);
+    function previewDeposit(
+        address tokenIn,
+        uint256 amountTokenToDeposit,
+        bool isSoft
+    )
+        external
+        view
+        returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess);
 
     /**
      * @notice Preview a redemption.
@@ -263,10 +290,14 @@ interface ISuperAsset is IERC20 {
      * @return amountIncentiveUSD The amount of incentives in USD.
      * @return isSuccess Whether the preview was successful
      */
-    function previewRedeem(address tokenOut, uint256 amountSharesToRedeem, bool isSoft)
-    external
-    view
-    returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess);
+    function previewRedeem(
+        address tokenOut,
+        uint256 amountSharesToRedeem,
+        bool isSoft
+    )
+        external
+        view
+        returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess);
 
     /**
      * @notice Preview a swap.
@@ -281,14 +312,27 @@ interface ISuperAsset is IERC20 {
      * @return amountIncentiveUSDRedeem The amount of incentives paid for the output asset.
      * @return isSuccess Whether the preview was successful
      */
-    function previewSwap(address tokenIn, uint256 amountTokenToDeposit, address tokenOut, bool isSoft)
-    external
-    view
-    returns (uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDDeposit, int256 amountIncentiveUSDRedeem, bool isSuccess);
+    function previewSwap(
+        address tokenIn,
+        uint256 amountTokenToDeposit,
+        address tokenOut,
+        bool isSoft
+    )
+        external
+        view
+        returns (
+            uint256 amountTokenOutAfterFees,
+            uint256 swapFeeIn,
+            uint256 swapFeeOut,
+            int256 amountIncentiveUSDDeposit,
+            int256 amountIncentiveUSDRedeem,
+            bool isSuccess
+        );
 
     /**
      * @notice Gets the price of a token in USD with circuit breakers
-     * @dev This function should not revert, just return booleans for the circuit breakers, it is up to the caller to decide if to revert 
+     * @dev This function should not revert, just return booleans for the circuit breakers, it is up to the caller to
+     * decide if to revert
      * @dev Getting only single unit price
      * @param tokenIn The address of the token to get the price of
      * @return priceUSD The price of the token in USD
@@ -296,7 +340,10 @@ interface ISuperAsset is IERC20 {
      * @return isDispersion Whether the token is dispersed
      * @return isOracleOff Whether the oracle is off
      */
-    function getPriceWithCircuitBreakers(address tokenIn) external view returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff);
+    function getPriceWithCircuitBreakers(address tokenIn)
+        external
+        view
+        returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff);
 
     /**
      * @notice Gets the precision constant used for percentage calculations
@@ -334,9 +381,34 @@ interface ISuperAsset is IERC20 {
     function setEnergyToUSDExchangeRatio(uint256 newRatio) external;
 
     // --- Events ---
-    event Deposit(address indexed receiver, address indexed tokenIn, uint256 amountTokenToDeposit, uint256 amountSharesOut, uint256 swapFee, int256 amountIncentives);
-    event Redeem(address indexed receiver, address indexed tokenOut, uint256 amountSharesToRedeem, uint256 amountTokenOut, uint256 swapFee, int256 amountIncentives);
-    event Swap(address indexed receiver, address indexed tokenIn, uint256 amountTokenToDeposit, address indexed tokenOut, uint256 amountSharesIntermediateStep, uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentivesIn, int256 amountIncentivesOut);
+    event Deposit(
+        address indexed receiver,
+        address indexed tokenIn,
+        uint256 amountTokenToDeposit,
+        uint256 amountSharesOut,
+        uint256 swapFee,
+        int256 amountIncentives
+    );
+    event Redeem(
+        address indexed receiver,
+        address indexed tokenOut,
+        uint256 amountSharesToRedeem,
+        uint256 amountTokenOut,
+        uint256 swapFee,
+        int256 amountIncentives
+    );
+    event Swap(
+        address indexed receiver,
+        address indexed tokenIn,
+        uint256 amountTokenToDeposit,
+        address indexed tokenOut,
+        uint256 amountSharesIntermediateStep,
+        uint256 amountTokenOutAfterFees,
+        uint256 swapFeeIn,
+        uint256 swapFeeOut,
+        int256 amountIncentivesIn,
+        int256 amountIncentivesOut
+    );
     event VaultWhitelisted(address indexed vault);
     event VaultRemoved(address indexed vault);
     event ERC20Whitelisted(address indexed token);

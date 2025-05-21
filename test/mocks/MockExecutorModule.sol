@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
+import {ERC7579ExecutorBase} from "modulekit/Modules.sol";
 
 contract MockExecutorModule is ERC7579ExecutorBase {
     uint256 public val;
@@ -29,8 +29,8 @@ contract MockExecutorModule is ERC7579ExecutorBase {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function onInstall(bytes calldata) external { }
-    function onUninstall(bytes calldata) external { }
+    function onInstall(bytes calldata) external {}
+    function onUninstall(bytes calldata) external {}
 
     function execute(address, bytes calldata data) external {
         uint256 toSet = abi.decode(data, (uint256));

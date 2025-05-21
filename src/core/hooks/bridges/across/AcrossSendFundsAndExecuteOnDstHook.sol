@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
-import { IAcrossSpokePoolV3 } from "../../../../vendor/bridges/across/IAcrossSpokePoolV3.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {BytesLib} from "../../../../vendor/BytesLib.sol";
+import {IAcrossSpokePoolV3} from "../../../../vendor/bridges/across/IAcrossSpokePoolV3.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
-import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {BaseHook} from "../../BaseHook.sol";
+import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
+import {ISuperSignatureStorage} from "../../../interfaces/ISuperSignatureStorage.sol";
+import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
@@ -64,11 +64,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
-        address prevHook,
-        address account,
-        bytes memory data
-    )
+    function build(address prevHook, address account, bytes memory data)
         external
         view
         override
@@ -115,8 +111,11 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
                 address _account,
                 address[] memory dstTokens,
                 uint256[] memory intentAmounts
-            ) = abi.decode(acrossV3DepositAndExecuteData.destinationMessage, (bytes, bytes, address, address[], uint256[]));
-            acrossV3DepositAndExecuteData.destinationMessage = abi.encode(initData, executorCalldata, _account, dstTokens, intentAmounts, signature);
+            ) = abi.decode(
+                acrossV3DepositAndExecuteData.destinationMessage, (bytes, bytes, address, address[], uint256[])
+            );
+            acrossV3DepositAndExecuteData.destinationMessage =
+                abi.encode(initData, executorCalldata, _account, dstTokens, intentAmounts, signature);
         }
 
         // build execution
@@ -153,19 +152,19 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns(bytes memory) {
+    function inspect(bytes calldata data) external pure returns (bytes memory) {
         return abi.encodePacked(
-            BytesLib.toAddress(data, 32),   // recipient
-            BytesLib.toAddress(data, 52),   // inputToken
-            BytesLib.toAddress(data, 72),   // outputToken
-            BytesLib.toAddress(data, 188)   // exclusiveRelayer
+            BytesLib.toAddress(data, 32), // recipient
+            BytesLib.toAddress(data, 52), // inputToken
+            BytesLib.toAddress(data, 72), // outputToken
+            BytesLib.toAddress(data, 188) // exclusiveRelayer
         );
     }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata) internal override { }
+    function _preExecute(address, address, bytes calldata) internal override {}
 
-    function _postExecute(address, address, bytes calldata) internal override { }
+    function _postExecute(address, address, bytes calldata) internal override {}
 }

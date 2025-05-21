@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { BytesLib } from "../../../src/vendor/BytesLib.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {BytesLib} from "../../../src/vendor/BytesLib.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
+import {BaseHook} from "../../../src/core/hooks/BaseHook.sol";
 
-import { ISuperHookResult, ISuperHookInflowOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
-import { IFluidLendingStakingRewards } from "../../../src/vendor/fluid/IFluidLendingStakingRewards.sol";
+import {ISuperHookResult, ISuperHookInflowOutflow} from "../../../src/core/interfaces/ISuperHook.sol";
+import {IFluidLendingStakingRewards} from "../../../src/vendor/fluid/IFluidLendingStakingRewards.sol";
 
-import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol";
+import {HookDataDecoder} from "../../../src/core/libraries/HookDataDecoder.sol";
 
 /// @title FluidStakeWithPermitHook
 /// @author Superform Labs
@@ -29,16 +29,12 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHookInflowOutflow {
 
     uint256 private constant AMOUNT_POSITION = 24;
 
-    constructor() BaseHook(HookType.INFLOW, "Stake") { }
+    constructor() BaseHook(HookType.INFLOW, "Stake") {}
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
-        address prevHook,
-        address,
-        bytes memory data
-    )
+    function build(address prevHook, address, bytes memory data)
         external
         view
         override

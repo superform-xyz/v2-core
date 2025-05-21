@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
-import { Helpers } from "../../../utils/Helpers.sol";
-import { PendleRouterSwapHook } from "../../../../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
+import {Helpers} from "../../../utils/Helpers.sol";
+import {PendleRouterSwapHook} from "../../../../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
 import {
     IPendleRouterV4,
     ApproxParams,
@@ -15,13 +15,13 @@ import {
     SwapType,
     OrderType
 } from "../../../../src/vendor/pendle/IPendleRouterV4.sol";
-import { MockERC20 } from "../../../mocks/MockERC20.sol";
-import { MockHook } from "../../../mocks/MockHook.sol";
-import { MockPendleRouter } from "../../../mocks/MockPendleRouter.sol";
-import { MockPendleMarket } from "../../../mocks/MockPendleMarket.sol";
-import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
+import {MockERC20} from "../../../mocks/MockERC20.sol";
+import {MockHook} from "../../../mocks/MockHook.sol";
+import {MockPendleRouter} from "../../../mocks/MockPendleRouter.sol";
+import {MockPendleMarket} from "../../../mocks/MockPendleMarket.sol";
+import {ISuperHook} from "../../../../src/core/interfaces/ISuperHook.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {BaseHook} from "../../../../src/core/hooks/BaseHook.sol";
 
 contract PendleRouterSwapHookTest is Helpers {
     PendleRouterSwapHook public hook;
@@ -82,11 +82,11 @@ contract PendleRouterSwapHookTest is Helpers {
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut =
-            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+            ApproxParams({guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17});
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(0),
@@ -109,16 +109,16 @@ contract PendleRouterSwapHookTest is Helpers {
     }
 
     function test_SwapExactTokenForPt_Inspector() public view {
-         TokenInput memory input = TokenInput({
+        TokenInput memory input = TokenInput({
             tokenIn: address(inputToken),
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut =
-            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+            ApproxParams({guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17});
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(0),
@@ -143,7 +143,7 @@ contract PendleRouterSwapHookTest is Helpers {
             minTokenOut: 950,
             tokenRedeemSy: address(outputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         LimitOrderData memory limit = LimitOrderData({
@@ -168,7 +168,7 @@ contract PendleRouterSwapHookTest is Helpers {
             minTokenOut: 950,
             tokenRedeemSy: address(outputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         LimitOrderData memory limit = LimitOrderData({
@@ -191,13 +191,13 @@ contract PendleRouterSwapHookTest is Helpers {
         assertEq(executions[0].value, 0);
     }
 
-      function test_SwapExactPtForToken_Inspector() public view {
-         TokenOutput memory output = TokenOutput({
+    function test_SwapExactPtForToken_Inspector() public view {
+        TokenOutput memory output = TokenOutput({
             tokenOut: address(outputToken),
             minTokenOut: 950,
             tokenRedeemSy: address(outputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         LimitOrderData memory limit = LimitOrderData({
@@ -223,11 +223,11 @@ contract PendleRouterSwapHookTest is Helpers {
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut =
-            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+            ApproxParams({guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17});
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(0),
@@ -257,11 +257,11 @@ contract PendleRouterSwapHookTest is Helpers {
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut =
-            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+            ApproxParams({guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17});
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(0),
@@ -288,11 +288,11 @@ contract PendleRouterSwapHookTest is Helpers {
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut =
-            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+            ApproxParams({guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17});
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(0),
@@ -322,11 +322,11 @@ contract PendleRouterSwapHookTest is Helpers {
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut =
-            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+            ApproxParams({guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17});
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(0),
@@ -358,11 +358,11 @@ contract PendleRouterSwapHookTest is Helpers {
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut =
-            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+            ApproxParams({guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17});
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(0),
@@ -394,11 +394,11 @@ contract PendleRouterSwapHookTest is Helpers {
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut =
-            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+            ApproxParams({guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17});
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(0),
@@ -430,7 +430,7 @@ contract PendleRouterSwapHookTest is Helpers {
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut = ApproxParams({
@@ -465,7 +465,7 @@ contract PendleRouterSwapHookTest is Helpers {
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut = ApproxParams({
@@ -474,7 +474,7 @@ contract PendleRouterSwapHookTest is Helpers {
             guessOffchain: 1000,
             maxIteration: 10,
             eps: 2e18 // Invalid eps > 1e18
-         });
+        });
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(0),
@@ -500,11 +500,11 @@ contract PendleRouterSwapHookTest is Helpers {
             netTokenIn: inputAmount,
             tokenMintSy: address(0), // Invalid tokenMintSy
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut =
-            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+            ApproxParams({guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17});
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(0),
@@ -538,11 +538,11 @@ contract PendleRouterSwapHookTest is Helpers {
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut =
-            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+            ApproxParams({guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17});
 
         Order[] memory normalOrders = new Order[](1);
         normalOrders[0] = Order({
@@ -561,7 +561,7 @@ contract PendleRouterSwapHookTest is Helpers {
         });
 
         FillOrderParams[] memory normalFills = new FillOrderParams[](1);
-        normalFills[0] = FillOrderParams({ order: normalOrders[0], signature: "", makingAmount: 1000 });
+        normalFills[0] = FillOrderParams({order: normalOrders[0], signature: "", makingAmount: 1000});
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(this),
@@ -589,11 +589,11 @@ contract PendleRouterSwapHookTest is Helpers {
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut =
-            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+            ApproxParams({guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17});
 
         Order[] memory normalOrders = new Order[](1);
         normalOrders[0] = Order({
@@ -612,7 +612,7 @@ contract PendleRouterSwapHookTest is Helpers {
         });
 
         FillOrderParams[] memory normalFills = new FillOrderParams[](1);
-        normalFills[0] = FillOrderParams({ order: normalOrders[0], signature: "", makingAmount: 1000 });
+        normalFills[0] = FillOrderParams({order: normalOrders[0], signature: "", makingAmount: 1000});
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(this),
@@ -638,11 +638,11 @@ contract PendleRouterSwapHookTest is Helpers {
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut =
-            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+            ApproxParams({guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17});
 
         Order[] memory normalOrders = new Order[](1);
         normalOrders[0] = Order({
@@ -661,7 +661,7 @@ contract PendleRouterSwapHookTest is Helpers {
         });
 
         FillOrderParams[] memory normalFills = new FillOrderParams[](1);
-        normalFills[0] = FillOrderParams({ order: normalOrders[0], signature: "", makingAmount: 1000 });
+        normalFills[0] = FillOrderParams({order: normalOrders[0], signature: "", makingAmount: 1000});
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(this),
@@ -687,11 +687,11 @@ contract PendleRouterSwapHookTest is Helpers {
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
             pendleSwap: address(this),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            swapData: SwapData({swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false})
         });
 
         ApproxParams memory guessPtOut =
-            ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+            ApproxParams({guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17});
 
         Order[] memory normalOrders = new Order[](1);
         normalOrders[0] = Order({
@@ -714,7 +714,7 @@ contract PendleRouterSwapHookTest is Helpers {
             order: normalOrders[0],
             signature: "",
             makingAmount: 0 // Invalid making amount
-         });
+        });
 
         LimitOrderData memory limit = LimitOrderData({
             limitRouter: address(this),
@@ -733,5 +733,4 @@ contract PendleRouterSwapHookTest is Helpers {
         vm.expectRevert(PendleRouterSwapHook.MAKING_AMOUNT_NOT_VALID.selector);
         hook.build(address(prevHook), account, data);
     }
-
 }

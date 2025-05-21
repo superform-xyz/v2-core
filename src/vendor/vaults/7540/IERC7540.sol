@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 interface IERC7575 {
     event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares);
@@ -324,11 +324,7 @@ interface IERC7540 is IERC7575 {
     /// @param requestId The id of the request to claim
     /// @param receiver The address of the receiver
     /// @param controller The address of the controller
-    function claimCancelDepositRequest(
-        uint256 requestId,
-        address receiver,
-        address controller
-    )
+    function claimCancelDepositRequest(uint256 requestId, address receiver, address controller)
         external
         returns (uint256 assets);
 
@@ -342,11 +338,7 @@ interface IERC7540 is IERC7575 {
     /// @param requestId The id of the request to claim
     /// @param receiver The address of the receiver
     /// @param controller The address of the controller
-    function claimCancelRedeemRequest(
-        uint256 requestId,
-        address receiver,
-        address controller
-    )
+    function claimCancelRedeemRequest(uint256 requestId, address receiver, address controller)
         external
         returns (uint256 shares);
 

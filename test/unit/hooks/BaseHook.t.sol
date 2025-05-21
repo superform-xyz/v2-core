@@ -1,27 +1,23 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
-import { Helpers } from "../../utils/Helpers.sol";
-import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
-import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
+import {Helpers} from "../../utils/Helpers.sol";
+import {BaseHook} from "../../../src/core/hooks/BaseHook.sol";
+import {ISuperHook} from "../../../src/core/interfaces/ISuperHook.sol";
 
 contract TestHook is BaseHook {
-    constructor(ISuperHook.HookType hookType_, bytes32 subType_) BaseHook(hookType_, subType_) { }
+    constructor(ISuperHook.HookType hookType_, bytes32 subType_) BaseHook(hookType_, subType_) {}
 
-    function _preExecute(address prevHook, address account, bytes calldata data) internal override { }
+    function _preExecute(address prevHook, address account, bytes calldata data) internal override {}
 
-    function _postExecute(address prevHook, address account, bytes calldata data) internal override { }
+    function _postExecute(address prevHook, address account, bytes calldata data) internal override {}
 
     // Expose internal functions for testing
     function testDecodeBool(bytes memory data, uint256 offset) external pure returns (bool) {
         return _decodeBool(data, offset);
     }
 
-    function testReplaceCalldataAmount(
-        bytes memory data,
-        uint256 amount,
-        uint256 offset
-    )
+    function testReplaceCalldataAmount(bytes memory data, uint256 amount, uint256 offset)
         external
         pure
         returns (bytes memory)

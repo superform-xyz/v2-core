@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Helpers } from "../../utils/Helpers.sol";
+import {Helpers} from "../../utils/Helpers.sol";
 
-import { MockSuperPositionFactory, MockSuperPosition } from "../../mocks/MockSuperPositionFactory.sol";
-import { MockERC20 } from "../../mocks/MockERC20.sol";
+import {MockSuperPositionFactory, MockSuperPosition} from "../../mocks/MockSuperPositionFactory.sol";
+import {MockERC20} from "../../mocks/MockERC20.sol";
 
 contract SuperPositionsFactoryTest is Helpers {
     MockSuperPositionFactory public factory;

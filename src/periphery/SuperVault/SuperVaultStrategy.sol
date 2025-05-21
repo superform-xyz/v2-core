@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 // External
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
@@ -38,9 +38,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /*//////////////////////////////////////////////////////////////
                                 CONSTANTS
     //////////////////////////////////////////////////////////////*/
-    uint256 private constant ONE_HUNDRED_PERCENT = 10_000;
     uint256 private constant ONE_WEEK = 7 days;
-    uint256 private constant BPS_PRECISION = 10_000; // For PPS deviation check
+    uint256 private constant BPS_PRECISION = 10_000;
     uint256 private constant TOLERANCE_CONSTANT = 10 wei;
 
     // Slippage tolerance in BPS (1%)
@@ -57,6 +56,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     uint8 private _vaultDecimals;
 
     // Global configuration
+    uint256 private _maxPPSSlippage;
 
     // Fee configuration
     FeeConfig private feeConfig;
@@ -74,11 +74,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     // Yield source configuration
     // @dev todo whenever a new yield source is added we can move it to allowed target
     mapping(address source => YieldSource sourceConfig) private yieldSources;
-    mapping(address source => YieldSource sourceConfig) private asyncYieldSources;
     address[] private yieldSourcesList;
-    address[] private asyncYieldSourcesList;
-
-    // PPS is now managed by SuperVaultAggregator
 
     // --- Redeem Request State ---
     mapping(address controller => SuperVaultState state) private superVaultState;
@@ -99,6 +95,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         PRECISION = 10 ** _vaultDecimals;
         superGovernor = ISuperGovernor(superGovernor_);
         feeConfig = feeConfig_;
+        _maxPPSSlippage = 500; // 500 bps = 5% todo: is this an acceptable starting value
 
         emit Initialized(_vault, superGovernor_);
     }
@@ -168,6 +165,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     function fulfillRedeemRequests(FulfillArgs calldata args) external nonReentrant {
         _isStrategist(msg.sender);
 
+        // Check if strategy is paused
+        if (_isPaused()) revert STRATEGY_PAUSED();
+
         uint256 hooksLength = args.hooks.length;
         if (hooksLength == 0) revert ZERO_LENGTH();
         uint256 controllersLength = args.controllers.length;
@@ -215,17 +215,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     // @inheritdoc ISuperVaultStrategy
-    function manageYieldSource(
-        address source,
-        address oracle,
-        uint8 actionType,
-        bool activate,
-        bool isAsync
-    )
-        external
-    {
+    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) external {
         _isPrimaryStrategist(msg.sender);
-        _manageYieldSource(source, oracle, actionType, activate, isAsync);
+        _manageYieldSource(source, oracle, actionType, activate);
     }
 
     // @inheritdoc ISuperVaultStrategy
@@ -233,8 +225,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         address[] calldata sources,
         address[] calldata oracles,
         uint8[] calldata actionTypes,
-        bool[] calldata activates,
-        bool[] calldata isAsyncs
+        bool[] calldata activates
     )
         external
     {
@@ -245,17 +236,16 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (oracles.length != length) revert INVALID_ARRAY_LENGTH();
         if (actionTypes.length != length) revert INVALID_ARRAY_LENGTH();
         if (activates.length != length) revert INVALID_ARRAY_LENGTH();
-        if (isAsyncs.length != length) revert INVALID_ARRAY_LENGTH();
 
         for (uint256 i; i < length; ++i) {
-            _manageYieldSource(sources[i], oracles[i], actionTypes[i], activates[i], isAsyncs[i]);
+            _manageYieldSource(sources[i], oracles[i], actionTypes[i], activates[i]);
         }
     }
 
     // @inheritdoc ISuperVaultStrategy
     function proposeVaultFeeConfigUpdate(uint256 performanceFeeBps, address recipient) external {
         _isPrimaryStrategist(msg.sender);
-        if (performanceFeeBps > ONE_HUNDRED_PERCENT) revert INVALID_PERFORMANCE_FEE_BPS();
+        if (performanceFeeBps > BPS_PRECISION) revert INVALID_PERFORMANCE_FEE_BPS();
         if (recipient == address(0)) revert ZERO_ADDRESS();
         proposedFeeConfig = FeeConfig({ performanceFeeBps: performanceFeeBps, recipient: recipient });
         feeConfigEffectiveTime = block.timestamp + ONE_WEEK;
@@ -270,6 +260,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         delete proposedFeeConfig;
         feeConfigEffectiveTime = 0;
         emit VaultFeeConfigUpdated(feeConfig.performanceFeeBps, feeConfig.recipient);
+    }
+
+    // @inheritdoc ISuperVaultStrategy
+    function updateMaxPPSSlippage(uint256 maxSlippageBps) external {
+        _isPrimaryStrategist(msg.sender);
+        if (maxSlippageBps > BPS_PRECISION) revert INVALID_MAX_SLIPPAGE_BPS();
+        _maxPPSSlippage = maxSlippageBps;
+        emit MaxPPSSlippageUpdated(maxSlippageBps);
     }
 
     // @inheritdoc ISuperVaultStrategy
@@ -386,7 +384,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee using revenueShare from SuperGovernor
                 superformFee = totalFee.mulDiv(
-                    superGovernor.getFee(FeeType.SUPER_VAULT_PERFORMANCE_FEE), ONE_HUNDRED_PERCENT, Math.Rounding.Floor
+                    superGovernor.getFee(FeeType.SUPER_VAULT_PERFORMANCE_FEE), BPS_PRECISION, Math.Rounding.Floor
                 );
                 recipientFee = totalFee - superformFee;
             }
@@ -508,12 +506,25 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         for (uint256 i; i < controllersLength; ++i) {
             SuperVaultState storage state = superVaultState[controllers[i]];
 
+            // Check for PPS slippage if there's a recorded request PPS and max slippage is set
+            if (state.averageRequestPPS > 0 && _maxPPSSlippage > 0) {
+                uint256 averageRequestPPS = state.averageRequestPPS;
+                // Calculate the percentage decrease from request PPS to current PPS
+                if (currentPPS < averageRequestPPS) {
+                    uint256 decrease =
+                        ((averageRequestPPS - currentPPS).mulDiv(BPS_PRECISION, averageRequestPPS, Math.Rounding.Floor));
+                    // If decrease exceeds maximum allowed slippage, revert
+                    if (decrease > _maxPPSSlippage) revert SLIPPAGE_EXCEEDED();
+                }
+            }
+
             uint256 currentAssets =
                 _calculateHistoricalAssetsAndProcessFees(state, controllerRequestedAmount[i], currentPPS);
 
             // Update user state, no partial redeems allowed
             state.pendingRedeemRequest -= controllerRequestedAmount[i];
             state.maxWithdraw += currentAssets;
+            state.averageRequestPPS = 0; // Reset PPS value after fulfillment
 
             // Call vault callback
             _onRedeemClaimable(
@@ -615,7 +626,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
             if (totalFee > 0) {
                 // Calculate Superform's portion of the fee using revenueShare from SuperGovernor
                 uint256 superformFee = totalFee.mulDiv(
-                    superGovernor.getFee(FeeType.SUPER_VAULT_PERFORMANCE_FEE), ONE_HUNDRED_PERCENT, Math.Rounding.Floor
+                    superGovernor.getFee(FeeType.SUPER_VAULT_PERFORMANCE_FEE), BPS_PRECISION, Math.Rounding.Floor
                 );
                 uint256 recipientFee = totalFee - superformFee;
 
@@ -690,18 +701,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /// @param oracle Address of the oracle
     /// @param actionType Type of action: 0=Add, 1=UpdateOracle, 2=ToggleActivation
     /// @param activate Boolean flag for activation when actionType is 2
-    /// @param isAsync Boolean flag for async yield source
-    function _manageYieldSource(
-        address source,
-        address oracle,
-        uint8 actionType,
-        bool activate,
-        bool isAsync
-    )
-        internal
-    {
+    function _manageYieldSource(address source, address oracle, uint8 actionType, bool activate) internal {
         if (actionType == 0) {
-            _addYieldSource(source, oracle, isAsync);
+            _addYieldSource(source, oracle);
         } else if (actionType == 1) {
             _updateYieldSourceOracle(source, oracle);
         } else if (actionType == 2) {
@@ -711,15 +713,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         }
     }
 
-    function _addYieldSource(address source, address oracle, bool isAsync) internal {
+    function _addYieldSource(address source, address oracle) internal {
         if (source == address(0) || oracle == address(0)) revert ZERO_ADDRESS();
         if (yieldSources[source].oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
         yieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
         yieldSourcesList.push(source);
-        if (isAsync) {
-            asyncYieldSources[source] = YieldSource({ oracle: oracle, isActive: true });
-            asyncYieldSourcesList.push(source);
-        }
+
         emit YieldSourceAdded(source, oracle);
     }
 
@@ -729,9 +728,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
         address oldOracle = yieldSource.oracle;
         yieldSource.oracle = oracle;
-        if (asyncYieldSources[source].oracle != address(0)) {
-            asyncYieldSources[source].oracle = oracle;
-        }
+
         emit YieldSourceOracleUpdated(source, oldOracle, oracle);
     }
 
@@ -741,7 +738,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (activate) {
             if (yieldSource.isActive) revert YIELD_SOURCE_ALREADY_ACTIVE();
             yieldSource.isActive = true;
-            if (asyncYieldSources[source].oracle != address(0)) asyncYieldSources[source].isActive = true;
             emit YieldSourceReactivated(source);
         } else {
             if (!yieldSource.isActive) revert YIELD_SOURCE_NOT_ACTIVE();
@@ -749,7 +745,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
                 revert INVALID_AMOUNT();
             }
             yieldSource.isActive = false;
-            if (asyncYieldSources[source].oracle != address(0)) asyncYieldSources[source].isActive = false;
             emit YieldSourceDeactivated(source);
         }
     }
@@ -832,7 +827,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (assets == 0 || shares == 0) revert INVALID_AMOUNT();
         if (controller == address(0)) revert ZERO_ADDRESS();
 
-        // Check if global hooks root is vetoed, and revert if it is
+        // Check if strategy is paused or if global hooks root is vetoed
+        if (_isPaused()) revert STRATEGY_PAUSED();
         if (_getSuperVaultAggregator().isGlobalHooksRootVetoed()) {
             revert OPERATIONS_BLOCKED_BY_VETO();
         }
@@ -847,8 +843,30 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (shares == 0) revert INVALID_AMOUNT();
         if (controller == address(0)) revert ZERO_ADDRESS();
         SuperVaultState storage state = superVaultState[controller];
-        if (state.pendingRedeemRequest > 0) revert ASYNC_REQUEST_BLOCKING();
-        state.pendingRedeemRequest = shares;
+
+        // Get current PPS from aggregator to use as baseline for slippage protection
+        ISuperVaultAggregator aggregator = _getSuperVaultAggregator();
+        uint256 currentPPS = aggregator.getPPS(address(this));
+        if (currentPPS == 0) revert INVALID_PPS();
+
+        // Calculate weighted average of PPS if there's an existing request
+        if (state.pendingRedeemRequest > 0) {
+            // Calculate weighted average of PPS based on share amounts
+            uint256 existingSharesInRequest = state.pendingRedeemRequest;
+            uint256 newTotalSharesInRequest = existingSharesInRequest + shares;
+
+            // Use weighted average formula: (existingShares * existingPPS + newShares * currentPPS) / totalShares
+            state.averageRequestPPS =
+                ((existingSharesInRequest * state.averageRequestPPS) + (shares * currentPPS)) / newTotalSharesInRequest;
+
+            // Update total shares
+            state.pendingRedeemRequest = newTotalSharesInRequest;
+        } else {
+            // First request for this controller
+            state.pendingRedeemRequest = shares;
+            state.averageRequestPPS = currentPPS;
+        }
+
         emit RedeemRequestPlaced(controller, controller, shares);
     }
 
@@ -900,5 +918,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
     function _requireVault() internal view {
         if (msg.sender != _vault) revert ACCESS_DENIED();
+    }
+
+    /// @notice Checks if the strategy is currently paused
+    /// @dev This calls SuperVaultAggregator.isStrategyPaused to determine pause status
+    /// @return True if the strategy is paused, false otherwise
+    function _isPaused() internal view returns (bool) {
+        return _getSuperVaultAggregator().isStrategyPaused(address(this));
     }
 }

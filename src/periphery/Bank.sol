@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
 import {IHookExecutionData} from "./interfaces/IHookExecutionData.sol";
-import { ISuperHook, Execution } from "../core/interfaces/ISuperHook.sol";
+import {ISuperHook, Execution} from "../core/interfaces/ISuperHook.sol";
 
 abstract contract Bank {
     /*//////////////////////////////////////////////////////////////
@@ -72,7 +72,7 @@ abstract contract Bank {
                 }
 
                 // Execute the call after verification
-                (bool success,) = executionStep.target.call{ value: executionStep.value }(executionStep.callData);
+                (bool success,) = executionStep.target.call{value: executionStep.value}(executionStep.callData);
                 if (!success) {
                     revert HOOK_EXECUTION_FAILED();
                 }

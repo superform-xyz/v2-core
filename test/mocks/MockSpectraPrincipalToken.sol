@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
-contract MockSpectraPrincipalToken  {
+contract MockSpectraPrincipalToken {
     address public yt;
     address public ibt;
     address public underlying;
@@ -10,7 +10,7 @@ contract MockSpectraPrincipalToken  {
     uint256 public totalAssets;
     uint256 public underlyingAmount;
 
-    constructor (address _yt, address _ibt, address _underlying) {
+    constructor(address _yt, address _ibt, address _underlying) {
         yt = _yt;
         ibt = _ibt;
         underlying = _underlying;

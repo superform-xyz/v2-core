@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { ApproveAndRedeem5115VaultHook } from
+import {ApproveAndRedeem5115VaultHook} from
     "../../../../../src/core/hooks/vaults/5115/ApproveAndRedeem5115VaultHook.sol";
-import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { MockERC20 } from "../../../../mocks/MockERC20.sol";
-import { MockHook } from "../../../../mocks/MockHook.sol";
-import { Helpers } from "../../../../utils/Helpers.sol";
+import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
+import {MockERC20} from "../../../../mocks/MockERC20.sol";
+import {MockHook} from "../../../../mocks/MockHook.sol";
+import {Helpers} from "../../../../utils/Helpers.sol";
 
 contract ApproveAndRedeem5115VaultHookTest is Helpers {
     ApproveAndRedeem5115VaultHook public hook;
@@ -153,7 +153,7 @@ contract ApproveAndRedeem5115VaultHookTest is Helpers {
             minTokenOut,
             burnFromInternalBalance,
             usePrevHookAmount,
-            address(0), 
+            address(0),
             uint256(0)
         );
     }

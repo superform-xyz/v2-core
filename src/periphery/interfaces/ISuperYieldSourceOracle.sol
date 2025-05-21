@@ -1,15 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 
 /// @title ISuperYieldSourceOracle
 /// @notice Interface for SuperYieldSourceOracle, providing functions to quote yield source metrics in various assets.
 interface ISuperYieldSourceOracle {
+    /// @dev Thrown when the base asset is not valid for the yield source.
     error INVALID_BASE_ASSET();
-    /// @dev Helper struct to avoid stack too deep errors in getTVLByOwnerOfSharesMultipleQuote
 
+    /// @dev Thrown when array lengths do not match in batch functions.
+    error ARRAY_LENGTH_MISMATCH();
+
+    /// @dev Helper struct to avoid stack too deep errors in getTVLByOwnerOfSharesMultipleQuote
     struct TVLMultipleQuoteVars {
         uint256 length;
-        // Removed IOracle registry as it's already a state variable
         address yieldSource;
         address[] owners;
         uint256 ownersLength;
@@ -124,6 +127,49 @@ interface ISuperYieldSourceOracle {
         returns (uint256[] memory tvlsQuote);
 
     /*//////////////////////////////////////////////////////////////
-                            INTERNAL FUNCTIONS
+                    YIELD SOURCE ORACLE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Get the price per share for multiple yield sources
+    /// @param yieldSourceAddresses Array of yield source addresses.
+    /// @param yieldSourceOracles Array of yield source oracle addresses.
+    /// @param baseAsset The common base asset of all yield sources.
+    /// @return pricesPerShare Array of prices per share per yield source.
+    function getPricePerShareMultiple(
+        address[] memory yieldSourceAddresses,
+        address[] memory yieldSourceOracles,
+        address baseAsset
+    )
+        external
+        view
+        returns (uint256[] memory pricesPerShare);
+
+    /// @notice Get the TVL by owner for multiple yield sources and ownerst.
+    /// @param yieldSourceAddresses Array of yield source addresses.
+    /// @param yieldSourceOracles Array of yield source oracle addresses.
+    /// @param ownersOfShares Array where each inner array contains owners for the corresponding yield source.
+    /// @param baseAsset The common base asset of all yield sources.
+    /// @return userTvls Array of user TVLs per yield source.
+    function getTVLByOwnerOfSharesMultiple(
+        address[] memory yieldSourceAddresses,
+        address[] memory yieldSourceOracles,
+        address[] memory ownersOfShares,
+        address baseAsset
+    )
+        external
+        view
+        returns (uint256[] memory userTvls);
+
+    /// @notice Get the total TVL for multiple yield sources
+    /// @param yieldSourceAddresses Array of yield source addresses.
+    /// @param yieldSourceOracles Array of yield source oracle addresses.
+    /// @param baseAsset The common base asset of all yield sources.
+    /// @return tvls Array of total TVLs per yield source.
+    function getTVLMultiple(
+        address[] memory yieldSourceAddresses,
+        address[] memory yieldSourceOracles,
+        address baseAsset
+    )
+        external
+        view
+        returns (uint256[] memory tvls);
 }

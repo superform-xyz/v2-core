@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
-import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /**
  * @title UpDistributor
@@ -12,7 +12,6 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
  * @dev The foundation can update the merkle root and reclaim unclaimed tokens
  */
 contract UpDistributor is Ownable2Step {
-
     IERC20 public immutable token;
 
     bytes32 public merkleRoot;
@@ -28,9 +27,7 @@ contract UpDistributor is Ownable2Step {
     error AlreadyClaimed();
     error NoTokensToReclaim();
 
-    constructor(address _token, address initialOwner) 
-        Ownable(initialOwner)
-    {
+    constructor(address _token, address initialOwner) Ownable(initialOwner) {
         token = IERC20(_token);
     }
 
@@ -49,7 +46,6 @@ contract UpDistributor is Ownable2Step {
      * @param merkleProof A proof of inclusion in the merkle tree
      */
     function claim(uint256 amount, bytes32[] calldata merkleProof) external {
-        
         // Verify user hasn't already claimed
         if (hasClaimed[msg.sender]) revert AlreadyClaimed();
 
@@ -74,4 +70,4 @@ contract UpDistributor is Ownable2Step {
         require(token.transfer(owner(), amount), "Transfer failed");
         emit TokensReclaimed(amount);
     }
-} 
+}

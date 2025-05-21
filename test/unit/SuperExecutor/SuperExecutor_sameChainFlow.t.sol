@@ -1,37 +1,37 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {ExecutionLib} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Superform
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedger, ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { Swap1InchHook } from "../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
-import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
-import { SuperExecutor } from "../../../src/core/executors/SuperExecutor.sol";
+import {ISuperExecutor} from "../../../src/core/interfaces/ISuperExecutor.sol";
+import {ISuperLedger, ISuperLedgerData} from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import {Swap1InchHook} from "../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
+import {ISuperHook} from "../../../src/core/interfaces/ISuperHook.sol";
+import {SuperExecutor} from "../../../src/core/executors/SuperExecutor.sol";
 import "../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 
-import { Mock1InchRouter, MockDex } from "../../mocks/Mock1InchRouter.sol";
-import { MockERC20 } from "../../mocks/MockERC20.sol";
-import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
-import { MockHook } from "../../mocks/MockHook.sol";
-import { MockSuperPositionFactory } from "../../mocks/MockSuperPositionFactory.sol";
-import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+import {Mock1InchRouter, MockDex} from "../../mocks/Mock1InchRouter.sol";
+import {MockERC20} from "../../mocks/MockERC20.sol";
+import {Mock4626Vault} from "../../mocks/Mock4626Vault.sol";
+import {MockHook} from "../../mocks/MockHook.sol";
+import {MockSuperPositionFactory} from "../../mocks/MockSuperPositionFactory.sol";
+import {BytesLib} from "../../../src/vendor/BytesLib.sol";
 import "forge-std/console.sol";
 
-import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
-import { ModeLib } from "modulekit/accounts/common/lib/ModeLib.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {IERC7579Account} from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
+import {ModeLib} from "modulekit/accounts/common/lib/ModeLib.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { ERC7579Precompiles } from "modulekit/deployment/precompiles/ERC7579Precompiles.sol";
+import {ERC7579Precompiles} from "modulekit/deployment/precompiles/ERC7579Precompiles.sol";
 import "modulekit/accounts/erc7579/ERC7579Factory.sol";
-import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
-import { Helpers } from "../../utils/Helpers.sol";
-import { InternalHelpers } from "../../utils/InternalHelpers.sol";
-import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
-import { SignatureHelper } from "../../utils/SignatureHelper.sol";
+import {MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR} from "modulekit/accounts/kernel/types/Constants.sol";
+import {Helpers} from "../../utils/Helpers.sol";
+import {InternalHelpers} from "../../utils/InternalHelpers.sol";
+import {MerkleTreeHelper} from "../../utils/MerkleTreeHelper.sol";
+import {SignatureHelper} from "../../utils/SignatureHelper.sol";
 
 import {
     RhinestoneModuleKit,
@@ -40,23 +40,30 @@ import {
     UserOpData,
     PackedUserOperation
 } from "modulekit/ModuleKit.sol";
-import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import { ERC4626YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import { SuperLedgerConfiguration } from "../../../src/core/accounting/SuperLedgerConfiguration.sol";
-import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { ApproveERC20Hook } from "../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
-import { Deposit4626VaultHook } from "../../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
-import { Redeem4626VaultHook } from "../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
-import { SuperLedger } from "../../../src/core/accounting/SuperLedger.sol";
-import { MockSwapOdosHook } from "../../mocks/unused-hooks/MockSwapOdosHook.sol";
-import { MockOdosRouterV2 } from "../../mocks/MockOdosRouterV2.sol";
-import { SuperMerkleValidator } from "../../../src/core/validators/SuperMerkleValidator.sol";
-import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
-import { VaultBank } from "../../../src/periphery/VaultBank/VaultBank.sol";
-import { SuperGovernor } from "../../../src/periphery/SuperGovernor.sol";
+import {IEntryPoint} from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import {ERC4626YieldSourceOracle} from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import {SuperLedgerConfiguration} from "../../../src/core/accounting/SuperLedgerConfiguration.sol";
+import {ISuperLedgerConfiguration} from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import {ISuperLedger} from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import {ApproveERC20Hook} from "../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import {Deposit4626VaultHook} from "../../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import {Redeem4626VaultHook} from "../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import {SuperLedger} from "../../../src/core/accounting/SuperLedger.sol";
+import {MockSwapOdosHook} from "../../mocks/unused-hooks/MockSwapOdosHook.sol";
+import {MockOdosRouterV2} from "../../mocks/MockOdosRouterV2.sol";
+import {SuperMerkleValidator} from "../../../src/core/validators/SuperMerkleValidator.sol";
+import {SuperValidatorBase} from "../../../src/core/validators/SuperValidatorBase.sol";
+import {VaultBank} from "../../../src/periphery/VaultBank/VaultBank.sol";
+import {SuperGovernor} from "../../../src/periphery/SuperGovernor.sol";
 
-contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHelpers, ERC7579Precompiles, SignatureHelper, MerkleTreeHelper {
+contract SuperExecutor_sameChainFlow is
+    Helpers,
+    RhinestoneModuleKit,
+    InternalHelpers,
+    ERC7579Precompiles,
+    SignatureHelper,
+    MerkleTreeHelper
+{
     using BytesLib for bytes;
     using AddressLib for Address;
     using ModuleKitHelpers for *;
@@ -116,8 +123,12 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
 
         superExecutor = ISuperExecutor(new SuperExecutor(address(ledgerConfig)));
         newSuperExecutor = ISuperExecutor(new SuperExecutor(address(ledgerConfig)));
-        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
-        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: abi.encode(signer)});
+        instance.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: ""});
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(signer)
+        });
 
         address[] memory allowedExecutors = new address[](2);
         allowedExecutors[0] = address(superExecutor);
@@ -196,12 +207,17 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         _getTokens(underlying, account, amount);
 
         Execution[] memory depositExecutions = new Execution[](1);
-        depositExecutions[0] = Execution({ target: address(vault), value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, account)) });
+        depositExecutions[0] =
+            Execution({target: address(vault), value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, account))});
         _depositHook.setExecutions(depositExecutions);
         _depositHook.setOutAmount(amount);
 
         Execution[] memory redeemExecutions = new Execution[](1);
-        redeemExecutions[0] = Execution({ target: address(vault), value: 0, callData: abi.encodeCall(IERC4626.redeem, (amount, account, account)) });
+        redeemExecutions[0] = Execution({
+            target: address(vault),
+            value: 0,
+            callData: abi.encodeCall(IERC4626.redeem, (amount, account, account))
+        });
         _redeemHook.setExecutions(redeemExecutions);
         _redeemHook.setUsedShares(amount);
         _redeemHook.setOutAmount(amount * 2);
@@ -209,15 +225,16 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
 
         // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData = _createSourceData(validUntil, userOpData);
         userOpData.userOp.signature = sigData;
         emit ISuperLedgerData.AccountingInflow(account, yieldSourceOracle, yieldSourceAddress, amount, 1e18);
         executeOp(userOpData);
 
-        assertEq(feeRecipient.balance, amount * 1e2/1e4);
+        assertEq(feeRecipient.balance, amount * 1e2 / 1e4);
     }
 
     function test_ExecuteWithUpdateAccounting_NewExecutor() external {
@@ -243,14 +260,16 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         _getTokens(underlying, account, amount);
 
         Execution[] memory depositExecutions = new Execution[](1);
-        depositExecutions[0] = Execution({ target: address(vault), value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, account)) });
+        depositExecutions[0] =
+            Execution({target: address(vault), value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, account))});
         _depositHook.setExecutions(depositExecutions);
         _depositHook.setOutAmount(amount);
 
         // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData = _createSourceData(validUntil, userOpData);
         userOpData.userOp.signature = sigData;
@@ -258,7 +277,7 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         executeOp(userOpData);
 
         // install new executor
-        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(newSuperExecutor), data: "" });
+        instance.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(newSuperExecutor), data: ""});
 
         hooksAddresses = new address[](1);
         hooksAddresses[0] = address(_redeemHook);
@@ -269,29 +288,36 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         );
 
         Execution[] memory redeemExecutions = new Execution[](1);
-        redeemExecutions[0] = Execution({ target: address(vault), value: 0, callData: abi.encodeCall(IERC4626.redeem, (amount, account, account)) });
+        redeemExecutions[0] = Execution({
+            target: address(vault),
+            value: 0,
+            callData: abi.encodeCall(IERC4626.redeem, (amount, account, account))
+        });
         _redeemHook.setExecutions(redeemExecutions);
         _redeemHook.setUsedShares(amount);
         _redeemHook.setOutAmount(amount * 2);
         _redeemHook.setAsset(address(0));
 
-        entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        entry = ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
         userOpData = _getExecOpsWithValidator(instance, newSuperExecutor, abi.encode(entry), address(validator));
         validUntil = uint48(block.timestamp + 100 days);
         sigData = _createSourceData(validUntil, userOpData);
         userOpData.userOp.signature = sigData;
         executeOp(userOpData);
 
-        assertEq(feeRecipient.balance, amount * 1e2/1e4);
+        assertEq(feeRecipient.balance, amount * 1e2 / 1e4);
     }
 
     function test_ShouldExecuteAll_AndLockAssetsInVaultBank(uint256 amount) external {
         AccountInstance memory testInstance = makeAccountInstance(keccak256(abi.encode("TEST")));
         address testAccount = testInstance.account;
 
-        testInstance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
-        testInstance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: abi.encode(signer)});
+        testInstance.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: ""});
+        testInstance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(signer)
+        });
 
         amount = _bound(amount);
 
@@ -309,8 +335,9 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOpsWithValidator(testInstance, superExecutor, abi.encode(entry), address(validator));
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(testInstance, superExecutor, abi.encode(entry), address(validator));
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData = _createSourceData(validUntil, userOpData);
@@ -325,8 +352,12 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         AccountInstance memory testInstance = makeAccountInstance(keccak256(abi.encode("TEST")));
         address testAccount = testInstance.account;
 
-        testInstance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
-        testInstance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: abi.encode(signer)});
+        testInstance.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: ""});
+        testInstance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(signer)
+        });
 
         amount = _bound(amount);
 
@@ -344,8 +375,9 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOpsWithValidator(testInstance, superExecutor, abi.encode(entry), address(validator));
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(testInstance, superExecutor, abi.encode(entry), address(validator));
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData = _createSourceData(validUntil, userOpData);
@@ -378,8 +410,9 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
 
         // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData = _createSourceData(validUntil, userOpData);
         userOpData.userOp.signature = sigData;
@@ -416,8 +449,9 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
 
         // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData = _createSourceData(validUntil, userOpData);
         userOpData.userOp.signature = sigData;
@@ -456,8 +490,9 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
 
         // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData = _createSourceData(validUntil, userOpData);
         userOpData.userOp.signature = sigData;
@@ -486,8 +521,9 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
 
         // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData = _createSourceData(validUntil, userOpData);
         userOpData.userOp.signature = sigData;
@@ -532,8 +568,9 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
 
         // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData = _createSourceData(validUntil, userOpData);
         userOpData.userOp.signature = sigData;
@@ -571,8 +608,9 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData = _createSourceData(validUntil, userOpData);
         userOpData.userOp.signature = sigData;
@@ -632,8 +670,9 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData = _createSourceData(validUntil, userOpData);
         userOpData.userOp.signature = sigData;
@@ -684,7 +723,7 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         _getTokens(underlying, account7702, amount);
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
 
         // Question: is this just a getter method or does it have side effects?
         // Since it is not defined as view I assume it has side effects so I did not remove it but the `get` in the name
@@ -695,7 +734,7 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         bytes memory initData = _get7702InitData();
         Execution[] memory executions = new Execution[](3);
         executions[0] =
-            Execution({ target: account7702, value: 0, callData: abi.encodeCall(IMSA.initializeAccount, initData) });
+            Execution({target: account7702, value: 0, callData: abi.encodeCall(IMSA.initializeAccount, initData)});
         executions[1] = Execution({
             target: account7702,
             value: 0,
@@ -732,32 +771,27 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _createSourceData(uint48 validUntil, UserOpData memory userOpData) private view returns (bytes memory signatureData) {
+    function _createSourceData(uint48 validUntil, UserOpData memory userOpData)
+        private
+        view
+        returns (bytes memory signatureData)
+    {
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createSourceValidatorLeaf(userOpData.userOpHash, validUntil);
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
 
-        bytes memory signature = _createSignature(
-            SuperValidatorBase(address(validator)).namespace(),
-            merkleRoot,
-            signer,
-            signerPrvKey
-        );
+        bytes memory signature =
+            _createSignature(SuperValidatorBase(address(validator)).namespace(), merkleRoot, signer, signerPrvKey);
         signatureData = abi.encode(validUntil, merkleRoot, merkleProof[0], merkleProof[0], signature);
     }
-
-
 
     function _get7702InitData() internal view returns (bytes memory) {
         bytes memory initData = erc7579factory.getInitData(address(_defaultValidator), "");
         return initData;
     }
 
-    function _get7702InitDataWithExecutor(
-        address _validator,
-        bytes memory initData
-    )
+    function _get7702InitDataWithExecutor(address _validator, bytes memory initData)
         public
         view
         returns (bytes memory _init)
@@ -791,10 +825,7 @@ contract SuperExecutor_sameChainFlow is Helpers, RhinestoneModuleKit, InternalHe
         });
     }
 
-    function _getSignature(
-        PackedUserOperation memory userOp,
-        IEntryPoint entrypoint
-    )
+    function _getSignature(PackedUserOperation memory userOp, IEntryPoint entrypoint)
         internal
         view
         returns (bytes memory)

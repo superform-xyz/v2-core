@@ -1,32 +1,33 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {ERC7579ExecutorBase} from "modulekit/Modules.sol";
+import {IModule} from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperHook, ISuperHookResult } from "../../src/core/interfaces/ISuperHook.sol";
-import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
+import {ISuperExecutor} from "../../src/core/interfaces/ISuperExecutor.sol";
+import {ISuperLedger} from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import {ISuperLedgerConfiguration} from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import {ISuperHook, ISuperHookResult} from "../../src/core/interfaces/ISuperHook.sol";
+import {ISuperCollectiveVault} from "./ISuperCollectiveVault.sol";
 
-import { INexusFactory } from "../../src/vendor/nexus/INexusFactory.sol";
+import {INexusFactory} from "../../src/vendor/nexus/INexusFactory.sol";
 
-import { HookDataDecoder } from "../../src/core/libraries/HookDataDecoder.sol";
+import {HookDataDecoder} from "../../src/core/libraries/HookDataDecoder.sol";
 
 contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
     using HookDataDecoder for bytes;
 
-    ISuperLedgerConfiguration public immutable ledgerConfiguration;
-    ISuperCollectiveVault public immutable superCollectiveVault;
+    ISuperLedgerConfiguration public immutable LEDGER_CONFIGURATION;
+    ISuperCollectiveVault public immutable SUPER_COLLECTIVE_VAULT;
 
     constructor(address ledgerConfiguration_, address superCollectiveVault_) {
-        ledgerConfiguration = ISuperLedgerConfiguration(ledgerConfiguration_);
-        superCollectiveVault = ISuperCollectiveVault(superCollectiveVault_);
+        LEDGER_CONFIGURATION = ISuperLedgerConfiguration(ledgerConfiguration_);
+        SUPER_COLLECTIVE_VAULT = ISuperCollectiveVault(superCollectiveVault_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -34,12 +35,13 @@ contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
     //////////////////////////////////////////////////////////////*/
 
     INexusFactory public nexusFactory;
-    mapping(address => bool) internal _initialized;
+    mapping(address account => bool initialized) internal _initialized;
 
     // @dev used for testing only
     address public nexusCreatedAccount;
 
     error INVALID_SENDER();
+    error NEXUS_ADDRESS_MISMATCH();
 
     event HappyAccountCreated(address indexed account);
 
@@ -48,7 +50,7 @@ contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
         nexusFactory = INexusFactory(nexusFactory_);
     }
 
-    function isInitialized(address account) external view returns (bool) {
+    function isInitialized(address account) external view override(IModule, ISuperExecutor) returns (bool) {
         return _initialized[account];
     }
 
@@ -67,12 +69,12 @@ contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function onInstall(bytes calldata) external {
+    function onInstall(bytes calldata) external override(IModule, ISuperExecutor) {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         _initialized[msg.sender] = true;
     }
 
-    function onUninstall(bytes calldata) external {
+    function onUninstall(bytes calldata) external override(IModule, ISuperExecutor) {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
     }
@@ -83,9 +85,7 @@ contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
         uint256 amount,
         address, //relayer; not used
         bytes memory message
-    )
-        external
-    {
+    ) external {
         // @dev this should exist on the real TargetExecutor
         //if (msg.sender != acrossSpokePool) revert INVALID_SENDER();
 
@@ -96,13 +96,14 @@ contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
         address deployedAddress = nexusFactory.createAccount(initData, initSalt);
 
         // @dev use custom errors for the real executor
-        if (deployedAddress != computedAddress) revert("Nexus SCA addresses mismatch");
+        if (deployedAddress != computedAddress) revert NEXUS_ADDRESS_MISMATCH();
+
+        // Set state variables before transfer to prevent reentrancy
+        nexusCreatedAccount = deployedAddress;
+        emit HappyAccountCreated(deployedAddress);
 
         // @dev use safeTransfer for the real executor
         IERC20(tokenSent).transfer(deployedAddress, amount);
-
-        nexusCreatedAccount = deployedAddress;
-        emit HappyAccountCreated(deployedAddress);
     }
 
     function execute(bytes calldata data) external {
@@ -151,7 +152,7 @@ contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
             address yieldSource = hookData.extractYieldSource();
 
             ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-                ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
+                LEDGER_CONFIGURATION.getYieldSourceOracleConfig(yieldSourceOracleId);
             ISuperLedger(config.ledger).updateAccounting(
                 account,
                 yieldSource,
@@ -169,7 +170,7 @@ contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
             address spToken = ISuperHookResult(hook).spToken();
             uint256 amount = ISuperHookResult(hook).outAmount();
 
-            ISuperCollectiveVault vault = ISuperCollectiveVault(superCollectiveVault);
+            ISuperCollectiveVault vault = ISuperCollectiveVault(SUPER_COLLECTIVE_VAULT);
 
             if (address(vault) != address(0)) {
                 // forge approval for vault

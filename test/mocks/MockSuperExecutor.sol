@@ -1,39 +1,40 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {ERC7579ExecutorBase} from "modulekit/Modules.sol";
+import {IModule} from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperHook, ISuperHookResult } from "../../src/core/interfaces/ISuperHook.sol";
-import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
+import {ISuperExecutor} from "../../src/core/interfaces/ISuperExecutor.sol";
+import {ISuperLedger} from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import {ISuperLedgerConfiguration} from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import {ISuperHook, ISuperHookResult} from "../../src/core/interfaces/ISuperHook.sol";
+import {ISuperCollectiveVault} from "./ISuperCollectiveVault.sol";
 
-import { HookDataDecoder } from "../../src/core/libraries/HookDataDecoder.sol";
+import {HookDataDecoder} from "../../src/core/libraries/HookDataDecoder.sol";
 
 contract MockSuperExecutor is ERC7579ExecutorBase, ISuperExecutor {
     using HookDataDecoder for bytes;
 
-    ISuperLedgerConfiguration public immutable ledgerConfiguration;
-    address public immutable superCollectiveVault;
+    ISuperLedgerConfiguration public immutable LEDGER_CONFIGURATION;
+    address public immutable SUPER_COLLECTIVE_VAULT;
 
     constructor(address ledgerConfiguration_, address superCollectiveVault_) {
-        ledgerConfiguration = ISuperLedgerConfiguration(ledgerConfiguration_);
-        superCollectiveVault = superCollectiveVault_;
+        LEDGER_CONFIGURATION = ISuperLedgerConfiguration(ledgerConfiguration_);
+        SUPER_COLLECTIVE_VAULT = superCollectiveVault_;
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    mapping(address => bool) internal _initialized;
+    mapping(address account => bool initialized) internal _initialized;
 
-    function isInitialized(address account) external view returns (bool) {
+    function isInitialized(address account) external view override(IModule, ISuperExecutor) returns (bool) {
         return _initialized[account];
     }
 
@@ -52,12 +53,12 @@ contract MockSuperExecutor is ERC7579ExecutorBase, ISuperExecutor {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function onInstall(bytes calldata) external {
+    function onInstall(bytes calldata) external override(IModule, ISuperExecutor) {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         _initialized[msg.sender] = true;
     }
 
-    function onUninstall(bytes calldata) external {
+    function onUninstall(bytes calldata) external override(IModule, ISuperExecutor) {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
     }
@@ -108,7 +109,7 @@ contract MockSuperExecutor is ERC7579ExecutorBase, ISuperExecutor {
             address yieldSource = hookData.extractYieldSource();
 
             ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-                ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
+                LEDGER_CONFIGURATION.getYieldSourceOracleConfig(yieldSourceOracleId);
             ISuperLedger(config.ledger).updateAccounting(
                 account,
                 yieldSource,
@@ -126,7 +127,7 @@ contract MockSuperExecutor is ERC7579ExecutorBase, ISuperExecutor {
             address spToken = ISuperHookResult(hook).spToken();
             uint256 amount = ISuperHookResult(hook).outAmount();
 
-            ISuperCollectiveVault vault = ISuperCollectiveVault(superCollectiveVault);
+            ISuperCollectiveVault vault = ISuperCollectiveVault(SUPER_COLLECTIVE_VAULT);
             if (address(vault) != address(0)) {
                 // forge approval for vault
                 Execution[] memory execs = new Execution[](1);

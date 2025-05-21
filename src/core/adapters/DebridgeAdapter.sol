@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 // External Dependencies
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IDlnDestination } from "../../vendor/debridge/IDlnDestination.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IDlnDestination} from "../../vendor/debridge/IDlnDestination.sol";
 
 // Superform Interfaces
-import { ISuperDestinationExecutor } from "../interfaces/ISuperDestinationExecutor.sol";
-import { IExternalCallExecutor } from "../../vendor/bridges/debridge/IExternalCallExecutor.sol";
+import {ISuperDestinationExecutor} from "../interfaces/ISuperDestinationExecutor.sol";
+import {IExternalCallExecutor} from "../../vendor/bridges/debridge/IExternalCallExecutor.sol";
 
 /// @title DebridgeAdapter
 /// @author Superform Labs
@@ -51,11 +51,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IExternalCallExecutor
-    function onEtherReceived(
-        bytes32,
-        address,
-        bytes memory _payload
-    )
+    function onEtherReceived(bytes32, address, bytes memory _payload)
         external
         payable
         onlyExternalCallAdapter
@@ -74,7 +70,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
         //    This ensures the executor can reliably check the balance.
         //    Requires this adapter contract to hold the funds temporarily from Debridge.
         //    Account is encoded in the merkle tree and validated by the destination executor
-        (bool success,) = account.call{ value: address(this).balance }("");
+        (bool success,) = account.call{value: address(this).balance}("");
         if (!success) revert ON_ETHER_RECEIVED_FAILED();
 
         // 2. Call the core executor's standardized function
@@ -84,13 +80,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
     }
 
     /// @inheritdoc IExternalCallExecutor
-    function onERC20Received(
-        bytes32,
-        address _token,
-        uint256 _transferredAmount,
-        address,
-        bytes memory _payload
-    )
+    function onERC20Received(bytes32, address _token, uint256 _transferredAmount, address, bytes memory _payload)
         external
         onlyExternalCallAdapter
         returns (bool callSucceeded, bytes memory callResult)
@@ -119,7 +109,15 @@ contract DebridgeAdapter is IExternalCallExecutor {
     /*//////////////////////////////////////////////////////////////
                                 PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _handleMessageReceived(address tokenSent, bytes memory initData, bytes memory executorCalldata, address account, address[] memory dstTokens, uint256[] memory intentAmounts, bytes memory sigData) private {
+    function _handleMessageReceived(
+        address tokenSent,
+        bytes memory initData,
+        bytes memory executorCalldata,
+        address account,
+        address[] memory dstTokens,
+        uint256[] memory intentAmounts,
+        bytes memory sigData
+    ) private {
         // Call the core executor's standardized function
         superDestinationExecutor.processBridgedExecution(
             tokenSent,

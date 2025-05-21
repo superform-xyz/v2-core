@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import { IPaymaster } from "@ERC4337/account-abstraction/contracts/interfaces/IPaymaster.sol";
-import { UserOperationLib } from "@account-abstraction/core/UserOperationLib.sol";
-import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
-import { AccountInstance } from "modulekit/ModuleKit.sol";
+import {IEntryPoint} from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import {IPaymaster} from "@ERC4337/account-abstraction/contracts/interfaces/IPaymaster.sol";
+import {UserOperationLib} from "@account-abstraction/core/UserOperationLib.sol";
+import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
+import {AccountInstance} from "modulekit/ModuleKit.sol";
 
 // Superform
-import { SuperNativePaymaster } from "../../../src/core/paymaster/SuperNativePaymaster.sol";
-import { MockEntryPoint } from "../../mocks/MockEntryPoint.sol";
-import { Helpers } from "../../utils/Helpers.sol";
+import {SuperNativePaymaster} from "../../../src/core/paymaster/SuperNativePaymaster.sol";
+import {MockEntryPoint} from "../../mocks/MockEntryPoint.sol";
+import {Helpers} from "../../utils/Helpers.sol";
 
 contract SuperNativePaymasterTest is Helpers {
     using UserOperationLib for PackedUserOperation;
@@ -22,7 +22,7 @@ contract SuperNativePaymasterTest is Helpers {
     uint256 public maxGasLimit;
     uint256 public nodeOperatorPremium;
 
-    receive() external payable { }
+    receive() external payable {}
 
     function setUp() public {
         mockEntryPoint = new MockEntryPoint();
@@ -63,14 +63,14 @@ contract SuperNativePaymasterTest is Helpers {
 
     function test_HandleOps() public {
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);
-        paymaster.handleOps{ value: 1 ether }(ops);
+        paymaster.handleOps{value: 1 ether}(ops);
 
         assertEq(mockEntryPoint.depositAmount(), 1 ether);
     }
 
     function test_PostOp_WithRefund() public {
         vm.deal(address(paymaster), 2 ether);
-        mockEntryPoint.depositTo{ value: 2 ether }(address(paymaster));
+        mockEntryPoint.depositTo{value: 2 ether}(address(paymaster));
 
         bytes memory context = abi.encode(sender, maxFeePerGas, maxGasLimit, nodeOperatorPremium);
         uint256 actualGasCost = maxGasLimit * maxFeePerGas / 2;
@@ -105,7 +105,7 @@ contract SuperNativePaymasterTest is Helpers {
         // Transfer and deposit the exact required amount
         vm.deal(address(paymaster), addBalance);
         vm.prank(address(paymaster));
-        mockEntryPoint.depositTo{ value: addBalance }(address(paymaster));
+        mockEntryPoint.depositTo{value: addBalance}(address(paymaster));
 
         // Call handleOps which should deposit the funds to EntryPoint
         PackedUserOperation[] memory ops = new PackedUserOperation[](1);

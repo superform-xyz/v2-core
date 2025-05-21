@@ -1,18 +1,23 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-import { IStandardizedYield } from "../../../../vendor/pendle/IStandardizedYield.sol";
+import {BytesLib} from "../../../../vendor/BytesLib.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import {IStandardizedYield} from "../../../../vendor/pendle/IStandardizedYield.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
-import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {BaseHook} from "../../BaseHook.sol";
+import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
+import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+import {
+    ISuperHookResult,
+    ISuperHookInflowOutflow,
+    ISuperHookContextAware,
+    ISuperHookInspector
+} from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveAndDeposit5115VaultHook
 /// @author Superform Labs
@@ -26,22 +31,23 @@ import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookContextAware, ISup
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 108);
 /// @notice         address vaultBank = BytesLib.toAddress(data, 109);
 /// @notice         uint256 dstChainId = BytesLib.toUint256(data, 129);
-contract ApproveAndDeposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector {
+contract ApproveAndDeposit5115VaultHook is
+    BaseHook,
+    ISuperHookInflowOutflow,
+    ISuperHookContextAware,
+    ISuperHookInspector
+{
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 108;
 
-    constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC5115) { }
+    constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC5115) {}
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
-        address prevHook,
-        address account,
-        bytes memory data
-    )
+    function build(address prevHook, address account, bytes memory data)
         external
         view
         override
@@ -62,16 +68,16 @@ contract ApproveAndDeposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, IS
 
         executions = new Execution[](4);
         executions[0] =
-            Execution({ target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
+            Execution({target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0))});
         executions[1] =
-            Execution({ target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, amount)) });
+            Execution({target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, amount))});
         executions[2] = Execution({
             target: yieldSource,
             value: 0,
             callData: abi.encodeCall(IStandardizedYield.deposit, (account, tokenIn, amount, minSharesOut))
         });
         executions[3] =
-            Execution({ target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
+            Execution({target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0))});
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -89,7 +95,7 @@ contract ApproveAndDeposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, IS
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns(bytes memory) {
+    function inspect(bytes calldata data) external pure returns (bytes memory) {
         return abi.encodePacked(
             data.extractYieldSource(),
             BytesLib.toAddress(data, 24) // tokenIn
