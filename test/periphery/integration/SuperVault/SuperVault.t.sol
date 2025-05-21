@@ -12,9 +12,13 @@ import { IERC165 } from "openzeppelin-contracts/contracts/interfaces/IERC165.sol
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 // superform
-import { ISuperVault } from "src/periphery/interfaces/ISuperVault.sol";
-import { IERC7540Redeem, IERC7741 } from "src/vendor/standards/ERC7540/IERC7540Vault.sol";
-import { Mock4626Vault } from "../../../mocks/Mock4626Vault.sol";
+import { ISuperVault } from "../../../../src/periphery/interfaces/ISuperVault.sol";
+import { SuperVault } from "../../../../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultEscrow } from "../../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
+
+import { ISuperVaultEscrow } from "../../../../src/periphery/interfaces/ISuperVaultEscrow.sol";
+import { ISuperVaultAggregator } from "../../../../src/periphery/interfaces/ISuperVaultAggregator.sol";
+import { IERC7540Redeem, IERC7741 } from "../../../../src/vendor/standards/ERC7540/IERC7540Vault.sol";
 import { ISuperVaultStrategy } from "../../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { ERC7540YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { ISuperLedger } from "../../../../src/core/interfaces/accounting/ISuperLedger.sol";
@@ -2072,5 +2076,121 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         // Verify all shares are redeemed
         assertEq(IERC20(vault.share()).balanceOf(accountEth), 0, "User should have no shares left");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       Vault Deployment test
+    //////////////////////////////////////////////////////////////*/
+
+    function test_DeployVault() public {
+        // Deploy a new vault
+        (address vaultAddr, address strategyAddr, address escrowAddr) = _deployVault(address(asset), "SV");
+        // Verify addresses are not zero
+        assertTrue(vaultAddr != address(0), "Vault address should not be zero");
+        assertTrue(strategyAddr != address(0), "Strategy address should not be zero");
+        assertTrue(escrowAddr != address(0), "Escrow address should not be zero");
+
+        // Verify initialization
+        SuperVault vaultContract = SuperVault(vaultAddr);
+        ISuperVaultStrategy strategyContract = ISuperVaultStrategy(strategyAddr);
+        SuperVaultEscrow escrowContract = SuperVaultEscrow(escrowAddr);
+
+        // Check vault state
+        assertEq(vaultContract.name(), "SuperVault", "Wrong vault name");
+        assertEq(vaultContract.symbol(), "SV", "Wrong vault symbol");
+        assertEq(vaultContract.asset(), address(asset), "Wrong asset");
+        assertEq(address(vaultContract.strategy()), strategyAddr, "Wrong strategy");
+        assertEq(vaultContract.decimals(), 6, "Wrong decimals");
+
+        // Check strategy state
+        (address _vaultAddr, address _asset, uint8 _decimals) = strategyContract.getVaultInfo();
+        assertEq(strategyContract.isInitialized(), true, "Strategy not initialized");
+        assertEq(_vaultAddr, vaultAddr, "Wrong vault in strategy");
+        assertEq(_asset, address(asset), "Wrong asset in strategy");
+        assertEq(_decimals, 6, "Wrong decimals in strategy");
+
+        // Check escrow state
+        assertTrue(escrowContract.initialized(), "Escrow not initialized");
+        assertEq(escrowContract.vault(), vaultAddr, "Wrong vault in escrow");
+        assertEq(escrowContract.strategy(), strategyAddr, "Wrong strategy in escrow");
+    }
+
+    function test_DeployMultipleVaults() public {
+        // Deploy multiple vaults with different names/symbols
+        string[3] memory symbols = ["sTV1", "sTV2", "sTV3"];
+
+        for (uint256 i = 0; i < 3; i++) {
+            // Deploy a new vault with custom configuration
+            (address vaultAddr, address strategyAddr, address escrowAddr) = _deployVault(
+                address(asset),
+                symbols[i] // symbol
+            );
+
+            // Verify each vault is properly initialized
+            SuperVault vaultContract = SuperVault(vaultAddr);
+            assertEq(vaultContract.symbol(), symbols[i], "Wrong vault symbol");
+            assertEq(vaultContract.decimals(), 6, "Wrong decimals");
+
+            assertEq(ISuperVaultStrategy(strategyAddr).isInitialized(), true, "Strategy not initialized");
+
+            assertTrue(SuperVaultEscrow(escrowAddr).initialized(), "Escrow not initialized");
+        }
+    }
+
+    function test_RevertOnZeroAddresses() public {
+        // Test with zero asset address
+        vm.expectRevert(ISuperVaultAggregator.ZERO_ADDRESS.selector);
+        _createVault(
+            VaultCreationParams({
+                asset: address(0),
+                strategist: STRATEGIST,
+                minUpdateInterval: 1000,
+                maxStaleness: 10_000,
+                performanceFeeBps: 1000,
+                symbol: "TV"
+            })
+        );
+
+        // Test with zero manager address (by temporarily setting SV_MANAGER to address(0))
+        vm.expectRevert(ISuperVaultAggregator.ZERO_ADDRESS.selector);
+        _createVault(
+            VaultCreationParams({
+                asset: address(asset),
+                strategist: address(0),
+                minUpdateInterval: 1000,
+                maxStaleness: 10_000,
+                performanceFeeBps: 1000,
+                symbol: "TV"
+            })
+        );
+    }
+
+    struct VaultCreationParams {
+        address asset;
+        address strategist;
+        uint256 minUpdateInterval;
+        uint256 maxStaleness;
+        uint256 performanceFeeBps;
+        string symbol;
+    }
+
+    function _createVault(VaultCreationParams memory params)
+        internal
+        returns (address vaultAddr, address strategyAddr, address escrowAddr)
+    {
+        (vaultAddr, strategyAddr, escrowAddr) = aggregator.createVault(
+            ISuperVaultAggregator.VaultCreationParams({
+                asset: params.asset,
+                name: "SuperVault",
+                symbol: params.symbol,
+                mainStrategist: params.strategist,
+                minUpdateInterval: params.minUpdateInterval,
+                maxStaleness: params.maxStaleness,
+                feeConfig: ISuperVaultStrategy.FeeConfig({
+                    performanceFeeBps: params.performanceFeeBps,
+                    recipient: address(this)
+                })
+            })
+        );
     }
 }
