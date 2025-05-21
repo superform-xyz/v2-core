@@ -26,23 +26,60 @@ interface ISuperAssetFactory {
         address incentiveFundManager;
     }
 
+
     /**
-     * @notice Sets roles for a SuperAsset
-     * @param superAsset Address of the SuperAsset contract
+     * @notice Roles for a SuperAsset
      * @param superAssetStrategist Address of the strategist
      * @param superAssetManager Address of the manager
      * @param incentiveFundManager Address of the incentive fund manager
      */
-    function setRoles(address superAsset, address superAssetStrategist, address superAssetManager, address incentiveFundManager) external;
+    struct SuperAssetRoles {
+        address superAssetStrategist;
+        address superAssetManager;
+        address incentiveFundManager;
+    }
 
     /**
-     * @notice Gets roles for a SuperAsset
+     * @notice Sets the manager for a SuperAsset
+     * @param superAsset Address of the SuperAsset contract
+     * @param _superAssetManager Address of the manager
+     */
+    function setSuperAssetManager(address superAsset, address _superAssetManager) external;
+
+    /**
+     * @notice Sets the strategist for a SuperAsset
+     * @param superAsset Address of the SuperAsset contract
+     * @param _superAssetStrategist Address of the strategist
+     */
+    function setSuperAssetStrategist(address superAsset, address _superAssetStrategist) external;
+
+    /**
+     * @notice Sets the incentive fund manager for a SuperAsset
+     * @param superAsset Address of the SuperAsset contract
+     * @param _incentiveFundManager Address of the incentive fund manager
+     */
+    function setIncentiveFundManager(address superAsset, address _incentiveFundManager) external;
+
+    /**
+     * @notice Gets the manager for a SuperAsset
+     * @param superAsset Address of the SuperAsset contract
+     * @return superAssetManager Address of the manager
+     */
+    function getSuperAssetManager(address superAsset) external view returns (address);
+
+    /**
+     * @notice Gets the strategist for a SuperAsset
      * @param superAsset Address of the SuperAsset contract
      * @return superAssetStrategist Address of the strategist
-     * @return superAssetManager Address of the manager
+     */
+    function getSuperAssetStrategist(address superAsset) external view returns (address);
+
+    /**
+     * @notice Gets the incentive fund manager for a SuperAsset
+     * @param superAsset Address of the SuperAsset contract
      * @return incentiveFundManager Address of the incentive fund manager
      */
-    function getRoles(address superAsset) external view returns (address superAssetStrategist, address superAssetManager, address incentiveFundManager);
+    function getIncentiveFundManager(address superAsset) external view returns (address);
 
     /**
      * @notice Creates a new SuperAsset instance with its dependencies
@@ -79,4 +116,7 @@ interface ISuperAssetFactory {
     // --- Errors ---
     // Factory errors
     error ZERO_ADDRESS();
+
+    // Unauthorized errors
+    error UNAUTHORIZED();
 }

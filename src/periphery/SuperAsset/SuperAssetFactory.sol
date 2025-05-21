@@ -28,9 +28,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     address public incentiveCalculationContract;
     address public immutable superGovernor;
 
-    mapping(address superAsset => address superAssetStrategist) public superAssetStrategist;
-    mapping(address superAsset => address superAssetManager) public superAssetManager;
-    mapping(address superAsset => address incentiveFundManager) public incentiveFundManager;
+    mapping(address superAsset => SuperAssetRoles roles) public roles;
 
     // --- Roles ---
     bytes32 public constant DEPLOYER_ROLE = keccak256("DEPLOYER_ROLE");
@@ -39,7 +37,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
     constructor(address _superGovernor, address _incentiveCalculationContract, address _assetBank) {
-        require(_superGovernor != address(0), "SuperAssetFactory: zero address");
+        if (_superGovernor == address(0)) revert ZERO_ADDRESS();
         superGovernor = _superGovernor;
 
         superAssetImplementation = address(new SuperAsset());
@@ -54,19 +52,39 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     }
 
     /// @inheritdoc ISuperAssetFactory
-    function setRoles(address superAsset, address _superAssetStrategist, address _superAssetManager, address _incentiveFundManager) external onlyRole(DEPLOYER_ROLE) {
-        if (_superAssetStrategist == address(0)) revert ZERO_ADDRESS();
+    function setSuperAssetManager(address superAsset, address _superAssetManager) external onlyRole(DEPLOYER_ROLE) {
         if (_superAssetManager == address(0)) revert ZERO_ADDRESS();
-        if (_incentiveFundManager == address(0)) revert ZERO_ADDRESS();
-        
-        superAssetStrategist[superAsset] = _superAssetStrategist;
-        superAssetManager[superAsset] = _superAssetManager;
-        incentiveFundManager[superAsset] = _incentiveFundManager;
+        if(msg.sender != roles[superAsset].superAssetManager) revert UNAUTHORIZED();
+        roles[superAsset].superAssetManager = _superAssetManager;
     }
 
     /// @inheritdoc ISuperAssetFactory
-    function getRoles(address superAsset) external view returns (address _superAssetStrategist, address _superAssetManager, address _incentiveFundManager) {
-        return (superAssetStrategist[superAsset], superAssetManager[superAsset], incentiveFundManager[superAsset]);
+    function setSuperAssetStrategist(address superAsset, address _superAssetStrategist) external onlyRole(DEPLOYER_ROLE) {
+        if (_superAssetStrategist == address(0)) revert ZERO_ADDRESS();
+        if(msg.sender != roles[superAsset].superAssetManager) revert UNAUTHORIZED();
+        roles[superAsset].superAssetStrategist = _superAssetStrategist;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function setIncentiveFundManager(address superAsset, address _incentiveFundManager) external onlyRole(DEPLOYER_ROLE) {
+        if (_incentiveFundManager == address(0)) revert ZERO_ADDRESS();
+        if(msg.sender != roles[superAsset].superAssetManager) revert UNAUTHORIZED();
+        roles[superAsset].incentiveFundManager = _incentiveFundManager;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function getSuperAssetManager(address superAsset) external view returns (address) {
+        return roles[superAsset].superAssetManager;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function getSuperAssetStrategist(address superAsset) external view returns (address) {
+        return roles[superAsset].superAssetStrategist;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function getIncentiveFundManager(address superAsset) external view returns (address) {
+        return roles[superAsset].incentiveFundManager;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -99,9 +117,11 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
         // Initialize IncentiveFund
         IncentiveFundContract(incentiveFund).initialize(superAsset, assetBank, superGovernor, address(this));
 
-        superAssetManager[superAsset] = params.superAssetManager;
-        superAssetStrategist[superAsset] = params.superAssetStrategist;
-        incentiveFundManager[superAsset] = params.incentiveFundManager;
+        roles[superAsset] = SuperAssetRoles({
+            superAssetManager: params.superAssetManager,
+            superAssetStrategist: params.superAssetStrategist,
+            incentiveFundManager: params.incentiveFundManager
+        });
 
 
         // Return addresses (using existing instances for ICC and AssetBank)
