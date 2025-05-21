@@ -27,9 +27,6 @@ contract SuperAssetFactory is ISuperAssetFactory {
 
     mapping(address superAsset => SuperAssetRoles roles) public roles;
 
-    // --- Roles ---
-    bytes32 public constant DEPLOYER_ROLE = keccak256("DEPLOYER_ROLE");
-
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
