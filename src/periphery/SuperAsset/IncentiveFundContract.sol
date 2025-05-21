@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
@@ -20,7 +19,7 @@ import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.
  * @dev For now it is OK to keep Access Control but it will be managed by SuperGovernor when ready, see
  * https://github.com/superform-xyz/v2-contracts/pull/377#discussion_r2058893391
  */
-contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
+contract IncentiveFundContract is IIncentiveFundContract {
     using SafeERC20 for IERC20;
 
     // --- State Variables ---
