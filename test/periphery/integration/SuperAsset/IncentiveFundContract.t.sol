@@ -179,6 +179,7 @@ contract IncentiveFundContractTest is Helpers {
 
         factory = new SuperAssetFactory(address(superGovernor), address(icc));
         console.log("SuperAssetFactory deployed");
+        superGovernor.setAddress(superGovernor.SUPER_ASSET_FACTORY(), address(factory));
 
         console.log("SuperAssetFactory deployed");
         // incentiveFund = new IncentiveFundContract(address(superGovernor));
@@ -265,7 +266,7 @@ contract IncentiveFundContractTest is Helpers {
 
     function test_Initialize_RevertIfAlreadyInitialized() public {
         vm.expectRevert(IIncentiveFundContract.ALREADY_INITIALIZED.selector);
-        incentiveFund.initialize(address(superAsset), address(superGovernor), address(factory));
+        incentiveFund.initialize(address(superAsset));
         vm.stopPrank();
     }
 
@@ -273,10 +274,7 @@ contract IncentiveFundContractTest is Helpers {
         vm.startPrank(admin);
         IncentiveFundContract newContract = new IncentiveFundContract(address(superGovernor));
         vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
-        newContract.initialize(address(0), address(superGovernor), address(factory));
-
-        vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
-        newContract.initialize(address(superAsset), address(0), address(factory));
+        newContract.initialize(address(0));
         vm.stopPrank();
     }
 

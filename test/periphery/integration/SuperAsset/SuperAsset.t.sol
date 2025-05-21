@@ -164,6 +164,7 @@ contract SuperAssetTest is Helpers {
         // Deploy factory and contracts
         factory = new SuperAssetFactory(address(superGovernor), address(icc));
         console.log("Factory deployed");
+        superGovernor.setAddress(superGovernor.SUPER_ASSET_FACTORY(), address(factory));
 
         // Grant roles
         vm.startPrank(admin);

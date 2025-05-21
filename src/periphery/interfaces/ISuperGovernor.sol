@@ -255,6 +255,9 @@ interface ISuperGovernor is IAccessControl {
     /// @notice The identifier of the role that grants access to superasset factory deployment
     function SUPERASSET_FACTORY_DEPLOYER() external view returns (bytes32);
 
+    /// @notice The identifier of the role that grants access to superasset factory
+    function SUPER_ASSET_FACTORY() external view returns (bytes32);
+
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
     //////////////////////////////////////////////////////////////*/
