@@ -49,11 +49,13 @@ interface ISuperVaultStrategy {
     error CALCULATION_BLOCK_TOO_OLD();
     error INVALID_PPS();
     error INVALID_REDEEM_FILL();
+    error SLIPPAGE_EXCEEDED();
     error INVALID_VAULT();
     error STAKE_TOO_LOW();
     error OPERATIONS_BLOCKED_BY_VETO();
     error HOOK_VALIDATION_FAILED();
     error STRATEGY_PAUSED();
+    error INVALID_MAX_SLIPPAGE_BPS();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -72,6 +74,7 @@ interface ISuperVaultStrategy {
     event EmergencyWithdrawal(address indexed recipient, uint256 assets);
     event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
     event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
+    event MaxPPSSlippageUpdated(uint256 maxSlippageBps);
     event HooksExecuted(address[] hooks);
     event RedeemRequestPlaced(address indexed controller, address indexed owner, uint256 shares);
     event RedeemRequestFulfilled(address indexed controller, address indexed receiver, uint256 assets, uint256 shares);
@@ -140,6 +143,7 @@ interface ISuperVaultStrategy {
     struct SuperVaultState {
         uint256 pendingRedeemRequest; // Shares requested
         uint256 maxWithdraw; // Assets claimable after fulfillment
+        uint256 averageRequestPPS; // Average PPS at the time of redeem request
         // Accumulators needed for fee calculation on redeem
         uint256 accumulatorShares;
         uint256 accumulatorCostBasis;
@@ -241,6 +245,10 @@ interface ISuperVaultStrategy {
 
     /// @notice Execute the proposed vault fee configuration update after timelock
     function executeVaultFeeConfigUpdate() external;
+    
+    /// @notice Update the maximum allowed PPS slippage for redemptions
+    /// @param maxSlippageBps Maximum slippage in basis points (e.g., 100 = 1%)
+    function updateMaxPPSSlippage(uint256 maxSlippageBps) external;
 
     /// @notice Manage emergency withdrawals
     /// @param action Type of action: 1=Propose, 2=ExecuteActivation, 3=Withdraw
