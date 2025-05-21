@@ -2,22 +2,22 @@
 pragma solidity 0.8.30;
 
 // external
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
 import {
     ISuperHook,
     ISuperHookResult,
     ISuperHookContextAware,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
-import {SpectraCommands} from "../../../../vendor/spectra/SpectraCommands.sol";
-import {ISpectraRouter} from "../../../../vendor/spectra/ISpectraRouter.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+import { SpectraCommands } from "../../../../vendor/spectra/SpectraCommands.sol";
+import { ISpectraRouter } from "../../../../vendor/spectra/ISpectraRouter.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title SpectraExchangeHook
 /// @author Superform Labs
@@ -60,7 +60,11 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address prevHook, address account, bytes calldata data)
+    function build(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
         external
         view
         override
@@ -75,7 +79,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
 
         executions = new Execution[](1);
         executions[0] =
-            Execution({target: address(router), value: value, callData: usePrevHookAmount ? updatedTxData : txData_});
+            Execution({ target: address(router), value: value, callData: usePrevHookAmount ? updatedTxData : txData_ });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -160,7 +164,13 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
         address transferToken;
     }
 
-    function _validateTxData(bytes calldata data, address account, bool usePrevHookAmount, address prevHook, address pt)
+    function _validateTxData(
+        bytes calldata data,
+        address account,
+        bool usePrevHookAmount,
+        address prevHook,
+        address pt
+    )
         private
         view
         returns (bytes memory updatedTxData)
@@ -238,7 +248,10 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
         }
     }
 
-    function _validateCommands(bytes memory _commands, uint256 inputsLength)
+    function _validateCommands(
+        bytes memory _commands,
+        uint256 inputsLength
+    )
         private
         pure
         returns (uint256[] memory commands)

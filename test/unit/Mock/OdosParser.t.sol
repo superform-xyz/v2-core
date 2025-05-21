@@ -10,7 +10,8 @@ pragma solidity >=0.8.30;
 //         QuoteInputToken[] memory inputTokens = new QuoteInputToken[](1);
 //         inputTokens[0] = QuoteInputToken({ tokenAddress: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48, amount: 1e6 });
 //         QuoteOutputToken[] memory outputTokens = new QuoteOutputToken[](1);
-//         outputTokens[0] = QuoteOutputToken({ tokenAddress: 0xaD55aebc9b8c03FC43cd9f62260391c13c23e7c0, proportion: 1 });
+//         outputTokens[0] = QuoteOutputToken({ tokenAddress: 0xaD55aebc9b8c03FC43cd9f62260391c13c23e7c0, proportion: 1
+// });
 
 //         string memory pathId = surlCallQuoteV2(inputTokens, outputTokens, address(this), 1, true);
 //         console2.log("pathId", pathId);
@@ -21,7 +22,8 @@ pragma solidity >=0.8.30;
 //         QuoteInputToken[] memory inputTokens = new QuoteInputToken[](1);
 //         inputTokens[0] = QuoteInputToken({ tokenAddress: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48, amount: 1e6 });
 //         QuoteOutputToken[] memory outputTokens = new QuoteOutputToken[](1);
-//         outputTokens[0] = QuoteOutputToken({ tokenAddress: 0xaD55aebc9b8c03FC43cd9f62260391c13c23e7c0, proportion: 1 });
+//         outputTokens[0] = QuoteOutputToken({ tokenAddress: 0xaD55aebc9b8c03FC43cd9f62260391c13c23e7c0, proportion: 1
+// });
 //         string memory pathId = surlCallQuoteV2(inputTokens, outputTokens, address(this), 1, true);
 //         console2.log("pathId", pathId);
 
@@ -35,7 +37,8 @@ pragma solidity >=0.8.30;
 //         QuoteInputToken[] memory inputTokens = new QuoteInputToken[](1);
 //         inputTokens[0] = QuoteInputToken({ tokenAddress: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48, amount: 1e6 });
 //         QuoteOutputToken[] memory outputTokens = new QuoteOutputToken[](1);
-//         outputTokens[0] = QuoteOutputToken({ tokenAddress: 0xaD55aebc9b8c03FC43cd9f62260391c13c23e7c0, proportion: 1 });
+//         outputTokens[0] = QuoteOutputToken({ tokenAddress: 0xaD55aebc9b8c03FC43cd9f62260391c13c23e7c0, proportion: 1
+// });
 //         string memory pathId = surlCallQuoteV2(inputTokens, outputTokens, address(this), 1, false);
 
 //         // get assemble data
@@ -49,7 +52,8 @@ pragma solidity >=0.8.30;
 //         QuoteInputToken[] memory inputTokens = new QuoteInputToken[](1);
 //         inputTokens[0] = QuoteInputToken({ tokenAddress: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48, amount: 1e6 });
 //         QuoteOutputToken[] memory outputTokens = new QuoteOutputToken[](1);
-//         outputTokens[0] = QuoteOutputToken({ tokenAddress: 0xaD55aebc9b8c03FC43cd9f62260391c13c23e7c0, proportion: 1 });
+//         outputTokens[0] = QuoteOutputToken({ tokenAddress: 0xaD55aebc9b8c03FC43cd9f62260391c13c23e7c0, proportion: 1
+// });
 //         string memory pathId = surlCallQuoteV2(inputTokens, outputTokens, address(this), 1, false);
 
 //         // get assemble data

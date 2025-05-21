@@ -125,7 +125,6 @@ contract SpectraExchangeHookTest is Helpers {
         assertEq(executions[0].value, 0);
     }
 
-
     function test_DepositAssetInIBT_Inspector() public view {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_IBT));

@@ -43,7 +43,7 @@ contract MockPendleRouter {
     }
 
     function mintPyFromToken(
-        address receiver, 
+        address receiver,
         address, //yt
         uint256, //minPyOut
         TokenInput calldata //tokenInput
@@ -51,7 +51,7 @@ contract MockPendleRouter {
         external
         payable
         returns (uint256 netPtOut, uint256 netSyFee, uint256 netSyInterm)
-    {   
+    {
         IERC20(token).transferFrom(msg.sender, address(this), 1e18);
         IERC20(pt).transfer(receiver, 1e18);
         return (1e18, 0, 0);

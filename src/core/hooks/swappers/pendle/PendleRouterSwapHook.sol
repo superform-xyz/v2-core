@@ -2,12 +2,12 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
 import {
     ISuperHook,
     ISuperHookResult,
@@ -23,9 +23,9 @@ import {
     FillOrderParams,
     Order
 } from "../../../../vendor/pendle/IPendleRouterV4.sol";
-import {IPendleMarket} from "../../../../vendor/pendle/IPendleMarket.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+import { IPendleMarket } from "../../../../vendor/pendle/IPendleMarket.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title PendleRouterSwapHook
 /// @author Superform Labs
@@ -67,7 +67,11 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function build(address prevHook, address account, bytes calldata data)
+    function build(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
         external
         view
         override
@@ -198,7 +202,11 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
         bool usePrevHookAmount,
         address prevHook,
         address pendleMarket
-    ) private view returns (bytes memory updatedTxData) {
+    )
+        private
+        view
+        returns (bytes memory updatedTxData)
+    {
         bytes4 selector = bytes4(data[0:4]);
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
             // skip selector

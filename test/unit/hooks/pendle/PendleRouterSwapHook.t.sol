@@ -109,7 +109,7 @@ contract PendleRouterSwapHookTest is Helpers {
     }
 
     function test_SwapExactTokenForPt_Inspector() public view {
-         TokenInput memory input = TokenInput({
+        TokenInput memory input = TokenInput({
             tokenIn: address(inputToken),
             netTokenIn: inputAmount,
             tokenMintSy: address(inputToken),
@@ -191,8 +191,8 @@ contract PendleRouterSwapHookTest is Helpers {
         assertEq(executions[0].value, 0);
     }
 
-      function test_SwapExactPtForToken_Inspector() public view {
-         TokenOutput memory output = TokenOutput({
+    function test_SwapExactPtForToken_Inspector() public view {
+        TokenOutput memory output = TokenOutput({
             tokenOut: address(outputToken),
             minTokenOut: 950,
             tokenRedeemSy: address(outputToken),

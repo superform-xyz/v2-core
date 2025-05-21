@@ -81,7 +81,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
                 odosDecodedSwap.tokenInfo.inputReceiver,
                 odosDecodedSwap.tokenInfo.outputToken,
                 odosDecodedSwap.tokenInfo.outputQuote,
-                odosDecodedSwap.tokenInfo.outputMin - odosDecodedSwap.tokenInfo.outputMin *1e4/1e5,
+                odosDecodedSwap.tokenInfo.outputMin - odosDecodedSwap.tokenInfo.outputMin * 1e4 / 1e5,
                 odosDecodedSwap.pathDefinition,
                 odosDecodedSwap.executor,
                 odosDecodedSwap.referralCode,
@@ -122,7 +122,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
                 accountEth,
                 token,
                 amount,
-                amount - amount *1e4/1e5,
+                amount - amount * 1e4 / 1e5,
                 true,
                 uint256(0),
                 bytes(""),
@@ -171,7 +171,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
                 odosDecodedSwap.tokenInfo.inputReceiver,
                 odosDecodedSwap.tokenInfo.outputToken,
                 odosDecodedSwap.tokenInfo.outputQuote,
-                odosDecodedSwap.tokenInfo.outputMin - odosDecodedSwap.tokenInfo.outputMin *1e4/1e5,
+                odosDecodedSwap.tokenInfo.outputMin - odosDecodedSwap.tokenInfo.outputMin * 1e4 / 1e5,
                 odosDecodedSwap.pathDefinition,
                 odosDecodedSwap.executor,
                 odosDecodedSwap.referralCode,
@@ -179,13 +179,15 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
             );
             hookData[1] = odosCalldata;
 
-            address paymaster = address(new SuperNativePaymaster(IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032)));
+            address paymaster =
+                address(new SuperNativePaymaster(IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032)));
             SuperNativePaymaster superNativePaymaster = SuperNativePaymaster(paymaster);
 
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
 
-            UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute), paymaster);
+            UserOpData memory opData =
+                _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute), paymaster);
 
             uint256 tokenBalanceBefore = IERC20(token).balanceOf(accountEth);
 
@@ -221,7 +223,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
                 accountEth,
                 token,
                 amount,
-                amount - amount *1e4/1e5,
+                amount - amount * 1e4 / 1e5,
                 true,
                 uint256(0),
                 bytes(""),
@@ -231,13 +233,15 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
             );
             hookData[1] = odosCalldata;
 
-            address paymaster = address(new SuperNativePaymaster(IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032)));
+            address paymaster =
+                address(new SuperNativePaymaster(IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032)));
             SuperNativePaymaster superNativePaymaster = SuperNativePaymaster(paymaster);
 
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
 
-            UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute), paymaster);
+            UserOpData memory opData =
+                _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute), paymaster);
 
             uint256 tokenBalanceBefore = IERC20(token).balanceOf(accountEth);
 
