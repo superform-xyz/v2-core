@@ -2,7 +2,6 @@
 pragma solidity ^0.8.30;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "../interfaces/SuperAsset/ISuperAssetFactory.sol";
 import "./SuperAsset.sol";
 import "./IncentiveFundContract.sol";
@@ -14,7 +13,7 @@ import "../SuperGovernor.sol";
  * @author Superform Labs
  * @notice Factory contract that deploys SuperAsset and its dependencies
  */
-contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
+contract SuperAssetFactory is ISuperAssetFactory {
     using Clones for address;
 
     /*//////////////////////////////////////////////////////////////
@@ -43,27 +42,28 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
 
         // Deploy single instances
         incentiveCalculationContract = _incentiveCalculationContract;
-
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(DEPLOYER_ROLE, msg.sender);
     }
 
     /// @inheritdoc ISuperAssetFactory
-    function setSuperAssetManager(address superAsset, address _superAssetManager) external onlyRole(DEPLOYER_ROLE) {
+    function setSuperAssetManager(address superAsset, address _superAssetManager) external {
         if (_superAssetManager == address(0)) revert ZERO_ADDRESS();
-        if(msg.sender != roles[superAsset].superAssetManager) revert UNAUTHORIZED();
+        ISuperGovernor _superGovernor = ISuperGovernor(superGovernor);
+        if(
+            (msg.sender != roles[superAsset].superAssetManager) &&
+            (msg.sender != _superGovernor.getAddress(_superGovernor.SUPERASSET_FACTORY_DEPLOYER())) // NOTE: This role can take over
+        ) revert UNAUTHORIZED();
         roles[superAsset].superAssetManager = _superAssetManager;
     }
 
     /// @inheritdoc ISuperAssetFactory
-    function setSuperAssetStrategist(address superAsset, address _superAssetStrategist) external onlyRole(DEPLOYER_ROLE) {
+    function setSuperAssetStrategist(address superAsset, address _superAssetStrategist) external {
         if (_superAssetStrategist == address(0)) revert ZERO_ADDRESS();
         if(msg.sender != roles[superAsset].superAssetManager) revert UNAUTHORIZED();
         roles[superAsset].superAssetStrategist = _superAssetStrategist;
     }
 
     /// @inheritdoc ISuperAssetFactory
-    function setIncentiveFundManager(address superAsset, address _incentiveFundManager) external onlyRole(DEPLOYER_ROLE) {
+    function setIncentiveFundManager(address superAsset, address _incentiveFundManager) external {
         if (_incentiveFundManager == address(0)) revert ZERO_ADDRESS();
         if(msg.sender != roles[superAsset].superAssetManager) revert UNAUTHORIZED();
         roles[superAsset].incentiveFundManager = _incentiveFundManager;
@@ -91,9 +91,10 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     /// @inheritdoc ISuperAssetFactory
     function createSuperAsset(AssetCreationParams calldata params)
         external
-        onlyRole(DEPLOYER_ROLE)
         returns (address superAsset, address incentiveFund)
     {
+        ISuperGovernor _superGovernor = ISuperGovernor(superGovernor);
+        if(msg.sender != _superGovernor.getAddress(_superGovernor.SUPERASSET_FACTORY_DEPLOYER())) revert UNAUTHORIZED();
         // Deploy IncentiveFund (this one needs to be unique per SuperAsset)
         incentiveFund = incentiveFundImplementation.clone();
 

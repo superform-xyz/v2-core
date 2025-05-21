@@ -75,6 +75,7 @@ contract SuperAssetTest is Helpers {
             makeAddr("prover") // prover
         );
         console.log("SuperGovernor deployed");
+        superGovernor.setAddress(superGovernor.SUPERASSET_FACTORY_DEPLOYER(), admin);
 
         // Deploy SuperAssetFactory first
         // factory = new SuperAssetFactory(address(superGovernor));
@@ -172,7 +173,7 @@ contract SuperAssetTest is Helpers {
         // superGovernor.grantRole(superGovernor.INCENTIVE_FUND_MANAGER(), admin);
         // superGovernor.grantRole(superGovernor.SUPERASSET_MANAGER(), admin);
         // superGovernor.grantRole(superGovernor.SUPERASSET_STRATEGIST(), admin);
-        factory.grantRole(factory.DEPLOYER_ROLE(), admin);
+        // factory.grantRole(factory.DEPLOYER_ROLE(), admin);
         vm.stopPrank();
         console.log("SuperGovernor Roles Granted");
 

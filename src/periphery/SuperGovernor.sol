@@ -91,6 +91,8 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bytes32 private constant _GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
     bytes32 private constant _BANK_MANAGER_ROLE = keccak256("BANK_MANAGER_ROLE");
     bytes32 private constant _GUARDIAN_ROLE = keccak256("GUARDIAN_ROLE");
+    bytes32 private constant _SUPERASSET_FACTORY_DEPLOYER = keccak256("SUPERASSET_FACTORY_DEPLOYER");
+
 
     // Common contract keys
     bytes32 public constant TREASURY = keccak256("TREASURY");
@@ -124,7 +126,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         _grantRole(_SUPER_GOVERNOR_ROLE, superGovernor);
         _grantRole(_GOVERNOR_ROLE, governor);
         _grantRole(_BANK_MANAGER_ROLE, bankManager);
-
+        _grantRole(_SUPERASSET_FACTORY_DEPLOYER, superGovernor);
         // Setup GUARDIAN_ROLE without assigning any address
         _setRoleAdmin(_GUARDIAN_ROLE, DEFAULT_ADMIN_ROLE);
 
@@ -644,6 +646,11 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function GUARDIAN_ROLE() external pure returns (bytes32) {
         return _GUARDIAN_ROLE;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function SUPERASSET_FACTORY_DEPLOYER() external pure returns (bytes32) {
+        return _SUPERASSET_FACTORY_DEPLOYER;
     }
 
     /// @inheritdoc ISuperGovernor

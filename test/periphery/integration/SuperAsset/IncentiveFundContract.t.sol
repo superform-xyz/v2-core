@@ -150,6 +150,8 @@ contract IncentiveFundContractTest is Helpers {
             makeAddr("prover") // prover
         );
         console.log("SuperGovernor deployed");
+        superGovernor.setAddress(superGovernor.SUPERASSET_FACTORY_DEPLOYER(), admin);
+
 
         // Setup roles for each contract
         // bytes32 incentiveFundManager = superGovernor.INCENTIVE_FUND_MANAGER();
