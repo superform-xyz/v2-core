@@ -150,22 +150,6 @@ contract IncentiveFundContractTest is Helpers {
         console.log("SuperGovernor deployed");
         superGovernor.setAddress(superGovernor.SUPERASSET_FACTORY_DEPLOYER(), admin);
 
-
-        // Setup roles for each contract
-        // bytes32 incentiveFundManager = superGovernor.INCENTIVE_FUND_MANAGER();
-        // // Grant roles to manager and contracts
-        // superGovernor.grantRole(incentiveFundManager, admin);
-        // assertTrue(superGovernor.hasRole(incentiveFundManager, admin));
-
-        // Grant roles to manager and contracts
-        // bytes32 superAssetManager = superGovernor.SUPERASSET_MANAGER();
-        // superGovernor.grantRole(superAssetManager, admin);
-        // assertTrue(superGovernor.hasRole(superAssetManager, admin));
-
-        // assetBank = new AssetBank(address(superGovernor));
-        // console.log("AssetBank deployed");
-
-
         // Create SuperAsset using factory
         ISuperAssetFactory.AssetCreationParams memory params = ISuperAssetFactory.AssetCreationParams({
             name: "SuperAsset",
@@ -195,27 +179,11 @@ contract IncentiveFundContractTest is Helpers {
 
 
         vm.startPrank(admin);
-        // Initialize SuperAsset
-        // superAsset.initialize(
-        //     "SuperAsset", // name
-        //     "SA", // symbol
-        //     address(icc), // icc (IncentiveCalculationContract)
-        //     address(incentiveFund), // ifc (IncentiveFundContract)
-        //     address(assetBank), // assetBank
-        //     address(superGovernor),
-        //     100, // swapFeeInPercentage (0.1%)
-        //     100 // swapFeeOutPercentage (0.1%)
-        // );
-        // console.log("SuperAsset Initialized");
 
         // Configure SuperAsset
         superAsset.setSuperOracle(address(oracle));
         superAsset.whitelistERC20(address(tokenIn));
         superAsset.whitelistERC20(address(tokenOut));
-
-        // Initialize IncentiveFundContract after SuperAsset is set up
-        // incentiveFund.initialize(address(superAsset), address(assetBank), address(superGovernor), address(factory));
-        // console.log("Incentive Fund Initialized");
 
         vm.stopPrank();
 

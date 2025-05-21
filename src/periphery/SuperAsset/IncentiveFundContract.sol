@@ -47,12 +47,8 @@ contract IncentiveFundContract is IIncentiveFundContract {
         if (address(superAsset) != address(0)) revert ALREADY_INITIALIZED();
 
         if (superAsset_ == address(0)) revert ZERO_ADDRESS();
-        // if (superGovernor_ == address(0)) revert ZERO_ADDRESS();
-        // if (superAssetFactory_ == address(0)) revert ZERO_ADDRESS();
 
         superAsset = ISuperAsset(superAsset_);
-        // _SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
-        // _SUPER_ASSET_FACTORY = ISuperAssetFactory(superAssetFactory_);
     }
 
     /*//////////////////////////////////////////////////////////////
