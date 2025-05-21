@@ -45,14 +45,15 @@ abstract contract Constants {
     uint64 internal constant OP_SEPOLIA_CHAIN_ID = 11_155_420;
 
     // Common addresses
-    address internal constant SUPER_DEPLOYER = 0xcC6150c10Cd5DD89645ca116A96C6c1Ed4B7F25E;
-    address internal constant PROD_MULTISIG = 0x76e9b0063546d97A9c2FDbC9682C5FA347B253BA;
-    address internal constant TEST_DEPLOYER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+    address internal constant SUPER_DEPLOYER = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
+    address internal constant PROD_MULTISIG = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
+    address internal constant TEST_DEPLOYER = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
 
     // Across Spoke Pool addresses per chain
     address internal constant ACROSS_SPOKE_POOL_MAINNET = 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5;
     address internal constant ACROSS_SPOKE_POOL_BASE = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
     address internal constant ACROSS_SPOKE_POOL_OPTIMISM = 0x6f26Bf09B1C792e3228e5467807a900A503c0281;
+    address internal constant ACROSS_SPOKE_POOL_SEPOLIA = 0x7E63A5f1a8F0B4d0934B2f2327DAED3F6bb2ee75;
     address internal constant ACROSS_SPOKE_POOL_ARB_SEPOLIA = 0x7E63A5f1a8F0B4d0934B2f2327DAED3F6bb2ee75;
     address internal constant ACROSS_SPOKE_POOL_BASE_SEPOLIA = 0x82B564983aE7274c86695917BBf8C99ECb6F0F8F;
     address internal constant ACROSS_SPOKE_POOL_OP_SEPOLIA = 0x4e8E101924eDE233C13e2D8622DC8aED2872d505;
@@ -62,50 +63,55 @@ abstract contract Constants {
     address internal constant DEBRIDGE_DLN_DST = 0xE7351Fd770A37282b91D153Ee690B63579D6dd7f;
 
     // 1inch Aggregation Router addresses per chain
+    // https://portal.1inch.dev/documentation/contracts/aggregation-protocol/aggregation-introduction
     address internal constant AGGREGATION_ROUTER_MAINNET = 0x111111125434b319222CdBf8C261674aDB56F3ae;
     address internal constant AGGREGATION_ROUTER_BASE = 0x111111125434b319222CdBf8C261674aDB56F3ae; //TODO: not the real
-        // one
     address internal constant AGGREGATION_ROUTER_OPTIMISM = 0x111111125434b319222CdBf8C261674aDB56F3ae; //TODO: not the
-        // real one
-    address internal constant AGGREGATION_ROUTER_ARB_SEPOLIA = 0x111111125434b319222CdBf8C261674aDB56F3ae; //TODO: not
-        // the real one
-    address internal constant AGGREGATION_ROUTER_BASE_SEPOLIA = 0x111111125434b319222CdBf8C261674aDB56F3ae; //TODO: not
-        // the real one
-    address internal constant AGGREGATION_ROUTER_OP_SEPOLIA = 0x111111125434b319222CdBf8C261674aDB56F3ae; //TODO: not
-        // the real one
+    address internal constant AGGREGATION_ROUTER_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65; 
+    address internal constant AGGREGATION_ROUTER_ARB_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65; 
+    address internal constant AGGREGATION_ROUTER_BASE_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65; 
+    address internal constant AGGREGATION_ROUTER_OP_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65; 
 
     address internal constant OKX_ROUTER_MAINNET = 0x1Ef032a3c471a99CC31578c8007F256D95E89896;
     address internal constant OKX_ROUTER_BASE = 0x6b2C0c7be2048Daa9b5527982C29f48062B34D58;
     address internal constant OKX_ROUTER_OPTIMISM = 0xf332761c673b59B21fF6dfa8adA44d78c12dEF09;
-    address internal constant OKX_ROUTER_ARB_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not the real
-        // one
-    address internal constant OKX_ROUTER_BASE_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not the real
-        // one
-    address internal constant OKX_ROUTER_OP_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not the real
-        // one
+    address internal constant OKX_ROUTER_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not real
+    address internal constant OKX_ROUTER_ARB_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not real
+    address internal constant OKX_ROUTER_BASE_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not real
+    address internal constant OKX_ROUTER_OP_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not real
 
     // Odos Router addresses per chain
     address internal constant ODOS_ROUTER_MAINNET = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address internal constant ODOS_ROUTER_BASE = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
     address internal constant ODOS_ROUTER_OPTIMISM = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
-    address internal constant ODOS_ROUTER_ARB_SEPOLIA = address(0);
-    address internal constant ODOS_ROUTER_BASE_SEPOLIA = address(0);
-    address internal constant ODOS_ROUTER_OP_SEPOLIA = address(0);
+    address internal constant ODOS_ROUTER_SEPOLIA = address(0x1);
+    address internal constant ODOS_ROUTER_ARB_SEPOLIA = address(0x1);
+    address internal constant ODOS_ROUTER_BASE_SEPOLIA = address(0x1);
+    address internal constant ODOS_ROUTER_OP_SEPOLIA = address(0x1);
 
     // Spectra Router addresses per chain
     address internal constant SPECTRA_ROUTER_MAINNET = 0xD733e545C65d539f588d7c3793147B497403F0d2;
     address internal constant SPECTRA_ROUTER_BASE = 0x0FC2fbd3E8391744426C8bE5228b668481C59532;
     address internal constant SPECTRA_ROUTER_OPTIMISM = 0x7dcDeA738C2765398BaF66e4DbBcD2769F4C00Dc;
+    address internal constant SPECTRA_ROUTER_SEPOLIA = address(0x1);
+    address internal constant SPECTRA_ROUTER_ARB_SEPOLIA = address(0x1);
+    address internal constant SPECTRA_ROUTER_BASE_SEPOLIA = address(0x1);
+    address internal constant SPECTRA_ROUTER_OP_SEPOLIA = address(0x1);
 
     // Pendle Router addresses per chain
     address internal constant PENDLE_ROUTER_MAINNET = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal constant PENDLE_ROUTER_BASE = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal constant PENDLE_ROUTER_OPTIMISM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_SEPOLIA = address(0x1);
+    address internal constant PENDLE_ROUTER_ARB_SEPOLIA = address(0x1);
+    address internal constant PENDLE_ROUTER_BASE_SEPOLIA = address(0x1);
+    address internal constant PENDLE_ROUTER_OP_SEPOLIA = address(0x1);
 
     // Nexus Factory addresses per chain
     address internal constant NEXUS_FACTORY_MAINNET = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address internal constant NEXUS_FACTORY_BASE = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address internal constant NEXUS_FACTORY_OPTIMISM = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
+    address internal constant NEXUS_FACTORY_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address internal constant NEXUS_FACTORY_ARB_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address internal constant NEXUS_FACTORY_BASE_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address internal constant NEXUS_FACTORY_OP_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
@@ -114,6 +120,7 @@ abstract contract Constants {
     address internal constant PERMIT2_MAINNET = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address internal constant PERMIT2_BASE = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address internal constant PERMIT2_OPTIMISM = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    address internal constant PERMIT2_SEPOLIA = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address internal constant PERMIT2_ARB_SEPOLIA = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address internal constant PERMIT2_BASE_SEPOLIA = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address internal constant PERMIT2_OP_SEPOLIA = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
@@ -122,6 +129,7 @@ abstract contract Constants {
     address internal constant POLYMER_PROVER_MAINNET = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76;
     address internal constant POLYMER_PROVER_BASE = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
     address internal constant POLYMER_PROVER_OPTIMISM = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
+    address internal constant POLYMER_PROVER_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
     address internal constant POLYMER_PROVER_ARB_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
     address internal constant POLYMER_PROVER_BASE_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
     address internal constant POLYMER_PROVER_OP_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available

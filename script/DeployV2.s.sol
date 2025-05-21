@@ -192,6 +192,10 @@ contract DeployV2 is Script, Configuration {
         }
     }
 
+    function setUp() public {
+        MNEMONIC = vm.envString("MNEMONIC");
+    }
+
     function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
         _setConfiguration(env, saltNamespace);
         console2.log("Deploying on chainId: ", chainId);
@@ -314,16 +318,21 @@ contract DeployV2 is Script, Configuration {
         );
 
         // Deploy DebridgeAdapter
-        deployedContracts.debridgeAdapter = __deployContract(
-            deployer,
-            DEBRIDGE_ADAPTER_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, DEBRIDGE_ADAPTER_KEY),
-            abi.encodePacked(
-                type(DebridgeAdapter).creationCode,
-                abi.encode(configuration.debridgeDstDln[chainId], deployedContracts.superDestinationExecutor)
-            )
-        );
+        if (configuration.debridgeDstDln[chainId] == address(0)) {
+            console2.log("Deploying DebridgeAdapter");
+            console2.log("Debridge Dln is not available");
+        } else {
+            deployedContracts.debridgeAdapter = __deployContract(
+                deployer,
+                DEBRIDGE_ADAPTER_KEY,
+                chainId,
+                __getSalt(configuration.owner, configuration.deployer, DEBRIDGE_ADAPTER_KEY),
+                abi.encodePacked(
+                    type(DebridgeAdapter).creationCode,
+                    abi.encode(configuration.debridgeDstDln[chainId], deployedContracts.superDestinationExecutor)
+                )
+            );
+        }
 
         address[] memory allowedExecutors = new address[](2);
         allowedExecutors[0] = address(deployedContracts.superExecutor);
