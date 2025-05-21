@@ -2222,14 +2222,13 @@ contract SuperVaultTest is BaseSuperVaultTest {
                        STAKE CLAIM FLOW TEST
     //////////////////////////////////////////////////////////////*/
 
-    function test_SuperVault_StakeClaimFlow() public {
+    function test_SuperVault_StakeClaimFlow() public executeWithoutHookRestrictions {
         _setupGearVault();
         uint256 amount = 1000e6;
-        uint256 initialUserAssets = asset.balanceOf(accountEth);
         uint256 feeBalanceBefore = asset.balanceOf(TREASURY);
 
         console2.log("DEPOSITING");
-        _deposit(amount, address(gearboxVault), address(asset));
+        _deposit(amount, address(gearSuperVault), address(asset));
 
         console2.log("DEPOSITING FREE ASSETS");
         _depositFreeAssetsFromSingleAmount_Gearbox(amount);
@@ -2362,7 +2361,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         address[] memory fulfillHooksAddresses = new address[](1);
         fulfillHooksAddresses[0] = depositHookAddress;
-
+        console2.log("GearSuperVault balance: ", asset.balanceOf(address(strategyGearSuperVault)));
         bytes[] memory fulfillHooksData = new bytes[](1);
 
         fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
