@@ -18,6 +18,7 @@ env:
   FOUNDRY_EXPORTS_OVERWRITE_LATEST: "true"
   ONE_INCH_API_KEY: ${{ secrets.ONE_INCH_API_KEY }}
   CI: "true"
+  MNEMONIC: ${{ secrets.MNEMONIC }}
 
 on:
   workflow_dispatch:
