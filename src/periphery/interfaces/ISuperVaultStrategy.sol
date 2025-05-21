@@ -53,6 +53,7 @@ interface ISuperVaultStrategy {
     error STAKE_TOO_LOW();
     error OPERATIONS_BLOCKED_BY_VETO();
     error HOOK_VALIDATION_FAILED();
+    error STRATEGY_PAUSED();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
