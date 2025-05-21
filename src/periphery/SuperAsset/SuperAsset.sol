@@ -132,6 +132,29 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                 EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    function getPPS() public view returns(uint256 pps) {
+        uint256 totalSupply_ = totalSupply();
+        if (totalSupply_ == 0) return 0; 
+
+        uint256 totalValueUSD;
+        // TODO: We need to iterate over all the historically whitelisted vaults and not just the currently whitelisted ones
+        // NOTE: This means we also need to track the historically whitelisted vaults
+        uint256 len = _supportedVaults.length();
+        for (uint256 i = 0; i < len; i++) {
+            address token = _supportedVaults.at(i);
+            uint256 balance = IERC20(token).balanceOf(address(assetBank));
+            if (balance == 0) continue;
+
+            (uint256 priceUSD,,,) = getPriceWithCircuitBreakers(token);
+            uint256 decimals = IERC20Metadata(token).decimals();
+            uint256 valueUSD = (balance * priceUSD) / (10 ** decimals);
+            totalValueUSD += valueUSD;
+        }
+
+        // PPS = Total Value in USD / Total Supply, normalized to PRECISION
+        pps = (totalValueUSD * PRECISION) / totalSupply_;
+    }
+
     /// @inheritdoc ISuperAsset
     function getIncentiveFundContract() external view returns (address) {
         return incentiveFundContract;
