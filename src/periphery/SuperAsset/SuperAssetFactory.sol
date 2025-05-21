@@ -35,7 +35,7 @@ contract SuperAssetFactory is ISuperAssetFactory {
         superGovernor = _superGovernor;
 
         superAssetImplementation = address(new SuperAsset());
-        incentiveFundImplementation = address(new IncentiveFundContract(superGovernor));
+        incentiveFundImplementation = address(new IncentiveFundContract());
 
         // Deploy single instances
         incentiveCalculationContract = _incentiveCalculationContract;
@@ -109,7 +109,7 @@ contract SuperAssetFactory is ISuperAssetFactory {
         );
 
         // Initialize IncentiveFund
-        IncentiveFundContract(incentiveFund).initialize(superAsset);
+        IncentiveFundContract(incentiveFund).initialize(superGovernor, superAsset);
 
         roles[superAsset] = SuperAssetRoles({
             superAssetManager: params.superAssetManager,

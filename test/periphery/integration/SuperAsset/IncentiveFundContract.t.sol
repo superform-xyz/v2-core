@@ -266,15 +266,15 @@ contract IncentiveFundContractTest is Helpers {
 
     function test_Initialize_RevertIfAlreadyInitialized() public {
         vm.expectRevert(IIncentiveFundContract.ALREADY_INITIALIZED.selector);
-        incentiveFund.initialize(address(superAsset));
+        incentiveFund.initialize(address(superGovernor), address(superAsset));
         vm.stopPrank();
     }
 
     function test_Initialize_RevertIfZeroAddress() public {
         vm.startPrank(admin);
-        IncentiveFundContract newContract = new IncentiveFundContract(address(superGovernor));
+        IncentiveFundContract newContract = new IncentiveFundContract();
         vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
-        newContract.initialize(address(0));
+        newContract.initialize(address(0), address(superAsset));
         vm.stopPrank();
     }
 
