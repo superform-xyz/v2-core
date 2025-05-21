@@ -31,7 +31,7 @@ var (
 
 // SuperDestinationExecutorMetaData contains all meta data concerning the SuperDestinationExecutor contract.
 var SuperDestinationExecutorMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"ledgerConfiguration_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"superDestinationValidator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nexusFactory_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"execute\",\"inputs\":[{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isInitialized\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isMerkleRootUsed\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"merkleRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isModuleType\",\"inputs\":[{\"name\":\"typeID\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"ledgerConfiguration\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperLedgerConfiguration\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"name\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"nexusFactory\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractINexusFactory\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"onInstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"onUninstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"processBridgedExecution\",\"inputs\":[{\"name\":\"tokenSent\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"intentAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"executorCalldata\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"userSignatureData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"superDestinationValidator\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"usedMerkleRoots\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"merkleRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"used\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"version\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"event\",\"name\":\"AccountCreated\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"salt\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorExecuted\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorFailed\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"reason\",\"type\":\"string\",\"indexed\":false,\"internalType\":\"string\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorFailedLowLevel\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"lowLevelData\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorReceivedButNoHooks\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorReceivedButNotEnoughBalance\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperPositionLocked\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"spToken\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ACCOUNT_NOT_CREATED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_ACCOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FEE_NOT_TRANSFERRED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE_FOR_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ACCOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_SIGNATURE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MANAGER_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MERKLE_ROOT_ALREADY_USED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ModuleAlreadyInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_HOOKS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"ledgerConfiguration_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"superDestinationValidator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nexusFactory_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"NEXUS_FACTORY\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractINexusFactory\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SUPER_DESTINATION_VALIDATOR\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"execute\",\"inputs\":[{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isInitialized\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isMerkleRootUsed\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"merkleRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isModuleType\",\"inputs\":[{\"name\":\"typeID\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"ledgerConfiguration\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperLedgerConfiguration\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"name\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"onInstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"onUninstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"processBridgedExecution\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"dstTokens\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"intentAmounts\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"initData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"executorCalldata\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"userSignatureData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"usedMerkleRoots\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"merkleRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"used\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"version\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"event\",\"name\":\"AccountCreated\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"salt\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorExecuted\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorFailed\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"reason\",\"type\":\"string\",\"indexed\":false,\"internalType\":\"string\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorFailedLowLevel\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"lowLevelData\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorPanicFailed\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"errorCode\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorReceivedButNoHooks\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorReceivedButNotEnoughBalance\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"intentAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"available\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperPositionMintRequested\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"spToken\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"dstChainId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ACCOUNT_NOT_CREATED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_ACCOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FEE_NOT_TRANSFERRED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE_FOR_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ACCOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_CHAIN_ID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_SIGNATURE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MANAGER_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MERKLE_ROOT_ALREADY_USED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ModuleAlreadyInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_HOOKS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]}]",
 }
 
 // SuperDestinationExecutorABI is the input ABI used to generate the binding from.
@@ -178,6 +178,68 @@ func (_SuperDestinationExecutor *SuperDestinationExecutorTransactorRaw) Transfer
 // Transact invokes the (paid) contract method with params as input values.
 func (_SuperDestinationExecutor *SuperDestinationExecutorTransactorRaw) Transact(opts *bind.TransactOpts, method string, params ...interface{}) (*types.Transaction, error) {
 	return _SuperDestinationExecutor.Contract.contract.Transact(opts, method, params...)
+}
+
+// NEXUSFACTORY is a free data retrieval call binding the contract method 0x53bf015e.
+//
+// Solidity: function NEXUS_FACTORY() view returns(address)
+func (_SuperDestinationExecutor *SuperDestinationExecutorCaller) NEXUSFACTORY(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _SuperDestinationExecutor.contract.Call(opts, &out, "NEXUS_FACTORY")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// NEXUSFACTORY is a free data retrieval call binding the contract method 0x53bf015e.
+//
+// Solidity: function NEXUS_FACTORY() view returns(address)
+func (_SuperDestinationExecutor *SuperDestinationExecutorSession) NEXUSFACTORY() (common.Address, error) {
+	return _SuperDestinationExecutor.Contract.NEXUSFACTORY(&_SuperDestinationExecutor.CallOpts)
+}
+
+// NEXUSFACTORY is a free data retrieval call binding the contract method 0x53bf015e.
+//
+// Solidity: function NEXUS_FACTORY() view returns(address)
+func (_SuperDestinationExecutor *SuperDestinationExecutorCallerSession) NEXUSFACTORY() (common.Address, error) {
+	return _SuperDestinationExecutor.Contract.NEXUSFACTORY(&_SuperDestinationExecutor.CallOpts)
+}
+
+// SUPERDESTINATIONVALIDATOR is a free data retrieval call binding the contract method 0x5a0ed186.
+//
+// Solidity: function SUPER_DESTINATION_VALIDATOR() view returns(address)
+func (_SuperDestinationExecutor *SuperDestinationExecutorCaller) SUPERDESTINATIONVALIDATOR(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _SuperDestinationExecutor.contract.Call(opts, &out, "SUPER_DESTINATION_VALIDATOR")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// SUPERDESTINATIONVALIDATOR is a free data retrieval call binding the contract method 0x5a0ed186.
+//
+// Solidity: function SUPER_DESTINATION_VALIDATOR() view returns(address)
+func (_SuperDestinationExecutor *SuperDestinationExecutorSession) SUPERDESTINATIONVALIDATOR() (common.Address, error) {
+	return _SuperDestinationExecutor.Contract.SUPERDESTINATIONVALIDATOR(&_SuperDestinationExecutor.CallOpts)
+}
+
+// SUPERDESTINATIONVALIDATOR is a free data retrieval call binding the contract method 0x5a0ed186.
+//
+// Solidity: function SUPER_DESTINATION_VALIDATOR() view returns(address)
+func (_SuperDestinationExecutor *SuperDestinationExecutorCallerSession) SUPERDESTINATIONVALIDATOR() (common.Address, error) {
+	return _SuperDestinationExecutor.Contract.SUPERDESTINATIONVALIDATOR(&_SuperDestinationExecutor.CallOpts)
 }
 
 // IsInitialized is a free data retrieval call binding the contract method 0xd60b347f.
@@ -335,68 +397,6 @@ func (_SuperDestinationExecutor *SuperDestinationExecutorCallerSession) Name() (
 	return _SuperDestinationExecutor.Contract.Name(&_SuperDestinationExecutor.CallOpts)
 }
 
-// NexusFactory is a free data retrieval call binding the contract method 0x73d070af.
-//
-// Solidity: function nexusFactory() view returns(address)
-func (_SuperDestinationExecutor *SuperDestinationExecutorCaller) NexusFactory(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _SuperDestinationExecutor.contract.Call(opts, &out, "nexusFactory")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// NexusFactory is a free data retrieval call binding the contract method 0x73d070af.
-//
-// Solidity: function nexusFactory() view returns(address)
-func (_SuperDestinationExecutor *SuperDestinationExecutorSession) NexusFactory() (common.Address, error) {
-	return _SuperDestinationExecutor.Contract.NexusFactory(&_SuperDestinationExecutor.CallOpts)
-}
-
-// NexusFactory is a free data retrieval call binding the contract method 0x73d070af.
-//
-// Solidity: function nexusFactory() view returns(address)
-func (_SuperDestinationExecutor *SuperDestinationExecutorCallerSession) NexusFactory() (common.Address, error) {
-	return _SuperDestinationExecutor.Contract.NexusFactory(&_SuperDestinationExecutor.CallOpts)
-}
-
-// SuperDestinationValidator is a free data retrieval call binding the contract method 0x4ddc738a.
-//
-// Solidity: function superDestinationValidator() view returns(address)
-func (_SuperDestinationExecutor *SuperDestinationExecutorCaller) SuperDestinationValidator(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _SuperDestinationExecutor.contract.Call(opts, &out, "superDestinationValidator")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// SuperDestinationValidator is a free data retrieval call binding the contract method 0x4ddc738a.
-//
-// Solidity: function superDestinationValidator() view returns(address)
-func (_SuperDestinationExecutor *SuperDestinationExecutorSession) SuperDestinationValidator() (common.Address, error) {
-	return _SuperDestinationExecutor.Contract.SuperDestinationValidator(&_SuperDestinationExecutor.CallOpts)
-}
-
-// SuperDestinationValidator is a free data retrieval call binding the contract method 0x4ddc738a.
-//
-// Solidity: function superDestinationValidator() view returns(address)
-func (_SuperDestinationExecutor *SuperDestinationExecutorCallerSession) SuperDestinationValidator() (common.Address, error) {
-	return _SuperDestinationExecutor.Contract.SuperDestinationValidator(&_SuperDestinationExecutor.CallOpts)
-}
-
 // UsedMerkleRoots is a free data retrieval call binding the contract method 0xa5b6f208.
 //
 // Solidity: function usedMerkleRoots(address user, bytes32 merkleRoot) view returns(bool used)
@@ -522,25 +522,25 @@ func (_SuperDestinationExecutor *SuperDestinationExecutorTransactorSession) OnUn
 	return _SuperDestinationExecutor.Contract.OnUninstall(&_SuperDestinationExecutor.TransactOpts, arg0)
 }
 
-// ProcessBridgedExecution is a paid mutator transaction binding the contract method 0x5cc3fc0e.
+// ProcessBridgedExecution is a paid mutator transaction binding the contract method 0xed71d9d1.
 //
-// Solidity: function processBridgedExecution(address tokenSent, address account, uint256 intentAmount, bytes initData, bytes executorCalldata, bytes userSignatureData) returns()
-func (_SuperDestinationExecutor *SuperDestinationExecutorTransactor) ProcessBridgedExecution(opts *bind.TransactOpts, tokenSent common.Address, account common.Address, intentAmount *big.Int, initData []byte, executorCalldata []byte, userSignatureData []byte) (*types.Transaction, error) {
-	return _SuperDestinationExecutor.contract.Transact(opts, "processBridgedExecution", tokenSent, account, intentAmount, initData, executorCalldata, userSignatureData)
+// Solidity: function processBridgedExecution(address , address account, address[] dstTokens, uint256[] intentAmounts, bytes initData, bytes executorCalldata, bytes userSignatureData) returns()
+func (_SuperDestinationExecutor *SuperDestinationExecutorTransactor) ProcessBridgedExecution(opts *bind.TransactOpts, arg0 common.Address, account common.Address, dstTokens []common.Address, intentAmounts []*big.Int, initData []byte, executorCalldata []byte, userSignatureData []byte) (*types.Transaction, error) {
+	return _SuperDestinationExecutor.contract.Transact(opts, "processBridgedExecution", arg0, account, dstTokens, intentAmounts, initData, executorCalldata, userSignatureData)
 }
 
-// ProcessBridgedExecution is a paid mutator transaction binding the contract method 0x5cc3fc0e.
+// ProcessBridgedExecution is a paid mutator transaction binding the contract method 0xed71d9d1.
 //
-// Solidity: function processBridgedExecution(address tokenSent, address account, uint256 intentAmount, bytes initData, bytes executorCalldata, bytes userSignatureData) returns()
-func (_SuperDestinationExecutor *SuperDestinationExecutorSession) ProcessBridgedExecution(tokenSent common.Address, account common.Address, intentAmount *big.Int, initData []byte, executorCalldata []byte, userSignatureData []byte) (*types.Transaction, error) {
-	return _SuperDestinationExecutor.Contract.ProcessBridgedExecution(&_SuperDestinationExecutor.TransactOpts, tokenSent, account, intentAmount, initData, executorCalldata, userSignatureData)
+// Solidity: function processBridgedExecution(address , address account, address[] dstTokens, uint256[] intentAmounts, bytes initData, bytes executorCalldata, bytes userSignatureData) returns()
+func (_SuperDestinationExecutor *SuperDestinationExecutorSession) ProcessBridgedExecution(arg0 common.Address, account common.Address, dstTokens []common.Address, intentAmounts []*big.Int, initData []byte, executorCalldata []byte, userSignatureData []byte) (*types.Transaction, error) {
+	return _SuperDestinationExecutor.Contract.ProcessBridgedExecution(&_SuperDestinationExecutor.TransactOpts, arg0, account, dstTokens, intentAmounts, initData, executorCalldata, userSignatureData)
 }
 
-// ProcessBridgedExecution is a paid mutator transaction binding the contract method 0x5cc3fc0e.
+// ProcessBridgedExecution is a paid mutator transaction binding the contract method 0xed71d9d1.
 //
-// Solidity: function processBridgedExecution(address tokenSent, address account, uint256 intentAmount, bytes initData, bytes executorCalldata, bytes userSignatureData) returns()
-func (_SuperDestinationExecutor *SuperDestinationExecutorTransactorSession) ProcessBridgedExecution(tokenSent common.Address, account common.Address, intentAmount *big.Int, initData []byte, executorCalldata []byte, userSignatureData []byte) (*types.Transaction, error) {
-	return _SuperDestinationExecutor.Contract.ProcessBridgedExecution(&_SuperDestinationExecutor.TransactOpts, tokenSent, account, intentAmount, initData, executorCalldata, userSignatureData)
+// Solidity: function processBridgedExecution(address , address account, address[] dstTokens, uint256[] intentAmounts, bytes initData, bytes executorCalldata, bytes userSignatureData) returns()
+func (_SuperDestinationExecutor *SuperDestinationExecutorTransactorSession) ProcessBridgedExecution(arg0 common.Address, account common.Address, dstTokens []common.Address, intentAmounts []*big.Int, initData []byte, executorCalldata []byte, userSignatureData []byte) (*types.Transaction, error) {
+	return _SuperDestinationExecutor.Contract.ProcessBridgedExecution(&_SuperDestinationExecutor.TransactOpts, arg0, account, dstTokens, intentAmounts, initData, executorCalldata, userSignatureData)
 }
 
 // SuperDestinationExecutorAccountCreatedIterator is returned from FilterAccountCreated and is used to iterate over the raw logs and unpacked data for AccountCreated events raised by the SuperDestinationExecutor contract.
@@ -1122,6 +1122,151 @@ func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) ParseSuperDes
 	return event, nil
 }
 
+// SuperDestinationExecutorSuperDestinationExecutorPanicFailedIterator is returned from FilterSuperDestinationExecutorPanicFailed and is used to iterate over the raw logs and unpacked data for SuperDestinationExecutorPanicFailed events raised by the SuperDestinationExecutor contract.
+type SuperDestinationExecutorSuperDestinationExecutorPanicFailedIterator struct {
+	Event *SuperDestinationExecutorSuperDestinationExecutorPanicFailed // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperDestinationExecutorSuperDestinationExecutorPanicFailedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperDestinationExecutorSuperDestinationExecutorPanicFailed)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperDestinationExecutorSuperDestinationExecutorPanicFailed)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperDestinationExecutorSuperDestinationExecutorPanicFailedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperDestinationExecutorSuperDestinationExecutorPanicFailedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SuperDestinationExecutorSuperDestinationExecutorPanicFailed represents a SuperDestinationExecutorPanicFailed event raised by the SuperDestinationExecutor contract.
+type SuperDestinationExecutorSuperDestinationExecutorPanicFailed struct {
+	Account   common.Address
+	ErrorCode *big.Int
+	Raw       types.Log // Blockchain specific contextual infos
+}
+
+// FilterSuperDestinationExecutorPanicFailed is a free log retrieval operation binding the contract event 0xf9b853e18a6d52ca98e46ca25384c2727ee43983a623a5caae5188247cce5bda.
+//
+// Solidity: event SuperDestinationExecutorPanicFailed(address indexed account, uint256 errorCode)
+func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) FilterSuperDestinationExecutorPanicFailed(opts *bind.FilterOpts, account []common.Address) (*SuperDestinationExecutorSuperDestinationExecutorPanicFailedIterator, error) {
+
+	var accountRule []interface{}
+	for _, accountItem := range account {
+		accountRule = append(accountRule, accountItem)
+	}
+
+	logs, sub, err := _SuperDestinationExecutor.contract.FilterLogs(opts, "SuperDestinationExecutorPanicFailed", accountRule)
+	if err != nil {
+		return nil, err
+	}
+	return &SuperDestinationExecutorSuperDestinationExecutorPanicFailedIterator{contract: _SuperDestinationExecutor.contract, event: "SuperDestinationExecutorPanicFailed", logs: logs, sub: sub}, nil
+}
+
+// WatchSuperDestinationExecutorPanicFailed is a free log subscription operation binding the contract event 0xf9b853e18a6d52ca98e46ca25384c2727ee43983a623a5caae5188247cce5bda.
+//
+// Solidity: event SuperDestinationExecutorPanicFailed(address indexed account, uint256 errorCode)
+func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperDestinationExecutorPanicFailed(opts *bind.WatchOpts, sink chan<- *SuperDestinationExecutorSuperDestinationExecutorPanicFailed, account []common.Address) (event.Subscription, error) {
+
+	var accountRule []interface{}
+	for _, accountItem := range account {
+		accountRule = append(accountRule, accountItem)
+	}
+
+	logs, sub, err := _SuperDestinationExecutor.contract.WatchLogs(opts, "SuperDestinationExecutorPanicFailed", accountRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperDestinationExecutorSuperDestinationExecutorPanicFailed)
+				if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperDestinationExecutorPanicFailed", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseSuperDestinationExecutorPanicFailed is a log parse operation binding the contract event 0xf9b853e18a6d52ca98e46ca25384c2727ee43983a623a5caae5188247cce5bda.
+//
+// Solidity: event SuperDestinationExecutorPanicFailed(address indexed account, uint256 errorCode)
+func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) ParseSuperDestinationExecutorPanicFailed(log types.Log) (*SuperDestinationExecutorSuperDestinationExecutorPanicFailed, error) {
+	event := new(SuperDestinationExecutorSuperDestinationExecutorPanicFailed)
+	if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperDestinationExecutorPanicFailed", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
 // SuperDestinationExecutorSuperDestinationExecutorReceivedButNoHooksIterator is returned from FilterSuperDestinationExecutorReceivedButNoHooks and is used to iterate over the raw logs and unpacked data for SuperDestinationExecutorReceivedButNoHooks events raised by the SuperDestinationExecutor contract.
 type SuperDestinationExecutorSuperDestinationExecutorReceivedButNoHooksIterator struct {
 	Event *SuperDestinationExecutorSuperDestinationExecutorReceivedButNoHooks // Event containing the contract specifics and raw log
@@ -1335,38 +1480,49 @@ func (it *SuperDestinationExecutorSuperDestinationExecutorReceivedButNotEnoughBa
 
 // SuperDestinationExecutorSuperDestinationExecutorReceivedButNotEnoughBalance represents a SuperDestinationExecutorReceivedButNotEnoughBalance event raised by the SuperDestinationExecutor contract.
 type SuperDestinationExecutorSuperDestinationExecutorReceivedButNotEnoughBalance struct {
-	Account common.Address
-	Raw     types.Log // Blockchain specific contextual infos
+	Account      common.Address
+	Token        common.Address
+	IntentAmount *big.Int
+	Available    *big.Int
+	Raw          types.Log // Blockchain specific contextual infos
 }
 
-// FilterSuperDestinationExecutorReceivedButNotEnoughBalance is a free log retrieval operation binding the contract event 0x6163b8ae4cc2268589b5eece18135082decde1f16bfd85daf04fb457e717705b.
+// FilterSuperDestinationExecutorReceivedButNotEnoughBalance is a free log retrieval operation binding the contract event 0x2a147d47d8d7c5f6b2c7eebb350802ba5ed6008e8eb811f40b78d2090b329c86.
 //
-// Solidity: event SuperDestinationExecutorReceivedButNotEnoughBalance(address indexed account)
-func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) FilterSuperDestinationExecutorReceivedButNotEnoughBalance(opts *bind.FilterOpts, account []common.Address) (*SuperDestinationExecutorSuperDestinationExecutorReceivedButNotEnoughBalanceIterator, error) {
+// Solidity: event SuperDestinationExecutorReceivedButNotEnoughBalance(address indexed account, address indexed token, uint256 intentAmount, uint256 available)
+func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) FilterSuperDestinationExecutorReceivedButNotEnoughBalance(opts *bind.FilterOpts, account []common.Address, token []common.Address) (*SuperDestinationExecutorSuperDestinationExecutorReceivedButNotEnoughBalanceIterator, error) {
 
 	var accountRule []interface{}
 	for _, accountItem := range account {
 		accountRule = append(accountRule, accountItem)
 	}
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
 
-	logs, sub, err := _SuperDestinationExecutor.contract.FilterLogs(opts, "SuperDestinationExecutorReceivedButNotEnoughBalance", accountRule)
+	logs, sub, err := _SuperDestinationExecutor.contract.FilterLogs(opts, "SuperDestinationExecutorReceivedButNotEnoughBalance", accountRule, tokenRule)
 	if err != nil {
 		return nil, err
 	}
 	return &SuperDestinationExecutorSuperDestinationExecutorReceivedButNotEnoughBalanceIterator{contract: _SuperDestinationExecutor.contract, event: "SuperDestinationExecutorReceivedButNotEnoughBalance", logs: logs, sub: sub}, nil
 }
 
-// WatchSuperDestinationExecutorReceivedButNotEnoughBalance is a free log subscription operation binding the contract event 0x6163b8ae4cc2268589b5eece18135082decde1f16bfd85daf04fb457e717705b.
+// WatchSuperDestinationExecutorReceivedButNotEnoughBalance is a free log subscription operation binding the contract event 0x2a147d47d8d7c5f6b2c7eebb350802ba5ed6008e8eb811f40b78d2090b329c86.
 //
-// Solidity: event SuperDestinationExecutorReceivedButNotEnoughBalance(address indexed account)
-func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperDestinationExecutorReceivedButNotEnoughBalance(opts *bind.WatchOpts, sink chan<- *SuperDestinationExecutorSuperDestinationExecutorReceivedButNotEnoughBalance, account []common.Address) (event.Subscription, error) {
+// Solidity: event SuperDestinationExecutorReceivedButNotEnoughBalance(address indexed account, address indexed token, uint256 intentAmount, uint256 available)
+func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperDestinationExecutorReceivedButNotEnoughBalance(opts *bind.WatchOpts, sink chan<- *SuperDestinationExecutorSuperDestinationExecutorReceivedButNotEnoughBalance, account []common.Address, token []common.Address) (event.Subscription, error) {
 
 	var accountRule []interface{}
 	for _, accountItem := range account {
 		accountRule = append(accountRule, accountItem)
 	}
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
 
-	logs, sub, err := _SuperDestinationExecutor.contract.WatchLogs(opts, "SuperDestinationExecutorReceivedButNotEnoughBalance", accountRule)
+	logs, sub, err := _SuperDestinationExecutor.contract.WatchLogs(opts, "SuperDestinationExecutorReceivedButNotEnoughBalance", accountRule, tokenRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1398,9 +1554,9 @@ func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperDes
 	}), nil
 }
 
-// ParseSuperDestinationExecutorReceivedButNotEnoughBalance is a log parse operation binding the contract event 0x6163b8ae4cc2268589b5eece18135082decde1f16bfd85daf04fb457e717705b.
+// ParseSuperDestinationExecutorReceivedButNotEnoughBalance is a log parse operation binding the contract event 0x2a147d47d8d7c5f6b2c7eebb350802ba5ed6008e8eb811f40b78d2090b329c86.
 //
-// Solidity: event SuperDestinationExecutorReceivedButNotEnoughBalance(address indexed account)
+// Solidity: event SuperDestinationExecutorReceivedButNotEnoughBalance(address indexed account, address indexed token, uint256 intentAmount, uint256 available)
 func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) ParseSuperDestinationExecutorReceivedButNotEnoughBalance(log types.Log) (*SuperDestinationExecutorSuperDestinationExecutorReceivedButNotEnoughBalance, error) {
 	event := new(SuperDestinationExecutorSuperDestinationExecutorReceivedButNotEnoughBalance)
 	if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperDestinationExecutorReceivedButNotEnoughBalance", log); err != nil {
@@ -1410,9 +1566,9 @@ func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) ParseSuperDes
 	return event, nil
 }
 
-// SuperDestinationExecutorSuperPositionLockedIterator is returned from FilterSuperPositionLocked and is used to iterate over the raw logs and unpacked data for SuperPositionLocked events raised by the SuperDestinationExecutor contract.
-type SuperDestinationExecutorSuperPositionLockedIterator struct {
-	Event *SuperDestinationExecutorSuperPositionLocked // Event containing the contract specifics and raw log
+// SuperDestinationExecutorSuperPositionMintRequestedIterator is returned from FilterSuperPositionMintRequested and is used to iterate over the raw logs and unpacked data for SuperPositionMintRequested events raised by the SuperDestinationExecutor contract.
+type SuperDestinationExecutorSuperPositionMintRequestedIterator struct {
+	Event *SuperDestinationExecutorSuperPositionMintRequested // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -1426,7 +1582,7 @@ type SuperDestinationExecutorSuperPositionLockedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *SuperDestinationExecutorSuperPositionLockedIterator) Next() bool {
+func (it *SuperDestinationExecutorSuperPositionMintRequestedIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1435,7 +1591,7 @@ func (it *SuperDestinationExecutorSuperPositionLockedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(SuperDestinationExecutorSuperPositionLocked)
+			it.Event = new(SuperDestinationExecutorSuperPositionMintRequested)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1450,7 +1606,7 @@ func (it *SuperDestinationExecutorSuperPositionLockedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(SuperDestinationExecutorSuperPositionLocked)
+		it.Event = new(SuperDestinationExecutorSuperPositionMintRequested)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1466,29 +1622,30 @@ func (it *SuperDestinationExecutorSuperPositionLockedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperDestinationExecutorSuperPositionLockedIterator) Error() error {
+func (it *SuperDestinationExecutorSuperPositionMintRequestedIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *SuperDestinationExecutorSuperPositionLockedIterator) Close() error {
+func (it *SuperDestinationExecutorSuperPositionMintRequestedIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// SuperDestinationExecutorSuperPositionLocked represents a SuperPositionLocked event raised by the SuperDestinationExecutor contract.
-type SuperDestinationExecutorSuperPositionLocked struct {
-	Account common.Address
-	SpToken common.Address
-	Amount  *big.Int
-	Raw     types.Log // Blockchain specific contextual infos
+// SuperDestinationExecutorSuperPositionMintRequested represents a SuperPositionMintRequested event raised by the SuperDestinationExecutor contract.
+type SuperDestinationExecutorSuperPositionMintRequested struct {
+	Account    common.Address
+	SpToken    common.Address
+	Amount     *big.Int
+	DstChainId *big.Int
+	Raw        types.Log // Blockchain specific contextual infos
 }
 
-// FilterSuperPositionLocked is a free log retrieval operation binding the contract event 0xdf09bac395df649ca72fb3ffb451d40c290e25dcef3002e19d2c04ce09441b9b.
+// FilterSuperPositionMintRequested is a free log retrieval operation binding the contract event 0x7ec946bedac80f139c7c4149ac44127f938a0ab50229c59b7c0cd5debc72c233.
 //
-// Solidity: event SuperPositionLocked(address indexed account, address indexed spToken, uint256 amount)
-func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) FilterSuperPositionLocked(opts *bind.FilterOpts, account []common.Address, spToken []common.Address) (*SuperDestinationExecutorSuperPositionLockedIterator, error) {
+// Solidity: event SuperPositionMintRequested(address indexed account, address indexed spToken, uint256 amount, uint256 indexed dstChainId)
+func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) FilterSuperPositionMintRequested(opts *bind.FilterOpts, account []common.Address, spToken []common.Address, dstChainId []*big.Int) (*SuperDestinationExecutorSuperPositionMintRequestedIterator, error) {
 
 	var accountRule []interface{}
 	for _, accountItem := range account {
@@ -1499,17 +1656,22 @@ func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) FilterSuperPo
 		spTokenRule = append(spTokenRule, spTokenItem)
 	}
 
-	logs, sub, err := _SuperDestinationExecutor.contract.FilterLogs(opts, "SuperPositionLocked", accountRule, spTokenRule)
+	var dstChainIdRule []interface{}
+	for _, dstChainIdItem := range dstChainId {
+		dstChainIdRule = append(dstChainIdRule, dstChainIdItem)
+	}
+
+	logs, sub, err := _SuperDestinationExecutor.contract.FilterLogs(opts, "SuperPositionMintRequested", accountRule, spTokenRule, dstChainIdRule)
 	if err != nil {
 		return nil, err
 	}
-	return &SuperDestinationExecutorSuperPositionLockedIterator{contract: _SuperDestinationExecutor.contract, event: "SuperPositionLocked", logs: logs, sub: sub}, nil
+	return &SuperDestinationExecutorSuperPositionMintRequestedIterator{contract: _SuperDestinationExecutor.contract, event: "SuperPositionMintRequested", logs: logs, sub: sub}, nil
 }
 
-// WatchSuperPositionLocked is a free log subscription operation binding the contract event 0xdf09bac395df649ca72fb3ffb451d40c290e25dcef3002e19d2c04ce09441b9b.
+// WatchSuperPositionMintRequested is a free log subscription operation binding the contract event 0x7ec946bedac80f139c7c4149ac44127f938a0ab50229c59b7c0cd5debc72c233.
 //
-// Solidity: event SuperPositionLocked(address indexed account, address indexed spToken, uint256 amount)
-func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperPositionLocked(opts *bind.WatchOpts, sink chan<- *SuperDestinationExecutorSuperPositionLocked, account []common.Address, spToken []common.Address) (event.Subscription, error) {
+// Solidity: event SuperPositionMintRequested(address indexed account, address indexed spToken, uint256 amount, uint256 indexed dstChainId)
+func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperPositionMintRequested(opts *bind.WatchOpts, sink chan<- *SuperDestinationExecutorSuperPositionMintRequested, account []common.Address, spToken []common.Address, dstChainId []*big.Int) (event.Subscription, error) {
 
 	var accountRule []interface{}
 	for _, accountItem := range account {
@@ -1520,7 +1682,12 @@ func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperPos
 		spTokenRule = append(spTokenRule, spTokenItem)
 	}
 
-	logs, sub, err := _SuperDestinationExecutor.contract.WatchLogs(opts, "SuperPositionLocked", accountRule, spTokenRule)
+	var dstChainIdRule []interface{}
+	for _, dstChainIdItem := range dstChainId {
+		dstChainIdRule = append(dstChainIdRule, dstChainIdItem)
+	}
+
+	logs, sub, err := _SuperDestinationExecutor.contract.WatchLogs(opts, "SuperPositionMintRequested", accountRule, spTokenRule, dstChainIdRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1530,8 +1697,8 @@ func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperPos
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(SuperDestinationExecutorSuperPositionLocked)
-				if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperPositionLocked", log); err != nil {
+				event := new(SuperDestinationExecutorSuperPositionMintRequested)
+				if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperPositionMintRequested", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1552,12 +1719,12 @@ func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperPos
 	}), nil
 }
 
-// ParseSuperPositionLocked is a log parse operation binding the contract event 0xdf09bac395df649ca72fb3ffb451d40c290e25dcef3002e19d2c04ce09441b9b.
+// ParseSuperPositionMintRequested is a log parse operation binding the contract event 0x7ec946bedac80f139c7c4149ac44127f938a0ab50229c59b7c0cd5debc72c233.
 //
-// Solidity: event SuperPositionLocked(address indexed account, address indexed spToken, uint256 amount)
-func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) ParseSuperPositionLocked(log types.Log) (*SuperDestinationExecutorSuperPositionLocked, error) {
-	event := new(SuperDestinationExecutorSuperPositionLocked)
-	if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperPositionLocked", log); err != nil {
+// Solidity: event SuperPositionMintRequested(address indexed account, address indexed spToken, uint256 amount, uint256 indexed dstChainId)
+func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) ParseSuperPositionMintRequested(log types.Log) (*SuperDestinationExecutorSuperPositionMintRequested, error) {
+	event := new(SuperDestinationExecutorSuperPositionMintRequested)
+	if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperPositionMintRequested", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
