@@ -2,7 +2,7 @@
 pragma solidity 0.8.30;
 
 // Superform
-import {IOracle} from "../../../vendor/awesome-oracles/IOracle.sol";
+import { IOracle } from "../../../vendor/awesome-oracles/IOracle.sol";
 
 /// @title IYieldSourceOracle
 /// @author Superform Labs
@@ -64,7 +64,11 @@ interface IYieldSourceOracle {
     /// @param assetIn The underlying asset being deposited (e.g., USDC, DAI)
     /// @param assetsIn The amount of underlying assets to deposit, in the asset's native units
     /// @return shares The number of yield-bearing shares that would be received
-    function getShareOutput(address yieldSourceAddress, address assetIn, uint256 assetsIn)
+    function getShareOutput(
+        address yieldSourceAddress,
+        address assetIn,
+        uint256 assetsIn
+    )
         external
         view
         returns (uint256);
@@ -75,7 +79,11 @@ interface IYieldSourceOracle {
     /// @param assetIn The underlying asset to receive (e.g., USDC, DAI)
     /// @param sharesIn The amount of yield-bearing shares to redeem
     /// @return assets The number of underlying assets that would be received
-    function getAssetOutput(address yieldSourceAddress, address assetIn, uint256 sharesIn)
+    function getAssetOutput(
+        address yieldSourceAddress,
+        address assetIn,
+        uint256 sharesIn
+    )
         external
         view
         returns (uint256);
@@ -112,7 +120,10 @@ interface IYieldSourceOracle {
     /// @param yieldSourceAddress The yield-bearing token address to check against
     /// @param expectedUnderlying The address of the potential underlying asset
     /// @return True if the address is a valid underlying asset for the yield source
-    function isValidUnderlyingAsset(address yieldSourceAddress, address expectedUnderlying)
+    function isValidUnderlyingAsset(
+        address yieldSourceAddress,
+        address expectedUnderlying
+    )
         external
         view
         returns (bool);
@@ -122,7 +133,10 @@ interface IYieldSourceOracle {
     /// @param yieldSourceAddresses Array of yield-bearing token addresses
     /// @param expectedUnderlying Array of potential underlying asset addresses
     /// @return isValid Array of booleans indicating validity of each pair
-    function isValidUnderlyingAssets(address[] memory yieldSourceAddresses, address[] memory expectedUnderlying)
+    function isValidUnderlyingAssets(
+        address[] memory yieldSourceAddresses,
+        address[] memory expectedUnderlying
+    )
         external
         view
         returns (bool[] memory isValid);
@@ -141,7 +155,10 @@ interface IYieldSourceOracle {
     /// @param yieldSourceAddresses Array of yield-bearing token addresses
     /// @param ownersOfShares 2D array where each sub-array contains owner addresses for a yield source
     /// @return userTvls 2D array of TVL values for each owner in each yield source
-    function getTVLByOwnerOfSharesMultiple(address[] memory yieldSourceAddresses, address[][] memory ownersOfShares)
+    function getTVLByOwnerOfSharesMultiple(
+        address[] memory yieldSourceAddresses,
+        address[][] memory ownersOfShares
+    )
         external
         view
         returns (uint256[][] memory userTvls);

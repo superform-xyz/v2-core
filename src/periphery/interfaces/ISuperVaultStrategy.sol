@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {ISuperHook, Execution} from "../../core/interfaces/ISuperHook.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { ISuperHook, Execution } from "../../core/interfaces/ISuperHook.sol";
 
 /// @title ISuperVaultStrategy
 /// @author Superform Labs
@@ -53,6 +53,7 @@ interface ISuperVaultStrategy {
     error STAKE_TOO_LOW();
     error OPERATIONS_BLOCKED_BY_VETO();
     error HOOK_VALIDATION_FAILED();
+    error STRATEGY_PAUSED();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -217,23 +218,20 @@ interface ISuperVaultStrategy {
     /// @param oracle Address of the oracle (used for adding/updating)
     /// @param actionType Type of action: 0=Add, 1=UpdateOracle, 2=ToggleActivation
     /// @param activate Boolean flag for activation when actionType is 2
-    /// @param isAsync Boolean flag for async yield source
-    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate, bool isAsync)
-        external;
+    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) external;
 
     /// @notice Batch manage multiple yield sources in a single transaction
     /// @param sources Array of yield source addresses
     /// @param oracles Array of oracle addresses (used for adding/updating)
     /// @param actionTypes Array of action types: 0=Add, 1=UpdateOracle, 2=ToggleActivation
     /// @param activates Array of boolean flags for activation when actionType is 2
-    /// @param isAsyncs Array of boolean flags for async yield sources
     function manageYieldSources(
         address[] calldata sources,
         address[] calldata oracles,
         uint8[] calldata actionTypes,
-        bool[] calldata activates,
-        bool[] calldata isAsyncs
-    ) external;
+        bool[] calldata activates
+    )
+        external;
 
     /// @notice Propose or execute a hook root update
     /// @notice Propose changes to vault-specific fee configuration
@@ -284,7 +282,10 @@ interface ISuperVaultStrategy {
     /// @return totalFee The estimated fee that would be taken in asset terms
     /// @return superformFee The portion of the fee that would go to Superform treasury
     /// @return recipientFee The portion of the fee that would go to the fee recipient
-    function previewPerformanceFee(address controller, uint256 sharesToRedeem)
+    function previewPerformanceFee(
+        address controller,
+        uint256 sharesToRedeem
+    )
         external
         view
         returns (uint256 totalFee, uint256 superformFee, uint256 recipientFee);

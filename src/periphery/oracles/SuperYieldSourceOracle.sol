@@ -13,9 +13,6 @@ import { ISuperYieldSourceOracle } from "../interfaces/ISuperYieldSourceOracle.s
 contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
     IOracle public immutable superOracle;
 
-    /// @dev Thrown when array lengths do not match in batch functions.
-    error ARRAY_LENGTH_MISMATCH();
-
     constructor(address superOracle_) {
         superOracle = IOracle(superOracle_);
     }
@@ -23,7 +20,6 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
                         GENERALIZED QUOTING FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperYieldSourceOracle
     function getPricePerShareQuote(
         address yieldSourceAddress,
@@ -206,6 +202,76 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
 
             // Convert to quote asset using oracle registry
             tvlsQuote[i] = superOracle.getQuote(baseAmount, baseAddresses[i], quoteAddresses[i]);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        YIELD SOURCE ORACLE FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperYieldSourceOracle
+    function getPricePerShareMultiple(
+        address[] memory yieldSourceAddresses,
+        address[] memory yieldSourceOracles,
+        address baseAsset
+    )
+        external
+        view
+        returns (uint256[] memory pricesPerShare)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        pricesPerShare = new uint256[](length);
+
+        for (uint256 i; i < length; ++i) {
+            IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
+            if (!yS.isValidUnderlyingAsset(yieldSourceAddresses[i], baseAsset)) {
+                revert INVALID_BASE_ASSET();
+            }
+            pricesPerShare[i] = yS.getPricePerShare(yieldSourceAddresses[i]);
+        }
+    }
+
+    /// @inheritdoc ISuperYieldSourceOracle
+    function getTVLByOwnerOfSharesMultiple(
+        address[] memory yieldSourceAddresses,
+        address[] memory yieldSourceOracles,
+        address[] memory ownersOfShares,
+        address baseAsset
+    )
+        external
+        view
+        returns (uint256[] memory userTvls)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        userTvls = new uint256[](length);
+
+        for (uint256 i; i < length; ++i) {
+            IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
+            if (!yS.isValidUnderlyingAsset(yieldSourceAddresses[i], baseAsset)) {
+                revert INVALID_BASE_ASSET();
+            }
+            userTvls[i] = yS.getTVLByOwnerOfShares(yieldSourceAddresses[i], ownersOfShares[i]);
+        }
+    }
+
+    /// @inheritdoc ISuperYieldSourceOracle
+    function getTVLMultiple(
+        address[] memory yieldSourceAddresses,
+        address[] memory yieldSourceOracles,
+        address baseAsset
+    )
+        external
+        view
+        returns (uint256[] memory tvls)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        tvls = new uint256[](length);
+
+        for (uint256 i; i < length; ++i) {
+            IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
+            if (!yS.isValidUnderlyingAsset(yieldSourceAddresses[i], baseAsset)) {
+                revert INVALID_BASE_ASSET();
+            }
+            tvls[i] = yS.getTVL(yieldSourceAddresses[i]);
         }
     }
 }

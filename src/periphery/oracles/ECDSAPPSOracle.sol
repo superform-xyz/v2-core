@@ -40,52 +40,92 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
                          PPS UPDATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IECDSAPPSOracle
-    function updatePPS(address strategy, bytes[] calldata proofs, uint256 pps, uint256 timestamp) external {
+    function updatePPS(UpdatePPSArgs calldata args)
+        external
+    {
         // Validate proofs and check quorum requirement
-        _validateProofs(strategy, proofs, pps, timestamp);
+        _validateProofs(
+            args.strategy,
+            args.proofs,
+            args.pps,
+            args.ppsStdev,
+            args.validatorSet,
+            args.totalValidators,
+            args.timestamp
+        );
 
-        emit PPSValidated(strategy, pps, timestamp, msg.sender);
+        // Emit event that PPS has been validated
+        emit PPSValidated(
+            args.strategy,
+            args.pps,
+            args.ppsStdev,
+            args.validatorSet,
+            args.totalValidators,
+            args.timestamp,
+            msg.sender
+        );
 
         // Forward the validated PPS update to the SuperVaultAggregator
         // The msg.sender is passed as updateAuthority for upkeep tracking
-        ISuperVaultAggregator(SUPER_GOVERNOR.getAddress(SUPER_VAULT_AGGREGATOR)).forwardPPS(
-            msg.sender, strategy, pps, timestamp
-        );
+        ISuperVaultAggregator.ForwardPPSArgs memory forwardArgs = ISuperVaultAggregator.ForwardPPSArgs({
+            strategy: args.strategy,
+            isExempt: false, // This will be determined by SuperVaultAggregator
+            pps: args.pps,
+            ppsStdev: args.ppsStdev,
+            validatorSet: args.validatorSet,
+            totalValidators: args.totalValidators,
+            timestamp: args.timestamp,
+            upkeepCost: 0 // This will be set by SuperVaultAggregator
+        });
+
+        ISuperVaultAggregator(SUPER_GOVERNOR.getAddress(SUPER_VAULT_AGGREGATOR)).forwardPPS(msg.sender, forwardArgs);
     }
 
     /// @inheritdoc IECDSAPPSOracle
-    function batchUpdatePPS(
-        address[] calldata strategies,
-        bytes[][] calldata proofsArray,
-        uint256[] calldata ppss,
-        uint256[] calldata timestamps
-    )
+    function batchUpdatePPS(BatchUpdatePPSArgs calldata args)
         external
     {
-        uint256 strategiesLength = strategies.length;
+        uint256 strategiesLength = args.strategies.length;
 
         if (strategiesLength == 0) revert ZERO_LENGTH_ARRAY();
-
         // Validate input array lengths
         if (
-            strategiesLength != proofsArray.length || strategiesLength != ppss.length
-                || strategiesLength != timestamps.length
+            strategiesLength != args.proofsArray.length || strategiesLength != args.ppss.length
+                || strategiesLength != args.ppsStdevs.length || strategiesLength != args.validatorSets.length
+                || strategiesLength != args.timestamps.length || strategiesLength != args.totalValidators.length
         ) revert ARRAY_LENGTH_MISMATCH();
 
         // Process each strategy update
-        for (uint256 i; i < strategiesLength; i++) {
-            address strategy = strategies[i];
-            bytes[] calldata proofs = proofsArray[i];
-            uint256 pps = ppss[i];
-            uint256 timestamp = timestamps[i];
-
-            _validateProofs(strategy, proofs, pps, timestamp);
-            emit PPSValidated(strategy, pps, timestamp, msg.sender);
+        for (uint256 i = 0; i < strategiesLength; i++) {
+            _validateProofs(
+                args.strategies[i],
+                args.proofsArray[i],
+                args.ppss[i],
+                args.ppsStdevs[i],
+                args.validatorSets[i],
+                args.totalValidators[i],
+                args.timestamps[i]
+            );
+            emit PPSValidated(
+                args.strategies[i],
+                args.ppss[i],
+                args.ppsStdevs[i],
+                args.validatorSets[i],
+                args.totalValidators[i],
+                args.timestamps[i],
+                msg.sender
+            );
         }
 
-        // Forward all validated updates to SuperVaultAggregator as a batch
         ISuperVaultAggregator(SUPER_GOVERNOR.getAddress(SUPER_VAULT_AGGREGATOR)).batchForwardPPS(
-            strategies, ppss, timestamps
+            ISuperVaultAggregator.BatchForwardPPSArgs({
+                strategies: args.strategies,
+                ppss: args.ppss,
+                ppsStdevs: args.ppsStdevs,
+                validatorSets: args.validatorSets,
+                totalValidators: args.totalValidators,
+                timestamps: args.timestamps
+            })
         );
     }
 
@@ -95,14 +135,29 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
     /// @notice Validates an array of proofs for a strategy's PPS update
     /// @param strategy Address of the strategy
     /// @param proofs Array of cryptographic proofs
-    /// @param pps Price-per-share value
+    /// @param pps Price-per-share value (mean)
+    /// @param ppsStdev Standard deviation of the price-per-share
+    /// @param validatorSet Number of validators who calculated this PPS
+    /// @param totalValidators Total number of validators in the network
     /// @param timestamp Timestamp when the value was generated
     /// @dev Reverts immediately if duplicate signers are found or quorum is not met
-    function _validateProofs(address strategy, bytes[] calldata proofs, uint256 pps, uint256 timestamp) internal view {
+    function _validateProofs(
+        address strategy,
+        bytes[] calldata proofs,
+        uint256 pps,
+        uint256 ppsStdev,
+        uint256 validatorSet,
+        uint256 totalValidators,
+        uint256 timestamp
+    )
+        internal
+        view
+    {
         // Check if this oracle is the active PPS Oracle
         if (!SUPER_GOVERNOR.isActivePPSOracle(address(this))) revert NOT_ACTIVE_PPS_ORACLE();
-        // Create message hash
-        bytes32 messageHash = keccak256(abi.encodePacked(strategy, pps, timestamp));
+        // Create message hash with all parameters
+        bytes32 messageHash =
+            keccak256(abi.encodePacked(strategy, pps, ppsStdev, validatorSet, totalValidators, timestamp));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
 
         // Track valid signers and count
@@ -134,5 +189,8 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
         // Ensure we have enough valid signatures to meet quorum
         uint256 quorumRequirement = SUPER_GOVERNOR.getPPSOracleQuorum();
         if (validSignatureCount < quorumRequirement) revert QUORUM_NOT_MET();
+
+        // Ensure the number of valid signatures matches the reported validatorSet
+        if (validSignatureCount != validatorSet) revert VALIDATOR_COUNT_MISMATCH();
     }
 }
