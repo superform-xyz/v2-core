@@ -125,7 +125,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                 EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @inheritdoc ISuperAsset
     function getPPS() public view returns(uint256 pps) {
+        // TODO: Improve the implementation of this function to handle the case for de-whitelisted tokens for which the SuperAsset has still non-zero exposure 
+        // TODO: Use this function in the calculations instead of the PPS value got from the SuperOracle 
         uint256 totalSupply_ = totalSupply();
         if (totalSupply_ == 0) return 0; 
 

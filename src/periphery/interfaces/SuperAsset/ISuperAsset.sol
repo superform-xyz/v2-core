@@ -78,6 +78,12 @@ interface ISuperAsset is IERC20 {
         external;
 
     /**
+     * @notice Returns the PPS of the SuperAsset
+     * @return PPS of the SuperAsset
+     */
+    function getPPS() external view returns(uint256);
+
+    /**
      * @notice Returns the address of the IncentiveFundContract
      * @return Address of the IncentiveFundContract
      */
