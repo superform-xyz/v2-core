@@ -192,10 +192,6 @@ contract DeployV2 is Script, Configuration {
         }
     }
 
-    function setUp() public {
-        MNEMONIC = vm.envString("MNEMONIC");
-    }
-
     function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
         _setConfiguration(env, saltNamespace);
         console2.log("Deploying on chainId: ", chainId);

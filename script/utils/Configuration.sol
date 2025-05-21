@@ -44,7 +44,7 @@ abstract contract Configuration is Constants {
 
     mapping(uint64 chainId => string chainName) internal chainNames;
     bytes internal SALT_NAMESPACE;
-    string internal MNEMONIC;
+    string internal constant MNEMONIC = "test test test test test test test test test test test junk";
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
