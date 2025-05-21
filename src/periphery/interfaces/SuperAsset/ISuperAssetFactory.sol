@@ -98,7 +98,6 @@ interface ISuperAssetFactory {
     /**
      * @notice Emitted when a new SuperAsset and its dependencies are created
      * @param superAsset Address of the deployed SuperAsset contract
-     * @param assetBank Address of the deployed AssetBank contract
      * @param incentiveFund Address of the deployed IncentiveFundContract
      * @param incentiveCalc Address of the deployed IncentiveCalculationContract
      * @param name Name of the SuperAsset token
@@ -106,8 +105,7 @@ interface ISuperAssetFactory {
      */
     event SuperAssetCreated(
         address indexed superAsset,
-        address indexed assetBank,
-        address incentiveFund,
+        address indexed incentiveFund,
         address incentiveCalc,
         string name,
         string symbol

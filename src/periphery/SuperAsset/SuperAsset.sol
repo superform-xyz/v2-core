@@ -9,7 +9,6 @@ import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
-import "../interfaces/SuperAsset/IAssetBank.sol";
 import "../interfaces/SuperAsset/ISuperAsset.sol";
 import "../interfaces/ISuperOracle.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
@@ -48,7 +47,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     EnumerableSet.AddressSet private _supportedVaults;
     address public incentiveCalculationContract; // Address of the ICC
     address public incentiveFundContract; // Address of the Incentive Fund Contract
-    address public assetBank; // Address of the Asset Bank Contract
 
     mapping(address token => uint256 allocation) public targetAllocations;
     mapping(address token => uint256 allocation) public weights; // Weights for each vault in energy calculation
@@ -98,7 +96,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         string memory symbol_,
         address icc_,
         address ifc_,
-        address assetBank_,
         address superGovernor_,
         address superAssetFactory_,
         uint256 swapFeeInPercentage_,
@@ -111,13 +108,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         if (icc_ == address(0)) revert ZERO_ADDRESS();
         if (ifc_ == address(0)) revert ZERO_ADDRESS();
-        if (assetBank_ == address(0)) revert ZERO_ADDRESS();
         if (swapFeeInPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         if (swapFeeOutPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
 
         incentiveCalculationContract = icc_;
         incentiveFundContract = ifc_;
-        assetBank = assetBank_;
         swapFeeInPercentage = swapFeeInPercentage_;
         swapFeeOutPercentage = swapFeeOutPercentage_;
         
@@ -143,7 +138,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 len = _supportedVaults.length();
         for (uint256 i = 0; i < len; i++) {
             address token = _supportedVaults.at(i);
-            uint256 balance = IERC20(token).balanceOf(address(assetBank));
+            uint256 balance = IERC20(token).balanceOf(address(this));
             if (balance == 0) continue;
 
             (uint256 priceUSD,,,) = getPriceWithCircuitBreakers(token);
@@ -306,7 +301,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Transfer swap fees to Asset Bank while holding the rest in the contract, since the full amount was already
         // transferred in the beginning of the function
-        IERC20(yieldSourceShare).safeTransfer(assetBank, swapFee);
+        // TODO: Fix this by transfering money to SuperBank
+        IERC20(yieldSourceShare).safeTransfer(address(incentiveFundContract), swapFee);
 
         // Mint SuperUSD shares
         _mint(receiver, amountSharesMinted);
@@ -349,7 +345,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _burn(msg.sender, amountSharesToRedeem); // Use a proper burning mechanism
 
         // Transfer swap fees to Asset Bank
-        IERC20(tokenOut).safeTransfer(assetBank, swapFee);
+        // TODO: Fix this by transfering money to SuperBank
+        IERC20(tokenOut).safeTransfer(address(incentiveFundContract), swapFee);
 
         // Transfer assets to receiver
         // For now, assuming shares are held in this contract, maybe they will have to be held in another contract

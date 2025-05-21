@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/proxy/Clones.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "../interfaces/SuperAsset/ISuperAssetFactory.sol";
 import "./SuperAsset.sol";
-import "./AssetBank.sol";
 import "./IncentiveFundContract.sol";
 import "./IncentiveCalculationContract.sol";
 import "../SuperGovernor.sol";
@@ -24,8 +23,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     address public immutable superAssetImplementation;
     address public immutable incentiveFundImplementation;
     // Single instances
-    address public immutable assetBank;
-    address public incentiveCalculationContract;
+    address public immutable incentiveCalculationContract;
     address public immutable superGovernor;
 
     mapping(address superAsset => SuperAssetRoles roles) public roles;
@@ -36,7 +34,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address _superGovernor, address _incentiveCalculationContract, address _assetBank) {
+    constructor(address _superGovernor, address _incentiveCalculationContract) {
         if (_superGovernor == address(0)) revert ZERO_ADDRESS();
         superGovernor = _superGovernor;
 
@@ -44,7 +42,6 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
         incentiveFundImplementation = address(new IncentiveFundContract(superGovernor));
 
         // Deploy single instances
-        assetBank = _assetBank;
         incentiveCalculationContract = _incentiveCalculationContract;
 
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
@@ -107,7 +104,6 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
             params.symbol,
             incentiveCalculationContract, // Use single instance
             incentiveFund,
-            assetBank, // Use single instance
             superGovernor,
             address(this),
             params.swapFeeInPercentage,
@@ -115,7 +111,7 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
         );
 
         // Initialize IncentiveFund
-        IncentiveFundContract(incentiveFund).initialize(superAsset, assetBank, superGovernor, address(this));
+        IncentiveFundContract(incentiveFund).initialize(superAsset, superGovernor, address(this));
 
         roles[superAsset] = SuperAssetRoles({
             superAssetManager: params.superAssetManager,
@@ -125,11 +121,10 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
 
 
         // Return addresses (using existing instances for ICC and AssetBank)
-        // assetBank_ = assetBank;
         // incentiveCalc = incentiveCalculationContract;
 
         emit SuperAssetCreated(
-            superAsset, assetBank, incentiveFund, incentiveCalculationContract, params.name, params.symbol
+            superAsset, incentiveFund, incentiveCalculationContract, params.name, params.symbol
         );
     }
 }

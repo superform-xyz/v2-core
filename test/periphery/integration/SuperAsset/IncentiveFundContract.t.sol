@@ -5,7 +5,7 @@ import "forge-std/console.sol";
 
 import { IncentiveFundContract } from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
 import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
-import { AssetBank } from "../../../../src/periphery/SuperAsset/AssetBank.sol";
+// import { AssetBank } from "../../../../src/periphery/SuperAsset/AssetBank.sol";
 import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
 import { IIncentiveFundContract } from "../../../../src/periphery/interfaces/SuperAsset/IIncentiveFundContract.sol";
 import { SuperGovernor } from "../../../../src/periphery/SuperGovernor.sol";
@@ -37,7 +37,7 @@ contract IncentiveFundContractTest is Helpers {
     // --- State Variables ---
     IncentiveFundContract public incentiveFund;
     SuperAsset public superAsset;
-    AssetBank public assetBank;
+    // AssetBank public assetBank;
     SuperOracle public oracle;
     SuperGovernor public superGovernor;
     MockERC20 public tokenIn;
@@ -162,8 +162,8 @@ contract IncentiveFundContractTest is Helpers {
         // superGovernor.grantRole(superAssetManager, admin);
         // assertTrue(superGovernor.hasRole(superAssetManager, admin));
 
-        assetBank = new AssetBank(address(superGovernor));
-        console.log("AssetBank deployed");
+        // assetBank = new AssetBank(address(superGovernor));
+        // console.log("AssetBank deployed");
 
 
         // Create SuperAsset using factory
@@ -177,7 +177,7 @@ contract IncentiveFundContractTest is Helpers {
             incentiveFundManager: admin
         });
 
-        factory = new SuperAssetFactory(address(superGovernor), address(icc), address(assetBank));
+        factory = new SuperAssetFactory(address(superGovernor), address(icc));
         console.log("SuperAssetFactory deployed");
 
         console.log("SuperAssetFactory deployed");
@@ -260,12 +260,12 @@ contract IncentiveFundContractTest is Helpers {
     // --- Test: Initialization ---
     function test_Initialize() public view {
         assertEq(address(incentiveFund.superAsset()), address(superAsset));
-        assertEq(incentiveFund.assetBank(), address(assetBank));
+        // assertEq(incentiveFund.assetBank(), address(assetBank));
     }
 
     function test_Initialize_RevertIfAlreadyInitialized() public {
         vm.expectRevert(IIncentiveFundContract.ALREADY_INITIALIZED.selector);
-        incentiveFund.initialize(address(superAsset), address(assetBank), address(superGovernor), address(factory));
+        incentiveFund.initialize(address(superAsset), address(superGovernor), address(factory));
         vm.stopPrank();
     }
 
@@ -273,10 +273,10 @@ contract IncentiveFundContractTest is Helpers {
         vm.startPrank(admin);
         IncentiveFundContract newContract = new IncentiveFundContract(address(superGovernor));
         vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
-        newContract.initialize(address(0), address(assetBank), address(superGovernor), address(factory));
+        newContract.initialize(address(0), address(superGovernor), address(factory));
 
         vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
-        newContract.initialize(address(superAsset), address(0), address(superGovernor), address(factory));
+        newContract.initialize(address(superAsset), address(0), address(factory));
         vm.stopPrank();
     }
 

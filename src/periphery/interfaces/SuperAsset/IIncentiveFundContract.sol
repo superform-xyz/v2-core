@@ -15,11 +15,10 @@ interface IIncentiveFundContract {
     /**
      * @notice Initializes the IncentiveFundContract
      * @param superAsset_ Address of the SuperAsset contract
-     * @param assetBank_ Address of the AssetBank contract
      * @param superGovernor_ Address of the SuperGovernor contract
      * @param superAssetFactory_ Address of the SuperAssetFactory contract
      */
-    function initialize(address superAsset_, address assetBank_, address superGovernor_, address superAssetFactory_) external;
+    function initialize(address superAsset_, address superGovernor_, address superAssetFactory_) external;
 
     /**
      * @notice Pays incentives to a receiver

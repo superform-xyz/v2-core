@@ -62,7 +62,6 @@ interface ISuperAsset is IERC20 {
      * @param symbol_ Symbol of the token
      * @param icc_ Address of the IncentiveCalculationContract
      * @param ifc_ Address of the IncentiveFundContract
-     * @param assetBank_ Address of the AssetBank contract
      * @param superGovernor_ Address of the SuperGovernor contract
      * @param superAssetFactory_ Address of the SuperAssetFactory contract
      * @param swapFeeInPercentage_ Initial swap fee percentage for deposits
@@ -73,7 +72,6 @@ interface ISuperAsset is IERC20 {
         string memory symbol_,
         address icc_,
         address ifc_,
-        address assetBank_,
         address superGovernor_,
         address superAssetFactory_,
         uint256 swapFeeInPercentage_,

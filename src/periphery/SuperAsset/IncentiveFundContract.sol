@@ -27,7 +27,6 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     address public tokenInIncentive;
     address public tokenOutIncentive;
     ISuperAsset public superAsset;
-    address public assetBank;
     ISuperGovernor public _SUPER_GOVERNOR;
     ISuperAssetFactory public _SUPER_ASSET_FACTORY;
 
@@ -38,17 +37,15 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function initialize(address superAsset_, address assetBank_, address superGovernor_, address superAssetFactory_) external {
+    function initialize(address superAsset_, address superGovernor_, address superAssetFactory_) external {
         // Ensure this can only be called once
         if (address(superAsset) != address(0)) revert ALREADY_INITIALIZED();
 
         if (superAsset_ == address(0)) revert ZERO_ADDRESS();
-        if (assetBank_ == address(0)) revert ZERO_ADDRESS();
         if (superGovernor_ == address(0)) revert ZERO_ADDRESS();
         if (superAssetFactory_ == address(0)) revert ZERO_ADDRESS();
 
         superAsset = ISuperAsset(superAsset_);
-        assetBank = assetBank_;
         _SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
         _SUPER_ASSET_FACTORY = ISuperAssetFactory(superAssetFactory_);
     }

@@ -6,7 +6,6 @@ import "forge-std/console.sol";
 import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
 import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
 import { SuperGovernor } from "../../../../src/periphery/SuperGovernor.sol";
-import { AssetBank } from "../../../../src/periphery/SuperAsset/AssetBank.sol";
 import { IncentiveFundContract } from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
 import { IncentiveCalculationContract } from "../../../../src/periphery/SuperAsset/IncentiveCalculationContract.sol";
 import { SuperOracle } from "../../../../src/periphery/oracles/SuperOracle.sol";
@@ -35,7 +34,6 @@ contract SuperAssetTest is Helpers {
 
     // --- State Variables ---
     SuperAsset public superAsset;
-    AssetBank public assetBank;
     SuperOracle public oracle;
     Mock4626Vault public tokenIn;
     Mock4626Vault public tokenOut;
@@ -163,9 +161,8 @@ contract SuperAssetTest is Helpers {
 
 
         // Deploy factory and contracts
-        assetBank = new AssetBank(address(superGovernor));
-        factory = new SuperAssetFactory(address(superGovernor), address(icc), address(assetBank));
-        console.log("Factory and AssetBank deployed");
+        factory = new SuperAssetFactory(address(superGovernor), address(icc));
+        console.log("Factory deployed");
 
         // Grant roles
         vm.startPrank(admin);
@@ -270,8 +267,6 @@ contract SuperAssetTest is Helpers {
         console.log("Check 2");
         assertEq(superAsset.incentiveFundContract(), address(incentiveFund));
         console.log("Check 3");
-        assertEq(superAsset.assetBank(), address(assetBank));
-        console.log("Check 6");
         assertEq(superAsset.swapFeeInPercentage(), 100);
         assertEq(superAsset.swapFeeOutPercentage(), 100);
     }
@@ -283,7 +278,6 @@ contract SuperAssetTest is Helpers {
             "SA", // symbol
             address(icc), // icc
             address(incentiveFund), // ifc
-            address(assetBank), // assetBank
             address(superGovernor),
             address(factory),
             100, // swapFeeInPercentage
