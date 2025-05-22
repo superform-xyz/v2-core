@@ -2,14 +2,13 @@
 pragma solidity 0.8.30;
 
 // external
-import {AccessControl} from "@openzeppelin/contracts/access/AccessControl.sol";
-import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { AccessControl } from "@openzeppelin/contracts/access/AccessControl.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 // Superform
-import {ISuperGovernor, FeeType} from "./interfaces/ISuperGovernor.sol";
-import {ISuperVaultAggregator} from "./interfaces/ISuperVaultAggregator.sol";
-import {ISuperAssetFactory} from "./interfaces/SuperAsset/ISuperAssetFactory.sol";
-
+import { ISuperGovernor, FeeType } from "./interfaces/ISuperGovernor.sol";
+import { ISuperVaultAggregator } from "./interfaces/ISuperVaultAggregator.sol";
+import { ISuperAssetFactory } from "./interfaces/SuperAsset/ISuperAssetFactory.sol";
 
 /// @title SuperGovernor
 /// @author Superform Labs
@@ -95,7 +94,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bytes32 private constant _GUARDIAN_ROLE = keccak256("GUARDIAN_ROLE");
     bytes32 public constant _SUPER_ASSET_FACTORY = keccak256("SUPER_ASSET_FACTORY");
 
-
     // Common contract keys
     bytes32 public constant TREASURY = keccak256("TREASURY");
     bytes32 public constant SUPER_ORACLE = keccak256("SUPER_ORACLE");
@@ -106,8 +104,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bytes32 public constant SUP = keccak256("SUP");
     bytes32 public constant SUPER_BANK = keccak256("SUPER_BANK");
     bytes32 public constant BANK_MANAGER = keccak256("BANK_MANAGER");
-
-
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -187,7 +183,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperGovernor
-    function changePrimaryStrategist(address strategy_, address newStrategist_)
+    function changePrimaryStrategist(
+        address strategy_,
+        address newStrategist_
+    )
         external
         onlyRole(_SUPER_GOVERNOR_ROLE)
     {
@@ -202,6 +201,17 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         // Call the interface method to change the strategist
         // This function can only be called by the SuperGovernor and bypasses the timelock
         ISuperVaultAggregator(aggregator).changePrimaryStrategist(strategy_, newStrategist_);
+    }
+
+    /// @notice Changes the hooks root update timelock duration
+    /// @dev Only callable by SUPER_GOVERNOR_ROLE
+    /// @param newTimelock_ New timelock duration in seconds
+    function changeHooksRootUpdateTimelock(uint256 newTimelock_) external onlyRole(_SUPER_GOVERNOR_ROLE) {
+        address aggregator = _addressRegistry[SUPER_VAULT_AGGREGATOR];
+        if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
+
+        // Call the SuperVaultAggregator to change the hooks root update timelock
+        ISuperVaultAggregator(aggregator).setHooksRootUpdateTimelock(newTimelock_);
     }
 
     /// @inheritdoc ISuperGovernor

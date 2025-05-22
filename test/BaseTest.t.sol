@@ -1213,7 +1213,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 ",",
                 vm.toString(address(A[i].approveAndDeposit4626VaultHook)),
                 ",",
-                vm.toString(address(A[i].redeem4626VaultHook))
+                vm.toString(address(A[i].redeem4626VaultHook)),
+                ",",
+                vm.toString(address(A[i].approveAndGearboxStakeHook)),
+                ",",
+                vm.toString(address(A[i].gearboxUnstakeHook))
             );
 
             if (DEBUG) {
@@ -1700,7 +1704,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         pure
     {
         console2.log("feeBalanceAfter", feeBalanceAfter);
-        console2.log("expected fee", feeBalanceBefore + expectedFee);
+        console2.log("expected fee", expectedFee);
+        console2.log("feeBalanceBefore", feeBalanceBefore);
         assertEq(feeBalanceAfter, feeBalanceBefore + expectedFee, "Fee derivation failed");
     }
 

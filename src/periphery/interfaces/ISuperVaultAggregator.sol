@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.30;
+pragma solidity 0.8.30;
 
 import { EnumerableSet } from "openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 import { ISuperVaultStrategy } from "../interfaces/ISuperVaultStrategy.sol";
@@ -245,6 +245,10 @@ interface ISuperVaultAggregator {
         address indexed strategy, uint256 dispersionThreshold, uint256 deviationThreshold, uint256 mnThreshold
     );
 
+    /// @notice Emitted when the hooks root update timelock is changed
+    /// @param newTimelock New timelock duration in seconds
+    event HooksRootUpdateTimelockChanged(uint256 newTimelock);
+
     /// @notice Emitted when a proposed global hooks root update is vetoed by a guardian
     /// @param guardian Address of the guardian who vetoed the update
     /// @param root The vetoed root value
@@ -415,6 +419,9 @@ interface ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                         HOOK VALIDATION FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Sets a new hooks root update timelock duration
+    /// @param newTimelock The new timelock duration in seconds
+    function setHooksRootUpdateTimelock(uint256 newTimelock) external;
 
     /// @notice Proposes an update to the global hooks Merkle root
     /// @dev Only callable by SUPER_GOVERNOR
@@ -460,6 +467,9 @@ interface ISuperVaultAggregator {
     )
         external;
 
+    /*//////////////////////////////////////////////////////////////
+                              VIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
     /// @notice Check if the global hooks root is currently vetoed
     /// @return vetoed True if the global hooks root is vetoed
     function isGlobalHooksRootVetoed() external view returns (bool vetoed);
@@ -469,10 +479,10 @@ interface ISuperVaultAggregator {
     /// @return vetoed True if the strategy hooks root is vetoed
     function isStrategyHooksRootVetoed(address strategy) external view returns (bool vetoed);
 
-    /*//////////////////////////////////////////////////////////////
-                              VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
+    /// @notice Gets the current hooks root update timelock duration
+    /// @return The current timelock duration in seconds
+    function getHooksRootUpdateTimelock() external view returns (uint256);
+    
     /// @notice Gets the current PPS (price-per-share) for a strategy
     /// @param strategy Address of the strategy
     /// @return pps Current price-per-share value

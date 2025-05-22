@@ -6,47 +6,49 @@ const path = require("path");
 const tokenList = require('../target/token_list.json');
 const yieldSourcesList = require('../target/yield_sources_list.json');
 const ownerList = require('../target/owner_list.json');
+const stakingList = require('../target/staking_list.json');
 
-/**
- * @notice Parse command line arguments for hook addresses
- * Format: address1,address2,address3
- * Order: ApproveAndRedeem4626VaultHook,ApproveAndDeposit4626VaultHook,Redeem4626VaultHook
- */
+
 let customAddresses = {};
 
 // Default hook addresses from deployment
 const hookAddresses = {
   'ApproveAndRedeem4626VaultHook': '0x66e1Ed81804cd6c574f18cA88123B3284868D845',
   'ApproveAndDeposit4626VaultHook': '0x95C5A10d9C6d27985b7bad85635060C0AEcBf356',
-  'Redeem4626VaultHook': '0x7692d9e0d10799199c8285E4c99E1fBC5C64fBf3'
+  'Redeem4626VaultHook': '0x7692d9e0d10799199c8285E4c99E1fBC5C64fBf3',
+  'ApproveAndGearboxStakeHook': '0x9ef444a6d7F4A5adcd68FD5329aA5240C90E14d2',
+  'GearboxUnstakeHook': '0x9ef444a6d7F4A5adcd68FD5329aA5240C90E14d2'
 };
 
 // Check if addresses were provided as a command line argument
 if (process.argv.length > 2) {
   const addressArg = process.argv[2];
   const addresses = addressArg.split(',');
-  
+
   // If we have the correct number of addresses, use them
-  if (addresses.length >= 3) {
-    console.log("Using provided hook addresses from command line:");
-    customAddresses = {
-      'ApproveAndRedeem4626VaultHook': addresses[0],
-      'ApproveAndDeposit4626VaultHook': addresses[1],
-      'Redeem4626VaultHook': addresses[2]
-    };
-    
-    // Log the addresses being used
-    console.log("ApproveAndRedeem4626VaultHook:", customAddresses['ApproveAndRedeem4626VaultHook']);
-    console.log("ApproveAndDeposit4626VaultHook:", customAddresses['ApproveAndDeposit4626VaultHook']);
-    console.log("Redeem4626VaultHook:", customAddresses['Redeem4626VaultHook']);
-    
-    // Override the default addresses
-    Object.assign(hookAddresses, customAddresses);
-  } else {
-    console.log("Invalid number of addresses provided. Expected format: address1,address2,address3");
-    console.log("Using default hook addresses.");
-  }
+  console.log("Using provided hook addresses from command line:");
+  customAddresses = {
+    'ApproveAndRedeem4626VaultHook': addresses[0],
+    'ApproveAndDeposit4626VaultHook': addresses[1],
+    'Redeem4626VaultHook': addresses[2],
+    'ApproveAndGearboxStakeHook': addresses[3],
+    'GearboxUnstakeHook': addresses[4]
+  };
+
+  // Log the addresses being used
+  console.log("ApproveAndRedeem4626VaultHook:", customAddresses['ApproveAndRedeem4626VaultHook']);
+  console.log("ApproveAndDeposit4626VaultHook:", customAddresses['ApproveAndDeposit4626VaultHook']);
+  console.log("Redeem4626VaultHook:", customAddresses['Redeem4626VaultHook']);
+  console.log("ApproveAndGearboxStakeHook:", customAddresses['ApproveAndGearboxStakeHook']);
+  console.log("GearboxUnstakeHook:", customAddresses['GearboxUnstakeHook']);
+
+  // Override the default addresses
+  Object.assign(hookAddresses, customAddresses);
+} else {
+  console.log("Invalid number of addresses provided. Expected format: address1,address2,address3");
+  console.log("Using default hook addresses.");
 }
+
 
 const hookDefinitions = {
   ApproveAndRedeem4626VaultHook: {
@@ -82,6 +84,26 @@ const hookDefinitions = {
         { name: 'owner', type: 'beneficiary' }
       ]
     }
+  },
+  ApproveAndGearboxStakeHook: {
+    // Contract address of the deployed hook
+    address: hookAddresses['ApproveAndGearboxStakeHook'],
+    // Map argument names to their semantic types for proper list lookups
+    argsInfo: {
+      extractedAddresses: [
+        { name: 'yieldSource', type: 'staking' }
+      ]
+    }
+  },
+  GearboxUnstakeHook: {
+    // Contract address of the deployed hook
+    address: hookAddresses['GearboxUnstakeHook'],
+    // Map argument names to their semantic types for proper list lookups
+    argsInfo: {
+      extractedAddresses: [
+        { name: 'yieldSource', type: 'staking' }
+      ]
+    }
   }
 };
 
@@ -97,6 +119,8 @@ function getAddressesForType(type, chainId) {
       return (tokenList[chainId] || []).map(item => item.address);
     case 'yieldSource':
       return (yieldSourcesList[chainId] || []).map(item => item.address);
+    case 'staking':
+      return (stakingList[chainId] || []).map(item => item.address);
     case 'beneficiary':
       return ownerList;
     default:
@@ -202,8 +226,11 @@ function encodeArgs(args, hookName) {
     return '';
   }
 
-  // Use solidityPack to match abi.encodePacked in Solidity
-  return ethers.utils.solidityPack(types, values);
+  // First encode as solidityPacked (abi.encodePacked equivalent)
+  const packedData = ethers.utils.solidityPack(types, values);
+
+  // Otherwise, return the packed data directly
+  return packedData;
 }
 
 /**
@@ -221,6 +248,7 @@ function buildMerkleTreeForHook(hookName, chainId) {
   // Build leaves in the format expected by StandardMerkleTree.of()
   const leaves = [];
   const leafData = [];
+
 
   for (const args of argCombinations) {
     // Encode args according to the hook's specific encoding
