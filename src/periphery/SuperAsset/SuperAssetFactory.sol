@@ -47,7 +47,7 @@ contract SuperAssetFactory is ISuperAssetFactory {
         ISuperGovernor _superGovernor = ISuperGovernor(superGovernor);
         if(
             (msg.sender != roles[superAsset].superAssetManager) &&
-            (msg.sender != _superGovernor.getAddress(_superGovernor.SUPERASSET_FACTORY_DEPLOYER())) // NOTE: This role can take over
+            (msg.sender != address(_superGovernor)) // NOTE: This role can take over
         ) revert UNAUTHORIZED();
         roles[superAsset].superAssetManager = _superAssetManager;
     }
@@ -90,8 +90,10 @@ contract SuperAssetFactory is ISuperAssetFactory {
         external
         returns (address superAsset, address incentiveFund)
     {
-        ISuperGovernor _superGovernor = ISuperGovernor(superGovernor);
-        if(msg.sender != _superGovernor.getAddress(_superGovernor.SUPERASSET_FACTORY_DEPLOYER())) revert UNAUTHORIZED();
+        // TODO: Decide whether to make it permissionless or permissioned 
+        // ISuperGovernor _superGovernor = ISuperGovernor(superGovernor);
+        // if(msg.sender != address(_superGovernor)) revert UNAUTHORIZED();
+
         // Deploy IncentiveFund (this one needs to be unique per SuperAsset)
         incentiveFund = incentiveFundImplementation.clone();
 

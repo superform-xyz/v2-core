@@ -75,7 +75,6 @@ contract SuperAssetTest is Helpers {
             makeAddr("prover") // prover
         );
         console.log("SuperGovernor deployed");
-        superGovernor.setAddress(superGovernor.SUPERASSET_FACTORY_DEPLOYER(), admin);
 
         // Deploy mock tokens and vault
         underlyingToken1 = new MockERC20("Underlying Token1", "UTKN1", 18);

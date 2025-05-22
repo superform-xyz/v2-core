@@ -148,7 +148,6 @@ contract IncentiveFundContractTest is Helpers {
             makeAddr("prover") // prover
         );
         console.log("SuperGovernor deployed");
-        superGovernor.setAddress(superGovernor.SUPERASSET_FACTORY_DEPLOYER(), admin);
 
         // Create SuperAsset using factory
         ISuperAssetFactory.AssetCreationParams memory params = ISuperAssetFactory.AssetCreationParams({
