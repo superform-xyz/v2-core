@@ -66,6 +66,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     // SuperOracle related
     bytes32 public constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
 
+    bytes32 public _SUPER_ASSET_FACTORY;
+
     // --- Modifiers ---
     modifier onlyVault() {
         if (!isSupportedUnderlyingVault[msg.sender]) revert NOT_VAULT();
@@ -119,6 +121,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         tokenSymbol = symbol_;
 
         _SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
+        _SUPER_ASSET_FACTORY = _SUPER_GOVERNOR.SUPER_ASSET_FACTORY();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -158,7 +161,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function mint(address to, uint256 amount) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
         address manager = factory.getSuperAssetManager(address(this));
         if (manager != msg.sender) revert UNAUTHORIZED();
         _mint(to, amount);
@@ -166,7 +169,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function burn(address from, uint256 amount) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
         address manager = factory.getSuperAssetManager(address(this));
         if (manager != msg.sender) revert UNAUTHORIZED();
         _burn(from, amount);
@@ -179,7 +182,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function setSwapFeeInPercentage(uint256 _feePercentage) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
         address manager = factory.getSuperAssetManager(address(this));
         if (manager != msg.sender) revert UNAUTHORIZED();
         if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
@@ -188,7 +191,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function setSwapFeeOutPercentage(uint256 _feePercentage) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
         address manager = factory.getSuperAssetManager(address(this));
         if (manager != msg.sender) revert UNAUTHORIZED();
         if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
@@ -197,7 +200,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function setSuperOracle(address oracle) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
         address manager = factory.getSuperAssetManager(address(this));
         if (manager != msg.sender) revert UNAUTHORIZED();
         if (oracle == address(0)) revert ZERO_ADDRESS();
@@ -207,7 +210,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function setWeight(address vault, uint256 weight) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
         address manager = factory.getSuperAssetManager(address(this));
         if (manager != msg.sender) revert UNAUTHORIZED();
         if (vault == address(0)) revert ZERO_ADDRESS();
@@ -218,7 +221,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
         address strategist = factory.getSuperAssetStrategist(address(this));
         if (strategist != msg.sender) revert UNAUTHORIZED();
         if (tokens.length != allocations.length) revert INVALID_INPUT();
@@ -239,7 +242,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function setTargetAllocation(address token, uint256 allocation) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
         address strategist = factory.getSuperAssetStrategist(address(this));
         if (strategist != msg.sender) revert UNAUTHORIZED();
         if (token == address(0)) revert ZERO_ADDRESS();
@@ -254,7 +257,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function setEnergyToUSDExchangeRatio(uint256 newRatio) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
         address manager = factory.getSuperAssetManager(address(this));
         if (manager != msg.sender) revert UNAUTHORIZED();
         energyToUSDExchangeRatio = newRatio;
