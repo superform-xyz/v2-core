@@ -1411,38 +1411,6 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         vm.stopPrank();
     }
 
-    function _deriveSuperVaultFees(
-        uint256 requestedShares,
-        uint256 currentPricePerShare,
-        uint256 precision
-    )
-        internal
-        returns (uint256, uint256)
-    {
-        // Use the weighted average approach to calculate historical assets
-        SuperVaultState storage state = superVaultStates[accountEth];
-
-        // Check for insufficient shares
-        if (requestedShares > state.accumulatorShares) {
-            revert("INSUFFICIENT_SHARES");
-        }
-
-        // Calculate cost basis proportionally based on requested shares
-        uint256 historicalAssets =
-            requestedShares.mulDiv(state.accumulatorCostBasis, state.accumulatorShares, Math.Rounding.Floor);
-
-        // Update user's accumulator state
-        state.accumulatorShares -= requestedShares;
-        state.accumulatorCostBasis -= historicalAssets;
-
-        // Calculate current value and process fees
-        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, precision, Math.Rounding.Floor);
-
-        (uint256 superformFee, uint256 recipientFee) = _deriveSuperVaultFeesFromAssets(currentAssets, historicalAssets);
-
-        return (superformFee, recipientFee);
-    }
-
     // Update function to track deposits
     function _trackDeposit(address user, uint256 shares, uint256 assets) internal {
         SuperVaultState storage state = superVaultStates[user];

@@ -921,6 +921,9 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /// @param hookArgs The packed-encoded hook arguments (from solidityPack in JS)
     /// @return leaf The leaf node hash
     function _createLeaf(bytes calldata hookArgs) internal pure returns (bytes32) {
+        /// @dev note the leaf is just composed by the args, not by the address of the hook
+        /// @dev this means hooks with different addresses but with the same type of encodings, will have the
+        /// same authorization (same proof is going to be generated). Is this ok?
         return keccak256(bytes.concat(keccak256(abi.encode(hookArgs))));
     }
 
