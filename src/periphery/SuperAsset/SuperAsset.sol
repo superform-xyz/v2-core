@@ -161,11 +161,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function getIncentiveFundContract() external view returns (address) {
-        return incentiveFundContract;
-    }
-
-    /// @inheritdoc ISuperAsset
     function mint(address to, uint256 amount) external {
         ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
         address manager = factory.getSuperAssetManager(address(this));
@@ -763,9 +758,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     function _settleIncentive(address user, int256 amountIncentiveUSD) internal {
         // Pay or take incentives based on the sign of amountIncentive
         if (amountIncentiveUSD > 0) {
-            IIncentiveFundContract(incentiveFundContract).payIncentive(user, uint256(amountIncentiveUSD));
+            ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+            IIncentiveFundContract(factory.getIncentiveFundManager(address(this))).payIncentive(user, uint256(amountIncentiveUSD));
         } else if (amountIncentiveUSD < 0) {
-            IIncentiveFundContract(incentiveFundContract).takeIncentive(user, uint256(-amountIncentiveUSD));
+            ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+            IIncentiveFundContract(factory.getIncentiveFundManager(address(this))).takeIncentive(user, uint256(-amountIncentiveUSD));
         }
     }
 }
