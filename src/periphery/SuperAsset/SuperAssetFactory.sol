@@ -99,14 +99,12 @@ contract SuperAssetFactory is ISuperAssetFactory {
     /// @inheritdoc ISuperAssetFactory
     function createSuperAsset(AssetCreationParams calldata params)
         external
-        returns (address superAsset, address incentiveFund)
+        returns (address superAsset, address incentiveFundContract)
     {
-        // TODO: Decide whether to make it permissionless or permissioned 
-        // ISuperGovernor _superGovernor = ISuperGovernor(superGovernor);
-        // if(msg.sender != address(_superGovernor)) revert UNAUTHORIZED();
+        // TODO: Decide whether to make this method permissionless or permissioned 
 
         // Deploy IncentiveFund (this one needs to be unique per SuperAsset)
-        incentiveFund = incentiveFundImplementation.clone();
+        incentiveFundContract = incentiveFundImplementation.clone();
 
         // Deploy SuperAsset with its dependencies
         superAsset = superAssetImplementation.clone();
@@ -114,14 +112,14 @@ contract SuperAssetFactory is ISuperAssetFactory {
             params.name,
             params.symbol,
             params.incentiveCalculationContract, // Use single instance
-            incentiveFund,
+            incentiveFundContract,
             superGovernor,
             params.swapFeeInPercentage,
             params.swapFeeOutPercentage
         );
 
         // Initialize IncentiveFund
-        IncentiveFundContract(incentiveFund).initialize(superGovernor, superAsset);
+        IncentiveFundContract(incentiveFundContract).initialize(superGovernor, superAsset);
 
         data[superAsset] = SuperAssetData({
             superAssetManager: params.superAssetManager,
@@ -130,12 +128,8 @@ contract SuperAssetFactory is ISuperAssetFactory {
             incentiveCalculationContract: params.incentiveCalculationContract
         });
 
-
-        // Return addresses (using existing instances for ICC and AssetBank)
-        // incentiveCalc = incentiveCalculationContract;
-
         emit SuperAssetCreated(
-            superAsset, incentiveFund, params.incentiveCalculationContract, params.name, params.symbol
+            superAsset, incentiveFundContract, params.incentiveCalculationContract, params.name, params.symbol
         );
     }
 }
