@@ -44,8 +44,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     // NOTE: Actually it does not contain only supported Vaults shares but also standard ERC20
     EnumerableSet.AddressSet private _supportedVaults;
-    address public incentiveCalculationContract; // Address of the ICC
-    address public incentiveFundContract; // Address of the Incentive Fund Contract
 
 
     ISuperOracle public superOracle;
@@ -92,8 +90,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     function initialize(
         string memory name_,
         string memory symbol_,
-        address icc_,
-        address ifc_,
         address superGovernor_,
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_
@@ -103,13 +99,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Ensure this can only be called once
         if (address(_SUPER_GOVERNOR) != address(0)) revert ALREADY_INITIALIZED();
 
-        if (icc_ == address(0)) revert ZERO_ADDRESS();
-        if (ifc_ == address(0)) revert ZERO_ADDRESS();
         if (swapFeeInPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         if (swapFeeOutPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
 
-        // incentiveCalculationContract = icc_;
-        // incentiveFundContract = ifc_;
         swapFeeInPercentage = swapFeeInPercentage_;
         swapFeeOutPercentage = swapFeeOutPercentage_;
         

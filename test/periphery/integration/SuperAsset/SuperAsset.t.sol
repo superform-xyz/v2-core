@@ -268,8 +268,6 @@ contract SuperAssetTest is Helpers {
         superAsset.initialize(
             "SuperAsset", // name
             "SA", // symbol
-            address(icc), // icc
-            address(incentiveFund), // ifc
             address(superGovernor),
             100, // swapFeeInPercentage
             100 // swapFeeOutPercentage
