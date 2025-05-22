@@ -95,7 +95,6 @@ interface ISuperGovernor {
     /// @notice Emitted when an address is set in the registry
     /// @param key The key used to reference the address
     /// @param value The address value
-
     event AddressSet(bytes32 indexed key, address indexed value);
 
     /// @notice Emitted when a hook is approved
@@ -237,7 +236,6 @@ interface ISuperGovernor {
     /*//////////////////////////////////////////////////////////////
                                    ROLES
     //////////////////////////////////////////////////////////////*/
-
     /// @notice The identifier of the role that grants access to critical governance functions
     function SUPER_GOVERNOR_ROLE() external view returns (bytes32);
 
@@ -268,7 +266,6 @@ interface ISuperGovernor {
     /*//////////////////////////////////////////////////////////////
                         SUPER VAULT AGGREGATOR MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Change the primary strategist for a strategy
     /// @dev Only SuperGovernor can call this function directly
     /// @param strategy_ The strategy address
@@ -281,7 +278,6 @@ interface ISuperGovernor {
     /*//////////////////////////////////////////////////////////////
                          HOOK MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Registers a hook for use in SuperVaults
     /// @param hook The address of the hook to register
     /// @param isFulfillRequestsHook Whether the hook is a fulfill requests hook
@@ -306,7 +302,6 @@ interface ISuperGovernor {
     /*//////////////////////////////////////////////////////////////
                       RELAYER MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Adds a relayer to the approved list
     /// @param relayer The address of the relayer to add
     function addRelayer(address relayer) external;
@@ -318,7 +313,6 @@ interface ISuperGovernor {
     /*//////////////////////////////////////////////////////////////
                       VALIDATOR MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Adds a validator to the approved list
     /// @param validator The address of the validator to add
     function addValidator(address validator) external;
@@ -330,7 +324,6 @@ interface ISuperGovernor {
     /*//////////////////////////////////////////////////////////////
                        PPS ORACLE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Sets the active PPS oracle (only if there is no active oracle yet)
     /// @param oracle Address of the PPS oracle to set as active
     function setActivePPSOracle(address oracle) external;
@@ -349,7 +342,6 @@ interface ISuperGovernor {
     /*//////////////////////////////////////////////////////////////
                       REVENUE SHARE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Proposes a new fee value
     /// @param feeType The type of fee to propose
     /// @param value The proposed fee value (in basis points)
@@ -362,7 +354,6 @@ interface ISuperGovernor {
     /*//////////////////////////////////////////////////////////////
                       UPKEEP COST MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Proposes a new upkeep cost per update (for PPS updates)
     /// @param newCost The proposed new upkeep cost per update
     function proposeUpkeepCostPerUpdate(uint256 newCost) external;
@@ -380,7 +371,6 @@ interface ISuperGovernor {
     /*//////////////////////////////////////////////////////////////
                            VAULT HOOKS MGMT
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Proposes a new Merkle root for a specific hook's allowed targets.
     /// @param hook The address of the hook to update the Merkle root for.
     /// @param proposedRoot The proposed new Merkle root.
@@ -421,7 +411,6 @@ interface ISuperGovernor {
     /*//////////////////////////////////////////////////////////////
                          EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Gets an address from the registry
     /// @param key The key of the address to get
     /// @return The address value
