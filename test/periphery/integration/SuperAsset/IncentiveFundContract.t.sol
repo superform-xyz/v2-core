@@ -5,16 +5,16 @@ import "forge-std/console.sol";
 
 import { IncentiveFundContract } from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
 import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
-import { AssetBank } from "../../../../src/periphery/SuperAsset/AssetBank.sol";
 import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
 import { IIncentiveFundContract } from "../../../../src/periphery/interfaces/SuperAsset/IIncentiveFundContract.sol";
+import { SuperGovernor } from "../../../../src/periphery/SuperGovernor.sol";
 import { SuperOracle } from "../../../../src/periphery/oracles/SuperOracle.sol";
 import { IncentiveCalculationContract } from "src/periphery/SuperAsset/IncentiveCalculationContract.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
-import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.sol";
 import { MockAggregator } from "../../mocks/MockAggregator.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
+import { SuperAssetFactory, ISuperAssetFactory } from "../../../../src/periphery/SuperAsset/SuperAssetFactory.sol";
 
 contract IncentiveFundContractTest is Helpers {
     // --- Events ---
@@ -35,8 +35,9 @@ contract IncentiveFundContractTest is Helpers {
     // --- State Variables ---
     IncentiveFundContract public incentiveFund;
     SuperAsset public superAsset;
-    AssetBank public assetBank;
+    // AssetBank public assetBank;
     SuperOracle public oracle;
+    SuperGovernor public superGovernor;
     MockERC20 public tokenIn;
     MockERC20 public tokenOut;
     MockERC20 public usd;
@@ -47,6 +48,7 @@ contract IncentiveFundContractTest is Helpers {
     MockAggregator public mockFeed5;
     MockAggregator public mockFeed6;
     IncentiveCalculationContract public icc;
+    SuperAssetFactory public factory;
     address public admin;
     address public manager;
     address public user;
@@ -133,46 +135,54 @@ contract IncentiveFundContractTest is Helpers {
         oracle.setFeedMaxStaleness(address(mockFeed6), 1 days);
         vm.stopPrank();
 
-        vm.startPrank(admin);
-        assetBank = new AssetBank(admin);
+        console.log("SuperOracle Deployed and Configured");
 
-        incentiveFund = new IncentiveFundContract(admin);
+        vm.startPrank(admin);
+        
+        // Deploy SuperGovernor first
+        superGovernor = new SuperGovernor(
+            admin, // superGovernor role
+            admin, // governor role
+            admin, // bankManager role
+            makeAddr("treasury"), // treasury
+            makeAddr("prover") // prover
+        );
+        console.log("SuperGovernor deployed");
+
+        // Create SuperAsset using factory
+        ISuperAssetFactory.AssetCreationParams memory params = ISuperAssetFactory.AssetCreationParams({
+            name: "SuperAsset",
+            symbol: "SA",
+            swapFeeInPercentage: 100, // 0.1% swap fee in
+            swapFeeOutPercentage: 100, // 0.1% swap fee out
+            superAssetManager: admin,
+            superAssetStrategist: admin,
+            incentiveFundManager: admin,
+            incentiveCalculationContract: address(icc)
+        });
+
+        factory = new SuperAssetFactory(address(superGovernor));
+        console.log("SuperAssetFactory deployed");
+        superGovernor.setAddress(superGovernor.SUPER_ASSET_FACTORY(), address(factory));
+
+        console.log("SuperAssetFactory deployed");
+        (address superAssetAddr, address incentiveFundAddr) = factory.createSuperAsset(params);
+        console.log("SuperAsset and IncentiveFund deployed via factory");
+        superAsset = SuperAsset(superAssetAddr);
+        incentiveFund = IncentiveFundContract(incentiveFundAddr);
+        console.log("SuperAsset and IncentiveFund deployed via factory");
+
+
         vm.stopPrank();
 
-        superAsset = new SuperAsset();
 
         vm.startPrank(admin);
-        // Initialize SuperAsset
-        superAsset.initialize(
-            "SuperAsset", // name
-            "SA", // symbol
-            address(icc), // icc (IncentiveCalculationContract)
-            address(incentiveFund), // ifc (IncentiveFundContract)
-            address(assetBank), // assetBank
-            100, // swapFeeInPercentage (0.1%)
-            100 // swapFeeOutPercentage (0.1%)
-        );
-
-        // Grant VAULT_MANAGER_ROLE to admin for token management
-        superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), admin);
 
         // Configure SuperAsset
         superAsset.setSuperOracle(address(oracle));
         superAsset.whitelistERC20(address(tokenIn));
         superAsset.whitelistERC20(address(tokenOut));
 
-        // Initialize IncentiveFundContract after SuperAsset is set up
-        incentiveFund.initialize(address(superAsset), address(assetBank));
-
-        // Setup roles for each contract
-        bytes32 INCENTIVE_FUND_MANAGER = incentiveFund.INCENTIVE_FUND_MANAGER();
-
-        // Grant roles to manager and contracts
-        incentiveFund.grantRole(INCENTIVE_FUND_MANAGER, manager);
-        assetBank.grantRole(assetBank.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
-        superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
-        superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
-        superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
         vm.stopPrank();
 
         // Set up initial token balances for testing
@@ -217,23 +227,20 @@ contract IncentiveFundContractTest is Helpers {
     // --- Test: Initialization ---
     function test_Initialize() public view {
         assertEq(address(incentiveFund.superAsset()), address(superAsset));
-        assertEq(incentiveFund.assetBank(), address(assetBank));
+        // assertEq(incentiveFund.assetBank(), address(assetBank));
     }
 
     function test_Initialize_RevertIfAlreadyInitialized() public {
         vm.expectRevert(IIncentiveFundContract.ALREADY_INITIALIZED.selector);
-        incentiveFund.initialize(address(superAsset), address(assetBank));
+        incentiveFund.initialize(address(superGovernor), address(superAsset));
         vm.stopPrank();
     }
 
     function test_Initialize_RevertIfZeroAddress() public {
         vm.startPrank(admin);
-        IncentiveFundContract newContract = new IncentiveFundContract(admin);
+        IncentiveFundContract newContract = new IncentiveFundContract();
         vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
-        newContract.initialize(address(0), address(assetBank));
-
-        vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
-        newContract.initialize(address(superAsset), address(0));
+        newContract.initialize(address(0), address(superAsset));
         vm.stopPrank();
     }
 
@@ -241,18 +248,10 @@ contract IncentiveFundContractTest is Helpers {
     function test_OnlyAdminCanSetTokens() public {
         // Non-admin cannot set tokens
         vm.startPrank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.DEFAULT_ADMIN_ROLE()
-            )
-        );
+        vm.expectRevert(IIncentiveFundContract.UNAUTHORIZED.selector);
         incentiveFund.setTokenInIncentive(address(tokenIn));
 
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.DEFAULT_ADMIN_ROLE()
-            )
-        );
+        vm.expectRevert(IIncentiveFundContract.UNAUTHORIZED.selector);
         incentiveFund.setTokenOutIncentive(address(tokenOut));
         vm.stopPrank();
 
@@ -279,18 +278,14 @@ contract IncentiveFundContractTest is Helpers {
 
         // Non-manager cannot pay incentive
         vm.startPrank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.INCENTIVE_FUND_MANAGER()
-            )
-        );
+        vm.expectRevert(IIncentiveFundContract.UNAUTHORIZED.selector);
         incentiveFund.payIncentive(user, 100e18);
         vm.stopPrank();
 
         // Manager can pay incentive
         uint256 balanceBefore = tokenOut.balanceOf(user);
 
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         incentiveFund.payIncentive(user, 100e18);
         vm.stopPrank();
 
@@ -311,18 +306,14 @@ contract IncentiveFundContractTest is Helpers {
 
         // Non-manager cannot take incentive
         vm.startPrank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, incentiveFund.INCENTIVE_FUND_MANAGER()
-            )
-        );
+        vm.expectRevert(IIncentiveFundContract.UNAUTHORIZED.selector);
         incentiveFund.takeIncentive(user, 100e18);
         vm.stopPrank();
 
         // Manager can take incentive
         uint256 balanceBefore = tokenIn.balanceOf(user);
 
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         incentiveFund.takeIncentive(user, 100e18);
         vm.stopPrank();
 
@@ -338,7 +329,7 @@ contract IncentiveFundContractTest is Helpers {
         vm.stopPrank();
 
         // Manager pays incentive
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         vm.expectEmit(true, true, false, true);
         emit IncentivePaid(user, address(tokenOut), 100e18);
         incentiveFund.payIncentive(user, 100e18);
@@ -350,7 +341,7 @@ contract IncentiveFundContractTest is Helpers {
     }
 
     function test_PayIncentive_RevertIfNoTokenSet() public {
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         vm.expectRevert(IIncentiveFundContract.TOKEN_OUT_NOT_SET.selector);
         incentiveFund.payIncentive(user, 100e18);
         vm.stopPrank();
@@ -363,10 +354,13 @@ contract IncentiveFundContractTest is Helpers {
         vm.stopPrank();
 
         // Try to pay more than contract's balance
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         vm.expectRevert(
             abi.encodeWithSelector(
-                IERC20Errors.ERC20InsufficientBalance.selector, address(incentiveFund), 1000e18, 2000e18
+                IERC20Errors.ERC20InsufficientBalance.selector,
+                address(incentiveFund),  // account
+                1000e18,                 // current balance
+                2000e18                  // required amount
             )
         );
         incentiveFund.payIncentive(user, 2000e18);
@@ -385,7 +379,7 @@ contract IncentiveFundContractTest is Helpers {
         vm.stopPrank();
 
         // Manager takes incentive
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         vm.expectEmit(true, true, false, true);
         emit IncentiveTaken(user, address(tokenIn), 100e18);
         incentiveFund.takeIncentive(user, 100e18);
@@ -397,7 +391,7 @@ contract IncentiveFundContractTest is Helpers {
     }
 
     function test_TakeIncentive_RevertIfNoTokenSet() public {
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         vm.expectRevert(IIncentiveFundContract.TOKEN_IN_NOT_SET.selector);
         incentiveFund.takeIncentive(user, 100e18);
         vm.stopPrank();
@@ -410,9 +404,14 @@ contract IncentiveFundContractTest is Helpers {
         vm.stopPrank();
 
         // Try to take without approval
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         vm.expectRevert(
-            abi.encodeWithSelector(IERC20Errors.ERC20InsufficientAllowance.selector, address(incentiveFund), 0, 100e18)
+            abi.encodeWithSelector(
+                IERC20Errors.ERC20InsufficientAllowance.selector,
+                address(incentiveFund),  // spender
+                0,                       // allowance
+                100e18                   // needed
+            )
         );
         incentiveFund.takeIncentive(user, 100e18);
         vm.stopPrank();
@@ -430,7 +429,7 @@ contract IncentiveFundContractTest is Helpers {
         vm.stopPrank();
 
         // Try to take more than user's balance
-        vm.startPrank(manager);
+        vm.startPrank(admin);
         vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, user, 1000e18, 2000e18));
         incentiveFund.takeIncentive(user, 2000e18);
         vm.stopPrank();
