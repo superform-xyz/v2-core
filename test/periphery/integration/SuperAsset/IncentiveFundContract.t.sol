@@ -161,7 +161,7 @@ contract IncentiveFundContractTest is Helpers {
             incentiveCalculationContract: address(icc)
         });
 
-        factory = new SuperAssetFactory(address(superGovernor), address(icc));
+        factory = new SuperAssetFactory(address(superGovernor));
         console.log("SuperAssetFactory deployed");
         superGovernor.setAddress(superGovernor.SUPER_ASSET_FACTORY(), address(factory));
 

@@ -22,7 +22,7 @@ contract SuperAssetFactory is ISuperAssetFactory {
     address public immutable superAssetImplementation;
     address public immutable incentiveFundImplementation;
     // Single instances
-    address public immutable incentiveCalculationContract;
+    // address public immutable incentiveCalculationContract;
     address public immutable superGovernor;
 
     mapping(address superAsset => SuperAssetData data) public data;
@@ -30,7 +30,7 @@ contract SuperAssetFactory is ISuperAssetFactory {
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address _superGovernor, address _incentiveCalculationContract) {
+    constructor(address _superGovernor) {
         if (_superGovernor == address(0)) revert ZERO_ADDRESS();
         superGovernor = _superGovernor;
 
@@ -38,7 +38,7 @@ contract SuperAssetFactory is ISuperAssetFactory {
         incentiveFundImplementation = address(new IncentiveFundContract());
 
         // Deploy single instances
-        incentiveCalculationContract = _incentiveCalculationContract;
+        // incentiveCalculationContract = _incentiveCalculationContract;
     }
 
     /// @inheritdoc ISuperAssetFactory
@@ -113,7 +113,7 @@ contract SuperAssetFactory is ISuperAssetFactory {
         SuperAsset(superAsset).initialize(
             params.name,
             params.symbol,
-            incentiveCalculationContract, // Use single instance
+            params.incentiveCalculationContract, // Use single instance
             incentiveFund,
             superGovernor,
             params.swapFeeInPercentage,
@@ -135,7 +135,7 @@ contract SuperAssetFactory is ISuperAssetFactory {
         // incentiveCalc = incentiveCalculationContract;
 
         emit SuperAssetCreated(
-            superAsset, incentiveFund, incentiveCalculationContract, params.name, params.symbol
+            superAsset, incentiveFund, params.incentiveCalculationContract, params.name, params.symbol
         );
     }
 }
