@@ -159,6 +159,7 @@ contract SuperAssetTest is Helpers {
         factory = new SuperAssetFactory(address(superGovernor));
         console.log("Factory deployed");
         superGovernor.setAddress(superGovernor.SUPER_ASSET_FACTORY(), address(factory));
+        superGovernor.setAddress(superGovernor.SUPER_BANK(), address(1));
 
         // Grant roles
         superGovernor.grantRole(superGovernor.SUPER_GOVERNOR_ROLE(), admin);

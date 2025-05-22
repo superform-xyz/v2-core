@@ -164,6 +164,9 @@ contract IncentiveFundContractTest is Helpers {
         factory = new SuperAssetFactory(address(superGovernor));
         console.log("SuperAssetFactory deployed");
         superGovernor.setAddress(superGovernor.SUPER_ASSET_FACTORY(), address(factory));
+        
+        // TODO: Instantiate a real SuperBank
+        superGovernor.setAddress(superGovernor.SUPER_BANK(), address(1));
 
         console.log("SuperAssetFactory deployed");
         (address superAssetAddr, address incentiveFundAddr) = factory.createSuperAsset(params);

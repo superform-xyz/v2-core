@@ -304,9 +304,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Transfer swap fees to Asset Bank while holding the rest in the contract, since the full amount was already
         // transferred in the beginning of the function
         // TODO: Fix this by transfering money to SuperBank
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-        address icf = factory.getIncentiveFundContract(address(this));
-        IERC20(yieldSourceShare).safeTransfer(address(icf), swapFee);
+        
+        // ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        // address icf = factory.getIncentiveFundContract(address(this));
+        address superbank = _SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_BANK());
+        IERC20(yieldSourceShare).safeTransfer(superbank, swapFee);
 
         // Mint SuperUSD shares
         _mint(receiver, amountSharesMinted);
@@ -350,9 +352,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Transfer swap fees to Asset Bank
         // TODO: Fix this by transfering money to SuperBank
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-        address icf = factory.getIncentiveFundContract(address(this));
-        IERC20(tokenOut).safeTransfer(address(icf), swapFee);
+        // ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        // address icf = factory.getIncentiveFundContract(address(this));
+        address superbank = _SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_BANK());
+        IERC20(tokenOut).safeTransfer(superbank, swapFee);
 
         // Transfer assets to receiver
         // For now, assuming shares are held in this contract, maybe they will have to be held in another contract
