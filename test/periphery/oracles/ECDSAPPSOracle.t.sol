@@ -9,6 +9,7 @@ import { Test } from "forge-std/Test.sol";
 // Superform
 import { ISuperGovernor } from "../../../src/periphery/interfaces/ISuperGovernor.sol";
 import { SuperGovernor } from "../../../src/periphery/SuperGovernor.sol";
+import { SuperVaultAggregator } from "../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
 import { ISuperVaultAggregator } from "../../../src/periphery/interfaces/ISuperVaultAggregator.sol";
 import { ECDSAPPSOracle } from "../../../src/periphery/oracles/ECDSAPPSOracle.sol";
 import { IECDSAPPSOracle } from "../../../src/periphery/interfaces/IECDSAPPSOracle.sol";
@@ -25,13 +26,8 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
-    uint256 public validator1PrivateKey;
-    uint256 public validator2PrivateKey;
-    uint256 public validator3PrivateKey;
-
     // Test accounts
     address public user;
-    address public deployer;
     address public validator1;
     address public validator2;
     address public validator3;
@@ -42,19 +38,19 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
     uint256 public constant PPS = 1e18; // 1.0
     uint256 public constant PPS_STDEV = 1e16; // 0.01
 
-    ECDSAPPSOracle public oracle;
+    ECDSAPPSOracle public oracleECDSA;
+
+    SuperGovernor public governor;
+    SuperVaultAggregator public aggregatorSuperVault;
+
 
     function setUp() public override {
         super.setUp();
 
-        // Set up test accounts
-        deployer = _deployAccount(0x1, "Deployer");
+        // Set up test account
         user = _deployAccount(0x2, "User");
 
         // Create validators
-        validator1PrivateKey = 0x3;
-        validator2PrivateKey = 0x4;
-        validator3PrivateKey = 0x5;
         validator1 = _deployAccount(validator1PrivateKey, "Validator1");
         validator2 = _deployAccount(validator2PrivateKey, "Validator2");
         validator3 = _deployAccount(validator3PrivateKey, "Validator3");
@@ -65,27 +61,51 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         // Get the governor role to call validator-related functions
         governorAddress = _deployAccount(0x7, "GovernorRole");
 
-        // Create a new SuperGovernor specifically for these tests
-        superGovernor =
+        // Create a new governor specifically for these tests
+        governor =
             new SuperGovernor(governorAddress, governorAddress, governorAddress, TREASURY, CHAIN_1_POLYMER_PROVER);
 
-        // Create a new ECDSAPPSOracle with our custom SuperGovernor
-        oracle = new ECDSAPPSOracle(address(superGovernor));
+        aggregatorSuperVault = new SuperVaultAggregator(address(governor));
+
+        (address superVault_, address strategy_, address escrow_) = aggregatorSuperVault.createVault(
+            ISuperVaultAggregator.VaultCreationParams({
+                asset: address(asset),
+                name: "Test Vault",
+                symbol: "TV",
+                mainStrategist: address(mockStrategist),
+                vaultType: ISuperVaultAggregator.VaultType.SUPER_VAULT,
+                strategyType: ISuperVaultAggregator.StrategyType.SUPER_VAULT_STRATEGY,
+                escrowType: ISuperVaultAggregator.EscrowType.SUPER_VAULT_ESCROW
+            })
+        );
+
+        // Create a new ECDSAPPSOracle with our custom governor
+        oracleECDSA = new ECDSAPPSOracle(address(governor));
 
         vm.startPrank(governorAddress);
-        superGovernor.grantRole(superGovernor.GOVERNOR_ROLE(), governorAddress);
+        governor.grantRole(governor.GOVERNOR_ROLE(), governorAddress);
         vm.stopPrank();
 
         // Add validators (requires GOVERNOR_ROLE)
         vm.startPrank(governorAddress);
-        superGovernor.addValidator(validator1);
-        superGovernor.addValidator(validator2);
-        superGovernor.addValidator(validator3);
-        superGovernor.setPPSOracleQuorum(2); // Set quorum to 2 validators
+        governor.addValidator(validator1);
+        governor.addValidator(validator2);
+        governor.addValidator(validator3);
+        governor.setPPSOracleQuorum(2); // Set quorum to 2 validators
+
+        // Set the SuperVaultAggregator
+        governor.setAddress(governor.SUPER_VAULT_AGGREGATOR(), address(aggregator));
 
         // Set the active PPS Oracle
-        superGovernor.setActivePPSOracle(address(oracle));
+        governor.proposeActivePPSOracle(address(oracleECDSA));
+
+        vm.warp(block.timestamp + 8 days);
+        governor.executeActivePPSOracleChange();
+        
+        //governor.setActivePPSOracle(address(oracleECDSA));
         vm.stopPrank();
+
+        assertEq(governor.isActivePPSOracle(address(oracleECDSA)), true);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -93,7 +113,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
     //////////////////////////////////////////////////////////////*/
     function test_Constructor() public view {
         // Test that constructor sets up the contract correctly
-        assertEq(address(oracle.SUPER_GOVERNOR()), address(superGovernor));
+        assertEq(address(oracleECDSA.SUPER_GOVERNOR()), address(governor));
     }
 
     function test_Constructor_ZeroAddressReverts() public {
@@ -103,9 +123,11 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        UPDATEPPS TESTS
+                        UPDATE PPS TESTS
     //////////////////////////////////////////////////////////////*/
     function test_UpdatePPS_Success() public {
+        console.logBool(governor.isActivePPSOracle(address(oracleECDSA)));
+
         // Create valid proofs from multiple validators
         bytes[] memory proofs = _createValidProofs(
             address(strategy),
@@ -117,9 +139,8 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
             new uint256[](0)
         );
 
-        // Call updatePPS
-        vm.prank(user);
-        oracle.updatePPS(
+        //vm.prank(validator1);
+        oracleECDSA.updatePPS(
             IECDSAPPSOracle.UpdatePPSArgs({
                 strategy: address(strategy),
                 proofs: proofs,
@@ -154,7 +175,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         // Call should revert because one signer is not a validator
         vm.prank(user);
         vm.expectRevert(IECDSAPPSOracle.INVALID_VALIDATOR.selector);
-        oracle.updatePPS(
+        oracleECDSA.updatePPS(
             IECDSAPPSOracle.UpdatePPSArgs({
                 strategy: address(strategy),
                 proofs: proofs,
@@ -185,7 +206,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         // Call should revert because quorum is not met (we set quorum to 2 in setUp)
         vm.prank(user);
         vm.expectRevert(IECDSAPPSOracle.QUORUM_NOT_MET.selector);
-        oracle.updatePPS(
+        oracleECDSA.updatePPS(
             IECDSAPPSOracle.UpdatePPSArgs({
                 strategy: address(strategy),
                 proofs: proofs,
@@ -214,7 +235,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         // Call should revert because of duplicate signers
         vm.prank(user);
         vm.expectRevert(IECDSAPPSOracle.INVALID_PROOF.selector);
-        oracle.updatePPS(
+        oracleECDSA.updatePPS(
             IECDSAPPSOracle.UpdatePPSArgs({
                 strategy: address(strategy),
                 proofs: proofs,
@@ -242,7 +263,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         // Call should revert because validatorSet doesn't match proof count
         vm.prank(user);
         vm.expectRevert(IECDSAPPSOracle.VALIDATOR_COUNT_MISMATCH.selector);
-        oracle.updatePPS(
+        oracleECDSA.updatePPS(
             IECDSAPPSOracle.UpdatePPSArgs({
                 strategy: address(strategy),
                 proofs: proofs,
@@ -262,7 +283,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         // Call should revert because proofs array is empty
         vm.prank(user);
         vm.expectRevert(IECDSAPPSOracle.ZERO_LENGTH_ARRAY.selector);
-        oracle.updatePPS(
+        oracleECDSA.updatePPS(
             IECDSAPPSOracle.UpdatePPSArgs({
                 strategy: address(strategy),
                 proofs: proofs,
@@ -281,9 +302,9 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
 
         // For changing the oracle after first time, we need to use the timelock pattern
         vm.startPrank(governorAddress);
-        superGovernor.proposeActivePPSOracle(newOracle);
+        governor.proposeActivePPSOracle(newOracle);
         vm.warp(block.timestamp + 7 days);
-        superGovernor.executeActivePPSOracleChange();
+        governor.executeActivePPSOracleChange();
         vm.stopPrank();
 
         // Create valid proofs
@@ -300,7 +321,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         // Call should revert because this oracle is not the active one
         vm.prank(user);
         vm.expectRevert(IECDSAPPSOracle.NOT_ACTIVE_PPS_ORACLE.selector);
-        oracle.updatePPS(
+        oracleECDSA.updatePPS(
             IECDSAPPSOracle.UpdatePPSArgs({
                 strategy: address(strategy),
                 proofs: proofs,
@@ -355,7 +376,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
 
         // Call batchUpdatePPS
         vm.prank(user);
-        oracle.batchUpdatePPS(
+        oracleECDSA.batchUpdatePPS(
             IECDSAPPSOracle.BatchUpdatePPSArgs({
                 strategies: strategies,
                 proofsArray: proofsArray,
@@ -383,7 +404,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         // Call should revert because arrays are empty
         vm.prank(user);
         vm.expectRevert(IECDSAPPSOracle.ZERO_LENGTH_ARRAY.selector);
-        oracle.batchUpdatePPS(
+        oracleECDSA.batchUpdatePPS(
             IECDSAPPSOracle.BatchUpdatePPSArgs({
                 strategies: strategies,
                 proofsArray: proofsArray,
@@ -428,7 +449,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         // Call should revert because proofsArray length doesn't match strategies length
         vm.prank(user);
         vm.expectRevert(IECDSAPPSOracle.ARRAY_LENGTH_MISMATCH.selector);
-        oracle.batchUpdatePPS(
+        oracleECDSA.batchUpdatePPS(
             IECDSAPPSOracle.BatchUpdatePPSArgs({
                 strategies: strategies,
                 proofsArray: proofsArray,
@@ -482,7 +503,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         // Call should revert because validation fails on the second strategy
         vm.prank(user);
         vm.expectRevert(IECDSAPPSOracle.ZERO_LENGTH_ARRAY.selector);
-        oracle.batchUpdatePPS(
+        oracleECDSA.batchUpdatePPS(
             IECDSAPPSOracle.BatchUpdatePPSArgs({
                 strategies: strategies,
                 proofsArray: proofsArray,
@@ -499,66 +520,16 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
                         INTEGRATION TESTS
     //////////////////////////////////////////////////////////////*/
     function test_UpdateSuperVaultPPS_Integration() public {
-        address strategyAddr = address(strategy);
-        address vaultAddr = address(vault);
-
         // Set the VALIDATOR_KEY from the BaseSuperVaultTest as a valid validator
         vm.startPrank(governorAddress);
-        superGovernor.addValidator(vm.addr(VALIDATOR_KEY));
-        superGovernor.setPPSOracleQuorum(1); // Only need one validator
+        governor.addValidator(vm.addr(VALIDATOR_KEY));
+        governor.setPPSOracleQuorum(1); // Only need one validator
         vm.stopPrank();
 
         // Update the PPS using the helper function
-        uint256 updatedPPS = _updateSuperVaultPPS(strategyAddr, vaultAddr);
+        uint256 updatedPPS = _updateSuperVaultPPS(address(strategy), address(vault));
 
         // Test passes if no revert occurs
         assertGt(updatedPPS, 0, "PPS should be greater than 0");
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                          HELPER FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    function _createValidProofs(
-        address strategy,
-        uint256 pps,
-        uint256 ppsStdev,
-        uint256 validatorSet,
-        uint256 totalValidators,
-        uint256 timestamp,
-        uint256[] memory specificSignerKeys
-    )
-        internal
-        view
-        returns (bytes[] memory)
-    {
-        // Create message hash with all parameters
-        bytes32 messageHash =
-            keccak256(abi.encodePacked(strategy, pps, ppsStdev, validatorSet, totalValidators, timestamp));
-        bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
-
-        // If specific signer keys are provided, use them; otherwise, use default validators
-        uint256[] memory signerKeys;
-        if (specificSignerKeys.length > 0) {
-            signerKeys = specificSignerKeys;
-        } else {
-            // Use as many validators as needed based on validatorSet
-            signerKeys = new uint256[](validatorSet);
-
-            // Assign default validator keys based on the validatorSet count
-            for (uint256 i = 0; i < validatorSet; i++) {
-                if (i == 0) signerKeys[i] = validator1PrivateKey;
-                else if (i == 1) signerKeys[i] = validator2PrivateKey;
-                else if (i == 2) signerKeys[i] = validator3PrivateKey;
-            }
-        }
-
-        // Create proofs array
-        bytes[] memory proofs = new bytes[](signerKeys.length);
-        for (uint256 i = 0; i < signerKeys.length; i++) {
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKeys[i], ethSignedMessageHash);
-            proofs[i] = abi.encodePacked(r, s, v);
-        }
-
-        return proofs;
     }
 }
