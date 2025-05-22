@@ -10,6 +10,7 @@ import { console2 } from "forge-std/console2.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { MessageHashUtils } from "openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import { ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 
@@ -28,6 +29,7 @@ import { MerkleReader } from "../../../utils/merkle/helper/MerkleReader.sol";
 import { ISuperHookInspector } from "../../../../src/core/interfaces/ISuperHook.sol";
 
 contract BaseSuperVaultTest is MerkleReader, BaseTest {
+    using MessageHashUtils for bytes32;
     using ModuleKitHelpers for *;
     using Math for uint256;
 
@@ -66,6 +68,11 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
 
     // Track state for each user
     mapping(address user => SuperVaultState) private superVaultStates;
+
+    // Validator private keys
+    uint256 public validator1PrivateKey;
+    uint256 public validator2PrivateKey;
+    uint256 public validator3PrivateKey;
 
     function setUp() public virtual override {
         super.setUp();
@@ -107,7 +114,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         fluidVault = IERC4626(fluidVaultAddr);
         aaveVault = IERC4626(aaveVaultAddr);
 
-        // Deploy vault using the new _deployVault function
+        // Deploy vault using the _deployVault function
         (address vaultAddr, address strategyAddr, address escrowAddr) = _deployVault("SV_USDC");
 
         console2.log("\n-----------");
@@ -139,12 +146,15 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         );
 
         vm.stopPrank();
+
+        validator1PrivateKey = 0x20;
+        validator2PrivateKey = 0x30;
+        validator3PrivateKey = 0x40;
     }
 
     /*//////////////////////////////////////////////////////////////
                         INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
-
     /**
      * @notice Struct to hold local variables for _deployVault to avoid stack too deep errors
      */
@@ -1594,7 +1604,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
 
     /**
      * @notice Creates valid proofs for the ECDSAPPSOracle
-     * @param strategy The address of the strategy
+     * @param strategy_ The address of the strategy
      * @param pps The price per share
      * @param ppsStdev The standard deviation of the price per share
      * @param validatorSet The number of validators in the validator set
@@ -1604,7 +1614,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
      * @return proofs An array of valid proofs
      */
     function _createValidProofs(
-        address strategy,
+        address strategy_,
         uint256 pps,
         uint256 ppsStdev,
         uint256 validatorSet,
@@ -1618,7 +1628,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
     {
         // Create message hash with all parameters
         bytes32 messageHash =
-            keccak256(abi.encodePacked(strategy, pps, ppsStdev, validatorSet, totalValidators, timestamp));
+            keccak256(abi.encodePacked(strategy_, pps, ppsStdev, validatorSet, totalValidators, timestamp));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
 
         // If specific signer keys are provided, use them; otherwise, use default validators
