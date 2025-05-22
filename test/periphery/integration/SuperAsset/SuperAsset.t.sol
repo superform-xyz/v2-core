@@ -161,11 +161,9 @@ contract SuperAssetTest is Helpers {
         superGovernor.setAddress(superGovernor.SUPER_ASSET_FACTORY(), address(factory));
 
         // Grant roles
-        vm.startPrank(admin);
         superGovernor.grantRole(superGovernor.SUPER_GOVERNOR_ROLE(), admin);
         superGovernor.grantRole(superGovernor.GOVERNOR_ROLE(), admin);
         superGovernor.grantRole(superGovernor.BANK_MANAGER_ROLE(), admin);
-        vm.stopPrank();
         console.log("SuperGovernor Roles Granted");
 
         // Create SuperAsset using factory
@@ -180,8 +178,8 @@ contract SuperAssetTest is Helpers {
             incentiveCalculationContract: address(icc)
         });
 
-        vm.prank(admin);
         (address superAssetAddr, address incentiveFundAddr) = factory.createSuperAsset(params);
+        vm.stopPrank();
         console.log("SuperAsset and IncentiveFund deployed via factory");
         superAsset = SuperAsset(superAssetAddr);
         incentiveFund = IncentiveFundContract(incentiveFundAddr);
