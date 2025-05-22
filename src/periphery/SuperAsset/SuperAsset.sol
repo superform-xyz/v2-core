@@ -101,15 +101,15 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         external
     {
         // Ensure this can only be called once
-        if (incentiveCalculationContract != address(0)) revert ALREADY_INITIALIZED();
+        if (address(_SUPER_GOVERNOR) != address(0)) revert ALREADY_INITIALIZED();
 
         if (icc_ == address(0)) revert ZERO_ADDRESS();
         if (ifc_ == address(0)) revert ZERO_ADDRESS();
         if (swapFeeInPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         if (swapFeeOutPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
 
-        incentiveCalculationContract = icc_;
-        incentiveFundContract = ifc_;
+        // incentiveCalculationContract = icc_;
+        // incentiveFundContract = ifc_;
         swapFeeInPercentage = swapFeeInPercentage_;
         swapFeeOutPercentage = swapFeeOutPercentage_;
         

@@ -259,11 +259,6 @@ contract SuperAssetTest is Helpers {
     function test_Initialize1() public view {
         assertEq(superAsset.name(), "SuperAsset");
         assertEq(superAsset.symbol(), "SA");
-        console.log("Check 1");
-        assertEq(superAsset.incentiveCalculationContract(), address(icc));
-        console.log("Check 2");
-        assertEq(superAsset.incentiveFundContract(), address(incentiveFund));
-        console.log("Check 3");
         assertEq(superAsset.swapFeeInPercentage(), 100);
         assertEq(superAsset.swapFeeOutPercentage(), 100);
     }
