@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+pragma solidity 0.8.30;
 
 // testing
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
@@ -1545,9 +1545,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         // -- add it as a new yield source
         vm.startPrank(STRATEGIST);
-        strategy.manageYieldSource(
-            address(vars.newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true, false
-        );
+        strategy.manageYieldSource(address(vars.newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
         vm.stopPrank();
 
         vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));

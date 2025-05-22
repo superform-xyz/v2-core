@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 // external
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
@@ -43,6 +43,8 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
     address public deposit4626Hook;
     address public redeem4626Hook;
     uint256 public blockNumber;
+
+    bool public useRealOdosRouter;
 
     function setUp() public virtual {
         blockNumber != 0
@@ -96,5 +98,11 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
         approveHook = address(new ApproveERC20Hook());
         deposit4626Hook = address(new Deposit4626VaultHook());
         redeem4626Hook = address(new Redeem4626VaultHook());
+
+        useRealOdosRouter = false;
+    }
+
+    function _toggleUseRealOdosRouter(bool _useRealOdosRouter) public {
+        useRealOdosRouter = _useRealOdosRouter;
     }
 }

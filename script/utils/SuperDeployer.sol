@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 // external
 import { CREATE3 } from "@solady/src/utils/CREATE3.sol";

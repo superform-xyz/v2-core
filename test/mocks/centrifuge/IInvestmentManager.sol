@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 
 import { IMessageHandler } from "./IMessageHandler.sol";
 import { IRecoverable } from "./IRecoverable.sol";

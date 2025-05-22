@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 import "@openzeppelin/contracts/utils/Strings.sol";
 
@@ -13,10 +13,13 @@ abstract contract BaseAPIParser {
 
     function fromHex(string memory s) public pure returns (bytes memory) {
         bytes memory ss = bytes(s);
-        require(ss.length >= 2 && ss[0] == "0" && (ss[1] == "x" || ss[1] == "X"), "BaseAPIParser: hex string must start with 0x");
+        require(
+            ss.length >= 2 && ss[0] == "0" && (ss[1] == "x" || ss[1] == "X"),
+            "BaseAPIParser: hex string must start with 0x"
+        );
 
         bytes memory r = new bytes((ss.length - 2) / 2);
-        for (uint i = 0; i < r.length; ++i) {
+        for (uint256 i = 0; i < r.length; ++i) {
             r[i] = bytes1(_fromHexChar(uint8(ss[2 * i + 2])) * 16 + _fromHexChar(uint8(ss[2 * i + 3])));
         }
         return r;
@@ -34,6 +37,4 @@ abstract contract BaseAPIParser {
         }
         revert("BaseAPIParser: invalid hex char");
     }
-
 }
-

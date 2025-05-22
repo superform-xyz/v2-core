@@ -1,31 +1,27 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { BytesLib } from "../../../src/vendor/BytesLib.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {BytesLib} from "../../../src/vendor/BytesLib.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
-import { BaseClaimRewardHook } from "../../../src/core/hooks/claim/BaseClaimRewardHook.sol";
+import {BaseHook} from "../../../src/core/hooks/BaseHook.sol";
+import {BaseClaimRewardHook} from "../../../src/core/hooks/claim/BaseClaimRewardHook.sol";
 
-import { IYearnStakingRewardsMulti } from "../../../src/vendor/yearn/IYearnStakingRewardsMulti.sol";
+import {IYearnStakingRewardsMulti} from "../../../src/vendor/yearn/IYearnStakingRewardsMulti.sol";
 
 //TODO: We might need to add a non-transient option
 //      The following hook claims an array of rewards tokens
 //      How we store those to be used in the `postExecute` is the question?
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
 contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook {
-    constructor() BaseHook(HookType.NONACCOUNTING, "Claim") { }
+    constructor() BaseHook(HookType.NONACCOUNTING, "Claim") {}
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
-        address,
-        address,
-        bytes memory data
-    )
+    function build(address, address, bytes memory data)
         external
         pure
         override
@@ -40,7 +36,7 @@ contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata) internal override { }
+    function _preExecute(address, address, bytes calldata) internal override {}
 
-    function _postExecute(address, address, bytes calldata) internal override { }
+    function _postExecute(address, address, bytes calldata) internal override {}
 }

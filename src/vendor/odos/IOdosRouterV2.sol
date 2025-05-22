@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 interface IOdosRouterV2 {
     struct swapTokenInfo {
@@ -24,12 +24,7 @@ interface IOdosRouterV2 {
     /// @param pathDefinition Encoded path definition for executor
     /// @param executor Address of contract that will execute the path
     /// @param referralCode referral code to specify the source of the swap
-    function swap(
-        swapTokenInfo memory tokenInfo,
-        bytes calldata pathDefinition,
-        address executor,
-        uint32 referralCode
-    )
+    function swap(swapTokenInfo memory tokenInfo, bytes calldata pathDefinition, address executor, uint32 referralCode)
         external
         payable
         returns (uint256 amountOut);
@@ -46,9 +41,7 @@ interface IOdosRouterV2 {
         bytes calldata pathDefinition,
         address executor,
         uint32 referralCode
-    )
-        external
-        returns (uint256 amountOut);
+    ) external returns (uint256 amountOut);
 
     /// @notice Custom decoder to swap with compact calldata for efficient execution on L2s
     function swapCompact() external payable returns (uint256);

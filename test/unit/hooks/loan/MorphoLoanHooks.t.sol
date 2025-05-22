@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Helpers } from "../../../utils/Helpers.sol";
-import { MockERC20 } from "../../../mocks/MockERC20.sol";
-import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
-import { IOracle } from "../../../../src/vendor/morpho/IOracle.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
-import { SharesMathLib } from "../../../../src/vendor/morpho/SharesMathLib.sol";
-import { Id, IMorpho, MarketParams, Market } from "../../../../src/vendor/morpho/IMorpho.sol";
-import { MarketParamsLib } from "../../../../src/vendor/morpho/MarketParamsLib.sol";
+import {Helpers} from "../../../utils/Helpers.sol";
+import {MockERC20} from "../../../mocks/MockERC20.sol";
+import {BaseHook} from "../../../../src/core/hooks/BaseHook.sol";
+import {IOracle} from "../../../../src/vendor/morpho/IOracle.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {ISuperHook} from "../../../../src/core/interfaces/ISuperHook.sol";
+import {SharesMathLib} from "../../../../src/vendor/morpho/SharesMathLib.sol";
+import {Id, IMorpho, MarketParams, Market} from "../../../../src/vendor/morpho/IMorpho.sol";
+import {MarketParamsLib} from "../../../../src/vendor/morpho/MarketParamsLib.sol";
 
 // Hooks
-import { BaseLoanHook } from "../../../../src/core/hooks/loan/BaseLoanHook.sol";
-import { MorphoRepayAndWithdrawHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
-import { MorphoRepayHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
-import { MorphoBorrowHook } from "../../../../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import {BaseLoanHook} from "../../../../src/core/hooks/loan/BaseLoanHook.sol";
+import {MorphoRepayAndWithdrawHook} from "../../../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
+import {MorphoRepayHook} from "../../../../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
+import {MorphoBorrowHook} from "../../../../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
 
 contract MockOracle is IOracle {
     function price() external pure returns (uint256) {
@@ -102,8 +102,6 @@ contract MorphoLoanHooksTest is Helpers {
         mockCollateralToken = new MockERC20("Collateral Token", "COLL", 18);
         collateralToken = address(mockCollateralToken);
     }
-
-   
 
     function test_Constructors() public view {
         assertEq(address(borrowHook.morpho()), address(mockMorpho));
@@ -325,7 +323,6 @@ contract MorphoLoanHooksTest is Helpers {
         assertGt(executions[4].callData.length, 0);
     }
 
-    
     function test_RepayAndWithdrawHook_Inspector() public view {
         bytes memory data = _encodeRepayAndWithdrawData(false, false);
         bytes memory argsEncoded = repayAndWithdrawHook.inspect(data);
@@ -635,6 +632,7 @@ contract MorphoLoanHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                         BASE LOAN HOOK
     //////////////////////////////////////////////////////////////*/
+
     function test_DecodeUsePrevHookAmount() public view {
         bytes memory data = _encodeRepayData(false, false);
         assertEq(repayHook.decodeUsePrevHookAmount(data), false);

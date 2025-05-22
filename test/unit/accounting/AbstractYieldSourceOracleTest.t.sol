@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Helpers } from "../../utils/Helpers.sol";
-import { AbstractYieldSourceOracle } from "../../../src/core/accounting/oracles/AbstractYieldSourceOracle.sol";
-import { IYieldSourceOracle } from "../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
-import { MockERC20 } from "../../mocks/MockERC20.sol";
+import {Helpers} from "../../utils/Helpers.sol";
+import {AbstractYieldSourceOracle} from "../../../src/core/accounting/oracles/AbstractYieldSourceOracle.sol";
+import {IYieldSourceOracle} from "../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
+import {MockERC20} from "../../mocks/MockERC20.sol";
 
 contract MockYieldSourceOracle is AbstractYieldSourceOracle {
     MockERC20 public mockAsset;
@@ -48,10 +48,7 @@ contract MockYieldSourceOracle is AbstractYieldSourceOracle {
         return true;
     }
 
-    function isValidUnderlyingAssets(
-        address[] memory,
-        address[] memory
-    )
+    function isValidUnderlyingAssets(address[] memory, address[] memory)
         external
         pure
         override

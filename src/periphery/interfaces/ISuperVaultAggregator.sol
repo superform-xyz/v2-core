@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 
 import { EnumerableSet } from "openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
 import { ISuperVaultStrategy } from "../interfaces/ISuperVaultStrategy.sol";
@@ -12,6 +12,26 @@ interface ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                                  STRUCTS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Arguments for forwarding PPS updates to avoid stack too deep errors
+    /// @param strategy Address of the strategy being updated
+    /// @param isExempt Whether the update is exempt from paying upkeep
+    /// @param pps New price-per-share value
+    /// @param ppsStdev Standard deviation of the price-per-share
+    /// @param validatorSet Number of validators who calculated this PPS
+    /// @param totalValidators Total number of validators in the network
+    /// @param timestamp Timestamp when the value was generated
+    /// @param upkeepCost Amount of upkeep tokens to charge if not exempt
+    struct ForwardPPSArgs {
+        address strategy;
+        bool isExempt;
+        uint256 pps;
+        uint256 ppsStdev;
+        uint256 validatorSet;
+        uint256 totalValidators;
+        uint256 timestamp;
+        uint256 upkeepCost;
+    }
+
     /// @notice Strategy configuration and state data
     /// @param pps Current price-per-share value
     /// @param lastUpdateTimestamp Last time PPS was updated
@@ -23,6 +43,7 @@ interface ISuperVaultAggregator {
     /// @param authorizedCallers List of callers authorized to update PPS without paying upkeep
     struct StrategyData {
         uint256 pps;
+        uint256 ppsStdev;
         uint256 lastUpdateTimestamp;
         uint256 minUpdateInterval;
         uint256 maxStaleness;
@@ -41,6 +62,10 @@ interface ISuperVaultAggregator {
         uint256 hooksRootEffectiveTime;
         // Veto status
         bool hooksRootVetoed;
+        // PPS Verification thresholds
+        uint256 dispersionThreshold; // Threshold for standard deviation / mean
+        uint256 deviationThreshold; // Threshold for abs(new - current) / current
+        uint256 mnThreshold; // Threshold for validatorSet / totalValidators
     }
 
     /// @notice Parameters for creating a new SuperVault trio
@@ -78,8 +103,18 @@ interface ISuperVaultAggregator {
     /// @notice Emitted when a PPS value is updated
     /// @param strategy Address of the strategy
     /// @param pps New price-per-share value
+    /// @param ppsStdev Standard deviation of price-per-share value
+    /// @param validatorSet Number of validators who calculated this PPS
+    /// @param totalValidators Total number of validators in the network
     /// @param timestamp Timestamp of the update
-    event PPSUpdated(address indexed strategy, uint256 pps, uint256 timestamp);
+    event PPSUpdated(
+        address indexed strategy,
+        uint256 pps,
+        uint256 ppsStdev,
+        uint256 validatorSet,
+        uint256 totalValidators,
+        uint256 timestamp
+    );
 
     /// @notice Emitted when a strategy is paused due to missed updates
     /// @param strategy Address of the paused strategy
@@ -88,6 +123,11 @@ interface ISuperVaultAggregator {
     /// @notice Emitted when a strategy is unpaused
     /// @param strategy Address of the unpaused strategy
     event StrategyUnpaused(address indexed strategy);
+
+    /// @notice Emitted when a strategy validation check fails but execution continues
+    /// @param strategy Address of the strategy that failed the check
+    /// @param reason String description of which check failed
+    event StrategyCheckFailed(address indexed strategy, string reason);
 
     /// @notice Emitted when upkeep tokens are deposited
     /// @param strategist Address of the strategist
@@ -190,11 +230,20 @@ interface ISuperVaultAggregator {
     /// @param root The root value affected
     event GlobalHooksRootVetoStatusChanged(bool vetoed, bytes32 indexed root);
 
-    /// @notice Emitted when a proposed strategy hooks root update is vetoed by SuperGovernor
-    /// @param strategy Address of the strategy affected
+    /// @notice Emitted when a strategy's hooks Merkle root veto status changes
+    /// @param strategy Address of the strategy
     /// @param vetoed Whether the root is being vetoed (true) or unvetoed (false)
     /// @param root The root value affected
     event StrategyHooksRootVetoStatusChanged(address indexed strategy, bool vetoed, bytes32 indexed root);
+
+    /// @notice Emitted when a strategy's PPS verification thresholds are updated
+    /// @param strategy Address of the strategy
+    /// @param dispersionThreshold New dispersion threshold (stddev/mean)
+    /// @param deviationThreshold New deviation threshold (abs diff/current)
+    /// @param mnThreshold New M/N threshold (validatorSet/totalValidators)
+    event PPSVerificationThresholdsUpdated(
+        address indexed strategy, uint256 dispersionThreshold, uint256 deviationThreshold, uint256 mnThreshold
+    );
 
     /// @notice Emitted when a proposed global hooks root update is vetoed by a guardian
     /// @param guardian Address of the guardian who vetoed the update
@@ -282,21 +331,28 @@ interface ISuperVaultAggregator {
     //////////////////////////////////////////////////////////////*/
     /// @notice Forwards a validated PPS update from a trusted oracle
     /// @param updateAuthority Address that initiated the update (for upkeep tracking for single updates)
-    /// @param strategy Address of the strategy to update
-    /// @param pps New price-per-share value
-    /// @param timestamp Timestamp when this value was generated
-    function forwardPPS(address updateAuthority, address strategy, uint256 pps, uint256 timestamp) external;
+    /// @param args Struct containing all PPS update parameters
+    function forwardPPS(address updateAuthority, ForwardPPSArgs calldata args) external;
 
-    /// @notice Forwards multiple validated PPS updates from a trusted oracle
-    /// @param strategies Array of strategy addresses to update
-    /// @param ppss Array of new price-per-share values
+    /// @notice Arguments for batch forwarding PPS updates
+    /// @param strategies Array of strategy addresses
+    /// @param ppss Array of price-per-share values
+    /// @param ppsStdevs Array of standard deviations of price-per-share values
+    /// @param validatorSets Array of numbers of validators who calculated each PPS
+    /// @param totalValidators Total number of validators in the network
     /// @param timestamps Array of timestamps when values were generated
-    function batchForwardPPS(
-        address[] calldata strategies,
-        uint256[] calldata ppss,
-        uint256[] calldata timestamps
-    )
-        external;
+    struct BatchForwardPPSArgs {
+        address[] strategies;
+        uint256[] ppss;
+        uint256[] ppsStdevs;
+        uint256[] validatorSets;
+        uint256[] totalValidators;
+        uint256[] timestamps;
+    }
+
+    /// @notice Batch forwards validated PPS updates to multiple strategies
+    /// @param args Struct containing all batch PPS update parameters
+    function batchForwardPPS(BatchForwardPPSArgs calldata args) external;
 
     /*//////////////////////////////////////////////////////////////
                         UPKEEP MANAGEMENT
@@ -386,10 +442,23 @@ interface ISuperVaultAggregator {
     function setGlobalHooksRootVetoStatus(bool vetoed) external;
 
     /// @notice Set veto status for a strategy-specific hooks root
-    /// @dev Only callable by SuperGovernor
-    /// @param strategy Address of the strategy to affect
-    /// @param vetoed Whether to veto (true) or unveto (false) the strategy hooks root
+    /// @notice Sets the veto status of a strategy's hooks Merkle root
+    /// @param strategy Address of the strategy
+    /// @param vetoed Whether to veto (true) or unveto (false)
     function setStrategyHooksRootVetoStatus(address strategy, bool vetoed) external;
+
+    /// @notice Updates the PPS verification thresholds for a strategy
+    /// @param strategy Address of the strategy
+    /// @param dispersionThreshold_ New dispersion threshold (stddev/mean ratio, scaled by 1e18)
+    /// @param deviationThreshold_ New deviation threshold (abs diff/current ratio, scaled by 1e18)
+    /// @param mnThreshold_ New M/N threshold (validatorSet/totalValidators ratio, scaled by 1e18)
+    function updatePPSVerificationThresholds(
+        address strategy,
+        uint256 dispersionThreshold_,
+        uint256 deviationThreshold_,
+        uint256 mnThreshold_
+    )
+        external;
 
     /// @notice Check if the global hooks root is currently vetoed
     /// @return vetoed True if the global hooks root is vetoed
@@ -409,6 +478,12 @@ interface ISuperVaultAggregator {
     /// @return pps Current price-per-share value
     function getPPS(address strategy) external view returns (uint256 pps);
 
+    /// @notice Gets the current PPS and its standard deviation for a strategy
+    /// @param strategy Address of the strategy
+    /// @return pps Current price-per-share value
+    /// @return ppsStdev Standard deviation of price-per-share value
+    function getPPSWithStdDev(address strategy) external view returns (uint256 pps, uint256 ppsStdev);
+
     /// @notice Gets the last update timestamp for a strategy's PPS
     /// @param strategy Address of the strategy
     /// @return timestamp Last update timestamp
@@ -423,6 +498,16 @@ interface ISuperVaultAggregator {
     /// @param strategy Address of the strategy
     /// @return staleness Maximum time allowed between updates
     function getMaxStaleness(address strategy) external view returns (uint256 staleness);
+
+    /// @notice Gets the PPS verification thresholds for a strategy
+    /// @param strategy Address of the strategy
+    /// @return dispersionThreshold The current dispersion threshold (stddev/mean ratio, scaled by 1e18)
+    /// @return deviationThreshold The current deviation threshold (abs diff/current ratio, scaled by 1e18)
+    /// @return mnThreshold The current M/N threshold (validatorSet/totalValidators ratio, scaled by 1e18)
+    function getPPSVerificationThresholds(address strategy)
+        external
+        view
+        returns (uint256 dispersionThreshold, uint256 deviationThreshold, uint256 mnThreshold);
 
     /// @notice Checks if a strategy is currently paused
     /// @param strategy Address of the strategy

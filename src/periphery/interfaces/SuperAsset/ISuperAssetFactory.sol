@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 
 /**
  * @title ISuperAssetFactory
@@ -28,14 +28,9 @@ interface ISuperAssetFactory {
      * @return incentiveFund Address of the deployed IncentiveFundContract
      * @return incentiveCalc Address of the deployed IncentiveCalculationContract
      */
-    function createSuperAsset(AssetCreationParams calldata params) 
-        external 
-        returns (
-            address superAsset,
-            address assetBank,
-            address incentiveFund,
-            address incentiveCalc
-        );
+    function createSuperAsset(AssetCreationParams calldata params)
+        external
+        returns (address superAsset, address assetBank, address incentiveFund, address incentiveCalc);
 
     // --- Events ---
     /**

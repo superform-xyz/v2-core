@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 // Tests
 import { BaseTest } from "../BaseTest.t.sol";
@@ -143,6 +143,7 @@ contract CrosschainTests is BaseTest {
     uint256 public CHAIN_1_TIMESTAMP;
     uint256 public CHAIN_10_TIMESTAMP;
     uint256 public CHAIN_8453_TIMESTAMP;
+
     function setUp() public override {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
@@ -1803,10 +1804,8 @@ contract CrosschainTests is BaseTest {
 
         // BASE IS DST
         SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP + 1 days);
-        // Transfer users USDC to this contract so that balance checks are correct
-        uint256 amountToRemove = IERC20(underlyingBase_USDC).balanceOf(accountBase);
-        vm.prank(accountBase);
-        IERC20(underlyingBase_USDC).transfer(address(this), amountToRemove);
+        // Remove token from account for balance checks
+        deal(underlyingBase_USDC, accountBase, 0);
 
         bytes memory targetExecutorMessage;
         TargetExecutorMessage memory messageData;

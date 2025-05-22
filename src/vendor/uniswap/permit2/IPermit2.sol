@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { ISignatureTransfer } from "./ISignatureTransfer.sol";
-import { IAllowanceTransfer } from "./IAllowanceTransfer.sol";
+import {ISignatureTransfer} from "./ISignatureTransfer.sol";
+import {IAllowanceTransfer} from "./IAllowanceTransfer.sol";
 
 /// @notice Permit2 handles signature-based transfers in SignatureTransfer and allowance-based transfers in
 /// AllowanceTransfer.

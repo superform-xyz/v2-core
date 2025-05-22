@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity =0.8.28;
+pragma solidity 0.8.30;
 
-import { ERC20 } from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { IERC20Metadata } from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
-import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import {ERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
+import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import {IERC20Metadata} from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
+import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
+import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 
 /**
  * @title RuggableConvertVault
@@ -27,13 +27,7 @@ contract RuggableConvertVault is ERC20, IERC4626 {
     // Events for testing
     event RugPull(string action, address user, uint256 realAmount, uint256 reportedAmount);
 
-    constructor(
-        IERC20 asset_,
-        string memory name_,
-        string memory symbol_,
-        uint256 rugPercentage_,
-        bool rugEnabled_
-    )
+    constructor(IERC20 asset_, string memory name_, string memory symbol_, uint256 rugPercentage_, bool rugEnabled_)
         ERC20(name_, symbol_)
     {
         _asset = asset_;

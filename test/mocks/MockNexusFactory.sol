@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 contract MockNexusFactory {
     address public precomputed;
-    constructor (address _acc) {
+
+    constructor(address _acc) {
         precomputed = _acc;
     }
 

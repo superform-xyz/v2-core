@@ -10,7 +10,7 @@ optimizer = true
 optimizer_runs = 200
 out = "out"
 script = "script"
-solc = "0.8.28"
+solc = "0.8.30"
 src = "src"
 test = "test"
 cbor_metadata = true
@@ -61,6 +61,6 @@ wrap_comments = true
 path = "test/mocks/TransientStorageExecutor.sol"
 
 [etherscan]
-ethereum = { key = "${TENDERLY_ACCESS_KEY}", chain = 101, url = "${ETH_MAINNET}/verify/etherscan" }
-base = { key = "${TENDERLY_ACCESS_KEY}", chain = 102, url = "${BASE_MAINNET}/verify/etherscan" }
-optimism = { key = "${TENDERLY_ACCESS_KEY}", chain = 103, url = "${OPTIMISM_MAINNET}/verify/etherscan" }
+11155111 = {key = "${ETHERSCANV2_API_KEY_TEST}"}
+11155420 = {key = "${ETHERSCANV2_API_KEY_TEST}"}
+84532 = {key = "${ETHERSCANV2_API_KEY_TEST}"}

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { ApproveAndFluidStakeHook } from "../../../../../src/core/hooks/stake/fluid/ApproveAndFluidStakeHook.sol";
-import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
-import { MockERC20 } from "../../../../mocks/MockERC20.sol";
-import { MockHook } from "../../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { Helpers } from "../../../../utils/Helpers.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {ApproveAndFluidStakeHook} from "../../../../../src/core/hooks/stake/fluid/ApproveAndFluidStakeHook.sol";
+import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
+import {MockERC20} from "../../../../mocks/MockERC20.sol";
+import {MockHook} from "../../../../mocks/MockHook.sol";
+import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
+import {Helpers} from "../../../../utils/Helpers.sol";
 
 contract ApproveAndFluidStakeHookTest is Helpers {
     ApproveAndFluidStakeHook public hook;

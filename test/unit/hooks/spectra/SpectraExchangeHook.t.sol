@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity 0.8.28;
+pragma solidity >=0.8.30;
 
 import { Helpers } from "../../../utils/Helpers.sol";
 import { SpectraExchangeHook } from "../../../../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
@@ -22,9 +22,9 @@ contract SpectraExchangeHookTest is Helpers {
     address public account;
 
     function setUp() public {
-        router = new MockSpectraRouter();
-        hook = new SpectraExchangeHook(address(router));
         token = new MockERC20("Test Token", "TEST", 18);
+        router = new MockSpectraRouter(address(token));
+        hook = new SpectraExchangeHook(address(router));
         account = address(this);
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, address(token));
@@ -124,7 +124,6 @@ contract SpectraExchangeHookTest is Helpers {
         assertEq(executions[0].target, address(router));
         assertEq(executions[0].value, 0);
     }
-
 
     function test_DepositAssetInIBT_Inspector() public view {
         bytes memory commandsData = new bytes(1);

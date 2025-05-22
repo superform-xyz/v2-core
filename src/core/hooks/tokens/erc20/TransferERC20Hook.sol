@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {BytesLib} from "../../../../vendor/BytesLib.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
-import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {BaseHook} from "../../BaseHook.sol";
+import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
+import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
 
 /// @title TransferERC20Hook
 /// @author Superform Labs
@@ -21,17 +21,13 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 contract TransferERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
 
-    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) {}
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
 
-    function build(
-        address prevHook,
-        address,
-        bytes memory data
-    )
+    function build(address prevHook, address, bytes memory data)
         external
         view
         override
@@ -51,7 +47,7 @@ contract TransferERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspec
 
         // @dev no-revert-on-failure tokens are not supported
         executions = new Execution[](1);
-        executions[0] = Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.transfer, (to, amount)) });
+        executions[0] = Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.transfer, (to, amount))});
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -64,7 +60,7 @@ contract TransferERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspec
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns(bytes memory) {
+    function inspect(bytes calldata data) external pure returns (bytes memory) {
         return abi.encodePacked(
             BytesLib.toAddress(data, 0), //token
             BytesLib.toAddress(data, 20) //to

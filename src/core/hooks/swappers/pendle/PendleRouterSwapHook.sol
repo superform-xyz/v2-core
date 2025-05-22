@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
@@ -8,7 +8,12 @@ import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookContextAware,
+    ISuperHookInspector
+} from "../../../interfaces/ISuperHook.sol";
 import {
     IPendleRouterV4,
     ApproxParams,
@@ -96,21 +101,15 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns(bytes memory) {
+    function inspect(bytes calldata data) external pure returns (bytes memory) {
         bytes calldata txData_ = data[57:];
         bytes4 selector = bytes4(txData_[0:4]);
 
         bytes memory packed;
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
             // skip selector
-            (
-                address receiver,
-                address market,
-                ,
-                ,
-                TokenInput memory input,
-                LimitOrderData memory limit
-            ) = abi.decode(txData_[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+            (address receiver, address market,,, TokenInput memory input, LimitOrderData memory limit) =
+                abi.decode(txData_[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
 
             packed = abi.encodePacked(
                 data.extractYieldSource(),
@@ -122,7 +121,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
                 input.swapData.extRouter,
                 limit.limitRouter
             );
-            
+
             uint256 normalFillsLen = limit.normalFills.length;
             for (uint256 i; i < normalFillsLen; i++) {
                 packed = abi.encodePacked(
@@ -143,18 +142,11 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
                     limit.flashFills[i].order.receiver
                 );
             }
-
-            
         } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
             // skip selector
-            (
-                address receiver,
-                address market,
-                ,
-                TokenOutput memory output,
-                LimitOrderData memory limit
-            ) = abi.decode(txData_[4:], (address, address, uint256, TokenOutput, LimitOrderData));
-            
+            (address receiver, address market,, TokenOutput memory output, LimitOrderData memory limit) =
+                abi.decode(txData_[4:], (address, address, uint256, TokenOutput, LimitOrderData));
+
             packed = abi.encodePacked(
                 data.extractYieldSource(),
                 receiver,
@@ -215,7 +207,6 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
         view
         returns (bytes memory updatedTxData)
     {
-        // todo: this requires optimization so we don't do abi.encodeWithSelector but rather abi.encodePacked
         bytes4 selector = bytes4(data[0:4]);
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
             // skip selector

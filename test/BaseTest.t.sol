@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 import { Helpers } from "./utils/Helpers.sol";
 
@@ -321,7 +321,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     address public mockBaseHook;
 
     bool public useLatestFork = false;
-    bool public useRealOdosRouter = true;
+    bool public useRealOdosRouter = false;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -1202,23 +1202,25 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
-            
+
             // Generate Merkle tree with the actual deployed hook addresses
             // This is critical for coverage tests where addresses may differ
             string[] memory cmd = new string[](3);
             cmd[0] = "node";
             cmd[1] = "test/utils/merkle/merkle-js/build-hook-merkle-trees.js";
             cmd[2] = string.concat(
-                vm.toString(address(A[i].approveAndRedeem4626VaultHook)), ",",
-                vm.toString(address(A[i].approveAndDeposit4626VaultHook)), ",",
+                vm.toString(address(A[i].approveAndRedeem4626VaultHook)),
+                ",",
+                vm.toString(address(A[i].approveAndDeposit4626VaultHook)),
+                ",",
                 vm.toString(address(A[i].redeem4626VaultHook))
             );
-            
+
             if (DEBUG) {
                 console2.log("Regenerating Merkle tree with actual hook addresses:");
                 console2.log(cmd[2]);
             }
-            
+
             vm.ffi(cmd);
         }
 

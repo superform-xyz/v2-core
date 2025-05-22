@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 import { IVaultBank } from "src/periphery/interfaces/IVaultBank.sol";
 import { BytesLib } from "src/vendor/BytesLib.sol";

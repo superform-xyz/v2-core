@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 interface IDeBridgeGate {
     /* ========== STRUCTS ========== */
@@ -95,11 +95,7 @@ interface IDeBridgeGate {
     /// @param _dstChainId ID of the destination chain.
     /// @param _targetContractAddress A contract address to be called on the destination chain
     /// @param _targetContractCalldata Calldata to execute against the target contract on the destination chain
-    function sendMessage(
-        uint256 _dstChainId,
-        bytes memory _targetContractAddress,
-        bytes memory _targetContractCalldata
-    )
+    function sendMessage(uint256 _dstChainId, bytes memory _targetContractAddress, bytes memory _targetContractCalldata)
         external
         payable
         returns (bytes32 submissionId);
@@ -125,10 +121,7 @@ interface IDeBridgeGate {
         bytes memory _targetContractCalldata,
         uint256 _flags,
         uint32 _referralCode
-    )
-        external
-        payable
-        returns (bytes32 submissionId);
+    ) external payable returns (bytes32 submissionId);
 
     /// @dev This method is used for the transfer of assets [from the native
     /// chain](https://docs.debridge.finance/the-core-protocol/transfers#transfer-from-native-chain).
@@ -151,10 +144,7 @@ interface IDeBridgeGate {
         bool _useAssetFee,
         uint32 _referralCode,
         bytes calldata _autoParams
-    )
-        external
-        payable
-        returns (bytes32 submissionId);
+    ) external payable returns (bytes32 submissionId);
 
     /// @dev Is used for transfers [into the native
     /// chain](https://docs.debridge.finance/the-core-protocol/transfers#transfer-from-secondary-chain-to-native-chain)
@@ -174,8 +164,7 @@ interface IDeBridgeGate {
         uint256 _nonce,
         bytes calldata _signatures,
         bytes calldata _autoParams
-    )
-        external;
+    ) external;
 
     /// @dev Withdraw collected fees to feeProxy
     /// @param _debridgeId Asset identifier.

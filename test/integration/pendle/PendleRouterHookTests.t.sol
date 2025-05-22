@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity >=0.8.30;
 
 // Tests
-
 import { UserOpData } from "modulekit/ModuleKit.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { MockPendleRouter } from "../../mocks/MockPendleRouter.sol";
+import { MockPendleMarket } from "../../mocks/MockPendleMarket.sol";
 import { IPendleMarket } from "../../../src/vendor/pendle/IPendleMarket.sol";
 import { IPendleRouterV4, TokenInput, SwapData, SwapType } from "../../../src/vendor/pendle/IPendleRouterV4.sol";
 import { PendleRouterRedeemHook } from "../../../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
@@ -35,115 +37,258 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
     IERC20 public yt_eUSDe;
     IERC20 public pt_eUSDe;
 
+    MockPendleRouter public pendleRouterMock;
+    MockPendleMarket public pendleMarketMock;
+
     uint256 public constant expiry = 22_411_332;
 
-    PendleRouterRedeemHook public pendleredeemHook;
+    PendleRouterRedeemHook public pendleRedeemHook;
 
     function setUp() public override {
         blockNumber = 0;
         super.setUp();
 
-        // Token Out = Token Redeem Sy = Ethena USDe
-        eUSDe = IERC20(0x4c9EDD5852cd905f086C759E8383e09bff1E68B3);
+        if (useRealOdosRouter) {
+            // Token Out = Token Redeem Sy = Ethena USDe
+            eUSDe = IERC20(0x4c9EDD5852cd905f086C759E8383e09bff1E68B3);
 
-        // YT Ethena USDe
-        yt_eUSDe = IERC20(0x733Ee9Ba88f16023146EbC965b7A1Da18a322464);
+            // YT Ethena USDe
+            yt_eUSDe = IERC20(0x733Ee9Ba88f16023146EbC965b7A1Da18a322464);
 
-        // PT Ethena USDe
-        pt_eUSDe = IERC20(0x917459337CaAC939D41d7493B3999f571D20D667);
+            // PT Ethena USDe
+            pt_eUSDe = IERC20(0x917459337CaAC939D41d7493B3999f571D20D667);
 
-        deal(address(eUSDe), accountEth, 10e18);
+            deal(address(eUSDe), accountEth, 10e18);
 
-        pendleredeemHook = new PendleRouterRedeemHook(CHAIN_1_PendleRouter);
+            pendleRedeemHook = new PendleRouterRedeemHook(CHAIN_1_PendleRouter);
 
-        token = CHAIN_1_USDC;
-        pendlePufETHMarket = 0x58612beB0e8a126735b19BB222cbC7fC2C162D2a;
+            token = CHAIN_1_USDC;
+            pendlePufETHMarket = 0x58612beB0e8a126735b19BB222cbC7fC2C162D2a;
 
-        swapHook = new PendleRouterSwapHook(CHAIN_1_PendleRouter);
+            swapHook = new PendleRouterSwapHook(CHAIN_1_PendleRouter);
+        } else {
+            eUSDe = new MockERC20("Ethena USDe", "eUSDe", 18);
+            yt_eUSDe = new MockERC20("YT Ethena USDe", "yt_eUSDe", 18);
+            pt_eUSDe = new MockERC20("PT Ethena USDe", "pt_eUSDe", 18);
+
+            token = address(new MockERC20("Token", "T", 18));
+
+            pendleRouterMock = new MockPendleRouter(address(eUSDe), address(pt_eUSDe), address(yt_eUSDe));
+            pendleMarketMock = new MockPendleMarket(address(eUSDe), address(pt_eUSDe), address(yt_eUSDe));
+            pendleRedeemHook = new PendleRouterRedeemHook(address(pendleRouterMock));
+            swapHook = new PendleRouterSwapHook(address(pendleRouterMock));
+        }
+    }
+
+    function test_PendleRouterHooks() public {
+        // test swap hook
+        execute_PendleRouterSwap_Token_To_Pt(useRealOdosRouter);
+
+        // test redeem hook
+        execute_PendleRouterRedeemHook(useRealOdosRouter);
     }
 
     // tx example: https://etherscan.io/tx/0x36b2c58e314e9d9bf73fc0d632ed228e35cd6b840066d12d39f72c633bad27a5
-    function test_PendleRouterSwap_Token_To_Pt() public {
+    function execute_PendleRouterSwap_Token_To_Pt(bool useRealOdosRouter) public {
         uint256 amount = 1e6;
 
         // get tokens
         deal(token, accountEth, amount);
-        IPendleMarket _market = IPendleMarket(pendlePufETHMarket);
-        (address sy, address pt,) = _market.readTokens();
-        // note syTokenIns [1] is WETH for this SY, which should have high liquidity
-        address[] memory syTokenIns = IStandardizedYield(sy).getTokensIn();
-        uint256 balance = IERC20(pt).balanceOf(accountEth);
-        assertEq(balance, 0);
 
-        address[] memory hookAddresses_ = new address[](2);
-        hookAddresses_[0] = address(approveHook);
-        hookAddresses_[1] = address(swapHook);
+        if (useRealOdosRouter) {
+            IPendleMarket _market = IPendleMarket(pendlePufETHMarket);
+            (address sy, address pt,) = _market.readTokens();
+            // note syTokenIns [1] is WETH for this SY, which should have high liquidity
+            address[] memory syTokenIns = IStandardizedYield(sy).getTokensIn();
+            uint256 balance = IERC20(pt).balanceOf(accountEth);
+            assertEq(balance, 0);
 
-        bytes[] memory hookData = new bytes[](2);
-        hookData[0] = _createApproveHookData(token, CHAIN_1_PendleRouter, amount, false);
-        hookData[1] = _createPendleRouterSwapHookDataWithOdos(
-            pendlePufETHMarket, accountEth, false, 1 ether, false, amount, CHAIN_1_USDC, syTokenIns[1]
-        );
+            address[] memory hookAddresses_ = new address[](2);
+            hookAddresses_[0] = address(approveHook);
+            hookAddresses_[1] = address(swapHook);
 
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
-        UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+            bytes[] memory hookData = new bytes[](2);
+            hookData[0] = _createApproveHookData(token, address(pendleRouterMock), amount, false);
+            hookData[1] = _createPendleRouterSwapHookDataWithOdos(
+                pendlePufETHMarket, accountEth, false, 1 ether, false, amount, CHAIN_1_USDC, syTokenIns[1]
+            );
 
-        executeOp(opData);
+            ISuperExecutor.ExecutorEntry memory entryToExecute =
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
+            UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
 
-        balance = IERC20(pt).balanceOf(accountEth);
-        assertGt(balance, 0);
+            executeOp(opData);
+
+            balance = IERC20(pt).balanceOf(accountEth);
+            assertGt(balance, 0);
+        } else {
+            deal(address(pt_eUSDe), address(pendleRouterMock), 1e18);
+
+            IPendleMarket _market = IPendleMarket(address(pendleMarketMock));
+            (, address pt,) = _market.readTokens();
+
+            address[] memory syTokenIns = new address[](1);
+            syTokenIns[0] = token;
+            uint256 balance = IERC20(pt).balanceOf(accountEth);
+            assertEq(balance, 0);
+
+            address[] memory hookAddresses_ = new address[](2);
+            hookAddresses_[0] = address(approveHook);
+            hookAddresses_[1] = address(swapHook);
+
+            bytes[] memory hookData = new bytes[](2);
+            hookData[0] = _createApproveHookData(token, address(pendleRouterMock), amount, false);
+
+            TokenInput memory input = TokenInput({
+                tokenIn: token,
+                netTokenIn: amount,
+                tokenMintSy: token,
+                pendleSwap: address(pendleRouterMock),
+                swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: "", needScale: false })
+            });
+
+            ApproxParams memory guessPtOut =
+                ApproxParams({ guessMin: 900, guessMax: 1100, guessOffchain: 1000, maxIteration: 10, eps: 1e17 });
+
+            LimitOrderData memory limit = LimitOrderData({
+                limitRouter: address(0),
+                epsSkipMarket: 0,
+                normalFills: new FillOrderParams[](0),
+                flashFills: new FillOrderParams[](0),
+                optData: ""
+            });
+
+            bytes memory txData = abi.encodeWithSelector(
+                IPendleRouterV4.swapExactTokenForPt.selector,
+                accountEth,
+                address(pendleMarketMock),
+                1,
+                guessPtOut,
+                input,
+                limit
+            );
+
+            hookData[1] =
+                abi.encodePacked(bytes4(bytes("")), address(pendleMarketMock), bytes1(uint8(0)), uint256(0), txData);
+
+            ISuperExecutor.ExecutorEntry memory entryToExecute =
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
+            UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+
+            executeOp(opData);
+
+            balance = IERC20(pt).balanceOf(accountEth);
+            assertGt(balance, 0);
+        }
     }
 
     // mintPyFromToken tx
     // example:https://etherscan.io/inputdatadecoder?tx=0xa5af7fe6016b5683f48e36e79bd300728b352fa45262d153426167d0d89862fa
     // redeemPyToToken tx example:
     // https://etherscan.io/inputdatadecoder?tx=0xca0e4932ecb628b2996ba1f24089f9faa98ccc2451afa14fbb964336fa6351c0
-    function test_PendleRouterRedeemHook() public {
-        vm.warp(22_384_742);
+    function execute_PendleRouterRedeemHook(bool useRealOdosRouter) public {
+        if (useRealOdosRouter) {
+            vm.warp(22_384_742);
 
-        uint256 eUSDeBalance = eUSDe.balanceOf(accountEth);
-        uint256 ptBalance = pt_eUSDe.balanceOf(accountEth); // 0
+            uint256 eUSDeBalance = eUSDe.balanceOf(accountEth);
+            uint256 ptBalance = pt_eUSDe.balanceOf(accountEth); // 0
 
-        TokenInput memory tokenInput = TokenInput({
-            tokenIn: address(eUSDe),
-            netTokenIn: 1e18,
-            tokenMintSy: address(eUSDe),
-            pendleSwap: address(0),
-            swapData: SwapData({ swapType: SwapType.NONE, extRouter: address(0), extCalldata: bytes(""), needScale: false })
-        });
+            TokenInput memory tokenInput = TokenInput({
+                tokenIn: address(eUSDe),
+                netTokenIn: 1e18,
+                tokenMintSy: address(eUSDe),
+                pendleSwap: address(0),
+                swapData: SwapData({
+                    swapType: SwapType.NONE,
+                    extRouter: address(0),
+                    extCalldata: bytes(""),
+                    needScale: false
+                })
+            });
 
-        vm.startPrank(accountEth);
-        eUSDe.approve(address(IPendleRouterV4(CHAIN_1_PendleRouter)), 1e18);
-        IPendleRouterV4(CHAIN_1_PendleRouter).mintPyFromToken(
-            accountEth, // receiver
-            address(yt_eUSDe), // YT
-            0.7e18, // minPyOut
-            tokenInput
-        );
+            vm.startPrank(accountEth);
+            eUSDe.approve(address(IPendleRouterV4(CHAIN_1_PendleRouter)), 1e18);
+            IPendleRouterV4(CHAIN_1_PendleRouter).mintPyFromToken(
+                accountEth, // receiver
+                address(yt_eUSDe), // YT
+                0.7e18, // minPyOut
+                tokenInput
+            );
 
-        assertEq(eUSDe.balanceOf(accountEth), eUSDeBalance - 1e18);
-        assertGt(pt_eUSDe.balanceOf(accountEth), ptBalance);
+            assertEq(eUSDe.balanceOf(accountEth), eUSDeBalance - 1e18);
+            assertGt(pt_eUSDe.balanceOf(accountEth), ptBalance);
 
-        vm.warp(expiry + 1 days);
+            vm.warp(expiry + 1 days);
 
-        address[] memory hooks = new address[](1);
-        hooks[0] = address(pendleredeemHook);
+            address[] memory hooks = new address[](1);
+            hooks[0] = address(pendleRedeemHook);
 
-        bytes[] memory data = new bytes[](1);
-        data[0] = _createPendleRedeemHookData(
-            1e18, address(yt_eUSDe), address(pt_eUSDe), address(eUSDe), address(eUSDe), 1e17, false
-        );
+            bytes[] memory data = new bytes[](1);
+            data[0] = _createPendleRedeemHookData(
+                1e18, address(yt_eUSDe), address(pt_eUSDe), address(eUSDe), address(eUSDe), 1e17, false
+            );
 
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
+            ISuperExecutor.ExecutorEntry memory entry =
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
 
-        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+            UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
-        executeOp(userOpData);
+            executeOp(userOpData);
 
-        assertEq(eUSDe.balanceOf(accountEth), eUSDeBalance);
-        assertEq(pt_eUSDe.balanceOf(accountEth), ptBalance);
+            assertEq(eUSDe.balanceOf(accountEth), eUSDeBalance);
+            assertEq(pt_eUSDe.balanceOf(accountEth), ptBalance);
+        } else {
+            deal(address(eUSDe), address(accountEth), 1e18);
+            deal(address(pt_eUSDe), address(pendleRouterMock), 1e18);
+            deal(address(yt_eUSDe), address(accountEth), 1e18);
+
+            uint256 eUSDeBalance = eUSDe.balanceOf(accountEth);
+            uint256 ptBalance = pt_eUSDe.balanceOf(accountEth); // 0
+
+            TokenInput memory tokenInput = TokenInput({
+                tokenIn: address(eUSDe),
+                netTokenIn: 1e18,
+                tokenMintSy: address(eUSDe),
+                pendleSwap: address(0),
+                swapData: SwapData({
+                    swapType: SwapType.NONE,
+                    extRouter: address(0),
+                    extCalldata: bytes(""),
+                    needScale: false
+                })
+            });
+
+            vm.startPrank(accountEth);
+            eUSDe.approve(address(pendleRouterMock), 1e18);
+            yt_eUSDe.approve(address(pendleRouterMock), 1e18);
+            IPendleRouterV4(address(pendleRouterMock)).mintPyFromToken(
+                accountEth, // receiver
+                address(yt_eUSDe), // YT
+                0.7e18, // minPyOut
+                tokenInput
+            );
+
+            assertEq(eUSDe.balanceOf(accountEth), eUSDeBalance - 1e18);
+            assertGt(pt_eUSDe.balanceOf(accountEth), ptBalance);
+
+            address[] memory hooks = new address[](1);
+            hooks[0] = address(pendleRedeemHook);
+
+            bytes[] memory data = new bytes[](1);
+            data[0] = _createPendleRedeemHookData(
+                1e18, address(yt_eUSDe), address(pt_eUSDe), address(eUSDe), address(eUSDe), 1e17, false
+            );
+
+            ISuperExecutor.ExecutorEntry memory entry =
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
+
+            UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+
+            executeOp(userOpData);
+
+            assertEq(eUSDe.balanceOf(accountEth), eUSDeBalance);
+            assertEq(pt_eUSDe.balanceOf(accountEth), ptBalance);
+        }
     }
 
     function _createTokenToPtPendleTxDataWithOdos(

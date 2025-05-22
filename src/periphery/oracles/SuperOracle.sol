@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 // Superform
-import { SuperOracleBase } from "./SuperOracleBase.sol";
+import {SuperOracleBase} from "./SuperOracleBase.sol";
 
 /// @title SuperOracle
 /// @author Superform Labs
@@ -14,7 +14,5 @@ contract SuperOracle is SuperOracleBase {
         address[] memory quotes,
         bytes32[] memory providers,
         address[] memory feeds
-    )
-        SuperOracleBase(owner_, bases, quotes, providers, feeds)
-    { }
+    ) SuperOracleBase(owner_, bases, quotes, providers, feeds) {}
 }

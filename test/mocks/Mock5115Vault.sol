@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { MockERC20 } from "test/mocks/MockERC20.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {MockERC20} from "test/mocks/MockERC20.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 contract Mock5115Vault {
     enum AssetType {
@@ -39,31 +39,18 @@ contract Mock5115Vault {
     function previewDeposit(
         address, //tokenIn
         uint256 amountTokenToDeposit
-    )
-        external
-        pure
-        returns (uint256 amountSharesOut)
-    {
+    ) external pure returns (uint256 amountSharesOut) {
         amountSharesOut = amountTokenToDeposit;
     }
 
     function previewRedeem(
         address, //tokenOut
         uint256 amountSharesToRedeem
-    )
-        external
-        pure
-        returns (uint256 amountTokenOut)
-    {
+    ) external pure returns (uint256 amountTokenOut) {
         amountTokenOut = amountSharesToRedeem;
     }
 
-    function deposit(
-        address,
-        address,
-        uint256 amountTokenToDeposit,
-        uint256
-    )
+    function deposit(address, address, uint256 amountTokenToDeposit, uint256)
         external
         payable
         returns (uint256 amountSharesOut)

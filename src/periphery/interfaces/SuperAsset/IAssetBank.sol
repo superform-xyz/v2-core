@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
 
 /**
  * @title IAssetBank
@@ -14,11 +14,7 @@ interface IAssetBank {
      * @param tokenOut The token to withdraw
      * @param amount The amount to withdraw
      */
-    function withdraw(
-        address receiver,
-        address tokenOut,
-        uint256 amount
-    ) external;
+    function withdraw(address receiver, address tokenOut, uint256 amount) external;
 
     /**
      * @notice Emitted when tokens are withdrawn during rebalancing
@@ -42,5 +38,4 @@ interface IAssetBank {
 
     /// @notice Thrown when amount is zero
     error ZERO_AMOUNT();
-
 }

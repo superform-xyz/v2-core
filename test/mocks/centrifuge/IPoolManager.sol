@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { IMessageHandler } from "./IGateway.sol";
-import { IRecoverable } from "./IRoot.sol";
+import {IMessageHandler} from "./IGateway.sol";
+import {IRecoverable} from "./IRoot.sol";
 
 /// @dev Centrifuge pools
 struct Pool {
@@ -108,8 +108,7 @@ interface IPoolManager is IMessageHandler, IRecoverable {
         uint64 destinationId,
         bytes32 recipient,
         uint128 amount
-    )
-        external;
+    ) external;
 
     /// @notice    New pool details from an existing Centrifuge pool are added.
     /// @dev       The function can only be executed by the gateway contract.
@@ -135,28 +134,16 @@ interface IPoolManager is IMessageHandler, IRecoverable {
         string memory tokenSymbol,
         uint8 decimals,
         address hook
-    )
-        external;
+    ) external;
 
     /// @notice   Updates the tokenName and tokenSymbol of a tranche token
     /// @dev      The function can only be executed by the gateway contract.
-    function updateTrancheMetadata(
-        uint64 poolId,
-        bytes16 trancheId,
-        string memory tokenName,
-        string memory tokenSymbol
-    )
+    function updateTrancheMetadata(uint64 poolId, bytes16 trancheId, string memory tokenName, string memory tokenSymbol)
         external;
 
     /// @notice  Updates the price of a tranche token
     /// @dev     The function can only be executed by the gateway contract.
-    function updateTranchePrice(
-        uint64 poolId,
-        bytes16 trancheId,
-        uint128 assetId,
-        uint128 price,
-        uint64 computedAt
-    )
+    function updateTranchePrice(uint64 poolId, bytes16 trancheId, uint128 assetId, uint128 price, uint64 computedAt)
         external;
 
     /// @notice Updates the restrictions on a tranche token for a specific user
@@ -188,12 +175,7 @@ interface IPoolManager is IMessageHandler, IRecoverable {
 
     /// @notice Mints tranche tokens to a recipient
     /// @dev    The function can only be executed internally or by the gateway contract.
-    function handleTransferTrancheTokens(
-        uint64 poolId,
-        bytes16 trancheId,
-        address destinationAddress,
-        uint128 amount
-    )
+    function handleTransferTrancheTokens(uint64 poolId, bytes16 trancheId, address destinationAddress, uint128 amount)
         external;
 
     /// @notice Deploys a created tranche
@@ -224,11 +206,7 @@ interface IPoolManager is IMessageHandler, IRecoverable {
     function getVault(uint64 poolId, bytes16 trancheId, address asset) external view returns (address);
 
     /// @notice Retuns the latest tranche token price for a given pool, tranche id, and asset id
-    function getTranchePrice(
-        uint64 poolId,
-        bytes16 trancheId,
-        address asset
-    )
+    function getTranchePrice(uint64 poolId, bytes16 trancheId, address asset)
         external
         view
         returns (uint128 price, uint64 computedAt);

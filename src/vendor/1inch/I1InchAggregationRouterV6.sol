@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 /// @dev is modified and imported from https://etherscan.io/address/0x111111125421ca6dc452d289314280a0f8842a65#code
 
@@ -205,15 +205,7 @@ interface IERC20Permit {
      *
      * CAUTION: See Security Considerations above.
      */
-    function permit(
-        address owner,
-        address spender,
-        uint256 value,
-        uint256 deadline,
-        uint8 v,
-        bytes32 r,
-        bytes32 s
-    )
+    function permit(address owner, address spender, uint256 value, uint256 deadline, uint8 v, bytes32 r, bytes32 s)
         external;
 
     /**
@@ -247,9 +239,7 @@ interface IClipperExchange {
         address destinationAddress,
         Signature calldata theSignature,
         bytes calldata auxiliaryData
-    )
-        external
-        payable;
+    ) external payable;
     function sellTokenForEth(
         address inputToken,
         uint256 inputAmount,
@@ -258,8 +248,7 @@ interface IClipperExchange {
         address destinationAddress,
         Signature calldata theSignature,
         bytes calldata auxiliaryData
-    )
-        external;
+    ) external;
     function swap(
         address inputToken,
         address outputToken,
@@ -269,8 +258,7 @@ interface IClipperExchange {
         address destinationAddress,
         Signature calldata theSignature,
         bytes calldata auxiliaryData
-    )
-        external;
+    ) external;
 }
 
 interface IAggregationExecutor {
@@ -289,13 +277,7 @@ interface I1InchAggregationRouterV6 {
      * @param dex The address of the Unoswap-compatible exchange's pool.
      * @return returnAmount The actual amount of tokens received after the swap.
      */
-    function unoswapTo(
-        Address to,
-        Address token,
-        uint256 amount,
-        uint256 minReturn,
-        Address dex
-    )
+    function unoswapTo(Address to, Address token, uint256 amount, uint256 minReturn, Address dex)
         external
         returns (uint256 returnAmount);
 
@@ -309,10 +291,7 @@ interface I1InchAggregationRouterV6 {
         uint256 expiryWithFlags,
         bytes32 r,
         bytes32 vs
-    )
-        external
-        payable
-        returns (uint256 returnAmount);
+    ) external payable returns (uint256 returnAmount);
 
     struct SwapDescription {
         IERC20 srcToken;

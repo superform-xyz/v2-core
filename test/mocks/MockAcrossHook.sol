@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { BytesLib } from "../../src/vendor/BytesLib.sol";
-import { IAcrossSpokePoolV3 } from "../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {BytesLib} from "../../src/vendor/BytesLib.sol";
+import {IAcrossSpokePoolV3} from "../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
 
 // Superform
-import { BaseHook } from "../../src/core/hooks/BaseHook.sol";
-import { HookSubTypes } from "../../src/core/libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../src/core/interfaces/ISuperHook.sol";
+import {BaseHook} from "../../src/core/hooks/BaseHook.sol";
+import {HookSubTypes} from "../../src/core/libraries/HookSubTypes.sol";
+import {ISuperHookResult, ISuperHookContextAware} from "../../src/core/interfaces/ISuperHook.sol";
 
 /// @title MockAcrossHook
 /// @author Superform Labs
@@ -63,11 +63,7 @@ contract MockAcrossHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
-        address prevHook,
-        address account,
-        bytes memory data
-    )
+    function build(address prevHook, address account, bytes memory data)
         external
         view
         override
@@ -141,7 +137,7 @@ contract MockAcrossHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata) internal override { }
+    function _preExecute(address, address, bytes calldata) internal override {}
 
-    function _postExecute(address, address, bytes calldata) internal override { }
+    function _postExecute(address, address, bytes calldata) internal override {}
 }

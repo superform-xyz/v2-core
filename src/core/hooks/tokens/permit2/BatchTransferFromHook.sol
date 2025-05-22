@@ -1,19 +1,19 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 // external
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
-import { IPermit2 } from "../../../../vendor/uniswap/permit2/IPermit2.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IPermit2Batch } from "../../../../vendor/uniswap/permit2/IPermit2Batch.sol";
-import { IAllowanceTransfer } from "../../../../vendor/uniswap/permit2/IAllowanceTransfer.sol";
-import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import {BytesLib} from "../../../../vendor/BytesLib.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import {IPermit2} from "../../../../vendor/uniswap/permit2/IPermit2.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {IPermit2Batch} from "../../../../vendor/uniswap/permit2/IPermit2Batch.sol";
+import {IAllowanceTransfer} from "../../../../vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import {ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
-import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import {BaseHook} from "../../BaseHook.sol";
+import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
 
 /// @title BatchTransferFromHook
 /// @author Superform Labs
@@ -52,11 +52,7 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
-        address,
-        address account,
-        bytes memory data
-    )
+    function build(address, address account, bytes memory data)
         external
         view
         override
@@ -99,12 +95,12 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
         }
 
         IAllowanceTransfer.PermitBatch memory permitBatch =
-            IAllowanceTransfer.PermitBatch({ details: details, spender: account, sigDeadline: sigDeadline });
+            IAllowanceTransfer.PermitBatch({details: details, spender: account, sigDeadline: sigDeadline});
 
         // Create permit call
         bytes memory permitCallData = abi.encodeCall(IPermit2Batch.permit, (from, permitBatch, signature));
 
-        executions[0] = Execution({ target: PERMIT_2, value: 0, callData: permitCallData });
+        executions[0] = Execution({target: PERMIT_2, value: 0, callData: permitCallData});
 
         // Second execution: Create a batch transferFrom call
         IAllowanceTransfer.AllowanceTransferDetails[] memory transferDetails =
@@ -113,7 +109,7 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
         // Use IPermit2Batch.transferFrom selector which takes AllowanceTransferDetails[] as parameter
         bytes memory transferCallData = abi.encodeCall(IPermit2Batch.transferFrom, (transferDetails));
 
-        executions[1] = Execution({ target: PERMIT_2, value: 0, callData: transferCallData });
+        executions[1] = Execution({target: PERMIT_2, value: 0, callData: transferCallData});
 
         return executions;
     }
@@ -171,11 +167,7 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
         bytes memory tokensData,
         bytes memory amountsData,
         uint256 length
-    )
-        private
-        pure
-        returns (IAllowanceTransfer.AllowanceTransferDetails[] memory details)
-    {
+    ) private pure returns (IAllowanceTransfer.AllowanceTransferDetails[] memory details) {
         details = new IAllowanceTransfer.AllowanceTransferDetails[](length);
         for (uint256 i; i < length; ++i) {
             address token = BytesLib.toAddress(tokensData, i * 20);

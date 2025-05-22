@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { GearboxStakeHook } from "../../../../../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
-import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
-import { MockERC20 } from "../../../../mocks/MockERC20.sol";
-import { MockHook } from "../../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { Helpers } from "../../../../utils/Helpers.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {GearboxStakeHook} from "../../../../../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
+import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
+import {MockERC20} from "../../../../mocks/MockERC20.sol";
+import {MockHook} from "../../../../mocks/MockHook.sol";
+import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
+import {Helpers} from "../../../../utils/Helpers.sol";
 
 contract GearboxStakeHookTest is Helpers {
     GearboxStakeHook public hook;
@@ -37,7 +37,7 @@ contract GearboxStakeHookTest is Helpers {
         bytes memory argsEncoded = hook.inspect(data);
         assertGt(argsEncoded.length, 0);
     }
-    
+
     function test_Build() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = hook.build(address(0), address(this), data);

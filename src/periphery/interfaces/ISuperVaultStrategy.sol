@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { ISuperHook, Execution } from "../../core/interfaces/ISuperHook.sol";
@@ -49,10 +49,13 @@ interface ISuperVaultStrategy {
     error CALCULATION_BLOCK_TOO_OLD();
     error INVALID_PPS();
     error INVALID_REDEEM_FILL();
+    error SLIPPAGE_EXCEEDED();
     error INVALID_VAULT();
     error STAKE_TOO_LOW();
     error OPERATIONS_BLOCKED_BY_VETO();
     error HOOK_VALIDATION_FAILED();
+    error STRATEGY_PAUSED();
+    error INVALID_MAX_SLIPPAGE_BPS();
 
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
@@ -71,6 +74,7 @@ interface ISuperVaultStrategy {
     event EmergencyWithdrawal(address indexed recipient, uint256 assets);
     event VaultFeeConfigUpdated(uint256 performanceFeeBps, address indexed recipient);
     event VaultFeeConfigProposed(uint256 performanceFeeBps, address indexed recipient, uint256 effectiveTime);
+    event MaxPPSSlippageUpdated(uint256 maxSlippageBps);
     event HooksExecuted(address[] hooks);
     event RedeemRequestPlaced(address indexed controller, address indexed owner, uint256 shares);
     event RedeemRequestFulfilled(address indexed controller, address indexed receiver, uint256 assets, uint256 shares);
@@ -139,6 +143,7 @@ interface ISuperVaultStrategy {
     struct SuperVaultState {
         uint256 pendingRedeemRequest; // Shares requested
         uint256 maxWithdraw; // Assets claimable after fulfillment
+        uint256 averageRequestPPS; // Average PPS at the time of redeem request
         // Accumulators needed for fee calculation on redeem
         uint256 accumulatorShares;
         uint256 accumulatorCostBasis;
@@ -217,28 +222,18 @@ interface ISuperVaultStrategy {
     /// @param oracle Address of the oracle (used for adding/updating)
     /// @param actionType Type of action: 0=Add, 1=UpdateOracle, 2=ToggleActivation
     /// @param activate Boolean flag for activation when actionType is 2
-    /// @param isAsync Boolean flag for async yield source
-    function manageYieldSource(
-        address source,
-        address oracle,
-        uint8 actionType,
-        bool activate,
-        bool isAsync
-    )
-        external;
+    function manageYieldSource(address source, address oracle, uint8 actionType, bool activate) external;
 
     /// @notice Batch manage multiple yield sources in a single transaction
     /// @param sources Array of yield source addresses
     /// @param oracles Array of oracle addresses (used for adding/updating)
     /// @param actionTypes Array of action types: 0=Add, 1=UpdateOracle, 2=ToggleActivation
     /// @param activates Array of boolean flags for activation when actionType is 2
-    /// @param isAsyncs Array of boolean flags for async yield sources
     function manageYieldSources(
         address[] calldata sources,
         address[] calldata oracles,
         uint8[] calldata actionTypes,
-        bool[] calldata activates,
-        bool[] calldata isAsyncs
+        bool[] calldata activates
     )
         external;
 
@@ -250,6 +245,10 @@ interface ISuperVaultStrategy {
 
     /// @notice Execute the proposed vault fee configuration update after timelock
     function executeVaultFeeConfigUpdate() external;
+    
+    /// @notice Update the maximum allowed PPS slippage for redemptions
+    /// @param maxSlippageBps Maximum slippage in basis points (e.g., 100 = 1%)
+    function updateMaxPPSSlippage(uint256 maxSlippageBps) external;
 
     /// @notice Manage emergency withdrawals
     /// @param action Type of action: 1=Propose, 2=ExecuteActivation, 3=Withdraw

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.28;
+pragma solidity ^0.8.30;
+
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
@@ -12,8 +13,6 @@ import "../interfaces/SuperAsset/IAssetBank.sol";
 import "../interfaces/SuperAsset/ISuperAsset.sol";
 import "../interfaces/ISuperOracle.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-
-
 
 /**
  * @author Superform Labs
@@ -39,24 +38,24 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     // --- Constants ---
     uint256 public constant PRECISION = 1e18;
-    uint256 public constant MAX_SWAP_FEE_PERCENTAGE = 10**4; // Max 10% (1000 basis points)
+    uint256 public constant MAX_SWAP_FEE_PERCENTAGE = 10 ** 4; // Max 10% (1000 basis points)
     uint256 public constant DEPEG_LOWER_THRESHOLD = 98e16; // 0.98
     uint256 public constant DEPEG_UPPER_THRESHOLD = 102e16; // 1.02
     uint256 public constant DISPERSION_THRESHOLD = 1e16; // 1% relative standard deviation threshold
-    uint256 public constant SWAP_FEE_PERC = 10**6; 
+    uint256 public constant SWAP_FEE_PERC = 10 ** 6;
 
     // --- State ---
     mapping(address token => bool isSupported) public isSupportedUnderlyingVault;
     mapping(address token => bool isSupported) public isSupportedERC20;
-    
+
     // NOTE: Actually it does not contain only supported Vaults shares but also standard ERC20
     EnumerableSet.AddressSet private _supportedVaults;
-    address public incentiveCalculationContract;  // Address of the ICC
-    address public incentiveFundContract;      // Address of the Incentive Fund Contract
-    address public assetBank;        // Address of the Asset Bank Contract
+    address public incentiveCalculationContract; // Address of the ICC
+    address public incentiveFundContract; // Address of the Incentive Fund Contract
+    address public assetBank; // Address of the Asset Bank Contract
 
     mapping(address token => uint256 allocation) public targetAllocations;
-    mapping(address token => uint256 allocation) public weights;  // Weights for each vault in energy calculation
+    mapping(address token => uint256 allocation) public weights; // Weights for each vault in energy calculation
 
     ISuperOracle public superOracle;
 
@@ -69,7 +68,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     // --- Addresses ---
     address public constant USD = address(840);
 
-    // SuperOracle related 
+    // SuperOracle related
     bytes32 public constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
 
     // --- Modifiers ---
@@ -83,9 +82,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _;
     }
 
-
-    constructor() ERC20("", "") {
-    }
+    constructor() ERC20("", "") { }
 
     /// @inheritdoc ERC20
     function name() public view override returns (string memory) {
@@ -106,7 +103,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         address assetBank_,
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_
-    ) external {
+    )
+        external
+    {
         // Ensure this can only be called once
         if (incentiveCalculationContract != address(0)) revert ALREADY_INITIALIZED();
 
@@ -115,13 +114,13 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         if (assetBank_ == address(0)) revert ZERO_ADDRESS();
         if (swapFeeInPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         if (swapFeeOutPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
-        
+
         incentiveCalculationContract = icc_;
         incentiveFundContract = ifc_;
         assetBank = assetBank_;
         swapFeeInPercentage = swapFeeInPercentage_;
         swapFeeOutPercentage = swapFeeOutPercentage_;
-        
+
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         _grantRole(MINTER_ROLE, msg.sender);
         _grantRole(BURNER_ROLE, msg.sender);
@@ -178,16 +177,22 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setTargetAllocations(
+        address[] calldata tokens,
+        uint256[] calldata allocations
+    )
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+    {
         if (tokens.length != allocations.length) revert INVALID_INPUT();
-        
+
         uint256 totalAllocation;
         for (uint256 i = 0; i < tokens.length; i++) {
             if (tokens[i] == address(0)) revert ZERO_ADDRESS();
             if (!isSupportedUnderlyingVault[tokens[i]] && !isSupportedERC20[tokens[i]]) revert NOT_SUPPORTED_TOKEN();
             totalAllocation += allocations[i];
         }
-        
+
         for (uint256 i = 0; i < tokens.length; i++) {
             targetAllocations[tokens[i]] = allocations[i];
             emit TargetAllocationSet(tokens[i], allocations[i]);
@@ -199,9 +204,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         if (token == address(0)) revert ZERO_ADDRESS();
         if (!isSupportedUnderlyingVault[token] && !isSupportedERC20[token]) revert NOT_SUPPORTED_TOKEN();
 
-        // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC 
+        // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC
         if (allocation > PRECISION) revert INVALID_ALLOCATION();
-        
+
         targetAllocations[token] = allocation;
         emit TargetAllocationSet(token, allocation);
     }
@@ -212,7 +217,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         emit EnergyToUSDExchangeRatioSet(newRatio);
     }
 
-
     // --- Token Movement Functions ---
 
     /// @inheritdoc ISuperAsset
@@ -220,17 +224,23 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         address receiver,
         address yieldSourceShare,
         uint256 amountTokenToDeposit,
-        uint256 minSharesOut            // Slippage Protection
-    ) public returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) {
+        uint256 minSharesOut // Slippage Protection
+    )
+        public
+        returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit)
+    {
         PreviewErrors memory errors;
-        // First all the non state changing functions 
+        // First all the non state changing functions
         if (amountTokenToDeposit == 0) revert ZERO_AMOUNT();
-        if (!isSupportedUnderlyingVault[yieldSourceShare] && !isSupportedERC20[yieldSourceShare]) revert NOT_SUPPORTED_TOKEN();
+        if (!isSupportedUnderlyingVault[yieldSourceShare] && !isSupportedERC20[yieldSourceShare]) {
+            revert NOT_SUPPORTED_TOKEN();
+        }
         if (receiver == address(0)) revert ZERO_ADDRESS();
 
         // Circuit Breakers preventing deposit
         uint256 underlyingSuperVaultAssetPriceUSD;
-        (underlyingSuperVaultAssetPriceUSD, errors.isDepeg, errors.isDispersion, errors.isOracleOff) = getPriceWithCircuitBreakers(IERC4626(yieldSourceShare).asset());
+        (underlyingSuperVaultAssetPriceUSD, errors.isDepeg, errors.isDispersion, errors.isOracleOff) =
+            getPriceWithCircuitBreakers(IERC4626(yieldSourceShare).asset());
         if (underlyingSuperVaultAssetPriceUSD == 0) revert UNDERLYING_SV_ASSET_PRICE_ZERO();
         if (errors.isDepeg) revert UNDERLYING_SV_ASSET_PRICE_DEPEG();
         if (errors.isDispersion) revert UNDERLYING_SV_ASSET_PRICE_DISPERSION();
@@ -240,7 +250,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Calculate and settle incentives
         // NOTE: For deposits, we want strict checks
-        (amountSharesMinted, swapFee, amountIncentiveUSDDeposit, isSuccess) = previewDeposit(yieldSourceShare, amountTokenToDeposit, false);
+        (amountSharesMinted, swapFee, amountIncentiveUSDDeposit, isSuccess) =
+            previewDeposit(yieldSourceShare, amountTokenToDeposit, false);
         if (amountSharesMinted == 0) revert ZERO_AMOUNT();
         // Slippage Check
         if (amountSharesMinted < minSharesOut) revert SLIPPAGE_PROTECTION();
@@ -250,16 +261,20 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Settle Incentives
         _settleIncentive(msg.sender, amountIncentiveUSDDeposit);
         // Transfer the tokenIn from the sender to this contract
-        // For now, assuming shares are held in this contract, maybe they will have to be held in another contract balance sheet
+        // For now, assuming shares are held in this contract, maybe they will have to be held in another contract
+        // balance sheet
         IERC20(yieldSourceShare).safeTransferFrom(msg.sender, address(this), amountTokenToDeposit);
 
-        // Transfer swap fees to Asset Bank while holding the rest in the contract, since the full amount was already transferred in the beginning of the function
+        // Transfer swap fees to Asset Bank while holding the rest in the contract, since the full amount was already
+        // transferred in the beginning of the function
         IERC20(yieldSourceShare).safeTransfer(assetBank, swapFee);
 
         // Mint SuperUSD shares
         _mint(receiver, amountSharesMinted);
 
-        emit Deposit(receiver, yieldSourceShare, amountTokenToDeposit, amountSharesMinted, swapFee, amountIncentiveUSDDeposit);
+        emit Deposit(
+            receiver, yieldSourceShare, amountTokenToDeposit, amountSharesMinted, swapFee, amountIncentiveUSDDeposit
+        );
     }
 
     /// @inheritdoc ISuperAsset
@@ -268,7 +283,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 amountSharesToRedeem,
         address tokenOut,
         uint256 minTokenOut
-    ) public returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem) {
+    )
+        public
+        returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem)
+    {
         if (amountSharesToRedeem == 0) revert ZERO_AMOUNT();
         if (!isSupportedUnderlyingVault[tokenOut] && !isSupportedERC20[tokenOut]) revert NOT_SUPPORTED_TOKEN();
         if (receiver == address(0)) revert ZERO_ADDRESS();
@@ -277,7 +295,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Calculate and settle incentives
         // NOTE: For redemptions, we want soft checks
-        (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem, isSuccess) = previewRedeem(tokenOut, amountSharesToRedeem, false);
+        (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem, isSuccess) =
+            previewRedeem(tokenOut, amountSharesToRedeem, false);
         if (amountTokenOutAfterFees == 0) revert ZERO_AMOUNT();
         // Slippage Check
         if (amountTokenOutAfterFees < minTokenOut) revert SLIPPAGE_PROTECTION();
@@ -288,16 +307,19 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _settleIncentive(msg.sender, amountIncentiveUSDRedeem);
 
         // Burn SuperUSD shares
-        _burn(msg.sender, amountSharesToRedeem);  // Use a proper burning mechanism
+        _burn(msg.sender, amountSharesToRedeem); // Use a proper burning mechanism
 
         // Transfer swap fees to Asset Bank
         IERC20(tokenOut).safeTransfer(assetBank, swapFee);
 
         // Transfer assets to receiver
-        // For now, assuming shares are held in this contract, maybe they will have to be held in another contract balance sheet
+        // For now, assuming shares are held in this contract, maybe they will have to be held in another contract
+        // balance sheet
         IERC20(tokenOut).safeTransfer(receiver, amountTokenOutAfterFees);
 
-        emit Redeem(receiver, tokenOut, amountSharesToRedeem, amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem);
+        emit Redeem(
+            receiver, tokenOut, amountSharesToRedeem, amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem
+        );
     }
 
     /// @inheritdoc ISuperAsset
@@ -307,12 +329,42 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 amountTokenToDeposit,
         address tokenOut,
         uint256 minTokenOut
-    ) external returns (uint256 amountSharesIntermediateStep, uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentivesIn, int256 amountIncentivesOut) {
+    )
+        external
+        returns (
+            uint256 amountSharesIntermediateStep,
+            uint256 amountTokenOutAfterFees,
+            uint256 swapFeeIn,
+            uint256 swapFeeOut,
+            int256 amountIncentivesIn,
+            int256 amountIncentivesOut
+        )
+    {
         if (receiver == address(0)) revert ZERO_ADDRESS();
-        (amountSharesIntermediateStep, swapFeeIn, amountIncentivesIn) = deposit(msg.sender, tokenIn, amountTokenToDeposit, 0);
-        (amountTokenOutAfterFees, swapFeeOut, amountIncentivesOut) = redeem(receiver, amountSharesIntermediateStep, tokenOut, minTokenOut);
-        emit Swap(receiver, tokenIn, amountTokenToDeposit, tokenOut, amountSharesIntermediateStep, amountTokenOutAfterFees, swapFeeIn, swapFeeOut, amountIncentivesIn, amountIncentivesOut);
-        return (amountSharesIntermediateStep, amountTokenOutAfterFees, swapFeeIn, swapFeeOut, amountIncentivesIn, amountIncentivesOut);
+        (amountSharesIntermediateStep, swapFeeIn, amountIncentivesIn) =
+            deposit(msg.sender, tokenIn, amountTokenToDeposit, 0);
+        (amountTokenOutAfterFees, swapFeeOut, amountIncentivesOut) =
+            redeem(receiver, amountSharesIntermediateStep, tokenOut, minTokenOut);
+        emit Swap(
+            receiver,
+            tokenIn,
+            amountTokenToDeposit,
+            tokenOut,
+            amountSharesIntermediateStep,
+            amountTokenOutAfterFees,
+            swapFeeIn,
+            swapFeeOut,
+            amountIncentivesIn,
+            amountIncentivesOut
+        );
+        return (
+            amountSharesIntermediateStep,
+            amountTokenOutAfterFees,
+            swapFeeIn,
+            swapFeeOut,
+            amountIncentivesIn,
+            amountIncentivesOut
+        );
     }
 
     /// @inheritdoc ISuperAsset
@@ -352,7 +404,16 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function getAllocations() public view returns (uint256[] memory absoluteCurrentAllocation, uint256 totalCurrentAllocation, uint256[] memory absoluteTargetAllocation, uint256 totalTargetAllocation) {
+    function getAllocations()
+        public
+        view
+        returns (
+            uint256[] memory absoluteCurrentAllocation,
+            uint256 totalCurrentAllocation,
+            uint256[] memory absoluteTargetAllocation,
+            uint256 totalTargetAllocation
+        )
+    {
         uint256 length = _supportedVaults.length();
         absoluteCurrentAllocation = new uint256[](length);
         absoluteTargetAllocation = new uint256[](length);
@@ -366,24 +427,36 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function getAllocationsPrePostOperation(address token, int256 deltaToken, bool isSoft) public view returns (
-        uint256[] memory absoluteAllocationPreOperation, 
-        uint256 totalAllocationPreOperation, 
-        uint256[] memory absoluteAllocationPostOperation, 
-        uint256 totalAllocationPostOperation, 
-        uint256[] memory absoluteTargetAllocation, 
-        uint256 totalTargetAllocation,
-        uint256[] memory vaultWeights, 
-        bool isSuccess) {
+    function getAllocationsPrePostOperation(
+        address token,
+        int256 deltaToken,
+        bool isSoft
+    )
+        public
+        view
+        returns (
+            uint256[] memory absoluteAllocationPreOperation,
+            uint256 totalAllocationPreOperation,
+            uint256[] memory absoluteAllocationPostOperation,
+            uint256 totalAllocationPostOperation,
+            uint256[] memory absoluteTargetAllocation,
+            uint256 totalTargetAllocation,
+            uint256[] memory vaultWeights,
+            bool isSuccess
+        )
+    {
         GetAllocationsPrePostOperations memory s;
         if (deltaToken < 0 && uint256(-deltaToken) > IERC20(token).balanceOf(address(this))) {
-            // NOTE: Since we do not want this function to revert, we re-set the amount out to the max possible amount out which is the balance of this token
-            // NOTE: This should be OK since the user can control the min amount out they desire with the slippage protection 
+            // NOTE: Since we do not want this function to revert, we re-set the amount out to the max possible amount
+            // out which is the balance of this token
+            // NOTE: This should be OK since the user can control the min amount out they desire with the slippage
+            // protection
             deltaToken = -int256(IERC20(token).balanceOf(address(this)));
         }
 
-        // NOTE: If token is not in the whitelist, consider it like if it was and add a corresponding target allocation of 0
-        // NOTE: This means adding one slot to the arrays here 
+        // NOTE: If token is not in the whitelist, consider it like if it was and add a corresponding target allocation
+        // of 0
+        // NOTE: This means adding one slot to the arrays here
         s.extraSlot = (_supportedVaults.contains(token) ? 0 : 1);
         s.length = _supportedVaults.length();
         s.extendedLength = _supportedVaults.length() + s.extraSlot;
@@ -398,23 +471,25 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             if (!isSoft && (s.isDepeg || s.isDispersion || s.isOracleOff)) {
                 isSuccess = false;
                 return (
-                    absoluteAllocationPreOperation, 
-                    totalAllocationPreOperation, 
-                    absoluteAllocationPostOperation, 
-                    totalAllocationPostOperation, 
-                    absoluteTargetAllocation, 
-                    totalTargetAllocation, 
-                    vaultWeights, 
-                    isSuccess);
+                    absoluteAllocationPreOperation,
+                    totalAllocationPreOperation,
+                    absoluteAllocationPostOperation,
+                    totalAllocationPostOperation,
+                    absoluteTargetAllocation,
+                    totalTargetAllocation,
+                    vaultWeights,
+                    isSuccess
+                );
             }
             s.balance = IERC20(s.vault).balanceOf(address(this));
             // Convert balance to USD value using price
-            absoluteAllocationPreOperation[i] = Math.mulDiv(s.balance, s.priceUSD, 10**IERC20Metadata(s.vault).decimals());
+            absoluteAllocationPreOperation[i] =
+                Math.mulDiv(s.balance, s.priceUSD, 10 ** IERC20Metadata(s.vault).decimals());
             totalAllocationPreOperation += absoluteAllocationPreOperation[i];
             absoluteAllocationPostOperation[i] = absoluteAllocationPreOperation[i];
-            if(token == s.vault) {
+            if (token == s.vault) {
                 s.absDeltaToken = (deltaToken >= 0) ? uint256(deltaToken) : uint256(-deltaToken);
-                s.absDeltaValue = Math.mulDiv(s.absDeltaToken, s.priceUSD, 10**IERC20Metadata(s.vault).decimals());
+                s.absDeltaValue = Math.mulDiv(s.absDeltaToken, s.priceUSD, 10 ** IERC20Metadata(s.vault).decimals());
                 s.deltaValue = (deltaToken >= 0) ? int256(s.absDeltaValue) : -int256(s.absDeltaValue);
                 absoluteAllocationPostOperation[i] = uint256(int256(absoluteAllocationPreOperation[i]) + s.deltaValue);
             }
@@ -427,28 +502,33 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function previewDeposit(address tokenIn, uint256 amountTokenToDeposit, bool isSoft)
-    public
-    view
-    returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess)
+    function previewDeposit(
+        address tokenIn,
+        uint256 amountTokenToDeposit,
+        bool isSoft
+    )
+        public
+        view
+        returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess)
     {
         PreviewDeposit memory s;
         // NOTE: Preview Function should not revert
-        if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) return (0,0,0, false);
+        if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) return (0, 0, 0, false);
 
         // Calculate swap fees (example: 0.1% fee)
         swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
         s.amountTokenInAfterFees = amountTokenToDeposit - swapFee;
 
         // Get price of underlying vault shares in USD
-        (s.priceUSDTokenIn, , , ) = getPriceWithCircuitBreakers(tokenIn);
-        (s.priceUSDThisShares, , , ) = getPriceWithCircuitBreakers(address(this));
+        (s.priceUSDTokenIn,,,) = getPriceWithCircuitBreakers(tokenIn);
+        (s.priceUSDThisShares,,,) = getPriceWithCircuitBreakers(address(this));
 
         // NOTE: Preview Function should not revert
-        if (s.priceUSDTokenIn == 0 || s.priceUSDThisShares == 0) return (0,0,0, false);
+        if (s.priceUSDTokenIn == 0 || s.priceUSDThisShares == 0) return (0, 0, 0, false);
 
         // Calculate SuperUSD shares to mint
-        amountSharesMinted = Math.mulDiv(s.amountTokenInAfterFees, s.priceUSDTokenIn, s.priceUSDThisShares); // Adjust for decimals
+        amountSharesMinted = Math.mulDiv(s.amountTokenInAfterFees, s.priceUSDTokenIn, s.priceUSDThisShares); // Adjust
+            // for decimals
 
         // Get current and post-operation allocations
         (
@@ -465,7 +545,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // TODO: Handle the case where isSuccess is false
 
         // Calculate incentives (using ICC)
-        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
+        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(incentiveCalculationContract)
+            .calculateIncentive(
             s.allocations.absoluteAllocationPreOperation,
             s.allocations.absoluteAllocationPostOperation,
             s.allocations.absoluteTargetAllocation,
@@ -479,20 +560,26 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function previewRedeem(address tokenOut, uint256 amountSharesToRedeem, bool isSoft)
-    public
-    view
-    returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess)
+    function previewRedeem(
+        address tokenOut,
+        uint256 amountSharesToRedeem,
+        bool isSoft
+    )
+        public
+        view
+        returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess)
     {
         PreviewRedeem memory s;
-        // NOTE: Handle the case of a token that was whitelisted, now it is not whitelisted anymore but still this contract holds some exposure to this token
+        // NOTE: Handle the case of a token that was whitelisted, now it is not whitelisted anymore but still this
+        // contract holds some exposure to this token
 
         // Get price of underlying vault shares in USD
-        (s.priceUSDThisShares, , , ) = getPriceWithCircuitBreakers(address(this));
-        (s.priceUSDTokenOut, , , ) = getPriceWithCircuitBreakers(tokenOut);
+        (s.priceUSDThisShares,,,) = getPriceWithCircuitBreakers(address(this));
+        (s.priceUSDTokenOut,,,) = getPriceWithCircuitBreakers(tokenOut);
 
         // Calculate underlying shares to redeem
-        s.amountTokenOutBeforeFees = Math.mulDiv(amountSharesToRedeem, s.priceUSDThisShares, s.priceUSDTokenOut); // Adjust for decimals
+        s.amountTokenOutBeforeFees = Math.mulDiv(amountSharesToRedeem, s.priceUSDThisShares, s.priceUSDTokenOut); // Adjust
+            // for decimals
 
         swapFee = Math.mulDiv(s.amountTokenOutBeforeFees, swapFeeOutPercentage, SWAP_FEE_PERC); // 0.1%
         amountTokenOutAfterFees = s.amountTokenOutBeforeFees - swapFee;
@@ -512,11 +599,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // TODO: Handle the case where isSuccess is false
 
         // Calculate incentives (using ICC)
-        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(incentiveCalculationContract).calculateIncentive(
+        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(incentiveCalculationContract)
+            .calculateIncentive(
             s.allocations.absoluteAllocationPreOperation,
             s.allocations.absoluteAllocationPostOperation,
             s.allocations.absoluteTargetAllocation,
-            s.allocations.vaultWeights,   
+            s.allocations.vaultWeights,
             s.allocations.totalAllocationPreOperation,
             s.allocations.totalAllocationPostOperation,
             s.allocations.totalTargetAllocation,
@@ -526,39 +614,54 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function previewSwap(address tokenIn, uint256 amountTokenToDeposit, address tokenOut, bool isSoft)
-    external
-    view
-    returns (uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDDeposit, int256 amountIncentiveUSDRedeem, bool isSuccess)
+    function previewSwap(
+        address tokenIn,
+        uint256 amountTokenToDeposit,
+        address tokenOut,
+        bool isSoft
+    )
+        external
+        view
+        returns (
+            uint256 amountTokenOutAfterFees,
+            uint256 swapFeeIn,
+            uint256 swapFeeOut,
+            int256 amountIncentiveUSDDeposit,
+            int256 amountIncentiveUSDRedeem,
+            bool isSuccess
+        )
     {
         uint256 amountSharesMinted;
         bool isSuccessDeposit;
         bool isSuccessRedeem;
-        (amountSharesMinted, swapFeeIn, amountIncentiveUSDDeposit, isSuccessDeposit) = previewDeposit(tokenIn, amountTokenToDeposit, isSoft);
-        (amountTokenOutAfterFees, swapFeeOut, amountIncentiveUSDRedeem, isSuccessRedeem) = previewRedeem(tokenOut, amountSharesMinted, isSoft); // incentives are cumulative in this simplified example.
+        (amountSharesMinted, swapFeeIn, amountIncentiveUSDDeposit, isSuccessDeposit) =
+            previewDeposit(tokenIn, amountTokenToDeposit, isSoft);
+        (amountTokenOutAfterFees, swapFeeOut, amountIncentiveUSDRedeem, isSuccessRedeem) =
+            previewRedeem(tokenOut, amountSharesMinted, isSoft); // incentives are cumulative in this simplified example.
         isSuccess = isSuccessDeposit && isSuccessRedeem;
     }
 
-    
     /// @inheritdoc ISuperAsset
-    function getPriceWithCircuitBreakers(address token) public view returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) {
-        // NOTE: Also this function should not revert 
-        // NOTE: We do not need this check here, since price request can also regard non-whitelisted tokens like integrated SuperVaults underlying assets, this price is required to check if a depeg, dispersion, oracle off happened
+    function getPriceWithCircuitBreakers(address token)
+        public
+        view
+        returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff)
+    {
+        // NOTE: Also this function should not revert
+        // NOTE: We do not need this check here, since price request can also regard non-whitelisted tokens like
+        // integrated SuperVaults underlying assets, this price is required to check if a depeg, dispersion, oracle off
+        // happened
         // if (!isSupportedUnderlyingVault[token] && !isSupportedERC20[token]) revert NOT_SUPPORTED_TOKEN();
 
         // Get token decimals
-        uint256 one = 10**IERC20Metadata(token).decimals();
+        uint256 one = 10 ** IERC20Metadata(token).decimals();
         uint256 stddev;
         uint256 N;
         uint256 M;
 
-        // NOTE: We need to pass oneUnit to get the price of a single unit of asset to check if it has depegged since the depeg threshold regards a single asset
-        (priceUSD, stddev, N, M) = superOracle.getQuoteFromProvider(
-            one,
-            token,
-            USD,
-            AVERAGE_PROVIDER
-        );
+        // NOTE: We need to pass oneUnit to get the price of a single unit of asset to check if it has depegged since
+        // the depeg threshold regards a single asset
+        (priceUSD, stddev, N, M) = superOracle.getQuoteFromProvider(one, token, USD, AVERAGE_PROVIDER);
 
         // Circuit Breaker for Oracle Off
         if (M == 0) {
@@ -568,7 +671,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             // Circuit Breaker for Depeg - price deviates more than ±2% from expected
             if (priceUSD < DEPEG_LOWER_THRESHOLD || priceUSD > DEPEG_UPPER_THRESHOLD) {
                 isDepeg = true;
-            } 
+            }
             // Calculate relative standard deviation
             uint256 relativeStdDev = Math.mulDiv(stddev, PRECISION, priceUSD);
 
@@ -592,5 +695,4 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             IIncentiveFundContract(incentiveFundContract).takeIncentive(user, uint256(-amountIncentiveUSD));
         }
     }
-
 }

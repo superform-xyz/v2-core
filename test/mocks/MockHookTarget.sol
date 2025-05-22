@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity 0.8.28;
+pragma solidity 0.8.30;
 
 /// @notice Mock contract to be targeted by hooks during testing
 contract MockHookTarget {

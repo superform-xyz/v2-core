@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { Swap1InchHook } from "../../../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
-import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
-import { MockERC20 } from "../../../../mocks/MockERC20.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {Swap1InchHook} from "../../../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
+import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
+import {MockERC20} from "../../../../mocks/MockERC20.sol";
 import "../../../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
-import { Helpers } from "../../../../utils/Helpers.sol";
+import {Helpers} from "../../../../utils/Helpers.sol";
 
 contract MockUniswapPair {
     address public token0;
@@ -20,21 +20,34 @@ contract MockUniswapPair {
 
 contract MockCurvePair {
     address coin;
+
     constructor(address _coin) {
         coin = _coin;
     }
 
-    function get() external view returns (address) { return address(this); }  
+    function get() external view returns (address) {
+        return address(this);
+    }
 
-    function base_coins(uint256) external view returns (address) { return coin; }
+    function base_coins(uint256) external view returns (address) {
+        return coin;
+    }
 
-    function coins(int128) external view returns (address) { return coin; }
+    function coins(int128) external view returns (address) {
+        return coin;
+    }
 
-    function coins(uint256) external view returns (address) { return coin; }
+    function coins(uint256) external view returns (address) {
+        return coin;
+    }
 
-    function underlying_coins(int128) external view returns (address) { return coin; }
+    function underlying_coins(int128) external view returns (address) {
+        return coin;
+    }
 
-    function underlying_coins(uint256) external view returns (address) { return coin; }
+    function underlying_coins(uint256) external view returns (address) {
+        return coin;
+    }
 }
 
 contract Swap1InchHookTest is Helpers {
@@ -49,7 +62,7 @@ contract Swap1InchHookTest is Helpers {
     address mockRouter;
     address mockCurvePair;
 
-    receive() external payable { }
+    receive() external payable {}
 
     function setUp() public {
         MockERC20 _mockSrcToken = new MockERC20("Source Token", "SRC", 18);
@@ -88,7 +101,7 @@ contract Swap1InchHookTest is Helpers {
         assertEq(hook.decodeUsePrevHookAmount(hookData), false);
 
         hookData = _buildCurveHookData(0, false, dstReceiver, 1000, 100, true);
-        assertEq(hook.decodeUsePrevHookAmount(hookData), true); 
+        assertEq(hook.decodeUsePrevHookAmount(hookData), true);
     }
 
     function test_Build_RevertIf_CalldataIsNotValid() public {
@@ -104,11 +117,9 @@ contract Swap1InchHookTest is Helpers {
         vm.mockCall(mockPair, abi.encodeWithSignature("token0()"), abi.encode(srcToken));
         vm.mockCall(mockPair, abi.encodeWithSignature("token1()"), abi.encode(dstToken));
 
-
         Execution[] memory executions = hook.build(address(0), account, hookData);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, mockRouter);
-
 
         vm.mockCall(mockPair, abi.encodeWithSignature("token0()"), abi.encode(dstToken));
         vm.mockCall(mockPair, abi.encodeWithSignature("token1()"), abi.encode(srcToken));
@@ -247,13 +258,13 @@ contract Swap1InchHookTest is Helpers {
     }
 
     function test_GenericSwap_inspect() public view {
-        bytes memory data =  _buildGenericSwapData(0, dstToken, dstReceiver, 1000, 100, false);
+        bytes memory data = _buildGenericSwapData(0, dstToken, dstReceiver, 1000, 100, false);
         bytes memory argsEncoded = hook.inspect(data);
         assertGt(argsEncoded.length, 0);
     }
 
     function test_Build_ClipperSwap() public {
-        address account = address(this); 
+        address account = address(this);
 
         bytes memory hookData = _buildClipperData(1000, 100, dstReceiver, dstToken, false);
         Execution[] memory executions = hook.build(address(0), account, hookData);
@@ -279,12 +290,18 @@ contract Swap1InchHookTest is Helpers {
     }
 
     function test_ClipperSwap_inspect() public view {
-        bytes memory data =  _buildClipperData(1000, 100, dstReceiver, dstToken, false);
+        bytes memory data = _buildClipperData(1000, 100, dstReceiver, dstToken, false);
         bytes memory argsEncoded = hook.inspect(data);
         assertGt(argsEncoded.length, 0);
     }
 
-    function _buildClipperData(uint256 _amount, uint256 _minAmount, address _dstReceiver, address _dstToken, bool usePrev) private view returns (bytes memory) {
+    function _buildClipperData(
+        uint256 _amount,
+        uint256 _minAmount,
+        address _dstReceiver,
+        address _dstToken,
+        bool usePrev
+    ) private view returns (bytes memory) {
         bytes memory clipperData = abi.encode(
             address(0), // exchange
             _dstReceiver, // receiver
@@ -299,14 +316,11 @@ contract Swap1InchHookTest is Helpers {
         bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
         bytes memory callData = abi.encodePacked(selector, clipperData);
         return abi.encodePacked(dstToken, dstReceiver, value, usePrev, callData);
-
     }
-
 
     function outAmount() external pure returns (uint256) {
         return 1000;
     }
-
 
     //----------- PRIVATE ------------
     function _encodeAddressWithProtocol(
@@ -334,7 +348,14 @@ contract Swap1InchHookTest is Helpers {
         return Address.wrap(result);
     }
 
-    function _buildCurveHookData(uint8 selectorOffset, bool unwrapWeth, address _swapReceiver, uint256 amount, uint256 minAmount, bool usePrev) private view returns (bytes memory) {
+    function _buildCurveHookData(
+        uint8 selectorOffset,
+        bool unwrapWeth,
+        address _swapReceiver,
+        uint256 amount,
+        uint256 minAmount,
+        bool usePrev
+    ) private view returns (bytes memory) {
         uint8 dstTokenIndex = 0;
         Address dex = _encodeAddressWithProtocol(mockCurvePair, selectorOffset, dstTokenIndex, unwrapWeth);
         bytes memory unoswapData = abi.encode(
@@ -350,7 +371,11 @@ contract Swap1InchHookTest is Helpers {
         return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrev, callData);
     }
 
-    function _buildUnoswapUniswap(address _dstReceiver, address _srcToken, uint256 _amount, uint256 _minAmount) private view returns (bytes memory) {
+    function _buildUnoswapUniswap(address _dstReceiver, address _srcToken, uint256 _amount, uint256 _minAmount)
+        private
+        view
+        returns (bytes memory)
+    {
         bytes memory unoswapData = abi.encode(
             _dstReceiver, // receiver
             _srcToken, // fromToken
@@ -364,7 +389,14 @@ contract Swap1InchHookTest is Helpers {
         return abi.encodePacked(dstToken, dstReceiver, uint256(0), false, callData);
     }
 
-    function _buildGenericSwapData(uint256 _flags, address _dstToken, address _receiver, uint256 _amount, uint256 _minAmount, bool usePrev) private view returns (bytes memory) {
+    function _buildGenericSwapData(
+        uint256 _flags,
+        address _dstToken,
+        address _receiver,
+        uint256 _amount,
+        uint256 _minAmount,
+        bool usePrev
+    ) private view returns (bytes memory) {
         I1InchAggregationRouterV6.SwapDescription memory desc = I1InchAggregationRouterV6.SwapDescription({
             srcToken: IERC20(srcToken),
             dstToken: IERC20(_dstToken),

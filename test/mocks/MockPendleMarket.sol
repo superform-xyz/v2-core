@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 contract MockPendleMarket {
     address public syToken;
     address public ptToken;
     address public ytToken;
-
 
     uint256 public ptToAssetRate;
 
@@ -22,6 +21,7 @@ contract MockPendleMarket {
     function setPtToAssetRate(uint256 _rate) external {
         ptToAssetRate = _rate;
     }
+
     function getPtToAssetRate() external view returns (uint256) {
         return ptToAssetRate;
     }

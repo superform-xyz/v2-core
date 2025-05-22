@@ -6,7 +6,7 @@
  * @dev Bytes tightly packed arrays utility library for ethereum contracts written in Solidity.
  *      The library lets you concatenate, slice and type cast bytes arrays both in memory and storage.
  */
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 library BytesLib {
     function concat(bytes memory _preBytes, bytes memory _postBytes) internal pure returns (bytes memory) {
@@ -463,7 +463,7 @@ library BytesLib {
 
                         // the next line is the loop condition:
                         // while(uint256(mc < end) + cb == 2)
-                        for { } eq(add(lt(mc, end), cb), 2) {
+                        for {} eq(add(lt(mc, end), cb), 2) {
                             sc := add(sc, 1)
                             mc := add(mc, 0x20)
                         } {

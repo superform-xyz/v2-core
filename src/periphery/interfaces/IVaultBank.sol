@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity >=0.8.28;
+pragma solidity 0.8.30;
 
 import {IHookExecutionData} from "./IHookExecutionData.sol";
 
@@ -7,8 +7,22 @@ interface IVaultBankSource {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
-    event SharesLocked(address indexed account, address indexed token, uint256 amount, uint256 srcChainId, uint256 dstChainId, uint256 nonce);
-    event SharesUnlocked(address indexed account, address indexed token, uint256 amount, uint256 srcChainId, uint256 dstChainId, uint256 nonce);
+    event SharesLocked(
+        address indexed account,
+        address indexed token,
+        uint256 amount,
+        uint256 srcChainId,
+        uint256 dstChainId,
+        uint256 nonce
+    );
+    event SharesUnlocked(
+        address indexed account,
+        address indexed token,
+        uint256 amount,
+        uint256 srcChainId,
+        uint256 dstChainId,
+        uint256 nonce
+    );
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -103,8 +117,22 @@ interface IVaultBank is IHookExecutionData {
     //////////////////////////////////////////////////////////////*/
     event BatchDistributeRewardsToSuperBank(address[] indexed rewards, uint256[] amounts);
 
-    event SuperpositionsMinted(address indexed account, address indexed spAddress, address indexed srcTokenAddress, uint256 amount, uint64 srcChain, uint256 nonce);
-    event SuperpositionsBurned(address indexed account, address indexed spAddress, address indexed srcTokenAddress, uint256 amount, uint64 srcChain, uint256 nonce);
+    event SuperpositionsMinted(
+        address indexed account,
+        address indexed spAddress,
+        address indexed srcTokenAddress,
+        uint256 amount,
+        uint64 srcChain,
+        uint256 nonce
+    );
+    event SuperpositionsBurned(
+        address indexed account,
+        address indexed spAddress,
+        address indexed srcTokenAddress,
+        uint256 amount,
+        uint64 srcChain,
+        uint256 nonce
+    );
 
     event DestinationChainUpdated(uint64 indexed dstChainId, bool status);
     event RelayerUpdated(address indexed relayer, bool status);
@@ -125,7 +153,12 @@ interface IVaultBank is IHookExecutionData {
     /// @param amount_ The amount of the asset to lock
     /// @param sourceAssetInfo_ The source asset info
     /// @param proof_ The proof of the event
-    function distributeSuperPosition(address account_, uint256 amount_, SourceAssetInfo calldata sourceAssetInfo_, bytes calldata proof_) external;
+    function distributeSuperPosition(
+        address account_,
+        uint256 amount_,
+        SourceAssetInfo calldata sourceAssetInfo_,
+        bytes calldata proof_
+    ) external;
     /// @notice Burns a synthetic asset
     /// @dev Should be requested by the account owning the SP assets
     /// @param amount_ The amount of the asset to burn
@@ -140,8 +173,9 @@ interface IVaultBank is IHookExecutionData {
     /// @param amount The amount of the asset to unlock
     /// @param fromChainId The `from` (destination) chain
     /// @param proof_ The proof of the `burnSuperPosition` event
-    function unlockAsset(address account, address token, uint256 amount, uint64 fromChainId, bytes calldata proof_) external;
- 
+    function unlockAsset(address account, address token, uint256 amount, uint64 fromChainId, bytes calldata proof_)
+        external;
+
     // ------------------ MANAGE REWARDS ------------------
     /// @notice Execute hooks
     /// @dev Used to claim rewards
