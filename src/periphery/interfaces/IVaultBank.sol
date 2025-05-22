@@ -48,7 +48,7 @@ interface IVaultBankDestination {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error INVALID_BURN_AMOUNT();
-    error SYNTHETIC_ASSET_NOT_FOUND();
+    error SUPERPOSITION_ASSET_NOT_FOUND();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

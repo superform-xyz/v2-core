@@ -126,16 +126,15 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         );
         _mintSP(account_, spAddress, amount_);
 
-        //`toChainId` is current chain
-        uint256 _nonce = nonces[account_][uint64(_chainId)];
         nonces[account_][uint64(_chainId)]++;
+        
         emit SuperpositionsMinted(
             account_,
             spAddress,
             sourceAsset_.asset,
             amount_,
             sourceAsset_.chainId,
-            _nonce
+            _extractNonce(proof_)
         );
     }
     
@@ -191,6 +190,14 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
 
         _validateSPTopics(account, token, topics);
         _validateSPData(account, amount, fromChainId, chainId, unindexedData);
+    }
+    
+    function _extractNonce(bytes calldata proof_) internal view returns (uint256) {
+        (,,, bytes memory unindexedData) =
+            ICrossL2ProverV2(SUPER_GOVERNOR.getProver()).validateEvent(proof_);
+            
+        (,,, uint256 eventNonce) = abi.decode(unindexedData, (uint256, uint64, uint64, uint256));
+        return eventNonce;
     }
     function _validateSPTopics(address account, address token, bytes memory topics) private pure {
         bytes32 eventSelector = topics.toBytes32(0); // event signature
