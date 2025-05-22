@@ -8,6 +8,8 @@ import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet
 // Superform
 import {ISuperGovernor, FeeType} from "./interfaces/ISuperGovernor.sol";
 import {ISuperVaultAggregator} from "./interfaces/ISuperVaultAggregator.sol";
+import {ISuperAssetFactory} from "./interfaces/SuperAsset/ISuperAssetFactory.sol";
+
 
 /// @title SuperGovernor
 /// @author Superform Labs
@@ -200,6 +202,15 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         // Call the interface method to change the strategist
         // This function can only be called by the SuperGovernor and bypasses the timelock
         ISuperVaultAggregator(aggregator).changePrimaryStrategist(strategy_, newStrategist_);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function setSuperAssetManager(address superAsset, address _superAssetManager) external onlyRole(_GOVERNOR_ROLE) {
+        if (_superAssetManager == address(0)) revert INVALID_ADDRESS();
+        address value = _addressRegistry[_SUPER_ASSET_FACTORY];
+        if (value == address(0)) revert CONTRACT_NOT_FOUND();
+        ISuperAssetFactory factory = ISuperAssetFactory(value);
+        factory.setSuperAssetManager(superAsset, _superAssetManager);
     }
 
     /// @notice Proposes a new global hooks Merkle root in the SuperVaultAggregator

@@ -280,6 +280,11 @@ interface ISuperGovernor is IAccessControl {
     /// @param newStrategist_ The new primary strategist address
     function changePrimaryStrategist(address strategy_, address newStrategist_) external;
 
+    /// @notice Sets the superasset manager for a superasset
+    /// @param superAsset The superasset address
+    /// @param _superAssetManager The new superasset manager address
+    function setSuperAssetManager(address superAsset, address _superAssetManager) external;
+
     /// @notice Permanently freezes all strategist takeovers globally
     function freezeStrategistTakeover() external;
 
