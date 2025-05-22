@@ -317,7 +317,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                        STRATEGIST MANAGEMENT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperVaultAggregator
     function addSecondaryStrategist(address strategy, address strategist) external validStrategy(strategy) {
         // Only the primary strategist can add secondary strategists
@@ -450,7 +449,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                         HOOK VALIDATION FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperVaultAggregator
     function proposeGlobalHooksRoot(bytes32 newRoot) external {
         // Only SUPER_GOVERNOR can update the global hooks root
@@ -796,7 +794,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                          INTERNAL HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Internal implementation of forwarding PPS updates
     /// @param args Struct containing all parameters for PPS update
     function _forwardPPS(ForwardPPSArgs memory args) internal {
