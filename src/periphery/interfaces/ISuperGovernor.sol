@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.30;
+pragma solidity 0.8.30;
 
 /*//////////////////////////////////////////////////////////////
                                   ENUMS
@@ -274,6 +274,10 @@ interface ISuperGovernor {
     /// @param strategy_ The strategy address
     /// @param newStrategist_ The new primary strategist address
     function changePrimaryStrategist(address strategy_, address newStrategist_) external;
+
+    /// @notice Changes the hooks root update timelock duration
+    /// @param newTimelock_ New timelock duration in seconds
+    function changeHooksRootUpdateTimelock(uint256 newTimelock_) external;
 
     /// @notice Permanently freezes all strategist takeovers globally
     function freezeStrategistTakeover() external;

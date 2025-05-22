@@ -199,6 +199,20 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         ISuperVaultAggregator(aggregator).changePrimaryStrategist(strategy_, newStrategist_);
     }
 
+    /// @notice Changes the hooks root update timelock duration
+    /// @dev Only callable by SUPER_GOVERNOR_ROLE
+    /// @param newTimelock_ New timelock duration in seconds
+    function changeHooksRootUpdateTimelock(uint256 newTimelock_)
+        external
+        onlyRole(_SUPER_GOVERNOR_ROLE)
+    {
+        address aggregator = _addressRegistry[SUPER_VAULT_AGGREGATOR];
+        if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
+
+        // Call the SuperVaultAggregator to change the hooks root update timelock
+        ISuperVaultAggregator(aggregator).setHooksRootUpdateTimelock(newTimelock_);
+    }
+
     /// @notice Proposes a new global hooks Merkle root in the SuperVaultAggregator
     /// @dev Only callable by GOVERNOR_ROLE
     /// @param newRoot New Merkle root for global hooks validation
