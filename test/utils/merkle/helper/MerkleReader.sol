@@ -49,6 +49,9 @@ abstract contract MerkleReader is StdCheats, Helpers {
         v.rootJson = vm.readFile(string.concat(vm.projectRoot(), basePathForRoot, ".json"));
         v.encodedRoot = vm.parseJson(v.rootJson, ".root");
         root = abi.decode(v.encodedRoot, (bytes32));
+        console2.log("\n");
+        console2.log("----------ROoot   ----------");
+        console2.logBytes32(root);
     }
 
     /**
@@ -167,11 +170,16 @@ abstract contract MerkleReader is StdCheats, Helpers {
         for (uint256 i = 0; i < valuesLength; ++i) {
             string memory hookAddressQuery = string.concat(prepend, Strings.toString(i), hookAddressQueryAppend);
             bytes memory encodedHookAddress = vm.parseJson(v.treeJson, hookAddressQuery);
-            cachedHookAddresses[i] = abi.decode(encodedHookAddress, (address));
 
+            cachedHookAddresses[i] = abi.decode(encodedHookAddress, (address));
             string memory valueQuery = string.concat(prepend, Strings.toString(i), valueQueryAppend);
             bytes memory encodedValue = vm.parseJson(v.treeJson, valueQuery);
-            cachedValueBytes[i] = abi.decode(encodedValue, (bytes));
+
+            if (encodedValue.length > 32) {
+                cachedValueBytes[i] = abi.decode(encodedValue, (bytes));
+            } else {
+                cachedValueBytes[i] = abi.encodePacked(abi.decode(encodedValue, (address)));
+            }
 
             cachedProofQueries[i] = string.concat(prepend, Strings.toString(i), proofQueryAppend);
         }
@@ -182,9 +190,6 @@ abstract contract MerkleReader is StdCheats, Helpers {
             bytes memory targetArgs = encodedHookArgs[h];
 
             bool found = false;
-
-            console2.log("targetHookAddress", targetHookAddress);
-            console2.logBytes(targetArgs);
 
             // Search through cached entries
             for (uint256 i = 0; i < valuesLength; ++i) {

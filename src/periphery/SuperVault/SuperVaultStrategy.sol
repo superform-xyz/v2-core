@@ -95,7 +95,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         PRECISION = 10 ** _vaultDecimals;
         superGovernor = ISuperGovernor(superGovernor_);
         feeConfig = feeConfig_;
-        _maxPPSSlippage = 500; // 500 bps = 5% todo: is this an acceptable starting value
+        _maxPPSSlippage = 500; // 500 bps = 5% note: is this an acceptable starting value?
 
         emit Initialized(_vault, superGovernor_);
     }
@@ -412,7 +412,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
         vars.hookContract = ISuperHook(hook);
         vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
-        // todo missing validation of targeted yield source
 
         bool usePrevHookAmount = _decodeHookUsePrevHookAmount(hook, hookCalldata);
         if (usePrevHookAmount && prevHook != address(0)) {
