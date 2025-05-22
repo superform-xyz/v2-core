@@ -41,10 +41,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     // --- State ---
     mapping(address token => TokenData data) public tokenData;
-    // mapping(address token => bool isSupported) public isSupportedUnderlyingVault;
-    // mapping(address token => bool isSupported) public isSupportedERC20;
-    // mapping(address token => uint256 allocation) public targetAllocations;
-    // mapping(address token => uint256 allocation) public weights; // Weights for each vault in energy calculation
 
     // NOTE: Actually it does not contain only supported Vaults shares but also standard ERC20
     EnumerableSet.AddressSet private _supportedVaults;
