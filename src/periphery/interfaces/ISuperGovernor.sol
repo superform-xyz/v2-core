@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.30;
 
+import "@openzeppelin/contracts/access/IAccessControl.sol";
+
 /*//////////////////////////////////////////////////////////////
                                   ENUMS
     //////////////////////////////////////////////////////////////*/
@@ -15,7 +17,7 @@ enum FeeType {
 /// @notice Interface for the SuperGovernor contract
 /// @dev Central registry for all deployed contracts in the Superform periphery
 
-interface ISuperGovernor {
+interface ISuperGovernor is IAccessControl {
     /*//////////////////////////////////////////////////////////////
                                   STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -250,6 +252,9 @@ interface ISuperGovernor {
     /// @notice The identifier of the role that grants access to guardian functions
     function GUARDIAN_ROLE() external view returns (bytes32);
 
+    /// @notice The identifier of the role that grants access to superasset factory
+    function SUPER_ASSET_FACTORY() external view returns (bytes32);
+
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -274,6 +279,11 @@ interface ISuperGovernor {
     /// @param strategy_ The strategy address
     /// @param newStrategist_ The new primary strategist address
     function changePrimaryStrategist(address strategy_, address newStrategist_) external;
+
+    /// @notice Sets the superasset manager for a superasset
+    /// @param superAsset The superasset address
+    /// @param _superAssetManager The new superasset manager address
+    function setSuperAssetManager(address superAsset, address _superAssetManager) external;
 
     /// @notice Permanently freezes all strategist takeovers globally
     function freezeStrategistTakeover() external;

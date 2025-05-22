@@ -5,7 +5,7 @@ import { Test } from "forge-std/Test.sol";
 import "forge-std/console.sol";
 import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
 import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
-import { AssetBank } from "../../../../src/periphery/SuperAsset/AssetBank.sol";
+import { SuperGovernor } from "../../../../src/periphery/SuperGovernor.sol";
 import { IncentiveFundContract } from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
 import { IncentiveCalculationContract } from "../../../../src/periphery/SuperAsset/IncentiveCalculationContract.sol";
 import { SuperOracle } from "../../../../src/periphery/oracles/SuperOracle.sol";
@@ -16,6 +16,7 @@ import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.so
 import { Helpers } from "../../../utils/Helpers.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { SuperAssetFactory, ISuperAssetFactory } from "../../../../src/periphery/SuperAsset/SuperAssetFactory.sol";
 
 contract SuperAssetTest is Helpers {
     // --- Constants ---
@@ -33,10 +34,10 @@ contract SuperAssetTest is Helpers {
 
     // --- State Variables ---
     SuperAsset public superAsset;
-    AssetBank public assetBank;
     SuperOracle public oracle;
     Mock4626Vault public tokenIn;
     Mock4626Vault public tokenOut;
+    SuperAssetFactory public factory;
     MockERC20 public underlyingToken1;
     MockERC20 public underlyingToken2;
     MockAggregator public mockFeedSuperAssetShares1;
@@ -50,6 +51,7 @@ contract SuperAssetTest is Helpers {
     MockAggregator public mockFeed6;
     IncentiveCalculationContract public icc;
     IncentiveFundContract public incentiveFund;
+    SuperGovernor public superGovernor;
     address public admin;
     address public manager;
     address public user;
@@ -64,9 +66,15 @@ contract SuperAssetTest is Helpers {
         user11 = makeAddr("user11");
 
         vm.startPrank(admin);
-        // Deploy and initialize SuperAsset
-        superAsset = new SuperAsset();
-        console.log("SuperAsset deployed");
+        // Deploy SuperGovernor first
+        superGovernor = new SuperGovernor(
+            admin, // superGovernor role
+            admin, // governor role
+            admin, // bankManager role
+            makeAddr("treasury"), // treasury
+            makeAddr("prover") // prover
+        );
+        console.log("SuperGovernor deployed");
 
         // Deploy mock tokens and vault
         underlyingToken1 = new MockERC20("Underlying Token1", "UTKN1", 18);
@@ -147,12 +155,52 @@ contract SuperAssetTest is Helpers {
         feeds[7] = address(mockFeedSuperVault1Shares);
         feeds[8] = address(mockFeedSuperVault2Shares);
 
+
+        // Deploy factory and contracts
+        factory = new SuperAssetFactory(address(superGovernor));
+        console.log("Factory deployed");
+        superGovernor.setAddress(superGovernor.SUPER_ASSET_FACTORY(), address(factory));
+
+        // Grant roles
+        vm.startPrank(admin);
+        superGovernor.grantRole(superGovernor.SUPER_GOVERNOR_ROLE(), admin);
+        superGovernor.grantRole(superGovernor.GOVERNOR_ROLE(), admin);
+        superGovernor.grantRole(superGovernor.BANK_MANAGER_ROLE(), admin);
+        vm.stopPrank();
+        console.log("SuperGovernor Roles Granted");
+
+        // Create SuperAsset using factory
+        ISuperAssetFactory.AssetCreationParams memory params = ISuperAssetFactory.AssetCreationParams({
+            name: "SuperAsset",
+            symbol: "SA",
+            swapFeeInPercentage: 100, // 0.1% swap fee in
+            swapFeeOutPercentage: 100, // 0.1% swap fee out
+            superAssetManager: admin,
+            superAssetStrategist: admin,
+            incentiveFundManager: admin,
+            incentiveCalculationContract: address(icc)
+        });
+
+        vm.prank(admin);
+        (address superAssetAddr, address incentiveFundAddr) = factory.createSuperAsset(params);
+        console.log("SuperAsset and IncentiveFund deployed via factory");
+        superAsset = SuperAsset(superAssetAddr);
+        incentiveFund = IncentiveFundContract(incentiveFundAddr);
+        console.log("SuperAsset and IncentiveFund deployed via factory");
+
+        // Add SuperOracle Init
+        // NOTE: Initially superAsset was not defined, now it is because it gets instantiated with the factory
+        bases[6] = address(superAsset);
         // Deploy and configure oracle with regular providers only
+        console.log("Trying to deploy SuperOracle");
+        vm.prank(admin);
         oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
+        vm.prank(admin);
         oracle.setMaxStaleness(2 weeks);
         console.log("Oracle deployed");
 
         // Set staleness for each feed
+        vm.startPrank(admin);
         oracle.setFeedMaxStaleness(address(mockFeed1), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed2), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed3), 1 days);
@@ -162,53 +210,23 @@ contract SuperAssetTest is Helpers {
         oracle.setFeedMaxStaleness(address(mockFeedSuperAssetShares1), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeedSuperVault1Shares), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeedSuperVault2Shares), 1 days);
+        vm.stopPrank();
 
         console.log("Feed staleness set");
 
-        // Deploy contracts
+        // Set SuperAsset oracle
         vm.startPrank(admin);
-
-        // Deploy and initialize AssetBank
-        assetBank = new AssetBank(admin);
-        console.log("AssetBank deployed");
-
-        // Deploy and initialize IncentiveFund
-        incentiveFund = new IncentiveFundContract(admin);
-        console.log("IncentiveFund deployed");
-
-        // Initialize SuperAsset
-        console.log("About to initialize SuperAsset");
-        superAsset.initialize(
-            "SuperAsset", // name
-            "SA", // symbol
-            address(icc), // icc
-            address(incentiveFund), // ifc
-            address(assetBank), // assetBank
-            100, // swapFeeInPercentage (0.1%)
-            100 // swapFeeOutPercentage (0.1%)
-        );
-        console.log("SuperAsset initialized");
-
-        // Initialize IncentiveFund after SuperAsset is initialized
-        incentiveFund.initialize(address(superAsset), address(assetBank));
-
-        // Setup roles and configuration
-        superAsset.grantRole(superAsset.VAULT_MANAGER_ROLE(), admin);
         superAsset.setSuperOracle(address(oracle));
         superAsset.whitelistERC20(address(tokenIn));
-        assertEq(superAsset.isSupportedERC20(address(tokenIn)), true, "Token In should be whitelisted");
+        ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
+        assertEq(tokenData.isSupportedERC20, true, "Token In should be whitelisted");
         superAsset.whitelistERC20(address(tokenOut));
-        assertEq(superAsset.isSupportedERC20(address(tokenOut)), true, "Token Out should be whitelisted");
+        tokenData = superAsset.getTokenData(address(tokenOut));
+        assertEq(tokenData.isSupportedERC20, true, "Token Out should be whitelisted");
         superAsset.whitelistERC20(address(superAsset));
-        assertEq(superAsset.isSupportedERC20(address(superAsset)), true, "SuperAsset should be whitelisted");
-
-        // Grant necessary roles
-        bytes32 INCENTIVE_FUND_MANAGER = incentiveFund.INCENTIVE_FUND_MANAGER();
-        incentiveFund.grantRole(INCENTIVE_FUND_MANAGER, manager);
-        assetBank.grantRole(assetBank.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
-        superAsset.grantRole(superAsset.INCENTIVE_FUND_MANAGER(), address(incentiveFund));
-        superAsset.grantRole(superAsset.MINTER_ROLE(), address(incentiveFund));
-        superAsset.grantRole(superAsset.BURNER_ROLE(), address(incentiveFund));
+        tokenData = superAsset.getTokenData(address(superAsset));
+        assertEq(tokenData.isSupportedERC20, true, "SuperAsset should be whitelisted");
+        vm.stopPrank();
 
         console.log("Start Minting");
 
@@ -238,12 +256,9 @@ contract SuperAssetTest is Helpers {
     }
 
     // --- Test: Initialization ---
-    function test_Initialize() public view {
+    function test_Initialize1() public view {
         assertEq(superAsset.name(), "SuperAsset");
         assertEq(superAsset.symbol(), "SA");
-        assertEq(superAsset.incentiveCalculationContract(), address(icc));
-        assertEq(superAsset.incentiveFundContract(), address(incentiveFund));
-        assertEq(superAsset.assetBank(), address(assetBank));
         assertEq(superAsset.swapFeeInPercentage(), 100);
         assertEq(superAsset.swapFeeOutPercentage(), 100);
     }
@@ -253,9 +268,7 @@ contract SuperAssetTest is Helpers {
         superAsset.initialize(
             "SuperAsset", // name
             "SA", // symbol
-            address(icc), // icc
-            address(incentiveFund), // ifc
-            address(assetBank), // assetBank
+            address(superGovernor),
             100, // swapFeeInPercentage
             100 // swapFeeOutPercentage
         );
@@ -267,11 +280,7 @@ contract SuperAssetTest is Helpers {
 
         // Non-manager cannot whitelist
         vm.startPrank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, superAsset.VAULT_MANAGER_ROLE()
-            )
-        );
+        vm.expectRevert(ISuperAsset.UNAUTHORIZED.selector);
         superAsset.whitelistERC20(newToken);
         vm.stopPrank();
 
@@ -280,7 +289,8 @@ contract SuperAssetTest is Helpers {
         superAsset.whitelistERC20(newToken);
         vm.stopPrank();
 
-        assertTrue(superAsset.isSupportedERC20(newToken));
+        ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(newToken);
+        assertTrue(tokenData.isSupportedERC20);
     }
 
     // --- Test: Oracle Integration ---
@@ -289,11 +299,7 @@ contract SuperAssetTest is Helpers {
 
         // Non-admin cannot set oracle
         vm.startPrank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, superAsset.DEFAULT_ADMIN_ROLE()
-            )
-        );
+        vm.expectRevert(ISuperAsset.UNAUTHORIZED.selector);
         superAsset.setSuperOracle(newOracle);
         vm.stopPrank();
 
@@ -311,11 +317,7 @@ contract SuperAssetTest is Helpers {
 
         // Non-admin cannot set fees
         vm.startPrank(user);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IAccessControl.AccessControlUnauthorizedAccount.selector, user, superAsset.DEFAULT_ADMIN_ROLE()
-            )
-        );
+        vm.expectRevert(ISuperAsset.UNAUTHORIZED.selector);
         superAsset.setSwapFeeInPercentage(newFee);
         vm.stopPrank();
 
@@ -341,8 +343,10 @@ contract SuperAssetTest is Helpers {
         console.log("test_BasicDepositSimple() Start");
         uint256 depositAmount = 100e18;
         uint256 minSharesOut = 99e18; // Allowing for 1% slippage
-        assertEq(superAsset.isSupportedERC20(address(tokenIn)), true, "Token In should be whitelisted");
-        assertEq(superAsset.isSupportedERC20(address(tokenOut)), true, "Token Out should be whitelisted");
+        ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
+        assertTrue(tokenData.isSupportedERC20);
+        ISuperAsset.TokenData memory tokenData2 = superAsset.getTokenData(address(tokenOut));
+        assertTrue(tokenData2.isSupportedERC20);
 
         // Approve tokens
         vm.startPrank(user);
@@ -395,8 +399,10 @@ contract SuperAssetTest is Helpers {
         BasicDepositWithCircuitBreaker memory s;
         s.depositAmount = 100e18;
         s.minSharesOut = 99e18; // Allowing for 1% slippage
-        assertEq(superAsset.isSupportedERC20(address(tokenIn)), true, "Token In should be whitelisted");
-        assertEq(superAsset.isSupportedERC20(address(tokenOut)), true, "Token Out should be whitelisted");
+        ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
+        assertTrue(tokenData.isSupportedERC20);
+        ISuperAsset.TokenData memory tokenData2 = superAsset.getTokenData(address(tokenOut));
+        assertTrue(tokenData2.isSupportedERC20);
 
         // Approve tokens
         vm.startPrank(user);
