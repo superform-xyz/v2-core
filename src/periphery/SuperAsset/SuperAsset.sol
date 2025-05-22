@@ -40,16 +40,17 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     uint256 public constant SWAP_FEE_PERC = 10 ** 6;
 
     // --- State ---
-    mapping(address token => bool isSupported) public isSupportedUnderlyingVault;
-    mapping(address token => bool isSupported) public isSupportedERC20;
+    mapping(address token => TokenData data) public tokenData;
+    // mapping(address token => bool isSupported) public isSupportedUnderlyingVault;
+    // mapping(address token => bool isSupported) public isSupportedERC20;
+    // mapping(address token => uint256 allocation) public targetAllocations;
+    // mapping(address token => uint256 allocation) public weights; // Weights for each vault in energy calculation
 
     // NOTE: Actually it does not contain only supported Vaults shares but also standard ERC20
     EnumerableSet.AddressSet private _supportedVaults;
     address public incentiveCalculationContract; // Address of the ICC
     address public incentiveFundContract; // Address of the Incentive Fund Contract
 
-    mapping(address token => uint256 allocation) public targetAllocations;
-    mapping(address token => uint256 allocation) public weights; // Weights for each vault in energy calculation
 
     ISuperOracle public superOracle;
     ISuperGovernor public _SUPER_GOVERNOR;
@@ -70,12 +71,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     // --- Modifiers ---
     modifier onlyVault() {
-        if (!isSupportedUnderlyingVault[msg.sender]) revert NOT_VAULT();
+        if (!tokenData[msg.sender].isSupportedUnderlyingVault) revert NOT_VAULT();
         _;
     }
 
     modifier onlyERC20() {
-        if (!isSupportedERC20[msg.sender]) revert NOT_ERC20_TOKEN();
+        if (!tokenData[msg.sender].isSupportedERC20) revert NOT_ERC20_TOKEN();
         _;
     }
 
@@ -127,6 +128,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     /*//////////////////////////////////////////////////////////////
                 EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperAsset
+    function getTokenData(address token) external view returns (TokenData memory) {
+        return tokenData[token];
+    }
 
     /// @inheritdoc ISuperAsset
     function getPPS() public view returns(uint256 pps) {
@@ -214,8 +220,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         address manager = factory.getSuperAssetManager(address(this));
         if (manager != msg.sender) revert UNAUTHORIZED();
         if (vault == address(0)) revert ZERO_ADDRESS();
-        if (!isSupportedUnderlyingVault[vault]) revert NOT_VAULT();
-        weights[vault] = weight;
+        if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_VAULT();
+        tokenData[vault].weights = weight;
         emit WeightSet(vault, weight);
     }
 
@@ -229,12 +235,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 totalAllocation;
         for (uint256 i = 0; i < tokens.length; i++) {
             if (tokens[i] == address(0)) revert ZERO_ADDRESS();
-            if (!isSupportedUnderlyingVault[tokens[i]] && !isSupportedERC20[tokens[i]]) revert NOT_SUPPORTED_TOKEN();
+            if (!tokenData[tokens[i]].isSupportedUnderlyingVault && !tokenData[tokens[i]].isSupportedERC20) revert NOT_SUPPORTED_TOKEN();
             totalAllocation += allocations[i];
         }
 
         for (uint256 i = 0; i < tokens.length; i++) {
-            targetAllocations[tokens[i]] = allocations[i];
+            tokenData[tokens[i]].targetAllocations = allocations[i];
             emit TargetAllocationSet(tokens[i], allocations[i]);
         }
     }
@@ -246,12 +252,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         address strategist = factory.getSuperAssetStrategist(address(this));
         if (strategist != msg.sender) revert UNAUTHORIZED();
         if (token == address(0)) revert ZERO_ADDRESS();
-        if (!isSupportedUnderlyingVault[token] && !isSupportedERC20[token]) revert NOT_SUPPORTED_TOKEN();
+        if (!tokenData[token].isSupportedUnderlyingVault && !tokenData[token].isSupportedERC20) revert NOT_SUPPORTED_TOKEN();
 
         // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC
         if (allocation > PRECISION) revert INVALID_ALLOCATION();
 
-        targetAllocations[token] = allocation;
+        tokenData[token].targetAllocations = allocation;
         emit TargetAllocationSet(token, allocation);
     }
 
@@ -279,7 +285,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         PreviewErrors memory errors;
         // First all the non state changing functions
         if (amountTokenToDeposit == 0) revert ZERO_AMOUNT();
-        if (!isSupportedUnderlyingVault[yieldSourceShare] && !isSupportedERC20[yieldSourceShare]) {
+        if (!tokenData[yieldSourceShare].isSupportedUnderlyingVault && !tokenData[yieldSourceShare].isSupportedERC20) {
             revert NOT_SUPPORTED_TOKEN();
         }
         if (receiver == address(0)) revert ZERO_ADDRESS();
@@ -336,7 +342,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem)
     {
         if (amountSharesToRedeem == 0) revert ZERO_AMOUNT();
-        if (!isSupportedUnderlyingVault[tokenOut] && !isSupportedERC20[tokenOut]) revert NOT_SUPPORTED_TOKEN();
+        if (!tokenData[tokenOut].isSupportedUnderlyingVault && !tokenData[tokenOut].isSupportedERC20) revert NOT_SUPPORTED_TOKEN();
         if (receiver == address(0)) revert ZERO_ADDRESS();
 
         bool isSuccess;
@@ -422,8 +428,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         address manager = factory.getSuperAssetManager(address(this));
         if (manager != msg.sender) revert UNAUTHORIZED();
         if (vault == address(0)) revert ZERO_ADDRESS();
-        if (isSupportedUnderlyingVault[vault]) revert ALREADY_WHITELISTED();
-        isSupportedUnderlyingVault[vault] = true;
+        if (tokenData[vault].isSupportedUnderlyingVault) revert ALREADY_WHITELISTED();
+        tokenData[vault].isSupportedUnderlyingVault = true;
         _supportedVaults.add(vault);
         emit VaultWhitelisted(vault);
     }
@@ -434,8 +440,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         address manager = factory.getSuperAssetManager(address(this));
         if (manager != msg.sender) revert UNAUTHORIZED();
         if (vault == address(0)) revert ZERO_ADDRESS();
-        if (!isSupportedUnderlyingVault[vault]) revert NOT_WHITELISTED();
-        isSupportedUnderlyingVault[vault] = false;
+        if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_WHITELISTED();
+        tokenData[vault].isSupportedUnderlyingVault = false;
         _supportedVaults.remove(vault);
         emit VaultRemoved(vault);
     }
@@ -446,8 +452,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         address manager = factory.getSuperAssetManager(address(this));
         if (manager != msg.sender) revert UNAUTHORIZED();
         if (token == address(0)) revert ZERO_ADDRESS();
-        if (isSupportedERC20[token]) revert ALREADY_WHITELISTED();
-        isSupportedERC20[token] = true;
+        if (tokenData[token].isSupportedERC20) revert ALREADY_WHITELISTED();
+        tokenData[token].isSupportedERC20 = true;
         _supportedVaults.add(token);
         emit ERC20Whitelisted(token);
     }
@@ -458,8 +464,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         address manager = factory.getSuperAssetManager(address(this));
         if (manager != msg.sender) revert UNAUTHORIZED();
         if (token == address(0)) revert ZERO_ADDRESS();
-        if (!isSupportedERC20[token]) revert NOT_WHITELISTED();
-        isSupportedERC20[token] = false;
+        if (!tokenData[token].isSupportedERC20) revert NOT_WHITELISTED();
+        tokenData[token].isSupportedERC20 = false;
         _supportedVaults.remove(token);
         emit ERC20Removed(token);
     }
@@ -482,7 +488,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             address vault = _supportedVaults.at(i);
             absoluteCurrentAllocation[i] = IERC20(vault).balanceOf(address(this));
             totalCurrentAllocation += absoluteCurrentAllocation[i];
-            absoluteTargetAllocation[i] = targetAllocations[vault];
+            absoluteTargetAllocation[i] = tokenData[vault].targetAllocations;
             totalTargetAllocation += absoluteTargetAllocation[i];
         }
     }
@@ -555,9 +561,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                 absoluteAllocationPostOperation[i] = uint256(int256(absoluteAllocationPreOperation[i]) + s.deltaValue);
             }
             totalAllocationPostOperation += absoluteAllocationPostOperation[i];
-            absoluteTargetAllocation[i] = targetAllocations[s.vault];
+            absoluteTargetAllocation[i] = tokenData[s.vault].targetAllocations;
             totalTargetAllocation += absoluteTargetAllocation[i];
-            vaultWeights[i] = weights[s.vault];
+            vaultWeights[i] = tokenData[s.vault].weights;
         }
         isSuccess = true;
     }
@@ -574,7 +580,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     {
         PreviewDeposit memory s;
         // NOTE: Preview Function should not revert
-        if (!isSupportedUnderlyingVault[tokenIn] && !isSupportedERC20[tokenIn]) return (0, 0, 0, false);
+        if (!tokenData[tokenIn].isSupportedUnderlyingVault && !tokenData[tokenIn].isSupportedERC20) return (0, 0, 0, false);
 
         // Calculate swap fees (example: 0.1% fee)
         swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%

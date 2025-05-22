@@ -10,6 +10,14 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * fee handling, and incentive calculations.
  */
 interface ISuperAsset is IERC20 {
+
+    struct TokenData {
+        bool isSupportedUnderlyingVault;
+        bool isSupportedERC20;
+        uint256 targetAllocations;
+        uint256 weights;
+    }
+
     struct PreviewErrors {
         bool isDepeg;
         bool isDispersion;
@@ -76,6 +84,13 @@ interface ISuperAsset is IERC20 {
         uint256 swapFeeOutPercentage_
     )
         external;
+        
+    /**
+     * @notice Returns the token data for a given token
+     * @param token The token address
+     * @return TokenData structure containing the token data
+     */
+    function getTokenData(address token) external view returns (TokenData memory);
 
     /**
      * @notice Returns the PPS of the SuperAsset

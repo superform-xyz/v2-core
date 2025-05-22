@@ -217,11 +217,14 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(admin);
         superAsset.setSuperOracle(address(oracle));
         superAsset.whitelistERC20(address(tokenIn));
-        assertEq(superAsset.isSupportedERC20(address(tokenIn)), true, "Token In should be whitelisted");
+        ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
+        assertEq(tokenData.isSupportedERC20, true, "Token In should be whitelisted");
         superAsset.whitelistERC20(address(tokenOut));
-        assertEq(superAsset.isSupportedERC20(address(tokenOut)), true, "Token Out should be whitelisted");
+        tokenData = superAsset.getTokenData(address(tokenOut));
+        assertEq(tokenData.isSupportedERC20, true, "Token Out should be whitelisted");
         superAsset.whitelistERC20(address(superAsset));
-        assertEq(superAsset.isSupportedERC20(address(superAsset)), true, "SuperAsset should be whitelisted");
+        tokenData = superAsset.getTokenData(address(superAsset));
+        assertEq(tokenData.isSupportedERC20, true, "SuperAsset should be whitelisted");
         vm.stopPrank();
 
         console.log("Start Minting");
@@ -292,7 +295,8 @@ contract SuperAssetTest is Helpers {
         superAsset.whitelistERC20(newToken);
         vm.stopPrank();
 
-        assertTrue(superAsset.isSupportedERC20(newToken));
+        ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(newToken);
+        assertTrue(tokenData.isSupportedERC20);
     }
 
     // --- Test: Oracle Integration ---
@@ -345,8 +349,10 @@ contract SuperAssetTest is Helpers {
         console.log("test_BasicDepositSimple() Start");
         uint256 depositAmount = 100e18;
         uint256 minSharesOut = 99e18; // Allowing for 1% slippage
-        assertEq(superAsset.isSupportedERC20(address(tokenIn)), true, "Token In should be whitelisted");
-        assertEq(superAsset.isSupportedERC20(address(tokenOut)), true, "Token Out should be whitelisted");
+        ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
+        assertTrue(tokenData.isSupportedERC20);
+        ISuperAsset.TokenData memory tokenData2 = superAsset.getTokenData(address(tokenOut));
+        assertTrue(tokenData2.isSupportedERC20);
 
         // Approve tokens
         vm.startPrank(user);
@@ -399,8 +405,10 @@ contract SuperAssetTest is Helpers {
         BasicDepositWithCircuitBreaker memory s;
         s.depositAmount = 100e18;
         s.minSharesOut = 99e18; // Allowing for 1% slippage
-        assertEq(superAsset.isSupportedERC20(address(tokenIn)), true, "Token In should be whitelisted");
-        assertEq(superAsset.isSupportedERC20(address(tokenOut)), true, "Token Out should be whitelisted");
+        ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
+        assertTrue(tokenData.isSupportedERC20);
+        ISuperAsset.TokenData memory tokenData2 = superAsset.getTokenData(address(tokenOut));
+        assertTrue(tokenData2.isSupportedERC20);
 
         // Approve tokens
         vm.startPrank(user);
