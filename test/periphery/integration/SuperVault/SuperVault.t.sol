@@ -2340,9 +2340,12 @@ contract SuperVaultTest is BaseSuperVaultTest {
         (address gearSuperVaultAddr, address strategyAddr, address escrowAddr) =
             _deployVault(address(asset), "svGearbox");
 
+        console2.log("\n-----------");
+        console2.log("GEAR SUPER VAULT STRATEGY", strategyAddr);
+        console2.log("\n-----------");
+
         vm.label(gearSuperVaultAddr, "GearSuperVault");
         vm.label(strategyAddr, "GearSuperVaultStrategy");
-        /// @dev strategy is, 0x31C69DDA6B29796b21bc9028C53533Fb8e2D9938
         vm.label(escrowAddr, "GearSuperVaultEscrow");
 
         // Cast addresses to contract types

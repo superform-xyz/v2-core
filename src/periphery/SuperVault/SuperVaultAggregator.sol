@@ -56,7 +56,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
     // Timelock for strategist changes and Merkle root updates
     uint256 private constant _STRATEGIST_CHANGE_TIMELOCK = 7 days;
-    uint256 private constant _HOOKS_ROOT_UPDATE_TIMELOCK = 15 minutes;
+    uint256 private _hooksRootUpdateTimelock = 15 minutes;
 
     // Global hooks Merkle root data
     bytes32 private _globalHooksRoot;
@@ -115,15 +115,16 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
             revert ZERO_ADDRESS();
         }
 
-        // Strategist is now handled directly within the vault creation flow
-        // No need for external registration
-
         // Create minimal proxies
-        // todo add asset as part of this @Vik
-        // @dev cloneDeterministic disallows a clone to have the same name and symbol pair
-        superVault = VAULT_IMPLEMENTATION.cloneDeterministic(keccak256(abi.encodePacked(params.name, params.symbol)));
-        escrow = ESCROW_IMPLEMENTATION.cloneDeterministic(keccak256(abi.encodePacked(params.name, params.symbol)));
-        strategy = STRATEGY_IMPLEMENTATION.cloneDeterministic(keccak256(abi.encodePacked(params.name, params.symbol)));
+        superVault = VAULT_IMPLEMENTATION.cloneDeterministic(
+            keccak256(abi.encodePacked(params.asset, params.name, params.symbol))
+        );
+        escrow = ESCROW_IMPLEMENTATION.cloneDeterministic(
+            keccak256(abi.encodePacked(params.asset, params.name, params.symbol))
+        );
+        strategy = STRATEGY_IMPLEMENTATION.cloneDeterministic(
+            keccak256(abi.encodePacked(params.asset, params.name, params.symbol))
+        );
 
         // Initialize superVault
         SuperVault(superVault).initialize(params.asset, params.name, params.symbol, strategy, escrow);
@@ -452,6 +453,19 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperVaultAggregator
+    function setHooksRootUpdateTimelock(uint256 newTimelock) external {
+        // Only SUPER_GOVERNOR can update the timelock
+        if (msg.sender != address(SUPER_GOVERNOR)) {
+            revert UNAUTHORIZED_UPDATE_AUTHORITY();
+        }
+
+        // Update the timelock
+        _hooksRootUpdateTimelock = newTimelock;
+
+        emit HooksRootUpdateTimelockChanged(newTimelock);
+    }
+
+    /// @inheritdoc ISuperVaultAggregator
     function proposeGlobalHooksRoot(bytes32 newRoot) external {
         // Only SUPER_GOVERNOR can update the global hooks root
         if (msg.sender != address(SUPER_GOVERNOR)) {
@@ -460,7 +474,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
         // Set new root with timelock
         _proposedGlobalHooksRoot = newRoot;
-        _globalHooksRootEffectiveTime = block.timestamp + _HOOKS_ROOT_UPDATE_TIMELOCK;
+        _globalHooksRootEffectiveTime = block.timestamp + _hooksRootUpdateTimelock;
 
         emit GlobalHooksRootUpdateProposed(newRoot, _globalHooksRootEffectiveTime);
     }
@@ -513,7 +527,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
         // Set proposed root with timelock
         _strategyData[strategy].proposedHooksRoot = newRoot;
-        _strategyData[strategy].hooksRootEffectiveTime = block.timestamp + _HOOKS_ROOT_UPDATE_TIMELOCK;
+        _strategyData[strategy].hooksRootEffectiveTime = block.timestamp + _hooksRootUpdateTimelock;
 
         emit StrategyHooksRootUpdateProposed(
             strategy, msg.sender, newRoot, _strategyData[strategy].hooksRootEffectiveTime
@@ -574,6 +588,10 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                               VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperVaultAggregator
+    function getHooksRootUpdateTimelock() external view returns (uint256) {
+        return _hooksRootUpdateTimelock;
+    }
 
     /// @inheritdoc ISuperVaultAggregator
     function getPPS(address strategy) external view validStrategy(strategy) returns (uint256 pps) {
