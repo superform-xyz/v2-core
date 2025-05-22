@@ -25,7 +25,7 @@ contract SuperAssetFactory is ISuperAssetFactory {
     address public immutable incentiveCalculationContract;
     address public immutable superGovernor;
 
-    mapping(address superAsset => SuperAssetRoles roles) public roles;
+    mapping(address superAsset => SuperAssetData data) public data;
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -44,41 +44,52 @@ contract SuperAssetFactory is ISuperAssetFactory {
     /// @inheritdoc ISuperAssetFactory
     function setSuperAssetManager(address superAsset, address _superAssetManager) external {
         if (_superAssetManager == address(0)) revert ZERO_ADDRESS();
-        ISuperGovernor _superGovernor = ISuperGovernor(superGovernor);
         if(
-            (msg.sender != roles[superAsset].superAssetManager) &&
-            (msg.sender != address(_superGovernor)) // NOTE: This role can take over
+            (msg.sender != data[superAsset].superAssetManager) &&
+            (msg.sender != superGovernor) // NOTE: This role can take over
         ) revert UNAUTHORIZED();
-        roles[superAsset].superAssetManager = _superAssetManager;
+        data[superAsset].superAssetManager = _superAssetManager;
     }
 
     /// @inheritdoc ISuperAssetFactory
     function setSuperAssetStrategist(address superAsset, address _superAssetStrategist) external {
         if (_superAssetStrategist == address(0)) revert ZERO_ADDRESS();
-        if(msg.sender != roles[superAsset].superAssetManager) revert UNAUTHORIZED();
-        roles[superAsset].superAssetStrategist = _superAssetStrategist;
+        if(msg.sender != data[superAsset].superAssetManager) revert UNAUTHORIZED();
+        data[superAsset].superAssetStrategist = _superAssetStrategist;
     }
 
     /// @inheritdoc ISuperAssetFactory
     function setIncentiveFundManager(address superAsset, address _incentiveFundManager) external {
         if (_incentiveFundManager == address(0)) revert ZERO_ADDRESS();
-        if(msg.sender != roles[superAsset].superAssetManager) revert UNAUTHORIZED();
-        roles[superAsset].incentiveFundManager = _incentiveFundManager;
+        if(msg.sender != data[superAsset].superAssetManager) revert UNAUTHORIZED();
+        data[superAsset].incentiveFundManager = _incentiveFundManager;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function setIncentiveCalculationContract(address superAsset, address _incentiveCalculationContract) external {
+        if (_incentiveCalculationContract == address(0)) revert ZERO_ADDRESS();
+        if(msg.sender != data[superAsset].superAssetManager) revert UNAUTHORIZED();
+        data[superAsset].incentiveCalculationContract = _incentiveCalculationContract;
     }
 
     /// @inheritdoc ISuperAssetFactory
     function getSuperAssetManager(address superAsset) external view returns (address) {
-        return roles[superAsset].superAssetManager;
+        return data[superAsset].superAssetManager;
     }
 
     /// @inheritdoc ISuperAssetFactory
     function getSuperAssetStrategist(address superAsset) external view returns (address) {
-        return roles[superAsset].superAssetStrategist;
+        return data[superAsset].superAssetStrategist;
     }
 
     /// @inheritdoc ISuperAssetFactory
     function getIncentiveFundManager(address superAsset) external view returns (address) {
-        return roles[superAsset].incentiveFundManager;
+        return data[superAsset].incentiveFundManager;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function getIncentiveCalculationContract(address superAsset) external view returns (address) {
+        return data[superAsset].incentiveCalculationContract;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -112,10 +123,11 @@ contract SuperAssetFactory is ISuperAssetFactory {
         // Initialize IncentiveFund
         IncentiveFundContract(incentiveFund).initialize(superGovernor, superAsset);
 
-        roles[superAsset] = SuperAssetRoles({
+        data[superAsset] = SuperAssetData({
             superAssetManager: params.superAssetManager,
             superAssetStrategist: params.superAssetStrategist,
-            incentiveFundManager: params.incentiveFundManager
+            incentiveFundManager: params.incentiveFundManager,
+            incentiveCalculationContract: incentiveCalculationContract
         });
 
 

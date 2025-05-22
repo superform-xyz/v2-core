@@ -611,8 +611,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // TODO: Handle the case where isSuccess is false
 
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        address icc = factory.getIncentiveCalculationContract(address(this));
+
         // Calculate incentives (using ICC)
-        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(incentiveCalculationContract)
+        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(icc)
             .calculateIncentive(
             s.allocations.absoluteAllocationPreOperation,
             s.allocations.absoluteAllocationPostOperation,
@@ -665,8 +668,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // TODO: Handle the case where isSuccess is false
 
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        address icc = factory.getIncentiveCalculationContract(address(this));
+
         // Calculate incentives (using ICC)
-        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(incentiveCalculationContract)
+        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(icc)
             .calculateIncentive(
             s.allocations.absoluteAllocationPreOperation,
             s.allocations.absoluteAllocationPostOperation,

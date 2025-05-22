@@ -28,15 +28,16 @@ interface ISuperAssetFactory {
 
 
     /**
-     * @notice Roles for a SuperAsset
+     * @notice Data for a SuperAsset
      * @param superAssetStrategist Address of the strategist
      * @param superAssetManager Address of the manager
      * @param incentiveFundManager Address of the incentive fund manager
      */
-    struct SuperAssetRoles {
+    struct SuperAssetData {
         address superAssetStrategist;
         address superAssetManager;
         address incentiveFundManager;
+        address incentiveCalculationContract;
     }
 
     /**
@@ -61,6 +62,13 @@ interface ISuperAssetFactory {
     function setIncentiveFundManager(address superAsset, address _incentiveFundManager) external;
 
     /**
+     * @notice Sets the incentive calculation contract for a SuperAsset
+     * @param superAsset Address of the SuperAsset contract
+     * @param incentiveCalculationContract Address of the incentive calculation contract
+     */
+    function setIncentiveCalculationContract(address superAsset, address incentiveCalculationContract) external;
+
+    /**
      * @notice Gets the manager for a SuperAsset
      * @param superAsset Address of the SuperAsset contract
      * @return superAssetManager Address of the manager
@@ -80,6 +88,13 @@ interface ISuperAssetFactory {
      * @return incentiveFundManager Address of the incentive fund manager
      */
     function getIncentiveFundManager(address superAsset) external view returns (address);
+
+    /** 
+     * @notice Gets the incentive calculation contract for a SuperAsset
+     * @param superAsset Address of the SuperAsset contract
+     * @return incentiveCalculationContract Address of the incentive calculation contract
+     */
+    function getIncentiveCalculationContract(address superAsset) external view returns (address);
 
     /**
      * @notice Creates a new SuperAsset instance with its dependencies
