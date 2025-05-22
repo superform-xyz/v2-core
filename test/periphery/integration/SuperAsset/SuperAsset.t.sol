@@ -155,7 +155,6 @@ contract SuperAssetTest is Helpers {
         feeds[7] = address(mockFeedSuperVault1Shares);
         feeds[8] = address(mockFeedSuperVault2Shares);
 
-
         // Deploy factory and contracts
         factory = new SuperAssetFactory(address(superGovernor));
         console.log("Factory deployed");
@@ -193,14 +192,12 @@ contract SuperAssetTest is Helpers {
         bases[6] = address(superAsset);
         // Deploy and configure oracle with regular providers only
         console.log("Trying to deploy SuperOracle");
-        vm.prank(admin);
+        vm.startPrank(admin);
         oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
-        vm.prank(admin);
         oracle.setMaxStaleness(2 weeks);
         console.log("Oracle deployed");
 
         // Set staleness for each feed
-        vm.startPrank(admin);
         oracle.setFeedMaxStaleness(address(mockFeed1), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed2), 1 days);
         oracle.setFeedMaxStaleness(address(mockFeed3), 1 days);
