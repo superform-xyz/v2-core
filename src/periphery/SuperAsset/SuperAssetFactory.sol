@@ -36,9 +36,6 @@ contract SuperAssetFactory is ISuperAssetFactory {
 
         superAssetImplementation = address(new SuperAsset());
         incentiveFundImplementation = address(new IncentiveFundContract());
-
-        // Deploy single instances
-        // incentiveCalculationContract = _incentiveCalculationContract;
     }
 
     /// @inheritdoc ISuperAssetFactory
@@ -125,7 +122,8 @@ contract SuperAssetFactory is ISuperAssetFactory {
             superAssetManager: params.superAssetManager,
             superAssetStrategist: params.superAssetStrategist,
             incentiveFundManager: params.incentiveFundManager,
-            incentiveCalculationContract: params.incentiveCalculationContract
+            incentiveCalculationContract: params.incentiveCalculationContract,
+            incentiveFundContract: incentiveFundContract
         });
 
         emit SuperAssetCreated(
