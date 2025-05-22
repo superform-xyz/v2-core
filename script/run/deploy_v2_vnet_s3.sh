@@ -676,11 +676,12 @@ fi
 
 log "INFO" "Environment variables exported"
 
-# Save VNET information before deployment
+# Cache VNET information to be saved after successful deployment
 if is_local_run; then
-    save_vnet_info true
+    # Just log the VNET info, but don't save it to S3 yet
+    log "INFO" "VNET information cached for later use after successful deployment"
 else
-    save_vnet_info false
+    log "INFO" "VNET information cached for later use after successful deployment"
 fi
 
 ###################################################################################
@@ -702,7 +703,7 @@ set_initial_balance "$OPTIMISM_MAINNET"
 deploy_error_handler() {
     local network=$1
     log "ERROR" "Failed to deploy V2 on $network"
-    log "WARN" "Preserving existing S3 file data"
+    log "INFO" "No S3 files were updated since deployment failed"
     exit 1
 }
 
@@ -938,7 +939,14 @@ update_latest_file() {
 deploy_contracts
 
 # If we get here, all deployments were successful
-# Update the latest file with the new contract addresses
+# First ensure we have VNET info saved properly (this was delayed until after successful deployment)
+if is_local_run; then
+    save_vnet_info true
+else
+    save_vnet_info false
+fi
+
+# Now update the latest file with the new contract addresses
 # Since we're using S3 for everything now, no need to pass parameters
 update_latest_file
 

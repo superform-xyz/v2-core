@@ -31,7 +31,7 @@ var (
 
 // SuperVaultMetaData contains all meta data concerning the SuperVault contract.
 var SuperVaultMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"AUTHORIZE_OPERATOR_TYPEHASH\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"DOMAIN_SEPARATOR\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"allowance\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"approve\",\"inputs\":[{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"asset\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"authorizations\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"used\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"authorizeOperator\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"operator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"approved\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"nonce\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"balanceOf\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"burnShares\",\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"cancelDeposit\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"cancelRedeem\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"claimableDepositRequest\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"claimableAssets\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"claimableRedeemRequest\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"claimableShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"convertToAssets\",\"inputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"convertToShares\",\"inputs\":[{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"decimals\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"uint8\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"deploymentChainId\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"deposit\",\"inputs\":[{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"deposit\",\"inputs\":[{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"escrow\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"asset_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"name_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"symbol_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"strategy_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"escrow_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"initialized\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"invalidateNonce\",\"inputs\":[{\"name\":\"nonce\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isOperator\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"operator\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxDeposit\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxMint\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxRedeem\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxWithdraw\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"mint\",\"inputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"mint\",\"inputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"mintShares\",\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"name\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"onDepositClaimable\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"averageDepositPrice\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"accumulatorShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"accumulatorCostBasis\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"onRedeemClaimable\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"averageWithdrawPrice\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"accumulatorShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"accumulatorCostBasis\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"pendingDepositRequest\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"pendingAssets\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingRedeemRequest\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"pendingShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewDeposit\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"previewMint\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"previewRedeem\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"previewWithdraw\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"redeem\",\"inputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"requestDeposit\",\"inputs\":[{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"requestRedeem\",\"inputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setOperator\",\"inputs\":[{\"name\":\"operator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"approved\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[{\"name\":\"success\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"share\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"strategy\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperVaultStrategy\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"supportsInterface\",\"inputs\":[{\"name\":\"interfaceId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"symbol\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"totalAssets\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"totalSupply\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"transfer\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferFrom\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"withdraw\",\"inputs\":[{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"Approval\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"spender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Deposit\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DepositClaimable\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"averageDepositPrice\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"accumulatorShares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"accumulatorCostBasis\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DepositClaimable\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DepositRequest\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"DepositRequestCancelled\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OperatorSet\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"operator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"approved\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RedeemClaimable\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"averageWithdrawPrice\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"accumulatorShares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"accumulatorCostBasis\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RedeemClaimable\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RedeemRequest\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RedeemRequestCancelled\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Transfer\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"to\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Withdraw\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"receiver\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ERC20InsufficientAllowance\",\"inputs\":[{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"allowance\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"needed\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ERC20InsufficientBalance\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"balance\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"needed\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidApprover\",\"inputs\":[{\"name\":\"approver\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidReceiver\",\"inputs\":[{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidSender\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidSpender\",\"inputs\":[{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"INVALID_AMOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ASSET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_CONTROLLER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_DEPOSIT_CLAIM\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_DEPOSIT_PRICE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ESCROW\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_NONCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_OWNER_OR_OPERATOR\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_SIGNATURE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_STRATEGY\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_WITHDRAW_PRICE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_IMPLEMENTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"REQUEST_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SafeERC20FailedOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"TIMELOCK_NOT_EXPIRED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UNAUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_AMOUNT\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"AUTHORIZE_OPERATOR_TYPEHASH\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"DOMAIN_SEPARATOR\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"PRECISION\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"allowance\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"approve\",\"inputs\":[{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"asset\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"authorizations\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"used\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"authorizeOperator\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"operator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"approved\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"nonce\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"deadline\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"balanceOf\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"burnShares\",\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"cancelRedeem\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"claimableRedeemRequest\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"claimableShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"convertToAssets\",\"inputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"convertToShares\",\"inputs\":[{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"decimals\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"uint8\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"deploymentAddress\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"deploymentChainId\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"deposit\",\"inputs\":[{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"escrow\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"asset_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"name_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"symbol_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"strategy_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"escrow_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"initialized\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"invalidateNonce\",\"inputs\":[{\"name\":\"nonce\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isOperator\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"operator\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxDeposit\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"maxMint\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxRedeem\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxWithdraw\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"mint\",\"inputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"mintShares\",\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"name\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"onRedeemClaimable\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"averageWithdrawPrice\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"accumulatorShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"accumulatorCostBasis\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"pendingRedeemRequest\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"pendingShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewDeposit\",\"inputs\":[{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewMint\",\"inputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewRedeem\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"previewWithdraw\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"redeem\",\"inputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"requestRedeem\",\"inputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"controller\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setOperator\",\"inputs\":[{\"name\":\"operator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"approved\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[{\"name\":\"success\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"share\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"strategy\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperVaultStrategy\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"supportsInterface\",\"inputs\":[{\"name\":\"interfaceId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"symbol\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"totalAssets\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"totalSupply\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"transfer\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferFrom\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"withdraw\",\"inputs\":[{\"name\":\"assets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"Approval\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"spender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Deposit\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OperatorSet\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"operator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"approved\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RedeemClaimable\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"averageWithdrawPrice\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"accumulatorShares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"accumulatorCostBasis\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RedeemRequest\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"requestId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RedeemRequestCancelled\",\"inputs\":[{\"name\":\"controller\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Transfer\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"to\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Withdraw\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"receiver\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assets\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CAP_EXCEEDED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ECDSAInvalidSignature\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ECDSAInvalidSignatureLength\",\"inputs\":[{\"name\":\"length\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ECDSAInvalidSignatureS\",\"inputs\":[{\"name\":\"s\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"ERC20InsufficientAllowance\",\"inputs\":[{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"allowance\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"needed\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ERC20InsufficientBalance\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"balance\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"needed\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidApprover\",\"inputs\":[{\"name\":\"approver\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidReceiver\",\"inputs\":[{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidSender\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidSpender\",\"inputs\":[{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"INVALID_AMOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ASSET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_CONTROLLER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ESCROW\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_NONCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_OWNER_OR_OPERATOR\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_PPS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_SIGNATURE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_STRATEGY\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_WITHDRAW_PRICE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_IMPLEMENTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"REQUEST_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SafeERC20FailedOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"TIMELOCK_NOT_EXPIRED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TRANSFER_FAILED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UNAUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_AMOUNT\",\"inputs\":[]}]",
 }
 
 // SuperVaultABI is the input ABI used to generate the binding from.
@@ -242,6 +242,37 @@ func (_SuperVault *SuperVaultCallerSession) DOMAINSEPARATOR() ([32]byte, error) 
 	return _SuperVault.Contract.DOMAINSEPARATOR(&_SuperVault.CallOpts)
 }
 
+// PRECISION is a free data retrieval call binding the contract method 0xaaf5eb68.
+//
+// Solidity: function PRECISION() view returns(uint256)
+func (_SuperVault *SuperVaultCaller) PRECISION(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _SuperVault.contract.Call(opts, &out, "PRECISION")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// PRECISION is a free data retrieval call binding the contract method 0xaaf5eb68.
+//
+// Solidity: function PRECISION() view returns(uint256)
+func (_SuperVault *SuperVaultSession) PRECISION() (*big.Int, error) {
+	return _SuperVault.Contract.PRECISION(&_SuperVault.CallOpts)
+}
+
+// PRECISION is a free data retrieval call binding the contract method 0xaaf5eb68.
+//
+// Solidity: function PRECISION() view returns(uint256)
+func (_SuperVault *SuperVaultCallerSession) PRECISION() (*big.Int, error) {
+	return _SuperVault.Contract.PRECISION(&_SuperVault.CallOpts)
+}
+
 // Allowance is a free data retrieval call binding the contract method 0xdd62ed3e.
 //
 // Solidity: function allowance(address owner, address spender) view returns(uint256)
@@ -366,37 +397,6 @@ func (_SuperVault *SuperVaultCallerSession) BalanceOf(account common.Address) (*
 	return _SuperVault.Contract.BalanceOf(&_SuperVault.CallOpts, account)
 }
 
-// ClaimableDepositRequest is a free data retrieval call binding the contract method 0x995ea21a.
-//
-// Solidity: function claimableDepositRequest(uint256 , address controller) view returns(uint256 claimableAssets)
-func (_SuperVault *SuperVaultCaller) ClaimableDepositRequest(opts *bind.CallOpts, arg0 *big.Int, controller common.Address) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperVault.contract.Call(opts, &out, "claimableDepositRequest", arg0, controller)
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// ClaimableDepositRequest is a free data retrieval call binding the contract method 0x995ea21a.
-//
-// Solidity: function claimableDepositRequest(uint256 , address controller) view returns(uint256 claimableAssets)
-func (_SuperVault *SuperVaultSession) ClaimableDepositRequest(arg0 *big.Int, controller common.Address) (*big.Int, error) {
-	return _SuperVault.Contract.ClaimableDepositRequest(&_SuperVault.CallOpts, arg0, controller)
-}
-
-// ClaimableDepositRequest is a free data retrieval call binding the contract method 0x995ea21a.
-//
-// Solidity: function claimableDepositRequest(uint256 , address controller) view returns(uint256 claimableAssets)
-func (_SuperVault *SuperVaultCallerSession) ClaimableDepositRequest(arg0 *big.Int, controller common.Address) (*big.Int, error) {
-	return _SuperVault.Contract.ClaimableDepositRequest(&_SuperVault.CallOpts, arg0, controller)
-}
-
 // ClaimableRedeemRequest is a free data retrieval call binding the contract method 0xeaed1d07.
 //
 // Solidity: function claimableRedeemRequest(uint256 , address controller) view returns(uint256 claimableShares)
@@ -519,6 +519,37 @@ func (_SuperVault *SuperVaultSession) Decimals() (uint8, error) {
 // Solidity: function decimals() view returns(uint8)
 func (_SuperVault *SuperVaultCallerSession) Decimals() (uint8, error) {
 	return _SuperVault.Contract.Decimals(&_SuperVault.CallOpts)
+}
+
+// DeploymentAddress is a free data retrieval call binding the contract method 0xc3adb64c.
+//
+// Solidity: function deploymentAddress() view returns(address)
+func (_SuperVault *SuperVaultCaller) DeploymentAddress(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _SuperVault.contract.Call(opts, &out, "deploymentAddress")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// DeploymentAddress is a free data retrieval call binding the contract method 0xc3adb64c.
+//
+// Solidity: function deploymentAddress() view returns(address)
+func (_SuperVault *SuperVaultSession) DeploymentAddress() (common.Address, error) {
+	return _SuperVault.Contract.DeploymentAddress(&_SuperVault.CallOpts)
+}
+
+// DeploymentAddress is a free data retrieval call binding the contract method 0xc3adb64c.
+//
+// Solidity: function deploymentAddress() view returns(address)
+func (_SuperVault *SuperVaultCallerSession) DeploymentAddress() (common.Address, error) {
+	return _SuperVault.Contract.DeploymentAddress(&_SuperVault.CallOpts)
 }
 
 // DeploymentChainId is a free data retrieval call binding the contract method 0xcd0d0096.
@@ -647,10 +678,10 @@ func (_SuperVault *SuperVaultCallerSession) IsOperator(owner common.Address, ope
 
 // MaxDeposit is a free data retrieval call binding the contract method 0x402d267d.
 //
-// Solidity: function maxDeposit(address owner) view returns(uint256)
-func (_SuperVault *SuperVaultCaller) MaxDeposit(opts *bind.CallOpts, owner common.Address) (*big.Int, error) {
+// Solidity: function maxDeposit(address ) pure returns(uint256)
+func (_SuperVault *SuperVaultCaller) MaxDeposit(opts *bind.CallOpts, arg0 common.Address) (*big.Int, error) {
 	var out []interface{}
-	err := _SuperVault.contract.Call(opts, &out, "maxDeposit", owner)
+	err := _SuperVault.contract.Call(opts, &out, "maxDeposit", arg0)
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -664,16 +695,16 @@ func (_SuperVault *SuperVaultCaller) MaxDeposit(opts *bind.CallOpts, owner commo
 
 // MaxDeposit is a free data retrieval call binding the contract method 0x402d267d.
 //
-// Solidity: function maxDeposit(address owner) view returns(uint256)
-func (_SuperVault *SuperVaultSession) MaxDeposit(owner common.Address) (*big.Int, error) {
-	return _SuperVault.Contract.MaxDeposit(&_SuperVault.CallOpts, owner)
+// Solidity: function maxDeposit(address ) pure returns(uint256)
+func (_SuperVault *SuperVaultSession) MaxDeposit(arg0 common.Address) (*big.Int, error) {
+	return _SuperVault.Contract.MaxDeposit(&_SuperVault.CallOpts, arg0)
 }
 
 // MaxDeposit is a free data retrieval call binding the contract method 0x402d267d.
 //
-// Solidity: function maxDeposit(address owner) view returns(uint256)
-func (_SuperVault *SuperVaultCallerSession) MaxDeposit(owner common.Address) (*big.Int, error) {
-	return _SuperVault.Contract.MaxDeposit(&_SuperVault.CallOpts, owner)
+// Solidity: function maxDeposit(address ) pure returns(uint256)
+func (_SuperVault *SuperVaultCallerSession) MaxDeposit(arg0 common.Address) (*big.Int, error) {
+	return _SuperVault.Contract.MaxDeposit(&_SuperVault.CallOpts, arg0)
 }
 
 // MaxMint is a free data retrieval call binding the contract method 0xc63d75b6.
@@ -800,37 +831,6 @@ func (_SuperVault *SuperVaultCallerSession) Name() (string, error) {
 	return _SuperVault.Contract.Name(&_SuperVault.CallOpts)
 }
 
-// PendingDepositRequest is a free data retrieval call binding the contract method 0x26c6f96c.
-//
-// Solidity: function pendingDepositRequest(uint256 , address controller) view returns(uint256 pendingAssets)
-func (_SuperVault *SuperVaultCaller) PendingDepositRequest(opts *bind.CallOpts, arg0 *big.Int, controller common.Address) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperVault.contract.Call(opts, &out, "pendingDepositRequest", arg0, controller)
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// PendingDepositRequest is a free data retrieval call binding the contract method 0x26c6f96c.
-//
-// Solidity: function pendingDepositRequest(uint256 , address controller) view returns(uint256 pendingAssets)
-func (_SuperVault *SuperVaultSession) PendingDepositRequest(arg0 *big.Int, controller common.Address) (*big.Int, error) {
-	return _SuperVault.Contract.PendingDepositRequest(&_SuperVault.CallOpts, arg0, controller)
-}
-
-// PendingDepositRequest is a free data retrieval call binding the contract method 0x26c6f96c.
-//
-// Solidity: function pendingDepositRequest(uint256 , address controller) view returns(uint256 pendingAssets)
-func (_SuperVault *SuperVaultCallerSession) PendingDepositRequest(arg0 *big.Int, controller common.Address) (*big.Int, error) {
-	return _SuperVault.Contract.PendingDepositRequest(&_SuperVault.CallOpts, arg0, controller)
-}
-
 // PendingRedeemRequest is a free data retrieval call binding the contract method 0xf5a23d8d.
 //
 // Solidity: function pendingRedeemRequest(uint256 , address controller) view returns(uint256 pendingShares)
@@ -864,10 +864,10 @@ func (_SuperVault *SuperVaultCallerSession) PendingRedeemRequest(arg0 *big.Int, 
 
 // PreviewDeposit is a free data retrieval call binding the contract method 0xef8b30f7.
 //
-// Solidity: function previewDeposit(uint256 ) pure returns(uint256)
-func (_SuperVault *SuperVaultCaller) PreviewDeposit(opts *bind.CallOpts, arg0 *big.Int) (*big.Int, error) {
+// Solidity: function previewDeposit(uint256 assets) view returns(uint256)
+func (_SuperVault *SuperVaultCaller) PreviewDeposit(opts *bind.CallOpts, assets *big.Int) (*big.Int, error) {
 	var out []interface{}
-	err := _SuperVault.contract.Call(opts, &out, "previewDeposit", arg0)
+	err := _SuperVault.contract.Call(opts, &out, "previewDeposit", assets)
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -881,24 +881,24 @@ func (_SuperVault *SuperVaultCaller) PreviewDeposit(opts *bind.CallOpts, arg0 *b
 
 // PreviewDeposit is a free data retrieval call binding the contract method 0xef8b30f7.
 //
-// Solidity: function previewDeposit(uint256 ) pure returns(uint256)
-func (_SuperVault *SuperVaultSession) PreviewDeposit(arg0 *big.Int) (*big.Int, error) {
-	return _SuperVault.Contract.PreviewDeposit(&_SuperVault.CallOpts, arg0)
+// Solidity: function previewDeposit(uint256 assets) view returns(uint256)
+func (_SuperVault *SuperVaultSession) PreviewDeposit(assets *big.Int) (*big.Int, error) {
+	return _SuperVault.Contract.PreviewDeposit(&_SuperVault.CallOpts, assets)
 }
 
 // PreviewDeposit is a free data retrieval call binding the contract method 0xef8b30f7.
 //
-// Solidity: function previewDeposit(uint256 ) pure returns(uint256)
-func (_SuperVault *SuperVaultCallerSession) PreviewDeposit(arg0 *big.Int) (*big.Int, error) {
-	return _SuperVault.Contract.PreviewDeposit(&_SuperVault.CallOpts, arg0)
+// Solidity: function previewDeposit(uint256 assets) view returns(uint256)
+func (_SuperVault *SuperVaultCallerSession) PreviewDeposit(assets *big.Int) (*big.Int, error) {
+	return _SuperVault.Contract.PreviewDeposit(&_SuperVault.CallOpts, assets)
 }
 
 // PreviewMint is a free data retrieval call binding the contract method 0xb3d7f6b9.
 //
-// Solidity: function previewMint(uint256 ) pure returns(uint256)
-func (_SuperVault *SuperVaultCaller) PreviewMint(opts *bind.CallOpts, arg0 *big.Int) (*big.Int, error) {
+// Solidity: function previewMint(uint256 shares) view returns(uint256)
+func (_SuperVault *SuperVaultCaller) PreviewMint(opts *bind.CallOpts, shares *big.Int) (*big.Int, error) {
 	var out []interface{}
-	err := _SuperVault.contract.Call(opts, &out, "previewMint", arg0)
+	err := _SuperVault.contract.Call(opts, &out, "previewMint", shares)
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -912,16 +912,16 @@ func (_SuperVault *SuperVaultCaller) PreviewMint(opts *bind.CallOpts, arg0 *big.
 
 // PreviewMint is a free data retrieval call binding the contract method 0xb3d7f6b9.
 //
-// Solidity: function previewMint(uint256 ) pure returns(uint256)
-func (_SuperVault *SuperVaultSession) PreviewMint(arg0 *big.Int) (*big.Int, error) {
-	return _SuperVault.Contract.PreviewMint(&_SuperVault.CallOpts, arg0)
+// Solidity: function previewMint(uint256 shares) view returns(uint256)
+func (_SuperVault *SuperVaultSession) PreviewMint(shares *big.Int) (*big.Int, error) {
+	return _SuperVault.Contract.PreviewMint(&_SuperVault.CallOpts, shares)
 }
 
 // PreviewMint is a free data retrieval call binding the contract method 0xb3d7f6b9.
 //
-// Solidity: function previewMint(uint256 ) pure returns(uint256)
-func (_SuperVault *SuperVaultCallerSession) PreviewMint(arg0 *big.Int) (*big.Int, error) {
-	return _SuperVault.Contract.PreviewMint(&_SuperVault.CallOpts, arg0)
+// Solidity: function previewMint(uint256 shares) view returns(uint256)
+func (_SuperVault *SuperVaultCallerSession) PreviewMint(shares *big.Int) (*big.Int, error) {
+	return _SuperVault.Contract.PreviewMint(&_SuperVault.CallOpts, shares)
 }
 
 // PreviewRedeem is a free data retrieval call binding the contract method 0x4cdad506.
@@ -1235,27 +1235,6 @@ func (_SuperVault *SuperVaultTransactorSession) BurnShares(amount *big.Int) (*ty
 	return _SuperVault.Contract.BurnShares(&_SuperVault.TransactOpts, amount)
 }
 
-// CancelDeposit is a paid mutator transaction binding the contract method 0x6d14c2f6.
-//
-// Solidity: function cancelDeposit(address controller) returns()
-func (_SuperVault *SuperVaultTransactor) CancelDeposit(opts *bind.TransactOpts, controller common.Address) (*types.Transaction, error) {
-	return _SuperVault.contract.Transact(opts, "cancelDeposit", controller)
-}
-
-// CancelDeposit is a paid mutator transaction binding the contract method 0x6d14c2f6.
-//
-// Solidity: function cancelDeposit(address controller) returns()
-func (_SuperVault *SuperVaultSession) CancelDeposit(controller common.Address) (*types.Transaction, error) {
-	return _SuperVault.Contract.CancelDeposit(&_SuperVault.TransactOpts, controller)
-}
-
-// CancelDeposit is a paid mutator transaction binding the contract method 0x6d14c2f6.
-//
-// Solidity: function cancelDeposit(address controller) returns()
-func (_SuperVault *SuperVaultTransactorSession) CancelDeposit(controller common.Address) (*types.Transaction, error) {
-	return _SuperVault.Contract.CancelDeposit(&_SuperVault.TransactOpts, controller)
-}
-
 // CancelRedeem is a paid mutator transaction binding the contract method 0x38401c43.
 //
 // Solidity: function cancelRedeem(address controller) returns()
@@ -1277,46 +1256,25 @@ func (_SuperVault *SuperVaultTransactorSession) CancelRedeem(controller common.A
 	return _SuperVault.Contract.CancelRedeem(&_SuperVault.TransactOpts, controller)
 }
 
-// Deposit is a paid mutator transaction binding the contract method 0x2e2d2984.
-//
-// Solidity: function deposit(uint256 assets, address receiver, address controller) returns(uint256 shares)
-func (_SuperVault *SuperVaultTransactor) Deposit(opts *bind.TransactOpts, assets *big.Int, receiver common.Address, controller common.Address) (*types.Transaction, error) {
-	return _SuperVault.contract.Transact(opts, "deposit", assets, receiver, controller)
-}
-
-// Deposit is a paid mutator transaction binding the contract method 0x2e2d2984.
-//
-// Solidity: function deposit(uint256 assets, address receiver, address controller) returns(uint256 shares)
-func (_SuperVault *SuperVaultSession) Deposit(assets *big.Int, receiver common.Address, controller common.Address) (*types.Transaction, error) {
-	return _SuperVault.Contract.Deposit(&_SuperVault.TransactOpts, assets, receiver, controller)
-}
-
-// Deposit is a paid mutator transaction binding the contract method 0x2e2d2984.
-//
-// Solidity: function deposit(uint256 assets, address receiver, address controller) returns(uint256 shares)
-func (_SuperVault *SuperVaultTransactorSession) Deposit(assets *big.Int, receiver common.Address, controller common.Address) (*types.Transaction, error) {
-	return _SuperVault.Contract.Deposit(&_SuperVault.TransactOpts, assets, receiver, controller)
-}
-
-// Deposit0 is a paid mutator transaction binding the contract method 0x6e553f65.
+// Deposit is a paid mutator transaction binding the contract method 0x6e553f65.
 //
 // Solidity: function deposit(uint256 assets, address receiver) returns(uint256 shares)
-func (_SuperVault *SuperVaultTransactor) Deposit0(opts *bind.TransactOpts, assets *big.Int, receiver common.Address) (*types.Transaction, error) {
-	return _SuperVault.contract.Transact(opts, "deposit0", assets, receiver)
+func (_SuperVault *SuperVaultTransactor) Deposit(opts *bind.TransactOpts, assets *big.Int, receiver common.Address) (*types.Transaction, error) {
+	return _SuperVault.contract.Transact(opts, "deposit", assets, receiver)
 }
 
-// Deposit0 is a paid mutator transaction binding the contract method 0x6e553f65.
+// Deposit is a paid mutator transaction binding the contract method 0x6e553f65.
 //
 // Solidity: function deposit(uint256 assets, address receiver) returns(uint256 shares)
-func (_SuperVault *SuperVaultSession) Deposit0(assets *big.Int, receiver common.Address) (*types.Transaction, error) {
-	return _SuperVault.Contract.Deposit0(&_SuperVault.TransactOpts, assets, receiver)
+func (_SuperVault *SuperVaultSession) Deposit(assets *big.Int, receiver common.Address) (*types.Transaction, error) {
+	return _SuperVault.Contract.Deposit(&_SuperVault.TransactOpts, assets, receiver)
 }
 
-// Deposit0 is a paid mutator transaction binding the contract method 0x6e553f65.
+// Deposit is a paid mutator transaction binding the contract method 0x6e553f65.
 //
 // Solidity: function deposit(uint256 assets, address receiver) returns(uint256 shares)
-func (_SuperVault *SuperVaultTransactorSession) Deposit0(assets *big.Int, receiver common.Address) (*types.Transaction, error) {
-	return _SuperVault.Contract.Deposit0(&_SuperVault.TransactOpts, assets, receiver)
+func (_SuperVault *SuperVaultTransactorSession) Deposit(assets *big.Int, receiver common.Address) (*types.Transaction, error) {
+	return _SuperVault.Contract.Deposit(&_SuperVault.TransactOpts, assets, receiver)
 }
 
 // Initialize is a paid mutator transaction binding the contract method 0x6cf1dbed.
@@ -1382,27 +1340,6 @@ func (_SuperVault *SuperVaultTransactorSession) Mint(shares *big.Int, receiver c
 	return _SuperVault.Contract.Mint(&_SuperVault.TransactOpts, shares, receiver)
 }
 
-// Mint0 is a paid mutator transaction binding the contract method 0xda39b3e7.
-//
-// Solidity: function mint(uint256 shares, address receiver, address controller) returns(uint256 assets)
-func (_SuperVault *SuperVaultTransactor) Mint0(opts *bind.TransactOpts, shares *big.Int, receiver common.Address, controller common.Address) (*types.Transaction, error) {
-	return _SuperVault.contract.Transact(opts, "mint0", shares, receiver, controller)
-}
-
-// Mint0 is a paid mutator transaction binding the contract method 0xda39b3e7.
-//
-// Solidity: function mint(uint256 shares, address receiver, address controller) returns(uint256 assets)
-func (_SuperVault *SuperVaultSession) Mint0(shares *big.Int, receiver common.Address, controller common.Address) (*types.Transaction, error) {
-	return _SuperVault.Contract.Mint0(&_SuperVault.TransactOpts, shares, receiver, controller)
-}
-
-// Mint0 is a paid mutator transaction binding the contract method 0xda39b3e7.
-//
-// Solidity: function mint(uint256 shares, address receiver, address controller) returns(uint256 assets)
-func (_SuperVault *SuperVaultTransactorSession) Mint0(shares *big.Int, receiver common.Address, controller common.Address) (*types.Transaction, error) {
-	return _SuperVault.Contract.Mint0(&_SuperVault.TransactOpts, shares, receiver, controller)
-}
-
 // MintShares is a paid mutator transaction binding the contract method 0xb1aa90a1.
 //
 // Solidity: function mintShares(uint256 amount) returns()
@@ -1422,27 +1359,6 @@ func (_SuperVault *SuperVaultSession) MintShares(amount *big.Int) (*types.Transa
 // Solidity: function mintShares(uint256 amount) returns()
 func (_SuperVault *SuperVaultTransactorSession) MintShares(amount *big.Int) (*types.Transaction, error) {
 	return _SuperVault.Contract.MintShares(&_SuperVault.TransactOpts, amount)
-}
-
-// OnDepositClaimable is a paid mutator transaction binding the contract method 0x6ea43f75.
-//
-// Solidity: function onDepositClaimable(address user, uint256 assets, uint256 shares, uint256 averageDepositPrice, uint256 accumulatorShares, uint256 accumulatorCostBasis) returns()
-func (_SuperVault *SuperVaultTransactor) OnDepositClaimable(opts *bind.TransactOpts, user common.Address, assets *big.Int, shares *big.Int, averageDepositPrice *big.Int, accumulatorShares *big.Int, accumulatorCostBasis *big.Int) (*types.Transaction, error) {
-	return _SuperVault.contract.Transact(opts, "onDepositClaimable", user, assets, shares, averageDepositPrice, accumulatorShares, accumulatorCostBasis)
-}
-
-// OnDepositClaimable is a paid mutator transaction binding the contract method 0x6ea43f75.
-//
-// Solidity: function onDepositClaimable(address user, uint256 assets, uint256 shares, uint256 averageDepositPrice, uint256 accumulatorShares, uint256 accumulatorCostBasis) returns()
-func (_SuperVault *SuperVaultSession) OnDepositClaimable(user common.Address, assets *big.Int, shares *big.Int, averageDepositPrice *big.Int, accumulatorShares *big.Int, accumulatorCostBasis *big.Int) (*types.Transaction, error) {
-	return _SuperVault.Contract.OnDepositClaimable(&_SuperVault.TransactOpts, user, assets, shares, averageDepositPrice, accumulatorShares, accumulatorCostBasis)
-}
-
-// OnDepositClaimable is a paid mutator transaction binding the contract method 0x6ea43f75.
-//
-// Solidity: function onDepositClaimable(address user, uint256 assets, uint256 shares, uint256 averageDepositPrice, uint256 accumulatorShares, uint256 accumulatorCostBasis) returns()
-func (_SuperVault *SuperVaultTransactorSession) OnDepositClaimable(user common.Address, assets *big.Int, shares *big.Int, averageDepositPrice *big.Int, accumulatorShares *big.Int, accumulatorCostBasis *big.Int) (*types.Transaction, error) {
-	return _SuperVault.Contract.OnDepositClaimable(&_SuperVault.TransactOpts, user, assets, shares, averageDepositPrice, accumulatorShares, accumulatorCostBasis)
 }
 
 // OnRedeemClaimable is a paid mutator transaction binding the contract method 0x0c0b4309.
@@ -1485,27 +1401,6 @@ func (_SuperVault *SuperVaultSession) Redeem(shares *big.Int, receiver common.Ad
 // Solidity: function redeem(uint256 shares, address receiver, address owner) returns(uint256 assets)
 func (_SuperVault *SuperVaultTransactorSession) Redeem(shares *big.Int, receiver common.Address, owner common.Address) (*types.Transaction, error) {
 	return _SuperVault.Contract.Redeem(&_SuperVault.TransactOpts, shares, receiver, owner)
-}
-
-// RequestDeposit is a paid mutator transaction binding the contract method 0x85b77f45.
-//
-// Solidity: function requestDeposit(uint256 assets, address controller, address owner) returns(uint256)
-func (_SuperVault *SuperVaultTransactor) RequestDeposit(opts *bind.TransactOpts, assets *big.Int, controller common.Address, owner common.Address) (*types.Transaction, error) {
-	return _SuperVault.contract.Transact(opts, "requestDeposit", assets, controller, owner)
-}
-
-// RequestDeposit is a paid mutator transaction binding the contract method 0x85b77f45.
-//
-// Solidity: function requestDeposit(uint256 assets, address controller, address owner) returns(uint256)
-func (_SuperVault *SuperVaultSession) RequestDeposit(assets *big.Int, controller common.Address, owner common.Address) (*types.Transaction, error) {
-	return _SuperVault.Contract.RequestDeposit(&_SuperVault.TransactOpts, assets, controller, owner)
-}
-
-// RequestDeposit is a paid mutator transaction binding the contract method 0x85b77f45.
-//
-// Solidity: function requestDeposit(uint256 assets, address controller, address owner) returns(uint256)
-func (_SuperVault *SuperVaultTransactorSession) RequestDeposit(assets *big.Int, controller common.Address, owner common.Address) (*types.Transaction, error) {
-	return _SuperVault.Contract.RequestDeposit(&_SuperVault.TransactOpts, assets, controller, owner)
 }
 
 // RequestRedeem is a paid mutator transaction binding the contract method 0x7d41c86e.
@@ -1922,636 +1817,6 @@ func (_SuperVault *SuperVaultFilterer) ParseDeposit(log types.Log) (*SuperVaultD
 	return event, nil
 }
 
-// SuperVaultDepositClaimableIterator is returned from FilterDepositClaimable and is used to iterate over the raw logs and unpacked data for DepositClaimable events raised by the SuperVault contract.
-type SuperVaultDepositClaimableIterator struct {
-	Event *SuperVaultDepositClaimable // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperVaultDepositClaimableIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperVaultDepositClaimable)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperVaultDepositClaimable)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultDepositClaimableIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperVaultDepositClaimableIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperVaultDepositClaimable represents a DepositClaimable event raised by the SuperVault contract.
-type SuperVaultDepositClaimable struct {
-	User                 common.Address
-	RequestId            *big.Int
-	Assets               *big.Int
-	Shares               *big.Int
-	AverageDepositPrice  *big.Int
-	AccumulatorShares    *big.Int
-	AccumulatorCostBasis *big.Int
-	Raw                  types.Log // Blockchain specific contextual infos
-}
-
-// FilterDepositClaimable is a free log retrieval operation binding the contract event 0x9aa2dc121b4e5e134c970ad3c615dba45be70a3336f91de6c9f8fc28be795fac.
-//
-// Solidity: event DepositClaimable(address indexed user, uint256 indexed requestId, uint256 assets, uint256 shares, uint256 averageDepositPrice, uint256 accumulatorShares, uint256 accumulatorCostBasis)
-func (_SuperVault *SuperVaultFilterer) FilterDepositClaimable(opts *bind.FilterOpts, user []common.Address, requestId []*big.Int) (*SuperVaultDepositClaimableIterator, error) {
-
-	var userRule []interface{}
-	for _, userItem := range user {
-		userRule = append(userRule, userItem)
-	}
-	var requestIdRule []interface{}
-	for _, requestIdItem := range requestId {
-		requestIdRule = append(requestIdRule, requestIdItem)
-	}
-
-	logs, sub, err := _SuperVault.contract.FilterLogs(opts, "DepositClaimable", userRule, requestIdRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperVaultDepositClaimableIterator{contract: _SuperVault.contract, event: "DepositClaimable", logs: logs, sub: sub}, nil
-}
-
-// WatchDepositClaimable is a free log subscription operation binding the contract event 0x9aa2dc121b4e5e134c970ad3c615dba45be70a3336f91de6c9f8fc28be795fac.
-//
-// Solidity: event DepositClaimable(address indexed user, uint256 indexed requestId, uint256 assets, uint256 shares, uint256 averageDepositPrice, uint256 accumulatorShares, uint256 accumulatorCostBasis)
-func (_SuperVault *SuperVaultFilterer) WatchDepositClaimable(opts *bind.WatchOpts, sink chan<- *SuperVaultDepositClaimable, user []common.Address, requestId []*big.Int) (event.Subscription, error) {
-
-	var userRule []interface{}
-	for _, userItem := range user {
-		userRule = append(userRule, userItem)
-	}
-	var requestIdRule []interface{}
-	for _, requestIdItem := range requestId {
-		requestIdRule = append(requestIdRule, requestIdItem)
-	}
-
-	logs, sub, err := _SuperVault.contract.WatchLogs(opts, "DepositClaimable", userRule, requestIdRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultDepositClaimable)
-				if err := _SuperVault.contract.UnpackLog(event, "DepositClaimable", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseDepositClaimable is a log parse operation binding the contract event 0x9aa2dc121b4e5e134c970ad3c615dba45be70a3336f91de6c9f8fc28be795fac.
-//
-// Solidity: event DepositClaimable(address indexed user, uint256 indexed requestId, uint256 assets, uint256 shares, uint256 averageDepositPrice, uint256 accumulatorShares, uint256 accumulatorCostBasis)
-func (_SuperVault *SuperVaultFilterer) ParseDepositClaimable(log types.Log) (*SuperVaultDepositClaimable, error) {
-	event := new(SuperVaultDepositClaimable)
-	if err := _SuperVault.contract.UnpackLog(event, "DepositClaimable", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperVaultDepositClaimable0Iterator is returned from FilterDepositClaimable0 and is used to iterate over the raw logs and unpacked data for DepositClaimable0 events raised by the SuperVault contract.
-type SuperVaultDepositClaimable0Iterator struct {
-	Event *SuperVaultDepositClaimable0 // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperVaultDepositClaimable0Iterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperVaultDepositClaimable0)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperVaultDepositClaimable0)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultDepositClaimable0Iterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperVaultDepositClaimable0Iterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperVaultDepositClaimable0 represents a DepositClaimable0 event raised by the SuperVault contract.
-type SuperVaultDepositClaimable0 struct {
-	Controller common.Address
-	RequestId  *big.Int
-	Assets     *big.Int
-	Shares     *big.Int
-	Raw        types.Log // Blockchain specific contextual infos
-}
-
-// FilterDepositClaimable0 is a free log retrieval operation binding the contract event 0xad23d6d908f14df9b90c8c580954f8a95c4a6e3261e49af08db21e6aaadcd128.
-//
-// Solidity: event DepositClaimable(address indexed controller, uint256 indexed requestId, uint256 assets, uint256 shares)
-func (_SuperVault *SuperVaultFilterer) FilterDepositClaimable0(opts *bind.FilterOpts, controller []common.Address, requestId []*big.Int) (*SuperVaultDepositClaimable0Iterator, error) {
-
-	var controllerRule []interface{}
-	for _, controllerItem := range controller {
-		controllerRule = append(controllerRule, controllerItem)
-	}
-	var requestIdRule []interface{}
-	for _, requestIdItem := range requestId {
-		requestIdRule = append(requestIdRule, requestIdItem)
-	}
-
-	logs, sub, err := _SuperVault.contract.FilterLogs(opts, "DepositClaimable0", controllerRule, requestIdRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperVaultDepositClaimable0Iterator{contract: _SuperVault.contract, event: "DepositClaimable0", logs: logs, sub: sub}, nil
-}
-
-// WatchDepositClaimable0 is a free log subscription operation binding the contract event 0xad23d6d908f14df9b90c8c580954f8a95c4a6e3261e49af08db21e6aaadcd128.
-//
-// Solidity: event DepositClaimable(address indexed controller, uint256 indexed requestId, uint256 assets, uint256 shares)
-func (_SuperVault *SuperVaultFilterer) WatchDepositClaimable0(opts *bind.WatchOpts, sink chan<- *SuperVaultDepositClaimable0, controller []common.Address, requestId []*big.Int) (event.Subscription, error) {
-
-	var controllerRule []interface{}
-	for _, controllerItem := range controller {
-		controllerRule = append(controllerRule, controllerItem)
-	}
-	var requestIdRule []interface{}
-	for _, requestIdItem := range requestId {
-		requestIdRule = append(requestIdRule, requestIdItem)
-	}
-
-	logs, sub, err := _SuperVault.contract.WatchLogs(opts, "DepositClaimable0", controllerRule, requestIdRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultDepositClaimable0)
-				if err := _SuperVault.contract.UnpackLog(event, "DepositClaimable0", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseDepositClaimable0 is a log parse operation binding the contract event 0xad23d6d908f14df9b90c8c580954f8a95c4a6e3261e49af08db21e6aaadcd128.
-//
-// Solidity: event DepositClaimable(address indexed controller, uint256 indexed requestId, uint256 assets, uint256 shares)
-func (_SuperVault *SuperVaultFilterer) ParseDepositClaimable0(log types.Log) (*SuperVaultDepositClaimable0, error) {
-	event := new(SuperVaultDepositClaimable0)
-	if err := _SuperVault.contract.UnpackLog(event, "DepositClaimable0", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperVaultDepositRequestIterator is returned from FilterDepositRequest and is used to iterate over the raw logs and unpacked data for DepositRequest events raised by the SuperVault contract.
-type SuperVaultDepositRequestIterator struct {
-	Event *SuperVaultDepositRequest // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperVaultDepositRequestIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperVaultDepositRequest)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperVaultDepositRequest)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultDepositRequestIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperVaultDepositRequestIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperVaultDepositRequest represents a DepositRequest event raised by the SuperVault contract.
-type SuperVaultDepositRequest struct {
-	Controller common.Address
-	Owner      common.Address
-	RequestId  *big.Int
-	Sender     common.Address
-	Assets     *big.Int
-	Raw        types.Log // Blockchain specific contextual infos
-}
-
-// FilterDepositRequest is a free log retrieval operation binding the contract event 0xbb58420bb8ce44e11b84e214cc0de10ce5e7c24d0355b2815c3d758b514cae72.
-//
-// Solidity: event DepositRequest(address indexed controller, address indexed owner, uint256 indexed requestId, address sender, uint256 assets)
-func (_SuperVault *SuperVaultFilterer) FilterDepositRequest(opts *bind.FilterOpts, controller []common.Address, owner []common.Address, requestId []*big.Int) (*SuperVaultDepositRequestIterator, error) {
-
-	var controllerRule []interface{}
-	for _, controllerItem := range controller {
-		controllerRule = append(controllerRule, controllerItem)
-	}
-	var ownerRule []interface{}
-	for _, ownerItem := range owner {
-		ownerRule = append(ownerRule, ownerItem)
-	}
-	var requestIdRule []interface{}
-	for _, requestIdItem := range requestId {
-		requestIdRule = append(requestIdRule, requestIdItem)
-	}
-
-	logs, sub, err := _SuperVault.contract.FilterLogs(opts, "DepositRequest", controllerRule, ownerRule, requestIdRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperVaultDepositRequestIterator{contract: _SuperVault.contract, event: "DepositRequest", logs: logs, sub: sub}, nil
-}
-
-// WatchDepositRequest is a free log subscription operation binding the contract event 0xbb58420bb8ce44e11b84e214cc0de10ce5e7c24d0355b2815c3d758b514cae72.
-//
-// Solidity: event DepositRequest(address indexed controller, address indexed owner, uint256 indexed requestId, address sender, uint256 assets)
-func (_SuperVault *SuperVaultFilterer) WatchDepositRequest(opts *bind.WatchOpts, sink chan<- *SuperVaultDepositRequest, controller []common.Address, owner []common.Address, requestId []*big.Int) (event.Subscription, error) {
-
-	var controllerRule []interface{}
-	for _, controllerItem := range controller {
-		controllerRule = append(controllerRule, controllerItem)
-	}
-	var ownerRule []interface{}
-	for _, ownerItem := range owner {
-		ownerRule = append(ownerRule, ownerItem)
-	}
-	var requestIdRule []interface{}
-	for _, requestIdItem := range requestId {
-		requestIdRule = append(requestIdRule, requestIdItem)
-	}
-
-	logs, sub, err := _SuperVault.contract.WatchLogs(opts, "DepositRequest", controllerRule, ownerRule, requestIdRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultDepositRequest)
-				if err := _SuperVault.contract.UnpackLog(event, "DepositRequest", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseDepositRequest is a log parse operation binding the contract event 0xbb58420bb8ce44e11b84e214cc0de10ce5e7c24d0355b2815c3d758b514cae72.
-//
-// Solidity: event DepositRequest(address indexed controller, address indexed owner, uint256 indexed requestId, address sender, uint256 assets)
-func (_SuperVault *SuperVaultFilterer) ParseDepositRequest(log types.Log) (*SuperVaultDepositRequest, error) {
-	event := new(SuperVaultDepositRequest)
-	if err := _SuperVault.contract.UnpackLog(event, "DepositRequest", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperVaultDepositRequestCancelledIterator is returned from FilterDepositRequestCancelled and is used to iterate over the raw logs and unpacked data for DepositRequestCancelled events raised by the SuperVault contract.
-type SuperVaultDepositRequestCancelledIterator struct {
-	Event *SuperVaultDepositRequestCancelled // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperVaultDepositRequestCancelledIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperVaultDepositRequestCancelled)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperVaultDepositRequestCancelled)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultDepositRequestCancelledIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperVaultDepositRequestCancelledIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperVaultDepositRequestCancelled represents a DepositRequestCancelled event raised by the SuperVault contract.
-type SuperVaultDepositRequestCancelled struct {
-	Controller common.Address
-	Sender     common.Address
-	Raw        types.Log // Blockchain specific contextual infos
-}
-
-// FilterDepositRequestCancelled is a free log retrieval operation binding the contract event 0x6c4da04a0566cdd206b10ccd6f9142aebd1bf3e4a1934b876c5d992975678c09.
-//
-// Solidity: event DepositRequestCancelled(address indexed controller, address indexed sender)
-func (_SuperVault *SuperVaultFilterer) FilterDepositRequestCancelled(opts *bind.FilterOpts, controller []common.Address, sender []common.Address) (*SuperVaultDepositRequestCancelledIterator, error) {
-
-	var controllerRule []interface{}
-	for _, controllerItem := range controller {
-		controllerRule = append(controllerRule, controllerItem)
-	}
-	var senderRule []interface{}
-	for _, senderItem := range sender {
-		senderRule = append(senderRule, senderItem)
-	}
-
-	logs, sub, err := _SuperVault.contract.FilterLogs(opts, "DepositRequestCancelled", controllerRule, senderRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperVaultDepositRequestCancelledIterator{contract: _SuperVault.contract, event: "DepositRequestCancelled", logs: logs, sub: sub}, nil
-}
-
-// WatchDepositRequestCancelled is a free log subscription operation binding the contract event 0x6c4da04a0566cdd206b10ccd6f9142aebd1bf3e4a1934b876c5d992975678c09.
-//
-// Solidity: event DepositRequestCancelled(address indexed controller, address indexed sender)
-func (_SuperVault *SuperVaultFilterer) WatchDepositRequestCancelled(opts *bind.WatchOpts, sink chan<- *SuperVaultDepositRequestCancelled, controller []common.Address, sender []common.Address) (event.Subscription, error) {
-
-	var controllerRule []interface{}
-	for _, controllerItem := range controller {
-		controllerRule = append(controllerRule, controllerItem)
-	}
-	var senderRule []interface{}
-	for _, senderItem := range sender {
-		senderRule = append(senderRule, senderItem)
-	}
-
-	logs, sub, err := _SuperVault.contract.WatchLogs(opts, "DepositRequestCancelled", controllerRule, senderRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultDepositRequestCancelled)
-				if err := _SuperVault.contract.UnpackLog(event, "DepositRequestCancelled", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseDepositRequestCancelled is a log parse operation binding the contract event 0x6c4da04a0566cdd206b10ccd6f9142aebd1bf3e4a1934b876c5d992975678c09.
-//
-// Solidity: event DepositRequestCancelled(address indexed controller, address indexed sender)
-func (_SuperVault *SuperVaultFilterer) ParseDepositRequestCancelled(log types.Log) (*SuperVaultDepositRequestCancelled, error) {
-	event := new(SuperVaultDepositRequestCancelled)
-	if err := _SuperVault.contract.UnpackLog(event, "DepositRequestCancelled", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
 // SuperVaultOperatorSetIterator is returned from FilterOperatorSet and is used to iterate over the raw logs and unpacked data for OperatorSet events raised by the SuperVault contract.
 type SuperVaultOperatorSetIterator struct {
 	Event *SuperVaultOperatorSet // Event containing the contract specifics and raw log
@@ -2858,161 +2123,6 @@ func (_SuperVault *SuperVaultFilterer) WatchRedeemClaimable(opts *bind.WatchOpts
 func (_SuperVault *SuperVaultFilterer) ParseRedeemClaimable(log types.Log) (*SuperVaultRedeemClaimable, error) {
 	event := new(SuperVaultRedeemClaimable)
 	if err := _SuperVault.contract.UnpackLog(event, "RedeemClaimable", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperVaultRedeemClaimable0Iterator is returned from FilterRedeemClaimable0 and is used to iterate over the raw logs and unpacked data for RedeemClaimable0 events raised by the SuperVault contract.
-type SuperVaultRedeemClaimable0Iterator struct {
-	Event *SuperVaultRedeemClaimable0 // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperVaultRedeemClaimable0Iterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperVaultRedeemClaimable0)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperVaultRedeemClaimable0)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperVaultRedeemClaimable0Iterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperVaultRedeemClaimable0Iterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperVaultRedeemClaimable0 represents a RedeemClaimable0 event raised by the SuperVault contract.
-type SuperVaultRedeemClaimable0 struct {
-	Controller common.Address
-	RequestId  *big.Int
-	Assets     *big.Int
-	Shares     *big.Int
-	Raw        types.Log // Blockchain specific contextual infos
-}
-
-// FilterRedeemClaimable0 is a free log retrieval operation binding the contract event 0x4dd5187225a2ae5f5ea35ca7b1732180f848cc4b6f7dce34b4c5e9f384d77dec.
-//
-// Solidity: event RedeemClaimable(address indexed controller, uint256 indexed requestId, uint256 assets, uint256 shares)
-func (_SuperVault *SuperVaultFilterer) FilterRedeemClaimable0(opts *bind.FilterOpts, controller []common.Address, requestId []*big.Int) (*SuperVaultRedeemClaimable0Iterator, error) {
-
-	var controllerRule []interface{}
-	for _, controllerItem := range controller {
-		controllerRule = append(controllerRule, controllerItem)
-	}
-	var requestIdRule []interface{}
-	for _, requestIdItem := range requestId {
-		requestIdRule = append(requestIdRule, requestIdItem)
-	}
-
-	logs, sub, err := _SuperVault.contract.FilterLogs(opts, "RedeemClaimable0", controllerRule, requestIdRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperVaultRedeemClaimable0Iterator{contract: _SuperVault.contract, event: "RedeemClaimable0", logs: logs, sub: sub}, nil
-}
-
-// WatchRedeemClaimable0 is a free log subscription operation binding the contract event 0x4dd5187225a2ae5f5ea35ca7b1732180f848cc4b6f7dce34b4c5e9f384d77dec.
-//
-// Solidity: event RedeemClaimable(address indexed controller, uint256 indexed requestId, uint256 assets, uint256 shares)
-func (_SuperVault *SuperVaultFilterer) WatchRedeemClaimable0(opts *bind.WatchOpts, sink chan<- *SuperVaultRedeemClaimable0, controller []common.Address, requestId []*big.Int) (event.Subscription, error) {
-
-	var controllerRule []interface{}
-	for _, controllerItem := range controller {
-		controllerRule = append(controllerRule, controllerItem)
-	}
-	var requestIdRule []interface{}
-	for _, requestIdItem := range requestId {
-		requestIdRule = append(requestIdRule, requestIdItem)
-	}
-
-	logs, sub, err := _SuperVault.contract.WatchLogs(opts, "RedeemClaimable0", controllerRule, requestIdRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperVaultRedeemClaimable0)
-				if err := _SuperVault.contract.UnpackLog(event, "RedeemClaimable0", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseRedeemClaimable0 is a log parse operation binding the contract event 0x4dd5187225a2ae5f5ea35ca7b1732180f848cc4b6f7dce34b4c5e9f384d77dec.
-//
-// Solidity: event RedeemClaimable(address indexed controller, uint256 indexed requestId, uint256 assets, uint256 shares)
-func (_SuperVault *SuperVaultFilterer) ParseRedeemClaimable0(log types.Log) (*SuperVaultRedeemClaimable0, error) {
-	event := new(SuperVaultRedeemClaimable0)
-	if err := _SuperVault.contract.UnpackLog(event, "RedeemClaimable0", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
