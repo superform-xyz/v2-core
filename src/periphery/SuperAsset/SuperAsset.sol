@@ -312,7 +312,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Transfer swap fees to Asset Bank while holding the rest in the contract, since the full amount was already
         // transferred in the beginning of the function
         // TODO: Fix this by transfering money to SuperBank
-        IERC20(yieldSourceShare).safeTransfer(address(incentiveFundContract), swapFee);
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        address icf = factory.getIncentiveFundContract(address(this));
+        IERC20(yieldSourceShare).safeTransfer(address(icf), swapFee);
 
         // Mint SuperUSD shares
         _mint(receiver, amountSharesMinted);
@@ -356,7 +358,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Transfer swap fees to Asset Bank
         // TODO: Fix this by transfering money to SuperBank
-        IERC20(tokenOut).safeTransfer(address(incentiveFundContract), swapFee);
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        address icf = factory.getIncentiveFundContract(address(this));
+        IERC20(tokenOut).safeTransfer(address(icf), swapFee);
 
         // Transfer assets to receiver
         // For now, assuming shares are held in this contract, maybe they will have to be held in another contract
@@ -755,10 +759,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Pay or take incentives based on the sign of amountIncentive
         if (amountIncentiveUSD > 0) {
             ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-            IIncentiveFundContract(factory.getIncentiveFundManager(address(this))).payIncentive(user, uint256(amountIncentiveUSD));
+            IIncentiveFundContract(factory.getIncentiveFundContract(address(this))).payIncentive(user, uint256(amountIncentiveUSD));
         } else if (amountIncentiveUSD < 0) {
             ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-            IIncentiveFundContract(factory.getIncentiveFundManager(address(this))).takeIncentive(user, uint256(-amountIncentiveUSD));
+            IIncentiveFundContract(factory.getIncentiveFundContract(address(this))).takeIncentive(user, uint256(-amountIncentiveUSD));
         }
     }
 }

@@ -89,6 +89,11 @@ contract SuperAssetFactory is ISuperAssetFactory {
         return data[superAsset].incentiveCalculationContract;
     }
 
+    /// @inheritdoc ISuperAssetFactory
+    function getIncentiveFundContract(address superAsset) external view returns (address) {
+        return data[superAsset].incentiveFundContract;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/

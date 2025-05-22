@@ -97,7 +97,7 @@ interface ISuperAsset is IERC20 {
      * @return PPS of the SuperAsset
      */
     function getPPS() external view returns(uint256);
-
+    
     /**
      * @notice Mints new tokens. Can only be called by accounts with MINTER_ROLE.
      * @param to The address that will receive the minted tokens

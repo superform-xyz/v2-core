@@ -99,6 +99,13 @@ interface ISuperAssetFactory {
     function getIncentiveCalculationContract(address superAsset) external view returns (address);
 
     /**
+     * @notice Gets the incentive fund contract for a SuperAsset
+     * @param superAsset Address of the SuperAsset contract
+     * @return incentiveFundContract Address of the incentive fund contract
+     */
+    function getIncentiveFundContract(address superAsset) external view returns (address);
+
+    /**
      * @notice Creates a new SuperAsset instance with its dependencies
      * @param params Parameters for creating the SuperAsset
      * @return superAsset Address of the deployed SuperAsset contract
