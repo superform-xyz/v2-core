@@ -127,7 +127,7 @@ contract SuperAssetFactory is ISuperAssetFactory {
             superAssetManager: params.superAssetManager,
             superAssetStrategist: params.superAssetStrategist,
             incentiveFundManager: params.incentiveFundManager,
-            incentiveCalculationContract: incentiveCalculationContract
+            incentiveCalculationContract: params.incentiveCalculationContract
         });
 
 

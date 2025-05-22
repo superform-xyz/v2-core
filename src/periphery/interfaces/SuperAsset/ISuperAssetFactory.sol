@@ -24,6 +24,7 @@ interface ISuperAssetFactory {
         address superAssetManager;
         address superAssetStrategist;
         address incentiveFundManager;
+        address incentiveCalculationContract;
     }
 
 

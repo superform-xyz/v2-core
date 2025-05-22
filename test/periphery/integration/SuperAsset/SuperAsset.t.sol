@@ -177,7 +177,8 @@ contract SuperAssetTest is Helpers {
             swapFeeOutPercentage: 100, // 0.1% swap fee out
             superAssetManager: admin,
             superAssetStrategist: admin,
-            incentiveFundManager: admin
+            incentiveFundManager: admin,
+            incentiveCalculationContract: address(icc)
         });
 
         vm.prank(admin);

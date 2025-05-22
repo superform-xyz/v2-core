@@ -157,7 +157,8 @@ contract IncentiveFundContractTest is Helpers {
             swapFeeOutPercentage: 100, // 0.1% swap fee out
             superAssetManager: admin,
             superAssetStrategist: admin,
-            incentiveFundManager: admin
+            incentiveFundManager: admin,
+            incentiveCalculationContract: address(icc)
         });
 
         factory = new SuperAssetFactory(address(superGovernor), address(icc));
