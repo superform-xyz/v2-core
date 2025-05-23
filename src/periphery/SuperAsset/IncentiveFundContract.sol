@@ -51,6 +51,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
         tokenInIncentive = tokenInIncentive_;
         tokenOutIncentive = tokenOutIncentive_;
     }
+    
 
     /*//////////////////////////////////////////////////////////////
                 EXTERNAL FUNCTIONS
