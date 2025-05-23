@@ -22,13 +22,17 @@ import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.
  * Implements ERC20 standard for compatibility with integrators.
  */
 contract SuperAsset is AccessControl, ERC20, ISuperAsset {
-    using SafeERC20 for IERC20;
     using EnumerableSet for EnumerableSet.AddressSet;
+    using SafeERC20 for IERC20;
     using Math for uint256;
 
-    // --- Storage for ERC20 name/symbol ---
+    // --- Storage for ERC20 variables ---
     string private tokenName;
     string private tokenSymbol;
+
+    // --- Interfaces ---
+    ISuperOracle public superOracle;
+    ISuperGovernor public superGovernor;
 
     // --- Constants ---
     uint256 public constant PRECISION = 1e18;
@@ -40,12 +44,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     // --- State ---
     mapping(address token => TokenData data) public tokenData;
+    mapping(address token => bool isActive) private _activeAssets;
+    mapping(address token => address oracle) private _activeOracles;
 
     // NOTE: Actually it does not contain only supported Vaults shares but also standard ERC20
     EnumerableSet.AddressSet private _supportedVaults;
-
-    ISuperOracle public superOracle;
-    ISuperGovernor public _SUPER_GOVERNOR;
+    EnumerableSet.AddressSet private _supportedAssets;
 
     uint256 public swapFeeInPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
     uint256 public swapFeeOutPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
@@ -74,14 +78,14 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     modifier onlyStrategist() {
         ISuperAssetFactory factory =
-            ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+            ISuperAssetFactory(superGovernor.getAddress(superGovernor.SUPER_ASSET_FACTORY()));
         if (msg.sender != factory.getSuperAssetStrategist(address(this))) revert UNAUTHORIZED();
         _;
     }
 
     modifier onlyManager() {
         ISuperAssetFactory factory =
-            ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+            ISuperAssetFactory(superGovernor.getAddress(superGovernor.SUPER_ASSET_FACTORY()));
         if (msg.sender != factory.getSuperAssetManager(address(this))) revert UNAUTHORIZED();
         _;
     }
@@ -102,7 +106,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         external
     {
         // Ensure this can only be called once
-        if (address(_SUPER_GOVERNOR) != address(0)) revert ALREADY_INITIALIZED();
+        if (address(superGovernor) != address(0)) revert ALREADY_INITIALIZED();
 
         if (swapFeeInPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         if (swapFeeOutPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
@@ -114,8 +118,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         tokenName = name_;
         tokenSymbol = symbol_;
 
-        _SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
-        _SUPER_ASSET_FACTORY = _SUPER_GOVERNOR.SUPER_ASSET_FACTORY();
+        superGovernor = ISuperGovernor(superGovernor_);
+        _SUPER_ASSET_FACTORY = superGovernor.SUPER_ASSET_FACTORY();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -172,7 +176,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Transfer swap fees to Asset Bank while holding the rest in the contract, since the full amount was already
         // transferred in the beginning of the function
         // TODO: Fix this by transfering money to SuperBank
-        ISuperAssetFactory factory = ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(_SUPER_ASSET_FACTORY));
         address icf = factory.getIncentiveFundContract(address(this));
         IERC20(yieldSourceShare).safeTransfer(address(icf), swapFee);
 
@@ -220,7 +224,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Transfer swap fees to Asset Bank
         // TODO: Fix this by transfering money to SuperBank
-        ISuperAssetFactory factory = ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(_SUPER_ASSET_FACTORY));
         address icf = factory.getIncentiveFundContract(address(this));
         IERC20(tokenOut).safeTransfer(address(icf), swapFee);
 
@@ -283,11 +287,17 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                             MANAGER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperAsset
-    function whitelistERC20(address token) external onlyManager {
+    function whitelistERC20(address token, address oracle) external onlyManager {
         if (token == address(0)) revert ZERO_ADDRESS();
         if (tokenData[token].isSupportedERC20) revert ALREADY_WHITELISTED();
         tokenData[token].isSupportedERC20 = true;
         _supportedVaults.add(token);
+        _activeAssets[token] = true;
+        if (oracle != address(0)) {
+            _activeOracles[token] = oracle;
+        } else {
+            _activeOracles[token] = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
+        }
         emit ERC20Whitelisted(token);
     }
 
@@ -297,15 +307,23 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         if (!tokenData[token].isSupportedERC20) revert NOT_WHITELISTED();
         tokenData[token].isSupportedERC20 = false;
         _supportedVaults.remove(token);
+        if (IERC20(token).balanceOf(address(this)) == 0) {
+            _activeAssets[token] = false;
+        }
         emit ERC20Removed(token);
     }
 
     /// @inheritdoc ISuperAsset
-    function whitelistVault(address vault) external onlyManager {
+    function whitelistVault(address vault, address oracle) external onlyManager {
         if (vault == address(0)) revert ZERO_ADDRESS();
         if (tokenData[vault].isSupportedUnderlyingVault) revert ALREADY_WHITELISTED();
         tokenData[vault].isSupportedUnderlyingVault = true;
         _supportedVaults.add(vault);
+        if (oracle != address(0)) {
+            _activeOracles[vault] = oracle;
+        } else {
+            _activeOracles[vault] = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
+        }
         emit VaultWhitelisted(vault);
     }
 
@@ -315,6 +333,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_WHITELISTED();
         tokenData[vault].isSupportedUnderlyingVault = false;
         _supportedVaults.remove(vault);
+        if (IERC20(vault).balanceOf(address(this)) == 0) {
+            _activeAssets[vault] = false;
+        }
         emit VaultRemoved(vault);
     }
 
@@ -445,7 +466,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // TODO: Handle the case where isSuccess is false
 
-        ISuperAssetFactory factory = ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(_SUPER_ASSET_FACTORY));
         address icc = factory.getIncentiveCalculationContract(address(this));
 
         // Calculate incentives (using ICC)
@@ -501,7 +522,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // TODO: Handle the case where isSuccess is false
 
-        ISuperAssetFactory factory = ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(_SUPER_ASSET_FACTORY));
         address icc = factory.getIncentiveCalculationContract(address(this));
 
         // Calculate incentives (using ICC)
@@ -752,12 +773,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     function _settleIncentive(address user, int256 amountIncentiveUSD) internal {
         // Pay or take incentives based on the sign of amountIncentive
         if (amountIncentiveUSD > 0) {
-            ISuperAssetFactory factory = ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+            ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(_SUPER_ASSET_FACTORY));
             IIncentiveFundContract(factory.getIncentiveFundContract(address(this))).payIncentive(
                 user, uint256(amountIncentiveUSD)
             );
         } else if (amountIncentiveUSD < 0) {
-            ISuperAssetFactory factory = ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+            ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(_SUPER_ASSET_FACTORY));
             IIncentiveFundContract(factory.getIncentiveFundContract(address(this))).takeIncentive(
                 user, uint256(-amountIncentiveUSD)
             );
