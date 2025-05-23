@@ -11,8 +11,8 @@ import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
 
 /**
- * @author Superform Labs
  * @title Incentive Fund Contract
+ * @author Superform Labs
  * @notice Manages incentive tokens in the SuperAsset system
  * @dev This contract is responsible for handling the incentive fund, including paying and taking incentives.
  * @dev For now it is OK to keep Access Control but it will be managed by SuperGovernor when ready, see
