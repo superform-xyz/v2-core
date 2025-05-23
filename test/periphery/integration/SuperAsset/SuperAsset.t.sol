@@ -178,6 +178,8 @@ contract SuperAssetTest is Helpers {
             incentiveCalculationContract: address(icc)
         });
 
+        // NOTE: Whitelisting ICC so that's possible to instantiate SuperAsset using it 
+        superGovernor.addICCToWhitelist(address(icc));
         (address superAssetAddr, address incentiveFundAddr) = factory.createSuperAsset(params);
         vm.stopPrank();
         console.log("SuperAsset and IncentiveFund deployed via factory");

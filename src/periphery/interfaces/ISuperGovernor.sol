@@ -608,4 +608,12 @@ interface ISuperGovernor is IAccessControl {
     /// @notice Removes a strategist from the superform strategists list
     /// @param strategist Address of the strategist to remove
     function removeSuperformStrategist(address strategist) external;
+
+    /// @notice Adds a new ICC to the whitelist
+    /// @param icc Address of the ICC to add
+    function addICCToWhitelist(address icc) external;
+
+    /// @notice Removes an ICC from the whitelist
+    /// @param icc Address of the ICC to remove
+    function removeICCFromWhitelist(address icc) external;
 }
