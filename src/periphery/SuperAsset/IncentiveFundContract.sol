@@ -70,8 +70,6 @@ contract IncentiveFundContract is IIncentiveFundContract {
 
     /// @inheritdoc IIncentiveFundContract
     function executeSetTokenInIncentive() external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        address manager = factory.getIncentiveFundManager(address(superAsset));
         if (block.timestamp < newTokenInEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
         tokenInIncentive = proposedTokenIn;
         emit SettlementTokenInSet(tokenInIncentive);
@@ -90,8 +88,6 @@ contract IncentiveFundContract is IIncentiveFundContract {
 
     /// @inheritdoc IIncentiveFundContract
     function executeSetTokenOutIncentive() external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        address manager = factory.getIncentiveFundManager(address(superAsset));
         if (block.timestamp < newTokenOutEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
         tokenOutIncentive = proposedTokenOut;
         emit SettlementTokenOutSet(tokenOutIncentive);
