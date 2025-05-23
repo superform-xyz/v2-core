@@ -65,18 +65,6 @@ interface IIncentiveFundContract {
      */
     function executeSetTokenOutIncentive() external;
 
-    // /**
-    //  * @notice Sets the token for incoming incentives
-    //  * @param token Address of the token
-    //  */
-    // function setTokenInIncentive(address token) external;
-
-    // /**
-    //  * @notice Sets the token for outgoing incentives
-    //  * @param token Address of the token
-    //  */
-    // function setTokenOutIncentive(address token) external;
-
     // --- Events ---
     event TokenInIncentiveSet(address indexed token);
     event TokenOutIncentiveSet(address indexed token);

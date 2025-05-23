@@ -98,27 +98,6 @@ contract IncentiveFundContract is IIncentiveFundContract {
         emit SettlementTokenOutSet(tokenOutIncentive);
     }
 
-    // /// @inheritdoc IIncentiveFundContract
-    // function setTokenInIncentive(address token) external {
-    //     ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-    //     address manager = factory.getIncentiveFundManager(address(superAsset));
-    //     if (manager != msg.sender) revert UNAUTHORIZED();
-    //     if (token == address(0)) revert ZERO_ADDRESS();
-    //     tokenInIncentive = token;
-    //     emit SettlementTokenInSet(token);
-    // }
-
-    // /// @inheritdoc IIncentiveFundContract
-    // function setTokenOutIncentive(address token) external {
-    //     ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-    //     // Check if the caller has the INCENTIVE_FUND_MANAGER role
-    //     address manager = factory.getIncentiveFundManager(address(superAsset));
-    //     if (manager != msg.sender) revert UNAUTHORIZED();
-    //     if (token == address(0)) revert ZERO_ADDRESS();
-    //     tokenOutIncentive = token;
-    //     emit SettlementTokenOutSet(token);
-    // }
-
     /// @inheritdoc IIncentiveFundContract
     function payIncentive(address receiver, uint256 amountUSD) external {
         ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
