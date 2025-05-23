@@ -363,10 +363,12 @@ contract SuperAssetTest is Helpers {
         console.log("Swap Fee:", expSwapFee);
         console.log("Amount Incentive USD Deposit:", expAmountIncentiveUSDDeposit);
 
+        uint256 b1 = tokenIn.balanceOf(address(superBank));
         // Deposit tokens
         (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) =
             superAsset.deposit(user, address(tokenIn), depositAmount, minSharesOut);
         vm.stopPrank();
+        assertEq(tokenIn.balanceOf(address(superBank)) - b1, swapFee);
         assertEq(expAmountSharesMinted, amountSharesMinted);
         assertEq(expSwapFee, swapFee);
         assertEq(expAmountIncentiveUSDDeposit, amountIncentiveUSDDeposit);
