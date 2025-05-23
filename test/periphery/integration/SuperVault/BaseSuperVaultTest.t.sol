@@ -1474,13 +1474,13 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
      */
     function _updateSuperVaultPPS(address strategyAddr, address vault_) internal returns (uint256 pps) {
         UpdatePPSVars memory vars;
-        
+
         vars.totalSupplyAmount = SuperVault(vault_).totalSupply();
 
         // Get current totalAssets from TotalAssetHelper
         (vars.currentTotalAssets,) = totalAssetHelper.totalAssets(strategyAddr);
         vars.precision = SuperVault(vault_).PRECISION();
-        
+
         // Calculate price per share based on current totalAssets and totalSupply
         if (vars.totalSupplyAmount == 0) {
             // For first deposit, set initial PPS to 1 unit in price decimals
@@ -1501,12 +1501,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         // Create the message hash with all parameters
         vars.messageHash = keccak256(
             abi.encodePacked(
-                strategyAddr, 
-                vars.pps, 
-                vars.ppsStdev, 
-                vars.validatorSet, 
-                vars.totalValidators, 
-                vars.timestamp
+                strategyAddr, vars.pps, vars.ppsStdev, vars.validatorSet, vars.totalValidators, vars.timestamp
             )
         );
 

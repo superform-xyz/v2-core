@@ -140,7 +140,8 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
         // Check if this oracle is the active PPS Oracle
         if (!SUPER_GOVERNOR.isActivePPSOracle(address(this))) revert NOT_ACTIVE_PPS_ORACLE();
 
-        // Create message hash with all parameters- If anyare incorrect, the message hash will be different and the derived signer address will be incorrect- resulting in a revert
+        // Create message hash with all parameters- If anyare incorrect, the message hash will be different and the
+        // derived signer address will be incorrect- resulting in a revert
         bytes32 messageHash =
             keccak256(abi.encodePacked(strategy, pps, ppsStdev, validatorSet, totalValidators, timestamp));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
