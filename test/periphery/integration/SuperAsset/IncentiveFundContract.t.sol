@@ -15,6 +15,7 @@ import { IERC20Errors } from "@openzeppelin/contracts/interfaces/draft-IERC6093.
 import { MockAggregator } from "../../mocks/MockAggregator.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 import { SuperAssetFactory, ISuperAssetFactory } from "../../../../src/periphery/SuperAsset/SuperAssetFactory.sol";
+import { SuperBank } from "../../../../src/periphery/SuperBank.sol";
 
 contract IncentiveFundContractTest is Helpers {
     // --- Events ---
@@ -49,6 +50,7 @@ contract IncentiveFundContractTest is Helpers {
     MockAggregator public mockFeed6;
     IncentiveCalculationContract public icc;
     SuperAssetFactory public factory;
+    SuperBank public superBank;
     address public admin;
     address public manager;
     address public user;
@@ -164,6 +166,10 @@ contract IncentiveFundContractTest is Helpers {
         factory = new SuperAssetFactory(address(superGovernor));
         console.log("SuperAssetFactory deployed");
         superGovernor.setAddress(superGovernor.SUPER_ASSET_FACTORY(), address(factory));
+        
+        // Deploy SuperBank
+        superBank = new SuperBank(address(superGovernor));
+        superGovernor.setAddress(superGovernor.SUPER_BANK(), address(superBank));
 
         console.log("SuperAssetFactory deployed");
         (address superAssetAddr, address incentiveFundAddr) = factory.createSuperAsset(params);
