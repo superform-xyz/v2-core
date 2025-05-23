@@ -95,15 +95,14 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bytes32 public constant _SUPER_ASSET_FACTORY = keccak256("SUPER_ASSET_FACTORY");
 
     // Common contract keys
-    bytes32 public constant TREASURY = keccak256("TREASURY");
-    bytes32 public constant SUPER_ORACLE = keccak256("SUPER_ORACLE");
-    bytes32 public constant BLSPPSORACLE = keccak256("BLSPPSORACLE");
-    bytes32 public constant ECDSAPPSORACLE = keccak256("ECDSAPPSORACLE");
-    bytes32 public constant SUPER_VAULT_AGGREGATOR = keccak256("SUPER_VAULT_AGGREGATOR");
     bytes32 public constant UP = keccak256("UP");
     bytes32 public constant SUP = keccak256("SUP");
+    bytes32 public constant TREASURY = keccak256("TREASURY");
     bytes32 public constant SUPER_BANK = keccak256("SUPER_BANK");
-    bytes32 public constant BANK_MANAGER = keccak256("BANK_MANAGER");
+    bytes32 public constant SUPER_ORACLE = keccak256("SUPER_ORACLE");
+     bytes32 public constant BANK_MANAGER = keccak256("BANK_MANAGER");
+    bytes32 public constant ECDSAPPSORACLE = keccak256("ECDSAPPSORACLE");
+    bytes32 public constant SUPER_VAULT_AGGREGATOR = keccak256("SUPER_VAULT_AGGREGATOR");
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
