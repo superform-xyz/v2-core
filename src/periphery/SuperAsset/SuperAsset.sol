@@ -260,8 +260,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    // --- Token Movement Functions ---
-
     /// @inheritdoc ISuperAsset
     function deposit(
         address receiver,
