@@ -301,12 +301,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // balance sheet
         IERC20(yieldSourceShare).safeTransferFrom(msg.sender, address(this), amountTokenToDeposit);
 
-        // Transfer swap fees to Asset Bank while holding the rest in the contract, since the full amount was already
-        // transferred in the beginning of the function
-        // TODO: Fix this by transfering money to SuperBank
-        
-        // ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-        // address icf = factory.getIncentiveFundContract(address(this));
         address superbank = _SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_BANK());
         IERC20(yieldSourceShare).safeTransfer(superbank, swapFee);
 
@@ -351,9 +345,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _burn(msg.sender, amountSharesToRedeem); // Use a proper burning mechanism
 
         // Transfer swap fees to Asset Bank
-        // TODO: Fix this by transfering money to SuperBank
-        // ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-        // address icf = factory.getIncentiveFundContract(address(this));
         address superbank = _SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_BANK());
         IERC20(tokenOut).safeTransfer(superbank, swapFee);
 
