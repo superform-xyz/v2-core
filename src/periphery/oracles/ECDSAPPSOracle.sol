@@ -40,29 +40,15 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
                          PPS UPDATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IECDSAPPSOracle
-    function updatePPS(UpdatePPSArgs calldata args)
-        external
-    {
+    function updatePPS(UpdatePPSArgs calldata args) external {
         // Validate proofs and check quorum requirement
         _validateProofs(
-            args.strategy,
-            args.proofs,
-            args.pps,
-            args.ppsStdev,
-            args.validatorSet,
-            args.totalValidators,
-            args.timestamp
+            args.strategy, args.proofs, args.pps, args.ppsStdev, args.validatorSet, args.totalValidators, args.timestamp
         );
 
         // Emit event that PPS has been validated
         emit PPSValidated(
-            args.strategy,
-            args.pps,
-            args.ppsStdev,
-            args.validatorSet,
-            args.totalValidators,
-            args.timestamp,
-            msg.sender
+            args.strategy, args.pps, args.ppsStdev, args.validatorSet, args.totalValidators, args.timestamp, msg.sender
         );
 
         // Forward the validated PPS update to the SuperVaultAggregator
@@ -76,15 +62,13 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
             totalValidators: args.totalValidators,
             timestamp: args.timestamp,
             upkeepCost: 0 // This will be set by SuperVaultAggregator
-        });
+         });
 
         ISuperVaultAggregator(SUPER_GOVERNOR.getAddress(SUPER_VAULT_AGGREGATOR)).forwardPPS(msg.sender, forwardArgs);
     }
 
     /// @inheritdoc IECDSAPPSOracle
-    function batchUpdatePPS(BatchUpdatePPSArgs calldata args)
-        external
-    {
+    function batchUpdatePPS(BatchUpdatePPSArgs calldata args) external {
         uint256 strategiesLength = args.strategies.length;
 
         if (strategiesLength == 0) revert ZERO_LENGTH_ARRAY();
@@ -155,7 +139,9 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
     {
         // Check if this oracle is the active PPS Oracle
         if (!SUPER_GOVERNOR.isActivePPSOracle(address(this))) revert NOT_ACTIVE_PPS_ORACLE();
-        // Create message hash with all parameters
+
+        // Create message hash with all parameters- If anyare incorrect, the message hash will be different and the
+        // derived signer address will be incorrect- resulting in a revert
         bytes32 messageHash =
             keccak256(abi.encodePacked(strategy, pps, ppsStdev, validatorSet, totalValidators, timestamp));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
@@ -189,8 +175,5 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
         // Ensure we have enough valid signatures to meet quorum
         uint256 quorumRequirement = SUPER_GOVERNOR.getPPSOracleQuorum();
         if (validSignatureCount < quorumRequirement) revert QUORUM_NOT_MET();
-
-        // Ensure the number of valid signatures matches the reported validatorSet
-        if (validSignatureCount != validatorSet) revert VALIDATOR_COUNT_MISMATCH();
     }
 }

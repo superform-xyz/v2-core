@@ -60,7 +60,6 @@ interface IECDSAPPSOracle {
     /*//////////////////////////////////////////////////////////////
                             STRUCTS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Arguments for updating PPS for a single strategy
     /// @param strategy Address of the strategy
     /// @param proofs Array of cryptographic proofs of the PPS value from different validators
