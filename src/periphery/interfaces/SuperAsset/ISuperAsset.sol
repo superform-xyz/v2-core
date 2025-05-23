@@ -92,7 +92,7 @@ interface ISuperAsset is IERC20 {
      * @notice Returns the PPS of the SuperAsset
      * @return PPS of the SuperAsset
      */
-    function getSuperAssetPPS() external view returns(uint256);
+    function getSuperAssetPPS() external view returns (uint256);
     
     /**
      * @notice Mints new tokens. Can only be called by accounts with MINTER_ROLE.
@@ -241,8 +241,9 @@ interface ISuperAsset is IERC20 {
     /**
      * @notice Whitelists a vault
      * @param vault Address of the vault to whitelist
+     * @param oracle Address of the oracle to use to fetch vault prices
      */
-    function whitelistVault(address vault) external;
+    function whitelistVault(address vault, address oracle) external;
 
     /**
      * @notice Removes a vault from whitelist
@@ -253,8 +254,9 @@ interface ISuperAsset is IERC20 {
     /**
      * @notice Whitelists an ERC20 token
      * @param token Address of the token to whitelist
+     * @param oracle Address of the oracle to use to fetch token prices
      */
-    function whitelistERC20(address token) external;
+    function whitelistERC20(address token, address oracle) external;
 
     /**
      * @notice Removes an ERC20 token from whitelist

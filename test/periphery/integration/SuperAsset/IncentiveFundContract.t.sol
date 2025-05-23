@@ -183,8 +183,8 @@ contract IncentiveFundContractTest is Helpers {
 
         // Configure SuperAsset
         superAsset.setSuperOracle(address(oracle));
-        superAsset.whitelistERC20(address(tokenIn));
-        superAsset.whitelistERC20(address(tokenOut));
+        superAsset.whitelistERC20(address(tokenIn), address(oracle));
+        superAsset.whitelistERC20(address(tokenOut), address(oracle));
 
         vm.stopPrank();
 

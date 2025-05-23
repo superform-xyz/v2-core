@@ -3,6 +3,7 @@ pragma solidity ^0.8.30;
 
 import { Test } from "forge-std/Test.sol";
 import "forge-std/console.sol";
+import { ERC4626YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
 import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
 import { SuperGovernor } from "../../../../src/periphery/SuperGovernor.sol";
@@ -56,6 +57,8 @@ contract SuperAssetTest is Helpers {
     address public manager;
     address public user;
     address public user11;
+
+    ERC4626YieldSourceOracle public vaultOracle;
 
     // --- Setup ---
     function setUp() public {
@@ -214,13 +217,13 @@ contract SuperAssetTest is Helpers {
         // Set SuperAsset oracle
         vm.startPrank(admin);
         superAsset.setSuperOracle(address(oracle));
-        superAsset.whitelistERC20(address(tokenIn));
+        superAsset.whitelistERC20(address(tokenIn), address(vaultOracle));
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
         assertEq(tokenData.isSupportedERC20, true, "Token In should be whitelisted");
-        superAsset.whitelistERC20(address(tokenOut));
+        superAsset.whitelistERC20(address(tokenOut), address(vaultOracle));
         tokenData = superAsset.getTokenData(address(tokenOut));
         assertEq(tokenData.isSupportedERC20, true, "Token Out should be whitelisted");
-        superAsset.whitelistERC20(address(superAsset));
+        superAsset.whitelistERC20(address(superAsset), address(oracle)); // Todo: is this correct?
         tokenData = superAsset.getTokenData(address(superAsset));
         assertEq(tokenData.isSupportedERC20, true, "SuperAsset should be whitelisted");
         vm.stopPrank();
@@ -278,12 +281,12 @@ contract SuperAssetTest is Helpers {
         // Non-manager cannot whitelist
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.UNAUTHORIZED.selector);
-        superAsset.whitelistERC20(newToken);
+        superAsset.whitelistERC20(newToken, address(oracle));
         vm.stopPrank();
 
         // Manager can whitelist
         vm.startPrank(admin); // admin has VAULT_MANAGER_ROLE
-        superAsset.whitelistERC20(newToken);
+        superAsset.whitelistERC20(newToken, address(oracle));
         vm.stopPrank();
 
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(newToken);
