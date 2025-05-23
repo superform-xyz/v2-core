@@ -314,7 +314,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     string public OPTIMISM_RPC_URL = vm.envString(OPTIMISM_RPC_URL_KEY); // Native token: ETH
     string public BASE_RPC_URL = vm.envString(BASE_RPC_URL_KEY); // Native token: ETH
 
-    bool constant DEBUG = true;
+    bool constant DEBUG = false;
 
     string constant DEFAULT_ACCOUNT = "NEXUS";
 

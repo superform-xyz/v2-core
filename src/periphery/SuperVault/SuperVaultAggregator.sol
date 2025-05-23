@@ -212,8 +212,17 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         uint256 strategiesLength = args.strategies.length;
         if (strategiesLength == 0) revert ZERO_ARRAY_LENGTH();
 
-        // Calculate upkeep cost per strategy
-        uint256 upkeepPerStrategy = SUPER_GOVERNOR.getUpkeepCostPerUpdate() / strategiesLength;
+        bool upkeepExempt = false;
+        uint256 upkeepPerStrategy;
+
+        // Check if upkeep payments are globally disabled in SuperGovernor
+        if (SUPER_GOVERNOR.isUpkeepPaymentsEnabled()) {
+            // Calculate upkeep cost per strategy
+            upkeepPerStrategy = SUPER_GOVERNOR.getUpkeepCostPerUpdate() / strategiesLength;
+        } else {
+            upkeepExempt = true;
+            upkeepPerStrategy = 0;
+        }
 
         // Process all valid strategies
         for (uint256 i; i < strategiesLength; i++) {
@@ -224,7 +233,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
             _forwardPPS(
                 ForwardPPSArgs({
                     strategy: args.strategies[i],
-                    isExempt: false,
+                    isExempt: upkeepExempt,
                     pps: args.ppss[i],
                     ppsStdev: args.ppsStdevs[i],
                     validatorSet: args.validatorSets[i],
@@ -324,7 +333,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                        STRATEGIST MANAGEMENT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperVaultAggregator
     function addSecondaryStrategist(address strategy, address strategist) external validStrategy(strategy) {
         // Only the primary strategist can add secondary strategists
@@ -457,7 +465,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                         HOOK VALIDATION FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperVaultAggregator
     function setHooksRootUpdateTimelock(uint256 newTimelock) external {
         // Only SUPER_GOVERNOR can update the timelock
@@ -826,7 +833,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                          INTERNAL HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Internal implementation of forwarding PPS updates
     /// @param args Struct containing all parameters for PPS update
     function _forwardPPS(ForwardPPSArgs memory args) internal {

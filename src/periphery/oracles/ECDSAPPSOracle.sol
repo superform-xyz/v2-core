@@ -139,7 +139,9 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
     {
         // Check if this oracle is the active PPS Oracle
         if (!SUPER_GOVERNOR.isActivePPSOracle(address(this))) revert NOT_ACTIVE_PPS_ORACLE();
-        // Create message hash with all parameters
+
+        // Create message hash with all parameters- If anyare incorrect, the message hash will be different and the
+        // derived signer address will be incorrect- resulting in a revert
         bytes32 messageHash =
             keccak256(abi.encodePacked(strategy, pps, ppsStdev, validatorSet, totalValidators, timestamp));
         bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
@@ -173,8 +175,5 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
         // Ensure we have enough valid signatures to meet quorum
         uint256 quorumRequirement = SUPER_GOVERNOR.getPPSOracleQuorum();
         if (validSignatureCount < quorumRequirement) revert QUORUM_NOT_MET();
-
-        // Ensure the number of valid signatures matches the reported validatorSet
-        if (validSignatureCount != validatorSet) revert VALIDATOR_COUNT_MISMATCH();
     }
 }

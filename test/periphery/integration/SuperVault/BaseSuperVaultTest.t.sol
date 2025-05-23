@@ -10,6 +10,7 @@ import { console2 } from "forge-std/console2.sol";
 import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { MessageHashUtils } from "openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import { ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 
@@ -28,6 +29,7 @@ import { MerkleReader } from "../../../utils/merkle/helper/MerkleReader.sol";
 import { ISuperHookInspector } from "../../../../src/core/interfaces/ISuperHook.sol";
 
 contract BaseSuperVaultTest is MerkleReader, BaseTest {
+    using MessageHashUtils for bytes32;
     using ModuleKitHelpers for *;
     using Math for uint256;
 
@@ -67,6 +69,11 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
     // Track state for each user
     mapping(address user => SuperVaultState) private superVaultStates;
 
+    // Validator private keys
+    uint256 public validator1PrivateKey;
+    uint256 public validator2PrivateKey;
+    uint256 public validator3PrivateKey;
+
     function setUp() public virtual override {
         super.setUp();
         console2.log("--- SETUP BASE SUPERVAULT ---");
@@ -87,7 +94,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         // Explicitly regenerate the Merkle tree with the confirmed strategy address
         console2.log("[DEBUG] Explicitly generating Merkle tree with strategy address", strategyAddr);
         _generateMerkleTree(ETH);
-        
+
         // Now propose and execute the global hooks root update
         bytes32 root = _getMerkleRoot();
         console2.log("[DEBUG] Proposing global hooks root from explicitly generated tree");
@@ -115,8 +122,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         // Get real yield sources from fork
         fluidVault = IERC4626(fluidVaultAddr);
         aaveVault = IERC4626(aaveVaultAddr);
-        
-        // Cast addresses to contract types from the vault deployment in setUp
+
         vault = SuperVault(vaultAddr);
         strategy = SuperVaultStrategy(strategyAddr);
         escrow = SuperVaultEscrow(escrowAddr);
@@ -141,12 +147,15 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         );
 
         vm.stopPrank();
+
+        validator1PrivateKey = 0x20;
+        validator2PrivateKey = 0x30;
+        validator3PrivateKey = 0x40;
     }
 
     /*//////////////////////////////////////////////////////////////
                         INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
-
     /**
      * @notice Struct to hold local variables for _deployVault to avoid stack too deep errors
      */
@@ -1611,5 +1620,60 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
             newArray[i] = array[i];
         }
         return newArray;
+    }
+
+    /**
+     * @notice Creates valid proofs for the ECDSAPPSOracle
+     * @param strategy_ The address of the strategy
+     * @param pps The price per share
+     * @param ppsStdev The standard deviation of the price per share
+     * @param validatorSet The number of validators in the validator set
+     * @param totalValidators The total number of validators
+     * @param timestamp The timestamp of the PPS update
+     * @param specificSignerKeys An optional array of specific signer keys to use
+     * @return proofs An array of valid proofs
+     */
+    function _createValidProofs(
+        address strategy_,
+        uint256 pps,
+        uint256 ppsStdev,
+        uint256 validatorSet,
+        uint256 totalValidators,
+        uint256 timestamp,
+        uint256[] memory specificSignerKeys
+    )
+        internal
+        view
+        returns (bytes[] memory)
+    {
+        // Create message hash with all parameters
+        bytes32 messageHash =
+            keccak256(abi.encodePacked(strategy_, pps, ppsStdev, validatorSet, totalValidators, timestamp));
+        bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
+
+        // If specific signer keys are provided, use them; otherwise, use default validators
+        uint256[] memory signerKeys;
+        if (specificSignerKeys.length > 0) {
+            signerKeys = specificSignerKeys;
+        } else {
+            // Use as many validators as needed based on validatorSet
+            signerKeys = new uint256[](validatorSet);
+
+            // Assign default validator keys based on the validatorSet count
+            for (uint256 i = 0; i < validatorSet; i++) {
+                if (i == 0) signerKeys[i] = validator1PrivateKey;
+                else if (i == 1) signerKeys[i] = validator2PrivateKey;
+                else if (i == 2) signerKeys[i] = validator3PrivateKey;
+            }
+        }
+
+        // Create proofs array
+        bytes[] memory proofs = new bytes[](signerKeys.length);
+        for (uint256 i = 0; i < signerKeys.length; i++) {
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKeys[i], ethSignedMessageHash);
+            proofs[i] = abi.encodePacked(r, s, v);
+        }
+
+        return proofs;
     }
 }
