@@ -16,8 +16,10 @@ interface IIncentiveFundContract {
      * @notice Initializes the IncentiveFundContract
      * @param _superGovernor Address of the SuperGovernor contract
      * @param superAsset_ Address of the SuperAsset contract
+     * @param tokenInIncentive_ Address of the token users send incentives to
+     * @param tokenOutIncentive_ Address of the token used to pay incentives
      */
-    function initialize(address _superGovernor, address superAsset_) external;
+    function initialize(address _superGovernor, address superAsset_, address tokenInIncentive_, address tokenOutIncentive_) external;
 
     /**
      * @notice Pays incentives to a receiver
@@ -42,16 +44,26 @@ interface IIncentiveFundContract {
     function withdraw(address receiver, address tokenOut, uint256 amount) external;
 
     /**
-     * @notice Sets the token for incoming incentives
+     * @notice Proposes a new token for incoming incentives
      * @param token Address of the token
      */
-    function setTokenInIncentive(address token) external;
+    function proposeSetTokenInIncentive(address token) external;
 
     /**
-     * @notice Sets the token for outgoing incentives
+     * @notice Executes the proposal for a new token for incoming incentives
+     */
+    function executeSetTokenInIncentive() external;
+
+    /**
+     * @notice Proposes a new token for outgoing incentives
      * @param token Address of the token
      */
-    function setTokenOutIncentive(address token) external;
+    function proposeSetTokenOutIncentive(address token) external;
+
+    /**
+     * @notice Executes the proposal for a new token for outgoing incentives
+     */
+    function executeSetTokenOutIncentive() external;
 
     // --- Events ---
     event TokenInIncentiveSet(address indexed token);
@@ -118,4 +130,6 @@ interface IIncentiveFundContract {
     /// @notice Thrown when the caller is not authorized
     error UNAUTHORIZED();
 
+    /// @notice Thrown when timelock is not expired
+    error TIMELOCK_NOT_EXPIRED();
 }
