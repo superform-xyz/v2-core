@@ -190,16 +190,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function mint(address to, uint256 amount) external onlyManager {
-        _mint(to, amount);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function burn(address from, uint256 amount) external onlyManager {
-        _burn(from, amount);
-    }
-
-    /// @inheritdoc ISuperAsset
     function setSwapFeeInPercentage(uint256 _feePercentage) external onlyManager {
         if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         swapFeeInPercentage = _feePercentage;
@@ -232,6 +222,16 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         emit EnergyToUSDExchangeRatioSet(newRatio);
     }
 
+    /// @inheritdoc ISuperAsset
+    function mint(address to, uint256 amount) external onlyManager {
+        _mint(to, amount);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function burn(address from, uint256 amount) external onlyManager {
+        _burn(from, amount);
+    }
+
     /*//////////////////////////////////////////////////////////////
                           STRATEGIST FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -261,7 +261,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             revert NOT_SUPPORTED_TOKEN();
         }
 
-        // @notice Allocations get normalized inside the ICC so we dont need to additional checks here
+        // @dev Allocations get normalized inside the ICC so we dont need to additional checks here
         tokenData[token].targetAllocations = allocation;
         emit TargetAllocationSet(token, allocation);
     }
@@ -595,7 +595,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                         PUBLIC GETTER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperAsset
-    /// @notice This function should not revert
+    /// @dev This function should not revert
     function getPriceWithCircuitBreakers(address token)
         public
         view
@@ -607,7 +607,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 N;
         uint256 M;
 
-        // @notice Passing oneUnit to get the price of a single unit of asset to check if it has depegged
+        // @dev Passing oneUnit to get the price of a single unit of asset to check if it has depegged
         (priceUSD, stddev, N, M) = superOracle.getQuoteFromProvider(one, token, USD, AVERAGE_PROVIDER);
 
         // Circuit Breaker for Oracle Off
