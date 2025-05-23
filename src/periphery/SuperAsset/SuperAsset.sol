@@ -554,6 +554,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         return tokenData[token];
     }
 
+    /// @inheritdoc ISuperAsset
+    function getPrecision() external pure returns (uint256) {
+        return PRECISION;
+    }
+
     /*//////////////////////////////////////////////////////////////
                         PUBLIC GETTER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
