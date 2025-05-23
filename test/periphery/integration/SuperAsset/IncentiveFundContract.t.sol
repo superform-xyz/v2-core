@@ -127,12 +127,12 @@ contract IncentiveFundContractTest is Helpers {
 
         // Set staleness for each feed
         vm.startPrank(admin);
-        oracle.setFeedMaxStaleness(address(mockFeed1), 1 days);
-        oracle.setFeedMaxStaleness(address(mockFeed2), 1 days);
-        oracle.setFeedMaxStaleness(address(mockFeed3), 1 days);
-        oracle.setFeedMaxStaleness(address(mockFeed4), 1 days);
-        oracle.setFeedMaxStaleness(address(mockFeed5), 1 days);
-        oracle.setFeedMaxStaleness(address(mockFeed6), 1 days);
+        oracle.setFeedMaxStaleness(address(mockFeed1), 14 days);
+        oracle.setFeedMaxStaleness(address(mockFeed2), 14 days);
+        oracle.setFeedMaxStaleness(address(mockFeed3), 14 days);
+        oracle.setFeedMaxStaleness(address(mockFeed4), 14 days);
+        oracle.setFeedMaxStaleness(address(mockFeed5), 14 days);
+        oracle.setFeedMaxStaleness(address(mockFeed6), 14 days);
         vm.stopPrank();
 
         console.log("SuperOracle Deployed and Configured");
