@@ -454,7 +454,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Get price of underlying vault shares in USD
         (s.priceUSDTokenIn,,,) = getPriceWithCircuitBreakers(tokenIn);
-        (s.priceUSDThisShares,,,) = getSuperAssetPPS();
+        (s.priceUSDThisShares) = getSuperAssetPPS();
 
         // NOTE: Preview Function should not revert
         if (s.priceUSDTokenIn == 0 || s.priceUSDThisShares == 0) return (0, 0, 0, false);
@@ -507,7 +507,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         PreviewRedeem memory s;
 
         // Get price of underlying vault shares in USD
-        (s.priceUSDThisShares,,,) = getSuperAssetPPS();
+        (s.priceUSDThisShares) = getSuperAssetPPS();
         (s.priceUSDTokenOut,,,) = getPriceWithCircuitBreakers(tokenOut);
 
         // Calculate underlying shares to redeem
@@ -646,7 +646,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                 (priceUSD,,,) = getPriceWithCircuitBreakers(token);
             } else {
                 uint256 pricePerShare = IYieldSourceOracle(_tokenOracles[token]).getPricePerShare(token);
-                uint256 ppsUSD = getPriceWithCircuitBreakers(token);
+                (uint256 ppsUSD,,,) = getPriceWithCircuitBreakers(token);
                 priceUSD = pricePerShare * ppsUSD;
             }
 
