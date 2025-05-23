@@ -48,7 +48,6 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
     SuperGovernor public governor;
     SuperVaultAggregator public aggregatorSuperVault;
 
-
     function setUp() public override {
         super.setUp();
 
@@ -72,7 +71,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
 
         aggregatorSuperVault = new SuperVaultAggregator(address(governor));
 
-        (sv, svStrategy, ) = aggregatorSuperVault.createVault(
+        (sv, svStrategy,) = aggregatorSuperVault.createVault(
             ISuperVaultAggregator.VaultCreationParams({
                 asset: address(asset),
                 name: "TestVault",
@@ -106,7 +105,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
 
         vm.warp(block.timestamp + 8 days);
         governor.executeActivePPSOracleChange();
-        
+
         governor.proposeUpkeepPaymentsChange(false);
         vm.warp(block.timestamp + 8 days);
         governor.executeUpkeepPaymentsChange();
@@ -255,26 +254,30 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
     }
 
     function test_UpdatePPS_ValidatorCountMismatchReverts() public {
-        // Create valid proofs from multiple validators
-        bytes[] memory proofs = _createValidProofs(
-            address(svStrategy),
-            PPS,
-            PPS_STDEV,
-            1, // validatorSet
-            3, // totalValidators
-            block.timestamp,
-            new uint256[](0)
-        );
+        uint256[] memory signerKeys = new uint256[](2);
+        signerKeys[0] = validator1PrivateKey;
+        signerKeys[1] = validator2PrivateKey;
 
-        // Call should revert because validatorSet doesn't match proof count
-        //vm.expectRevert(IECDSAPPSOracle.VALIDATOR_COUNT_MISMATCH.selector);
+        // Create message hash with all parameters
+        bytes32 messageHash =
+            keccak256(abi.encodePacked(address(svStrategy), PPS, PPS_STDEV, uint256(2), uint256(3), block.timestamp));
+        bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
+
+        // Create proofs array
+        bytes[] memory proofs = new bytes[](signerKeys.length);
+        for (uint256 i = 0; i < signerKeys.length; i++) {
+            (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKeys[i], ethSignedMessageHash);
+            proofs[i] = abi.encodePacked(r, s, v);
+        }
+
+        vm.expectRevert(IECDSAPPSOracle.INVALID_VALIDATOR.selector);
         oracleECDSA.updatePPS(
             IECDSAPPSOracle.UpdatePPSArgs({
                 strategy: address(svStrategy),
                 proofs: proofs,
                 pps: PPS,
                 ppsStdev: PPS_STDEV,
-                validatorSet: 2,
+                validatorSet: 1,
                 totalValidators: 3,
                 timestamp: block.timestamp
             })
@@ -344,9 +347,9 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
     //////////////////////////////////////////////////////////////*/
     function test_BatchUpdatePPS_Success() public {
         // Create two strategies and valid proofs for them
-        address strategy1 = address(svStrategy); 
-        
-        (, address strategy2, ) = aggregatorSuperVault.createVault(
+        address strategy1 = address(svStrategy);
+
+        (, address strategy2,) = aggregatorSuperVault.createVault(
             ISuperVaultAggregator.VaultCreationParams({
                 asset: address(asset),
                 name: "Secondary TestVault",
@@ -548,6 +551,6 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         uint256 updatedPPS = _updateSuperVaultPPS(address(strategy), address(vault));
 
         // Test passes if no revert occurs
-        assertGt(updatedPPS, 0, "PPS should be greater than 0");
+        assertEq(updatedPPS, 1e6);
     }
 }
