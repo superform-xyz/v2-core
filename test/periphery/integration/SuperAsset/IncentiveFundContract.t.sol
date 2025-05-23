@@ -363,6 +363,9 @@ contract IncentiveFundContractTest is Helpers {
 
     function test_PayIncentive_RevertIfNoTokenSet() public {
         vm.startPrank(admin);
+        incentiveFund.proposeSetTokenOutIncentive(address(0));
+        vm.warp(block.timestamp + 10 days);
+        incentiveFund.executeSetTokenOutIncentive();        
         vm.expectRevert(IIncentiveFundContract.TOKEN_OUT_NOT_SET.selector);
         incentiveFund.payIncentive(user, 100e18);
         vm.stopPrank();
@@ -417,6 +420,9 @@ contract IncentiveFundContractTest is Helpers {
 
     function test_TakeIncentive_RevertIfNoTokenSet() public {
         vm.startPrank(admin);
+        incentiveFund.proposeSetTokenInIncentive(address(0));
+        vm.warp(block.timestamp + 10 days);
+        incentiveFund.executeSetTokenInIncentive();
         vm.expectRevert(IIncentiveFundContract.TOKEN_IN_NOT_SET.selector);
         incentiveFund.takeIncentive(user, 100e18);
         vm.stopPrank();

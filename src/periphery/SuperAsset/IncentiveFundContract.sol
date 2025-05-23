@@ -61,7 +61,8 @@ contract IncentiveFundContract is IIncentiveFundContract {
         ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
         address manager = factory.getIncentiveFundManager(address(superAsset));
         if (manager != msg.sender) revert UNAUTHORIZED();
-        if (token == address(0)) revert ZERO_ADDRESS();
+        // Allowing to deselect token
+        // if (token == address(0)) revert ZERO_ADDRESS();
         proposedTokenIn = token;
         newTokenInEffectiveTime = block.timestamp + _setTokenTimelock;
     }
@@ -81,7 +82,8 @@ contract IncentiveFundContract is IIncentiveFundContract {
         ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
         address manager = factory.getIncentiveFundManager(address(superAsset));
         if (manager != msg.sender) revert UNAUTHORIZED();
-        if (token == address(0)) revert ZERO_ADDRESS();
+        // Allowing to deselect token
+        // if (token == address(0)) revert ZERO_ADDRESS();
         proposedTokenOut = token;
         newTokenOutEffectiveTime = block.timestamp + _setTokenTimelock;
     }
