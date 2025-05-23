@@ -269,7 +269,6 @@ contract IncentiveFundContractTest is Helpers {
         // vm.expectEmit(true, false, false, true);
         // emit SettlementTokenOutSet(address(tokenOut));
         incentiveFund.proposeSetTokenOutIncentive(address(tokenOut));
-        vm.stopPrank();
 
         vm.warp(block.timestamp + 10 days);
 
@@ -280,6 +279,7 @@ contract IncentiveFundContractTest is Helpers {
         vm.expectEmit(true, false, false, true);
         emit SettlementTokenOutSet(address(tokenOut));
         incentiveFund.executeSetTokenOutIncentive();
+        vm.stopPrank();
 
         assertEq(incentiveFund.tokenInIncentive(), address(tokenIn));
         assertEq(incentiveFund.tokenOutIncentive(), address(tokenOut));
