@@ -106,6 +106,25 @@ interface ISuperAssetFactory {
     function getIncentiveFundContract(address superAsset) external view returns (address);
 
     /**
+     * @notice Adds an Incentive Calculation Contract to the whitelist
+     * @param icc Address of the Incentive Calculation Contract
+     */
+    function addICCToWhitelist(address icc) external;
+
+    /**
+     * @notice Removes an Incentive Calculation Contract from the whitelist
+     * @param icc Address of the Incentive Calculation Contract
+     */
+    function removeICCFromWhitelist(address icc) external;
+
+    /**
+     * @notice Checks if an Incentive Calculation Contract is whitelisted
+     * @param icc Address of the Incentive Calculation Contract
+     * @return isValid Whether the Incentive Calculation Contract is whitelisted
+     */
+    function isICCWhitelisted(address icc) external view returns (bool);
+    
+    /**
      * @notice Creates a new SuperAsset instance with its dependencies
      * @param params Parameters for creating the SuperAsset
      * @return superAsset Address of the deployed SuperAsset contract
@@ -141,4 +160,7 @@ interface ISuperAssetFactory {
 
     // Unauthorized errors
     error UNAUTHORIZED();
+
+    // ICC errors
+    error ICC_NOT_WHITELISTED();
 }

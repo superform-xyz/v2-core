@@ -22,10 +22,10 @@ contract SuperAssetFactory is ISuperAssetFactory {
     address public immutable superAssetImplementation;
     address public immutable incentiveFundImplementation;
     // Single instances
-    // address public immutable incentiveCalculationContract;
     address public immutable superGovernor;
 
     mapping(address superAsset => SuperAssetData data) public data;
+    mapping(address icc => bool isValid) public incentiveCalculationContractsWhitelist;
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
@@ -36,6 +36,23 @@ contract SuperAssetFactory is ISuperAssetFactory {
 
         superAssetImplementation = address(new SuperAsset());
         incentiveFundImplementation = address(new IncentiveFundContract());
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function addICCToWhitelist(address icc) external {
+        if(msg.sender != superGovernor) revert UNAUTHORIZED();
+        incentiveCalculationContractsWhitelist[icc] = true;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function removeICCFromWhitelist(address icc) external {
+        if(msg.sender != superGovernor) revert UNAUTHORIZED();
+        incentiveCalculationContractsWhitelist[icc] = false;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function isICCWhitelisted(address icc) external view returns (bool) {
+        return incentiveCalculationContractsWhitelist[icc];
     }
 
     /// @inheritdoc ISuperAssetFactory
@@ -65,6 +82,7 @@ contract SuperAssetFactory is ISuperAssetFactory {
     /// @inheritdoc ISuperAssetFactory
     function setIncentiveCalculationContract(address superAsset, address _incentiveCalculationContract) external {
         if (_incentiveCalculationContract == address(0)) revert ZERO_ADDRESS();
+        if(!incentiveCalculationContractsWhitelist[_incentiveCalculationContract]) revert ICC_NOT_WHITELISTED();
         if(msg.sender != data[superAsset].superAssetManager) revert UNAUTHORIZED();
         data[superAsset].incentiveCalculationContract = _incentiveCalculationContract;
     }
@@ -104,6 +122,9 @@ contract SuperAssetFactory is ISuperAssetFactory {
         returns (address superAsset, address incentiveFundContract)
     {
         // TODO: Decide whether to make this method permissionless or permissioned 
+
+        if(params.incentiveCalculationContract == address(0)) revert ZERO_ADDRESS();
+        if(!incentiveCalculationContractsWhitelist[params.incentiveCalculationContract]) revert ICC_NOT_WHITELISTED();
 
         // Deploy IncentiveFund (this one needs to be unique per SuperAsset)
         incentiveFundContract = incentiveFundImplementation.clone();
