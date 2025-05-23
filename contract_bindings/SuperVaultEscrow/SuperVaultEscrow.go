@@ -31,7 +31,7 @@ var (
 
 // SuperVaultEscrowMetaData contains all meta data concerning the SuperVaultEscrow contract.
 var SuperVaultEscrowMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"function\",\"name\":\"escrowShares\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"vault_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"strategy_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"initialized\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"receiveShares\",\"inputs\":[{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"returnShares\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"shares\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractIERC20\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"strategy\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"transferShares\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"vault\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SafeERC20FailedOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"UNAUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"function\",\"name\":\"escrowShares\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"vault_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"strategy_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"initialized\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"returnShares\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"shares\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractIERC20\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"strategy\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"vault\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SafeERC20FailedOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"UNAUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]}]",
 }
 
 // SuperVaultEscrowABI is the input ABI used to generate the binding from.
@@ -346,27 +346,6 @@ func (_SuperVaultEscrow *SuperVaultEscrowTransactorSession) Initialize(vault_ co
 	return _SuperVaultEscrow.Contract.Initialize(&_SuperVaultEscrow.TransactOpts, vault_, strategy_)
 }
 
-// ReceiveShares is a paid mutator transaction binding the contract method 0x2f9e40bd.
-//
-// Solidity: function receiveShares(uint256 amount) returns()
-func (_SuperVaultEscrow *SuperVaultEscrowTransactor) ReceiveShares(opts *bind.TransactOpts, amount *big.Int) (*types.Transaction, error) {
-	return _SuperVaultEscrow.contract.Transact(opts, "receiveShares", amount)
-}
-
-// ReceiveShares is a paid mutator transaction binding the contract method 0x2f9e40bd.
-//
-// Solidity: function receiveShares(uint256 amount) returns()
-func (_SuperVaultEscrow *SuperVaultEscrowSession) ReceiveShares(amount *big.Int) (*types.Transaction, error) {
-	return _SuperVaultEscrow.Contract.ReceiveShares(&_SuperVaultEscrow.TransactOpts, amount)
-}
-
-// ReceiveShares is a paid mutator transaction binding the contract method 0x2f9e40bd.
-//
-// Solidity: function receiveShares(uint256 amount) returns()
-func (_SuperVaultEscrow *SuperVaultEscrowTransactorSession) ReceiveShares(amount *big.Int) (*types.Transaction, error) {
-	return _SuperVaultEscrow.Contract.ReceiveShares(&_SuperVaultEscrow.TransactOpts, amount)
-}
-
 // ReturnShares is a paid mutator transaction binding the contract method 0x8b198025.
 //
 // Solidity: function returnShares(address to, uint256 amount) returns()
@@ -386,25 +365,4 @@ func (_SuperVaultEscrow *SuperVaultEscrowSession) ReturnShares(to common.Address
 // Solidity: function returnShares(address to, uint256 amount) returns()
 func (_SuperVaultEscrow *SuperVaultEscrowTransactorSession) ReturnShares(to common.Address, amount *big.Int) (*types.Transaction, error) {
 	return _SuperVaultEscrow.Contract.ReturnShares(&_SuperVaultEscrow.TransactOpts, to, amount)
-}
-
-// TransferShares is a paid mutator transaction binding the contract method 0x8fcb4e5b.
-//
-// Solidity: function transferShares(address to, uint256 amount) returns()
-func (_SuperVaultEscrow *SuperVaultEscrowTransactor) TransferShares(opts *bind.TransactOpts, to common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _SuperVaultEscrow.contract.Transact(opts, "transferShares", to, amount)
-}
-
-// TransferShares is a paid mutator transaction binding the contract method 0x8fcb4e5b.
-//
-// Solidity: function transferShares(address to, uint256 amount) returns()
-func (_SuperVaultEscrow *SuperVaultEscrowSession) TransferShares(to common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _SuperVaultEscrow.Contract.TransferShares(&_SuperVaultEscrow.TransactOpts, to, amount)
-}
-
-// TransferShares is a paid mutator transaction binding the contract method 0x8fcb4e5b.
-//
-// Solidity: function transferShares(address to, uint256 amount) returns()
-func (_SuperVaultEscrow *SuperVaultEscrowTransactorSession) TransferShares(to common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _SuperVaultEscrow.Contract.TransferShares(&_SuperVaultEscrow.TransactOpts, to, amount)
 }

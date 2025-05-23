@@ -2,19 +2,18 @@
 pragma solidity ^0.8.30;
 
 import "@openzeppelin/contracts/proxy/Clones.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "../interfaces/SuperAsset/ISuperAssetFactory.sol";
 import "./SuperAsset.sol";
-import "./AssetBank.sol";
 import "./IncentiveFundContract.sol";
 import "./IncentiveCalculationContract.sol";
+import "../SuperGovernor.sol";
 
 /**
  * @title SuperAssetFactory
  * @author Superform Labs
  * @notice Factory contract that deploys SuperAsset and its dependencies
  */
-contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
+contract SuperAssetFactory is ISuperAssetFactory {
     using Clones for address;
 
     /*//////////////////////////////////////////////////////////////
@@ -23,25 +22,94 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     address public immutable superAssetImplementation;
     address public immutable incentiveFundImplementation;
     // Single instances
-    address public immutable assetBank;
-    address public immutable incentiveCalculationContract;
+    address public immutable superGovernor;
 
-    // --- Roles ---
-    bytes32 public constant DEPLOYER_ROLE = keccak256("DEPLOYER_ROLE");
+    mapping(address superAsset => SuperAssetData data) public data;
+    mapping(address icc => bool isValid) public incentiveCalculationContractsWhitelist;
 
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(address admin) {
+    constructor(address _superGovernor) {
+        if (_superGovernor == address(0)) revert ZERO_ADDRESS();
+        superGovernor = _superGovernor;
+
         superAssetImplementation = address(new SuperAsset());
-        incentiveFundImplementation = address(new IncentiveFundContract(admin));
+        incentiveFundImplementation = address(new IncentiveFundContract());
+    }
 
-        // Deploy single instances
-        assetBank = address(new AssetBank(admin));
-        incentiveCalculationContract = address(new IncentiveCalculationContract());
+    /// @inheritdoc ISuperAssetFactory
+    function addICCToWhitelist(address icc) external {
+        if(msg.sender != superGovernor) revert UNAUTHORIZED();
+        incentiveCalculationContractsWhitelist[icc] = true;
+    }
 
-        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
-        _grantRole(DEPLOYER_ROLE, msg.sender);
+    /// @inheritdoc ISuperAssetFactory
+    function removeICCFromWhitelist(address icc) external {
+        if(msg.sender != superGovernor) revert UNAUTHORIZED();
+        incentiveCalculationContractsWhitelist[icc] = false;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function isICCWhitelisted(address icc) external view returns (bool) {
+        return incentiveCalculationContractsWhitelist[icc];
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function setSuperAssetManager(address superAsset, address _superAssetManager) external {
+        if (_superAssetManager == address(0)) revert ZERO_ADDRESS();
+        if(
+            (msg.sender != data[superAsset].superAssetManager) &&
+            (msg.sender != superGovernor) // NOTE: This role can take over
+        ) revert UNAUTHORIZED();
+        data[superAsset].superAssetManager = _superAssetManager;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function setSuperAssetStrategist(address superAsset, address _superAssetStrategist) external {
+        if (_superAssetStrategist == address(0)) revert ZERO_ADDRESS();
+        if(msg.sender != data[superAsset].superAssetManager) revert UNAUTHORIZED();
+        data[superAsset].superAssetStrategist = _superAssetStrategist;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function setIncentiveFundManager(address superAsset, address _incentiveFundManager) external {
+        if (_incentiveFundManager == address(0)) revert ZERO_ADDRESS();
+        if(msg.sender != data[superAsset].superAssetManager) revert UNAUTHORIZED();
+        data[superAsset].incentiveFundManager = _incentiveFundManager;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function setIncentiveCalculationContract(address superAsset, address _incentiveCalculationContract) external {
+        if (_incentiveCalculationContract == address(0)) revert ZERO_ADDRESS();
+        if(!incentiveCalculationContractsWhitelist[_incentiveCalculationContract]) revert ICC_NOT_WHITELISTED();
+        if(msg.sender != data[superAsset].superAssetManager) revert UNAUTHORIZED();
+        data[superAsset].incentiveCalculationContract = _incentiveCalculationContract;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function getSuperAssetManager(address superAsset) external view returns (address) {
+        return data[superAsset].superAssetManager;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function getSuperAssetStrategist(address superAsset) external view returns (address) {
+        return data[superAsset].superAssetStrategist;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function getIncentiveFundManager(address superAsset) external view returns (address) {
+        return data[superAsset].incentiveFundManager;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function getIncentiveCalculationContract(address superAsset) external view returns (address) {
+        return data[superAsset].incentiveCalculationContract;
+    }
+
+    /// @inheritdoc ISuperAssetFactory
+    function getIncentiveFundContract(address superAsset) external view returns (address) {
+        return data[superAsset].incentiveFundContract;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -51,33 +119,39 @@ contract SuperAssetFactory is ISuperAssetFactory, AccessControl {
     /// @inheritdoc ISuperAssetFactory
     function createSuperAsset(AssetCreationParams calldata params)
         external
-        onlyRole(DEPLOYER_ROLE)
-        returns (address superAsset, address assetBank_, address incentiveFund, address incentiveCalc)
+        returns (address superAsset, address incentiveFundContract)
     {
+        // TODO: Decide whether to make this method permissionless or permissioned 
+
+        if(params.incentiveCalculationContract == address(0)) revert ZERO_ADDRESS();
+        if(!incentiveCalculationContractsWhitelist[params.incentiveCalculationContract]) revert ICC_NOT_WHITELISTED();
+
         // Deploy IncentiveFund (this one needs to be unique per SuperAsset)
-        incentiveFund = incentiveFundImplementation.clone();
+        incentiveFundContract = incentiveFundImplementation.clone();
 
         // Deploy SuperAsset with its dependencies
         superAsset = superAssetImplementation.clone();
         SuperAsset(superAsset).initialize(
             params.name,
             params.symbol,
-            incentiveCalculationContract, // Use single instance
-            incentiveFund,
-            assetBank, // Use single instance
+            superGovernor,
             params.swapFeeInPercentage,
             params.swapFeeOutPercentage
         );
 
         // Initialize IncentiveFund
-        IncentiveFundContract(incentiveFund).initialize(superAsset, assetBank);
+        IncentiveFundContract(incentiveFundContract).initialize(superGovernor, superAsset);
 
-        // Return addresses (using existing instances for ICC and AssetBank)
-        assetBank_ = assetBank;
-        incentiveCalc = incentiveCalculationContract;
+        data[superAsset] = SuperAssetData({
+            superAssetManager: params.superAssetManager,
+            superAssetStrategist: params.superAssetStrategist,
+            incentiveFundManager: params.incentiveFundManager,
+            incentiveCalculationContract: params.incentiveCalculationContract,
+            incentiveFundContract: incentiveFundContract
+        });
 
         emit SuperAssetCreated(
-            superAsset, assetBank, incentiveFund, incentiveCalculationContract, params.name, params.symbol
+            superAsset, incentiveFundContract, params.incentiveCalculationContract, params.name, params.symbol
         );
     }
 }

@@ -31,7 +31,7 @@ var (
 
 // SuperExecutorMetaData contains all meta data concerning the SuperExecutor contract.
 var SuperExecutorMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"ledgerConfiguration_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"execute\",\"inputs\":[{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isInitialized\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isModuleType\",\"inputs\":[{\"name\":\"typeID\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"ledgerConfiguration\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperLedgerConfiguration\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"name\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"onInstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"onUninstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"version\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"event\",\"name\":\"SuperPositionLocked\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"spToken\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FEE_NOT_TRANSFERRED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE_FOR_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MANAGER_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ModuleAlreadyInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_HOOKS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"ledgerConfiguration_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"execute\",\"inputs\":[{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isInitialized\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isModuleType\",\"inputs\":[{\"name\":\"typeID\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"ledgerConfiguration\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperLedgerConfiguration\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"name\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"onInstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"onUninstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"version\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"event\",\"name\":\"SuperPositionMintRequested\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"spToken\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"dstChainId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FEE_NOT_TRANSFERRED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE_FOR_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_CHAIN_ID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MANAGER_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ModuleAlreadyInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_HOOKS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]}]",
 }
 
 // SuperExecutorABI is the input ABI used to generate the binding from.
@@ -398,9 +398,9 @@ func (_SuperExecutor *SuperExecutorTransactorSession) OnUninstall(arg0 []byte) (
 	return _SuperExecutor.Contract.OnUninstall(&_SuperExecutor.TransactOpts, arg0)
 }
 
-// SuperExecutorSuperPositionLockedIterator is returned from FilterSuperPositionLocked and is used to iterate over the raw logs and unpacked data for SuperPositionLocked events raised by the SuperExecutor contract.
-type SuperExecutorSuperPositionLockedIterator struct {
-	Event *SuperExecutorSuperPositionLocked // Event containing the contract specifics and raw log
+// SuperExecutorSuperPositionMintRequestedIterator is returned from FilterSuperPositionMintRequested and is used to iterate over the raw logs and unpacked data for SuperPositionMintRequested events raised by the SuperExecutor contract.
+type SuperExecutorSuperPositionMintRequestedIterator struct {
+	Event *SuperExecutorSuperPositionMintRequested // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -414,7 +414,7 @@ type SuperExecutorSuperPositionLockedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *SuperExecutorSuperPositionLockedIterator) Next() bool {
+func (it *SuperExecutorSuperPositionMintRequestedIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -423,7 +423,7 @@ func (it *SuperExecutorSuperPositionLockedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(SuperExecutorSuperPositionLocked)
+			it.Event = new(SuperExecutorSuperPositionMintRequested)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -438,7 +438,7 @@ func (it *SuperExecutorSuperPositionLockedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(SuperExecutorSuperPositionLocked)
+		it.Event = new(SuperExecutorSuperPositionMintRequested)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -454,29 +454,30 @@ func (it *SuperExecutorSuperPositionLockedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperExecutorSuperPositionLockedIterator) Error() error {
+func (it *SuperExecutorSuperPositionMintRequestedIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *SuperExecutorSuperPositionLockedIterator) Close() error {
+func (it *SuperExecutorSuperPositionMintRequestedIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// SuperExecutorSuperPositionLocked represents a SuperPositionLocked event raised by the SuperExecutor contract.
-type SuperExecutorSuperPositionLocked struct {
-	Account common.Address
-	SpToken common.Address
-	Amount  *big.Int
-	Raw     types.Log // Blockchain specific contextual infos
+// SuperExecutorSuperPositionMintRequested represents a SuperPositionMintRequested event raised by the SuperExecutor contract.
+type SuperExecutorSuperPositionMintRequested struct {
+	Account    common.Address
+	SpToken    common.Address
+	Amount     *big.Int
+	DstChainId *big.Int
+	Raw        types.Log // Blockchain specific contextual infos
 }
 
-// FilterSuperPositionLocked is a free log retrieval operation binding the contract event 0xdf09bac395df649ca72fb3ffb451d40c290e25dcef3002e19d2c04ce09441b9b.
+// FilterSuperPositionMintRequested is a free log retrieval operation binding the contract event 0x7ec946bedac80f139c7c4149ac44127f938a0ab50229c59b7c0cd5debc72c233.
 //
-// Solidity: event SuperPositionLocked(address indexed account, address indexed spToken, uint256 amount)
-func (_SuperExecutor *SuperExecutorFilterer) FilterSuperPositionLocked(opts *bind.FilterOpts, account []common.Address, spToken []common.Address) (*SuperExecutorSuperPositionLockedIterator, error) {
+// Solidity: event SuperPositionMintRequested(address indexed account, address indexed spToken, uint256 amount, uint256 indexed dstChainId)
+func (_SuperExecutor *SuperExecutorFilterer) FilterSuperPositionMintRequested(opts *bind.FilterOpts, account []common.Address, spToken []common.Address, dstChainId []*big.Int) (*SuperExecutorSuperPositionMintRequestedIterator, error) {
 
 	var accountRule []interface{}
 	for _, accountItem := range account {
@@ -487,17 +488,22 @@ func (_SuperExecutor *SuperExecutorFilterer) FilterSuperPositionLocked(opts *bin
 		spTokenRule = append(spTokenRule, spTokenItem)
 	}
 
-	logs, sub, err := _SuperExecutor.contract.FilterLogs(opts, "SuperPositionLocked", accountRule, spTokenRule)
+	var dstChainIdRule []interface{}
+	for _, dstChainIdItem := range dstChainId {
+		dstChainIdRule = append(dstChainIdRule, dstChainIdItem)
+	}
+
+	logs, sub, err := _SuperExecutor.contract.FilterLogs(opts, "SuperPositionMintRequested", accountRule, spTokenRule, dstChainIdRule)
 	if err != nil {
 		return nil, err
 	}
-	return &SuperExecutorSuperPositionLockedIterator{contract: _SuperExecutor.contract, event: "SuperPositionLocked", logs: logs, sub: sub}, nil
+	return &SuperExecutorSuperPositionMintRequestedIterator{contract: _SuperExecutor.contract, event: "SuperPositionMintRequested", logs: logs, sub: sub}, nil
 }
 
-// WatchSuperPositionLocked is a free log subscription operation binding the contract event 0xdf09bac395df649ca72fb3ffb451d40c290e25dcef3002e19d2c04ce09441b9b.
+// WatchSuperPositionMintRequested is a free log subscription operation binding the contract event 0x7ec946bedac80f139c7c4149ac44127f938a0ab50229c59b7c0cd5debc72c233.
 //
-// Solidity: event SuperPositionLocked(address indexed account, address indexed spToken, uint256 amount)
-func (_SuperExecutor *SuperExecutorFilterer) WatchSuperPositionLocked(opts *bind.WatchOpts, sink chan<- *SuperExecutorSuperPositionLocked, account []common.Address, spToken []common.Address) (event.Subscription, error) {
+// Solidity: event SuperPositionMintRequested(address indexed account, address indexed spToken, uint256 amount, uint256 indexed dstChainId)
+func (_SuperExecutor *SuperExecutorFilterer) WatchSuperPositionMintRequested(opts *bind.WatchOpts, sink chan<- *SuperExecutorSuperPositionMintRequested, account []common.Address, spToken []common.Address, dstChainId []*big.Int) (event.Subscription, error) {
 
 	var accountRule []interface{}
 	for _, accountItem := range account {
@@ -508,7 +514,12 @@ func (_SuperExecutor *SuperExecutorFilterer) WatchSuperPositionLocked(opts *bind
 		spTokenRule = append(spTokenRule, spTokenItem)
 	}
 
-	logs, sub, err := _SuperExecutor.contract.WatchLogs(opts, "SuperPositionLocked", accountRule, spTokenRule)
+	var dstChainIdRule []interface{}
+	for _, dstChainIdItem := range dstChainId {
+		dstChainIdRule = append(dstChainIdRule, dstChainIdItem)
+	}
+
+	logs, sub, err := _SuperExecutor.contract.WatchLogs(opts, "SuperPositionMintRequested", accountRule, spTokenRule, dstChainIdRule)
 	if err != nil {
 		return nil, err
 	}
@@ -518,8 +529,8 @@ func (_SuperExecutor *SuperExecutorFilterer) WatchSuperPositionLocked(opts *bind
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(SuperExecutorSuperPositionLocked)
-				if err := _SuperExecutor.contract.UnpackLog(event, "SuperPositionLocked", log); err != nil {
+				event := new(SuperExecutorSuperPositionMintRequested)
+				if err := _SuperExecutor.contract.UnpackLog(event, "SuperPositionMintRequested", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -540,12 +551,12 @@ func (_SuperExecutor *SuperExecutorFilterer) WatchSuperPositionLocked(opts *bind
 	}), nil
 }
 
-// ParseSuperPositionLocked is a log parse operation binding the contract event 0xdf09bac395df649ca72fb3ffb451d40c290e25dcef3002e19d2c04ce09441b9b.
+// ParseSuperPositionMintRequested is a log parse operation binding the contract event 0x7ec946bedac80f139c7c4149ac44127f938a0ab50229c59b7c0cd5debc72c233.
 //
-// Solidity: event SuperPositionLocked(address indexed account, address indexed spToken, uint256 amount)
-func (_SuperExecutor *SuperExecutorFilterer) ParseSuperPositionLocked(log types.Log) (*SuperExecutorSuperPositionLocked, error) {
-	event := new(SuperExecutorSuperPositionLocked)
-	if err := _SuperExecutor.contract.UnpackLog(event, "SuperPositionLocked", log); err != nil {
+// Solidity: event SuperPositionMintRequested(address indexed account, address indexed spToken, uint256 amount, uint256 indexed dstChainId)
+func (_SuperExecutor *SuperExecutorFilterer) ParseSuperPositionMintRequested(log types.Log) (*SuperExecutorSuperPositionMintRequested, error) {
+	event := new(SuperExecutorSuperPositionMintRequested)
+	if err := _SuperExecutor.contract.UnpackLog(event, "SuperPositionMintRequested", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

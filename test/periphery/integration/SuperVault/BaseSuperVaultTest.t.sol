@@ -234,6 +234,28 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         UserOpData memory userOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(entry));
         executeOp(userOpData);
     }
+
+    function __deposit(
+        AccountInstance memory accInst,
+        uint256 depositAmount,
+        address superVault,
+        address asset_
+    )
+        internal
+    {
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), superVault, asset_, depositAmount, false, address(0), 0
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(entry));
+        executeOp(userOpData);
+    }
     /*
     Leaving commented for now
     function __requestDeposit(AccountInstance memory accInst, uint256 depositAmount) internal {
@@ -284,6 +306,32 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         executeOp(redeemUserOpData);
     }
 
+    function __requestRedeem(
+        AccountInstance memory accInst,
+        uint256 redeemShares,
+        bool shouldRevert,
+        address superVault
+    )
+        internal
+    {
+        address[] memory redeemHooksAddresses = new address[](1);
+        redeemHooksAddresses[0] = _getHookAddress(ETH, REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory redeemHooksData = new bytes[](1);
+        redeemHooksData[0] = _createRequestRedeem7540VaultHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), superVault, redeemShares, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory redeemEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: redeemHooksAddresses, hooksData: redeemHooksData });
+        UserOpData memory redeemUserOpData = _getExecOps(accInst, superExecutorOnEth, abi.encode(redeemEntry));
+
+        if (shouldRevert) {
+            accInst.expect4337Revert();
+        }
+        executeOp(redeemUserOpData);
+    }
+
     function __claimWithdraw(AccountInstance memory accInst, uint256 assets) internal {
         address[] memory claimHooksAddresses = new address[](1);
         claimHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
@@ -301,6 +349,10 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
 
     function _deposit(uint256 depositAmount) internal {
         __deposit(instanceOnEth, depositAmount);
+    }
+
+    function _deposit(uint256 depositAmount, address superVault, address asset_) internal {
+        __deposit(instanceOnEth, depositAmount, superVault, asset_);
     }
 
     function _depositForAccount(AccountInstance memory accInst, uint256 depositAmount) internal {
@@ -328,6 +380,10 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
 
     function _requestRedeem(uint256 redeemShares) internal {
         __requestRedeem(instanceOnEth, redeemShares, false);
+    }
+
+    function _requestRedeem(uint256 redeemShares, address superVault) internal {
+        __requestRedeem(instanceOnEth, redeemShares, false, superVault);
     }
 
     function _requestRedeemForAccount(AccountInstance memory accInst, uint256 redeemShares) internal {
@@ -1363,38 +1419,6 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
             })
         );
         vm.stopPrank();
-    }
-
-    function _deriveSuperVaultFees(
-        uint256 requestedShares,
-        uint256 currentPricePerShare,
-        uint256 precision
-    )
-        internal
-        returns (uint256, uint256)
-    {
-        // Use the weighted average approach to calculate historical assets
-        SuperVaultState storage state = superVaultStates[accountEth];
-
-        // Check for insufficient shares
-        if (requestedShares > state.accumulatorShares) {
-            revert("INSUFFICIENT_SHARES");
-        }
-
-        // Calculate cost basis proportionally based on requested shares
-        uint256 historicalAssets =
-            requestedShares.mulDiv(state.accumulatorCostBasis, state.accumulatorShares, Math.Rounding.Floor);
-
-        // Update user's accumulator state
-        state.accumulatorShares -= requestedShares;
-        state.accumulatorCostBasis -= historicalAssets;
-
-        // Calculate current value and process fees
-        uint256 currentAssets = requestedShares.mulDiv(currentPricePerShare, precision, Math.Rounding.Floor);
-
-        (uint256 superformFee, uint256 recipientFee) = _deriveSuperVaultFeesFromAssets(currentAssets, historicalAssets);
-
-        return (superformFee, recipientFee);
     }
 
     // Update function to track deposits

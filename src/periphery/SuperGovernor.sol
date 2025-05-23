@@ -8,6 +8,7 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 // Superform
 import { ISuperGovernor, FeeType } from "./interfaces/ISuperGovernor.sol";
 import { ISuperVaultAggregator } from "./interfaces/ISuperVaultAggregator.sol";
+import { ISuperAssetFactory } from "./interfaces/SuperAsset/ISuperAssetFactory.sol";
 
 /// @title SuperGovernor
 /// @author Superform Labs
@@ -91,6 +92,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bytes32 private constant _GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
     bytes32 private constant _BANK_MANAGER_ROLE = keccak256("BANK_MANAGER_ROLE");
     bytes32 private constant _GUARDIAN_ROLE = keccak256("GUARDIAN_ROLE");
+    bytes32 public constant _SUPER_ASSET_FACTORY = keccak256("SUPER_ASSET_FACTORY");
 
     // Common contract keys
     bytes32 public constant TREASURY = keccak256("TREASURY");
@@ -124,7 +126,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         _grantRole(_SUPER_GOVERNOR_ROLE, superGovernor);
         _grantRole(_GOVERNOR_ROLE, governor);
         _grantRole(_BANK_MANAGER_ROLE, bankManager);
-
         // Setup GUARDIAN_ROLE without assigning any address
         _setRoleAdmin(_GUARDIAN_ROLE, DEFAULT_ADMIN_ROLE);
 
@@ -199,6 +200,44 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         // Call the interface method to change the strategist
         // This function can only be called by the SuperGovernor and bypasses the timelock
         ISuperVaultAggregator(aggregator).changePrimaryStrategist(strategy_, newStrategist_);
+    }
+
+    /// @notice Changes the hooks root update timelock duration
+    /// @dev Only callable by SUPER_GOVERNOR_ROLE
+    /// @param newTimelock_ New timelock duration in seconds
+    function changeHooksRootUpdateTimelock(uint256 newTimelock_) external onlyRole(_SUPER_GOVERNOR_ROLE) {
+        address aggregator = _addressRegistry[SUPER_VAULT_AGGREGATOR];
+        if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
+
+        // Call the SuperVaultAggregator to change the hooks root update timelock
+        ISuperVaultAggregator(aggregator).setHooksRootUpdateTimelock(newTimelock_);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function setSuperAssetManager(address superAsset, address _superAssetManager) external onlyRole(_GOVERNOR_ROLE) {
+        if (_superAssetManager == address(0)) revert INVALID_ADDRESS();
+        address value = _addressRegistry[_SUPER_ASSET_FACTORY];
+        if (value == address(0)) revert CONTRACT_NOT_FOUND();
+        ISuperAssetFactory factory = ISuperAssetFactory(value);
+        factory.setSuperAssetManager(superAsset, _superAssetManager);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function addICCToWhitelist(address icc) external onlyRole(_SUPER_GOVERNOR_ROLE) {
+        if (icc == address(0)) revert INVALID_ADDRESS();
+        address value = _addressRegistry[_SUPER_ASSET_FACTORY];
+        if (value == address(0)) revert CONTRACT_NOT_FOUND();
+        ISuperAssetFactory factory = ISuperAssetFactory(value);
+        factory.addICCToWhitelist(icc);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function removeICCFromWhitelist(address icc) external onlyRole(_SUPER_GOVERNOR_ROLE) {
+        if (icc == address(0)) revert INVALID_ADDRESS();
+        address value = _addressRegistry[_SUPER_ASSET_FACTORY];
+        if (value == address(0)) revert CONTRACT_NOT_FOUND();
+        ISuperAssetFactory factory = ISuperAssetFactory(value);
+        factory.removeICCFromWhitelist(icc);
     }
 
     /// @notice Proposes a new global hooks Merkle root in the SuperVaultAggregator
@@ -645,6 +684,11 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function GUARDIAN_ROLE() external pure returns (bytes32) {
         return _GUARDIAN_ROLE;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function SUPER_ASSET_FACTORY() external pure returns (bytes32) {
+        return _SUPER_ASSET_FACTORY;
     }
 
     /// @inheritdoc ISuperGovernor

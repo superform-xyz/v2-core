@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 import "../interfaces/SuperAsset/ISuperAsset.sol";
+import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
+import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
 
 /**
  * @author Superform Labs
@@ -17,56 +18,59 @@ import "../interfaces/SuperAsset/ISuperAsset.sol";
  * @dev For now it is OK to keep Access Control but it will be managed by SuperGovernor when ready, see
  * https://github.com/superform-xyz/v2-contracts/pull/377#discussion_r2058893391
  */
-contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
+contract IncentiveFundContract is IIncentiveFundContract {
     using SafeERC20 for IERC20;
-
-    // --- Constants ---
-    /// @notice Role identifier for incentive fund manager
-    bytes32 public constant INCENTIVE_FUND_MANAGER = keccak256("INCENTIVE_FUND_MANAGER");
 
     // --- State Variables ---
     address public tokenInIncentive;
     address public tokenOutIncentive;
     ISuperAsset public superAsset;
-    address public assetBank;
-
-    // --- Constructor ---
-    constructor(address admin) {
-        _grantRole(DEFAULT_ADMIN_ROLE, admin);
-        _grantRole(INCENTIVE_FUND_MANAGER, admin);
-    }
+    ISuperGovernor public _SUPER_GOVERNOR;
+    ISuperAssetFactory public _SUPER_ASSET_FACTORY;
 
     /// @inheritdoc IIncentiveFundContract
-    function initialize(address superAsset_, address assetBank_) external {
+    function initialize(address _superGovernor, address superAsset_) external {
+        if (_superGovernor == address(0)) revert ZERO_ADDRESS();
+        _SUPER_GOVERNOR = ISuperGovernor(_superGovernor);
+
         // Ensure this can only be called once
         if (address(superAsset) != address(0)) revert ALREADY_INITIALIZED();
 
         if (superAsset_ == address(0)) revert ZERO_ADDRESS();
-        if (assetBank_ == address(0)) revert ZERO_ADDRESS();
 
         superAsset = ISuperAsset(superAsset_);
-        assetBank = assetBank_;
     }
 
     /*//////////////////////////////////////////////////////////////
                 EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IIncentiveFundContract
-    function setTokenInIncentive(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setTokenInIncentive(address token) external {
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        // Check if the caller has the INCENTIVE_FUND_MANAGER role
+        address manager = factory.getIncentiveFundManager(address(superAsset));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         if (token == address(0)) revert ZERO_ADDRESS();
         tokenInIncentive = token;
         emit SettlementTokenInSet(token);
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function setTokenOutIncentive(address token) external onlyRole(DEFAULT_ADMIN_ROLE) {
+    function setTokenOutIncentive(address token) external {
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        // Check if the caller has the INCENTIVE_FUND_MANAGER role
+        address manager = factory.getIncentiveFundManager(address(superAsset));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         if (token == address(0)) revert ZERO_ADDRESS();
         tokenOutIncentive = token;
         emit SettlementTokenOutSet(token);
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function payIncentive(address receiver, uint256 amountUSD) external onlyRole(INCENTIVE_FUND_MANAGER) {
+    function payIncentive(address receiver, uint256 amountUSD) external {
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        address manager = factory.getIncentiveFundManager(address(superAsset));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         _validateInput(receiver, amountUSD);
         if (tokenOutIncentive == address(0)) revert TOKEN_OUT_NOT_SET();
 
@@ -87,7 +91,10 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function takeIncentive(address sender, uint256 amountUSD) external onlyRole(INCENTIVE_FUND_MANAGER) {
+    function takeIncentive(address sender, uint256 amountUSD) external {
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        address manager = factory.getIncentiveFundManager(address(superAsset));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         _validateInput(sender, amountUSD);
         if (tokenInIncentive == address(0)) revert TOKEN_IN_NOT_SET();
 
@@ -108,7 +115,10 @@ contract IncentiveFundContract is IIncentiveFundContract, AccessControl {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function withdraw(address receiver, address tokenOut, uint256 amount) external onlyRole(INCENTIVE_FUND_MANAGER) {
+    function withdraw(address receiver, address tokenOut, uint256 amount) external {
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        address manager = factory.getIncentiveFundManager(address(superAsset));
+        if (manager != msg.sender) revert UNAUTHORIZED();
         _validateInput(receiver, amount);
         if (tokenOut == address(0)) revert ZERO_ADDRESS();
 

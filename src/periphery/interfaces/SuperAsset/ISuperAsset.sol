@@ -10,6 +10,14 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * fee handling, and incentive calculations.
  */
 interface ISuperAsset is IERC20 {
+
+    struct TokenData {
+        bool isSupportedUnderlyingVault;
+        bool isSupportedERC20;
+        uint256 targetAllocations;
+        uint256 weights;
+    }
+
     struct PreviewErrors {
         bool isDepeg;
         bool isDispersion;
@@ -60,23 +68,32 @@ interface ISuperAsset is IERC20 {
      * @notice Initializes the SuperAsset contract
      * @param name_ Name of the token
      * @param symbol_ Symbol of the token
-     * @param icc_ Address of the IncentiveCalculationContract
-     * @param ifc_ Address of the IncentiveFundContract
-     * @param assetBank_ Address of the AssetBank contract
+     * @param superGovernor_ Address of the SuperGovernor contract
      * @param swapFeeInPercentage_ Initial swap fee percentage for deposits
      * @param swapFeeOutPercentage_ Initial swap fee percentage for redemptions
      */
     function initialize(
         string memory name_,
         string memory symbol_,
-        address icc_,
-        address ifc_,
-        address assetBank_,
+        address superGovernor_,
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_
     )
         external;
+        
+    /**
+     * @notice Returns the token data for a given token
+     * @param token The token address
+     * @return TokenData structure containing the token data
+     */
+    function getTokenData(address token) external view returns (TokenData memory);
 
+    /**
+     * @notice Returns the PPS of the SuperAsset
+     * @return PPS of the SuperAsset
+     */
+    function getPPS() external view returns(uint256);
+    
     /**
      * @notice Mints new tokens. Can only be called by accounts with MINTER_ROLE.
      * @param to The address that will receive the minted tokens

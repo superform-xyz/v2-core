@@ -12,13 +12,20 @@ import { IERC165 } from "openzeppelin-contracts/contracts/interfaces/IERC165.sol
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 // superform
-import { ISuperVault } from "src/periphery/interfaces/ISuperVault.sol";
-import { IERC7540Redeem, IERC7741 } from "src/vendor/standards/ERC7540/IERC7540Vault.sol";
-import { Mock4626Vault } from "../../../mocks/Mock4626Vault.sol";
+import { ISuperVault } from "../../../../src/periphery/interfaces/ISuperVault.sol";
+import { SuperVault } from "../../../../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultEscrow } from "../../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
+import { SuperVaultStrategy } from "../../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { ISuperVaultEscrow } from "../../../../src/periphery/interfaces/ISuperVaultEscrow.sol";
+import { ISuperVaultAggregator } from "../../../../src/periphery/interfaces/ISuperVaultAggregator.sol";
+import { IERC7540Redeem, IERC7741 } from "../../../../src/vendor/standards/ERC7540/IERC7540Vault.sol";
 import { ISuperVaultStrategy } from "../../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { ERC7540YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { ISuperLedger } from "../../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperHookInspector } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { IGearboxFarmingPool } from "../../../../src/vendor/gearbox/IGearboxFarmingPool.sol";
+import { ISuperExecutor } from "../../../../src/core/interfaces/ISuperExecutor.sol";
+import { ModuleKitHelpers, AccountInstance, AccountType, UserOpData } from "modulekit/ModuleKit.sol";
 
 contract SuperVaultTest is BaseSuperVaultTest {
     using Math for uint256;
@@ -28,6 +35,12 @@ contract SuperVaultTest is BaseSuperVaultTest {
     address userAddress; // Will be derived from private key
     ERC7540YieldSourceOracle public oracle;
     ISuperLedger public superLedgerETH;
+    address gearToken;
+    IERC4626 gearboxVault;
+    IGearboxFarmingPool gearboxFarmingPool;
+    SuperVault gearSuperVault;
+    SuperVaultEscrow escrowGearSuperVault;
+    SuperVaultStrategy strategyGearSuperVault;
 
     function setUp() public override {
         super.setUp();
@@ -38,6 +51,21 @@ contract SuperVaultTest is BaseSuperVaultTest {
         superLedgerETH = ISuperLedger(_getContract(ETH, SUPER_LEDGER_KEY));
 
         oracle = ERC7540YieldSourceOracle(_getContract(ETH, ERC7540_YIELD_SOURCE_ORACLE_KEY));
+
+        gearToken = existingUnderlyingTokens[ETH][GEAR_KEY];
+        console2.log("gearToken: ", address(gearToken));
+        vm.label(gearToken, "GearToken");
+
+        // Get real yield sources from fork
+        address gearboxVaultAddr = realVaultAddresses[ETH][ERC4626_VAULT_KEY][GEARBOX_VAULT_KEY][USDC_KEY];
+        vm.label(gearboxVaultAddr, "GearboxVault");
+        gearboxVault = IERC4626(gearboxVaultAddr);
+
+        address gearboxStakingAddr =
+            realVaultAddresses[ETH][STAKING_YIELD_SOURCE_ORACLE_KEY][GEARBOX_STAKING_KEY][GEAR_KEY];
+        console2.log("gearboxStakingAddr: ", gearboxStakingAddr);
+        vm.label(gearboxStakingAddr, "GearboxStaking");
+        gearboxFarmingPool = IGearboxFarmingPool(gearboxStakingAddr);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -2072,5 +2100,424 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         // Verify all shares are redeemed
         assertEq(IERC20(vault.share()).balanceOf(accountEth), 0, "User should have no shares left");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       Vault Deployment test
+    //////////////////////////////////////////////////////////////*/
+
+    function test_DeployVault() public {
+        // Deploy a new vault
+        (address vaultAddr, address strategyAddr, address escrowAddr) = _deployVault(address(asset), "SV");
+        // Verify addresses are not zero
+        assertTrue(vaultAddr != address(0), "Vault address should not be zero");
+        assertTrue(strategyAddr != address(0), "Strategy address should not be zero");
+        assertTrue(escrowAddr != address(0), "Escrow address should not be zero");
+
+        // Verify initialization
+        SuperVault vaultContract = SuperVault(vaultAddr);
+        ISuperVaultStrategy strategyContract = ISuperVaultStrategy(strategyAddr);
+        SuperVaultEscrow escrowContract = SuperVaultEscrow(escrowAddr);
+
+        // Check vault state
+        assertEq(vaultContract.name(), "SuperVault", "Wrong vault name");
+        assertEq(vaultContract.symbol(), "SV", "Wrong vault symbol");
+        assertEq(vaultContract.asset(), address(asset), "Wrong asset");
+        assertEq(address(vaultContract.strategy()), strategyAddr, "Wrong strategy");
+        assertEq(vaultContract.decimals(), 6, "Wrong decimals");
+
+        // Check strategy state
+        (address _vaultAddr, address _asset, uint8 _decimals) = strategyContract.getVaultInfo();
+        assertEq(strategyContract.isInitialized(), true, "Strategy not initialized");
+        assertEq(_vaultAddr, vaultAddr, "Wrong vault in strategy");
+        assertEq(_asset, address(asset), "Wrong asset in strategy");
+        assertEq(_decimals, 6, "Wrong decimals in strategy");
+
+        // Check escrow state
+        assertTrue(escrowContract.initialized(), "Escrow not initialized");
+        assertEq(escrowContract.vault(), vaultAddr, "Wrong vault in escrow");
+        assertEq(escrowContract.strategy(), strategyAddr, "Wrong strategy in escrow");
+    }
+
+    function test_DeployMultipleVaults() public {
+        // Deploy multiple vaults with different names/symbols
+        string[3] memory symbols = ["sTV1", "sTV2", "sTV3"];
+
+        for (uint256 i = 0; i < 3; i++) {
+            // Deploy a new vault with custom configuration
+            (address vaultAddr, address strategyAddr, address escrowAddr) = _deployVault(
+                address(asset),
+                symbols[i] // symbol
+            );
+
+            // Verify each vault is properly initialized
+            SuperVault vaultContract = SuperVault(vaultAddr);
+            assertEq(vaultContract.symbol(), symbols[i], "Wrong vault symbol");
+            assertEq(vaultContract.decimals(), 6, "Wrong decimals");
+
+            assertEq(ISuperVaultStrategy(strategyAddr).isInitialized(), true, "Strategy not initialized");
+
+            assertTrue(SuperVaultEscrow(escrowAddr).initialized(), "Escrow not initialized");
+        }
+    }
+
+    function test_RevertOnZeroAddresses() public {
+        // Test with zero asset address
+        vm.expectRevert(ISuperVaultAggregator.ZERO_ADDRESS.selector);
+        _createVault(
+            VaultCreationParams({
+                asset: address(0),
+                strategist: STRATEGIST,
+                minUpdateInterval: 1000,
+                maxStaleness: 10_000,
+                performanceFeeBps: 1000,
+                symbol: "TV"
+            })
+        );
+
+        // Test with zero manager address (by temporarily setting SV_MANAGER to address(0))
+        vm.expectRevert(ISuperVaultAggregator.ZERO_ADDRESS.selector);
+        _createVault(
+            VaultCreationParams({
+                asset: address(asset),
+                strategist: address(0),
+                minUpdateInterval: 1000,
+                maxStaleness: 10_000,
+                performanceFeeBps: 1000,
+                symbol: "TV"
+            })
+        );
+    }
+
+    struct VaultCreationParams {
+        address asset;
+        address strategist;
+        uint256 minUpdateInterval;
+        uint256 maxStaleness;
+        uint256 performanceFeeBps;
+        string symbol;
+    }
+
+    function _createVault(VaultCreationParams memory params)
+        internal
+        returns (address vaultAddr, address strategyAddr, address escrowAddr)
+    {
+        (vaultAddr, strategyAddr, escrowAddr) = aggregator.createVault(
+            ISuperVaultAggregator.VaultCreationParams({
+                asset: params.asset,
+                name: "SuperVault",
+                symbol: params.symbol,
+                mainStrategist: params.strategist,
+                minUpdateInterval: params.minUpdateInterval,
+                maxStaleness: params.maxStaleness,
+                feeConfig: ISuperVaultStrategy.FeeConfig({
+                    performanceFeeBps: params.performanceFeeBps,
+                    recipient: address(this)
+                })
+            })
+        );
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                       STAKE CLAIM FLOW TEST
+    //////////////////////////////////////////////////////////////*/
+
+    function test_SuperVault_StakeClaimFlow() public executeWithoutHookRestrictions {
+        _setupGearVault();
+        uint256 amount = 1000e6;
+        uint256 feeBalanceBefore = asset.balanceOf(TREASURY);
+
+        console2.log("DEPOSITING");
+        _deposit(amount, address(gearSuperVault), address(asset));
+
+        console2.log("DEPOSITING FREE ASSETS");
+        _depositFreeAssetsFromSingleAmount_Gearbox(amount);
+
+        uint256 amountToStake = gearboxVault.balanceOf(address(strategyGearSuperVault));
+
+        console2.log("STAKING");
+        _executeStakeHook(amountToStake);
+
+        assertGt(
+            gearboxFarmingPool.balanceOf(address(strategyGearSuperVault)),
+            0,
+            "Gearbox vault balance not increased after stake"
+        );
+
+        // Get shares minted to user
+        uint256 userShares = IERC4626(gearSuperVault).balanceOf(accountEth);
+
+        // Record balances before redeem
+        // uint256 preRedeemUserAssets = asset.balanceOf(accountEth);
+
+        console2.log("update pps before 60 week warp");
+        vm.warp(block.timestamp + 1 hours);
+
+        _updateSuperVaultPPS(address(strategyGearSuperVault), address(gearSuperVault));
+
+        // Fast forward time to simulate yield on underlying vaults
+        vm.warp(block.timestamp + 60 weeks);
+
+        console2.log("update pps before 60 week warp");
+
+        _updateSuperVaultPPS(address(strategyGearSuperVault), address(gearSuperVault));
+
+        console2.log("ppsBeforeUnStake: ", aggregator.getPPS(address(strategyGearSuperVault)));
+
+        uint256 preUnStakeGearboxBalance = gearboxVault.balanceOf(address(strategyGearSuperVault));
+
+        uint256 amountToUnStake = gearboxFarmingPool.balanceOf(address(strategyGearSuperVault));
+
+        _executeUnStakeHook(amountToUnStake);
+
+        assertGt(
+            gearboxVault.balanceOf(address(strategyGearSuperVault)),
+            preUnStakeGearboxBalance,
+            "Gearbox vault balance not decreased after unstake"
+        );
+
+        vm.warp(block.timestamp + 1 hours);
+
+        _updateSuperVaultPPS(address(strategyGearSuperVault), address(gearSuperVault));
+
+        console2.log("ppsAfterUnStake: ", aggregator.getPPS(address(strategyGearSuperVault)));
+
+        // Step 4: Request Redeem
+        _requestRedeem(userShares, address(gearSuperVault));
+
+        // Verify shares are escrowed
+        assertEq(IERC20(gearSuperVault.share()).balanceOf(accountEth), 0, "User shares not transferred from account");
+        assertEq(
+            IERC20(gearSuperVault.share()).balanceOf(address(escrowGearSuperVault)),
+            userShares,
+            "Shares not transferred to escrow"
+        );
+        vm.warp(block.timestamp + 1 hours);
+
+        _updateSuperVaultPPS(address(strategyGearSuperVault), address(gearSuperVault));
+
+        (, uint256 superformFee, uint256 recipientFee) =
+            strategyGearSuperVault.previewPerformanceFee(accountEth, userShares);
+
+        // Step 5: Fulfill Redeem
+        _fulfillRedeem_Gearbox_SV();
+
+        uint256 claimableAssets = gearSuperVault.maxWithdraw(accountEth);
+        uint256 claimableShares = gearSuperVault.maxRedeem(accountEth);
+        console2.log("claimableShares", claimableShares);
+
+        uint256 expectedLedgerFee =
+            superLedgerETH.previewFees(accountEth, address(gearSuperVault), claimableAssets, claimableShares, 100);
+
+        uint256 totalFee = superformFee + recipientFee + expectedLedgerFee;
+        console2.log("totalFee: ", totalFee);
+        console2.log("feeBalanceBefore: ", feeBalanceBefore);
+        console2.log("asset.balanceOf(TREASURY): ", asset.balanceOf(TREASURY));
+        console2.log("recipientFee: ", recipientFee);
+        console2.log("superformFee: ", superformFee);
+        console2.log("expectedLedgerFee: ", expectedLedgerFee);
+
+        // Step 6: Claim Withdraw
+        _claimWithdraw_Gearbox_SV(claimableAssets);
+
+        _assertFeeDerivation(totalFee, feeBalanceBefore, asset.balanceOf(TREASURY));
+
+        /*
+        assertEq(
+            asset.balanceOf(accountEth),
+            preRedeemUserAssets +  claimableAssets ,
+            "User assets not increased after withdraw"
+        );
+        */
+        /// @dev commented the above as there are small deviations between what the user actually got and what were the
+        /// claimable assets
+        /// this is due to ledger fees in core
+        console2.log("ppsAfter: ", aggregator.getPPS(address(strategyGearSuperVault)));
+    }
+
+    function _setupGearVault() internal {
+        // Deploy vault trio
+        (address gearSuperVaultAddr, address strategyAddr, address escrowAddr) =
+            _deployVault(address(asset), "svGearbox");
+
+        console2.log("\n-----------");
+        console2.log("GEAR SUPER VAULT STRATEGY", strategyAddr);
+        console2.log("\n-----------");
+
+        vm.label(gearSuperVaultAddr, "GearSuperVault");
+        vm.label(strategyAddr, "GearSuperVaultStrategy");
+        vm.label(escrowAddr, "GearSuperVaultEscrow");
+
+        // Cast addresses to contract types
+        gearSuperVault = SuperVault(gearSuperVaultAddr);
+        escrowGearSuperVault = SuperVaultEscrow(escrowAddr);
+        strategyGearSuperVault = SuperVaultStrategy(strategyAddr);
+
+        // Add a new yield source as manager
+        vm.startPrank(STRATEGIST);
+        strategyGearSuperVault.manageYieldSource(
+            address(gearboxVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, false
+        );
+        strategyGearSuperVault.manageYieldSource(
+            address(gearboxFarmingPool), _getContract(ETH, STAKING_YIELD_SOURCE_ORACLE_KEY), 0, false
+        );
+        vm.stopPrank();
+
+        vm.startPrank(STRATEGIST);
+        strategyGearSuperVault.proposeVaultFeeConfigUpdate(100, TREASURY);
+        vm.warp(block.timestamp + 1 weeks);
+        strategyGearSuperVault.executeVaultFeeConfigUpdate();
+        vm.stopPrank();
+    }
+
+    function _depositFreeAssetsFromSingleAmount_Gearbox(uint256 depositAmount) internal {
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](1);
+        fulfillHooksAddresses[0] = depositHookAddress;
+        console2.log("GearSuperVault balance: ", asset.balanceOf(address(strategyGearSuperVault)));
+        bytes[] memory fulfillHooksData = new bytes[](1);
+
+        fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(gearboxVault),
+            address(asset),
+            depositAmount,
+            false,
+            address(0),
+            0
+        );
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
+        expectedAssetsOrSharesOut[0] = IERC4626(address(gearboxVault)).convertToShares(depositAmount);
+
+        bytes[] memory argsForProofs = new bytes[](1);
+        argsForProofs[0] = ISuperHookInspector(fulfillHooksAddresses[0]).inspect(fulfillHooksData[0]);
+
+        vm.startPrank(STRATEGIST);
+        strategyGearSuperVault.executeHooks(
+            ISuperVaultStrategy.ExecuteArgs({
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                globalProofs: _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs),
+                strategyProofs: new bytes32[][](1)
+            })
+        );
+        vm.stopPrank();
+
+        (uint256 pricePerShare) = _getSuperVaultPricePerShare();
+        uint256 shares = depositAmount.mulDiv(strategyGearSuperVault.PRECISION(), pricePerShare);
+
+        _trackDeposit(accountEth, shares, depositAmount);
+    }
+
+    function _executeStakeHook(uint256 amountToStake) internal {
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = _getHookAddress(ETH, GEARBOX_APPROVE_AND_STAKE_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveAndGearboxStakeHookData(
+            bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)),
+            address(gearboxFarmingPool),
+            address(gearboxVault),
+            amountToStake,
+            false
+        );
+
+        bytes[] memory argsForProofs = new bytes[](1);
+        argsForProofs[0] = ISuperHookInspector(hooksAddresses[0]).inspect(hooksData[0]);
+
+        vm.prank(STRATEGIST);
+        strategyGearSuperVault.executeHooks(
+            ISuperVaultStrategy.ExecuteArgs({
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](1),
+                globalProofs: _getMerkleProofsForHooks(hooksAddresses, argsForProofs),
+                strategyProofs: new bytes32[][](1)
+            })
+        );
+    }
+
+    function _executeUnStakeHook(uint256 amountToUnStake) internal {
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = _getHookAddress(ETH, GEARBOX_UNSTAKE_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createGearboxUnstakeHookData(
+            bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), amountToUnStake, false
+        );
+
+        bytes[] memory argsForProofs = new bytes[](1);
+        argsForProofs[0] = ISuperHookInspector(hooksAddresses[0]).inspect(hooksData[0]);
+
+        vm.prank(STRATEGIST);
+        strategyGearSuperVault.executeHooks(
+            ISuperVaultStrategy.ExecuteArgs({
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](1),
+                globalProofs: _getMerkleProofsForHooks(hooksAddresses, argsForProofs),
+                strategyProofs: new bytes32[][](1)
+            })
+        );
+    }
+
+    function _fulfillRedeem_Gearbox_SV() internal {
+        /// @dev with preserve percentages based on USD value allocation
+        address[] memory requestingUsers = new address[](1);
+        requestingUsers[0] = accountEth;
+        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+
+        address[] memory fulfillHooksAddresses = new address[](1);
+        fulfillHooksAddresses[0] = withdrawHookAddress;
+
+        uint256 shares = strategyGearSuperVault.pendingRedeemRequest(accountEth);
+
+        bytes[] memory fulfillHooksData = new bytes[](1);
+        fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(gearboxVault),
+            address(gearboxVault),
+            address(strategyGearSuperVault),
+            shares,
+            false
+        );
+
+        uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
+        uint256 assets = gearSuperVault.convertToAssets(shares);
+        uint256 underlyingShares = gearboxVault.previewDeposit(assets);
+        expectedAssetsOrSharesOut[0] = underlyingShares;
+        bytes[] memory argsForProofs = new bytes[](1);
+        argsForProofs[0] = ISuperHookInspector(fulfillHooksAddresses[0]).inspect(fulfillHooksData[0]);
+
+        vm.startPrank(STRATEGIST);
+        strategyGearSuperVault.fulfillRedeemRequests(
+            ISuperVaultStrategy.FulfillArgs({
+                controllers: requestingUsers,
+                hooks: fulfillHooksAddresses,
+                hookCalldata: fulfillHooksData,
+                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                globalProofs: _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs),
+                strategyProofs: new bytes32[][](1)
+            })
+        );
+        vm.stopPrank();
+    }
+
+    function _claimWithdraw_Gearbox_SV(uint256 assets) internal {
+        address[] memory claimHooksAddresses = new address[](1);
+        claimHooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory claimHooksData = new bytes[](1);
+        claimHooksData[0] = _createApproveAndWithdraw7540VaultHookData(
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), vault.share(), assets, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory claimEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
+        UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
+        executeOp(claimUserOpData);
     }
 }
