@@ -127,6 +127,7 @@ abstract contract Constants {
     string public constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
     string public constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
     string public constant SUPER_GOVERNOR_KEY = "SuperGovernor";
+    string public constant SUPER_BANK_KEY = "SuperBank";
     string public constant SUPER_NATIVE_PAYMASTER_KEY = "SuperNativePaymaster";
     string public constant SUPER_GAS_TANK_KEY = "SuperGasTank";
 

@@ -132,7 +132,7 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         uint256 _nonce = nonces[msg.sender][forChainId_];
         nonces[msg.sender][forChainId_]++;
         emit SuperpositionsBurned(
-            msg.sender, spAddress_, _superPositionToToken[spAddress_][forChainId_], amount_, forChainId_, _nonce
+            msg.sender, spAddress_, _spAssetsInfo[spAddress_].spToToken[forChainId_], amount_, forChainId_, _nonce
         );
     }
 
