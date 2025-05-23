@@ -135,9 +135,6 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (args.globalProofs.length != hooksLength) revert INVALID_ARRAY_LENGTH();
         if (args.strategyProofs.length != hooksLength) revert INVALID_ARRAY_LENGTH();
 
-        // Get aggregator reference for hook validation
-        ISuperVaultAggregator aggregator = _getSuperVaultAggregator();
-
         address prevHook;
         for (uint256 i; i < hooksLength; ++i) {
             address hook = args.hooks[i];

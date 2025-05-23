@@ -48,6 +48,8 @@ abstract contract Configuration is Constants {
     bytes internal SALT_NAMESPACE;
     string internal constant MNEMONIC = "test test test test test test test test test test test junk";
 
+    address internal constant TEST_DEPLOYER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -75,7 +77,7 @@ abstract contract Configuration is Constants {
             configuration.prodMultisig = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
             configuration.testDeployer = 0xc285CEfc89c3c2e7714f3524a68efFE21C00AE55;
         } else {
-            configuration.owner = 0xd95f4bc7733d9E94978244C0a27c1815878a59BB;
+            configuration.owner = TEST_DEPLOYER;
             configuration.bundler = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
             configuration.treasury = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266; // a multi sig ?
             configuration.validator = 0xd95f4bc7733d9E94978244C0a27c1815878a59BB;
