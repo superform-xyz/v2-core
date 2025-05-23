@@ -77,15 +77,13 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     modifier onlyStrategist() {
-        ISuperAssetFactory factory =
-            ISuperAssetFactory(superGovernor.getAddress(superGovernor.SUPER_ASSET_FACTORY()));
+        ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(superGovernor.SUPER_ASSET_FACTORY()));
         if (msg.sender != factory.getSuperAssetStrategist(address(this))) revert UNAUTHORIZED();
         _;
     }
 
     modifier onlyManager() {
-        ISuperAssetFactory factory =
-            ISuperAssetFactory(superGovernor.getAddress(superGovernor.SUPER_ASSET_FACTORY()));
+        ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(superGovernor.SUPER_ASSET_FACTORY()));
         if (msg.sender != factory.getSuperAssetManager(address(this))) revert UNAUTHORIZED();
         _;
     }
@@ -270,11 +268,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     {
         PreviewErrors memory errors;
         // First all the non state changing functions
+        if (receiver == address(0)) revert ZERO_ADDRESS();
         if (amountTokenToDeposit == 0) revert ZERO_AMOUNT();
         if (!tokenData[yieldSourceShare].isSupportedUnderlyingVault && !tokenData[yieldSourceShare].isSupportedERC20) {
             revert NOT_SUPPORTED_TOKEN();
         }
-        if (receiver == address(0)) revert ZERO_ADDRESS();
 
         // Circuit Breakers preventing deposit
         uint256 underlyingSuperVaultAssetPriceUSD;
@@ -329,11 +327,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         public
         returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem)
     {
+        if (receiver == address(0)) revert ZERO_ADDRESS();
         if (amountSharesToRedeem == 0) revert ZERO_AMOUNT();
         if (!tokenData[tokenOut].isSupportedUnderlyingVault && !tokenData[tokenOut].isSupportedERC20) {
             revert NOT_SUPPORTED_TOKEN();
         }
-        if (receiver == address(0)) revert ZERO_ADDRESS();
 
         bool isSuccess;
 
@@ -388,10 +386,14 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         )
     {
         if (receiver == address(0)) revert ZERO_ADDRESS();
+        if (tokenIn == address(0) || tokenOut == address(0)) revert ZERO_ADDRESS();
+
         (amountSharesIntermediateStep, swapFeeIn, amountIncentivesIn) =
             deposit(msg.sender, tokenIn, amountTokenToDeposit, 0);
+
         (amountTokenOutAfterFees, swapFeeOut, amountIncentivesOut) =
             redeem(receiver, amountSharesIntermediateStep, tokenOut, minTokenOut);
+
         emit Swap(
             receiver,
             tokenIn,
