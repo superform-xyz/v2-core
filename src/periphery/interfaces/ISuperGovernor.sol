@@ -585,10 +585,6 @@ interface ISuperGovernor is IAccessControl {
     /// @return The ID for the SuperOracle in the registry
     function SUPER_ORACLE() external view returns (bytes32);
 
-    /// @notice Gets the BLS PPS Oracle ID
-    /// @return The ID for the BLS PPS Oracle in the registry
-    function BLSPPSORACLE() external view returns (bytes32);
-
     /// @notice Gets the ECDSA PPS Oracle ID
     /// @return The ID for the ECDSA PPS Oracle in the registry
     function ECDSAPPSORACLE() external view returns (bytes32);
