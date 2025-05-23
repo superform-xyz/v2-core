@@ -2,14 +2,14 @@
 pragma solidity 0.8.30;
 
 // external
-import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {IOracle} from "../../vendor/awesome-oracles/IOracle.sol";
-import {AggregatorV3Interface} from "../../vendor/chainlink/AggregatorV3Interface.sol";
-import {IERC20} from "forge-std/interfaces/IERC20.sol";
-import {BoringERC20} from "../../vendor/BoringSolidity/BoringERC20.sol";
+import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { IOracle } from "../../vendor/awesome-oracles/IOracle.sol";
+import { AggregatorV3Interface } from "../../vendor/chainlink/AggregatorV3Interface.sol";
+import { IERC20 } from "forge-std/interfaces/IERC20.sol";
+import { BoringERC20 } from "../../vendor/BoringSolidity/BoringERC20.sol";
 
 // Superform
-import {ISuperOracle} from "../interfaces/ISuperOracle.sol";
+import { ISuperOracle } from "../interfaces/ISuperOracle.sol";
 
 /// @title SuperOracle
 /// @author Superform Labs
@@ -45,7 +45,9 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         address[] memory quotes,
         bytes32[] memory providers,
         address[] memory feeds
-    ) Ownable(owner_) {
+    )
+        Ownable(owner_)
+    {
         maxDefaultStaleness = 1 days;
 
         // validate oracle inputs
@@ -76,7 +78,10 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
     }
 
     /// @inheritdoc ISuperOracle
-    function setFeedMaxStalenessBatch(address[] calldata feeds, uint256[] calldata newMaxStalenessList)
+    function setFeedMaxStalenessBatch(
+        address[] calldata feeds,
+        uint256[] calldata newMaxStalenessList
+    )
         external
         onlyOwner
     {
@@ -97,7 +102,10 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         address[] calldata quotes,
         bytes32[] calldata providers,
         address[] calldata feeds
-    ) external onlyOwner {
+    )
+        external
+        onlyOwner
+    {
         uint256 length = bases.length;
         if (length != quotes.length || length != providers.length || length != feeds.length) {
             revert ARRAY_LENGTH_MISMATCH();
@@ -144,7 +152,7 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         uint256 length = providers.length;
         if (length == 0) revert ZERO_ARRAY_LENGTH();
 
-        pendingRemoval = PendingRemoval({providers: providers, timestamp: block.timestamp});
+        pendingRemoval = PendingRemoval({ providers: providers, timestamp: block.timestamp });
 
         emit ProviderRemovalQueued(providers, block.timestamp);
     }
@@ -157,12 +165,12 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         bytes32[] memory providersToRemove = pendingRemoval.providers;
 
         // Loop through each provider to remove
-        for (uint256 i = 0; i < providersToRemove.length; i++) {
+        for (uint256 i; i < providersToRemove.length; i++) {
             bytes32 providerToRemove = providersToRemove[i];
             isProviderSet[providerToRemove] = false;
 
             // Find the provider in activeProviders array
-            for (uint256 j = 0; j < activeProviders.length; j++) {
+            for (uint256 j; j < activeProviders.length; j++) {
                 if (activeProviders[j] == providerToRemove) {
                     // Replace the provider to remove with the last provider in the array
                     if (j < activeProviders.length - 1) {
@@ -190,7 +198,12 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
                         EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperOracle
-    function getQuoteFromProvider(uint256 baseAmount, address base, address quote, bytes32 oracleProvider)
+    function getQuoteFromProvider(
+        uint256 baseAmount,
+        address base,
+        address quote,
+        bytes32 oracleProvider
+    )
         public
         view
         virtual
@@ -213,7 +226,11 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
     }
 
     /// @inheritdoc IOracle
-    function getQuote(uint256 baseAmount, address base, address quote)
+    function getQuote(
+        uint256 baseAmount,
+        address base,
+        address quote
+    )
         external
         view
         virtual
@@ -231,7 +248,10 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         address[] memory quotes,
         bytes32[] memory providers,
         address[] memory feeds
-    ) internal pure {
+    )
+        internal
+        pure
+    {
         uint256 length = bases.length;
         for (uint256 i; i < length; ++i) {
             address base = bases[i];
@@ -256,7 +276,13 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         emit FeedMaxStalenessUpdated(feed, newMaxStaleness);
     }
 
-    function _getQuoteFromOracle(address oracle, uint256 baseAmount, address base, address quote, bool revertOnError)
+    function _getQuoteFromOracle(
+        address oracle,
+        uint256 baseAmount,
+        address base,
+        address quote,
+        bool revertOnError
+    )
         internal
         view
         virtual
@@ -280,7 +306,12 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
             (baseAmount * uint256(answer) * (10 ** quoteDecimals)) / ((10 ** baseDecimals) * (10 ** feedDecimals));
     }
 
-    function _getAverageQuote(address base, address quote, uint256 baseAmount, uint256 numberOfProviders)
+    function _getAverageQuote(
+        address base,
+        address quote,
+        uint256 baseAmount,
+        uint256 numberOfProviders
+    )
         internal
         view
         virtual
@@ -380,7 +411,9 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         address[] memory quotes,
         bytes32[] memory providers,
         address[] memory feeds
-    ) internal {
+    )
+        internal
+    {
         uint256 length = bases.length;
 
         for (uint256 i; i < length; ++i) {

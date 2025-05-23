@@ -64,6 +64,9 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     uint256 private _globalHooksRootEffectiveTime;
     bool private _globalHooksRootVetoed;
 
+    // Nonce for vault creation tracking
+    uint256 private _vaultCreationNonce;
+
     // No need for separate mappings since we now store this data in the StrategyData struct
 
     /*//////////////////////////////////////////////////////////////
@@ -115,15 +118,18 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
             revert ZERO_ADDRESS();
         }
 
+        // Increment nonce before creating proxies
+        uint256 currentNonce = _vaultCreationNonce++;
+
         // Create minimal proxies
         superVault = VAULT_IMPLEMENTATION.cloneDeterministic(
-            keccak256(abi.encodePacked(params.asset, params.name, params.symbol))
+            keccak256(abi.encodePacked(params.asset, params.name, params.symbol, currentNonce))
         );
         escrow = ESCROW_IMPLEMENTATION.cloneDeterministic(
-            keccak256(abi.encodePacked(params.asset, params.name, params.symbol))
+            keccak256(abi.encodePacked(params.asset, params.name, params.symbol, currentNonce))
         );
         strategy = STRATEGY_IMPLEMENTATION.cloneDeterministic(
-            keccak256(abi.encodePacked(params.asset, params.name, params.symbol))
+            keccak256(abi.encodePacked(params.asset, params.name, params.symbol, currentNonce))
         );
 
         // Initialize superVault
@@ -157,7 +163,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         _strategyData[strategy].dispersionThreshold = type(uint256).max; // Default: max (disabled)
         _strategyData[strategy].deviationThreshold = type(uint256).max; // Default: max (disabled)
 
-        emit VaultDeployed(superVault, strategy, escrow, params.asset, params.name, params.symbol);
+        emit VaultDeployed(superVault, strategy, escrow, params.asset, params.name, params.symbol, currentNonce);
         emit PPSUpdated(strategy, _strategyData[strategy].pps, 0, 0, 0, _strategyData[strategy].lastUpdateTimestamp);
 
         return (superVault, strategy, escrow);
@@ -588,6 +594,12 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                               VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getCurrentNonce() external view returns (uint256) {
+        return _vaultCreationNonce;
+    }
+
     /// @inheritdoc ISuperVaultAggregator
     function getHooksRootUpdateTimelock() external view returns (uint256) {
         return _hooksRootUpdateTimelock;

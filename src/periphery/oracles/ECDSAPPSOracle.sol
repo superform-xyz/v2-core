@@ -40,29 +40,15 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
                          PPS UPDATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IECDSAPPSOracle
-    function updatePPS(UpdatePPSArgs calldata args)
-        external
-    {
+    function updatePPS(UpdatePPSArgs calldata args) external {
         // Validate proofs and check quorum requirement
         _validateProofs(
-            args.strategy,
-            args.proofs,
-            args.pps,
-            args.ppsStdev,
-            args.validatorSet,
-            args.totalValidators,
-            args.timestamp
+            args.strategy, args.proofs, args.pps, args.ppsStdev, args.validatorSet, args.totalValidators, args.timestamp
         );
 
         // Emit event that PPS has been validated
         emit PPSValidated(
-            args.strategy,
-            args.pps,
-            args.ppsStdev,
-            args.validatorSet,
-            args.totalValidators,
-            args.timestamp,
-            msg.sender
+            args.strategy, args.pps, args.ppsStdev, args.validatorSet, args.totalValidators, args.timestamp, msg.sender
         );
 
         // Forward the validated PPS update to the SuperVaultAggregator
@@ -76,15 +62,13 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
             totalValidators: args.totalValidators,
             timestamp: args.timestamp,
             upkeepCost: 0 // This will be set by SuperVaultAggregator
-        });
+         });
 
         ISuperVaultAggregator(SUPER_GOVERNOR.getAddress(SUPER_VAULT_AGGREGATOR)).forwardPPS(msg.sender, forwardArgs);
     }
 
     /// @inheritdoc IECDSAPPSOracle
-    function batchUpdatePPS(BatchUpdatePPSArgs calldata args)
-        external
-    {
+    function batchUpdatePPS(BatchUpdatePPSArgs calldata args) external {
         uint256 strategiesLength = args.strategies.length;
 
         if (strategiesLength == 0) revert ZERO_LENGTH_ARRAY();
@@ -96,7 +80,7 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
         ) revert ARRAY_LENGTH_MISMATCH();
 
         // Process each strategy update
-        for (uint256 i = 0; i < strategiesLength; i++) {
+        for (uint256 i; i < strategiesLength; i++) {
             _validateProofs(
                 args.strategies[i],
                 args.proofsArray[i],
