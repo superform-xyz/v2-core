@@ -18,6 +18,8 @@ import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
 // Libraries
 import { AssetMetadataLib } from "../libraries/AssetMetadataLib.sol";
 
+import { console2 } from "forge-std/console2.sol";
+
 /// @title SuperVaultAggregator
 /// @author Superform Labs
 /// @notice Registry and PPS oracle for all SuperVaults
@@ -121,6 +123,10 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         // Increment nonce before creating proxies
         uint256 currentNonce = _vaultCreationNonce++;
 
+        console2.log(params.asset);
+        console2.log(params.name);
+        console2.log(params.symbol);
+        console2.log(currentNonce);
         // Create minimal proxies
         superVault = VAULT_IMPLEMENTATION.cloneDeterministic(
             keccak256(abi.encodePacked(params.asset, params.name, params.symbol, currentNonce))

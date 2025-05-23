@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 import { Helpers } from "./utils/Helpers.sol";
+import { Clones } from "openzeppelin-contracts/contracts/proxy/Clones.sol";
 
 import { InternalHelpers } from "./utils/InternalHelpers.sol";
 import { SignatureHelper } from "./utils/SignatureHelper.sol";
@@ -233,6 +234,7 @@ struct Addresses {
 contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser, InternalHelpers {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
+    using Clones for address;
 
     /*//////////////////////////////////////////////////////////////
                            STATE VARIABLES
@@ -322,6 +324,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     bool public useLatestFork = false;
     bool public useRealOdosRouter = false;
+    address[] public globalMerkleHooks;
+    address globalSVStrategy;
+    address globalSVGearStrategy;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -1203,32 +1208,100 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
 
-            // Generate Merkle tree with the actual deployed hook addresses
-            // This is critical for coverage tests where addresses may differ
-            string[] memory cmd = new string[](3);
-            cmd[0] = "node";
-            cmd[1] = "test/utils/merkle/merkle-js/build-hook-merkle-trees.js";
-            cmd[2] = string.concat(
-                vm.toString(address(A[i].approveAndRedeem4626VaultHook)),
-                ",",
-                vm.toString(address(A[i].approveAndDeposit4626VaultHook)),
-                ",",
-                vm.toString(address(A[i].redeem4626VaultHook)),
-                ",",
-                vm.toString(address(A[i].approveAndGearboxStakeHook)),
-                ",",
-                vm.toString(address(A[i].gearboxUnstakeHook))
-            );
+            // Initialize global Merkle hook addresses for later use
+            globalMerkleHooks = new address[](5);
+            globalMerkleHooks[0] = address(A[i].approveAndRedeem4626VaultHook);
+            globalMerkleHooks[1] = address(A[i].approveAndDeposit4626VaultHook);
+            globalMerkleHooks[2] = address(A[i].redeem4626VaultHook);
+            globalMerkleHooks[3] = address(A[i].approveAndGearboxStakeHook);
+            globalMerkleHooks[4] = address(A[i].gearboxUnstakeHook);
 
-            if (DEBUG) {
-                console2.log("Regenerating Merkle tree with actual hook addresses:");
-                console2.log(cmd[2]);
+            if (chainIds[i] == ETH) {
+                /// @dev set any new sv addresses here
+                address aggregator = _getContract(ETH, SUPER_VAULT_AGGREGATOR_KEY);
+                globalSVStrategy = SuperVaultAggregator(aggregator).STRATEGY_IMPLEMENTATION()
+                    .predictDeterministicAddress(
+                    keccak256(
+                        abi.encodePacked(existingUnderlyingTokens[ETH][USDC_KEY], "SuperVault", "SV_USDC", uint256(0))
+                    ),
+                    aggregator
+                );
+                globalSVGearStrategy = SuperVaultAggregator(aggregator).STRATEGY_IMPLEMENTATION()
+                    .predictDeterministicAddress(
+                    keccak256(
+                        abi.encodePacked(existingUnderlyingTokens[ETH][USDC_KEY], "SuperVault", "svGearbox", uint256(1))
+                    ),
+                    aggregator
+                );
+                _generateMerkleTree(ETH);
             }
-
-            vm.ffi(cmd);
         }
 
         return A;
+    }
+
+    /**
+     * @notice Generate Merkle tree with the global hook addresses and optional strategy addresses
+     */
+    function _generateMerkleTree(uint64 chainid) internal {
+        console2.log("\n[DEBUG] Starting _generateMerkleTree for chainid:", chainid);
+
+        // Read current owner_list.json content
+        string memory ownerListPath = string.concat(vm.projectRoot(), "/test/utils/merkle/target/owner_list.json");
+        string memory currentOwnerList = "";
+        try vm.readFile(ownerListPath) returns (string memory content) {
+            currentOwnerList = content;
+            console2.log("[DEBUG] Current owner_list.json content:", currentOwnerList);
+        } catch {
+            console2.log("[DEBUG] Could not read owner_list.json or file is empty");
+        }
+
+        console2.log("[DEBUG] Predicted strategy addresses:");
+        console2.log("  - globalSVStrategy:", globalSVStrategy);
+        console2.log("  - globalSVGearStrategy:", globalSVGearStrategy);
+
+        address[] memory globalTreeOwnerAddresses = new address[](2);
+        globalTreeOwnerAddresses[0] = globalSVStrategy;
+        globalTreeOwnerAddresses[1] = globalSVGearStrategy;
+
+        string[] memory cmd = new string[](globalTreeOwnerAddresses.length > 0 ? 4 : 3);
+        cmd[0] = "node";
+        cmd[1] = "test/utils/merkle/merkle-js/build-hook-merkle-trees.js";
+
+        // Build comma-separated list of hook addresses from globalMerkleHooks
+        string memory hooksString = "";
+        for (uint256 i = 0; i < globalMerkleHooks.length; i++) {
+            if (i > 0) hooksString = string.concat(hooksString, ",");
+            hooksString = string.concat(hooksString, vm.toString(globalMerkleHooks[i]));
+        }
+        cmd[2] = hooksString;
+
+        string memory strategiesString = "";
+        for (uint256 i = 0; i < globalTreeOwnerAddresses.length; i++) {
+            if (i > 0) strategiesString = string.concat(strategiesString, ",");
+            strategiesString = string.concat(strategiesString, vm.toString(globalTreeOwnerAddresses[i]));
+        }
+        cmd[3] = strategiesString;
+
+        console2.log("[DEBUG] Running FFI command with parameters:");
+        console2.log("  - cmd[0]:", cmd[0]);
+        console2.log("  - cmd[1]:", cmd[1]);
+        console2.log("  - cmd[2]:", cmd[2]);
+        console2.log("  - cmd[3]:", cmd[3]);
+
+        console2.log("[DEBUG] Executing FFI command...");
+        vm.ffi(cmd);
+        console2.log("[DEBUG] FFI command completed");
+
+        // Check if owner_list.json was updated
+        try vm.readFile(ownerListPath) returns (string memory content) {
+            console2.log("[DEBUG] Updated owner_list.json content:", content);
+            if (keccak256(bytes(content)) == keccak256(bytes(currentOwnerList))) {
+                console2.log("[DEBUG] WARNING: owner_list.json content did not change!");
+            }
+        } catch {
+            console2.log("[DEBUG] ERROR: Could not read owner_list.json after update");
+        }
     }
 
     function _configureGovernor() internal {

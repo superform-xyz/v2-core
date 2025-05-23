@@ -75,11 +75,23 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         accInstances = randomAccountInstances[ETH];
         assertEq(accInstances.length, ACCOUNT_COUNT);
         superGovernor = SuperGovernor(_getContract(ETH, SUPER_GOVERNOR_KEY));
-
+        // Get USDC from fork
+        asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
         // Get aggregator
         aggregator = SuperVaultAggregator(_getContract(ETH, SUPER_VAULT_AGGREGATOR_KEY));
 
-        superGovernor.proposeGlobalHooksRoot(_getMerkleRoot());
+        // Deploy vault using the new _deployVault function
+        (address vaultAddr, address strategyAddr, address escrowAddr) = _deployVault("SV_USDC");
+        assertEq(strategyAddr, globalSVStrategy, "SV STRATEGY NOT EQUAL TO PREDICTED");
+
+        // Explicitly regenerate the Merkle tree with the confirmed strategy address
+        console2.log("[DEBUG] Explicitly generating Merkle tree with strategy address", strategyAddr);
+        _generateMerkleTree(ETH);
+        
+        // Now propose and execute the global hooks root update
+        bytes32 root = _getMerkleRoot();
+        console2.log("[DEBUG] Proposing global hooks root from explicitly generated tree");
+        superGovernor.proposeGlobalHooksRoot(root);
         vm.warp(block.timestamp + 20 minutes);
         aggregator.executeGlobalHooksRootUpdate();
 
@@ -95,9 +107,6 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         // Get ECDSA Oracle
         ecdsappsOracle = IECDSAPPSOracle(_getContract(ETH, ECDSAPPS_ORACLE_KEY));
 
-        // Get USDC from fork
-        asset = IERC20Metadata(existingUnderlyingTokens[ETH][USDC_KEY]);
-
         address fluidVaultAddr = 0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33;
         address aaveVaultAddr = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;
         vm.label(fluidVaultAddr, "FluidVault");
@@ -106,15 +115,8 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         // Get real yield sources from fork
         fluidVault = IERC4626(fluidVaultAddr);
         aaveVault = IERC4626(aaveVaultAddr);
-
-        // Deploy vault using the new _deployVault function
-        (address vaultAddr, address strategyAddr, address escrowAddr) = _deployVault("SV_USDC");
-
-        console2.log("\n-----------");
-        console2.log("SUPER VAULT STRATEGY", strategyAddr);
-        console2.log("\n-----------");
-
-        // Cast addresses to contract types
+        
+        // Cast addresses to contract types from the vault deployment in setUp
         vault = SuperVault(vaultAddr);
         strategy = SuperVaultStrategy(strategyAddr);
         escrow = SuperVaultEscrow(escrowAddr);
