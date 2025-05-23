@@ -123,6 +123,141 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /*//////////////////////////////////////////////////////////////
+                            MANAGER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperAsset
+    function whitelistERC20(address token, address oracle) external onlyManager {
+        if (token == address(0)) revert ZERO_ADDRESS();
+        if (tokenData[token].isSupportedERC20) revert ALREADY_WHITELISTED();
+        tokenData[token].isSupportedERC20 = true;
+        _supportedVaults.add(token);
+        _activeAssets[token] = true;
+        if (oracle != address(0)) {
+            _activeOracles[token] = oracle;
+        } else {
+            _activeOracles[token] = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
+        }
+        emit ERC20Whitelisted(token);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function removeERC20(address token) external onlyManager {
+        if (token == address(0)) revert ZERO_ADDRESS();
+        if (!tokenData[token].isSupportedERC20) revert NOT_WHITELISTED();
+        tokenData[token].isSupportedERC20 = false;
+        _supportedVaults.remove(token);
+        if (IERC20(token).balanceOf(address(this)) == 0) {
+            _activeAssets[token] = false;
+        }
+        emit ERC20Removed(token);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function whitelistVault(address vault, address oracle) external onlyManager {
+        if (vault == address(0)) revert ZERO_ADDRESS();
+        if (tokenData[vault].isSupportedUnderlyingVault) revert ALREADY_WHITELISTED();
+        tokenData[vault].isSupportedUnderlyingVault = true;
+        _supportedVaults.add(vault);
+        if (oracle != address(0)) {
+            _activeOracles[vault] = oracle;
+        } else {
+            _activeOracles[vault] = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
+        }
+        emit VaultWhitelisted(vault);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function removeVault(address vault) external onlyManager {
+        if (vault == address(0)) revert ZERO_ADDRESS();
+        if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_WHITELISTED();
+        tokenData[vault].isSupportedUnderlyingVault = false;
+        _supportedVaults.remove(vault);
+        if (IERC20(vault).balanceOf(address(this)) == 0) {
+            _activeAssets[vault] = false;
+        }
+        emit VaultRemoved(vault);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function mint(address to, uint256 amount) external onlyManager {
+        _mint(to, amount);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function burn(address from, uint256 amount) external onlyManager {
+        _burn(from, amount);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function setSwapFeeInPercentage(uint256 _feePercentage) external onlyManager {
+        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
+        swapFeeInPercentage = _feePercentage;
+    }
+
+    /// @inheritdoc ISuperAsset
+    function setSwapFeeOutPercentage(uint256 _feePercentage) external onlyManager {
+        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
+        swapFeeOutPercentage = _feePercentage;
+    }
+
+    /// @inheritdoc ISuperAsset
+    function setSuperOracle(address oracle) external onlyManager {
+        if (oracle == address(0)) revert ZERO_ADDRESS();
+        superOracle = ISuperOracle(oracle);
+        emit SuperOracleSet(oracle);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function setWeight(address vault, uint256 weight) external onlyManager {
+        if (vault == address(0)) revert ZERO_ADDRESS();
+        if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_VAULT();
+        tokenData[vault].weights = weight;
+        emit WeightSet(vault, weight);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function setEnergyToUSDExchangeRatio(uint256 newRatio) external onlyManager {
+        energyToUSDExchangeRatio = newRatio;
+        emit EnergyToUSDExchangeRatioSet(newRatio);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          STRATEGIST FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperAsset
+    function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external onlyStrategist {
+        if (tokens.length != allocations.length) revert INVALID_INPUT();
+
+        uint256 totalAllocation;
+        for (uint256 i = 0; i < tokens.length; i++) {
+            if (tokens[i] == address(0)) revert ZERO_ADDRESS();
+            if (!tokenData[tokens[i]].isSupportedUnderlyingVault && !tokenData[tokens[i]].isSupportedERC20) {
+                revert NOT_SUPPORTED_TOKEN();
+            }
+            totalAllocation += allocations[i];
+        }
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            tokenData[tokens[i]].targetAllocations = allocations[i];
+            emit TargetAllocationSet(tokens[i], allocations[i]);
+        }
+    }
+
+    /// @inheritdoc ISuperAsset
+    function setTargetAllocation(address token, uint256 allocation) external onlyStrategist {
+        if (token == address(0)) revert ZERO_ADDRESS();
+        if (!tokenData[token].isSupportedUnderlyingVault && !tokenData[token].isSupportedERC20) {
+            revert NOT_SUPPORTED_TOKEN();
+        }
+
+        // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC
+        if (allocation > PRECISION) revert INVALID_ALLOCATION();
+
+        tokenData[token].targetAllocations = allocation;
+        emit TargetAllocationSet(token, allocation);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     // --- Token Movement Functions ---
@@ -284,141 +419,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            MANAGER FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperAsset
-    function whitelistERC20(address token, address oracle) external onlyManager {
-        if (token == address(0)) revert ZERO_ADDRESS();
-        if (tokenData[token].isSupportedERC20) revert ALREADY_WHITELISTED();
-        tokenData[token].isSupportedERC20 = true;
-        _supportedVaults.add(token);
-        _activeAssets[token] = true;
-        if (oracle != address(0)) {
-            _activeOracles[token] = oracle;
-        } else {
-            _activeOracles[token] = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
-        }
-        emit ERC20Whitelisted(token);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function removeERC20(address token) external onlyManager {
-        if (token == address(0)) revert ZERO_ADDRESS();
-        if (!tokenData[token].isSupportedERC20) revert NOT_WHITELISTED();
-        tokenData[token].isSupportedERC20 = false;
-        _supportedVaults.remove(token);
-        if (IERC20(token).balanceOf(address(this)) == 0) {
-            _activeAssets[token] = false;
-        }
-        emit ERC20Removed(token);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function whitelistVault(address vault, address oracle) external onlyManager {
-        if (vault == address(0)) revert ZERO_ADDRESS();
-        if (tokenData[vault].isSupportedUnderlyingVault) revert ALREADY_WHITELISTED();
-        tokenData[vault].isSupportedUnderlyingVault = true;
-        _supportedVaults.add(vault);
-        if (oracle != address(0)) {
-            _activeOracles[vault] = oracle;
-        } else {
-            _activeOracles[vault] = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
-        }
-        emit VaultWhitelisted(vault);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function removeVault(address vault) external onlyManager {
-        if (vault == address(0)) revert ZERO_ADDRESS();
-        if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_WHITELISTED();
-        tokenData[vault].isSupportedUnderlyingVault = false;
-        _supportedVaults.remove(vault);
-        if (IERC20(vault).balanceOf(address(this)) == 0) {
-            _activeAssets[vault] = false;
-        }
-        emit VaultRemoved(vault);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function mint(address to, uint256 amount) external onlyManager {
-        _mint(to, amount);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function burn(address from, uint256 amount) external onlyManager {
-        _burn(from, amount);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function setSwapFeeInPercentage(uint256 _feePercentage) external onlyManager {
-        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
-        swapFeeInPercentage = _feePercentage;
-    }
-
-    /// @inheritdoc ISuperAsset
-    function setSwapFeeOutPercentage(uint256 _feePercentage) external onlyManager {
-        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
-        swapFeeOutPercentage = _feePercentage;
-    }
-
-    /// @inheritdoc ISuperAsset
-    function setSuperOracle(address oracle) external onlyManager {
-        if (oracle == address(0)) revert ZERO_ADDRESS();
-        superOracle = ISuperOracle(oracle);
-        emit SuperOracleSet(oracle);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function setWeight(address vault, uint256 weight) external onlyManager {
-        if (vault == address(0)) revert ZERO_ADDRESS();
-        if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_VAULT();
-        tokenData[vault].weights = weight;
-        emit WeightSet(vault, weight);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function setEnergyToUSDExchangeRatio(uint256 newRatio) external onlyManager {
-        energyToUSDExchangeRatio = newRatio;
-        emit EnergyToUSDExchangeRatioSet(newRatio);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                          STRATEGIST FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperAsset
-    function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external onlyStrategist {
-        if (tokens.length != allocations.length) revert INVALID_INPUT();
-
-        uint256 totalAllocation;
-        for (uint256 i = 0; i < tokens.length; i++) {
-            if (tokens[i] == address(0)) revert ZERO_ADDRESS();
-            if (!tokenData[tokens[i]].isSupportedUnderlyingVault && !tokenData[tokens[i]].isSupportedERC20) {
-                revert NOT_SUPPORTED_TOKEN();
-            }
-            totalAllocation += allocations[i];
-        }
-
-        for (uint256 i = 0; i < tokens.length; i++) {
-            tokenData[tokens[i]].targetAllocations = allocations[i];
-            emit TargetAllocationSet(tokens[i], allocations[i]);
-        }
-    }
-
-    /// @inheritdoc ISuperAsset
-    function setTargetAllocation(address token, uint256 allocation) external onlyStrategist {
-        if (token == address(0)) revert ZERO_ADDRESS();
-        if (!tokenData[token].isSupportedUnderlyingVault && !tokenData[token].isSupportedERC20) {
-            revert NOT_SUPPORTED_TOKEN();
-        }
-
-        // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC
-        if (allocation > PRECISION) revert INVALID_ALLOCATION();
-
-        tokenData[token].targetAllocations = allocation;
-        emit TargetAllocationSet(token, allocation);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                             PREVIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperAsset
@@ -443,7 +443,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Get price of underlying vault shares in USD
         (s.priceUSDTokenIn,,,) = getPriceWithCircuitBreakers(tokenIn);
-        (s.priceUSDThisShares,,,) = getPriceWithCircuitBreakers(address(this));
+        (s.priceUSDThisShares,,,) = getSuperAssetPPS();
 
         // NOTE: Preview Function should not revert
         if (s.priceUSDTokenIn == 0 || s.priceUSDThisShares == 0) return (0, 0, 0, false);
@@ -498,7 +498,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // contract holds some exposure to this token
 
         // Get price of underlying vault shares in USD
-        (s.priceUSDThisShares,,,) = getPriceWithCircuitBreakers(address(this));
+        (s.priceUSDThisShares,,,) = getSuperAssetPPS();
         (s.priceUSDTokenOut,,,) = getPriceWithCircuitBreakers(tokenOut);
 
         // Calculate underlying shares to redeem
