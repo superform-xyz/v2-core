@@ -42,6 +42,28 @@ interface IIncentiveFundContract {
     function withdraw(address receiver, address tokenOut, uint256 amount) external;
 
     /**
+     * @notice Proposes a new token for incoming incentives
+     * @param token Address of the token
+     */
+    function proposeSetTokenInIncentive(address token) external;
+
+    /**
+     * @notice Executes the proposal for a new token for incoming incentives
+     */
+    function executeSetTokenInIncentive() external;
+
+    /**
+     * @notice Proposes a new token for outgoing incentives
+     * @param token Address of the token
+     */
+    function proposeSetTokenOutIncentive(address token) external;
+
+    /**
+     * @notice Executes the proposal for a new token for outgoing incentives
+     */
+    function executeSetTokenOutIncentive() external;
+
+    /**
      * @notice Sets the token for incoming incentives
      * @param token Address of the token
      */
@@ -118,4 +140,6 @@ interface IIncentiveFundContract {
     /// @notice Thrown when the caller is not authorized
     error UNAUTHORIZED();
 
+    /// @notice Thrown when timelock is not expired
+    error TIMELOCK_NOT_EXPIRED();
 }
