@@ -36,7 +36,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
     uint256 public newTokenOutEffectiveTime;
 
     /// @inheritdoc IIncentiveFundContract
-    function initialize(address _superGovernor, address superAsset_) external {
+    function initialize(address _superGovernor, address superAsset_, address tokenInIncentive_, address tokenOutIncentive_) external {
         if (_superGovernor == address(0)) revert ZERO_ADDRESS();
         _SUPER_GOVERNOR = ISuperGovernor(_superGovernor);
 
@@ -44,14 +44,19 @@ contract IncentiveFundContract is IIncentiveFundContract {
         if (address(superAsset) != address(0)) revert ALREADY_INITIALIZED();
 
         if (superAsset_ == address(0)) revert ZERO_ADDRESS();
+        if (tokenInIncentive_ == address(0)) revert ZERO_ADDRESS();
+        if (tokenOutIncentive_ == address(0)) revert ZERO_ADDRESS();
 
         superAsset = ISuperAsset(superAsset_);
+        tokenInIncentive = tokenInIncentive_;
+        tokenOutIncentive = tokenOutIncentive_;
     }
 
     /*//////////////////////////////////////////////////////////////
                 EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
+    /// @inheritdoc IIncentiveFundContract
     function proposeSetTokenInIncentive(address token) external {
         ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
         address manager = factory.getIncentiveFundManager(address(superAsset));
@@ -61,15 +66,17 @@ contract IncentiveFundContract is IIncentiveFundContract {
         newTokenInEffectiveTime = block.timestamp + _setTokenTimelock;
     }
 
+    /// @inheritdoc IIncentiveFundContract
     function executeSetTokenInIncentive() external {
         ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
         address manager = factory.getIncentiveFundManager(address(superAsset));
         if (manager != msg.sender) revert UNAUTHORIZED();
         if (block.timestamp < newTokenInEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
         tokenInIncentive = proposedTokenIn;
-        emit TokenInIncentiveSet(tokenInIncentive);
+        emit SettlementTokenInSet(tokenInIncentive);
     }
 
+    /// @inheritdoc IIncentiveFundContract
     function proposeSetTokenOutIncentive(address token) external {
         ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
         address manager = factory.getIncentiveFundManager(address(superAsset));
@@ -79,35 +86,36 @@ contract IncentiveFundContract is IIncentiveFundContract {
         newTokenOutEffectiveTime = block.timestamp + _setTokenTimelock;
     }
 
+    /// @inheritdoc IIncentiveFundContract
     function executeSetTokenOutIncentive() external {
         ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
         address manager = factory.getIncentiveFundManager(address(superAsset));
         if (manager != msg.sender) revert UNAUTHORIZED();
         if (block.timestamp < newTokenOutEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
         tokenOutIncentive = proposedTokenOut;
-        emit TokenOutIncentiveSet(tokenOutIncentive);
+        emit SettlementTokenOutSet(tokenOutIncentive);
     }
 
-    /// @inheritdoc IIncentiveFundContract
-    function setTokenInIncentive(address token) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        address manager = factory.getIncentiveFundManager(address(superAsset));
-        if (manager != msg.sender) revert UNAUTHORIZED();
-        if (token == address(0)) revert ZERO_ADDRESS();
-        tokenInIncentive = token;
-        emit SettlementTokenInSet(token);
-    }
+    // /// @inheritdoc IIncentiveFundContract
+    // function setTokenInIncentive(address token) external {
+    //     ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+    //     address manager = factory.getIncentiveFundManager(address(superAsset));
+    //     if (manager != msg.sender) revert UNAUTHORIZED();
+    //     if (token == address(0)) revert ZERO_ADDRESS();
+    //     tokenInIncentive = token;
+    //     emit SettlementTokenInSet(token);
+    // }
 
-    /// @inheritdoc IIncentiveFundContract
-    function setTokenOutIncentive(address token) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        // Check if the caller has the INCENTIVE_FUND_MANAGER role
-        address manager = factory.getIncentiveFundManager(address(superAsset));
-        if (manager != msg.sender) revert UNAUTHORIZED();
-        if (token == address(0)) revert ZERO_ADDRESS();
-        tokenOutIncentive = token;
-        emit SettlementTokenOutSet(token);
-    }
+    // /// @inheritdoc IIncentiveFundContract
+    // function setTokenOutIncentive(address token) external {
+    //     ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+    //     // Check if the caller has the INCENTIVE_FUND_MANAGER role
+    //     address manager = factory.getIncentiveFundManager(address(superAsset));
+    //     if (manager != msg.sender) revert UNAUTHORIZED();
+    //     if (token == address(0)) revert ZERO_ADDRESS();
+    //     tokenOutIncentive = token;
+    //     emit SettlementTokenOutSet(token);
+    // }
 
     /// @inheritdoc IIncentiveFundContract
     function payIncentive(address receiver, uint256 amountUSD) external {

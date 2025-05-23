@@ -16,8 +16,10 @@ interface IIncentiveFundContract {
      * @notice Initializes the IncentiveFundContract
      * @param _superGovernor Address of the SuperGovernor contract
      * @param superAsset_ Address of the SuperAsset contract
+     * @param tokenInIncentive_ Address of the token users send incentives to
+     * @param tokenOutIncentive_ Address of the token used to pay incentives
      */
-    function initialize(address _superGovernor, address superAsset_) external;
+    function initialize(address _superGovernor, address superAsset_, address tokenInIncentive_, address tokenOutIncentive_) external;
 
     /**
      * @notice Pays incentives to a receiver
@@ -63,17 +65,17 @@ interface IIncentiveFundContract {
      */
     function executeSetTokenOutIncentive() external;
 
-    /**
-     * @notice Sets the token for incoming incentives
-     * @param token Address of the token
-     */
-    function setTokenInIncentive(address token) external;
+    // /**
+    //  * @notice Sets the token for incoming incentives
+    //  * @param token Address of the token
+    //  */
+    // function setTokenInIncentive(address token) external;
 
-    /**
-     * @notice Sets the token for outgoing incentives
-     * @param token Address of the token
-     */
-    function setTokenOutIncentive(address token) external;
+    // /**
+    //  * @notice Sets the token for outgoing incentives
+    //  * @param token Address of the token
+    //  */
+    // function setTokenOutIncentive(address token) external;
 
     // --- Events ---
     event TokenInIncentiveSet(address indexed token);
