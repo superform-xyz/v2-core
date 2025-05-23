@@ -147,6 +147,7 @@ contract IncentiveFundContractTest is Helpers {
             makeAddr("treasury"), // treasury
             makeAddr("prover") // prover
         );
+        // Admin is SuperGovernor Role 
         console.log("SuperGovernor deployed");
 
         // Create SuperAsset using factory
@@ -166,6 +167,8 @@ contract IncentiveFundContractTest is Helpers {
         superGovernor.setAddress(superGovernor.SUPER_ASSET_FACTORY(), address(factory));
 
         console.log("SuperAssetFactory deployed");
+        // NOTE: Whitelisting ICC so that's possible to instantiate SuperAsset using it 
+        superGovernor.addICCToWhitelist(address(icc));
         (address superAssetAddr, address incentiveFundAddr) = factory.createSuperAsset(params);
         console.log("SuperAsset and IncentiveFund deployed via factory");
         superAsset = SuperAsset(superAssetAddr);

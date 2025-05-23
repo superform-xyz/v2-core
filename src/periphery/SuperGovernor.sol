@@ -223,6 +223,24 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         factory.setSuperAssetManager(superAsset, _superAssetManager);
     }
 
+    /// @inheritdoc ISuperGovernor
+    function addICCToWhitelist(address icc) external onlyRole(_SUPER_GOVERNOR_ROLE) {
+        if (icc == address(0)) revert INVALID_ADDRESS();
+        address value = _addressRegistry[_SUPER_ASSET_FACTORY];
+        if (value == address(0)) revert CONTRACT_NOT_FOUND();
+        ISuperAssetFactory factory = ISuperAssetFactory(value);
+        factory.addICCToWhitelist(icc);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function removeICCFromWhitelist(address icc) external onlyRole(_SUPER_GOVERNOR_ROLE) {
+        if (icc == address(0)) revert INVALID_ADDRESS();
+        address value = _addressRegistry[_SUPER_ASSET_FACTORY];
+        if (value == address(0)) revert CONTRACT_NOT_FOUND();
+        ISuperAssetFactory factory = ISuperAssetFactory(value);
+        factory.removeICCFromWhitelist(icc);
+    }
+
     /// @notice Proposes a new global hooks Merkle root in the SuperVaultAggregator
     /// @dev Only callable by GOVERNOR_ROLE
     /// @param newRoot New Merkle root for global hooks validation
