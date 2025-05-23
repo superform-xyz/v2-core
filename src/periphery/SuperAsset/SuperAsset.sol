@@ -129,13 +129,16 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         if (token == address(0)) revert ZERO_ADDRESS();
         if (tokenData[token].isSupportedERC20) revert ALREADY_WHITELISTED();
         tokenData[token].isSupportedERC20 = true;
+
         _supportedVaults.add(token);
         _activeAssets[token] = true;
+
         if (oracle != address(0)) {
             _activeOracles[token] = oracle;
         } else {
             _activeOracles[token] = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
         }
+        _assetOracles.add(oracle);
         emit ERC20Whitelisted(token);
     }
 
@@ -143,10 +146,13 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     function removeERC20(address token) external onlyManager {
         if (token == address(0)) revert ZERO_ADDRESS();
         if (!tokenData[token].isSupportedERC20) revert NOT_WHITELISTED();
+
         tokenData[token].isSupportedERC20 = false;
         _supportedVaults.remove(token);
+
         if (IERC20(token).balanceOf(address(this)) == 0) {
             _activeAssets[token] = false;
+            _assetOracles.remove(oracle);
         }
         emit ERC20Removed(token);
     }
@@ -155,13 +161,16 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     function whitelistVault(address vault, address oracle) external onlyManager {
         if (vault == address(0)) revert ZERO_ADDRESS();
         if (tokenData[vault].isSupportedUnderlyingVault) revert ALREADY_WHITELISTED();
+
         tokenData[vault].isSupportedUnderlyingVault = true;
         _supportedVaults.add(vault);
+
         if (oracle != address(0)) {
             _activeOracles[vault] = oracle;
         } else {
             _activeOracles[vault] = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
         }
+        _assetOracles.add(oracle);
         emit VaultWhitelisted(vault);
     }
 
@@ -169,10 +178,13 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     function removeVault(address vault) external onlyManager {
         if (vault == address(0)) revert ZERO_ADDRESS();
         if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_WHITELISTED();
+
         tokenData[vault].isSupportedUnderlyingVault = false;
         _supportedVaults.remove(vault);
+
         if (IERC20(vault).balanceOf(address(this)) == 0) {
             _activeAssets[vault] = false;
+            _assetOracles.remove(oracle);
         }
         emit VaultRemoved(vault);
     }
