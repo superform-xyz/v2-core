@@ -154,10 +154,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         _prover = prover_;
         emit ProverSet(prover_);
     }
+
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperGovernor
     function setAddress(bytes32 key, address value) external onlyRole(_SUPER_GOVERNOR_ROLE) {
         if (value == address(0)) revert INVALID_ADDRESS();
@@ -167,7 +167,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        PROVER
+                                PROVER
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
     function setProver(address prover_) external onlyRole(_SUPER_GOVERNOR_ROLE) {
@@ -178,9 +178,8 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        SUPER VAULT AGGREGATOR MANAGEMENT
+                    SUPER VAULT AGGREGATOR MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperGovernor
     function changePrimaryStrategist(
         address strategy_,
@@ -285,7 +284,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                         HOOK MANAGEMENT
+                            HOOK MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
     function registerHook(address hook_, bool isFulfillRequestsHook_) external onlyRole(_GOVERNOR_ROLE) {
@@ -316,7 +315,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                      EXECUTORS MANAGEMENT
+                        EXECUTORS MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
     function addExecutor(address executor_) external onlyRole(_GOVERNOR_ROLE) {
@@ -348,7 +347,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                      RELAYER MANAGEMENT
+                          RELAYER MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
     function addRelayer(address relayer_) external onlyRole(_GOVERNOR_ROLE) {
@@ -380,7 +379,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                      VALIDATOR MANAGEMENT
+                        VALIDATOR MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
     function addValidator(address validator) external onlyRole(_GOVERNOR_ROLE) {
@@ -498,7 +497,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /*//////////////////////////////////////////////////////////////
                       UPKEEP COST MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-
+    /// @inheritdoc ISuperGovernor
     function proposeUpkeepCostPerUpdate(uint256 newCost_) external onlyRole(_SUPER_GOVERNOR_ROLE) {
         _proposedUpkeepCostPerUpdate = newCost_;
         _upkeepCostEffectiveTime = block.timestamp + TIMELOCK;
@@ -593,7 +592,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /*//////////////////////////////////////////////////////////////
                            SUPERBANK HOOKS MGMT
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperGovernor
     function proposeSuperBankHookMerkleRoot(address hook, bytes32 proposedRoot) external onlyRole(_GOVERNOR_ROLE) {
         if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
@@ -826,8 +824,8 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @dev Internal function to unregister a fulfill requests hook
+
     function _unregisterFulfillRequestsHook(address hook_) internal {
         if (!_registeredFulfillRequestsHooks.contains(hook_)) {
             revert FULFILL_REQUESTS_HOOK_NOT_REGISTERED();
