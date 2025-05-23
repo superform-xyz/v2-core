@@ -108,7 +108,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    // todo add aggregator here?
     /// @notice Initializes the SuperGovernor contract
     /// @param superGovernor Address of the default admin (will have SUPER_GOVERNOR_ROLE)
     /// @param governor Address that will have the GOVERNOR_ROLE for daily operations
