@@ -620,16 +620,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function getSuperAssetPPS() public view returns (uint256 pps) {
-        // TODO: Improve the implementation of this function to handle the case for de-whitelisted tokens for which the
-        // SuperAsset has still non-zero exposure
-        // TODO: Use this function in the calculations instead of the PPS value got from the SuperOracle
         uint256 totalSupply_ = totalSupply();
         if (totalSupply_ == 0) return 0;
 
         uint256 totalValueUSD;
-        // TODO: We need to iterate over all the historically whitelisted vaults and not just the currently whitelisted
-        // ones
-        // NOTE: This means we also need to track the historically whitelisted vaults
+
         uint256 len = _supportedVaults.length();
         for (uint256 i = 0; i < len; i++) {
             address token = _supportedVaults.at(i);
@@ -643,7 +638,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         }
 
         // PPS = Total Value in USD / Total Supply, normalized to PRECISION
-        pps = (totalValueUSD * PRECISION) / totalSupply_;
+        pps = Math.mulDiv(totalValueUSD, PRECISION, totalSupply_);
     }
 
     /// @inheritdoc ISuperAsset
