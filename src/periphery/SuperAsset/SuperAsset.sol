@@ -72,17 +72,24 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _;
     }
 
+    modifier onlyStrategist() {
+        ISuperAssetFactory factory =
+            ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        if (msg.sender != factory.getSuperAssetStrategist(address(this))) revert UNAUTHORIZED();
+        _;
+    }
+
+    modifier onlyManager() {
+        ISuperAssetFactory factory =
+            ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        if (msg.sender != factory.getSuperAssetManager(address(this))) revert UNAUTHORIZED();
+        _;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        CONTRACT INITIALIZATION
+    //////////////////////////////////////////////////////////////*/
     constructor() ERC20("", "") { }
-
-    /// @inheritdoc ERC20
-    function name() public view override returns (string memory) {
-        return tokenName;
-    }
-
-    /// @inheritdoc ERC20
-    function symbol() public view override returns (string memory) {
-        return tokenSymbol;
-    }
 
     /// @inheritdoc ISuperAsset
     function initialize(
@@ -102,7 +109,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         swapFeeInPercentage = swapFeeInPercentage_;
         swapFeeOutPercentage = swapFeeOutPercentage_;
-        
+
         // Initialize ERC20 name and symbol
         tokenName = name_;
         tokenSymbol = symbol_;
@@ -112,23 +119,24 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        EXTERNAL FUNCTIONS
+                            EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperAsset
     function getTokenData(address token) external view returns (TokenData memory) {
         return tokenData[token];
     }
 
     /// @inheritdoc ISuperAsset
-    function getPPS() public view returns(uint256 pps) {
-        // TODO: Improve the implementation of this function to handle the case for de-whitelisted tokens for which the SuperAsset has still non-zero exposure 
-        // TODO: Use this function in the calculations instead of the PPS value got from the SuperOracle 
+    function getPPS() public view returns (uint256 pps) {
+        // TODO: Improve the implementation of this function to handle the case for de-whitelisted tokens for which the
+        // SuperAsset has still non-zero exposure
+        // TODO: Use this function in the calculations instead of the PPS value got from the SuperOracle
         uint256 totalSupply_ = totalSupply();
-        if (totalSupply_ == 0) return 0; 
+        if (totalSupply_ == 0) return 0;
 
         uint256 totalValueUSD;
-        // TODO: We need to iterate over all the historically whitelisted vaults and not just the currently whitelisted ones
+        // TODO: We need to iterate over all the historically whitelisted vaults and not just the currently whitelisted
+        // ones
         // NOTE: This means we also need to track the historically whitelisted vaults
         uint256 len = _supportedVaults.length();
         for (uint256 i = 0; i < len; i++) {
@@ -147,110 +155,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function mint(address to, uint256 amount) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-        address manager = factory.getSuperAssetManager(address(this));
-        if (manager != msg.sender) revert UNAUTHORIZED();
-        _mint(to, amount);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function burn(address from, uint256 amount) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-        address manager = factory.getSuperAssetManager(address(this));
-        if (manager != msg.sender) revert UNAUTHORIZED();
-        _burn(from, amount);
-    }
-
-    /// @inheritdoc ISuperAsset
     function getPrecision() external pure returns (uint256) {
         return PRECISION;
     }
-
-    /// @inheritdoc ISuperAsset
-    function setSwapFeeInPercentage(uint256 _feePercentage) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-        address manager = factory.getSuperAssetManager(address(this));
-        if (manager != msg.sender) revert UNAUTHORIZED();
-        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
-        swapFeeInPercentage = _feePercentage;
-    }
-
-    /// @inheritdoc ISuperAsset
-    function setSwapFeeOutPercentage(uint256 _feePercentage) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-        address manager = factory.getSuperAssetManager(address(this));
-        if (manager != msg.sender) revert UNAUTHORIZED();
-        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
-        swapFeeOutPercentage = _feePercentage;
-    }
-
-    /// @inheritdoc ISuperAsset
-    function setSuperOracle(address oracle) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-        address manager = factory.getSuperAssetManager(address(this));
-        if (manager != msg.sender) revert UNAUTHORIZED();
-        if (oracle == address(0)) revert ZERO_ADDRESS();
-        superOracle = ISuperOracle(oracle);
-        emit SuperOracleSet(oracle);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function setWeight(address vault, uint256 weight) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-        address manager = factory.getSuperAssetManager(address(this));
-        if (manager != msg.sender) revert UNAUTHORIZED();
-        if (vault == address(0)) revert ZERO_ADDRESS();
-        if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_VAULT();
-        tokenData[vault].weights = weight;
-        emit WeightSet(vault, weight);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-        address strategist = factory.getSuperAssetStrategist(address(this));
-        if (strategist != msg.sender) revert UNAUTHORIZED();
-        if (tokens.length != allocations.length) revert INVALID_INPUT();
-
-        uint256 totalAllocation;
-        for (uint256 i = 0; i < tokens.length; i++) {
-            if (tokens[i] == address(0)) revert ZERO_ADDRESS();
-            if (!tokenData[tokens[i]].isSupportedUnderlyingVault && !tokenData[tokens[i]].isSupportedERC20) revert NOT_SUPPORTED_TOKEN();
-            totalAllocation += allocations[i];
-        }
-
-        for (uint256 i = 0; i < tokens.length; i++) {
-            tokenData[tokens[i]].targetAllocations = allocations[i];
-            emit TargetAllocationSet(tokens[i], allocations[i]);
-        }
-    }
-
-
-    /// @inheritdoc ISuperAsset
-    function setTargetAllocation(address token, uint256 allocation) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-        address strategist = factory.getSuperAssetStrategist(address(this));
-        if (strategist != msg.sender) revert UNAUTHORIZED();
-        if (token == address(0)) revert ZERO_ADDRESS();
-        if (!tokenData[token].isSupportedUnderlyingVault && !tokenData[token].isSupportedERC20) revert NOT_SUPPORTED_TOKEN();
-
-        // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC
-        if (allocation > PRECISION) revert INVALID_ALLOCATION();
-
-        tokenData[token].targetAllocations = allocation;
-        emit TargetAllocationSet(token, allocation);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function setEnergyToUSDExchangeRatio(uint256 newRatio) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-        address manager = factory.getSuperAssetManager(address(this));
-        if (manager != msg.sender) revert UNAUTHORIZED();
-        energyToUSDExchangeRatio = newRatio;
-        emit EnergyToUSDExchangeRatioSet(newRatio);
-    }
-
     // --- Token Movement Functions ---
 
     /// @inheritdoc ISuperAsset
@@ -302,7 +209,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Transfer swap fees to Asset Bank while holding the rest in the contract, since the full amount was already
         // transferred in the beginning of the function
         // TODO: Fix this by transfering money to SuperBank
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        ISuperAssetFactory factory = ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
         address icf = factory.getIncentiveFundContract(address(this));
         IERC20(yieldSourceShare).safeTransfer(address(icf), swapFee);
 
@@ -325,7 +232,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem)
     {
         if (amountSharesToRedeem == 0) revert ZERO_AMOUNT();
-        if (!tokenData[tokenOut].isSupportedUnderlyingVault && !tokenData[tokenOut].isSupportedERC20) revert NOT_SUPPORTED_TOKEN();
+        if (!tokenData[tokenOut].isSupportedUnderlyingVault && !tokenData[tokenOut].isSupportedERC20) {
+            revert NOT_SUPPORTED_TOKEN();
+        }
         if (receiver == address(0)) revert ZERO_ADDRESS();
 
         bool isSuccess;
@@ -348,7 +257,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Transfer swap fees to Asset Bank
         // TODO: Fix this by transfering money to SuperBank
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        ISuperAssetFactory factory = ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
         address icf = factory.getIncentiveFundContract(address(this));
         IERC20(tokenOut).safeTransfer(address(icf), swapFee);
 
@@ -407,35 +316,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         );
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            MANAGER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperAsset
-    function whitelistVault(address vault) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        address manager = factory.getSuperAssetManager(address(this));
-        if (manager != msg.sender) revert UNAUTHORIZED();
-        if (vault == address(0)) revert ZERO_ADDRESS();
-        if (tokenData[vault].isSupportedUnderlyingVault) revert ALREADY_WHITELISTED();
-        tokenData[vault].isSupportedUnderlyingVault = true;
-        _supportedVaults.add(vault);
-        emit VaultWhitelisted(vault);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function removeVault(address vault) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        address manager = factory.getSuperAssetManager(address(this));
-        if (manager != msg.sender) revert UNAUTHORIZED();
-        if (vault == address(0)) revert ZERO_ADDRESS();
-        if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_WHITELISTED();
-        tokenData[vault].isSupportedUnderlyingVault = false;
-        _supportedVaults.remove(vault);
-        emit VaultRemoved(vault);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function whitelistERC20(address token) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        address manager = factory.getSuperAssetManager(address(this));
-        if (manager != msg.sender) revert UNAUTHORIZED();
+    function whitelistERC20(address token) external onlyManager {
         if (token == address(0)) revert ZERO_ADDRESS();
         if (tokenData[token].isSupportedERC20) revert ALREADY_WHITELISTED();
         tokenData[token].isSupportedERC20 = true;
@@ -444,15 +329,109 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function removeERC20(address token) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        address manager = factory.getSuperAssetManager(address(this));
-        if (manager != msg.sender) revert UNAUTHORIZED();
+    function removeERC20(address token) external onlyManager {
         if (token == address(0)) revert ZERO_ADDRESS();
         if (!tokenData[token].isSupportedERC20) revert NOT_WHITELISTED();
         tokenData[token].isSupportedERC20 = false;
         _supportedVaults.remove(token);
         emit ERC20Removed(token);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function whitelistVault(address vault) external onlyManager {
+        if (vault == address(0)) revert ZERO_ADDRESS();
+        if (tokenData[vault].isSupportedUnderlyingVault) revert ALREADY_WHITELISTED();
+        tokenData[vault].isSupportedUnderlyingVault = true;
+        _supportedVaults.add(vault);
+        emit VaultWhitelisted(vault);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function removeVault(address vault) external onlyManager {
+        if (vault == address(0)) revert ZERO_ADDRESS();
+        if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_WHITELISTED();
+        tokenData[vault].isSupportedUnderlyingVault = false;
+        _supportedVaults.remove(vault);
+        emit VaultRemoved(vault);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function mint(address to, uint256 amount) external onlyManager {
+        _mint(to, amount);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function burn(address from, uint256 amount) external onlyManager {
+        _burn(from, amount);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function setSwapFeeInPercentage(uint256 _feePercentage) external onlyManager {
+        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
+        swapFeeInPercentage = _feePercentage;
+    }
+
+    /// @inheritdoc ISuperAsset
+    function setSwapFeeOutPercentage(uint256 _feePercentage) external onlyManager {
+        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
+        swapFeeOutPercentage = _feePercentage;
+    }
+
+    /// @inheritdoc ISuperAsset
+    function setSuperOracle(address oracle) external onlyManager {
+        if (oracle == address(0)) revert ZERO_ADDRESS();
+        superOracle = ISuperOracle(oracle);
+        emit SuperOracleSet(oracle);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function setWeight(address vault, uint256 weight) external onlyManager {
+        if (vault == address(0)) revert ZERO_ADDRESS();
+        if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_VAULT();
+        tokenData[vault].weights = weight;
+        emit WeightSet(vault, weight);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function setEnergyToUSDExchangeRatio(uint256 newRatio) external onlyManager {
+        energyToUSDExchangeRatio = newRatio;
+        emit EnergyToUSDExchangeRatioSet(newRatio);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          STRATEGIST FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperAsset
+    function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external onlyStrategist {
+        if (tokens.length != allocations.length) revert INVALID_INPUT();
+
+        uint256 totalAllocation;
+        for (uint256 i = 0; i < tokens.length; i++) {
+            if (tokens[i] == address(0)) revert ZERO_ADDRESS();
+            if (!tokenData[tokens[i]].isSupportedUnderlyingVault && !tokenData[tokens[i]].isSupportedERC20) {
+                revert NOT_SUPPORTED_TOKEN();
+            }
+            totalAllocation += allocations[i];
+        }
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            tokenData[tokens[i]].targetAllocations = allocations[i];
+            emit TargetAllocationSet(tokens[i], allocations[i]);
+        }
+    }
+
+    /// @inheritdoc ISuperAsset
+    function setTargetAllocation(address token, uint256 allocation) external onlyStrategist {
+        if (token == address(0)) revert ZERO_ADDRESS();
+        if (!tokenData[token].isSupportedUnderlyingVault && !tokenData[token].isSupportedERC20) {
+            revert NOT_SUPPORTED_TOKEN();
+        }
+
+        // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC
+        if (allocation > PRECISION) revert INVALID_ALLOCATION();
+
+        tokenData[token].targetAllocations = allocation;
+        emit TargetAllocationSet(token, allocation);
     }
 
     /// @inheritdoc ISuperAsset
@@ -565,7 +544,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     {
         PreviewDeposit memory s;
         // NOTE: Preview Function should not revert
-        if (!tokenData[tokenIn].isSupportedUnderlyingVault && !tokenData[tokenIn].isSupportedERC20) return (0, 0, 0, false);
+        if (!tokenData[tokenIn].isSupportedUnderlyingVault && !tokenData[tokenIn].isSupportedERC20) {
+            return (0, 0, 0, false);
+        }
 
         // Calculate swap fees (example: 0.1% fee)
         swapFee = Math.mulDiv(amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC); // 0.1%
@@ -596,12 +577,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // TODO: Handle the case where isSuccess is false
 
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        ISuperAssetFactory factory = ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
         address icc = factory.getIncentiveCalculationContract(address(this));
 
         // Calculate incentives (using ICC)
-        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(icc)
-            .calculateIncentive(
+        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(icc).calculateIncentive(
             s.allocations.absoluteAllocationPreOperation,
             s.allocations.absoluteAllocationPostOperation,
             s.allocations.absoluteTargetAllocation,
@@ -653,12 +633,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // TODO: Handle the case where isSuccess is false
 
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        ISuperAssetFactory factory = ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
         address icc = factory.getIncentiveCalculationContract(address(this));
 
         // Calculate incentives (using ICC)
-        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(icc)
-            .calculateIncentive(
+        (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(icc).calculateIncentive(
             s.allocations.absoluteAllocationPreOperation,
             s.allocations.absoluteAllocationPostOperation,
             s.allocations.absoluteTargetAllocation,
@@ -742,17 +721,39 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /*//////////////////////////////////////////////////////////////
-                INTERNAL FUNCTIONS
+                            ERC20 OVERRIDES
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ERC20
+    function name() public view override returns (string memory) {
+        return tokenName;
+    }
+
+    /// @inheritdoc ERC20
+    function symbol() public view override returns (string memory) {
+        return tokenSymbol;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            VIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperAsset
+
+    /*//////////////////////////////////////////////////////////////
+                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     function _settleIncentive(address user, int256 amountIncentiveUSD) internal {
         // Pay or take incentives based on the sign of amountIncentive
         if (amountIncentiveUSD > 0) {
-            ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-            IIncentiveFundContract(factory.getIncentiveFundContract(address(this))).payIncentive(user, uint256(amountIncentiveUSD));
+            ISuperAssetFactory factory = ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+            IIncentiveFundContract(factory.getIncentiveFundContract(address(this))).payIncentive(
+                user, uint256(amountIncentiveUSD)
+            );
         } else if (amountIncentiveUSD < 0) {
-            ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
-            IIncentiveFundContract(factory.getIncentiveFundContract(address(this))).takeIncentive(user, uint256(-amountIncentiveUSD));
+            ISuperAssetFactory factory = ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+            IIncentiveFundContract(factory.getIncentiveFundContract(address(this))).takeIncentive(
+                user, uint256(-amountIncentiveUSD)
+            );
         }
     }
 }
