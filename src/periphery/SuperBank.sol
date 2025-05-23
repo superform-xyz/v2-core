@@ -4,7 +4,6 @@ pragma solidity 0.8.30;
 // External
 import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
 import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
@@ -12,7 +11,6 @@ import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
 // Superform
 import {ISuperBank} from "./interfaces/ISuperBank.sol";
 import {ISuperGovernor, FeeType} from "./interfaces/ISuperGovernor.sol";
-import {ISuperHook, Execution} from "../core/interfaces/ISuperHook.sol";
 import {Bank} from "./Bank.sol";
 
 /// @title SuperBank
@@ -56,7 +54,7 @@ contract SuperBank is ISuperBank, Bank {
         uint256 revenueShare = SUPER_GOVERNOR.getFee(FeeType.REVENUE_SHARE);
 
         // Calculate amounts for sUP and Treasury
-        uint256 supAmount = upAmount_.mulDiv(BPS_MAX, revenueShare);
+        uint256 supAmount = upAmount_.mulDiv(revenueShare, BPS_MAX);
 
         uint256 treasuryAmount = upAmount_ - supAmount;
 

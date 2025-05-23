@@ -39,7 +39,6 @@ abstract contract Bank {
         if (hooksLength != executionData.data.length || hooksLength != executionData.merkleProofs.length) {
             revert INVALID_ARRAY_LENGTH();
         }
-
         address prevHook;
 
         for (uint256 i; i < hooksLength; i++) {

@@ -72,7 +72,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
                        SUPERVAULT.SOL
     //////////////////////////////////////////////////////////////*/
 
-    function test_Name() public view {
+    function test_Name_X() public view {
         string memory name = vault.name();
         assertEq(name, "SuperVault");
     }

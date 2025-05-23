@@ -132,6 +132,7 @@ import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
 import { AcrossV3Adapter } from "../src/core/adapters/AcrossV3Adapter.sol";
 import { DebridgeAdapter } from "../src/core/adapters/DebridgeAdapter.sol";
 import { SuperGovernor } from "../src/periphery/SuperGovernor.sol";
+import { SuperBank } from "../src/periphery/SuperBank.sol";
 
 // SuperformNativePaymaster
 import { SuperNativePaymaster } from "../src/core/paymaster/SuperNativePaymaster.sol";
@@ -229,6 +230,8 @@ struct Addresses {
     ISuperExecutor superExecutorWithSPLock;
     MockTargetExecutor mockTargetExecutor;
     MockBaseHook mockBaseHook; // this is needed for all tests which we need to use executeWithoutHookRestrictions
+
+    SuperBank superBank;
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser, InternalHelpers {
@@ -479,6 +482,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             vm.label(address(A[i].superGovernor), SUPER_GOVERNOR_KEY);
             contractAddresses[chainIds[i]][SUPER_GOVERNOR_KEY] = address(A[i].superGovernor);
+
+            A[i].superBank = new SuperBank{ salt: SALT }(address(A[i].superGovernor));
+            vm.label(address(A[i].superBank), SUPER_BANK_KEY);
+            contractAddresses[chainIds[i]][SUPER_BANK_KEY] = address(A[i].superBank);
+
+            TREASURY = address(A[i].superBank);
 
             A[i].oracleRegistry = new SuperOracle{ salt: SALT }(
                 address(this), new address[](0), new address[](0), new bytes32[](0), new address[](0)

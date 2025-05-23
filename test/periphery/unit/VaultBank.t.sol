@@ -19,11 +19,11 @@ contract TestVaultBank is VaultBank {
     constructor(address governor_) VaultBank(governor_) {}
     
     function exposed_markAsSyntheticAsset(address spToken) external {
-        _spAssets[spToken] = true;
+        _spAssetsInfo[spToken].wasCreated = true;
     }
     
     function exposed_setSuperPositionToToken(address spToken, uint64 srcChainId, address srcTokenAddress) external {
-        _superPositionToToken[spToken][srcChainId] = srcTokenAddress;
+        _spAssetsInfo[spToken].spToToken[srcChainId] = srcTokenAddress;
     }
     
     function exposed_setTokenToSuperPosition(uint64 srcChainId, address srcTokenAddress, address spToken) external {
