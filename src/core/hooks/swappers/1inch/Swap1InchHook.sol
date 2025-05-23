@@ -2,15 +2,13 @@
 pragma solidity 0.8.30;
 
 // external
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import "../../../../vendor/1inch/I1InchAggregationRouterV6.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
-
-import "forge-std/console2.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title Swap1InchHook
 /// @author Superform Labs
@@ -56,7 +54,11 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address, bytes calldata data)
+    function build(
+        address prevHook,
+        address,
+        bytes calldata data
+    )
         external
         view
         override
@@ -138,7 +140,11 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         address prevHook,
         bool usePrevHookAmount,
         bytes calldata txData_
-    ) private view returns (bytes memory updatedTxData) {
+    )
+        private
+        view
+        returns (bytes memory updatedTxData)
+    {
         bytes4 selector = bytes4(txData_[:4]);
 
         if (selector == I1InchAggregationRouterV6.unoswapTo.selector) {
@@ -160,7 +166,11 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         address toToken,
         address prevHook,
         bool usePrevHookAmount
-    ) private view returns (bytes memory updatedTxData) {
+    )
+        private
+        view
+        returns (bytes memory updatedTxData)
+    {
         (Address to, Address token, uint256 amount, uint256 minReturn, Address dex) =
             abi.decode(txData_, (Address, Address, uint256, uint256, Address));
 
@@ -238,7 +248,11 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         address toToken,
         address prevHook,
         bool usePrevHookAmount
-    ) private view returns (bytes memory updatedTxData) {
+    )
+        private
+        view
+        returns (bytes memory updatedTxData)
+    {
         (IAggregationExecutor executor, I1InchAggregationRouterV6.SwapDescription memory desc, bytes memory data) =
             abi.decode(txData_, (IAggregationExecutor, I1InchAggregationRouterV6.SwapDescription, bytes));
 
@@ -277,7 +291,11 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         address toToken,
         address prevHook,
         bool usePrevHookAmount
-    ) private view returns (bytes memory updatedTxData) {
+    )
+        private
+        view
+        returns (bytes memory updatedTxData)
+    {
         (
             IClipperExchange clipperExchange,
             address recipient,

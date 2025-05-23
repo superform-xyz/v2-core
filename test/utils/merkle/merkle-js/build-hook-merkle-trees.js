@@ -20,7 +20,7 @@ const hookAddresses = {
   'GearboxUnstakeHook': '0x9ef444a6d7F4A5adcd68FD5329aA5240C90E14d2'
 };
 
-// Check if addresses were provided as a command line argument
+// Check if hook addresses were provided as a command line argument
 if (process.argv.length > 2) {
   const addressArg = process.argv[2];
   const addresses = addressArg.split(',');
@@ -45,8 +45,43 @@ if (process.argv.length > 2) {
   // Override the default addresses
   Object.assign(hookAddresses, customAddresses);
 } else {
-  console.log("Invalid number of addresses provided. Expected format: address1,address2,address3");
+  console.log("No hook addresses provided. Expected format: address1,address2,address3,address4,address5");
   console.log("Using default hook addresses.");
+}
+
+// Check if strategy addresses were provided as a command line argument (cmd[3])
+if (process.argv.length > 3) {
+  const strategyAddressArg = process.argv[3];
+  const strategyAddresses = strategyAddressArg.split(',');
+
+  console.log("\n[DEBUG] Updating owner_list.json with provided strategy addresses:");
+  strategyAddresses.forEach(address => console.log("- " + address));
+
+  // Check current content of owner_list.json
+  const ownerListPath = path.join(__dirname, '../target/owner_list.json');
+  let currentContent = "[]";
+  try {
+    currentContent = fs.readFileSync(ownerListPath, 'utf8');
+    console.log("[DEBUG] Current owner_list.json content before update:", currentContent);
+  } catch (err) {
+    console.log("[DEBUG] Error reading current owner_list.json:", err.message);
+  }
+
+  // Update the owner_list.json file with the provided strategy addresses
+  // This will completely replace the current owner list
+  try {
+    const newContent = JSON.stringify(strategyAddresses, null, 4);
+    console.log("[DEBUG] Writing new content to owner_list.json:", newContent);
+    fs.writeFileSync(ownerListPath, newContent);
+
+    // Verify the file was properly written
+    const verifyContent = fs.readFileSync(ownerListPath, 'utf8');
+    console.log("[DEBUG] Verified owner_list.json content after update:", verifyContent);
+
+
+  } catch (err) {
+    console.error("[DEBUG] ERROR writing to owner_list.json:", err.message);
+  }
 }
 
 
@@ -213,9 +248,11 @@ function encodeArgs(args, hookName) {
   const types = [];
   const values = [];
 
+  console.log(`\nEncoding args for ${hookName}:`);
   for (const argDef of argDefs) {
     const argName = argDef.name;
     if (args[argName] !== undefined) {
+      console.log(`  - ${argName}: ${args[argName]} (type: ${argDef.type})`);
       types.push('address'); // All our args are addresses
       values.push(args[argName]);
     }
@@ -223,11 +260,13 @@ function encodeArgs(args, hookName) {
 
   // If we have no arguments, return empty string
   if (types.length === 0) {
+    console.log('  No arguments to encode');
     return '';
   }
 
   // First encode as solidityPacked (abi.encodePacked equivalent)
   const packedData = ethers.utils.solidityPack(types, values);
+  console.log(`  Packed data: ${packedData}`);
 
   // Otherwise, return the packed data directly
   return packedData;
@@ -287,9 +326,22 @@ function generateMerkleTrees(hookNames, chainId) {
   let allLeaves = [];
   let allLeafData = [];
 
+  console.log('Using hook addresses:');
+  for (const hookName of Object.keys(hookAddresses)) {
+    console.log(`- ${hookName}: ${hookAddresses[hookName]}`);
+  }
+
   for (const hookName of hookNames) {
     const { tree, leafData } = buildMerkleTreeForHook(hookName, chainId);
     console.log(`Generated ${leafData.length} leaves for ${hookName}`);
+
+    // Debug: log first few leaf data items for each hook
+    if (leafData.length > 0) {
+      console.log(`Sample leaf for ${hookName}:`);
+      console.log(`  - Hook Address: ${hookAddresses[hookName]}`);
+      console.log(`  - Encoded Args: ${leafData[0].encodedArgs}`);
+      console.log(`  - Raw Args:`, leafData[0].args);
+    }
 
     // Add to global leaves
     for (let i = 0; i < leafData.length; i++) {

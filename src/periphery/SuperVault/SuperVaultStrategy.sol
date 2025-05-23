@@ -95,7 +95,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         PRECISION = 10 ** _vaultDecimals;
         superGovernor = ISuperGovernor(superGovernor_);
         feeConfig = feeConfig_;
-        _maxPPSSlippage = 500; // 500 bps = 5% note: is this an acceptable starting value?
+        _maxPPSSlippage = 500; // 5% as a start, configurable later
 
         emit Initialized(_vault, superGovernor_);
     }
@@ -135,23 +135,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (args.globalProofs.length != hooksLength) revert INVALID_ARRAY_LENGTH();
         if (args.strategyProofs.length != hooksLength) revert INVALID_ARRAY_LENGTH();
 
-        // Get aggregator reference for hook validation
-        ISuperVaultAggregator aggregator = _getSuperVaultAggregator();
-
         address prevHook;
         for (uint256 i; i < hooksLength; ++i) {
             address hook = args.hooks[i];
             if (!_isRegisteredHook(hook)) revert INVALID_HOOK();
 
             // Check if the hook was validated
-            if (
-                !aggregator.validateHook(
-                    address(this),
-                    ISuperHookInspector(hook).inspect(args.hookCalldata[i]),
-                    args.globalProofs[i],
-                    args.strategyProofs[i]
-                )
-            ) {
+            if (!_validateHook(hook, args.hookCalldata[i], args.globalProofs[i], args.strategyProofs[i])) {
                 revert HOOK_VALIDATION_FAILED();
             }
 
@@ -178,22 +168,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (args.strategyProofs.length != hooksLength) revert INVALID_ARRAY_LENGTH();
 
         uint256 processedShares;
-        ISuperVaultAggregator aggregator = _getSuperVaultAggregator();
-        uint256 currentPPS = aggregator.getPPS(address(this));
+        uint256 currentPPS = getStoredPPS();
         if (currentPPS == 0) revert INVALID_PPS();
 
         for (uint256 i; i < hooksLength; ++i) {
             address hook = args.hooks[i];
             if (!_isFulfillRequestsHook(hook)) revert INVALID_HOOK();
             // Check if the hook was validated
-            if (
-                !aggregator.validateHook(
-                    address(this),
-                    ISuperHookInspector(hook).inspect(args.hookCalldata[i]),
-                    args.globalProofs[i],
-                    args.strategyProofs[i]
-                )
-            ) {
+            if (!_validateHook(hook, args.hookCalldata[i], args.globalProofs[i], args.strategyProofs[i])) {
                 revert HOOK_VALIDATION_FAILED();
             }
 
@@ -305,7 +287,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     }
 
     // @inheritdoc ISuperVaultStrategy
-    function getStoredPPS() external view returns (uint256) {
+    function getStoredPPS() public view returns (uint256) {
         return _getSuperVaultAggregator().getPPS(address(this));
     }
 
@@ -363,7 +345,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         if (sharesToRedeem > state.accumulatorShares) return (0, 0, 0);
 
         // Get the current price per share
-        uint256 currentPPS = _getSuperVaultAggregator().getPPS(address(this));
+        uint256 currentPPS = getStoredPPS();
 
         // Calculate historical assets (cost basis)
         uint256 historicalAssets = 0;
@@ -397,8 +379,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    // --- Hook Execution ---
-
+    /// @notice Process a single hook execution
+    /// @param hook Hook address
+    /// @param prevHook Previous hook address
+    /// @param hookCalldata Hook calldata
+    /// @param expectedAssetsOrSharesOut Expected assets or shares output
+    /// @return processedHook Processed hook address
     function _processSingleHookExecution(
         address hook,
         address prevHook,
@@ -438,6 +424,12 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         return hook;
     }
 
+    /// @notice Process a single hook fulfillment execution
+    /// @param hook Hook address
+    /// @param hookCalldata Hook calldata
+    /// @param expectedAssetOutput Expected asset output
+    /// @param currentPPS Current price per share
+    /// @return processedShares Processed shares
     function _processSingleFulfillHookExecution(
         address hook,
         bytes memory hookCalldata,
@@ -484,6 +476,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         return vars.superVaultShares;
     }
 
+    /// @notice Process redeem fulfillments for multiple controllers
+    /// @param controllers Array of controller addresses
+    /// @param controllersLength Length of controllers array
+    /// @param processedShares Total shares processed
+    /// @param currentPPS Current price per share
     function _processRedeemFulfillments(
         address[] calldata controllers,
         uint256 controllersLength,
@@ -585,6 +582,13 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         return costBasis;
     }
 
+    // --- Fee Processing ---
+    /// @notice Calculate and transfer fees based on profit
+    /// @param requestedShares Shares being redeemed
+    /// @param currentPricePerShare Current price per share
+    /// @param historicalAssets Historical value of shares in assets
+    /// @return currentAssetsWithFees Current value of shares in assets (not net of fees)
+    /// @return currentAssets Current assets after fee deduction
     function _processFees(
         uint256 requestedShares,
         uint256 currentPricePerShare,
@@ -648,6 +652,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         return currentAssets;
     }
 
+    /// @notice Internal function to update the average withdraw price
+    /// @param state Storage reference to the vault state
+    /// @param requestedShares Number of shares requested
+    /// @param currentAssetsWithFees Current assets with fees
     function _updateAverageWithdrawPrice(
         SuperVaultState storage state,
         uint256 requestedShares,
@@ -671,29 +679,29 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         }
     }
 
-    // --- End Hook Execution ---
-
-    // --- Internal Strategist Check Helpers ---
-
+    /// @notice Internal function to get the SuperVaultAggregator
+    /// @return The SuperVaultAggregator
     function _getSuperVaultAggregator() internal view returns (ISuperVaultAggregator) {
         address aggregatorAddress = superGovernor.getAddress(superGovernor.SUPER_VAULT_AGGREGATOR());
 
         return ISuperVaultAggregator(aggregatorAddress);
     }
 
+    /// @notice Internal function to check if a strategist is authorized
+    /// @param strategist_ The strategist to check
     function _isStrategist(address strategist_) internal view {
         if (!_getSuperVaultAggregator().isAnyStrategist(strategist_, address(this))) {
             revert STRATEGIST_NOT_AUTHORIZED();
         }
     }
 
+    /// @notice Internal function to check if a strategist is the primary strategist
+    /// @param strategist_ The strategist to check
     function _isPrimaryStrategist(address strategist_) internal view {
         if (!_getSuperVaultAggregator().isMainStrategist(strategist_, address(this))) {
             revert STRATEGIST_NOT_AUTHORIZED();
         }
     }
-
-    // --- End Internal Strategist Check Helpers ---
 
     /// @notice Internal function to manage a yield source
     /// @param source Address of the yield source
@@ -712,6 +720,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         }
     }
 
+    /// @notice Internal function to add a yield source
+    /// @param source Address of the yield source
+    /// @param oracle Address of the oracle
     function _addYieldSource(address source, address oracle) internal {
         if (source == address(0) || oracle == address(0)) revert ZERO_ADDRESS();
         if (yieldSources[source].oracle != address(0)) revert YIELD_SOURCE_ALREADY_EXISTS();
@@ -721,6 +732,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         emit YieldSourceAdded(source, oracle);
     }
 
+    /// @notice Internal function to update a yield source's oracle
+    /// @param source Address of the yield source
+    /// @param oracle Address of the oracle
     function _updateYieldSourceOracle(address source, address oracle) internal {
         if (oracle == address(0)) revert ZERO_ADDRESS();
         YieldSource storage yieldSource = yieldSources[source];
@@ -731,6 +745,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         emit YieldSourceOracleUpdated(source, oldOracle, oracle);
     }
 
+    /// @notice Internal function to toggle a yield source's activation
+    /// @param source Address of the yield source
+    /// @param activate Boolean flag for activation
     function _toggleYieldSourceActivation(address source, bool activate) internal {
         YieldSource storage yieldSource = yieldSources[source];
         if (yieldSource.oracle == address(0)) revert YIELD_SOURCE_NOT_FOUND();
@@ -748,6 +765,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         }
     }
 
+    /// @notice Internal function to propose an emergency withdraw
     function _proposeEmergencyWithdraw() internal {
         _isPrimaryStrategist(msg.sender);
 
@@ -756,6 +774,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         emit EmergencyWithdrawableProposed(true, emergencyWithdrawableEffectiveTime);
     }
 
+    /// @notice Internal function to execute an emergency withdraw
     function _executeEmergencyWithdrawActivation() internal {
         if (block.timestamp < emergencyWithdrawableEffectiveTime) revert INVALID_TIMESTAMP();
         emergencyWithdrawable = proposedEmergencyWithdrawable;
@@ -764,6 +783,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         emit EmergencyWithdrawableUpdated(emergencyWithdrawable);
     }
 
+    /// @notice Internal function to perform an emergency withdraw
+    /// @param recipient Address to receive the assets
+    /// @param amount Amount of assets to withdraw
     function _performEmergencyWithdraw(address recipient, uint256 amount) internal {
         _isPrimaryStrategist(msg.sender);
 
@@ -775,18 +797,24 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         emit EmergencyWithdrawal(recipient, amount);
     }
 
+    /// @notice Internal function to check if a hook is a fulfill requests hook
+    /// @param hook Address of the hook
+    /// @return True if the hook is a fulfill requests hook, false otherwise
     function _isFulfillRequestsHook(address hook) private view returns (bool) {
         return superGovernor.isFulfillRequestsHookRegistered(hook);
     }
 
+    /// @notice Internal function to check if a hook is registered
+    /// @param hook Address of the hook
+    /// @return True if the hook is registered, false otherwise
     function _isRegisteredHook(address hook) private view returns (bool) {
         return superGovernor.isHookRegistered(hook);
     }
 
-    function _decodeHookAmount(address hook, bytes memory hookCalldata) private pure returns (uint256 amount) {
-        return ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
-    }
-
+    /// @notice Internal function to decode a hook's use previous hook amount
+    /// @param hook Address of the hook
+    /// @param hookCalldata Call data for the hook
+    /// @return True if the hook should use the previous hook amount, false otherwise
     function _decodeHookUsePrevHookAmount(address hook, bytes memory hookCalldata) private pure returns (bool) {
         try ISuperHookContextAware(hook).decodeUsePrevHookAmount(hookCalldata) returns (bool usePrevHookAmount) {
             return usePrevHookAmount;
@@ -795,18 +823,20 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         }
     }
 
+    /// @notice Internal function to get the previous hook's output amount
+    /// @param prevHook Address of the previous hook
+    /// @return Output amount of the previous hook
     function _getPreviousHookOutAmount(address prevHook) private view returns (uint256) {
         return ISuperHookResultOutflow(prevHook).outAmount();
     }
 
-    function _getHookOutAmountAfterExecution(address hook) private view returns (uint256) {
-        try ISuperHookResultOutflow(hook).outAmount() returns (uint256 outAmount) {
-            return outAmount;
-        } catch {
-            return 0;
-        }
-    }
-
+    /// @notice Internal function to handle a redeem claimable
+    /// @param controller Address of the controller
+    /// @param assetsFulfilled Amount of assets fulfilled
+    /// @param sharesFulfilled Amount of shares fulfilled
+    /// @param averageWithdrawPrice Average withdraw price
+    /// @param accumulatorShares Accumulator shares
+    /// @param accumulatorCostBasis Accumulator cost basis
     function _onRedeemClaimable(
         address controller,
         uint256 assetsFulfilled,
@@ -822,6 +852,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         );
     }
 
+    /// @notice Internal function to handle a deposit
+    /// @param controller Address of the controller
+    /// @param assets Amount of assets
+    /// @param shares Amount of shares
     function _handleDeposit(address controller, uint256 assets, uint256 shares) private {
         if (assets == 0 || shares == 0) revert INVALID_AMOUNT();
         if (controller == address(0)) revert ZERO_ADDRESS();
@@ -838,14 +872,16 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         emit DepositHandled(controller, assets, shares);
     }
 
+    /// @notice Internal function to handle a redeem
+    /// @param controller Address of the controller
+    /// @param shares Amount of shares
     function _handleRequestRedeem(address controller, uint256 shares) private {
         if (shares == 0) revert INVALID_AMOUNT();
         if (controller == address(0)) revert ZERO_ADDRESS();
         SuperVaultState storage state = superVaultState[controller];
 
         // Get current PPS from aggregator to use as baseline for slippage protection
-        ISuperVaultAggregator aggregator = _getSuperVaultAggregator();
-        uint256 currentPPS = aggregator.getPPS(address(this));
+        uint256 currentPPS = getStoredPPS();
         if (currentPPS == 0) revert INVALID_PPS();
 
         // Calculate weighted average of PPS if there's an existing request
@@ -869,6 +905,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         emit RedeemRequestPlaced(controller, controller, shares);
     }
 
+    /// @notice Internal function to handle a redeem cancellation
+    /// @param controller Address of the controller
     function _handleCancelRedeem(address controller) private {
         if (controller == address(0)) revert ZERO_ADDRESS();
         SuperVaultState storage state = superVaultState[controller];
@@ -878,6 +916,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         emit RedeemRequestCanceled(controller, pendingShares);
     }
 
+    /// @notice Internal function to handle a redeem claim
+    /// @param controller Address of the controller
+    /// @param assetsToClaim Amount of assets to claim
     function _handleClaimRedeem(address controller, uint256 assetsToClaim) private {
         if (assetsToClaim == 0) revert INVALID_AMOUNT();
         if (controller == address(0)) revert ZERO_ADDRESS();
@@ -899,22 +940,30 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         emit RedeemRequestFulfilled(controller, controller, actualAmountToClaim, 0);
     }
 
+    /// @notice Internal function to safely transfer tokens
+    /// @param token Address of the token
+    /// @param recipient Address to receive the tokens
+    /// @param amount Amount of tokens to transfer
     function _safeTokenTransfer(address token, address recipient, uint256 amount) private {
         if (amount > 0) IERC20(token).safeTransfer(recipient, amount);
     }
 
-    function _safeTokenTransferFrom(address token, address sender, address recipient, uint256 amount) private {
-        if (amount > 0) IERC20(token).safeTransferFrom(sender, recipient, amount);
-    }
-
+    /// @notice Internal function to get the token balance of an account
+    /// @param token Address of the token
+    /// @param account Address of the account
+    /// @return Token balance of the account
     function _getTokenBalance(address token, address account) private view returns (uint256) {
         return IERC20(token).balanceOf(account);
     }
 
+    /// @notice Internal function to get the slippage tolerance
+    /// @return Slippage tolerance
     function _getSlippageTolerance() private pure returns (uint256) {
         return SV_SLIPPAGE_TOLERANCE_BPS;
     }
 
+    /// @notice Internal function to check if the caller is the vault
+    /// @dev This is used to prevent unauthorized access to certain functions
     function _requireVault() internal view {
         if (msg.sender != _vault) revert ACCESS_DENIED();
     }
@@ -924,5 +973,26 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /// @return True if the strategy is paused, false otherwise
     function _isPaused() internal view returns (bool) {
         return _getSuperVaultAggregator().isStrategyPaused(address(this));
+    }
+
+    /// @notice Validates a hook using the Merkle root system
+    /// @param hook Address of the hook to validate
+    /// @param hookCalldata Calldata to be passed to the hook
+    /// @param globalProof Merkle proof for the global root
+    /// @param strategyProof Merkle proof for the strategy-specific root
+    /// @return isValid True if the hook is valid, false otherwise
+    function _validateHook(
+        address hook,
+        bytes memory hookCalldata,
+        bytes32[] memory globalProof,
+        bytes32[] memory strategyProof
+    )
+        internal
+        view
+        returns (bool)
+    {
+        return _getSuperVaultAggregator().validateHook(
+            address(this), ISuperHookInspector(hook).inspect(hookCalldata), globalProof, strategyProof
+        );
     }
 }
