@@ -343,7 +343,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         if (amountTokenOutAfterFees < minTokenOut) revert SLIPPAGE_PROTECTION();
 
         // State Changing Functions //
-
+        
         // Settle Incentives
         _settleIncentive(msg.sender, amountIncentiveUSDRedeem);
 
