@@ -121,43 +121,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperAsset
-    function getTokenData(address token) external view returns (TokenData memory) {
-        return tokenData[token];
-    }
-
-    /// @inheritdoc ISuperAsset
-    function getPPS() public view returns (uint256 pps) {
-        // TODO: Improve the implementation of this function to handle the case for de-whitelisted tokens for which the
-        // SuperAsset has still non-zero exposure
-        // TODO: Use this function in the calculations instead of the PPS value got from the SuperOracle
-        uint256 totalSupply_ = totalSupply();
-        if (totalSupply_ == 0) return 0;
-
-        uint256 totalValueUSD;
-        // TODO: We need to iterate over all the historically whitelisted vaults and not just the currently whitelisted
-        // ones
-        // NOTE: This means we also need to track the historically whitelisted vaults
-        uint256 len = _supportedVaults.length();
-        for (uint256 i = 0; i < len; i++) {
-            address token = _supportedVaults.at(i);
-            uint256 balance = IERC20(token).balanceOf(address(this));
-            if (balance == 0) continue;
-
-            (uint256 priceUSD,,,) = getPriceWithCircuitBreakers(token);
-            uint256 decimals = IERC20Metadata(token).decimals();
-            uint256 valueUSD = (balance * priceUSD) / (10 ** decimals);
-            totalValueUSD += valueUSD;
-        }
-
-        // PPS = Total Value in USD / Total Supply, normalized to PRECISION
-        pps = (totalValueUSD * PRECISION) / totalSupply_;
-    }
-
-    /// @inheritdoc ISuperAsset
-    function getPrecision() external pure returns (uint256) {
-        return PRECISION;
-    }
     // --- Token Movement Functions ---
 
     /// @inheritdoc ISuperAsset
@@ -434,104 +397,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         emit TargetAllocationSet(token, allocation);
     }
 
-    /// @inheritdoc ISuperAsset
-    function getAllocations()
-        public
-        view
-        returns (
-            uint256[] memory absoluteCurrentAllocation,
-            uint256 totalCurrentAllocation,
-            uint256[] memory absoluteTargetAllocation,
-            uint256 totalTargetAllocation
-        )
-    {
-        uint256 length = _supportedVaults.length();
-        absoluteCurrentAllocation = new uint256[](length);
-        absoluteTargetAllocation = new uint256[](length);
-        for (uint256 i; i < length; i++) {
-            address vault = _supportedVaults.at(i);
-            absoluteCurrentAllocation[i] = IERC20(vault).balanceOf(address(this));
-            totalCurrentAllocation += absoluteCurrentAllocation[i];
-            absoluteTargetAllocation[i] = tokenData[vault].targetAllocations;
-            totalTargetAllocation += absoluteTargetAllocation[i];
-        }
-    }
-
-    /// @inheritdoc ISuperAsset
-    function getAllocationsPrePostOperation(
-        address token,
-        int256 deltaToken,
-        bool isSoft
-    )
-        public
-        view
-        returns (
-            uint256[] memory absoluteAllocationPreOperation,
-            uint256 totalAllocationPreOperation,
-            uint256[] memory absoluteAllocationPostOperation,
-            uint256 totalAllocationPostOperation,
-            uint256[] memory absoluteTargetAllocation,
-            uint256 totalTargetAllocation,
-            uint256[] memory vaultWeights,
-            bool isSuccess
-        )
-    {
-        GetAllocationsPrePostOperations memory s;
-        if (deltaToken < 0 && uint256(-deltaToken) > IERC20(token).balanceOf(address(this))) {
-            // NOTE: Since we do not want this function to revert, we re-set the amount out to the max possible amount
-            // out which is the balance of this token
-            // NOTE: This should be OK since the user can control the min amount out they desire with the slippage
-            // protection
-            deltaToken = -int256(IERC20(token).balanceOf(address(this)));
-        }
-
-        // NOTE: If token is not in the whitelist, consider it like if it was and add a corresponding target allocation
-        // of 0
-        // NOTE: This means adding one slot to the arrays here
-        s.extraSlot = (_supportedVaults.contains(token) ? 0 : 1);
-        s.length = _supportedVaults.length();
-        s.extendedLength = _supportedVaults.length() + s.extraSlot;
-        absoluteAllocationPreOperation = new uint256[](s.length);
-        absoluteAllocationPostOperation = new uint256[](s.length);
-        absoluteTargetAllocation = new uint256[](s.length);
-        vaultWeights = new uint256[](s.length);
-
-        for (uint256 i; i < s.extendedLength; i++) {
-            s.vault = (i < s.length) ? _supportedVaults.at(i) : token;
-            (s.priceUSD, s.isDepeg, s.isDispersion, s.isOracleOff) = getPriceWithCircuitBreakers(s.vault);
-            if (!isSoft && (s.isDepeg || s.isDispersion || s.isOracleOff)) {
-                isSuccess = false;
-                return (
-                    absoluteAllocationPreOperation,
-                    totalAllocationPreOperation,
-                    absoluteAllocationPostOperation,
-                    totalAllocationPostOperation,
-                    absoluteTargetAllocation,
-                    totalTargetAllocation,
-                    vaultWeights,
-                    isSuccess
-                );
-            }
-            s.balance = IERC20(s.vault).balanceOf(address(this));
-            // Convert balance to USD value using price
-            absoluteAllocationPreOperation[i] =
-                Math.mulDiv(s.balance, s.priceUSD, 10 ** IERC20Metadata(s.vault).decimals());
-            totalAllocationPreOperation += absoluteAllocationPreOperation[i];
-            absoluteAllocationPostOperation[i] = absoluteAllocationPreOperation[i];
-            if (token == s.vault) {
-                s.absDeltaToken = (deltaToken >= 0) ? uint256(deltaToken) : uint256(-deltaToken);
-                s.absDeltaValue = Math.mulDiv(s.absDeltaToken, s.priceUSD, 10 ** IERC20Metadata(s.vault).decimals());
-                s.deltaValue = (deltaToken >= 0) ? int256(s.absDeltaValue) : -int256(s.absDeltaValue);
-                absoluteAllocationPostOperation[i] = uint256(int256(absoluteAllocationPreOperation[i]) + s.deltaValue);
-            }
-            totalAllocationPostOperation += absoluteAllocationPostOperation[i];
-            absoluteTargetAllocation[i] = tokenData[s.vault].targetAllocations;
-            totalTargetAllocation += absoluteTargetAllocation[i];
-            vaultWeights[i] = tokenData[s.vault].weights;
-        }
-        isSuccess = true;
-    }
-
+    /*//////////////////////////////////////////////////////////////
+                            PREVIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperAsset
     function previewDeposit(
         address tokenIn,
@@ -678,6 +546,17 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         isSuccess = isSuccessDeposit && isSuccessRedeem;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                        EXTERNAL GETTER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperAsset
+    function getTokenData(address token) external view returns (TokenData memory) {
+        return tokenData[token];
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        PUBLIC GETTER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperAsset
     function getPriceWithCircuitBreakers(address token)
         public
@@ -720,6 +599,132 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         return (priceUSD, isDepeg, isDispersion, isOracleOff);
     }
 
+    /// @inheritdoc ISuperAsset
+    function getPPS() public view returns (uint256 pps) {
+        // TODO: Improve the implementation of this function to handle the case for de-whitelisted tokens for which the
+        // SuperAsset has still non-zero exposure
+        // TODO: Use this function in the calculations instead of the PPS value got from the SuperOracle
+        uint256 totalSupply_ = totalSupply();
+        if (totalSupply_ == 0) return 0;
+
+        uint256 totalValueUSD;
+        // TODO: We need to iterate over all the historically whitelisted vaults and not just the currently whitelisted
+        // ones
+        // NOTE: This means we also need to track the historically whitelisted vaults
+        uint256 len = _supportedVaults.length();
+        for (uint256 i = 0; i < len; i++) {
+            address token = _supportedVaults.at(i);
+            uint256 balance = IERC20(token).balanceOf(address(this));
+            if (balance == 0) continue;
+
+            (uint256 priceUSD,,,) = getPriceWithCircuitBreakers(token);
+            uint256 decimals = IERC20Metadata(token).decimals();
+            uint256 valueUSD = (balance * priceUSD) / (10 ** decimals);
+            totalValueUSD += valueUSD;
+        }
+
+        // PPS = Total Value in USD / Total Supply, normalized to PRECISION
+        pps = (totalValueUSD * PRECISION) / totalSupply_;
+    }
+
+    /// @inheritdoc ISuperAsset
+    function getAllocations()
+        public
+        view
+        returns (
+            uint256[] memory absoluteCurrentAllocation,
+            uint256 totalCurrentAllocation,
+            uint256[] memory absoluteTargetAllocation,
+            uint256 totalTargetAllocation
+        )
+    {
+        uint256 length = _supportedVaults.length();
+        absoluteCurrentAllocation = new uint256[](length);
+        absoluteTargetAllocation = new uint256[](length);
+        for (uint256 i; i < length; i++) {
+            address vault = _supportedVaults.at(i);
+            absoluteCurrentAllocation[i] = IERC20(vault).balanceOf(address(this));
+            totalCurrentAllocation += absoluteCurrentAllocation[i];
+            absoluteTargetAllocation[i] = tokenData[vault].targetAllocations;
+            totalTargetAllocation += absoluteTargetAllocation[i];
+        }
+    }
+
+    /// @inheritdoc ISuperAsset
+    function getAllocationsPrePostOperation(
+        address token,
+        int256 deltaToken,
+        bool isSoft
+    )
+        public
+        view
+        returns (
+            uint256[] memory absoluteAllocationPreOperation,
+            uint256 totalAllocationPreOperation,
+            uint256[] memory absoluteAllocationPostOperation,
+            uint256 totalAllocationPostOperation,
+            uint256[] memory absoluteTargetAllocation,
+            uint256 totalTargetAllocation,
+            uint256[] memory vaultWeights,
+            bool isSuccess
+        )
+    {
+        GetAllocationsPrePostOperations memory s;
+        if (deltaToken < 0 && uint256(-deltaToken) > IERC20(token).balanceOf(address(this))) {
+            // NOTE: Since we do not want this function to revert, we re-set the amount out to the max possible amount
+            // out which is the balance of this token
+            // NOTE: This should be OK since the user can control the min amount out they desire with the slippage
+            // protection
+            deltaToken = -int256(IERC20(token).balanceOf(address(this)));
+        }
+
+        // NOTE: If token is not in the whitelist, consider it like if it was and add a corresponding target allocation
+        // of 0
+        // NOTE: This means adding one slot to the arrays here
+        s.extraSlot = (_supportedVaults.contains(token) ? 0 : 1);
+        s.length = _supportedVaults.length();
+        s.extendedLength = _supportedVaults.length() + s.extraSlot;
+        absoluteAllocationPreOperation = new uint256[](s.length);
+        absoluteAllocationPostOperation = new uint256[](s.length);
+        absoluteTargetAllocation = new uint256[](s.length);
+        vaultWeights = new uint256[](s.length);
+
+        for (uint256 i; i < s.extendedLength; i++) {
+            s.vault = (i < s.length) ? _supportedVaults.at(i) : token;
+            (s.priceUSD, s.isDepeg, s.isDispersion, s.isOracleOff) = getPriceWithCircuitBreakers(s.vault);
+            if (!isSoft && (s.isDepeg || s.isDispersion || s.isOracleOff)) {
+                isSuccess = false;
+                return (
+                    absoluteAllocationPreOperation,
+                    totalAllocationPreOperation,
+                    absoluteAllocationPostOperation,
+                    totalAllocationPostOperation,
+                    absoluteTargetAllocation,
+                    totalTargetAllocation,
+                    vaultWeights,
+                    isSuccess
+                );
+            }
+            s.balance = IERC20(s.vault).balanceOf(address(this));
+            // Convert balance to USD value using price
+            absoluteAllocationPreOperation[i] =
+                Math.mulDiv(s.balance, s.priceUSD, 10 ** IERC20Metadata(s.vault).decimals());
+            totalAllocationPreOperation += absoluteAllocationPreOperation[i];
+            absoluteAllocationPostOperation[i] = absoluteAllocationPreOperation[i];
+            if (token == s.vault) {
+                s.absDeltaToken = (deltaToken >= 0) ? uint256(deltaToken) : uint256(-deltaToken);
+                s.absDeltaValue = Math.mulDiv(s.absDeltaToken, s.priceUSD, 10 ** IERC20Metadata(s.vault).decimals());
+                s.deltaValue = (deltaToken >= 0) ? int256(s.absDeltaValue) : -int256(s.absDeltaValue);
+                absoluteAllocationPostOperation[i] = uint256(int256(absoluteAllocationPreOperation[i]) + s.deltaValue);
+            }
+            totalAllocationPostOperation += absoluteAllocationPostOperation[i];
+            absoluteTargetAllocation[i] = tokenData[s.vault].targetAllocations;
+            totalTargetAllocation += absoluteTargetAllocation[i];
+            vaultWeights[i] = tokenData[s.vault].weights;
+        }
+        isSuccess = true;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             ERC20 OVERRIDES
     //////////////////////////////////////////////////////////////*/
@@ -734,14 +739,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            VIEW FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperAsset
-
-    /*//////////////////////////////////////////////////////////////
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
+    /// @dev Settles incentives for a user
+    /// @param user The address of the user to settle incentives for
+    /// @param amountIncentiveUSD The amount of incentives to settle
     function _settleIncentive(address user, int256 amountIncentiveUSD) internal {
         // Pay or take incentives based on the sign of amountIncentive
         if (amountIncentiveUSD > 0) {
