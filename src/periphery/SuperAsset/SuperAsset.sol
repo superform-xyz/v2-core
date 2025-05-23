@@ -250,9 +250,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             revert NOT_SUPPORTED_TOKEN();
         }
 
-        // NOTE: I am not sure we need this check since the allocations get normalized inside the ICC
-        if (allocation > PRECISION) revert INVALID_ALLOCATION();
-
+        // @notice Allocations get normalized inside the ICC so we dont need to additional checks here
         tokenData[token].targetAllocations = allocation;
         emit TargetAllocationSet(token, allocation);
     }
