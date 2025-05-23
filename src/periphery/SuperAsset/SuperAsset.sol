@@ -13,14 +13,13 @@ import "../interfaces/SuperAsset/ISuperAsset.sol";
 import "../interfaces/ISuperOracle.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
-
 import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
 
 /**
- * @author Superform Labs
  * @title SuperAsset
+ * @author Superform Labs
  * @notice A meta-vault that manages deposits and redemptions across multiple underlying vaults.
- * Implements ERC20 standard for better compatibility with integrators.
+ * Implements ERC20 standard for compatibility with integrators.
  */
 contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     using SafeERC20 for IERC20;
@@ -44,7 +43,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     // NOTE: Actually it does not contain only supported Vaults shares but also standard ERC20
     EnumerableSet.AddressSet private _supportedVaults;
-
 
     ISuperOracle public superOracle;
     ISuperGovernor public _SUPER_GOVERNOR;
@@ -114,7 +112,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /*//////////////////////////////////////////////////////////////
-                EXTERNAL FUNCTIONS
+                        EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperAsset
