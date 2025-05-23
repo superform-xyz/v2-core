@@ -631,7 +631,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     /// @inheritdoc ISuperAsset
     function getSuperAssetPPS() public view returns (uint256 pps) {
         uint256 totalSupply_ = totalSupply();
-        if (totalSupply_ == 0) return 0;
+        if (totalSupply_ == 0) return PRECISION;
 
         uint256 totalValueUSD;
         uint256 len = _activeAssets.length();
