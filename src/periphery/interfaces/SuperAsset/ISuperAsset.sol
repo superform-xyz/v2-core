@@ -353,6 +353,12 @@ interface ISuperAsset is IERC20 {
         returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff);
 
     /**
+     * @notice Gets the precision constant used for percentage calculations
+     * @return The precision constant (e.g., 10000 for 4 decimal places)
+     */
+    function getPrecision() external pure returns (uint256);
+
+    /**
      * @notice Sets the weight for a vault
      * @param vault The vault address
      * @param weight The weight percentage (scaled by PRECISION)
