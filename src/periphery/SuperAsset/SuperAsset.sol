@@ -1,19 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
-import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
-import "../interfaces/SuperAsset/ISuperAsset.sol";
-import "../interfaces/ISuperOracle.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+
+import { ISuperOracle } from "../interfaces/ISuperOracle.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
+import { ISuperAsset } from "../interfaces/SuperAsset/ISuperAsset.sol";
 import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
+import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { IIncentiveCalculationContract } from "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
+import { IIncentiveFundContract } from "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 
 /**
  * @title SuperAsset
@@ -47,9 +48,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     mapping(address token => bool isActive) private _activeAssets;
     mapping(address token => address oracle) private _activeOracles;
 
-    // NOTE: Actually it does not contain only supported Vaults shares but also standard ERC20
+    // @notice Contains supported Vaults shares and standard ERC20s
     EnumerableSet.AddressSet private _supportedVaults;
-    EnumerableSet.AddressSet private _supportedAssets;
+    EnumerableSet.AddressSet private _assetOracles;
 
     uint256 public swapFeeInPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
     uint256 public swapFeeOutPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
@@ -60,10 +61,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     // --- Addresses ---
     address public constant USD = address(840);
 
+    bytes32 public _SUPER_ASSET_FACTORY;
+
     // SuperOracle related
     bytes32 public constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
-
-    bytes32 public _SUPER_ASSET_FACTORY;
 
     // --- Modifiers ---
     modifier onlyVault() {
@@ -582,25 +583,19 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                         PUBLIC GETTER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperAsset
+    /// @notice This function should not revert
     function getPriceWithCircuitBreakers(address token)
         public
         view
         returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff)
     {
-        // NOTE: Also this function should not revert
-        // NOTE: We do not need this check here, since price request can also regard non-whitelisted tokens like
-        // integrated SuperVaults underlying assets, this price is required to check if a depeg, dispersion, oracle off
-        // happened
-        // if (!isSupportedUnderlyingVault[token] && !isSupportedERC20[token]) revert NOT_SUPPORTED_TOKEN();
-
         // Get token decimals
         uint256 one = 10 ** IERC20Metadata(token).decimals();
         uint256 stddev;
         uint256 N;
         uint256 M;
 
-        // NOTE: We need to pass oneUnit to get the price of a single unit of asset to check if it has depegged since
-        // the depeg threshold regards a single asset
+        // @notice Passing oneUnit to get the price of a single unit of asset to check if it has depegged
         (priceUSD, stddev, N, M) = superOracle.getQuoteFromProvider(one, token, USD, AVERAGE_PROVIDER);
 
         // Circuit Breaker for Oracle Off
