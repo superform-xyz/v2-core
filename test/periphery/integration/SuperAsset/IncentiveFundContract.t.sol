@@ -159,7 +159,9 @@ contract IncentiveFundContractTest is Helpers {
             superAssetManager: admin,
             superAssetStrategist: admin,
             incentiveFundManager: admin,
-            incentiveCalculationContract: address(icc)
+            incentiveCalculationContract: address(icc),
+            tokenInIncentive: address(tokenIn),
+            tokenOutIncentive: address(tokenOut)
         });
 
         factory = new SuperAssetFactory(address(superGovernor));
@@ -235,7 +237,7 @@ contract IncentiveFundContractTest is Helpers {
 
     function test_Initialize_RevertIfAlreadyInitialized() public {
         vm.expectRevert(IIncentiveFundContract.ALREADY_INITIALIZED.selector);
-        incentiveFund.initialize(address(superGovernor), address(superAsset));
+        incentiveFund.initialize(address(superGovernor), address(superAsset), address(tokenIn), address(tokenOut));
         vm.stopPrank();
     }
 
@@ -243,7 +245,7 @@ contract IncentiveFundContractTest is Helpers {
         vm.startPrank(admin);
         IncentiveFundContract newContract = new IncentiveFundContract();
         vm.expectRevert(IIncentiveFundContract.ZERO_ADDRESS.selector);
-        newContract.initialize(address(0), address(superAsset));
+        newContract.initialize(address(0), address(superAsset), address(0), address(0));
         vm.stopPrank();
     }
 
@@ -252,22 +254,32 @@ contract IncentiveFundContractTest is Helpers {
         // Non-admin cannot set tokens
         vm.startPrank(user);
         vm.expectRevert(IIncentiveFundContract.UNAUTHORIZED.selector);
-        incentiveFund.setTokenInIncentive(address(tokenIn));
+        incentiveFund.proposeSetTokenInIncentive(address(tokenIn));
 
         vm.expectRevert(IIncentiveFundContract.UNAUTHORIZED.selector);
-        incentiveFund.setTokenOutIncentive(address(tokenOut));
+        incentiveFund.proposeSetTokenOutIncentive(address(tokenOut));
         vm.stopPrank();
 
         // Admin can set tokens
         vm.startPrank(admin);
+        // vm.expectEmit(true, false, false, true);
+        // emit SettlementTokenInSet(address(tokenIn));
+        incentiveFund.proposeSetTokenInIncentive(address(tokenIn));
+
+        // vm.expectEmit(true, false, false, true);
+        // emit SettlementTokenOutSet(address(tokenOut));
+        incentiveFund.proposeSetTokenOutIncentive(address(tokenOut));
+        vm.stopPrank();
+
+        vm.warp(block.timestamp + 10 days);
+
         vm.expectEmit(true, false, false, true);
         emit SettlementTokenInSet(address(tokenIn));
-        incentiveFund.setTokenInIncentive(address(tokenIn));
+        incentiveFund.executeSetTokenInIncentive();
 
         vm.expectEmit(true, false, false, true);
         emit SettlementTokenOutSet(address(tokenOut));
-        incentiveFund.setTokenOutIncentive(address(tokenOut));
-        vm.stopPrank();
+        incentiveFund.executeSetTokenOutIncentive();
 
         assertEq(incentiveFund.tokenInIncentive(), address(tokenIn));
         assertEq(incentiveFund.tokenOutIncentive(), address(tokenOut));
@@ -276,7 +288,9 @@ contract IncentiveFundContractTest is Helpers {
     function test_OnlyManagerCanPayIncentive() public {
         // Setup tokens
         vm.startPrank(admin);
-        incentiveFund.setTokenOutIncentive(address(tokenOut));
+        incentiveFund.proposeSetTokenOutIncentive(address(tokenOut));
+        vm.warp(block.timestamp + 10 days);
+        incentiveFund.executeSetTokenOutIncentive();
         vm.stopPrank();
 
         // Non-manager cannot pay incentive
@@ -299,7 +313,9 @@ contract IncentiveFundContractTest is Helpers {
     function test_OnlyManagerCanTakeIncentive() public {
         // Setup tokens
         vm.startPrank(admin);
-        incentiveFund.setTokenInIncentive(address(tokenIn));
+        incentiveFund.proposeSetTokenInIncentive(address(tokenIn));
+        vm.warp(block.timestamp + 10 days);
+        incentiveFund.executeSetTokenInIncentive();        
         vm.stopPrank();
 
         // Give approval to incentiveFund
@@ -328,7 +344,9 @@ contract IncentiveFundContractTest is Helpers {
     function test_PayIncentive() public {
         // Setup token
         vm.startPrank(admin);
-        incentiveFund.setTokenOutIncentive(address(tokenOut));
+        incentiveFund.proposeSetTokenOutIncentive(address(tokenOut));
+        vm.warp(block.timestamp + 10 days);
+        incentiveFund.executeSetTokenOutIncentive();        
         vm.stopPrank();
 
         // Manager pays incentive
@@ -353,7 +371,9 @@ contract IncentiveFundContractTest is Helpers {
     function test_PayIncentive_RevertIfInsufficientBalance() public {
         // Setup token
         vm.startPrank(admin);
-        incentiveFund.setTokenOutIncentive(address(tokenOut));
+        incentiveFund.proposeSetTokenOutIncentive(address(tokenOut));
+        vm.warp(block.timestamp + 10 days);
+        incentiveFund.executeSetTokenOutIncentive();        
         vm.stopPrank();
 
         // Try to pay more than contract's balance
@@ -373,7 +393,9 @@ contract IncentiveFundContractTest is Helpers {
     function test_TakeIncentive() public {
         // Setup token
         vm.startPrank(admin);
-        incentiveFund.setTokenInIncentive(address(tokenIn));
+        incentiveFund.proposeSetTokenInIncentive(address(tokenIn));
+        vm.warp(block.timestamp + 10 days);
+        incentiveFund.executeSetTokenInIncentive();        
         vm.stopPrank();
 
         // Give approval to incentiveFund
@@ -403,7 +425,9 @@ contract IncentiveFundContractTest is Helpers {
     function test_TakeIncentive_RevertIfInsufficientAllowance() public {
         // Setup token
         vm.startPrank(admin);
-        incentiveFund.setTokenInIncentive(address(tokenIn));
+        incentiveFund.proposeSetTokenInIncentive(address(tokenIn));
+        vm.warp(block.timestamp + 10 days);
+        incentiveFund.executeSetTokenInIncentive();        
         vm.stopPrank();
 
         // Try to take without approval
@@ -423,7 +447,9 @@ contract IncentiveFundContractTest is Helpers {
     function test_TakeIncentive_RevertIfInsufficientBalance() public {
         // Setup token
         vm.startPrank(admin);
-        incentiveFund.setTokenInIncentive(address(tokenIn));
+        incentiveFund.proposeSetTokenInIncentive(address(tokenIn));
+        vm.warp(block.timestamp + 10 days);
+        incentiveFund.executeSetTokenInIncentive();        
         vm.stopPrank();
 
         // Approve transfer

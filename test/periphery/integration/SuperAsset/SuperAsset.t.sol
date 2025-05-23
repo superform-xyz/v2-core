@@ -175,7 +175,9 @@ contract SuperAssetTest is Helpers {
             superAssetManager: admin,
             superAssetStrategist: admin,
             incentiveFundManager: admin,
-            incentiveCalculationContract: address(icc)
+            incentiveCalculationContract: address(icc),
+            tokenInIncentive: address(tokenIn),
+            tokenOutIncentive: address(tokenOut)
         });
 
         // NOTE: Whitelisting ICC so that's possible to instantiate SuperAsset using it 
