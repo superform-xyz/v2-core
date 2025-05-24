@@ -366,7 +366,6 @@ contract IncentiveFundContractTest is Helpers {
         incentiveFund.proposeSetTokenOutIncentive(address(0));
         vm.warp(block.timestamp + 10 days);
         incentiveFund.executeSetTokenOutIncentive();        
-        // vm.expectRevert(IIncentiveFundContract.TOKEN_OUT_NOT_SET.selector);
         uint256 amountToken = incentiveFund.payIncentive(user, 100e18);
         assertEq(amountToken, 0);
         vm.stopPrank();
@@ -419,8 +418,8 @@ contract IncentiveFundContractTest is Helpers {
         incentiveFund.proposeSetTokenInIncentive(address(0));
         vm.warp(block.timestamp + 10 days);
         incentiveFund.executeSetTokenInIncentive();
-        vm.expectRevert(IIncentiveFundContract.TOKEN_IN_NOT_SET.selector);
-        incentiveFund.takeIncentive(user, 100e18);
+        uint256 amountToken = incentiveFund.takeIncentive(user, 100e18);
+        assertEq(amountToken, 0);
         vm.stopPrank();
     }
 

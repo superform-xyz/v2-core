@@ -33,8 +33,9 @@ interface IIncentiveFundContract {
      * @notice Takes incentives from a sender
      * @param sender Address to take incentives from
      * @param amount Amount of incentives to take
+     * @return amountToken Amount of tokens taken
      */
-    function takeIncentive(address sender, uint256 amount) external;
+    function takeIncentive(address sender, uint256 amount) external returns (uint256 amountToken);
 
     /**
      * @notice Withdraws tokens during rebalancing
