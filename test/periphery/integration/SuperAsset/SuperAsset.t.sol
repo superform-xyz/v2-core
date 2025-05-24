@@ -6,6 +6,7 @@ import "forge-std/console.sol";
 import { ERC4626YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
 import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
+import { SuperVaultAggregator } from "../../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
 import { SuperGovernor } from "../../../../src/periphery/SuperGovernor.sol";
 import { IncentiveFundContract } from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
 import { IncentiveCalculationContract } from "../../../../src/periphery/SuperAsset/IncentiveCalculationContract.sol";
@@ -189,6 +190,10 @@ contract SuperAssetTest is Helpers {
         superAsset = SuperAsset(superAssetAddr);
         incentiveFund = IncentiveFundContract(incentiveFundAddr);
         console.log("SuperAsset and IncentiveFund deployed via factory");
+        
+        // Deploy SuperVaultAggregator
+        address aggregator = address(new SuperVaultAggregator(address(superGovernor)));
+        superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), aggregator);
 
         // Add SuperOracle Init
         // NOTE: Initially superAsset was not defined, now it is because it gets instantiated with the factory
