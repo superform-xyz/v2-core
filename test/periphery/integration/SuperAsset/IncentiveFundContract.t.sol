@@ -366,8 +366,9 @@ contract IncentiveFundContractTest is Helpers {
         incentiveFund.proposeSetTokenOutIncentive(address(0));
         vm.warp(block.timestamp + 10 days);
         incentiveFund.executeSetTokenOutIncentive();        
-        vm.expectRevert(IIncentiveFundContract.TOKEN_OUT_NOT_SET.selector);
-        incentiveFund.payIncentive(user, 100e18);
+        // vm.expectRevert(IIncentiveFundContract.TOKEN_OUT_NOT_SET.selector);
+        uint256 amountToken = incentiveFund.payIncentive(user, 100e18);
+        assertEq(amountToken, 0);
         vm.stopPrank();
     }
 
@@ -381,15 +382,10 @@ contract IncentiveFundContractTest is Helpers {
 
         // Try to pay more than contract's balance
         vm.startPrank(admin);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IERC20Errors.ERC20InsufficientBalance.selector,
-                address(incentiveFund),  // account
-                1000e18,                 // current balance
-                2000e18                  // required amount
-            )
-        );
-        incentiveFund.payIncentive(user, 2000e18);
+        uint256 expAmountIncentive = tokenOut.balanceOf(address(incentiveFund));
+        uint256 paidIncentive = incentiveFund.payIncentive(user, 2*expAmountIncentive);
+        assertEq(paidIncentive, expAmountIncentive);
+        console.log("paidIncentive = ", paidIncentive);
         vm.stopPrank();
     }
 

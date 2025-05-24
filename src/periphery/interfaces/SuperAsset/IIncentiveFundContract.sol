@@ -25,8 +25,9 @@ interface IIncentiveFundContract {
      * @notice Pays incentives to a receiver
      * @param receiver Address to receive the incentives
      * @param amount Amount of incentives to pay
+     * @return amountToken Amount of tokens paid
      */
-    function payIncentive(address receiver, uint256 amount) external;
+    function payIncentive(address receiver, uint256 amount) external returns (uint256 amountToken);
 
     /**
      * @notice Takes incentives from a sender

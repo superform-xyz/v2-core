@@ -94,12 +94,13 @@ contract IncentiveFundContract is IIncentiveFundContract {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function payIncentive(address receiver, uint256 amountUSD) external {
+    function payIncentive(address receiver, uint256 amountUSD) external returns (uint256 amountToken) {
         ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
         address manager = factory.getIncentiveFundManager(address(superAsset));
         if (manager != msg.sender) revert UNAUTHORIZED();
         _validateInput(receiver, amountUSD);
-        if (tokenOutIncentive == address(0)) revert TOKEN_OUT_NOT_SET();
+        // NOTE: In case the tokenOut is not set, no incentive is paid 
+        if (tokenOutIncentive == address(0)) return 0;
 
         // Get token price and check circuit breakers
         (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) =
@@ -111,9 +112,11 @@ contract IncentiveFundContract is IIncentiveFundContract {
 
         // Convert USD amount to token amount using price
         // amountToken = amountUSD / priceUSD
-        uint256 amountToken = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
+        uint256 amountTokenDesired = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
+        // NOTE: Pay incentives as long as there is money available for it
+        amountToken = amountTokenDesired <= IERC20(tokenOutIncentive).balanceOf(address(this)) ? amountTokenDesired : IERC20(tokenOutIncentive).balanceOf(address(this));
 
-        IERC20(tokenOutIncentive).safeTransfer(receiver, amountToken);
+        if(amountToken > 0) IERC20(tokenOutIncentive).safeTransfer(receiver, amountToken);
         emit IncentivePaid(receiver, tokenOutIncentive, amountToken);
     }
 
