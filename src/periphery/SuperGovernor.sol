@@ -62,6 +62,9 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
 
     // Whitelisted incentive tokens
     EnumerableSet.AddressSet private _whitelistedIncentiveTokens;
+    EnumerableSet.AddressSet private _proposedWhitelistedIncentiveTokens;
+    EnumerableSet.AddressSet private _proposedRemoveWhitelistedIncentiveTokens;
+    uint256 private _proposedWhitelistedIncentiveTokensEffectiveTime;
 
     // Fee management
     // Current fee values
@@ -668,16 +671,73 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
                       INCENTIVE TOKEN MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
-    function addWhitelistedIncentiveToken(address token) external onlyRole(_GOVERNOR_ROLE) {
-        if (token == address(0)) revert INVALID_ADDRESS();
-        _whitelistedIncentiveTokens.add(token);
+    function proposeAddIncentiveTokens(address[] memory tokens) external onlyRole(_GOVERNOR_ROLE) {
+        for (uint256 i; i < tokens.length; i++) {
+            if (tokens[i] == address(0)) revert INVALID_ADDRESS();
+            if (_whitelistedIncentiveTokens.contains(tokens[i])) revert TOKEN_ALREADY_WHITELISTED();
+            _proposedWhitelistedIncentiveTokens.add(tokens[i]);
+        }
+
+        _proposedWhitelistedIncentiveTokensEffectiveTime = block.timestamp + TIMELOCK;
+
+        emit WhitelistedIncentiveTokensProposed(
+            _proposedWhitelistedIncentiveTokens.values(), _proposedWhitelistedIncentiveTokensEffectiveTime
+        );
     }
 
     /// @inheritdoc ISuperGovernor
-    function removeWhitelistedIncentiveToken(address token) external onlyRole(_GOVERNOR_ROLE) {
-        if (_whitelistedIncentiveTokens.contains(token)) {
-            _whitelistedIncentiveTokens.remove(token);
+    function executeAddIncentiveTokens() external {
+        if (block.timestamp < _proposedWhitelistedIncentiveTokensEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+
+        for (uint256 i; i < _proposedWhitelistedIncentiveTokens.length(); i++) {
+            address token = _proposedWhitelistedIncentiveTokens.at(i);
+            if (!_proposedWhitelistedIncentiveTokens.contains(token)) revert NOT_PROPOSED_INCENTIVE_TOKEN();
+
+            _whitelistedIncentiveTokens.add(token);
+            // Remove from proposed whitelisted tokens
+            _proposedWhitelistedIncentiveTokens.remove(token);
         }
+
+        // Reset proposal timestamp
+        _proposedWhitelistedIncentiveTokensEffectiveTime = 0;
+
+        emit WhitelistedIncentiveTokensUpdated(_whitelistedIncentiveTokens.values());
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function proposeRemoveIncentiveTokens(address[] memory tokens) external onlyRole(_GOVERNOR_ROLE) {
+        for (uint256 i; i < tokens.length; i++) {
+            if (tokens[i] == address(0)) revert INVALID_ADDRESS();
+            if (!_whitelistedIncentiveTokens.contains(tokens[i])) revert NOT_WHITELISTED_INCENTIVE_TOKEN();
+
+            _proposedRemoveWhitelistedIncentiveTokens.add(tokens[i]);
+        }
+
+        _proposedWhitelistedIncentiveTokensEffectiveTime = block.timestamp + TIMELOCK;
+
+        emit WhitelistedIncentiveTokensProposed(
+            _proposedRemoveWhitelistedIncentiveTokens.values(), _proposedWhitelistedIncentiveTokensEffectiveTime
+        );
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function executeRemoveIncentiveTokens() external {
+        if (block.timestamp < _proposedWhitelistedIncentiveTokensEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+
+        for (uint256 i; i < _proposedRemoveWhitelistedIncentiveTokens.length(); i++) {
+            address token = _proposedRemoveWhitelistedIncentiveTokens.at(i);
+            if (_proposedRemoveWhitelistedIncentiveTokens.contains(token)) {
+                _whitelistedIncentiveTokens.remove(token);
+
+                // Remove from proposed whitelisted tokens to be removed
+                _proposedRemoveWhitelistedIncentiveTokens.remove(token);
+            }
+        }
+
+        // Reset proposal timestamp
+        _proposedWhitelistedIncentiveTokensEffectiveTime = 0;
+
+        emit WhitelistedIncentiveTokensUpdated(_whitelistedIncentiveTokens.values());
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -90,6 +90,12 @@ interface ISuperGovernor is IAccessControl {
     error STRATEGIST_NOT_REGISTERED();
     /// @notice Thrown when a strategist is already registered
     error STRATEGIST_ALREADY_REGISTERED();
+    /// @notice Thrown when a token is already whitelisted
+    error TOKEN_ALREADY_WHITELISTED();
+    /// @notice Thrown when a token is not proposed for whitelisting but expected to be
+    error NOT_PROPOSED_INCENTIVE_TOKEN();
+    /// @notice Thrown when a token is not whitelisted but expected to be
+    error NOT_WHITELISTED_INCENTIVE_TOKEN();
 
     /*//////////////////////////////////////////////////////////////
                                   EVENTS
@@ -234,6 +240,15 @@ interface ISuperGovernor is IAccessControl {
     /// @notice Emitted when a superform strategist is removed
     /// @param strategist The address of the removed strategist
     event SuperformStrategistRemoved(address indexed strategist);
+
+    /// @notice Emitted when incentive tokens are proposed for whitelisting
+    /// @param tokens The addresses of the proposed tokens
+    /// @param effectiveTime The timestamp when the proposal will be effective
+    event WhitelistedIncentiveTokensProposed(address[] tokens, uint256 effectiveTime);
+
+    /// @notice Emitted when whitelisted incentive tokens is updated
+    /// @param tokens The addresses of the updated tokens
+    event WhitelistedIncentiveTokensUpdated(address[] tokens);
 
     /*//////////////////////////////////////////////////////////////
                                    ROLES
@@ -423,18 +438,24 @@ interface ISuperGovernor is IAccessControl {
     function setStrategyHooksRootVetoStatus(address strategy, bool vetoed) external;
 
     /*//////////////////////////////////////////////////////////////
-                      INCENTIVE TOKEN MANAGEMENT
+                        INCENTIVE TOKEN MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @notice Adds a token to the whitelist of incentive tokens
+    /// @notice Proposes a new whitelisted incentive token
     /// @param token The address of the token to add
-    function addWhitelistedIncentiveToken(address token) external;
+    function proposeAddIncentiveToken(address token) external;
 
-    /// @notice Removes a token from the whitelist of incentive tokens
-    /// @param token The address of the token to remove
-    function removeWhitelistedIncentiveToken(address token) external;
+    /// @notice Executes a previously proposed whitelisted incentive token update after timelock has expired
+    function executeAddIncentiveToken() external;
+
+    /// @notice Proposes a new whitelisted incentive token
+    /// @param tokens The addresses of the tokens to add
+    function proposeRemoveIncentiveTokens(address[] memory tokens) external;
+
+    /// @notice Executes a previously proposed whitelisted incentive tokens removal after timelock has expired
+    function executeRemoveIncentiveTokens() external;
 
     /*//////////////////////////////////////////////////////////////
-                         EXTERNAL VIEW FUNCTIONS
+                        EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @notice Gets an address from the registry
     /// @param key The key of the address to get
