@@ -29,7 +29,6 @@ interface IIncentiveFundContract {
     error TOKEN_NOT_WHITELISTED();
 
     // --- Events ---
-
     event TokenInIncentiveSet(address indexed token);
     event TokenOutIncentiveSet(address indexed token);
 
@@ -70,7 +69,6 @@ interface IIncentiveFundContract {
     event SettlementTokenOutSet(address indexed token);
 
     // --- Functions ---
-
     /// @notice The token users send incentives to
     function tokenInIncentive() external view returns (address);
 
