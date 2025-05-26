@@ -613,7 +613,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                 uint256 oneUnitAsset = 10 ** IERC20Metadata(primaryAsset).decimals();
                 uint256 assetPriceUSD;
                 try superOracle.getQuoteFromProvider(oneUnitAsset, primaryAsset, USD, AVERAGE_PROVIDER) returns (
-                    uint256 _priceUSD, uint256 _stddev, uint256 _n, uint256 _m
+                    uint256 _priceUSD, uint256, uint256, uint256
                 ) {
                     assetPriceUSD = _priceUSD;
                 } catch {
