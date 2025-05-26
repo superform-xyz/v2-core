@@ -286,7 +286,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         }
 
         // Circuit Breakers preventing deposit
-        _checkCircuitBreakers(IERC4626(yieldSourceShare).asset());
+        bool payIncentive = _checkCircuitBreakers(IERC4626(yieldSourceShare).asset());
 
         // Calculate and settle incentives
         // @notice For deposits, we want strict checks
@@ -301,7 +301,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // State Changing Functions //
 
         // Settle Incentives
-        _settleIncentive(msg.sender, amountIncentiveUSDDeposit);
+        if (payIncentive) {
+            _settleIncentive(msg.sender, amountIncentiveUSDDeposit);
+        }
+
         // Transfer the tokenIn from the sender to this contract
         IERC20(yieldSourceShare).safeTransferFrom(msg.sender, address(this), amountTokenToDeposit);
 
@@ -346,7 +349,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // State Changing Functions //
 
         // Settle Incentives
-        _settleIncentive(msg.sender, amountIncentiveUSDRedeem);
+        if (amountIncentiveUSDRedeem > 0) {
+            _settleIncentive(msg.sender, amountIncentiveUSDRedeem);
+        }
 
         // Burn SuperUSD shares
         _burn(msg.sender, amountSharesToRedeem); // Use a proper burning mechanism
@@ -842,16 +847,34 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @dev Checks the circuit breakers for a token
     /// @param token The address of the token to check the circuit breakers for
-    function _checkCircuitBreakers(address token) internal view {
+    function _checkCircuitBreakers(address token) internal view returns (bool payIncentive){
         uint256 underlyingSuperVaultAssetPriceUSD;
-        bool isDepeg;
         bool isDispersion;
         bool isOracleOff;
 
-        (underlyingSuperVaultAssetPriceUSD, isDepeg, isDispersion, isOracleOff) = getPriceWithCircuitBreakers(token);
-        if (underlyingSuperVaultAssetPriceUSD == 0) revert UNDERLYING_SV_ASSET_PRICE_ZERO();
-        if (isDepeg) revert UNDERLYING_SV_ASSET_PRICE_DEPEG();
-        if (isDispersion) revert UNDERLYING_SV_ASSET_PRICE_DISPERSION();
-        if (isOracleOff) revert UNDERLYING_SV_ASSET_PRICE_ORACLE_OFF();
+        (underlyingSuperVaultAssetPriceUSD, , isDispersion, isOracleOff) = getPriceWithCircuitBreakers(token);
+
+        // Circuit Breaker for Dispersion
+        if (isDispersion) {
+            if (emergencyPrices[token] != 0) {
+                payIncentive = true;
+            } else {
+                payIncentive = false;
+            }
+        }
+
+        // Circuit Breaker for Oracle Off
+        if (underlyingSuperVaultAssetPriceUSD == 0) {
+            if (emergencyPrices[token] != 0) {
+                payIncentive = true;
+            } else {
+                payIncentive = false;
+            }
+        }
+        if (isOracleOff) {
+            payIncentive = false;
+        }
+
+        return payIncentive;
     }
 }
