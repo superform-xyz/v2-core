@@ -364,9 +364,9 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
 
-        (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit) =
+        (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit, bool isSuccess) =
             superAsset.previewDeposit(address(tokenIn), depositAmount, false);
-        // assertEq(isSuccess, false, "isSuccess should be false, because of zero initial allocation");
+        assertEq(isSuccess, false, "isSuccess should be false, because of zero initial allocation");
 
         console.log("test_BasicDepositSimple() Preview");
         console.log("Amount Shares Minted:", expAmountSharesMinted);
@@ -472,7 +472,7 @@ contract SuperAssetTest is Helpers {
     function test_BasicRedeem() public {
         // First deposit to get some shares
         uint256 depositAmount = 100e18;
-        (uint256 expSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSD) =
+        (uint256 expSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSD, ) =
             superAsset.previewDeposit(address(tokenIn), depositAmount, false);
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
@@ -491,9 +491,7 @@ contract SuperAssetTest is Helpers {
         uint256 sharesToRedeem = sharesMinted / 2;
         uint256 minTokenOut = sharesToRedeem * 99 / 100; // Allowing for 1% slippage
 
-        bool isSuccess;
-
-        (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem, isSuccess) =
+        (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem, ) =
             superAsset.previewRedeem(address(tokenIn), sharesToRedeem, false);
         assertGt(expAmountTokenOutAfterFees, 0, "Should receive tokens");
         assertGt(expSwapFee, 0, "Should pay swap fees");
