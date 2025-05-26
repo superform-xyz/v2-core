@@ -54,12 +54,12 @@ interface ISuperAsset is IERC20 {
         GetPrePostAllocationReturnValues allocations;
         uint256 amountTokenInAfterFees;
         uint256 priceUSDTokenIn;
-        uint256 priceUSDThisShares;
+        uint256 priceUSDSuperAssetShares;
     }
 
     struct PreviewRedeem {
         GetPrePostAllocationReturnValues allocations;
-        uint256 priceUSDThisShares;
+        uint256 priceUSDSuperAssetShares;
         uint256 priceUSDTokenOut;
         uint256 amountTokenOutBeforeFees;
     }

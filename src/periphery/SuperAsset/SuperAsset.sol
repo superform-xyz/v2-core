@@ -448,14 +448,18 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Get price of underlying vault shares in USD
         (s.priceUSDTokenIn,,,) = getPriceWithCircuitBreakers(tokenIn);
-        (s.priceUSDThisShares) = getSuperAssetPPS();
+        (s.priceUSDSuperAssetShares) = getSuperAssetPPS();
 
-        // NOTE: Preview Function should not revert
-        if (s.priceUSDTokenIn == 0 || s.priceUSDThisShares == 0) return (0, 0, 0, false);
+        if (s.priceUSDTokenIn == 0 || s.priceUSDSuperAssetShares == 0) return (0, 0, 0, false);
 
         // Calculate SuperUSD shares to mint
-        amountSharesMinted = Math.mulDiv(s.amountTokenInAfterFees, s.priceUSDTokenIn, s.priceUSDThisShares); // Adjust
-            // for decimals
+        amountSharesMinted = Math.mulDiv(s.amountTokenInAfterFees, s.priceUSDTokenIn, s.priceUSDSuperAssetShares);  
+        
+        // Adjust for decimals
+        uint8 decimalsTokenIn = IERC20Metadata(tokenIn).decimals();
+        if (decimalsTokenIn != 1e18) {
+            amountSharesMinted = Math.mulDiv(amountSharesMinted, 10 ** (1e18 - decimalsTokenIn), PRECISION);
+        }
 
         // Get current and post-operation allocations
         (
@@ -504,12 +508,18 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         PreviewRedeem memory s;
 
         // Get price of underlying vault shares in USD
-        (s.priceUSDThisShares) = getSuperAssetPPS();
+        (s.priceUSDSuperAssetShares) = getSuperAssetPPS();
         (s.priceUSDTokenOut,,,) = getPriceWithCircuitBreakers(tokenOut);
 
         // Calculate underlying shares to redeem
         s.amountTokenOutBeforeFees 
-        = Math.mulDiv(amountSharesToRedeem, s.priceUSDThisShares, s.priceUSDTokenOut); // Adjust for decimals
+        = Math.mulDiv(amountSharesToRedeem, s.priceUSDSuperAssetShares, s.priceUSDTokenOut);
+
+        // Adjust for decimals
+        uint8 decimalsTokenOut = IERC20Metadata(tokenOut).decimals();
+        if (decimalsTokenOut != 1e18) {
+            s.amountTokenOutBeforeFees = Math.mulDiv(s.amountTokenOutBeforeFees, 10 ** (1e18 - decimalsTokenOut), PRECISION);
+        }
 
         swapFee = Math.mulDiv(s.amountTokenOutBeforeFees, swapFeeOutPercentage, SWAP_FEE_PERC); // 0.1%
         amountTokenOutAfterFees = s.amountTokenOutBeforeFees - swapFee;
