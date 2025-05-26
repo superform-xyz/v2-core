@@ -53,16 +53,44 @@ contract IncentiveFundContract is IIncentiveFundContract {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IIncentiveFundContract
     function setTokenInIncentive(address token) external onlyManager {
-        if (token == address(0)) revert ZERO_ADDRESS();
-        tokenInIncentive = token;
+        address[] memory incentiveTokens = superGovernor.getWhitelistedIncentiveTokens();
+
+        bool isWhitelisted = false;
+        for (uint256 i; i < incentiveTokens.length; i++) {
+            if (incentiveTokens[i] == token) {
+                isWhitelisted = true;
+                break;
+            }
+        }
+
+        if (isWhitelisted) {
+            tokenInIncentive = token;
+        } else {
+            revert TOKEN_NOT_WHITELISTED();
+        }
+
         emit SettlementTokenInSet(token);
     }
 
     /// @inheritdoc IIncentiveFundContract
     function setTokenOutIncentive(address token) external onlyManager {
-        if (token == address(0)) revert ZERO_ADDRESS();
-        tokenOutIncentive = token;
-        emit SettlementTokenOutSet(token);
+        address[] memory incentiveTokens = superGovernor.getWhitelistedIncentiveTokens();
+
+        bool isWhitelisted = false;
+        for (uint256 i; i < incentiveTokens.length; i++) {
+            if (incentiveTokens[i] == token) {
+                isWhitelisted = true;
+                break;
+            }
+        }
+
+        if (isWhitelisted) {
+            tokenOutIncentive = token;
+        } else {
+            revert TOKEN_NOT_WHITELISTED();
+        }
+
+        emit SettlementTokenInSet(token);
     }
 
     /// @inheritdoc IIncentiveFundContract
