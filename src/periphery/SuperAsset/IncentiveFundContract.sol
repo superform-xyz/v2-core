@@ -4,10 +4,10 @@ pragma solidity ^0.8.30;
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
-import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
-import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
-import "../interfaces/SuperAsset/ISuperAsset.sol";
+
+import { IIncentiveFundContract } from "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
+import { ISuperAsset } from "../interfaces/SuperAsset/ISuperAsset.sol";
 import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
 
 /**
