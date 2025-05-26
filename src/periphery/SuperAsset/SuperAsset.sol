@@ -14,6 +14,7 @@ import "../interfaces/ISuperOracle.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 
+
 import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
 
 /**
@@ -169,6 +170,17 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         return PRECISION;
     }
 
+    /// @inheritdoc ISuperAsset
+    function setEmergencyPrice(address token, uint256 priceUSD) external {
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
+        address manager = factory.getSuperAssetManager(address(this));
+        if (manager != msg.sender) revert UNAUTHORIZED();
+        if (token == address(0)) revert ZERO_ADDRESS();
+        emergencyPrices[token] = priceUSD;
+        emit EmergencyPriceSet(token, priceUSD);
+    }
+
+    
     /// @inheritdoc ISuperAsset
     function setSwapFeeInPercentage(uint256 _feePercentage) external {
         ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_ASSET_FACTORY));
