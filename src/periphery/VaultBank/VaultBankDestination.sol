@@ -12,9 +12,7 @@ abstract contract VaultBankDestination is IVaultBankDestination {
     // synthetic assets
     mapping(uint64 srcChainId => mapping(address srcTokenAddress => address superPositions)) internal
         _tokenToSuperPosition;
-    mapping(address spToken => mapping(uint64 srcChainId => address srcTokenAddress)) internal
-        _superPositionToToken;
-    mapping(address spToken => bool wasCreated) internal _spAssets;
+    mapping(address spToken => SpAsset) internal _spAssetsInfo;
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -26,12 +24,12 @@ abstract contract VaultBankDestination is IVaultBankDestination {
 
     /// @inheritdoc IVaultBankDestination
     function getAssetForSuperPosition(uint64 srcChainId, address superPosition) external view returns (address) {
-        return _superPositionToToken[superPosition][srcChainId];
+        return _spAssetsInfo[superPosition].spToToken[srcChainId];
     }
 
     /// @inheritdoc IVaultBankDestination
     function isSuperPositionCreated(address superPosition) external view returns (bool) {
-        return _spAssets[superPosition];
+        return _spAssetsInfo[superPosition].wasCreated;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -49,14 +47,14 @@ abstract contract VaultBankDestination is IVaultBankDestination {
 
         _created = address(new VaultBankSuperPosition(_srcName, _srcSymbol, _srcDecimals));
         _tokenToSuperPosition[srcChainId][srcAsset] = _created;
-        _superPositionToToken[_created][srcChainId] = srcAsset;
-        _spAssets[_created] = true;
+        _spAssetsInfo[_created].spToToken[srcChainId] = srcAsset;
+        _spAssetsInfo[_created].wasCreated = true;
         return _created;
     }
 
     function _mintSP(address account, address superPosition, uint256 amount) internal {
         // at this point the asset should exist
-        if (!_spAssets[superPosition]) revert SUPERPOSITION_ASSET_NOT_FOUND();
+        if (!_spAssetsInfo[superPosition].wasCreated) revert SUPERPOSITION_ASSET_NOT_FOUND();
 
         // mint the synthetic asset
         VaultBankSuperPosition(superPosition).mint(account, amount);
@@ -64,7 +62,7 @@ abstract contract VaultBankDestination is IVaultBankDestination {
 
     function _burnSP(address account, address superPosition, uint256 amount) internal {
         // at this point the asset should exist
-        if (!_spAssets[superPosition]) revert SUPERPOSITION_ASSET_NOT_FOUND();
+        if (!_spAssetsInfo[superPosition].wasCreated) revert SUPERPOSITION_ASSET_NOT_FOUND();
 
         if (amount > VaultBankSuperPosition(superPosition).balanceOf(account)) revert INVALID_BURN_AMOUNT();
 

@@ -64,6 +64,9 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     uint256 private _globalHooksRootEffectiveTime;
     bool private _globalHooksRootVetoed;
 
+    // Nonce for vault creation tracking
+    uint256 private _vaultCreationNonce;
+
     // No need for separate mappings since we now store this data in the StrategyData struct
 
     /*//////////////////////////////////////////////////////////////
@@ -115,15 +118,18 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
             revert ZERO_ADDRESS();
         }
 
+        // Increment nonce before creating proxies
+        uint256 currentNonce = _vaultCreationNonce++;
+
         // Create minimal proxies
         superVault = VAULT_IMPLEMENTATION.cloneDeterministic(
-            keccak256(abi.encodePacked(params.asset, params.name, params.symbol))
+            keccak256(abi.encodePacked(params.asset, params.name, params.symbol, currentNonce))
         );
         escrow = ESCROW_IMPLEMENTATION.cloneDeterministic(
-            keccak256(abi.encodePacked(params.asset, params.name, params.symbol))
+            keccak256(abi.encodePacked(params.asset, params.name, params.symbol, currentNonce))
         );
         strategy = STRATEGY_IMPLEMENTATION.cloneDeterministic(
-            keccak256(abi.encodePacked(params.asset, params.name, params.symbol))
+            keccak256(abi.encodePacked(params.asset, params.name, params.symbol, currentNonce))
         );
 
         // Initialize superVault
@@ -157,7 +163,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         _strategyData[strategy].dispersionThreshold = type(uint256).max; // Default: max (disabled)
         _strategyData[strategy].deviationThreshold = type(uint256).max; // Default: max (disabled)
 
-        emit VaultDeployed(superVault, strategy, escrow, params.asset, params.name, params.symbol);
+        emit VaultDeployed(superVault, strategy, escrow, params.asset, params.name, params.symbol, currentNonce);
         emit PPSUpdated(strategy, _strategyData[strategy].pps, 0, 0, 0, _strategyData[strategy].lastUpdateTimestamp);
 
         return (superVault, strategy, escrow);
@@ -206,8 +212,17 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         uint256 strategiesLength = args.strategies.length;
         if (strategiesLength == 0) revert ZERO_ARRAY_LENGTH();
 
-        // Calculate upkeep cost per strategy
-        uint256 upkeepPerStrategy = SUPER_GOVERNOR.getUpkeepCostPerUpdate() / strategiesLength;
+        bool upkeepExempt = false;
+        uint256 upkeepPerStrategy;
+
+        // Check if upkeep payments are globally disabled in SuperGovernor
+        if (SUPER_GOVERNOR.isUpkeepPaymentsEnabled()) {
+            // Calculate upkeep cost per strategy
+            upkeepPerStrategy = SUPER_GOVERNOR.getUpkeepCostPerUpdate() / strategiesLength;
+        } else {
+            upkeepExempt = true;
+            upkeepPerStrategy = 0;
+        }
 
         // Process all valid strategies
         for (uint256 i; i < strategiesLength; i++) {
@@ -218,7 +233,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
             _forwardPPS(
                 ForwardPPSArgs({
                     strategy: args.strategies[i],
-                    isExempt: false,
+                    isExempt: upkeepExempt,
                     pps: args.ppss[i],
                     ppsStdev: args.ppsStdevs[i],
                     validatorSet: args.validatorSets[i],
@@ -318,7 +333,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                        STRATEGIST MANAGEMENT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperVaultAggregator
     function addSecondaryStrategist(address strategy, address strategist) external validStrategy(strategy) {
         // Only the primary strategist can add secondary strategists
@@ -451,7 +465,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                         HOOK VALIDATION FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperVaultAggregator
     function setHooksRootUpdateTimelock(uint256 newTimelock) external {
         // Only SUPER_GOVERNOR can update the timelock
@@ -588,6 +601,12 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                               VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @inheritdoc ISuperVaultAggregator
+    function getCurrentNonce() external view returns (uint256) {
+        return _vaultCreationNonce;
+    }
+
     /// @inheritdoc ISuperVaultAggregator
     function getHooksRootUpdateTimelock() external view returns (uint256) {
         return _hooksRootUpdateTimelock;
@@ -814,7 +833,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                          INTERNAL HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Internal implementation of forwarding PPS updates
     /// @param args Struct containing all parameters for PPS update
     function _forwardPPS(ForwardPPSArgs memory args) internal {

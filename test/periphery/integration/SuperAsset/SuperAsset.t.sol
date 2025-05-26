@@ -17,6 +17,7 @@ import { Helpers } from "../../../utils/Helpers.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { SuperAssetFactory, ISuperAssetFactory } from "../../../../src/periphery/SuperAsset/SuperAssetFactory.sol";
+import { SuperBank } from "../../../../src/periphery/SuperBank.sol";
 
 contract SuperAssetTest is Helpers {
     // --- Constants ---
@@ -52,6 +53,7 @@ contract SuperAssetTest is Helpers {
     IncentiveCalculationContract public icc;
     IncentiveFundContract public incentiveFund;
     SuperGovernor public superGovernor;
+    SuperBank public superBank;
     address public admin;
     address public manager;
     address public user;
@@ -159,6 +161,11 @@ contract SuperAssetTest is Helpers {
         factory = new SuperAssetFactory(address(superGovernor));
         console.log("Factory deployed");
         superGovernor.setAddress(superGovernor.SUPER_ASSET_FACTORY(), address(factory));
+
+        
+        // Deploy SuperBank
+        superBank = new SuperBank(address(superGovernor));
+        superGovernor.setAddress(superGovernor.SUPER_BANK(), address(superBank));
 
         // Grant roles
         superGovernor.grantRole(superGovernor.SUPER_GOVERNOR_ROLE(), admin);
@@ -358,10 +365,12 @@ contract SuperAssetTest is Helpers {
         console.log("Swap Fee:", expSwapFee);
         console.log("Amount Incentive USD Deposit:", expAmountIncentiveUSDDeposit);
 
+        uint256 b1 = tokenIn.balanceOf(address(superBank));
         // Deposit tokens
         (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) =
             superAsset.deposit(user, address(tokenIn), depositAmount, minSharesOut);
         vm.stopPrank();
+        assertEq(tokenIn.balanceOf(address(superBank)) - b1, swapFee);
         assertEq(expAmountSharesMinted, amountSharesMinted);
         assertEq(expSwapFee, swapFee);
         assertEq(expAmountIncentiveUSDDeposit, amountIncentiveUSDDeposit);

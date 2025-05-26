@@ -96,8 +96,15 @@ interface ISuperVaultAggregator {
     /// @param asset Address of the underlying asset
     /// @param name Name of the vault token
     /// @param symbol Symbol of the vault token
+    /// @param nonce The nonce used for vault creation
     event VaultDeployed(
-        address indexed vault, address indexed strategy, address escrow, address asset, string name, string symbol
+        address indexed vault,
+        address indexed strategy,
+        address escrow,
+        address asset,
+        string name,
+        string symbol,
+        uint256 indexed nonce
     );
 
     /// @notice Emitted when a PPS value is updated
@@ -470,6 +477,12 @@ interface ISuperVaultAggregator {
     /*//////////////////////////////////////////////////////////////
                               VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice Returns the current vault creation nonce
+    /// @dev This nonce is incremented every time a new vault is created
+    /// @return Current vault creation nonce
+    function getCurrentNonce() external view returns (uint256);
+    
     /// @notice Check if the global hooks root is currently vetoed
     /// @return vetoed True if the global hooks root is vetoed
     function isGlobalHooksRootVetoed() external view returns (bool vetoed);
@@ -482,7 +495,7 @@ interface ISuperVaultAggregator {
     /// @notice Gets the current hooks root update timelock duration
     /// @return The current timelock duration in seconds
     function getHooksRootUpdateTimelock() external view returns (uint256);
-    
+
     /// @notice Gets the current PPS (price-per-share) for a strategy
     /// @param strategy Address of the strategy
     /// @return pps Current price-per-share value

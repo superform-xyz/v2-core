@@ -72,7 +72,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
                        SUPERVAULT.SOL
     //////////////////////////////////////////////////////////////*/
 
-    function test_Name() public view {
+    function test_Name_X() public view {
         string memory name = vault.name();
         assertEq(name, "SuperVault");
     }
@@ -2340,9 +2340,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         (address gearSuperVaultAddr, address strategyAddr, address escrowAddr) =
             _deployVault(address(asset), "svGearbox");
 
-        console2.log("\n-----------");
-        console2.log("GEAR SUPER VAULT STRATEGY", strategyAddr);
-        console2.log("\n-----------");
+        assertEq(strategyAddr, globalSVGearStrategy, "SV STRATEGY NOT EQUAL TO PREDICTED");
 
         vm.label(gearSuperVaultAddr, "GearSuperVault");
         vm.label(strategyAddr, "GearSuperVaultStrategy");
