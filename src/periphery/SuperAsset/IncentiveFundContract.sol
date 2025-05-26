@@ -71,19 +71,17 @@ contract IncentiveFundContract is IIncentiveFundContract {
         if (tokenOutIncentive == address(0)) revert TOKEN_OUT_NOT_SET();
 
         // Get token price and check circuit breakers
-        (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) =
+        (uint256 priceUSD,,,) =
             superAsset.getPriceWithCircuitBreakers(tokenOutIncentive);
 
-        // Revert if any circuit breaker is triggered
-        if (isDepeg || isDispersion || isOracleOff) revert CIRCUIT_BREAKER_TRIGGERED();
-        if (priceUSD == 0) revert PRICE_USD_ZERO();
+        if (priceUSD > 0) {
+            // Convert USD amount to token amount using price
+            // amountToken = amountUSD / priceUSD
+            uint256 amountToken = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
 
-        // Convert USD amount to token amount using price
-        // amountToken = amountUSD / priceUSD
-        uint256 amountToken = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
-
-        IERC20(tokenOutIncentive).safeTransfer(receiver, amountToken);
-        emit IncentivePaid(receiver, tokenOutIncentive, amountToken);
+            IERC20(tokenOutIncentive).safeTransfer(receiver, amountToken);
+            emit IncentivePaid(receiver, tokenOutIncentive, amountToken);
+        } 
     }
 
     /// @inheritdoc IIncentiveFundContract
@@ -92,19 +90,17 @@ contract IncentiveFundContract is IIncentiveFundContract {
         if (tokenInIncentive == address(0)) revert TOKEN_IN_NOT_SET();
 
         // Get token price and check circuit breakers
-        (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) =
+        (uint256 priceUSD,,,) =
             superAsset.getPriceWithCircuitBreakers(tokenInIncentive);
 
-        // Revert if any circuit breaker is triggered
-        if (isDepeg || isDispersion || isOracleOff) revert CIRCUIT_BREAKER_TRIGGERED();
-        if (priceUSD == 0) revert PRICE_USD_ZERO();
+        if (priceUSD > 0) {
+            // Convert USD amount to token amount using price
+            // amountToken = amountUSD / priceUSD
+            uint256 amountToken = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
 
-        // Convert USD amount to token amount using price
-        // amountToken = amountUSD / priceUSD
-        uint256 amountToken = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
-
-        IERC20(tokenInIncentive).safeTransferFrom(sender, address(this), amountToken);
-        emit IncentiveTaken(sender, tokenInIncentive, amountToken);
+            IERC20(tokenInIncentive).safeTransferFrom(sender, address(this), amountToken);
+            emit IncentiveTaken(sender, tokenInIncentive, amountToken);
+        }
     }
 
     /// @inheritdoc IIncentiveFundContract
