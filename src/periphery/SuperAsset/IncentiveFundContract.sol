@@ -29,7 +29,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
     ISuperAssetFactory public _SUPER_ASSET_FACTORY;
 
     // Timelock
-    uint256 public _setTokenTimelock = 7 days;
+    uint256 public constant setTokenTimelock = 7 days;
     address public proposedTokenIn;
     uint256 public newTokenInEffectiveTime;
     address public proposedTokenOut;
@@ -65,7 +65,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
         // Allowing to deselect token
         // if (token == address(0)) revert ZERO_ADDRESS();
         proposedTokenIn = token;
-        newTokenInEffectiveTime = block.timestamp + _setTokenTimelock;
+        newTokenInEffectiveTime = block.timestamp + setTokenTimelock;
     }
 
     /// @inheritdoc IIncentiveFundContract
@@ -83,7 +83,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
         // Allowing to deselect token
         // if (token == address(0)) revert ZERO_ADDRESS();
         proposedTokenOut = token;
-        newTokenOutEffectiveTime = block.timestamp + _setTokenTimelock;
+        newTokenOutEffectiveTime = block.timestamp + setTokenTimelock;
     }
 
     /// @inheritdoc IIncentiveFundContract
