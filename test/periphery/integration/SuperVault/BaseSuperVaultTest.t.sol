@@ -24,7 +24,7 @@ import { ISuperVaultStrategy } from "../../../../src/periphery/interfaces/ISuper
 import { ISuperExecutor } from "../../../../src/core/interfaces/ISuperExecutor.sol";
 import { FeeType } from "../../../../src/periphery/interfaces/ISuperGovernor.sol";
 import { ISuperVaultAggregator } from "../../../../src/periphery/interfaces/ISuperVaultAggregator.sol";
-import { IECDSAPPSOracle } from "../../../../src/periphery/interfaces/IECDSAPPSOracle.sol";
+import { IECDSAPPSOracle } from "../../../../src/periphery/interfaces/oracles/IECDSAPPSOracle.sol";
 import { MerkleReader } from "../../../utils/merkle/helper/MerkleReader.sol";
 import { ISuperHookInspector } from "../../../../src/core/interfaces/ISuperHook.sol";
 

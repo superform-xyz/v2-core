@@ -13,7 +13,7 @@ import { SuperVaultAggregator } from "../../../src/periphery/SuperVault/SuperVau
 import { ISuperVaultAggregator } from "../../../src/periphery/interfaces/ISuperVaultAggregator.sol";
 import { ECDSAPPSOracle } from "../../../src/periphery/oracles/ECDSAPPSOracle.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
-import { IECDSAPPSOracle } from "../../../src/periphery/interfaces/IECDSAPPSOracle.sol";
+import { IECDSAPPSOracle } from "../../../src/periphery/interfaces/oracles/IECDSAPPSOracle.sol";
 import { SuperVault } from "../../../src/periphery/SuperVault/SuperVault.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
 

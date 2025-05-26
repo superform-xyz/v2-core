@@ -6,7 +6,7 @@ import { Helpers } from "../../utils/Helpers.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockAggregator } from "../../periphery/mocks/MockAggregator.sol";
 import { SuperOracle } from "../../../src/periphery/oracles/SuperOracle.sol";
-import { ISuperOracle } from "../../../src/periphery/interfaces/ISuperOracle.sol";
+import { ISuperOracle } from "../../../src/periphery/interfaces/oracles/ISuperOracle.sol";
 
 contract SuperOracleTest is Helpers {
     bytes32 public constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
