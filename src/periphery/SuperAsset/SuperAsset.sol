@@ -293,7 +293,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         bool isSuccess;
         (amountSharesMinted, swapFee, amountIncentiveUSDDeposit, isSuccess) =
             previewDeposit(yieldSourceShare, amountTokenToDeposit, false);
-        if (!isSuccess) revert ZERO_AMOUNT();
+        if (!isSuccess) revert DEPOSIT_FAILED();
+
         // Slippage Check
         if (amountSharesMinted < minSharesOut) revert SLIPPAGE_PROTECTION();
 
@@ -337,7 +338,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         bool isSuccess;
         (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem, isSuccess) =
             previewRedeem(tokenOut, amountSharesToRedeem, false);
-        if (amountTokenOutAfterFees == 0) revert ZERO_AMOUNT();
+        if (!isSuccess) revert REDEEM_FAILED();
 
         // Slippage Check
         if (amountTokenOutAfterFees < minTokenOut) revert SLIPPAGE_PROTECTION();
