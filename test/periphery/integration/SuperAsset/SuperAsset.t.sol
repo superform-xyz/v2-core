@@ -543,6 +543,39 @@ contract SuperAssetTest is Helpers {
     }
 
     // --- Test: Swap ---
+    // --- Test: Emergency Price ---
+    function test_SetEmergencyPrice() public {
+        uint256 emergencyPrice = 1000e8; // $1000
+
+        // Only manager can set emergency price
+        vm.startPrank(admin);
+        superAsset.setEmergencyPrice(address(tokenIn), emergencyPrice);
+        vm.stopPrank();
+
+        // Verify price was set
+        assertEq(superAsset.emergencyPrices(address(tokenIn)), emergencyPrice);
+    }
+
+    function test_SetEmergencyPriceUnauthorized() public {
+        uint256 emergencyPrice = 1000e8; // $1000
+
+        // Non-manager cannot set emergency price
+        vm.startPrank(user);
+        vm.expectRevert(ISuperAsset.UNAUTHORIZED.selector);
+        superAsset.setEmergencyPrice(address(tokenIn), emergencyPrice);
+        vm.stopPrank();
+    }
+
+    function test_SetEmergencyPriceZeroAddress() public {
+        uint256 emergencyPrice = 1000e8; // $1000
+
+        // Cannot set emergency price for zero address
+        vm.startPrank(admin);
+        vm.expectRevert(ISuperAsset.ZERO_ADDRESS.selector);
+        superAsset.setEmergencyPrice(address(0), emergencyPrice);
+        vm.stopPrank();
+    }
+
     function test_BasicSwap() public {
         BasiSwapStack memory s;
         s.swapAmount = 100e18;
