@@ -18,12 +18,6 @@ interface ISuperAsset is IERC20 {
         uint256 weights;
     }
 
-    struct PreviewErrors {
-        bool isDepeg;
-        bool isDispersion;
-        bool isOracleOff;
-    }
-
     struct GetAllocationsPrePostOperations {
         uint256 length;
         uint256 extendedLength;
@@ -278,6 +272,7 @@ interface ISuperAsset is IERC20 {
      * @return amountSharesMinted The amount of SuperUSD shares that would be minted.
      * @return swapFee The amount of swap fee paid.
      * @return amountIncentiveUSD The amount of incentives in USD.
+     * @return isSuccess Whether the preview was successful.
      */
     function previewDeposit(
         address tokenIn,
@@ -286,7 +281,7 @@ interface ISuperAsset is IERC20 {
     )
         external
         view
-        returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD);
+        returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess);
 
     /**
      * @notice Preview a redemption.
