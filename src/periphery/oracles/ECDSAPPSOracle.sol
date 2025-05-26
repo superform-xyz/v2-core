@@ -80,7 +80,7 @@ contract ECDSAPPSOracle is IECDSAPPSOracle {
         ) revert ARRAY_LENGTH_MISMATCH();
 
         // Process each strategy update
-        for (uint256 i = 0; i < strategiesLength; i++) {
+        for (uint256 i; i < strategiesLength; i++) {
             _validateProofs(
                 args.strategies[i],
                 args.proofsArray[i],

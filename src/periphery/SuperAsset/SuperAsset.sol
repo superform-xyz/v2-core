@@ -315,12 +315,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // balance sheet
         IERC20(yieldSourceShare).safeTransferFrom(msg.sender, address(this), amountTokenToDeposit);
 
-        // Transfer swap fees to Asset Bank while holding the rest in the contract, since the full amount was already
-        // transferred in the beginning of the function
-        // TODO: Fix this by transfering money to SuperBank
-        ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(_SUPER_ASSET_FACTORY));
-        address icf = factory.getIncentiveFundContract(address(this));
-        IERC20(yieldSourceShare).safeTransfer(address(icf), swapFee);
+        address superbank = superGovernor.getAddress(superGovernor.SUPER_BANK());
+        IERC20(yieldSourceShare).safeTransfer(superbank, swapFee);
 
         // Mint SuperUSD shares
         _mint(receiver, amountSharesMinted);
@@ -357,7 +353,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         if (amountTokenOutAfterFees < minTokenOut) revert SLIPPAGE_PROTECTION();
 
         // State Changing Functions //
-
+        
         // Settle Incentives
         _settleIncentive(msg.sender, amountIncentiveUSDRedeem);
 
@@ -365,10 +361,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         _burn(msg.sender, amountSharesToRedeem); // Use a proper burning mechanism
 
         // Transfer swap fees to Asset Bank
-        // TODO: Fix this by transfering money to SuperBank
-        ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(_SUPER_ASSET_FACTORY));
-        address icf = factory.getIncentiveFundContract(address(this));
-        IERC20(tokenOut).safeTransfer(address(icf), swapFee);
+        address superbank = superGovernor.getAddress(superGovernor.SUPER_BANK());
+        IERC20(tokenOut).safeTransfer(superbank, swapFee);
 
         // Transfer assets to receiver
         // For now, assuming shares are held in this contract, maybe they will have to be held in another contract

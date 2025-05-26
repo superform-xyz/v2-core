@@ -393,6 +393,14 @@ contract DeployV2 is Script, Configuration {
         _configureGovernor(SuperGovernor(deployedContracts.superGovernor), deployedContracts.superVaultAggregator);
         // Deploy Oracles
         _deployOracles(deployer, chainId);
+
+        // Grant SUPER_GOVERNOR_ROLE to the validator address and revoke from TEST_DEPLOYER
+        SuperGovernor superGovernor = SuperGovernor(deployedContracts.superGovernor);
+        superGovernor.grantRole(keccak256("SUPER_GOVERNOR_ROLE"), 0xd95f4bc7733d9E94978244C0a27c1815878a59BB);
+        console2.log("Granted SUPER_GOVERNOR_ROLE to: 0xd95f4bc7733d9E94978244C0a27c1815878a59BB");
+        
+        superGovernor.revokeRole(keccak256("SUPER_GOVERNOR_ROLE"), TEST_DEPLOYER);
+        console2.log("Revoked SUPER_GOVERNOR_ROLE from TEST_DEPLOYER");
     }
 
     function _configureGovernor(SuperGovernor superGovernor, address aggregator) internal {
