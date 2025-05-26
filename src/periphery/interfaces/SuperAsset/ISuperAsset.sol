@@ -183,6 +183,7 @@ interface ISuperAsset is IERC20 {
      * @notice Initializes the SuperAsset contract
      * @param name_ Name of the token
      * @param symbol_ Symbol of the token
+     * @param asset_ Address of the primary asset
      * @param superGovernor_ Address of the SuperGovernor contract
      * @param swapFeeInPercentage_ Initial swap fee percentage for deposits
      * @param swapFeeOutPercentage_ Initial swap fee percentage for redemptions
@@ -190,6 +191,7 @@ interface ISuperAsset is IERC20 {
     function initialize(
         string memory name_,
         string memory symbol_,
+        address asset_,
         address superGovernor_,
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_

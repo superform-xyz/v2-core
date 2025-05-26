@@ -60,7 +60,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     // --- Addresses ---
     address public constant USD = address(840);
-    address public immutable primaryAsset;
+    address public primaryAsset;
 
     bytes32 public _SUPER_ASSET_FACTORY;
 
@@ -93,14 +93,13 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     /*//////////////////////////////////////////////////////////////
                         CONTRACT INITIALIZATION
     //////////////////////////////////////////////////////////////*/
-    constructor(address asset) ERC20("", "") {
-        primaryAsset = asset;
-    }
+    constructor() ERC20("", "") {}
 
     /// @inheritdoc ISuperAsset
     function initialize(
         string memory name_,
         string memory symbol_,
+        address asset,
         address superGovernor_,
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_
@@ -119,6 +118,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Initialize ERC20 name and symbol
         tokenName = name_;
         tokenSymbol = symbol_;
+
+        primaryAsset = asset;
 
         superGovernor = ISuperGovernor(superGovernor_);
         _SUPER_ASSET_FACTORY = superGovernor.SUPER_ASSET_FACTORY();

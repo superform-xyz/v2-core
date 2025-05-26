@@ -158,6 +158,7 @@ contract IncentiveFundContractTest is Helpers {
             symbol: "SA",
             swapFeeInPercentage: 100, // 0.1% swap fee in
             swapFeeOutPercentage: 100, // 0.1% swap fee out
+            asset: address(tokenIn),
             superAssetManager: admin,
             superAssetStrategist: admin,
             incentiveFundManager: admin,
@@ -189,8 +190,8 @@ contract IncentiveFundContractTest is Helpers {
 
         // Configure SuperAsset
         superAsset.setSuperOracle(address(oracle));
-        superAsset.whitelistERC20(address(tokenIn), address(oracle));
-        superAsset.whitelistERC20(address(tokenOut), address(oracle));
+        superAsset.whitelistERC20(address(tokenIn));
+        superAsset.whitelistERC20(address(tokenOut));
 
         vm.stopPrank();
 

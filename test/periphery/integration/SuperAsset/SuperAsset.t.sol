@@ -61,8 +61,6 @@ contract SuperAssetTest is Helpers {
     address public user;
     address public user11;
 
-    ERC4626YieldSourceOracle public vaultOracle;
-
     // --- Setup ---
     function setUp() public {
         // Setup accounts
@@ -183,6 +181,7 @@ contract SuperAssetTest is Helpers {
             symbol: "SA",
             swapFeeInPercentage: 100, // 0.1% swap fee in
             swapFeeOutPercentage: 100, // 0.1% swap fee out
+            asset: address(underlyingToken1),
             superAssetManager: admin,
             superAssetStrategist: admin,
             incentiveFundManager: admin,
@@ -229,13 +228,13 @@ contract SuperAssetTest is Helpers {
         // Set SuperAsset oracle
         vm.startPrank(admin);
         superAsset.setSuperOracle(address(oracle));
-        superAsset.whitelistERC20(address(tokenIn), address(vaultOracle));
+        superAsset.whitelistERC20(address(tokenIn));
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
         assertEq(tokenData.isSupportedERC20, true, "Token In should be whitelisted");
-        superAsset.whitelistERC20(address(tokenOut), address(vaultOracle));
+        superAsset.whitelistERC20(address(tokenOut));
         tokenData = superAsset.getTokenData(address(tokenOut));
         assertEq(tokenData.isSupportedERC20, true, "Token Out should be whitelisted");
-        superAsset.whitelistERC20(address(superAsset), address(oracle)); // Todo: is this correct?
+        superAsset.whitelistERC20(address(superAsset)); // Todo: is this correct?
         tokenData = superAsset.getTokenData(address(superAsset));
         assertEq(tokenData.isSupportedERC20, true, "SuperAsset should be whitelisted");
         vm.stopPrank();
@@ -280,6 +279,7 @@ contract SuperAssetTest is Helpers {
         superAsset.initialize(
             "SuperAsset", // name
             "SA", // symbol
+            address(underlyingToken1),
             address(superGovernor),
             100, // swapFeeInPercentage
             100 // swapFeeOutPercentage
@@ -293,12 +293,12 @@ contract SuperAssetTest is Helpers {
         // Non-manager cannot whitelist
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.UNAUTHORIZED.selector);
-        superAsset.whitelistERC20(newToken, address(oracle));
+        superAsset.whitelistERC20(newToken);
         vm.stopPrank();
 
         // Manager can whitelist
         vm.startPrank(admin); // admin has VAULT_MANAGER_ROLE
-        superAsset.whitelistERC20(newToken, address(oracle));
+        superAsset.whitelistERC20(newToken);
         vm.stopPrank();
 
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(newToken);

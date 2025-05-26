@@ -440,12 +440,12 @@ interface ISuperGovernor is IAccessControl {
     /*//////////////////////////////////////////////////////////////
                         INCENTIVE TOKEN MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @notice Proposes a new whitelisted incentive token
-    /// @param token The address of the token to add
-    function proposeAddIncentiveToken(address token) external;
+    /// @notice Proposes whitelisted incentive tokens
+    /// @param tokens The addresses of the tokens to add
+    function proposeAddIncentiveTokens(address[] memory tokens) external;
 
     /// @notice Executes a previously proposed whitelisted incentive token update after timelock has expired
-    function executeAddIncentiveToken() external;
+    function executeAddIncentiveTokens() external;
 
     /// @notice Proposes a new whitelisted incentive token
     /// @param tokens The addresses of the tokens to add
