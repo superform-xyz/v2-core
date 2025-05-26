@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 import "../interfaces/SuperAsset/ISuperAsset.sol";
-import "../interfaces/ISuperOracle.sol";
+import "../interfaces/oracles/ISuperOracle.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 

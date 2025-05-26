@@ -7,8 +7,8 @@ import { MessageHashUtils } from "openzeppelin-contracts/contracts/utils/cryptog
 
 // Superform
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
+import { IECDSAPPSOracle } from "../interfaces/oracles/IECDSAPPSOracle.sol";
 import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
-import { IECDSAPPSOracle } from "../interfaces/IECDSAPPSOracle.sol";
 
 /// @title ECDSAPPSOracle
 /// @author Superform Labs

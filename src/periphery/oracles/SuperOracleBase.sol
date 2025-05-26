@@ -9,7 +9,7 @@ import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 import { BoringERC20 } from "../../vendor/BoringSolidity/BoringERC20.sol";
 
 // Superform
-import { ISuperOracle } from "../interfaces/ISuperOracle.sol";
+import { ISuperOracle } from "../interfaces/oracles/ISuperOracle.sol";
 
 /// @title SuperOracle
 /// @author Superform Labs

@@ -5,7 +5,7 @@ pragma solidity ^0.8.30;
 import { IOracle } from "../../vendor/awesome-oracles/IOracle.sol";
 // Superform
 import { IYieldSourceOracle } from "../../core/interfaces/accounting/IYieldSourceOracle.sol";
-import { ISuperYieldSourceOracle } from "../interfaces/ISuperYieldSourceOracle.sol";
+import { ISuperYieldSourceOracle } from "../interfaces/oracles/ISuperYieldSourceOracle.sol";
 
 /// @title SuperYieldSourceOracle
 /// @author Superform Labs

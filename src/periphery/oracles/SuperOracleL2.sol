@@ -3,7 +3,7 @@ pragma solidity 0.8.30;
 
 // Superform
 import {SuperOracleBase} from "./SuperOracleBase.sol";
-import {ISuperOracleL2} from "../interfaces/ISuperOracleL2.sol";
+import {ISuperOracleL2} from "../interfaces/oracles/ISuperOracleL2.sol";
 
 // external
 import {IERC20} from "forge-std/interfaces/IERC20.sol";
