@@ -459,7 +459,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             s.allocations.isSuccess
         ) = getAllocationsPrePostOperation(tokenIn, int256(amountTokenToDeposit), isSoft);
 
-        // TODO: Handle the case where isSuccess is false
+        if (!s.allocations.isSuccess) {
+            return (0, 0, 0, false);
+        }
 
         ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(_SUPER_ASSET_FACTORY));
         address icc = factory.getIncentiveCalculationContract(address(this));
@@ -508,6 +510,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             s.allocations.vaultWeights,
             s.allocations.isSuccess
         ) = getAllocationsPrePostOperation(tokenOut, -int256(s.amountTokenOutBeforeFees), isSoft);
+
+        if (!s.allocations.isSuccess) {
+            return (0, 0, 0, false);
+        }
 
         ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(_SUPER_ASSET_FACTORY));
         address icc = factory.getIncentiveCalculationContract(address(this));
