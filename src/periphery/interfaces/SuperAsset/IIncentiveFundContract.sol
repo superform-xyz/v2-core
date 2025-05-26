@@ -25,6 +25,9 @@ interface IIncentiveFundContract {
     /// @notice Thrown when the caller is not authorized
     error UNAUTHORIZED();
 
+    /// @notice Thrown when attempting to set a non-whitelisted incentive token
+    error TOKEN_NOT_WHITELISTED();
+
     // --- Events ---
 
     event TokenInIncentiveSet(address indexed token);
