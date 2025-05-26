@@ -282,7 +282,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         PreviewErrors memory errors;
         // First all the non state changing functions
         if (receiver == address(0)) revert ZERO_ADDRESS();
-        if (amountTokenToDeposit == 0) revert ZERO_AMOUNT();
         if (!tokenData[yieldSourceShare].isSupportedUnderlyingVault && !tokenData[yieldSourceShare].isSupportedERC20) {
             revert NOT_SUPPORTED_TOKEN();
         }
@@ -337,7 +336,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem)
     {
         if (receiver == address(0)) revert ZERO_ADDRESS();
-        if (amountSharesToRedeem == 0) revert ZERO_AMOUNT();
         if (!tokenData[tokenOut].isSupportedUnderlyingVault && !tokenData[tokenOut].isSupportedERC20) {
             revert NOT_SUPPORTED_TOKEN();
         }
@@ -427,6 +425,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                             PREVIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperAsset
+    /// @notice This function should not revert
     function previewDeposit(
         address tokenIn,
         uint256 amountTokenToDeposit,
@@ -435,9 +434,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         public
         view
         returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess)
-    {
+    {   
+        if (amountTokenToDeposit == 0) return (0, 0, 0, false);
+
         PreviewDeposit memory s;
-        // NOTE: Preview Function should not revert
         if (!tokenData[tokenIn].isSupportedUnderlyingVault && !tokenData[tokenIn].isSupportedERC20) {
             return (0, 0, 0, false);
         }
@@ -489,6 +489,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
+    /// @notice This function should not revert
     function previewRedeem(
         address tokenOut,
         uint256 amountSharesToRedeem,
@@ -498,6 +499,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         view
         returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess)
     {
+        if (amountSharesToRedeem == 0) return (0, 0, 0, false);
+
         PreviewRedeem memory s;
 
         // Get price of underlying vault shares in USD
@@ -505,8 +508,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         (s.priceUSDTokenOut,,,) = getPriceWithCircuitBreakers(tokenOut);
 
         // Calculate underlying shares to redeem
-        s.amountTokenOutBeforeFees = Math.mulDiv(amountSharesToRedeem, s.priceUSDThisShares, s.priceUSDTokenOut); // Adjust
-            // for decimals
+        s.amountTokenOutBeforeFees 
+        = Math.mulDiv(amountSharesToRedeem, s.priceUSDThisShares, s.priceUSDTokenOut); // Adjust for decimals
 
         swapFee = Math.mulDiv(s.amountTokenOutBeforeFees, swapFeeOutPercentage, SWAP_FEE_PERC); // 0.1%
         amountTokenOutAfterFees = s.amountTokenOutBeforeFees - swapFee;
@@ -522,8 +525,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             s.allocations.vaultWeights,
             s.allocations.isSuccess
         ) = getAllocationsPrePostOperation(tokenOut, -int256(s.amountTokenOutBeforeFees), isSoft);
-
-        // TODO: Handle the case where isSuccess is false
 
         ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(_SUPER_ASSET_FACTORY));
         address icc = factory.getIncentiveCalculationContract(address(this));
@@ -732,6 +733,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                 );
             }
             s.balance = IERC20(s.vault).balanceOf(address(this));
+
             // Convert balance to USD value using price
             absoluteAllocationPreOperation[i] =
                 Math.mulDiv(s.balance, s.priceUSD, 10 ** IERC20Metadata(s.vault).decimals());
