@@ -2,20 +2,20 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../vendor/BytesLib.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ICrossL2ProverV2} from "../../vendor/polymer/ICrossL2ProverV2.sol";
-import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { BytesLib } from "../../vendor/BytesLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ICrossL2ProverV2 } from "../../vendor/polymer/ICrossL2ProverV2.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
-import {ISuperHook, Execution} from "../../core/interfaces/ISuperHook.sol";
-import {IVaultBank, IVaultBankSource} from "../interfaces/IVaultBank.sol";
-import {ISuperGovernor} from "../interfaces/ISuperGovernor.sol";
-import {VaultBankDestination} from "./VaultBankDestination.sol";
-import {VaultBankSource} from "./VaultBankSource.sol";
-import {Bank} from "../Bank.sol";
+import { ISuperHook, Execution } from "../../core/interfaces/ISuperHook.sol";
+import { IVaultBank, IVaultBankSource } from "../interfaces/VaultBank/IVaultBank.sol";
+import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
+import { VaultBankDestination } from "./VaultBankDestination.sol";
+import { VaultBankSource } from "./VaultBankSource.sol";
+import { Bank } from "../Bank.sol";
 
 /// @title VaultBank
 /// @author Superform Labs
@@ -55,7 +55,7 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
     }
 
     /// @dev to receive ETH rewards
-    receive() external payable {}
+    receive() external payable { }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -69,7 +69,13 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
     }
 
     /// @inheritdoc IVaultBank
-    function unlockAsset(address account, address token, uint256 amount, uint64 fromChainId, bytes calldata proof)
+    function unlockAsset(
+        address account,
+        address token,
+        uint256 amount,
+        uint64 fromChainId,
+        bytes calldata proof
+    )
         external
     {
         // validate and mark `proof.nonce[fromChainId]` as used
@@ -87,7 +93,10 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
     }
 
     /// @inheritdoc IVaultBank
-    function batchDistributeRewardsToSuperBank(address[] memory rewards, uint256[] memory amounts)
+    function batchDistributeRewardsToSuperBank(
+        address[] memory rewards,
+        uint256[] memory amounts
+    )
         external
         onlyRelayer
     {
@@ -105,7 +114,11 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         uint256 amount_,
         SourceAssetInfo calldata sourceAsset_,
         bytes calldata proof_
-    ) external override onlyRelayer {
+    )
+        external
+        override
+        onlyRelayer
+    {
         // validate and mark `proof.nonce[sourceAsset_.chainId]` as used
         _validateDistributeSPProof(account_, sourceAsset_.asset, amount_, sourceAsset_.chainId, proof_);
 
@@ -115,14 +128,9 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         _mintSP(account_, spAddress, amount_);
 
         nonces[account_][uint64(_chainId)]++;
-        
+
         emit SuperpositionsMinted(
-            account_,
-            spAddress,
-            sourceAsset_.asset,
-            amount_,
-            sourceAsset_.chainId,
-            _extractNonce(proof_)
+            account_, spAddress, sourceAsset_.asset, amount_, sourceAsset_.chainId, _extractNonce(proof_)
         );
     }
 
@@ -149,7 +157,7 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
 
         if (token == address(0)) {
             // distribute ETH
-            (bool success,) = superBank.call{value: amount}("");
+            (bool success,) = superBank.call{ value: amount }("");
             if (!success) revert INVALID_VALUE();
         } else {
             // distribute ERC20
@@ -163,7 +171,9 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         uint256 amount,
         uint64 fromChainId,
         bytes calldata proof
-    ) internal {
+    )
+        internal
+    {
         (uint32 chainId, address emittingContract, bytes memory topics, bytes memory unindexedData) =
             ICrossL2ProverV2(SUPER_GOVERNOR.getProver()).validateEvent(proof);
 
@@ -174,9 +184,8 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
     }
 
     function _extractNonce(bytes calldata proof_) internal view returns (uint256) {
-        (,,, bytes memory unindexedData) =
-            ICrossL2ProverV2(SUPER_GOVERNOR.getProver()).validateEvent(proof_);
-            
+        (,,, bytes memory unindexedData) = ICrossL2ProverV2(SUPER_GOVERNOR.getProver()).validateEvent(proof_);
+
         (,,, uint256 eventNonce) = abi.decode(unindexedData, (uint256, uint64, uint64, uint256));
         return eventNonce;
     }
@@ -197,7 +206,9 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         uint64 fromChainId,
         uint32 chainId,
         bytes memory unindexedData
-    ) private {
+    )
+        private
+    {
         (uint256 eventAmount, uint64 eventSrcChainId, uint64 eventDstChainId, uint256 eventNonce) =
             abi.decode(unindexedData, (uint256, uint64, uint64, uint256));
 
@@ -214,7 +225,9 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         uint256 amount,
         uint64 fromChainId,
         bytes calldata proof
-    ) internal {
+    )
+        internal
+    {
         (uint32 chainId, address emittingContract, bytes memory topics, bytes memory unindexedData) =
             ICrossL2ProverV2(SUPER_GOVERNOR.getProver()).validateEvent(proof);
 
@@ -231,7 +244,12 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         if (topics.toBytes32(96) != keccak256(abi.encodePacked(token))) revert INVALID_PROOF_TOKEN();
     }
 
-    function _validateUnlockData(address account, uint256 amount, uint64 fromChainId, bytes memory unindexedData)
+    function _validateUnlockData(
+        address account,
+        uint256 amount,
+        uint64 fromChainId,
+        bytes memory unindexedData
+    )
         private
     {
         (uint256 eventAmount, uint64 eventChainId, uint256 eventNonce) =

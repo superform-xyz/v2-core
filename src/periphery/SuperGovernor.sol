@@ -7,8 +7,10 @@ import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableS
 
 // Superform
 import { ISuperGovernor, FeeType } from "./interfaces/ISuperGovernor.sol";
-import { ISuperVaultAggregator } from "./interfaces/ISuperVaultAggregator.sol";
+import { ISuperVaultAggregator } from "./interfaces/SuperVault/ISuperVaultAggregator.sol";
 import { ISuperAssetFactory } from "./interfaces/SuperAsset/ISuperAssetFactory.sol";
+import { ISuperOracle } from "./interfaces/oracles/ISuperOracle.sol";
+import { ISuperOracleL2 } from "./interfaces/oracles/ISuperOracleL2.sol";
 
 /// @title SuperGovernor
 /// @author Superform Labs
@@ -167,7 +169,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                PROVER
+                    PERIPHERY CONFIGURATIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
     function setProver(address prover_) external onlyRole(_SUPER_GOVERNOR_ROLE) {
@@ -177,9 +179,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         emit ProverSet(prover_);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                    SUPER VAULT AGGREGATOR MANAGEMENT
-    //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
     function changePrimaryStrategist(
         address strategy_,
@@ -201,15 +200,50 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         ISuperVaultAggregator(aggregator).changePrimaryStrategist(strategy_, newStrategist_);
     }
 
-    /// @notice Changes the hooks root update timelock duration
-    /// @dev Only callable by SUPER_GOVERNOR_ROLE
-    /// @param newTimelock_ New timelock duration in seconds
+    /// @inheritdoc ISuperGovernor
+    function freezeStrategistTakeover() external onlyRole(_SUPER_GOVERNOR_ROLE) {
+        if (_strategistTakeoversFrozen) revert STRATEGIST_TAKEOVERS_FROZEN();
+
+        // Set frozen status to true (permanent, cannot be undone)
+        _strategistTakeoversFrozen = true;
+
+        // Emit event for the frozen status
+        emit StrategistTakeoversFrozen();
+    }
+
+    /// @inheritdoc ISuperGovernor
     function changeHooksRootUpdateTimelock(uint256 newTimelock_) external onlyRole(_SUPER_GOVERNOR_ROLE) {
         address aggregator = _addressRegistry[SUPER_VAULT_AGGREGATOR];
         if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
 
         // Call the SuperVaultAggregator to change the hooks root update timelock
         ISuperVaultAggregator(aggregator).setHooksRootUpdateTimelock(newTimelock_);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function proposeGlobalHooksRoot(bytes32 newRoot) external onlyRole(_GOVERNOR_ROLE) {
+        address aggregator = _addressRegistry[SUPER_VAULT_AGGREGATOR];
+        if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
+
+        ISuperVaultAggregator(aggregator).proposeGlobalHooksRoot(newRoot);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function setGlobalHooksRootVetoStatus(bool vetoed_) external onlyRole(_GUARDIAN_ROLE) {
+        address aggregator = _addressRegistry[SUPER_VAULT_AGGREGATOR];
+        if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
+
+        ISuperVaultAggregator(aggregator).setGlobalHooksRootVetoStatus(vetoed_);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function setStrategyHooksRootVetoStatus(address strategy_, bool vetoed_) external onlyRole(_GUARDIAN_ROLE) {
+        if (strategy_ == address(0)) revert INVALID_ADDRESS();
+
+        address aggregator = _addressRegistry[SUPER_VAULT_AGGREGATOR];
+        if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
+
+        ISuperVaultAggregator(aggregator).setStrategyHooksRootVetoStatus(strategy_, vetoed_);
     }
 
     /// @inheritdoc ISuperGovernor
@@ -239,48 +273,74 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         factory.removeICCFromWhitelist(icc);
     }
 
-    /// @notice Proposes a new global hooks Merkle root in the SuperVaultAggregator
-    /// @dev Only callable by GOVERNOR_ROLE
-    /// @param newRoot New Merkle root for global hooks validation
-    function proposeGlobalHooksRoot(bytes32 newRoot) external onlyRole(_GOVERNOR_ROLE) {
-        address aggregator = _addressRegistry[SUPER_VAULT_AGGREGATOR];
-        if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
+    /// @inheritdoc ISuperGovernor
+    function setOracleMaxStaleness(uint256 newMaxStaleness_) external onlyRole(_GOVERNOR_ROLE) {
+        address oracle = _addressRegistry[SUPER_ORACLE];
+        if (oracle == address(0)) revert CONTRACT_NOT_FOUND();
 
-        ISuperVaultAggregator(aggregator).proposeGlobalHooksRoot(newRoot);
-    }
-
-    /// @notice Sets veto status for the global hooks Merkle root
-    /// @dev Only callable by GUARDIAN_ROLE
-    /// @param vetoed_ Whether to veto (true) or unveto (false) the global hooks root
-    function setGlobalHooksRootVetoStatus(bool vetoed_) external onlyRole(_GUARDIAN_ROLE) {
-        address aggregator = _addressRegistry[SUPER_VAULT_AGGREGATOR];
-        if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
-
-        ISuperVaultAggregator(aggregator).setGlobalHooksRootVetoStatus(vetoed_);
-    }
-
-    /// @notice Sets veto status for a strategy-specific hooks Merkle root
-    /// @dev Only callable by GUARDIAN_ROLE
-    /// @param strategy_ Address of the strategy to affect
-    /// @param vetoed_ Whether to veto (true) or unveto (false) the strategy hooks root
-    function setStrategyHooksRootVetoStatus(address strategy_, bool vetoed_) external onlyRole(_GUARDIAN_ROLE) {
-        if (strategy_ == address(0)) revert INVALID_ADDRESS();
-
-        address aggregator = _addressRegistry[SUPER_VAULT_AGGREGATOR];
-        if (aggregator == address(0)) revert CONTRACT_NOT_FOUND();
-
-        ISuperVaultAggregator(aggregator).setStrategyHooksRootVetoStatus(strategy_, vetoed_);
+        ISuperOracle(oracle).setMaxStaleness(newMaxStaleness_);
     }
 
     /// @inheritdoc ISuperGovernor
-    function freezeStrategistTakeover() external onlyRole(_SUPER_GOVERNOR_ROLE) {
-        if (_strategistTakeoversFrozen) revert STRATEGIST_TAKEOVERS_FROZEN();
+    function setOracleFeedMaxStaleness(address feed_, uint256 newMaxStaleness_) external onlyRole(_GOVERNOR_ROLE) {
+        if (feed_ == address(0)) revert INVALID_ADDRESS();
+        address oracle = _addressRegistry[SUPER_ORACLE];
+        if (oracle == address(0)) revert CONTRACT_NOT_FOUND();
 
-        // Set frozen status to true (permanent, cannot be undone)
-        _strategistTakeoversFrozen = true;
+        ISuperOracle(oracle).setFeedMaxStaleness(feed_, newMaxStaleness_);
+    }
 
-        // Emit event for the frozen status
-        emit StrategistTakeoversFrozen();
+    /// @inheritdoc ISuperGovernor
+    function setOracleFeedMaxStalenessBatch(
+        address[] calldata feeds_,
+        uint256[] calldata newMaxStalenessList_
+    )
+        external
+        onlyRole(_GOVERNOR_ROLE)
+    {
+        address oracle = _addressRegistry[SUPER_ORACLE];
+        if (oracle == address(0)) revert CONTRACT_NOT_FOUND();
+
+        ISuperOracle(oracle).setFeedMaxStalenessBatch(feeds_, newMaxStalenessList_);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function queueOracleUpdate(
+        address[] calldata bases_,
+        address[] calldata quotes_,
+        bytes32[] calldata providers_,
+        address[] calldata feeds_
+    )
+        external
+        onlyRole(_GOVERNOR_ROLE)
+    {
+        address oracle = _addressRegistry[SUPER_ORACLE];
+        if (oracle == address(0)) revert CONTRACT_NOT_FOUND();
+
+        ISuperOracle(oracle).queueOracleUpdate(bases_, quotes_, providers_, feeds_);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function queueOracleProviderRemoval(bytes32[] calldata providers_) external onlyRole(_GOVERNOR_ROLE) {
+        address oracle = _addressRegistry[SUPER_ORACLE];
+        if (oracle == address(0)) revert CONTRACT_NOT_FOUND();
+
+        ISuperOracle(oracle).queueProviderRemoval(providers_);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function batchSetOracleUptimeFeed(
+        address[] calldata dataOracles_,
+        address[] calldata uptimeOracles_,
+        uint256[] calldata gracePeriods_
+    )
+        external
+        onlyRole(_GOVERNOR_ROLE)
+    {
+        address oracleL2 = _addressRegistry[SUPER_ORACLE];
+        if (oracleL2 == address(0)) revert CONTRACT_NOT_FOUND();
+
+        ISuperOracleL2(oracleL2).batchSetUptimeFeed(dataOracles_, uptimeOracles_, gracePeriods_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -520,9 +580,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         emit UpkeepCostPerUpdateChanged(_upkeepCostPerUpdate);
     }
 
-    /*//////////////////////////////////////////////////////////////
-                        UPKEEP PAYMENTS CONTROL
-    //////////////////////////////////////////////////////////////*/
     /// @notice Proposes a change to the upkeep payments enabled status
     /// @param enabled The proposed new status for upkeep payments
     function proposeUpkeepPaymentsChange(bool enabled) external onlyRole(_SUPER_GOVERNOR_ROLE) {
@@ -543,24 +600,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         emit UpkeepPaymentsChanged(_upkeepPaymentsEnabled);
     }
 
-    /// @notice Checks if upkeep payments are currently enabled
-    /// @return enabled True if upkeep payments are enabled
-    function isUpkeepPaymentsEnabled() external view returns (bool enabled) {
-        return _upkeepPaymentsEnabled;
-    }
-
-    /// @notice Gets the proposed upkeep payments status and effective time
-    /// @return enabled The proposed status
-    /// @return effectiveTime The timestamp when the change becomes effective
-    function getProposedUpkeepPaymentsStatus() external view returns (bool enabled, uint256 effectiveTime) {
-        return (_proposedUpkeepPaymentsEnabled, _upkeepPaymentsChangeEffectiveTime);
-    }
-
     /*//////////////////////////////////////////////////////////////
                         SUPERFORM STRATEGIST MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @notice Adds a strategist to the superform strategists list (exempt from upkeep costs)
-    /// @param strategist The address to add to the list
+    /// @inheritdoc ISuperGovernor
     function addSuperformStrategist(address strategist) external onlyRole(_GOVERNOR_ROLE) {
         if (strategist == address(0)) revert INVALID_ADDRESS();
         if (!_superformStrategists.add(strategist)) revert STRATEGIST_ALREADY_REGISTERED();
@@ -568,41 +611,16 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         emit SuperformStrategistAdded(strategist);
     }
 
-    /// @notice Removes a strategist from the superform strategists list
-    /// @param strategist The address to remove from the list
+    /// @inheritdoc ISuperGovernor
     function removeSuperformStrategist(address strategist) external onlyRole(_GOVERNOR_ROLE) {
         if (!_superformStrategists.remove(strategist)) revert STRATEGIST_NOT_REGISTERED();
 
         emit SuperformStrategistRemoved(strategist);
     }
 
-    /// @notice Checks if an address is a registered superform strategist
-    /// @param strategist The address to check
-    /// @return isSuperform True if the address is a superform strategist
-    function isSuperformStrategist(address strategist) external view returns (bool isSuperform) {
-        return _superformStrategists.contains(strategist);
-    }
-
-    /// @notice Gets the list of all superform strategists
-    /// @return strategists The list of all superform strategist addresses
-    function getAllSuperformStrategists() external view returns (address[] memory strategists) {
-        return _superformStrategists.values();
-    }
-
     /*//////////////////////////////////////////////////////////////
-                           SUPERBANK HOOKS MGMT
+                           VAULT HOOKS MGMT
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperGovernor
-    function proposeSuperBankHookMerkleRoot(address hook, bytes32 proposedRoot) external onlyRole(_GOVERNOR_ROLE) {
-        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
-
-        uint256 effectiveTime = block.timestamp + TIMELOCK;
-        ISuperGovernor.HookMerkleRootData storage data = superBankHooksMerkleRoots[hook];
-        data.proposedRoot = proposedRoot;
-        data.effectiveTime = effectiveTime;
-
-        emit SuperBankHookMerkleRootProposed(hook, proposedRoot, effectiveTime);
-    }
 
     /// @inheritdoc ISuperGovernor
     function proposeVaultBankHookMerkleRoot(address hook, bytes32 proposedRoot) external onlyRole(_GOVERNOR_ROLE) {
@@ -614,29 +632,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         data.effectiveTime = effectiveTime;
 
         emit VaultBankHookMerkleRootProposed(hook, proposedRoot, effectiveTime);
-    }
-
-    /// @inheritdoc ISuperGovernor
-    function executeSuperBankHookMerkleRootUpdate(address hook) external {
-        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
-
-        ISuperGovernor.HookMerkleRootData storage data = superBankHooksMerkleRoots[hook];
-
-        // Check if there's a proposed update
-        bytes32 proposedRoot = data.proposedRoot;
-        if (proposedRoot == bytes32(0)) revert NO_PROPOSED_MERKLE_ROOT();
-
-        // Check if the effective time has passed
-        if (block.timestamp < data.effectiveTime) revert TIMELOCK_NOT_EXPIRED();
-
-        // Update the Merkle root
-        data.currentRoot = proposedRoot;
-
-        // Reset the proposal
-        data.proposedRoot = bytes32(0);
-        data.effectiveTime = 0;
-
-        emit SuperBankHookMerkleRootUpdated(hook, proposedRoot);
     }
 
     /// @inheritdoc ISuperGovernor
@@ -660,6 +655,44 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         data.effectiveTime = 0;
 
         emit VaultBankHookMerkleRootUpdated(hook, proposedRoot);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           SUPERBANK HOOKS MGMT
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperGovernor
+    function proposeSuperBankHookMerkleRoot(address hook, bytes32 proposedRoot) external onlyRole(_GOVERNOR_ROLE) {
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
+
+        uint256 effectiveTime = block.timestamp + TIMELOCK;
+        ISuperGovernor.HookMerkleRootData storage data = superBankHooksMerkleRoots[hook];
+        data.proposedRoot = proposedRoot;
+        data.effectiveTime = effectiveTime;
+
+        emit SuperBankHookMerkleRootProposed(hook, proposedRoot, effectiveTime);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function executeSuperBankHookMerkleRootUpdate(address hook) external {
+        if (!_registeredHooks.contains(hook)) revert HOOK_NOT_APPROVED();
+
+        ISuperGovernor.HookMerkleRootData storage data = superBankHooksMerkleRoots[hook];
+
+        // Check if there's a proposed update
+        bytes32 proposedRoot = data.proposedRoot;
+        if (proposedRoot == bytes32(0)) revert NO_PROPOSED_MERKLE_ROOT();
+
+        // Check if the effective time has passed
+        if (block.timestamp < data.effectiveTime) revert TIMELOCK_NOT_EXPIRED();
+
+        // Update the Merkle root
+        data.currentRoot = proposedRoot;
+
+        // Reset the proposal
+        data.proposedRoot = bytes32(0);
+        data.effectiveTime = 0;
+
+        emit SuperBankHookMerkleRootUpdated(hook, proposedRoot);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -820,6 +853,26 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function getProver() external view returns (address) {
         return _prover;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function isUpkeepPaymentsEnabled() external view returns (bool enabled) {
+        return _upkeepPaymentsEnabled;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getProposedUpkeepPaymentsStatus() external view returns (bool enabled, uint256 effectiveTime) {
+        return (_proposedUpkeepPaymentsEnabled, _upkeepPaymentsChangeEffectiveTime);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function isSuperformStrategist(address strategist) external view returns (bool isSuperform) {
+        return _superformStrategists.contains(strategist);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getAllSuperformStrategists() external view returns (address[] memory strategists) {
+        return _superformStrategists.values();
     }
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS

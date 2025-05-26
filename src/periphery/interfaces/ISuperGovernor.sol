@@ -236,24 +236,6 @@ interface ISuperGovernor is IAccessControl {
     event SuperformStrategistRemoved(address indexed strategist);
 
     /*//////////////////////////////////////////////////////////////
-                                   ROLES
-    //////////////////////////////////////////////////////////////*/
-    /// @notice The identifier of the role that grants access to critical governance functions
-    function SUPER_GOVERNOR_ROLE() external view returns (bytes32);
-
-    /// @notice The identifier of the role that grants access to daily operations like hooks and validators
-    function GOVERNOR_ROLE() external view returns (bytes32);
-
-    /// @notice The identifier of the role that grants access to bank management functions
-    function BANK_MANAGER_ROLE() external view returns (bytes32);
-
-    /// @notice The identifier of the role that grants access to guardian functions
-    function GUARDIAN_ROLE() external view returns (bytes32);
-
-    /// @notice The identifier of the role that grants access to superasset factory
-    function SUPER_ASSET_FACTORY() external view returns (bytes32);
-
-    /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @notice Sets an address in the registry
@@ -262,32 +244,99 @@ interface ISuperGovernor is IAccessControl {
     function setAddress(bytes32 key, address value) external;
 
     /*//////////////////////////////////////////////////////////////
-                        PROVER
+                        PERIPHERY CONFIGURATIONS
     //////////////////////////////////////////////////////////////*/
     /// @notice Sets the prover address
     /// @param prover_ The address of the prover
     function setProver(address prover_) external;
 
-    /*//////////////////////////////////////////////////////////////
-                        SUPER VAULT AGGREGATOR MANAGEMENT
-    //////////////////////////////////////////////////////////////*/
     /// @notice Change the primary strategist for a strategy
     /// @dev Only SuperGovernor can call this function directly
     /// @param strategy_ The strategy address
     /// @param newStrategist_ The new primary strategist address
     function changePrimaryStrategist(address strategy_, address newStrategist_) external;
 
+    /// @notice Permanently freezes all strategist takeovers globally
+    function freezeStrategistTakeover() external;
+
     /// @notice Changes the hooks root update timelock duration
     /// @param newTimelock_ New timelock duration in seconds
     function changeHooksRootUpdateTimelock(uint256 newTimelock_) external;
+
+    /// @notice Proposes a new global hooks Merkle root
+    /// @dev Only GOVERNOR_ROLE can call this function
+    /// @param newRoot New Merkle root for global hooks validation
+    function proposeGlobalHooksRoot(bytes32 newRoot) external;
+
+    /// @notice Sets veto status for global hooks Merkle root
+    /// @dev Only GUARDIAN_ROLE can call this function
+    /// @param vetoed Whether to veto (true) or unveto (false) the global hooks root
+    function setGlobalHooksRootVetoStatus(bool vetoed) external;
+
+    /// @notice Sets veto status for a strategy-specific hooks Merkle root
+    /// @dev Only GUARDIAN_ROLE can call this function
+    /// @param strategy Address of the strategy to affect
+    /// @param vetoed Whether to veto (true) or unveto (false) the strategy hooks root
+    function setStrategyHooksRootVetoStatus(address strategy, bool vetoed) external;
 
     /// @notice Sets the superasset manager for a superasset
     /// @param superAsset The superasset address
     /// @param _superAssetManager The new superasset manager address
     function setSuperAssetManager(address superAsset, address _superAssetManager) external;
 
-    /// @notice Permanently freezes all strategist takeovers globally
-    function freezeStrategistTakeover() external;
+    /// @notice Adds an ICC to the whitelist
+    /// @param icc The ICC address to add
+    function addICCToWhitelist(address icc) external;
+
+    /// @notice Removes an ICC from the whitelist
+    /// @param icc The ICC address to remove
+    function removeICCFromWhitelist(address icc) external;
+
+    /// @notice Sets the maximum staleness period for all oracle feeds
+    /// @param newMaxStaleness_ The new maximum staleness period in seconds
+    function setOracleMaxStaleness(uint256 newMaxStaleness_) external;
+
+    /// @notice Sets the maximum staleness period for a specific oracle feed
+    /// @param feed_ The address of the feed to set staleness for
+    /// @param newMaxStaleness_ The new maximum staleness period in seconds
+    function setOracleFeedMaxStaleness(address feed_, uint256 newMaxStaleness_) external;
+
+    /// @notice Sets the maximum staleness periods for multiple oracle feeds in batch
+    /// @param feeds_ The addresses of the feeds to set staleness for
+    /// @param newMaxStalenessList_ The new maximum staleness periods in seconds
+    function setOracleFeedMaxStalenessBatch(
+        address[] calldata feeds_,
+        uint256[] calldata newMaxStalenessList_
+    )
+        external;
+
+    /// @notice Queues an oracle update for execution after timelock period
+    /// @param bases_ Base asset addresses
+    /// @param quotes_ Quote asset addresses
+    /// @param providers_ Provider identifiers
+    /// @param feeds_ Feed addresses
+    function queueOracleUpdate(
+        address[] calldata bases_,
+        address[] calldata quotes_,
+        bytes32[] calldata providers_,
+        address[] calldata feeds_
+    )
+        external;
+
+    /// @notice Queues a provider removal for execution after timelock period
+    /// @param providers_ The providers to remove
+    function queueOracleProviderRemoval(bytes32[] calldata providers_) external;
+
+    /// @notice Sets uptime feeds for multiple data oracles in batch (Layer 2 only)
+    /// @param dataOracles_ Array of data oracle addresses to set uptime feeds for
+    /// @param uptimeOracles_ Array of uptime feed addresses to set
+    /// @param gracePeriods_ Array of grace periods in seconds after sequencer restart
+    function batchSetOracleUptimeFeed(
+        address[] calldata dataOracles_,
+        address[] calldata uptimeOracles_,
+        uint256[] calldata gracePeriods_
+    )
+        external;
 
     /*//////////////////////////////////////////////////////////////
                          HOOK MANAGEMENT
@@ -383,6 +432,18 @@ interface ISuperGovernor is IAccessControl {
     function executeUpkeepPaymentsChange() external;
 
     /*//////////////////////////////////////////////////////////////
+                        SUPERFORM STRATEGIST MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Adds a strategist to the superform strategists list
+    /// @param strategist Address of the strategist to add
+    function addSuperformStrategist(address strategist) external;
+
+    /// @notice Removes a strategist from the superform strategists list
+    /// @param strategist Address of the strategist to remove
+    function removeSuperformStrategist(address strategist) external;
+
+    /*//////////////////////////////////////////////////////////////
                            VAULT HOOKS MGMT
     //////////////////////////////////////////////////////////////*/
     /// @notice Proposes a new Merkle root for a specific hook's allowed targets.
@@ -406,25 +467,25 @@ interface ISuperGovernor is IAccessControl {
     /// @param hook The address of the hook to execute the update for.
     function executeSuperBankHookMerkleRootUpdate(address hook) external;
 
-    /// @notice Proposes a new global hooks Merkle root
-    /// @dev Only GOVERNOR_ROLE can call this function
-    /// @param newRoot New Merkle root for global hooks validation
-    function proposeGlobalHooksRoot(bytes32 newRoot) external;
-
-    /// @notice Sets veto status for global hooks Merkle root
-    /// @dev Only GUARDIAN_ROLE can call this function
-    /// @param vetoed Whether to veto (true) or unveto (false) the global hooks root
-    function setGlobalHooksRootVetoStatus(bool vetoed) external;
-
-    /// @notice Sets veto status for a strategy-specific hooks Merkle root
-    /// @dev Only GUARDIAN_ROLE can call this function
-    /// @param strategy Address of the strategy to affect
-    /// @param vetoed Whether to veto (true) or unveto (false) the strategy hooks root
-    function setStrategyHooksRootVetoStatus(address strategy, bool vetoed) external;
-
     /*//////////////////////////////////////////////////////////////
                          EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
+    /// @notice The identifier of the role that grants access to critical governance functions
+    function SUPER_GOVERNOR_ROLE() external view returns (bytes32);
+
+    /// @notice The identifier of the role that grants access to daily operations like hooks and validators
+    function GOVERNOR_ROLE() external view returns (bytes32);
+
+    /// @notice The identifier of the role that grants access to bank management functions
+    function BANK_MANAGER_ROLE() external view returns (bytes32);
+
+    /// @notice The identifier of the role that grants access to guardian functions
+    function GUARDIAN_ROLE() external view returns (bytes32);
+
+    /// @notice The identifier of the role that grants access to superasset factory
+    function SUPER_ASSET_FACTORY() external view returns (bytes32);
+
     /// @notice Gets an address from the registry
     /// @param key The key of the address to get
     /// @return The address value
@@ -574,10 +635,6 @@ interface ISuperGovernor is IAccessControl {
     /// @return The ID for the SuperOracle in the registry
     function SUPER_ORACLE() external view returns (bytes32);
 
-    /// @notice Gets the BLS PPS Oracle ID
-    /// @return The ID for the BLS PPS Oracle in the registry
-    function BLSPPSORACLE() external view returns (bytes32);
-
     /// @notice Gets the ECDSA PPS Oracle ID
     /// @return The ID for the ECDSA PPS Oracle in the registry
     function ECDSAPPSORACLE() external view returns (bytes32);
@@ -589,20 +646,4 @@ interface ISuperGovernor is IAccessControl {
     /// @notice Gets the SuperBank ID
     /// @return The ID for the SuperBank in the registry
     function SUPER_BANK() external view returns (bytes32);
-
-    /// @notice Adds a strategist to the superform strategists list
-    /// @param strategist Address of the strategist to add
-    function addSuperformStrategist(address strategist) external;
-
-    /// @notice Removes a strategist from the superform strategists list
-    /// @param strategist Address of the strategist to remove
-    function removeSuperformStrategist(address strategist) external;
-
-    /// @notice Adds a new ICC to the whitelist
-    /// @param icc Address of the ICC to add
-    function addICCToWhitelist(address icc) external;
-
-    /// @notice Removes an ICC from the whitelist
-    /// @param icc Address of the ICC to remove
-    function removeICCFromWhitelist(address icc) external;
 }
