@@ -28,8 +28,15 @@ contract IncentiveFundContract is IIncentiveFundContract {
     ISuperGovernor public _SUPER_GOVERNOR;
     ISuperAssetFactory public _SUPER_ASSET_FACTORY;
 
+    // Timelock
+    uint256 public constant setTokenTimelock = 7 days;
+    address public proposedTokenIn;
+    uint256 public newTokenInEffectiveTime;
+    address public proposedTokenOut;
+    uint256 public newTokenOutEffectiveTime;
+
     /// @inheritdoc IIncentiveFundContract
-    function initialize(address _superGovernor, address superAsset_) external {
+    function initialize(address _superGovernor, address superAsset_, address tokenInIncentive_, address tokenOutIncentive_) external {
         if (_superGovernor == address(0)) revert ZERO_ADDRESS();
         _SUPER_GOVERNOR = ISuperGovernor(_superGovernor);
 
@@ -37,80 +44,106 @@ contract IncentiveFundContract is IIncentiveFundContract {
         if (address(superAsset) != address(0)) revert ALREADY_INITIALIZED();
 
         if (superAsset_ == address(0)) revert ZERO_ADDRESS();
+        if (tokenInIncentive_ == address(0)) revert ZERO_ADDRESS();
+        if (tokenOutIncentive_ == address(0)) revert ZERO_ADDRESS();
 
         superAsset = ISuperAsset(superAsset_);
+        tokenInIncentive = tokenInIncentive_;
+        tokenOutIncentive = tokenOutIncentive_;
     }
+    
 
     /*//////////////////////////////////////////////////////////////
                 EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
     /// @inheritdoc IIncentiveFundContract
-    function setTokenInIncentive(address token) external {
+    function proposeSetTokenInIncentive(address token) external {
         ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        // Check if the caller has the INCENTIVE_FUND_MANAGER role
         address manager = factory.getIncentiveFundManager(address(superAsset));
         if (manager != msg.sender) revert UNAUTHORIZED();
-        if (token == address(0)) revert ZERO_ADDRESS();
-        tokenInIncentive = token;
-        emit SettlementTokenInSet(token);
+        // Allowing to deselect token
+        // if (token == address(0)) revert ZERO_ADDRESS();
+        proposedTokenIn = token;
+        newTokenInEffectiveTime = block.timestamp + setTokenTimelock;
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function setTokenOutIncentive(address token) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        // Check if the caller has the INCENTIVE_FUND_MANAGER role
-        address manager = factory.getIncentiveFundManager(address(superAsset));
-        if (manager != msg.sender) revert UNAUTHORIZED();
-        if (token == address(0)) revert ZERO_ADDRESS();
-        tokenOutIncentive = token;
-        emit SettlementTokenOutSet(token);
+    function executeSetTokenInIncentive() external {
+        if (block.timestamp < newTokenInEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+        tokenInIncentive = proposedTokenIn;
+        emit SettlementTokenInSet(tokenInIncentive);
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function payIncentive(address receiver, uint256 amountUSD) external {
+    function proposeSetTokenOutIncentive(address token) external {
+        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
+        address manager = factory.getIncentiveFundManager(address(superAsset));
+        if (manager != msg.sender) revert UNAUTHORIZED();
+        // Allowing to deselect token
+        // if (token == address(0)) revert ZERO_ADDRESS();
+        proposedTokenOut = token;
+        newTokenOutEffectiveTime = block.timestamp + setTokenTimelock;
+    }
+
+    /// @inheritdoc IIncentiveFundContract
+    function executeSetTokenOutIncentive() external {
+        if (block.timestamp < newTokenOutEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+        tokenOutIncentive = proposedTokenOut;
+        emit SettlementTokenOutSet(tokenOutIncentive);
+    }
+
+    /// @inheritdoc IIncentiveFundContract
+    function payIncentive(address receiver, uint256 amountUSD) external returns (uint256 amountToken) {
         ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
         address manager = factory.getIncentiveFundManager(address(superAsset));
         if (manager != msg.sender) revert UNAUTHORIZED();
         _validateInput(receiver, amountUSD);
-        if (tokenOutIncentive == address(0)) revert TOKEN_OUT_NOT_SET();
+        // NOTE: In case the tokenOut is not set, no incentive is paid 
+        if (tokenOutIncentive != address(0)) {
+            // Get token price and check circuit breakers
+            (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) =
+                superAsset.getPriceWithCircuitBreakers(tokenOutIncentive);
 
-        // Get token price and check circuit breakers
-        (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) =
-            superAsset.getPriceWithCircuitBreakers(tokenOutIncentive);
+            // Revert if any circuit breaker is triggered
+            // Question: do we want to revert if circuit breaker is triggered?
+            if (isDepeg || isDispersion || isOracleOff) revert CIRCUIT_BREAKER_TRIGGERED();
+            if (priceUSD == 0) revert PRICE_USD_ZERO();
 
-        // Revert if any circuit breaker is triggered
-        if (isDepeg || isDispersion || isOracleOff) revert CIRCUIT_BREAKER_TRIGGERED();
-        if (priceUSD == 0) revert PRICE_USD_ZERO();
+            // Convert USD amount to token amount using price
+            // amountToken = amountUSD / priceUSD
+            uint256 amountTokenDesired = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
+            // NOTE: Pay incentives as long as there is money available for it
+            amountToken = amountTokenDesired <= IERC20(tokenOutIncentive).balanceOf(address(this)) ? amountTokenDesired : IERC20(tokenOutIncentive).balanceOf(address(this));
 
-        // Convert USD amount to token amount using price
-        // amountToken = amountUSD / priceUSD
-        uint256 amountToken = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
+            if(amountToken > 0) IERC20(tokenOutIncentive).safeTransfer(receiver, amountToken);
+        }
 
-        IERC20(tokenOutIncentive).safeTransfer(receiver, amountToken);
         emit IncentivePaid(receiver, tokenOutIncentive, amountToken);
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function takeIncentive(address sender, uint256 amountUSD) external {
+    function takeIncentive(address sender, uint256 amountUSD) external returns (uint256 amountToken) {
         ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
         address manager = factory.getIncentiveFundManager(address(superAsset));
         if (manager != msg.sender) revert UNAUTHORIZED();
         _validateInput(sender, amountUSD);
-        if (tokenInIncentive == address(0)) revert TOKEN_IN_NOT_SET();
+        if (tokenInIncentive != address(0)) {
+            // Get token price and check circuit breakers
+            (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) =
+                superAsset.getPriceWithCircuitBreakers(tokenInIncentive);
 
-        // Get token price and check circuit breakers
-        (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) =
-            superAsset.getPriceWithCircuitBreakers(tokenInIncentive);
+            // Revert if any circuit breaker is triggered
+            // Question: do we want to revert if circuit breaker is triggered?
+            if (isDepeg || isDispersion || isOracleOff) revert CIRCUIT_BREAKER_TRIGGERED();
+            if (priceUSD == 0) revert PRICE_USD_ZERO();
 
-        // Revert if any circuit breaker is triggered
-        if (isDepeg || isDispersion || isOracleOff) revert CIRCUIT_BREAKER_TRIGGERED();
-        if (priceUSD == 0) revert PRICE_USD_ZERO();
+            // Convert USD amount to token amount using price
+            // amountToken = amountUSD / priceUSD
+            amountToken = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
 
-        // Convert USD amount to token amount using price
-        // amountToken = amountUSD / priceUSD
-        uint256 amountToken = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
-
-        IERC20(tokenInIncentive).safeTransferFrom(sender, address(this), amountToken);
+            if(amountToken > 0) IERC20(tokenInIncentive).safeTransferFrom(sender, address(this), amountToken);
+        }
         emit IncentiveTaken(sender, tokenInIncentive, amountToken);
     }
 
