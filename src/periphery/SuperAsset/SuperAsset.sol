@@ -60,6 +60,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     // --- Addresses ---
     address public constant USD = address(840);
+    address public immutable primaryAsset;
 
     bytes32 public _SUPER_ASSET_FACTORY;
 
@@ -92,7 +93,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     /*//////////////////////////////////////////////////////////////
                         CONTRACT INITIALIZATION
     //////////////////////////////////////////////////////////////*/
-    constructor() ERC20("", "") { }
+    constructor(address asset) ERC20("", "") {
+        primaryAsset = asset;
+    }
 
     /// @inheritdoc ISuperAsset
     function initialize(
@@ -575,19 +578,20 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff)
     {
         // Get token decimals
-        uint256 one = 10 ** IERC20Metadata(token).decimals();
+        uint8 decimalsToken = IERC20Metadata(token).decimals();
+        uint256 one = 10 ** decimalsToken;
         uint256 stddev;
         uint256 N;
         uint256 M;
 
         // @dev Passing oneUnit to get the price of a single unit of asset to check if it has depegged
         try superOracle.getQuoteFromProvider(one, token, USD, AVERAGE_PROVIDER) returns (
-            uint256 _priceUSD, uint256 _stddev, uint256 _N, uint256 _M
+            uint256 _priceUSD, uint256 _stddev, uint256 _n, uint256 _m
         ) {
             priceUSD = _priceUSD;
             stddev = _stddev;
-            N = _N;
-            M = _M;
+            N = _n;
+            M = _m;
         } catch {
             priceUSD = emergencyPrices[token];
             isOracleOff = true;
@@ -599,7 +603,22 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         } else {
             // Circuit Breaker for Depeg - price deviates more than ±2% from expected
             if (priceUSD < DEPEG_LOWER_THRESHOLD || priceUSD > DEPEG_UPPER_THRESHOLD) {
-                isDepeg = true;
+                uint256 oneUnitAsset = 10 ** IERC20Metadata(primaryAsset).decimals();
+                uint256 assetPriceUSD;
+                try superOracle.getQuoteFromProvider(oneUnitAsset, primaryAsset, USD, AVERAGE_PROVIDER) returns (
+                    uint256 _priceUSD, uint256 _stddev, uint256 _n, uint256 _m
+                ) {
+                    assetPriceUSD = _priceUSD;
+                } catch {
+                    assetPriceUSD = emergencyPrices[primaryAsset];
+                }
+                uint256 ratio = Math.mulDiv(priceUSD, PRECISION, assetPriceUSD);
+                if (decimalsToken != 1e18) {
+                    ratio = Math.mulDiv(ratio, 10 ** (1e18 - decimalsToken), PRECISION);
+                }
+                if (ratio < DEPEG_LOWER_THRESHOLD || ratio > DEPEG_UPPER_THRESHOLD) {
+                    isDepeg = true;
+                }
             }
             // Calculate relative standard deviation
             uint256 relativeStdDev = Math.mulDiv(stddev, PRECISION, priceUSD);
@@ -847,12 +866,12 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     /// @dev Checks the circuit breakers for a token
     /// @param token The address of the token to check the circuit breakers for
-    function _checkCircuitBreakers(address token) internal view returns (bool payIncentive){
+    function _checkCircuitBreakers(address token) internal view returns (bool payIncentive) {
         uint256 underlyingSuperVaultAssetPriceUSD;
         bool isDispersion;
         bool isOracleOff;
 
-        (underlyingSuperVaultAssetPriceUSD, , isDispersion, isOracleOff) = getPriceWithCircuitBreakers(token);
+        (underlyingSuperVaultAssetPriceUSD,, isDispersion, isOracleOff) = getPriceWithCircuitBreakers(token);
 
         // Circuit Breaker for Dispersion
         if (isDispersion) {
