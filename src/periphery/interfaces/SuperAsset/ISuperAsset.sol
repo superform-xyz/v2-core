@@ -278,7 +278,6 @@ interface ISuperAsset is IERC20 {
      * @return amountSharesMinted The amount of SuperUSD shares that would be minted.
      * @return swapFee The amount of swap fee paid.
      * @return amountIncentiveUSD The amount of incentives in USD.
-     * @return isSuccess Whether the preview was successful
      */
     function previewDeposit(
         address tokenIn,
@@ -287,7 +286,7 @@ interface ISuperAsset is IERC20 {
     )
         external
         view
-        returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess);
+        returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD);
 
     /**
      * @notice Preview a redemption.
@@ -389,6 +388,13 @@ interface ISuperAsset is IERC20 {
      */
     function setEnergyToUSDExchangeRatio(uint256 newRatio) external;
 
+    /**
+     * @notice Sets the emergency price for a token when oracle is down
+     * @param token The token address to set the emergency price for
+     * @param priceUSD The USD price with 18 decimals precision
+     */
+    function setEmergencyPrice(address token, uint256 priceUSD) external;
+
     // --- Events ---
     event Deposit(
         address indexed receiver,
@@ -428,6 +434,8 @@ interface ISuperAsset is IERC20 {
     event TargetAllocationSet(address indexed token, uint256 allocation);
     event EnergyToUSDExchangeRatioSet(uint256 newRatio);
     event WeightSet(address indexed vault, uint256 weight);
+    event EmergencyPriceSet(address indexed token, uint256 priceUSD);
+
 
     // --- Errors ---
     /// @notice Thrown when an address parameter is zero
