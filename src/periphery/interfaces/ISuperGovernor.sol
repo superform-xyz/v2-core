@@ -262,7 +262,7 @@ interface ISuperGovernor is IAccessControl {
     function setAddress(bytes32 key, address value) external;
 
     /*//////////////////////////////////////////////////////////////
-                        PROVER
+                                PROVER
     //////////////////////////////////////////////////////////////*/
     /// @notice Sets the prover address
     /// @param prover_ The address of the prover
@@ -423,6 +423,17 @@ interface ISuperGovernor is IAccessControl {
     function setStrategyHooksRootVetoStatus(address strategy, bool vetoed) external;
 
     /*//////////////////////////////////////////////////////////////
+                      INCENTIVE TOKEN MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Adds a token to the whitelist of incentive tokens
+    /// @param token The address of the token to add
+    function addWhitelistedIncentiveToken(address token) external;
+
+    /// @notice Removes a token from the whitelist of incentive tokens
+    /// @param token The address of the token to remove
+    function removeWhitelistedIncentiveToken(address token) external;
+
+    /*//////////////////////////////////////////////////////////////
                          EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @notice Gets an address from the registry
@@ -535,6 +546,15 @@ interface ISuperGovernor is IAccessControl {
         external
         view
         returns (bytes32 proposedRoot, uint256 effectiveTime);
+
+    /// @notice Gets the whitelist of incentive tokens
+    /// @return The whitelist of incentive tokens
+    function getWhitelistedIncentiveTokens() external view returns (address[] memory);
+
+    /// @notice Checks if a token is whitelisted as an incentive token
+    /// @param token The address of the token to check
+    /// @return True if the token is whitelisted as an incentive token, false otherwise
+    function isWhitelistedIncentiveToken(address token) external view returns (bool);
 
     /// @notice Gets the prover address
     /// @return The address of the prover

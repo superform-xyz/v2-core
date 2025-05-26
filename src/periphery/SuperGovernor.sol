@@ -60,13 +60,16 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     // Polymer prover
     address private _prover;
 
+    // Whitelisted incentive tokens
+    EnumerableSet.AddressSet private _whitelistedIncentiveTokens;
+
     // Fee management
     // Current fee values
-    mapping(FeeType => uint256) private _feeValues;
+    mapping(FeeType type_ => uint256 value) private _feeValues;
     // Proposed fee values
-    mapping(FeeType => uint256) private _proposedFeeValues;
+    mapping(FeeType type_ => uint256 proposedValue) private _proposedFeeValues;
     // Effective times for proposed fee updates
-    mapping(FeeType => uint256) private _feeEffectiveTimes;
+    mapping(FeeType type_ => uint256 effectiveTime) private _feeEffectiveTimes;
 
     // Upkeep cost per update for PPS updates
     uint256 private _upkeepCostPerUpdate;
@@ -100,7 +103,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bytes32 public constant TREASURY = keccak256("TREASURY");
     bytes32 public constant SUPER_BANK = keccak256("SUPER_BANK");
     bytes32 public constant SUPER_ORACLE = keccak256("SUPER_ORACLE");
-     bytes32 public constant BANK_MANAGER = keccak256("BANK_MANAGER");
+    bytes32 public constant BANK_MANAGER = keccak256("BANK_MANAGER");
     bytes32 public constant ECDSAPPSORACLE = keccak256("ECDSAPPSORACLE");
     bytes32 public constant SUPER_VAULT_AGGREGATOR = keccak256("SUPER_VAULT_AGGREGATOR");
 
@@ -410,7 +413,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                       PPS ORACLE MANAGEMENT
+                         PPS ORACLE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
     function setActivePPSOracle(address oracle) external onlyRole(_SUPER_GOVERNOR_ROLE) {
@@ -662,6 +665,22 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
+                      INCENTIVE TOKEN MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperGovernor
+    function addWhitelistedIncentiveToken(address token) external onlyRole(_GOVERNOR_ROLE) {
+        if (token == address(0)) revert INVALID_ADDRESS();
+        _whitelistedIncentiveTokens.add(token);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function removeWhitelistedIncentiveToken(address token) external onlyRole(_GOVERNOR_ROLE) {
+        if (_whitelistedIncentiveTokens.contains(token)) {
+            _whitelistedIncentiveTokens.remove(token);
+        }
+    }
+
+    /*//////////////////////////////////////////////////////////////
                          EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
@@ -820,11 +839,21 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     function getProver() external view returns (address) {
         return _prover;
     }
+
+    /// @inheritdoc ISuperGovernor
+    function getWhitelistedIncentiveTokens() external view returns (address[] memory) {
+        return _whitelistedIncentiveTokens.values();
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function isWhitelistedIncentiveToken(address token) external view returns (bool) {
+        return _whitelistedIncentiveTokens.contains(token);
+    }
+
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @dev Internal function to unregister a fulfill requests hook
-
     function _unregisterFulfillRequestsHook(address hook_) internal {
         if (!_registeredFulfillRequestsHooks.contains(hook_)) {
             revert FULFILL_REQUESTS_HOOK_NOT_REGISTERED();
