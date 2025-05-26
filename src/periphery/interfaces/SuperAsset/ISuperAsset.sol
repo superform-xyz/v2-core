@@ -55,6 +55,9 @@ interface ISuperAsset is IERC20 {
         uint256 amountTokenInAfterFees;
         uint256 priceUSDTokenIn;
         uint256 priceUSDThisShares;
+        bool isDepeg; 
+        bool isDispersion; 
+        bool isOracleOff;
     }
 
     struct PreviewRedeem {

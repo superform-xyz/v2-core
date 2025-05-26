@@ -576,6 +576,65 @@ contract SuperAssetTest is Helpers {
         vm.stopPrank();
     }
 
+    function test_DepositWithEmergencyPrice() public {
+        uint256 depositAmount = 100e18;
+        uint256 minSharesOut = 99e18; // Allowing for 1% slippage
+        uint256 emergencyPrice = 1000e8; // $1000
+
+        console.log("test_DepositWithEmergencyPrice() Start1");
+        // Set emergency price
+        vm.startPrank(admin);
+        superAsset.setEmergencyPrice(address(tokenIn), emergencyPrice);
+        vm.stopPrank();
+
+        console.log("test_DepositWithEmergencyPrice() T1");
+
+        // NOTE: This should make prices stale
+        vm.warp(block.timestamp + 4 weeks);
+
+        // vm.startPrank(admin);
+        // oracle.setFeedMaxStaleness(address(mockFeed1), 0 days);
+        // oracle.setFeedMaxStaleness(address(mockFeed2), 0 days);
+        // oracle.setFeedMaxStaleness(address(mockFeed3), 0 days);
+        // vm.stopPrank();
+
+        console.log("test_DepositWithEmergencyPrice() T2");
+
+        // // Make oracle return M=0 to trigger emergency price usage
+        // Approve and deposit
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), depositAmount);
+        vm.stopPrank();
+        console.log("test_DepositWithEmergencyPrice() T3");
+
+        // Preview deposit with emergency price
+        (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit, bool isSuccess) = 
+            superAsset.previewDeposit(address(tokenIn), depositAmount, false);
+        console.log("test_DepositWithEmergencyPrice() T6");
+        console.log("expAmountSharesMinted = ", expAmountSharesMinted);
+        console.log("expSwapFee = ", expSwapFee);
+        console.log("expAmountIncentiveUSDDeposit = ", expAmountIncentiveUSDDeposit);
+        console.log("isSuccess = ", isSuccess);
+        
+        // Verify preview uses emergency price
+        assertGt(expAmountSharesMinted, 0, "Should calculate shares with emergency price");
+        assertTrue(isSuccess, "Preview should succeed with emergency price");
+
+        // Deposit with emergency price
+        (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) = 
+            superAsset.deposit(user, address(tokenIn), depositAmount, minSharesOut);
+        vm.stopPrank();
+        console.log("test_DepositWithEmergencyPrice() T5");
+
+        // Verify results
+        assertEq(amountSharesMinted, expAmountSharesMinted, "Should mint expected shares");
+        assertEq(swapFee, expSwapFee, "Should charge expected fee");
+        assertEq(amountIncentiveUSDDeposit, expAmountIncentiveUSDDeposit, "Should calculate expected incentive");
+        assertTrue(superAsset.balanceOf(user) > 0, "User should have shares");
+    }
+
+
+
     function test_BasicSwap() public {
         BasiSwapStack memory s;
         s.swapAmount = 100e18;

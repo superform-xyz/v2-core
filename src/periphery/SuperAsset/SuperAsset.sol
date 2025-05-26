@@ -14,8 +14,8 @@ import "../interfaces/ISuperOracle.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 
-
 import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
+import "forge-std/console.sol";
 
 /**
  * @author Superform Labs
@@ -586,8 +586,17 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         s.amountTokenInAfterFees = amountTokenToDeposit - swapFee;
 
         // Get price of underlying vault shares in USD
-        (s.priceUSDTokenIn,,,) = getPriceWithCircuitBreakers(tokenIn);
-        (s.priceUSDThisShares,,,) = getPriceWithCircuitBreakers(address(this));
+        (s.priceUSDTokenIn, s.isDepeg, s.isDispersion, s.isOracleOff) = getPriceWithCircuitBreakers(tokenIn);
+        console.log("Token In s.priceUSDTokenIn = ", s.priceUSDTokenIn);
+        console.log("Token In s.isDepeg = ", s.isDepeg);
+        console.log("Token In s.isDispersion = ", s.isDispersion);
+        console.log("Token In s.isOracleOff = ", s.isOracleOff);
+
+        (s.priceUSDThisShares, s.isDepeg, s.isDispersion, s.isOracleOff) = getPriceWithCircuitBreakers(address(this));
+        console.log("This s.priceUSDThisShares = ", s.priceUSDThisShares);
+        console.log("This s.isDepeg = ", s.isDepeg);
+        console.log("This s.isDispersion = ", s.isDispersion);
+        console.log("This s.isOracleOff = ", s.isOracleOff);
 
         // NOTE: Preview Function should not revert
         if (s.priceUSDTokenIn == 0 || s.priceUSDThisShares == 0) return (0, 0, 0, false);
