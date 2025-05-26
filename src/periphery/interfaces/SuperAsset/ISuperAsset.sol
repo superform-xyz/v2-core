@@ -369,9 +369,8 @@ interface ISuperAsset is IERC20 {
     /**
      * @notice Whitelists an ERC20 token
      * @param token Address of the token to whitelist
-     * @param oracle Address of the oracle to use to fetch token prices
      */
-    function whitelistERC20(address token, address oracle) external;
+    function whitelistERC20(address token) external;
 
     /**
      * @notice Removes an ERC20 token from whitelist
