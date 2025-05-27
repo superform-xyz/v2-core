@@ -11,13 +11,6 @@ interface ISuperAsset is IERC20 {
     /*//////////////////////////////////////////////////////////////
                             EVENTS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Emitted when a deposit is made
-    /// @param receiver Address that received the deposit
-    /// @param tokenIn Address of the token deposited
-    /// @param amountTokenToDeposit Amount of the token deposited
-    /// @param amountSharesOut Amount of shares minted
-    /// @param swapFee Amount of swap fee paid
-    /// @param amountIncentives Amount of incentives paid
     event Deposit(
         address indexed receiver,
         address indexed tokenIn,
@@ -26,14 +19,6 @@ interface ISuperAsset is IERC20 {
         uint256 swapFee,
         int256 amountIncentives
     );
-
-    /// @notice Emitted when a redemption is made
-    /// @param receiver Address that received the redemption
-    /// @param tokenOut Address of the token redeemed
-    /// @param amountSharesToRedeem Amount of shares redeemed
-    /// @param amountTokenOut Amount of the token redeemed
-    /// @param swapFee Amount of swap fee paid
-    /// @param amountIncentives Amount of incentives paid
     event Redeem(
         address indexed receiver,
         address indexed tokenOut,
@@ -42,18 +27,6 @@ interface ISuperAsset is IERC20 {
         uint256 swapFee,
         int256 amountIncentives
     );
-
-    /// @notice Emitted when a swap is made
-    /// @param receiver Address that received the swap
-    /// @param tokenIn Address of the token deposited
-    /// @param amountTokenToDeposit Amount of the token deposited
-    /// @param tokenOut Address of the token redeemed
-    /// @param amountSharesIntermediateStep Amount of shares intermediate step
-    /// @param amountTokenOutAfterFees Amount of the token redeemed after fees
-    /// @param swapFeeIn Amount of swap fee paid for the input asset
-    /// @param swapFeeOut Amount of swap fee paid for the output asset
-    /// @param amountIncentivesIn Amount of incentives paid for the input asset
-    /// @param amountIncentivesOut Amount of incentives paid for the output asset
     event Swap(
         address indexed receiver,
         address indexed tokenIn,
@@ -66,113 +39,105 @@ interface ISuperAsset is IERC20 {
         int256 amountIncentivesIn,
         int256 amountIncentivesOut
     );
-
-    /// @notice Emitted when a vault is whitelisted
-    /// @param vault Address of the vault
     event VaultWhitelisted(address indexed vault);
-
-    /// @notice Emitted when a vault is removed from whitelist
-    /// @param vault Address of the vault
     event VaultRemoved(address indexed vault);
-
-    /// @notice Emitted when an ERC20 token is whitelisted
-    /// @param token Address of the token
     event ERC20Whitelisted(address indexed token);
-
-    /// @notice Emitted when an ERC20 token is removed from whitelist
-    /// @param token Address of the token
     event ERC20Removed(address indexed token);
-
-    /// @notice Emitted when the settlement token for incoming incentives is set
-    /// @param token Address of the token
     event SettlementTokenInSet(address indexed token);
-
-    /// @notice Emitted when the settlement token for outgoing incentives is set
-    /// @param token Address of the token
     event SettlementTokenOutSet(address indexed token);
-
-    /// @notice Emitted when the SuperOracle is set
-    /// @param oracle Address of the new oracle
     event SuperOracleSet(address indexed oracle);
-
-    /// @notice Emitted when the target allocation for a token is set
-    /// @param token Address of the token
-    /// @param allocation Target allocation percentage
     event TargetAllocationSet(address indexed token, uint256 allocation);
-
-    /// @notice Emitted when the energy to USD exchange ratio is set
-    /// @param newRatio New exchange ratio
     event EnergyToUSDExchangeRatioSet(uint256 newRatio);
-
-    /// @notice Emitted when the weight of a vault is set
-    /// @param vault Address of the vault
-    /// @param weight New weight
     event WeightSet(address indexed vault, uint256 weight);
-
-    /// @notice Emitted when the emergency price for a token is set
-    /// @param token Address of the token
-    /// @param priceUSD Emergency price in USD
-    event EmergencyPriceSet(address indexed token, uint256 priceUSD);
 
     /*//////////////////////////////////////////////////////////////
                             ERRORS
     //////////////////////////////////////////////////////////////*/
+
     /// @notice Thrown when an address parameter is zero
     error ZERO_ADDRESS();
+
     /// @notice Thrown when token is not in the ERC20 whitelist
     error NOT_ERC20_TOKEN();
+
     /// @notice Thrown when a token is not supported (neither vault nor ERC20)
     error NOT_SUPPORTED_TOKEN();
+
     /// @notice Thrown when vault is not in the vault whitelist
     error NOT_VAULT();
+
     /// @notice Thrown when vault is already whitelisted
     error ALREADY_WHITELISTED();
+
     /// @notice Thrown when contract is already initialized
     error ALREADY_INITIALIZED();
+
     /// @notice Thrown when vault or token is not whitelisted
     error NOT_WHITELISTED();
+
     /// @notice Thrown when swap fee percentage is too high
     error INVALID_SWAP_FEE_PERCENTAGE();
+
     /// @notice Thrown when amount is zero
     error ZERO_AMOUNT();
+
     /// @notice Thrown when insufficient balance for operation
     error INSUFFICIENT_BALANCE();
+
     /// @notice Thrown when insufficient allowance for transfer
     error INSUFFICIENT_ALLOWANCE();
+
     /// @notice Thrown when slippage tolerance is exceeded
     error SLIPPAGE_PROTECTION();
+
     /// @notice Thrown when oracle price is invalid
     error INVALID_ORACLE_PRICE();
+
     /// @notice Thrown when allocation is invalid
     error INVALID_ALLOCATION();
+
     /// @notice Thrown when the contract is paused
     error CONTRACT_PAUSED();
-    /// @notice Thrown when emergency price is not set
-    error EMERGENCY_PRICE_NOT_SET();
+
     /// @notice Thrown when caller is not authorized
     error UNAUTHORIZED();
+
     /// @notice Thrown when operation would result in invalid state
     error INVALID_OPERATION();
+
     /// @notice Thrown when incentive calculation fails
     error INCENTIVE_CALCULATION_FAILED();
+
     /// @notice Thrown when input arrays have mismatched lengths in batch operations
     error INVALID_INPUT();
+
     /// @notice Thrown when the sum of all allocations exceeds 100% (PRECISION)
     error INVALID_TOTAL_ALLOCATION();
+
     /// @notice Thrown when price in USD is zero
     error PRICE_USD_ZERO();
+
     /// @notice Thrown when underlying SV asset price is zero
     error UNDERLYING_SV_ASSET_PRICE_ZERO();
-    /// @notice Thrown when underlying SV asset price is depegged
-    error UNDERLYING_SV_ASSET_PRICE_DEPEG();
-    /// @notice Thrown when underlying SV asset price is dispersed
-    error UNDERLYING_SV_ASSET_PRICE_DISPERSION();
+
     /// @notice Thrown when underlying SV asset price is oracle off
     error UNDERLYING_SV_ASSET_PRICE_ORACLE_OFF();
+
+    /// @notice Thrown when deposit fails
+    error DEPOSIT_FAILED();
+
+    /// @notice Thrown when redeem fails
+    error REDEEM_FAILED();
+
     /*//////////////////////////////////////////////////////////////
                             STRUCTS
     //////////////////////////////////////////////////////////////*/
 
+    /// @notice Token data structure
+    /// @param isSupportedUnderlyingVault Whether the token is a supported underlying vault
+    /// @param isSupportedERC20 Whether the token is a supported ERC20
+    /// @param targetAllocations Target allocations for the token
+    /// @param weights Weights for the token
     struct TokenData {
         bool isSupportedUnderlyingVault;
         bool isSupportedERC20;
@@ -180,12 +145,19 @@ interface ISuperAsset is IERC20 {
         uint256 weights;
     }
 
-    struct PreviewErrors {
-        bool isDepeg;
-        bool isDispersion;
-        bool isOracleOff;
-    }
-
+    /// @notice Structure used for getting allocations pre and post operations
+    /// @param length Length of the array
+    /// @param extendedLength Extended length of the array
+    /// @param extraSlot Extra slot for the array
+    /// @param vault Address of the vault
+    /// @param priceUSD Price of the vault in USD
+    /// @param isDepeg Whether the vault is depegged
+    /// @param isDispersion Whether the vault is dispersed
+    /// @param isOracleOff Whether the oracle is off
+    /// @param balance Balance of the vault
+    /// @param absDeltaValue Absolute delta value
+    /// @param deltaValue Delta value
+    /// @param absDeltaToken Absolute delta token
     struct GetAllocationsPrePostOperations {
         uint256 length;
         uint256 extendedLength;
@@ -201,6 +173,15 @@ interface ISuperAsset is IERC20 {
         uint256 absDeltaToken;
     }
 
+    /// @notice Structure used for getting allocations pre and post operations
+    /// @param absoluteAllocationPreOperation Array of pre-operation absolute allocations
+    /// @param totalAllocationPreOperation Sum of all pre-operation allocations
+    /// @param absoluteAllocationPostOperation Array of post-operation absolute allocations
+    /// @param totalAllocationPostOperation Sum of all post-operation allocations
+    /// @param absoluteTargetAllocation Array of target absolute allocations
+    /// @param totalTargetAllocation Sum of all target allocations
+    /// @param vaultWeights Array of vault weights
+    /// @param isSuccess Whether the operation was successful
     struct GetPrePostAllocationReturnValues {
         uint256[] absoluteAllocationPreOperation;
         uint256 totalAllocationPreOperation;
@@ -212,16 +193,26 @@ interface ISuperAsset is IERC20 {
         bool isSuccess;
     }
 
+    /// @notice Structure used for previewing deposit
+    /// @param allocations GetPrePostAllocationReturnValues structure
+    /// @param amountTokenInAfterFees Amount of token in after fees
+    /// @param priceUSDTokenIn Price of token in in USD
+    /// @param priceUSDSuperAssetShares Price of SuperAsset shares in USD
     struct PreviewDeposit {
         GetPrePostAllocationReturnValues allocations;
         uint256 amountTokenInAfterFees;
         uint256 priceUSDTokenIn;
-        uint256 priceUSDThisShares;
+        uint256 priceUSDSuperAssetShares;
     }
 
+    /// @notice Structure used for previewing redeem
+    /// @param allocations GetPrePostAllocationReturnValues structure
+    /// @param priceUSDSuperAssetShares Price of SuperAsset shares in USD
+    /// @param priceUSDTokenOut Price of token out in USD
+    /// @param amountTokenOutBeforeFees Amount of token out before fees
     struct PreviewRedeem {
         GetPrePostAllocationReturnValues allocations;
-        uint256 priceUSDThisShares;
+        uint256 priceUSDSuperAssetShares;
         uint256 priceUSDTokenOut;
         uint256 amountTokenOutBeforeFees;
     }
@@ -232,12 +223,14 @@ interface ISuperAsset is IERC20 {
     /// @notice Initializes the SuperAsset contract
     /// @param name_ Name of the token
     /// @param symbol_ Symbol of the token
+    /// @param asset_ Address of the primary asset
     /// @param superGovernor_ Address of the SuperGovernor contract
     /// @param swapFeeInPercentage_ Initial swap fee percentage for deposits
     /// @param swapFeeOutPercentage_ Initial swap fee percentage for redemptions
     function initialize(
         string memory name_,
         string memory symbol_,
+        address asset_,
         address superGovernor_,
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_
@@ -251,7 +244,7 @@ interface ISuperAsset is IERC20 {
 
     /// @notice Returns the PPS of the SuperAsset
     /// @return PPS of the SuperAsset
-    function getPPS() external view returns (uint256);
+    function getSuperAssetPPS() external view returns (uint256);
 
     /// @notice Mints new tokens. Can only be called by accounts with MINTER_ROLE.
     /// @param to The address that will receive the minted tokens
@@ -381,7 +374,8 @@ interface ISuperAsset is IERC20 {
 
     /// @notice Whitelists a vault
     /// @param vault Address of the vault to whitelist
-    function whitelistVault(address vault) external;
+    /// @param oracle Address of the oracle to use to fetch vault prices
+    function whitelistVault(address vault, address oracle) external;
 
     /// @notice Removes a vault from whitelist
     /// @param vault Address of the vault to remove
@@ -395,10 +389,6 @@ interface ISuperAsset is IERC20 {
     /// @param token Address of the token to remove
     function removeERC20(address token) external;
 
-    /// @notice Sets the oracle contract address
-    /// @param oracle Address of the new oracle contract
-    function setSuperOracle(address oracle) external;
-
     /// @notice Preview a deposit.
     /// @param tokenIn The address of the underlying asset to deposit.
     /// @param amountTokenToDeposit The amount of the underlying asset to deposit.
@@ -406,7 +396,7 @@ interface ISuperAsset is IERC20 {
     /// @return amountSharesMinted The amount of SuperUSD shares that would be minted.
     /// @return swapFee The amount of swap fee paid.
     /// @return amountIncentiveUSD The amount of incentives in USD.
-    /// @return isSuccess Whether the preview was successful
+    /// @return isSuccess Whether the preview was successful.
     function previewDeposit(
         address tokenIn,
         uint256 amountTokenToDeposit,
@@ -499,9 +489,4 @@ interface ISuperAsset is IERC20 {
     /// @dev This is the ratio between energy units and USD
     /// @dev No checks on zero on purpose in case we want to disable incentives
     function setEnergyToUSDExchangeRatio(uint256 newRatio) external;
-
-    /// @notice Sets the emergency price for a token when oracle is down
-    /// @param token The token address to set the emergency price for
-    /// @param priceUSD The USD price with 18 decimals precision
-    function setEmergencyPrice(address token, uint256 priceUSD) external;
 }

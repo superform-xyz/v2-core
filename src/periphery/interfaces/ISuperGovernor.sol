@@ -90,6 +90,12 @@ interface ISuperGovernor is IAccessControl {
     error STRATEGIST_NOT_REGISTERED();
     /// @notice Thrown when a strategist is already registered
     error STRATEGIST_ALREADY_REGISTERED();
+    /// @notice Thrown when a token is already whitelisted
+    error TOKEN_ALREADY_WHITELISTED();
+    /// @notice Thrown when a token is not proposed for whitelisting but expected to be
+    error NOT_PROPOSED_INCENTIVE_TOKEN();
+    /// @notice Thrown when a token is not whitelisted but expected to be
+    error NOT_WHITELISTED_INCENTIVE_TOKEN();
 
     /*//////////////////////////////////////////////////////////////
                                   EVENTS
@@ -234,6 +240,15 @@ interface ISuperGovernor is IAccessControl {
     /// @notice Emitted when a superform strategist is removed
     /// @param strategist The address of the removed strategist
     event SuperformStrategistRemoved(address indexed strategist);
+
+    /// @notice Emitted when incentive tokens are proposed for whitelisting
+    /// @param tokens The addresses of the proposed tokens
+    /// @param effectiveTime The timestamp when the proposal will be effective
+    event WhitelistedIncentiveTokensProposed(address[] tokens, uint256 effectiveTime);
+
+    /// @notice Emitted when whitelisted incentive tokens is updated
+    /// @param tokens The addresses of the updated tokens
+    event WhitelistedIncentiveTokensUpdated(address[] tokens);
 
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
@@ -468,7 +483,24 @@ interface ISuperGovernor is IAccessControl {
     function executeSuperBankHookMerkleRootUpdate(address hook) external;
 
     /*//////////////////////////////////////////////////////////////
-                         EXTERNAL VIEW FUNCTIONS
+                        INCENTIVE TOKEN MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Proposes whitelisted incentive tokens
+    /// @param tokens The addresses of the tokens to add
+    function proposeAddIncentiveTokens(address[] memory tokens) external;
+
+    /// @notice Executes a previously proposed whitelisted incentive token update after timelock has expired
+    function executeAddIncentiveTokens() external;
+
+    /// @notice Proposes a new whitelisted incentive token
+    /// @param tokens The addresses of the tokens to add
+    function proposeRemoveIncentiveTokens(address[] memory tokens) external;
+
+    /// @notice Executes a previously proposed whitelisted incentive tokens removal after timelock has expired
+    function executeRemoveIncentiveTokens() external;
+
+    /*//////////////////////////////////////////////////////////////
+                        EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice The identifier of the role that grants access to critical governance functions
@@ -596,6 +628,15 @@ interface ISuperGovernor is IAccessControl {
         external
         view
         returns (bytes32 proposedRoot, uint256 effectiveTime);
+
+    /// @notice Gets the whitelist of incentive tokens
+    /// @return The whitelist of incentive tokens
+    function getWhitelistedIncentiveTokens() external view returns (address[] memory);
+
+    /// @notice Checks if a token is whitelisted as an incentive token
+    /// @param token The address of the token to check
+    /// @return True if the token is whitelisted as an incentive token, false otherwise
+    function isWhitelistedIncentiveToken(address token) external view returns (bool);
 
     /// @notice Gets the prover address
     /// @return The address of the prover

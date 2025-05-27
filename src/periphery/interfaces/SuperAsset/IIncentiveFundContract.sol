@@ -7,12 +7,17 @@ interface IIncentiveFundContract {
     /*//////////////////////////////////////////////////////////////
                             EVENTS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Emitted when a new token is set for incoming incentives
+    /// @notice Emitted when the token for incoming incentives is set
     /// @param token Address of the token
     event TokenInIncentiveSet(address indexed token);
-    /// @notice Emitted when a new token is set for outgoing incentives
+
+    /// @notice Emitted when the token for outgoing incentives is set
     /// @param token Address of the token
     event TokenOutIncentiveSet(address indexed token);
+
+    /// @notice Emitted when incentives are toggled
+    /// @param enabled Whether incentives are enabled
+    event IncentivesToggled(bool indexed enabled);
 
     /// @notice Emitted when incentives are paid to a receiver
     /// @param receiver Address that received the incentives
@@ -56,23 +61,14 @@ interface IIncentiveFundContract {
     /// @notice Thrown when tokenIn is not configured
     error TOKEN_IN_NOT_SET();
 
-    /// @notice Thrown when any circuit breaker is triggered during price check
-    error CIRCUIT_BREAKER_TRIGGERED();
-
-    /// @notice Thrown when price in USD is zero
-    error PRICE_USD_ZERO();
-
     /// @notice Thrown when contract is already initialized
     error ALREADY_INITIALIZED();
 
     /// @notice Thrown when the caller is not authorized
     error UNAUTHORIZED();
 
-    /// @notice Thrown when timelock is not expired
-    error TIMELOCK_NOT_EXPIRED();
-
-    /// @notice Thrown when there is no pending change
-    error NO_PENDING_CHANGE();
+    /// @notice Thrown when attempting to set a non-whitelisted incentive token
+    error TOKEN_NOT_WHITELISTED();
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL METHODS
@@ -105,9 +101,9 @@ interface IIncentiveFundContract {
 
     /// @notice Takes incentives from a sender
     /// @param sender Address to take incentives from
-    /// @param amount Amount of incentives to take
+    /// @param amountUSD Amount of incentives to take
     /// @return amountToken Amount of tokens taken
-    function takeIncentive(address sender, uint256 amount) external returns (uint256 amountToken);
+    function takeIncentive(address sender, uint256 amountUSD) external returns (uint256 amountToken);
 
     /// @notice Withdraws tokens during rebalancing
     /// @param receiver Address to receive the tokens
@@ -115,17 +111,15 @@ interface IIncentiveFundContract {
     /// @param amount Amount to withdraw
     function withdraw(address receiver, address tokenOut, uint256 amount) external;
 
-    /// @notice Proposes a new token for incoming incentives
+    /// @notice Sets the token for incoming incentives
     /// @param token Address of the token
-    function proposeSetTokenInIncentive(address token) external;
+    function setTokenInIncentive(address token) external;
 
-    /// @notice Executes the proposal for a new token for incoming incentives
-    function executeSetTokenInIncentive() external;
-
-    /// @notice Proposes a new token for outgoing incentives
+    /// @notice Sets the token for outgoing incentives
     /// @param token Address of the token
-    function proposeSetTokenOutIncentive(address token) external;
+    function setTokenOutIncentive(address token) external;
 
-    /// @notice Executes the proposal for a new token for outgoing incentives
-    function executeSetTokenOutIncentive() external;
+    /// @notice Toggles incentives
+    /// @param enabled Whether incentives are enabled
+    function toggleIncentives(bool enabled) external;
 }

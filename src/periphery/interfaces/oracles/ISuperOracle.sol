@@ -62,7 +62,6 @@ interface ISuperOracle {
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Emitted when oracles are configured
     /// @param bases Array of base assets
     /// @param providers Array of provider indexes
@@ -105,7 +104,6 @@ interface ISuperOracle {
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Struct for pending oracle update
     struct PendingUpdate {
         address[] bases;

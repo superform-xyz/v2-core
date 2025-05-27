@@ -32,6 +32,7 @@ interface ISuperAssetFactory {
 
     /// @notice Thrown when ICC is not whitelisted
     error ICC_NOT_WHITELISTED();
+
     /*//////////////////////////////////////////////////////////////
                             STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -41,14 +42,19 @@ interface ISuperAssetFactory {
     /// @param symbol Symbol of the SuperAsset token
     /// @param swapFeeInPercentage Initial swap fee percentage for deposits
     /// @param swapFeeOutPercentage Initial swap fee percentage for redemptions
+    /// @param asset Address of the primary asset
     /// @param superAssetManager Address of the manager
     /// @param superAssetStrategist Address of the strategist
     /// @param incentiveFundManager Address of the incentive fund manager
+    /// @param incentiveCalculationContract Address of the incentive calculation contract
+    /// @param tokenInIncentive Address of the token for incoming incentives
+    /// @param tokenOutIncentive Address of the token for outgoing incentives
     struct AssetCreationParams {
         string name;
         string symbol;
         uint256 swapFeeInPercentage;
         uint256 swapFeeOutPercentage;
+        address asset;
         address superAssetManager;
         address superAssetStrategist;
         address incentiveFundManager;
@@ -61,6 +67,8 @@ interface ISuperAssetFactory {
     /// @param superAssetStrategist Address of the strategist
     /// @param superAssetManager Address of the manager
     /// @param incentiveFundManager Address of the incentive fund manager
+    /// @param incentiveCalculationContract Address of the incentive calculation contract
+    /// @param incentiveFundContract Address of the incentive fund contract
     struct SuperAssetData {
         address superAssetStrategist;
         address superAssetManager;

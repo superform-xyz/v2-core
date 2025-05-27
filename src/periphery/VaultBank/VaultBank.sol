@@ -7,10 +7,8 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ICrossL2ProverV2 } from "../../vendor/polymer/ICrossL2ProverV2.sol";
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
-import { ISuperHook, Execution } from "../../core/interfaces/ISuperHook.sol";
 import { IVaultBank, IVaultBankSource } from "../interfaces/VaultBank/IVaultBank.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { VaultBankDestination } from "./VaultBankDestination.sol";

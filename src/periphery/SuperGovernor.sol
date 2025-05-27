@@ -62,13 +62,19 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     // Polymer prover
     address private _prover;
 
+    // Whitelisted incentive tokens
+    EnumerableSet.AddressSet private _whitelistedIncentiveTokens;
+    EnumerableSet.AddressSet private _proposedWhitelistedIncentiveTokens;
+    EnumerableSet.AddressSet private _proposedRemoveWhitelistedIncentiveTokens;
+    uint256 private _proposedWhitelistedIncentiveTokensEffectiveTime;
+
     // Fee management
     // Current fee values
-    mapping(FeeType => uint256) private _feeValues;
+    mapping(FeeType type_ => uint256 value) private _feeValues;
     // Proposed fee values
-    mapping(FeeType => uint256) private _proposedFeeValues;
+    mapping(FeeType type_ => uint256 proposedValue) private _proposedFeeValues;
     // Effective times for proposed fee updates
-    mapping(FeeType => uint256) private _feeEffectiveTimes;
+    mapping(FeeType type_ => uint256 effectiveTime) private _feeEffectiveTimes;
 
     // Upkeep cost per update for PPS updates
     uint256 private _upkeepCostPerUpdate;
@@ -97,15 +103,14 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bytes32 public constant _SUPER_ASSET_FACTORY = keccak256("SUPER_ASSET_FACTORY");
 
     // Common contract keys
-    bytes32 public constant TREASURY = keccak256("TREASURY");
-    bytes32 public constant SUPER_ORACLE = keccak256("SUPER_ORACLE");
-    bytes32 public constant BLSPPSORACLE = keccak256("BLSPPSORACLE");
-    bytes32 public constant ECDSAPPSORACLE = keccak256("ECDSAPPSORACLE");
-    bytes32 public constant SUPER_VAULT_AGGREGATOR = keccak256("SUPER_VAULT_AGGREGATOR");
     bytes32 public constant UP = keccak256("UP");
     bytes32 public constant SUP = keccak256("SUP");
+    bytes32 public constant TREASURY = keccak256("TREASURY");
     bytes32 public constant SUPER_BANK = keccak256("SUPER_BANK");
+    bytes32 public constant SUPER_ORACLE = keccak256("SUPER_ORACLE");
     bytes32 public constant BANK_MANAGER = keccak256("BANK_MANAGER");
+    bytes32 public constant ECDSAPPSORACLE = keccak256("ECDSAPPSORACLE");
+    bytes32 public constant SUPER_VAULT_AGGREGATOR = keccak256("SUPER_VAULT_AGGREGATOR");
 
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
@@ -471,7 +476,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                       PPS ORACLE MANAGEMENT
+                         PPS ORACLE MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
     function setActivePPSOracle(address oracle) external onlyRole(_SUPER_GOVERNOR_ROLE) {
@@ -696,6 +701,79 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
+                      INCENTIVE TOKEN MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperGovernor
+    function proposeAddIncentiveTokens(address[] memory tokens) external onlyRole(_GOVERNOR_ROLE) {
+        for (uint256 i; i < tokens.length; i++) {
+            if (tokens[i] == address(0)) revert INVALID_ADDRESS();
+            if (_whitelistedIncentiveTokens.contains(tokens[i])) revert TOKEN_ALREADY_WHITELISTED();
+            _proposedWhitelistedIncentiveTokens.add(tokens[i]);
+        }
+
+        _proposedWhitelistedIncentiveTokensEffectiveTime = block.timestamp + TIMELOCK;
+
+        emit WhitelistedIncentiveTokensProposed(
+            _proposedWhitelistedIncentiveTokens.values(), _proposedWhitelistedIncentiveTokensEffectiveTime
+        );
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function executeAddIncentiveTokens() external {
+        if (block.timestamp < _proposedWhitelistedIncentiveTokensEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+
+        for (uint256 i; i < _proposedWhitelistedIncentiveTokens.length(); i++) {
+            address token = _proposedWhitelistedIncentiveTokens.at(i);
+            if (!_proposedWhitelistedIncentiveTokens.contains(token)) revert NOT_PROPOSED_INCENTIVE_TOKEN();
+
+            _whitelistedIncentiveTokens.add(token);
+            // Remove from proposed whitelisted tokens
+            _proposedWhitelistedIncentiveTokens.remove(token);
+        }
+
+        // Reset proposal timestamp
+        _proposedWhitelistedIncentiveTokensEffectiveTime = 0;
+
+        emit WhitelistedIncentiveTokensUpdated(_whitelistedIncentiveTokens.values());
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function proposeRemoveIncentiveTokens(address[] memory tokens) external onlyRole(_GOVERNOR_ROLE) {
+        for (uint256 i; i < tokens.length; i++) {
+            if (tokens[i] == address(0)) revert INVALID_ADDRESS();
+            if (!_whitelistedIncentiveTokens.contains(tokens[i])) revert NOT_WHITELISTED_INCENTIVE_TOKEN();
+
+            _proposedRemoveWhitelistedIncentiveTokens.add(tokens[i]);
+        }
+
+        _proposedWhitelistedIncentiveTokensEffectiveTime = block.timestamp + TIMELOCK;
+
+        emit WhitelistedIncentiveTokensProposed(
+            _proposedRemoveWhitelistedIncentiveTokens.values(), _proposedWhitelistedIncentiveTokensEffectiveTime
+        );
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function executeRemoveIncentiveTokens() external {
+        if (block.timestamp < _proposedWhitelistedIncentiveTokensEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+
+        for (uint256 i; i < _proposedRemoveWhitelistedIncentiveTokens.length(); i++) {
+            address token = _proposedRemoveWhitelistedIncentiveTokens.at(i);
+            if (_proposedRemoveWhitelistedIncentiveTokens.contains(token)) {
+                _whitelistedIncentiveTokens.remove(token);
+
+                // Remove from proposed whitelisted tokens to be removed
+                _proposedRemoveWhitelistedIncentiveTokens.remove(token);
+            }
+        }
+
+        // Reset proposal timestamp
+        _proposedWhitelistedIncentiveTokensEffectiveTime = 0;
+
+        emit WhitelistedIncentiveTokensUpdated(_whitelistedIncentiveTokens.values());
+    }
+
+    /*//////////////////////////////////////////////////////////////
                          EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
@@ -874,11 +952,20 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     function getAllSuperformStrategists() external view returns (address[] memory strategists) {
         return _superformStrategists.values();
     }
+
+    function getWhitelistedIncentiveTokens() external view returns (address[] memory) {
+        return _whitelistedIncentiveTokens.values();
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function isWhitelistedIncentiveToken(address token) external view returns (bool) {
+        return _whitelistedIncentiveTokens.contains(token);
+    }
+
     /*//////////////////////////////////////////////////////////////
                            INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @dev Internal function to unregister a fulfill requests hook
-
     function _unregisterFulfillRequestsHook(address hook_) internal {
         if (!_registeredFulfillRequestsHooks.contains(hook_)) {
             revert FULFILL_REQUESTS_HOOK_NOT_REGISTERED();

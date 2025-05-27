@@ -114,7 +114,6 @@ contract SuperAssetFactory is ISuperAssetFactory {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperAssetFactory
     function createSuperAsset(AssetCreationParams calldata params)
         external
@@ -131,7 +130,12 @@ contract SuperAssetFactory is ISuperAssetFactory {
         // Deploy SuperAsset with its dependencies
         superAsset = superAssetImplementation.clone();
         SuperAsset(superAsset).initialize(
-            params.name, params.symbol, superGovernor, params.swapFeeInPercentage, params.swapFeeOutPercentage
+            params.name,
+            params.symbol,
+            params.asset,
+            superGovernor,
+            params.swapFeeInPercentage,
+            params.swapFeeOutPercentage
         );
 
         // Initialize IncentiveFund
