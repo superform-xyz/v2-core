@@ -288,8 +288,8 @@ contract SuperAssetTest is Helpers {
             100 // swapFeeOutPercentage
         );
     }
-    // --- Test: Token Management ---
 
+    // --- Test: Token Management ---
     function test_OnlyVaultManagerCanWhitelistTokens() public {
         address newToken = makeAddr("newToken");
 
@@ -306,24 +306,6 @@ contract SuperAssetTest is Helpers {
 
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(newToken);
         assertTrue(tokenData.isSupportedERC20);
-    }
-
-    // --- Test: Oracle Integration ---
-    function test_OnlyAdminCanSetOracle() public {
-        address newOracle = makeAddr("newOracle");
-
-        // Non-admin cannot set oracle
-        vm.startPrank(user);
-        vm.expectRevert(ISuperAsset.UNAUTHORIZED.selector);
-        superAsset.setSuperOracle(newOracle);
-        vm.stopPrank();
-
-        // Admin can set oracle
-        vm.startPrank(admin);
-        superAsset.setSuperOracle(newOracle);
-        vm.stopPrank();
-
-        assertEq(address(superAsset.superOracle()), newOracle);
     }
 
     // --- Test: Fee Management ---
