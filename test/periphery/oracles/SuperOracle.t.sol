@@ -6,7 +6,7 @@ import { Helpers } from "../../utils/Helpers.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockAggregator } from "../../periphery/mocks/MockAggregator.sol";
 import { SuperOracle } from "../../../src/periphery/oracles/SuperOracle.sol";
-import { ISuperOracle } from "../../../src/periphery/interfaces/ISuperOracle.sol";
+import { ISuperOracle } from "../../../src/periphery/interfaces/oracles/ISuperOracle.sol";
 
 contract SuperOracleTest is Helpers {
     bytes32 public constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
@@ -800,30 +800,6 @@ contract SuperOracleTest is Helpers {
         assertEq(quoteAmount, 0.95e6, "Average quote should be $950 excluding provider with zero price");
         assertEq(totalProviders, 3, "Total providers should still be 3");
         assertEq(availableProviders, 2, "Available providers should be 2 (1 is zero)");
-    }
-
-    function test_TransferOwnership() public {
-        address newOwner = address(0x1234);
-
-        // Transfer ownership
-        superOracle.transferOwnership(newOwner);
-
-        // Try to use a restricted function (should still work because ownership is not transferred yet)
-        superOracle.setMaxStaleness(1 days);
-
-        // Accept the ownership as the new owner
-        vm.startPrank(newOwner);
-        superOracle.acceptOwnership();
-        vm.stopPrank();
-
-        // Try to use a restricted function as the old owner (should revert)
-        vm.expectRevert();
-        superOracle.setMaxStaleness(12 hours);
-
-        // New owner should be able to use restricted functions
-        vm.startPrank(newOwner);
-        superOracle.setMaxStaleness(12 hours);
-        vm.stopPrank();
     }
 
     function test_HundredPercentDeviationCase() public {

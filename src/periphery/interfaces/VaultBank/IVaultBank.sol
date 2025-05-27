@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {IHookExecutionData} from "./IHookExecutionData.sol";
+import { IHookExecutionData } from "../IHookExecutionData.sol";
 
 interface IVaultBankSource {
     /*//////////////////////////////////////////////////////////////
@@ -56,9 +56,9 @@ interface IVaultBankSource {
 interface IVaultBankDestination {
     struct SpAsset {
         bool wasCreated;
-        mapping (uint64 srcChainId => address srcTokenAddress) spToToken;
+        mapping(uint64 srcChainId => address srcTokenAddress) spToToken;
     }
-    
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -159,7 +159,8 @@ interface IVaultBank is IHookExecutionData {
         uint256 amount_,
         SourceAssetInfo calldata sourceAssetInfo_,
         bytes calldata proof_
-    ) external;
+    )
+        external;
     /// @notice Burns a synthetic asset
     /// @dev Should be requested by the account owning the SP assets
     /// @param amount_ The amount of the asset to burn
@@ -174,7 +175,13 @@ interface IVaultBank is IHookExecutionData {
     /// @param amount The amount of the asset to unlock
     /// @param fromChainId The `from` (destination) chain
     /// @param proof_ The proof of the `burnSuperPosition` event
-    function unlockAsset(address account, address token, uint256 amount, uint64 fromChainId, bytes calldata proof_)
+    function unlockAsset(
+        address account,
+        address token,
+        uint256 amount,
+        uint64 fromChainId,
+        bytes calldata proof_
+    )
         external;
 
     // ------------------ MANAGE REWARDS ------------------

@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity 0.8.30;
 
 import { console } from "forge-std/console.sol";
 
-import "@openzeppelin/contracts/utils/math/Math.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-
-import { ISuperOracle } from "../interfaces/ISuperOracle.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { ISuperOracle } from "../interfaces/oracles/ISuperOracle.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { ISuperAsset } from "../interfaces/SuperAsset/ISuperAsset.sol";
 import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
@@ -22,7 +22,7 @@ import { IIncentiveFundContract } from "../interfaces/SuperAsset/IIncentiveFundC
  * @title SuperAsset
  * @author Superform Labs
  * @notice A meta-vault that manages deposits and redemptions across multiple underlying vaults.
- * Implements ERC20 standard for compatibility with integrators.
+ * Implements ERC20 standard for better compatibility with integrators.
  */
 contract SuperAsset is ERC20, ISuperAsset {
     using EnumerableSet for EnumerableSet.AddressSet;
@@ -877,6 +877,7 @@ contract SuperAsset is ERC20, ISuperAsset {
         // Circuit Breaker for Dispersion
         if (isDispersion) {
             ISuperOracle superOracle = ISuperOracle(superGovernor.getAddress(superGovernor.SUPER_ORACLE()));
+
             if (superOracle.getEmergencyPrice(token) != 0) {
                 payIncentive = true;
             } else {
@@ -887,6 +888,7 @@ contract SuperAsset is ERC20, ISuperAsset {
         // Circuit Breaker for Oracle Off
         if (underlyingSuperVaultAssetPriceUSD == 0) {
             ISuperOracle superOracle = ISuperOracle(superGovernor.getAddress(superGovernor.SUPER_ORACLE()));
+
             if (superOracle.getEmergencyPrice(token) != 0) {
                 payIncentive = true;
             } else {

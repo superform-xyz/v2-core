@@ -55,6 +55,10 @@ interface ISuperOracle {
 
     /// @notice Error when provider is zero
     error ZERO_PROVIDER();
+
+    /// @notice Error when caller is not authorized to update
+    error UNAUTHORIZED_UPDATE_AUTHORITY();
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
@@ -137,7 +141,12 @@ interface ISuperOracle {
     /// @param quote Quote asset address
     /// @param oracleProvider Id of oracle provider to use
     /// @return quoteAmount The quote amount
-    function getQuoteFromProvider(uint256 baseAmount, address base, address quote, bytes32 oracleProvider)
+    function getQuoteFromProvider(
+        uint256 baseAmount,
+        address base,
+        address quote,
+        bytes32 oracleProvider
+    )
         external
         view
         returns (uint256 quoteAmount, uint256 deviation, uint256 totalProviders, uint256 availableProviders);
@@ -152,7 +161,8 @@ interface ISuperOracle {
         address[] calldata quotes,
         bytes32[] calldata providers,
         address[] calldata feeds
-    ) external;
+    )
+        external;
 
     /// @notice Execute queued oracle update after timelock period
     function executeOracleUpdate() external;
@@ -191,4 +201,9 @@ interface ISuperOracle {
     /// @param token Token address
     /// @param price Emergency price
     function setEmergencyPrice(address token, uint256 price) external;
+
+    /// @notice Set the emergency price for multiple tokens in a batch
+    /// @param tokens_ Array of token addresses
+    /// @param prices_ Array of emergency prices
+    function batchSetEmergencyPrice(address[] calldata tokens_, uint256[] calldata prices_) external;
 }

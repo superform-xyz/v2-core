@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import { EnumerableSet } from "openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
-import { ISuperVaultStrategy } from "../interfaces/ISuperVaultStrategy.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { ISuperVaultStrategy } from "../SuperVault/ISuperVaultStrategy.sol";
 
 /// @title ISuperVaultAggregator
 /// @author Superform Labs
@@ -54,7 +54,6 @@ interface ISuperVaultAggregator {
         // Strategist change proposal data
         address proposedStrategist;
         uint256 strategistChangeEffectiveTime;
-        address strategistChangeProposer;
         // Hook validation data
         bytes32 strategistHooksRoot;
         // Hook root update proposal data
@@ -482,7 +481,7 @@ interface ISuperVaultAggregator {
     /// @dev This nonce is incremented every time a new vault is created
     /// @return Current vault creation nonce
     function getCurrentNonce() external view returns (uint256);
-    
+
     /// @notice Check if the global hooks root is currently vetoed
     /// @return vetoed True if the global hooks root is vetoed
     function isGlobalHooksRootVetoed() external view returns (bool vetoed);

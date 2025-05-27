@@ -12,14 +12,14 @@ import { IERC165 } from "openzeppelin-contracts/contracts/interfaces/IERC165.sol
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 // superform
-import { ISuperVault } from "../../../../src/periphery/interfaces/ISuperVault.sol";
+import { ISuperVault } from "../../../../src/periphery/interfaces/SuperVault/ISuperVault.sol";
 import { SuperVault } from "../../../../src/periphery/SuperVault/SuperVault.sol";
 import { SuperVaultEscrow } from "../../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
 import { SuperVaultStrategy } from "../../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
-import { ISuperVaultEscrow } from "../../../../src/periphery/interfaces/ISuperVaultEscrow.sol";
-import { ISuperVaultAggregator } from "../../../../src/periphery/interfaces/ISuperVaultAggregator.sol";
+import { ISuperVaultEscrow } from "../../../../src/periphery/interfaces/SuperVault/ISuperVaultEscrow.sol";
+import { ISuperVaultAggregator } from "../../../../src/periphery/interfaces/SuperVault/ISuperVaultAggregator.sol";
 import { IERC7540Redeem, IERC7741 } from "../../../../src/vendor/standards/ERC7540/IERC7540Vault.sol";
-import { ISuperVaultStrategy } from "../../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
+import { ISuperVaultStrategy } from "../../../../src/periphery/interfaces/SuperVault/ISuperVaultStrategy.sol";
 import { ERC7540YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { ISuperLedger } from "../../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperHookInspector } from "../../../../src/core/interfaces/ISuperHook.sol";

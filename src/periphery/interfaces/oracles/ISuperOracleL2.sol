@@ -33,9 +33,13 @@ interface ISuperOracleL2 {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Set the uptime feed for a data oracle
-    /// @param dataOracle The data oracle to set the uptime feed for
-    /// @param uptimeOracle The uptime feed to set for the data oracle
-    /// @param gracePeriod The grace period in seconds after sequencer restart
-    function setUptimeFeed(address dataOracle, address uptimeOracle, uint256 gracePeriod) external;
+    /// @notice Set uptime feeds for multiple data oracles in batch
+    /// @param dataOracles Array of data oracle addresses to set uptime feeds for
+    /// @param uptimeOracles Array of uptime feed addresses to set
+    /// @param gracePeriods Array of grace periods in seconds after sequencer restart
+    function batchSetUptimeFeed(
+        address[] calldata dataOracles,
+        address[] calldata uptimeOracles,
+        uint256[] calldata gracePeriods
+    ) external;
 }

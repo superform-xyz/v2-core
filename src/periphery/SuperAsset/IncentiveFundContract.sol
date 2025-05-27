@@ -1,24 +1,22 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity 0.8.30;
 
-import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
 
+import  {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IIncentiveFundContract } from "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { ISuperAsset } from "../interfaces/SuperAsset/ISuperAsset.sol";
 import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
 
-/**
- * @title Incentive Fund Contract
- * @author Superform Labs
- * @notice Manages incentive tokens in the SuperAsset system
- * @dev This contract is responsible for handling the incentive fund, including paying and taking incentives.
- * @dev For now it is OK to keep Access Control but it will be managed by SuperGovernor when ready, see
- * https://github.com/superform-xyz/v2-contracts/pull/377#discussion_r2058893391
- */
+/// @title Incentive Fund Contract
+/// @author Superform Labs
+/// @notice Manages incentive tokens in the SuperAsset system
+/// @dev This contract is responsible for handling the incentive fund, including paying and taking incentives.
+/// @dev For now it is OK to keep Access Control but it will be managed by SuperGovernor when ready, see
+/// https://github.com/superform-xyz/v2-contracts/pull/377#discussion_r2058893391
 contract IncentiveFundContract is IIncentiveFundContract {
     using SafeERC20 for IERC20;
 
