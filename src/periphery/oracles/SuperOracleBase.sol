@@ -20,6 +20,9 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
     /// @notice Mapping of feed to max staleness period
     mapping(address feed => uint256 maxStaleness) public feedMaxStaleness;
 
+    /// @notice Mapping of token to emergency price when oracle is down
+    mapping(address token => uint256 emergencyPrice) public emergencyPrices;
+
     uint256 public maxDefaultStaleness;
 
     /// @notice Pending oracle update
@@ -75,6 +78,12 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
     /// @inheritdoc ISuperOracle
     function setFeedMaxStaleness(address feed, uint256 newMaxStaleness) external onlyOwner {
         _setFeedMaxStaleness(feed, newMaxStaleness);
+    }
+
+    /// @inheritdoc ISuperOracle
+    function setEmergencyPrice(address token, uint256 price) external onlyOwner {
+        emergencyPrices[token] = price;
+        emit EmergencyPriceUpdated(token, price);
     }
 
     /// @inheritdoc ISuperOracle
@@ -223,6 +232,11 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
             totalProviders = 1;
             availableProviders = 1;
         }
+    }
+
+    /// @inheritdoc ISuperOracle
+    function getEmergencyPrice(address token) external view returns (uint256) {
+        return emergencyPrices[token];
     }
 
     /// @inheritdoc IOracle
