@@ -3,7 +3,7 @@ pragma solidity 0.8.30;
 
 // Superform
 import {VaultBankSuperPosition} from "./VaultBankSuperPosition.sol";
-import {IVaultBankDestination} from "../interfaces/IVaultBank.sol";
+import {IVaultBankDestination} from "../../vendor/periphery/IVaultBank.sol";
 
 abstract contract VaultBankDestination is IVaultBankDestination {
     /*//////////////////////////////////////////////////////////////

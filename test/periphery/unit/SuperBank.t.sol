@@ -18,7 +18,7 @@ import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 import { MockSuperHook } from "../../mocks/MockSuperHook.sol";
 import { MockHookTarget } from "../../mocks/MockHookTarget.sol";
-import { IHookExecutionData } from "../../../src/periphery/interfaces/IHookExecutionData.sol";
+import { IHookExecutionData } from "../../../src/vendor/periphery/IHookExecutionData.sol";
 import { MockOdosRouterV2 } from "../../mocks/MockOdosRouterV2.sol";
 import { OdosAPIParser } from "../../utils/parsers/OdosAPIParser.sol";
 import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.30;
 
-import { IHookExecutionData } from "./IHookExecutionData.sol";
+import { IHookExecutionData } from "../../vendor/periphery/IHookExecutionData.sol";
 
 /// @title ISuperBank
 /// @author Superform Labs

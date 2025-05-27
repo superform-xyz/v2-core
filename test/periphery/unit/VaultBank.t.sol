@@ -4,12 +4,12 @@ pragma solidity 0.8.30;
 import { VaultBank } from "../../../src/periphery/VaultBank/VaultBank.sol";
 import { VaultBankSuperPosition } from "../../../src/periphery/VaultBank/VaultBankSuperPosition.sol";
 import { Bank } from "../../../src/periphery/Bank.sol";
-import { IVaultBank, IVaultBankSource, IVaultBankDestination } from "../../../src/periphery/interfaces/IVaultBank.sol";
+import { IVaultBank, IVaultBankSource, IVaultBankDestination } from "../../../src/vendor/periphery/IVaultBank.sol";
 import { Helpers } from "../../utils/Helpers.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockSuperHook } from "../../mocks/MockSuperHook.sol";
 import { MockHookTarget } from "../../mocks/MockHookTarget.sol";
-import { IHookExecutionData } from "../../../src/periphery/interfaces/IHookExecutionData.sol";
+import { IHookExecutionData } from "../../../src/vendor/periphery/IHookExecutionData.sol";
 import { SuperGovernor } from "../../../src/periphery/SuperGovernor.sol";
 import { MockCrossL2ProverV2 } from "../../mocks/MockCrossL2ProverV2.sol";
 

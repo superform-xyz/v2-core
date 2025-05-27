@@ -106,6 +106,9 @@ interface ISuperLedgerData {
 
     /// @notice Thrown when an operation references an invalid ledger
     error INVALID_LEDGER();
+
+    /// @notice Thrown when an invalid number of decimals is provided
+    error INVALID_DECIMALS();
 }
 
 /// @title ISuperLedger

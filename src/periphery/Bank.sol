@@ -5,7 +5,7 @@ pragma solidity 0.8.30;
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
-import {IHookExecutionData} from "./interfaces/IHookExecutionData.sol";
+import {IHookExecutionData} from "../vendor/periphery/IHookExecutionData.sol";
 import {ISuperHook, Execution} from "../core/interfaces/ISuperHook.sol";
 
 abstract contract Bank {

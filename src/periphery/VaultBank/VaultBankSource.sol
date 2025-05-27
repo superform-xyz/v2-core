@@ -8,7 +8,7 @@ import {ExcessivelySafeCall} from "excessivelySafeCall/ExcessivelySafeCall.sol";
 import {EnumerableSet} from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 // Superform
-import {IVaultBankSource} from "../interfaces/IVaultBank.sol";
+import {IVaultBankSource} from "../../vendor/periphery/IVaultBank.sol";
 
 abstract contract VaultBankSource is IVaultBankSource {
     using SafeERC20 for IERC20;

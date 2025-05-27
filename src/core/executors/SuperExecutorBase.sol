@@ -15,7 +15,7 @@ import {ISuperLedger} from "../interfaces/accounting/ISuperLedger.sol";
 import {ISuperLedgerConfiguration} from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 import {ISuperHook, ISuperHookResult, ISuperHookResultOutflow} from "../interfaces/ISuperHook.sol";
 import {HookDataDecoder} from "../libraries/HookDataDecoder.sol";
-import {IVaultBank} from "../../periphery/interfaces/IVaultBank.sol";
+import {IVaultBank} from "../../vendor/periphery/IVaultBank.sol";
 
 /// @title SuperExecutorBase
 /// @author Superform Labs
