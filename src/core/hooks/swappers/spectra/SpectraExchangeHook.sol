@@ -30,7 +30,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 24;
     uint256 private constant AMOUNT_POSITION = 57;
 
     /*//////////////////////////////////////////////////////////////
