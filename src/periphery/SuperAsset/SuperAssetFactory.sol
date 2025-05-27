@@ -115,7 +115,6 @@ contract SuperAssetFactory is ISuperAssetFactory {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperAssetFactory
     function createSuperAsset(AssetCreationParams calldata params)
         external
@@ -134,6 +133,7 @@ contract SuperAssetFactory is ISuperAssetFactory {
         SuperAsset(superAsset).initialize(
             params.name,
             params.symbol,
+            params.asset,
             superGovernor,
             params.swapFeeInPercentage,
             params.swapFeeOutPercentage
