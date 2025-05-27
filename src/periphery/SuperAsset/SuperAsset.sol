@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { console } from "forge-std/console.sol";
-
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -436,8 +434,6 @@ contract SuperAsset is ERC20, ISuperAsset {
 
         amountSharesMinted = _deriveAmountSharesMinted(tokenIn, s.amountTokenInAfterFees);
 
-        console.log("amountSharesMinted", amountSharesMinted);
-
         // Get current and post-operation allocations
         (
             s.allocations.absoluteAllocationPreOperation,
@@ -450,19 +446,12 @@ contract SuperAsset is ERC20, ISuperAsset {
             s.allocations.isSuccess
         ) = getAllocationsPrePostOperation(tokenIn, int256(amountTokenToDeposit), isSoft);
 
-        console.log("---- s.allocations.totalTargetAllocation", s.allocations.totalTargetAllocation);
-        console.log("s.allocations.isSuccess", s.allocations.isSuccess);
-
         if (!s.allocations.isSuccess) {
             return (0, 0, 0, false);
         }
 
         address icc = factory.getIncentiveCalculationContract(address(this));
         address ifc = factory.getIncentiveFundContract(address(this));
-
-        console.log("---- s.allocations.totalTargetAllocation", s.allocations.totalTargetAllocation);
-        console.log("s.allocations.totalAllocationPreOperation", s.allocations.totalAllocationPreOperation);
-        console.log("energyToUSDExchangeRatio", energyToUSDExchangeRatio);
 
         // Calculate incentives (via ICC)
         if (IIncentiveFundContract(ifc).incentivesEnabled()) {
@@ -840,13 +829,8 @@ contract SuperAsset is ERC20, ISuperAsset {
         // Get price of underlying vault shares in USD
         (uint256 priceUSDTokenIn, uint256 priceUSDSuperAssetShares) = _fetchPrices(tokenIn);
 
-        console.log("priceUSDTokenIn", priceUSDTokenIn);
-        console.log("priceUSDSuperAssetShares", priceUSDSuperAssetShares);
-
         // Calculate SuperUSD shares to mint
         amountSharesMinted = Math.mulDiv(amountTokenInAfterFees, priceUSDTokenIn, priceUSDSuperAssetShares);
-
-        console.log("amountSharesMinted", amountSharesMinted);
 
         // Adjust for decimals
         uint8 decimalsTokenIn = IERC20Metadata(tokenIn).decimals();
