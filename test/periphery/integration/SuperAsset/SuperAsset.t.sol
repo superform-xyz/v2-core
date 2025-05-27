@@ -92,6 +92,7 @@ contract SuperAssetTest is Helpers {
         superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), address(aggregator));
 
         // Deploy mock tokens and vault
+        MockERC20 primaryAsset = new MockERC20("Primary Asset", "PA", 18);
         underlyingToken1 = new MockERC20("Underlying Token1", "UTKN1", 18);
         tokenIn = new Mock4626Vault(address(underlyingToken1), "Vault Token", "vTKN");
         underlyingToken2 = new MockERC20("Underlying Token2", "UTKN2", 18);
@@ -185,7 +186,7 @@ contract SuperAssetTest is Helpers {
             symbol: "SA",
             swapFeeInPercentage: 100, // 0.1% swap fee in
             swapFeeOutPercentage: 100, // 0.1% swap fee out
-            asset: address(underlyingToken1),
+            asset: address(primaryAsset),
             superAssetManager: admin,
             superAssetStrategist: admin,
             incentiveFundManager: admin,
@@ -197,10 +198,13 @@ contract SuperAssetTest is Helpers {
         // NOTE: Whitelisting ICC so that's possible to instantiate SuperAsset using it 
         superGovernor.addICCToWhitelist(address(icc));
         (address superAssetAddr, address incentiveFundAddr) = factory.createSuperAsset(params);
+
         vm.stopPrank();
         console.log("SuperAsset and IncentiveFund deployed via factory");
         superAsset = SuperAsset(superAssetAddr);
         incentiveFund = IncentiveFundContract(incentiveFundAddr);
+        vm.prank(admin);
+        incentiveFund.toggleIncentives(false);
         console.log("SuperAsset and IncentiveFund deployed via factory");
 
         // Add SuperOracle Init
@@ -225,6 +229,7 @@ contract SuperAssetTest is Helpers {
         oracle.setFeedMaxStaleness(address(mockFeedSuperAssetShares1), 14 days);
         oracle.setFeedMaxStaleness(address(mockFeedSuperVault1Shares), 14 days);
         oracle.setFeedMaxStaleness(address(mockFeedSuperVault2Shares), 14 days);
+        oracle.setEmergencyPrice(address(primaryAsset), 1e18);
         vm.stopPrank();
 
         console.log("Feed staleness set");
