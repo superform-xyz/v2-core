@@ -576,10 +576,6 @@ contract SuperAsset is ERC20, ISuperAsset {
         view
         returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff)
     {
-        if (primaryAsset == USD) {
-            return (PRECISION, false, false, false);
-        }
-
         // Get token decimals
         uint8 decimalsToken = IERC20Metadata(token).decimals();
         uint256 one = 10 ** decimalsToken;
@@ -605,6 +601,10 @@ contract SuperAsset is ERC20, ISuperAsset {
         if (M == 0) {
             isOracleOff = true;
         } else {
+            if (primaryAsset == USD) {
+                return (PRECISION, false, false, false);
+            }
+
             // Circuit Breaker for Depeg - price deviates more than ±2% from expected
             uint256 assetPriceUSD;
             uint256 oneUnitAsset = 10 ** IERC20Metadata(primaryAsset).decimals();
