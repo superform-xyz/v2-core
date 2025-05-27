@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-
-import  {IERC20Metadata} from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
@@ -23,9 +22,11 @@ contract IncentiveFundContract is IIncentiveFundContract {
     // --- State Variables ---
     address public tokenInIncentive;
     address public tokenOutIncentive;
+
     ISuperAsset public superAsset;
     ISuperGovernor public superGovernor;
-    bool public incentivesEnabled;
+
+    bool public incentivesActive;
 
     // --- Modifiers ---
     modifier onlyManager() {
@@ -65,15 +66,8 @@ contract IncentiveFundContract is IIncentiveFundContract {
     /// @inheritdoc IIncentiveFundContract
     function setTokenInIncentive(address token) external onlyManager {
         if (token == address(0)) revert ZERO_ADDRESS();
-        address[] memory incentiveTokens = superGovernor.getWhitelistedIncentiveTokens();
 
-        bool isWhitelisted = false;
-        for (uint256 i; i < incentiveTokens.length; i++) {
-            if (incentiveTokens[i] == token) {
-                isWhitelisted = true;
-                break;
-            }
-        }
+        bool isWhitelisted = superGovernor.isWhitelistedIncentiveToken(token);
 
         if (isWhitelisted) {
             tokenInIncentive = token;
@@ -87,15 +81,8 @@ contract IncentiveFundContract is IIncentiveFundContract {
     /// @inheritdoc IIncentiveFundContract
     function setTokenOutIncentive(address token) external onlyManager {
         if (token == address(0)) revert ZERO_ADDRESS();
-        address[] memory incentiveTokens = superGovernor.getWhitelistedIncentiveTokens();
 
-        bool isWhitelisted = false;
-        for (uint256 i; i < incentiveTokens.length; i++) {
-            if (incentiveTokens[i] == token) {
-                isWhitelisted = true;
-                break;
-            }
-        }
+        bool isWhitelisted = superGovernor.isWhitelistedIncentiveToken(token);
 
         if (isWhitelisted) {
             tokenOutIncentive = token;
@@ -108,13 +95,13 @@ contract IncentiveFundContract is IIncentiveFundContract {
 
     /// @inheritdoc IIncentiveFundContract
     function toggleIncentives(bool enabled) external onlyManager {
-        incentivesEnabled = enabled;
+        incentivesActive = enabled;
         emit IncentivesToggled(enabled);
     }
 
     /// @inheritdoc IIncentiveFundContract
     function payIncentive(address receiver, uint256 amountUSD) external onlyManager returns (uint256 amountToken) {
-        if (!incentivesEnabled) {
+        if (!incentivesActive) {
             return 0;
         }
 
@@ -139,7 +126,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
 
     /// @inheritdoc IIncentiveFundContract
     function takeIncentive(address sender, uint256 amountUSD) external onlyManager returns (uint256 amountToken) {
-        if (!incentivesEnabled) {
+        if (!incentivesActive) {
             return 0;
         }
 
@@ -169,6 +156,11 @@ contract IncentiveFundContract is IIncentiveFundContract {
 
         IERC20(tokenOut).safeTransfer(receiver, amount);
         emit RebalanceWithdrawal(receiver, tokenOut, amount);
+    }
+
+    /// @inheritdoc IIncentiveFundContract
+    function incentivesEnabled() external view returns (bool) {
+        return incentivesActive;
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -123,6 +123,12 @@ interface ISuperAsset is IERC20 {
     /// @notice Thrown when underlying SV asset price is oracle off
     error UNDERLYING_SV_ASSET_PRICE_ORACLE_OFF();
 
+    /// @notice Thrown when underlying SV asset price is depegged
+    error UNDERLYING_SV_ASSET_PRICE_DEPEG();
+
+    /// @notice Thrown when underlying SV asset price is dispersed
+    error UNDERLYING_SV_ASSET_PRICE_DISPERSION();
+
     /// @notice Thrown when deposit fails
     error DEPOSIT_FAILED();
 

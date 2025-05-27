@@ -63,7 +63,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     address private _prover;
 
     // Whitelisted incentive tokens
-    EnumerableSet.AddressSet private _whitelistedIncentiveTokens;
+    mapping(address token => bool isWhitelisted) private _isWhitelistedIncentiveToken;
     EnumerableSet.AddressSet private _proposedWhitelistedIncentiveTokens;
     EnumerableSet.AddressSet private _proposedRemoveWhitelistedIncentiveTokens;
     uint256 private _proposedWhitelistedIncentiveTokensEffectiveTime;
@@ -726,7 +726,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     function proposeAddIncentiveTokens(address[] memory tokens) external onlyRole(_GOVERNOR_ROLE) {
         for (uint256 i; i < tokens.length; i++) {
             if (tokens[i] == address(0)) revert INVALID_ADDRESS();
-            if (_whitelistedIncentiveTokens.contains(tokens[i])) revert TOKEN_ALREADY_WHITELISTED();
             _proposedWhitelistedIncentiveTokens.add(tokens[i]);
         }
 
@@ -745,22 +744,23 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
             address token = _proposedWhitelistedIncentiveTokens.at(i);
             if (!_proposedWhitelistedIncentiveTokens.contains(token)) revert NOT_PROPOSED_INCENTIVE_TOKEN();
 
-            _whitelistedIncentiveTokens.add(token);
+            _isWhitelistedIncentiveToken[token] = true;
+
+            emit WhitelistedIncentiveTokensAdded(_proposedWhitelistedIncentiveTokens.values());
+
             // Remove from proposed whitelisted tokens
             _proposedWhitelistedIncentiveTokens.remove(token);
         }
 
         // Reset proposal timestamp
         _proposedWhitelistedIncentiveTokensEffectiveTime = 0;
-
-        emit WhitelistedIncentiveTokensUpdated(_whitelistedIncentiveTokens.values());
     }
 
     /// @inheritdoc ISuperGovernor
     function proposeRemoveIncentiveTokens(address[] memory tokens) external onlyRole(_GOVERNOR_ROLE) {
         for (uint256 i; i < tokens.length; i++) {
             if (tokens[i] == address(0)) revert INVALID_ADDRESS();
-            if (!_whitelistedIncentiveTokens.contains(tokens[i])) revert NOT_WHITELISTED_INCENTIVE_TOKEN();
+            if (!_isWhitelistedIncentiveToken[tokens[i]]) revert NOT_WHITELISTED_INCENTIVE_TOKEN();
 
             _proposedRemoveWhitelistedIncentiveTokens.add(tokens[i]);
         }
@@ -778,8 +778,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
 
         for (uint256 i; i < _proposedRemoveWhitelistedIncentiveTokens.length(); i++) {
             address token = _proposedRemoveWhitelistedIncentiveTokens.at(i);
-            if (_proposedRemoveWhitelistedIncentiveTokens.contains(token)) {
-                _whitelistedIncentiveTokens.remove(token);
+            if (_isWhitelistedIncentiveToken[token]) {
+                _isWhitelistedIncentiveToken[token] = false;
+
+                emit WhitelistedIncentiveTokensRemoved(_proposedWhitelistedIncentiveTokens.values());
 
                 // Remove from proposed whitelisted tokens to be removed
                 _proposedRemoveWhitelistedIncentiveTokens.remove(token);
@@ -788,8 +790,6 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
 
         // Reset proposal timestamp
         _proposedWhitelistedIncentiveTokensEffectiveTime = 0;
-
-        emit WhitelistedIncentiveTokensUpdated(_whitelistedIncentiveTokens.values());
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -972,13 +972,9 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         return _superformStrategists.values();
     }
 
-    function getWhitelistedIncentiveTokens() external view returns (address[] memory) {
-        return _whitelistedIncentiveTokens.values();
-    }
-
     /// @inheritdoc ISuperGovernor
     function isWhitelistedIncentiveToken(address token) external view returns (bool) {
-        return _whitelistedIncentiveTokens.contains(token);
+        return _isWhitelistedIncentiveToken[token];
     }
 
     /*//////////////////////////////////////////////////////////////

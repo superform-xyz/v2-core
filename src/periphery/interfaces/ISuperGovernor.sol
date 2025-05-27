@@ -246,9 +246,13 @@ interface ISuperGovernor is IAccessControl {
     /// @param effectiveTime The timestamp when the proposal will be effective
     event WhitelistedIncentiveTokensProposed(address[] tokens, uint256 effectiveTime);
 
-    /// @notice Emitted when whitelisted incentive tokens is updated
-    /// @param tokens The addresses of the updated tokens
-    event WhitelistedIncentiveTokensUpdated(address[] tokens);
+    /// @notice Emitted when whitelisted incentive tokens are added
+    /// @param tokens The addresses of the added tokens
+    event WhitelistedIncentiveTokensAdded(address[] tokens);
+
+    /// @notice Emitted when whitelisted incentive tokens are removed
+    /// @param tokens The addresses of the removed tokens
+    event WhitelistedIncentiveTokensRemoved(address[] tokens);
 
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
@@ -361,11 +365,7 @@ interface ISuperGovernor is IAccessControl {
     /// @notice Sets the emergency price for multiple tokens o
     /// @param tokens_ Array of token addresses
     /// @param prices_ Array of emergency prices
-    function batchSetEmergencyPrices(
-        address[] calldata tokens_,
-        uint256[] calldata prices_
-    )
-        external;
+    function batchSetEmergencyPrices(address[] calldata tokens_, uint256[] calldata prices_) external;
 
     /*//////////////////////////////////////////////////////////////
                                   HOOK MANAGEMENT
@@ -642,10 +642,6 @@ interface ISuperGovernor is IAccessControl {
         external
         view
         returns (bytes32 proposedRoot, uint256 effectiveTime);
-
-    /// @notice Gets the whitelist of incentive tokens
-    /// @return The whitelist of incentive tokens
-    function getWhitelistedIncentiveTokens() external view returns (address[] memory);
 
     /// @notice Checks if a token is whitelisted as an incentive token
     /// @param token The address of the token to check
