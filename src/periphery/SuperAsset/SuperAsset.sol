@@ -278,8 +278,11 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Calculate and settle incentives
         // @notice For deposits, we want strict checks
-        (amountSharesMinted, swapFee, amountIncentiveUSDDeposit,) =
+        bool isSuccess;
+        (amountSharesMinted, swapFee, amountIncentiveUSDDeposit, isSuccess) =
             previewDeposit(yieldSourceShare, amountTokenToDeposit, false);
+
+        if (!isSuccess && totalSupply() != 0) revert DEPOSIT_FAILED();
 
         // Slippage Check
         if (amountSharesMinted < minSharesOut) revert SLIPPAGE_PROTECTION();
