@@ -46,7 +46,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     // --- State ---
     mapping(address token => TokenData data) public tokenData;
-    mapping(address token => address oracle) private _tokenOracles;
+    mapping(address token => address oracle) private _yieldSourceOracles;
 
     // @notice Contains supported Vaults shares and standard ERC20s
     EnumerableSet.AddressSet private _supportedVaults;
@@ -134,7 +134,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         if (tokenData[token].isSupportedERC20) revert ALREADY_WHITELISTED();
         tokenData[token].isSupportedERC20 = true;
 
-        _tokenOracles[token] = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
+        _yieldSourceOracles[token] = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
         _supportedVaults.add(token);
         _activeAssets.add(token);
 
@@ -151,19 +151,19 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         if (IERC20(token).balanceOf(address(this)) == 0) {
             _activeAssets.remove(token);
-            _tokenOracles[token] = address(0);
+            _yieldSourceOracles[token] = address(0);
         }
         emit ERC20Removed(token);
     }
 
     /// @inheritdoc ISuperAsset
-    function whitelistVault(address vault, address oracle) external onlyManager {
-        if (vault == address(0) || oracle == address(0)) revert ZERO_ADDRESS();
+    function whitelistVault(address vault, address yieldSourceOracle) external onlyManager {
+        if (vault == address(0) || yieldSourceOracle == address(0)) revert ZERO_ADDRESS();
         if (tokenData[vault].isSupportedUnderlyingVault) revert ALREADY_WHITELISTED();
 
         tokenData[vault].isSupportedUnderlyingVault = true;
 
-        _tokenOracles[vault] = oracle;
+        _yieldSourceOracles[vault] = yieldSourceOracle;
         _supportedVaults.add(vault);
         _activeAssets.add(vault);
 
@@ -180,7 +180,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         if (IERC20(vault).balanceOf(address(this)) == 0) {
             _activeAssets.remove(vault);
-            _tokenOracles[vault] = address(0);
+            _yieldSourceOracles[vault] = address(0);
         }
         emit VaultRemoved(vault);
     }
@@ -646,16 +646,16 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 totalValueUSD;
         uint256 len = _activeAssets.length();
 
-        for (uint256 i = 0; i < len; i++) {
+        for (uint256 i; i < len; i++) {
             address token = _activeAssets.at(i);
             uint256 balance = IERC20(token).balanceOf(address(this));
             if (balance == 0) continue;
 
             uint256 priceUSD;
-            if (_tokenOracles[token] == superGovernor.getAddress(superGovernor.SUPER_ORACLE())) {
+            if (_yieldSourceOracles[token] == superGovernor.getAddress(superGovernor.SUPER_ORACLE())) {
                 (priceUSD,,,) = getPriceWithCircuitBreakers(token);
             } else {
-                uint256 pricePerShare = IYieldSourceOracle(_tokenOracles[token]).getPricePerShare(token);
+                uint256 pricePerShare = IYieldSourceOracle(_yieldSourceOracles[token]).getPricePerShare(token);
                 (uint256 ppsUSD,,,) = getPriceWithCircuitBreakers(token);
                 priceUSD = pricePerShare * ppsUSD;
             }
@@ -813,10 +813,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         returns (uint256 priceUSDToken, uint256 priceUSDSuperAssetShares)
     {
         priceUSDSuperAssetShares = getSuperAssetPPS();
-        if (_tokenOracles[token] == superGovernor.getAddress(superGovernor.SUPER_ORACLE())) {
+        if (_yieldSourceOracles[token] == superGovernor.getAddress(superGovernor.SUPER_ORACLE())) {
             (priceUSDToken,,,) = getPriceWithCircuitBreakers(token);
         } else {
-            uint256 pricePerShare = IYieldSourceOracle(_tokenOracles[token]).getPricePerShare(token);
+            uint256 pricePerShare = IYieldSourceOracle(_yieldSourceOracles[token]).getPricePerShare(token);
             (uint256 ppsUSD,,,) = getPriceWithCircuitBreakers(token);
             priceUSDToken = pricePerShare * ppsUSD;
         }
