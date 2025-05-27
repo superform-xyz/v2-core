@@ -188,7 +188,9 @@ contract SuperAssetTest is Helpers {
             superAssetManager: admin,
             superAssetStrategist: admin,
             incentiveFundManager: admin,
-            incentiveCalculationContract: address(icc)
+            incentiveCalculationContract: address(icc),
+            tokenInIncentive: address(tokenIn),
+            tokenOutIncentive: address(tokenOut)
         });
 
         // NOTE: Whitelisting ICC so that's possible to instantiate SuperAsset using it 
@@ -211,15 +213,15 @@ contract SuperAssetTest is Helpers {
         console.log("Oracle deployed");
 
         // Set staleness for each feed
-        oracle.setFeedMaxStaleness(address(mockFeed1), 1 days);
-        oracle.setFeedMaxStaleness(address(mockFeed2), 1 days);
-        oracle.setFeedMaxStaleness(address(mockFeed3), 1 days);
-        oracle.setFeedMaxStaleness(address(mockFeed4), 1 days);
-        oracle.setFeedMaxStaleness(address(mockFeed5), 1 days);
-        oracle.setFeedMaxStaleness(address(mockFeed6), 1 days);
-        oracle.setFeedMaxStaleness(address(mockFeedSuperAssetShares1), 1 days);
-        oracle.setFeedMaxStaleness(address(mockFeedSuperVault1Shares), 1 days);
-        oracle.setFeedMaxStaleness(address(mockFeedSuperVault2Shares), 1 days);
+        oracle.setFeedMaxStaleness(address(mockFeed1), 14 days);
+        oracle.setFeedMaxStaleness(address(mockFeed2), 14 days);
+        oracle.setFeedMaxStaleness(address(mockFeed3), 14 days);
+        oracle.setFeedMaxStaleness(address(mockFeed4), 14 days);
+        oracle.setFeedMaxStaleness(address(mockFeed5), 14 days);
+        oracle.setFeedMaxStaleness(address(mockFeed6), 14 days);
+        oracle.setFeedMaxStaleness(address(mockFeedSuperAssetShares1), 14 days);
+        oracle.setFeedMaxStaleness(address(mockFeedSuperVault1Shares), 14 days);
+        oracle.setFeedMaxStaleness(address(mockFeedSuperVault2Shares), 14 days);
         vm.stopPrank();
 
         console.log("Feed staleness set");

@@ -38,7 +38,14 @@ contract IncentiveFundContract is IIncentiveFundContract {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function initialize(address _superGovernor, address superAsset_) external {
+    function initialize(
+        address _superGovernor,
+        address superAsset_,
+        address tokenInIncentive_,
+        address tokenOutIncentive_
+    )
+        external
+    {
         if (_superGovernor == address(0)) revert ZERO_ADDRESS();
         superGovernor = ISuperGovernor(_superGovernor);
 
@@ -46,13 +53,18 @@ contract IncentiveFundContract is IIncentiveFundContract {
         if (address(superAsset) != address(0)) revert ALREADY_INITIALIZED();
 
         if (superAsset_ == address(0)) revert ZERO_ADDRESS();
+        if (tokenInIncentive_ == address(0)) revert ZERO_ADDRESS();
+        if (tokenOutIncentive_ == address(0)) revert ZERO_ADDRESS();
 
         superAsset = ISuperAsset(superAsset_);
+        tokenInIncentive = tokenInIncentive_;
+        tokenOutIncentive = tokenOutIncentive_;
     }
 
     /*//////////////////////////////////////////////////////////////
                           EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
     /// @inheritdoc IIncentiveFundContract
     function setTokenInIncentive(address token) external onlyManager {
         if (token == address(0)) revert ZERO_ADDRESS();
@@ -113,8 +125,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
         if (tokenOutIncentive == address(0)) revert TOKEN_OUT_NOT_SET();
 
         // Get token price and check circuit breakers
-        (uint256 priceUSD,,,) =
-            superAsset.getPriceWithCircuitBreakers(tokenOutIncentive);
+        (uint256 priceUSD,,,) = superAsset.getPriceWithCircuitBreakers(tokenOutIncentive);
 
         if (priceUSD > 0) {
             // Convert USD amount to token amount using price
@@ -123,7 +134,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
 
             IERC20(tokenOutIncentive).safeTransfer(receiver, amountToken);
             emit IncentivePaid(receiver, tokenOutIncentive, amountToken);
-        } 
+        }
     }
 
     /// @inheritdoc IIncentiveFundContract
@@ -136,8 +147,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
         if (tokenInIncentive == address(0)) revert TOKEN_IN_NOT_SET();
 
         // Get token price and check circuit breakers
-        (uint256 priceUSD,,,) =
-            superAsset.getPriceWithCircuitBreakers(tokenInIncentive);
+        (uint256 priceUSD,,,) = superAsset.getPriceWithCircuitBreakers(tokenInIncentive);
 
         if (priceUSD > 0) {
             // Convert USD amount to token amount using price
