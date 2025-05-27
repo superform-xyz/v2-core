@@ -746,7 +746,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
 
             _isWhitelistedIncentiveToken[token] = true;
 
-            emit WhitelistedIncentiveTokensAdded(_proposedWhitelistedIncentiveTokens.values()); 
+            emit WhitelistedIncentiveTokensAdded(_proposedWhitelistedIncentiveTokens.values());
 
             // Remove from proposed whitelisted tokens
             _proposedWhitelistedIncentiveTokens.remove(token);
