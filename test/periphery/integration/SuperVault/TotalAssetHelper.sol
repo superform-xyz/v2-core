@@ -2,14 +2,14 @@
 pragma solidity 0.8.30;
 
 // External
-import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 
 // Core Interfaces
-import {IYieldSourceOracle} from "../../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
+import { IYieldSourceOracle } from "../../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
 
 // Periphery Interfaces
-import {ISuperVaultStrategy} from "../../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
+import { ISuperVaultStrategy } from "../../../../src/periphery/interfaces/SuperVault/ISuperVaultStrategy.sol";
 
 /// @title TotalAssetHelper
 /// @author Superform Labs
@@ -65,7 +65,7 @@ contract TotalAssetHelper {
 
                 // Update total and add to breakdown
                 totalAssets_ += baseTvl;
-                sourceTVLs[activeSourceCount++] = YieldSourceTVL({source: source, tvl: baseTvl});
+                sourceTVLs[activeSourceCount++] = YieldSourceTVL({ source: source, tvl: baseTvl });
             }
         }
 
@@ -117,7 +117,10 @@ contract TotalAssetHelper {
     /// @param source Address of the yield source
     /// @return oracle Address of the yield source oracle
     /// @return isActive Whether the yield source is active
-    function _getYieldSourceInfo(address strategy, address source)
+    function _getYieldSourceInfo(
+        address strategy,
+        address source
+    )
         internal
         view
         returns (address oracle, bool isActive)

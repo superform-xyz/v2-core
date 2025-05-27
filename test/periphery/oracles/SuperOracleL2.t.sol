@@ -64,13 +64,18 @@ contract SuperOracleL2Test is Test {
         providers[0] = CHAINLINK_PROVIDER;
         feeds[0] = address(dataFeed);
 
+        vm.stopPrank();
         // Initialize SuperOracleL2
-        oracle = new SuperOracleL2(owner, bases, quotes, providers, feeds);
+        oracle = new SuperOracleL2(address(this), bases, quotes, providers, feeds);
 
         // Set uptime feed for the data feed
-        oracle.setUptimeFeed(address(dataFeed), address(uptimeFeed), GRACE_PERIOD);
-
-        vm.stopPrank();
+        address[] memory dataOracles = new address[](1);
+        address[] memory uptimeOracles = new address[](1);
+        uint256[] memory gracePeriods = new uint256[](1);
+        dataOracles[0] = address(dataFeed);
+        uptimeOracles[0] = address(uptimeFeed);
+        gracePeriods[0] = GRACE_PERIOD;
+        oracle.batchSetUptimeFeed(dataOracles, uptimeOracles, gracePeriods);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -78,7 +83,6 @@ contract SuperOracleL2Test is Test {
     //////////////////////////////////////////////////////////////*/
     function test_Constructor() public view {
         // Test that constructor sets up the contract correctly
-        assertEq(oracle.owner(), owner);
         assertEq(oracle.maxDefaultStaleness(), DEFAULT_STALENESS);
 
         // Verify oracle configuration
@@ -113,11 +117,16 @@ contract SuperOracleL2Test is Test {
         // Create a new mock uptime feed
         MockL2Sequencer newUptimeFeed = new MockL2Sequencer();
         newUptimeFeed.setLatestAnswer(0); // 0 means sequencer is up
-        newUptimeFeed.setStartedAt(block.timestamp - GRACE_PERIOD * 2); 
+        newUptimeFeed.setStartedAt(block.timestamp - GRACE_PERIOD * 2);
 
         // Set a new uptime feed
-        vm.prank(owner);
-        oracle.setUptimeFeed(address(dataFeed), address(newUptimeFeed), GRACE_PERIOD * 2);
+        address[] memory dataOracles = new address[](1);
+        address[] memory uptimeOracles = new address[](1);
+        uint256[] memory gracePeriods = new uint256[](1);
+        dataOracles[0] = address(dataFeed);
+        uptimeOracles[0] = address(newUptimeFeed);
+        gracePeriods[0] = GRACE_PERIOD * 2;
+        oracle.batchSetUptimeFeed(dataOracles, uptimeOracles, gracePeriods);
 
         // Verify the new uptime feed is set
         assertEq(oracle.uptimeFeeds(address(dataFeed)), address(newUptimeFeed));
@@ -129,24 +138,33 @@ contract SuperOracleL2Test is Test {
         MockL2Sequencer newUptimeFeed = new MockL2Sequencer();
 
         // Should revert when non-owner tries to set uptime feed
+        address[] memory dataOracles = new address[](1);
+        address[] memory uptimeOracles = new address[](1);
+        uint256[] memory gracePeriods = new uint256[](1);
+        dataOracles[0] = address(dataFeed);
+        uptimeOracles[0] = address(newUptimeFeed);
+        gracePeriods[0] = GRACE_PERIOD;
         vm.prank(user);
         vm.expectRevert();
-        oracle.setUptimeFeed(address(dataFeed), address(newUptimeFeed), GRACE_PERIOD);
+        oracle.batchSetUptimeFeed(dataOracles, uptimeOracles, gracePeriods);
     }
 
     function test_SetUptimeFeed_ZeroAddressReverts() public {
-        vm.startPrank(owner);
-
         // Test with zero data oracle
         bytes memory encodedError = abi.encodeWithSelector(ISuperOracleL2.ZERO_ADDRESS.selector);
         vm.expectRevert(encodedError);
-        oracle.setUptimeFeed(address(0), address(uptimeFeed), GRACE_PERIOD);
+        address[] memory uptimeOracles = new address[](1);
+        uptimeOracles[0] = address(uptimeFeed);
+        uint256[] memory gracePeriods = new uint256[](1);
+        gracePeriods[0] = GRACE_PERIOD;
+        oracle.batchSetUptimeFeed(new address[](1), uptimeOracles, gracePeriods);
 
         // Test with zero uptime oracle
         vm.expectRevert(encodedError);
-        oracle.setUptimeFeed(address(dataFeed), address(0), GRACE_PERIOD);
+        address[] memory dataOracles = new address[](1);
+        dataOracles[0] = address(dataFeed);
 
-        vm.stopPrank();
+        oracle.batchSetUptimeFeed(dataOracles, new address[](1), gracePeriods);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -157,8 +175,7 @@ contract SuperOracleL2Test is Test {
         uptimeFeed.setLatestAnswer(0); // 0 means sequencer is up
         uptimeFeed.setStartedAt(block.timestamp - GRACE_PERIOD * 2); // Well past grace period
 
-
-        uint256 baseAmount = 1 * 10 ** 15; 
+        uint256 baseAmount = 1 * 10 ** 15;
         uint256 quoteAmount = oracle.getQuote(baseAmount, address(baseToken), address(quoteToken));
 
         // Get the actual quote amount and use that in our test
@@ -203,7 +220,6 @@ contract SuperOracleL2Test is Test {
         providers[0] = keccak256("NEW_PROVIDER");
         feeds[0] = address(newDataFeed);
 
-        vm.prank(owner);
         oracle.queueOracleUpdate(bases, quotes, providers, feeds);
 
         // Fast forward past timelock
@@ -276,8 +292,12 @@ contract SuperOracleL2Test is Test {
         newUptimeFeed.setStartedAt(block.timestamp - 100); // Recently started (shorter than default grace)
 
         // Set the uptime feed with a zero grace period (should use default)
-        vm.prank(owner);
-        oracle.setUptimeFeed(address(dataFeed), address(newUptimeFeed), 0);
+        address[] memory dataOracles = new address[](1);
+        address[] memory uptimeOracles = new address[](1);
+        uint256[] memory gracePeriods = new uint256[](1);
+        dataOracles[0] = address(dataFeed);
+        uptimeOracles[0] = address(newUptimeFeed);
+        oracle.batchSetUptimeFeed(dataOracles, uptimeOracles, gracePeriods);
 
         // Verify the default grace period is used
         bytes memory encodedError = abi.encodeWithSelector(ISuperOracleL2.GRACE_PERIOD_NOT_OVER.selector);

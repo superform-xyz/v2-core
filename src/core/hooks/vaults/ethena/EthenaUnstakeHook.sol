@@ -2,16 +2,16 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import {IStakedUSDeCooldown} from "../../../../vendor/ethena/IStakedUSDeCooldown.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { IStakedUSDeCooldown } from "../../../../vendor/ethena/IStakedUSDeCooldown.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title EthenaUnstakeHook
 /// @author Superform Labs
@@ -27,12 +27,16 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
 
     uint256 private constant AMOUNT_POSITION = 24;
 
-    constructor() BaseHook(HookType.OUTFLOW, "Ethena") {}
+    constructor() BaseHook(HookType.OUTFLOW, "Ethena") { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address, /* prevHook */ address account, bytes memory data)
+    function build(
+        address, /* prevHook */
+        address account,
+        bytes memory data
+    )
         external
         pure
         override
@@ -45,8 +49,11 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
 
         executions = new Execution[](1);
 
-        executions[0] =
-            Execution({target: yieldSource, value: 0, callData: abi.encodeCall(IStakedUSDeCooldown.unstake, (account))});
+        executions[0] = Execution({
+            target: yieldSource,
+            value: 0,
+            callData: abi.encodeCall(IStakedUSDeCooldown.unstake, (account))
+        });
     }
 
     /*//////////////////////////////////////////////////////////////

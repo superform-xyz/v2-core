@@ -1,64 +1,16 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity 0.8.30;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-/**
- * @title ISuperAsset
- * @notice Interface for SuperAsset contract which manages deposits and redemptions across multiple
- * underlying vaults. It implements ERC20 standard and provides functionality for asset management,
- * fee handling, and incentive calculations.
- */
+/// @title ISuperAsset
+/// @notice Interface for SuperAsset contract which manages deposits and redemptions across multiple
+/// underlying vaults. It implements ERC20 standard and provides functionality for asset management,
+/// fee handling, and incentive calculations.
 interface ISuperAsset is IERC20 {
-    // --- Structs ---
-    struct TokenData {
-        bool isSupportedUnderlyingVault;
-        bool isSupportedERC20;
-        uint256 targetAllocations;
-        uint256 weights;
-    }
-
-    struct GetAllocationsPrePostOperations {
-        uint256 length;
-        uint256 extendedLength;
-        uint256 extraSlot;
-        address vault;
-        uint256 priceUSD;
-        bool isDepeg;
-        bool isDispersion;
-        bool isOracleOff;
-        uint256 balance;
-        uint256 absDeltaValue;
-        int256 deltaValue;
-        uint256 absDeltaToken;
-    }
-
-    struct GetPrePostAllocationReturnValues {
-        uint256[] absoluteAllocationPreOperation;
-        uint256 totalAllocationPreOperation;
-        uint256[] absoluteAllocationPostOperation;
-        uint256 totalAllocationPostOperation;
-        uint256[] absoluteTargetAllocation;
-        uint256 totalTargetAllocation;
-        uint256[] vaultWeights;
-        bool isSuccess;
-    }
-
-    struct PreviewDeposit {
-        GetPrePostAllocationReturnValues allocations;
-        uint256 amountTokenInAfterFees;
-        uint256 priceUSDTokenIn;
-        uint256 priceUSDSuperAssetShares;
-    }
-
-    struct PreviewRedeem {
-        GetPrePostAllocationReturnValues allocations;
-        uint256 priceUSDSuperAssetShares;
-        uint256 priceUSDTokenOut;
-        uint256 amountTokenOutBeforeFees;
-    }
-
-    // --- Events ---
+    /*//////////////////////////////////////////////////////////////
+                            EVENTS
+    //////////////////////////////////////////////////////////////*/
     event Deposit(
         address indexed receiver,
         address indexed tokenIn,
@@ -98,7 +50,10 @@ interface ISuperAsset is IERC20 {
     event EnergyToUSDExchangeRatioSet(uint256 newRatio);
     event WeightSet(address indexed vault, uint256 weight);
 
-    // --- Errors ---
+    /*//////////////////////////////////////////////////////////////
+                            ERRORS
+    //////////////////////////////////////////////////////////////*/
+
     /// @notice Thrown when an address parameter is zero
     error ZERO_ADDRESS();
 
@@ -174,16 +129,104 @@ interface ISuperAsset is IERC20 {
     /// @notice Thrown when redeem fails
     error REDEEM_FAILED();
 
-    // --- Functions ---
-    /**
-     * @notice Initializes the SuperAsset contract
-     * @param name_ Name of the token
-     * @param symbol_ Symbol of the token
-     * @param asset_ Address of the primary asset
-     * @param superGovernor_ Address of the SuperGovernor contract
-     * @param swapFeeInPercentage_ Initial swap fee percentage for deposits
-     * @param swapFeeOutPercentage_ Initial swap fee percentage for redemptions
-     */
+    /*//////////////////////////////////////////////////////////////
+                            STRUCTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Token data structure
+    /// @param isSupportedUnderlyingVault Whether the token is a supported underlying vault
+    /// @param isSupportedERC20 Whether the token is a supported ERC20
+    /// @param targetAllocations Target allocations for the token
+    /// @param weights Weights for the token
+    struct TokenData {
+        bool isSupportedUnderlyingVault;
+        bool isSupportedERC20;
+        uint256 targetAllocations;
+        uint256 weights;
+    }
+
+    /// @notice Structure used for getting allocations pre and post operations
+    /// @param length Length of the array
+    /// @param extendedLength Extended length of the array
+    /// @param extraSlot Extra slot for the array
+    /// @param vault Address of the vault
+    /// @param priceUSD Price of the vault in USD
+    /// @param isDepeg Whether the vault is depegged
+    /// @param isDispersion Whether the vault is dispersed
+    /// @param isOracleOff Whether the oracle is off
+    /// @param balance Balance of the vault
+    /// @param absDeltaValue Absolute delta value
+    /// @param deltaValue Delta value
+    /// @param absDeltaToken Absolute delta token
+    struct GetAllocationsPrePostOperations {
+        uint256 length;
+        uint256 extendedLength;
+        uint256 extraSlot;
+        address vault;
+        uint256 priceUSD;
+        bool isDepeg;
+        bool isDispersion;
+        bool isOracleOff;
+        uint256 balance;
+        uint256 absDeltaValue;
+        int256 deltaValue;
+        uint256 absDeltaToken;
+    }
+
+    /// @notice Structure used for getting allocations pre and post operations
+    /// @param absoluteAllocationPreOperation Array of pre-operation absolute allocations
+    /// @param totalAllocationPreOperation Sum of all pre-operation allocations
+    /// @param absoluteAllocationPostOperation Array of post-operation absolute allocations
+    /// @param totalAllocationPostOperation Sum of all post-operation allocations
+    /// @param absoluteTargetAllocation Array of target absolute allocations
+    /// @param totalTargetAllocation Sum of all target allocations
+    /// @param vaultWeights Array of vault weights
+    /// @param isSuccess Whether the operation was successful
+    struct GetPrePostAllocationReturnValues {
+        uint256[] absoluteAllocationPreOperation;
+        uint256 totalAllocationPreOperation;
+        uint256[] absoluteAllocationPostOperation;
+        uint256 totalAllocationPostOperation;
+        uint256[] absoluteTargetAllocation;
+        uint256 totalTargetAllocation;
+        uint256[] vaultWeights;
+        bool isSuccess;
+    }
+
+    /// @notice Structure used for previewing deposit
+    /// @param allocations GetPrePostAllocationReturnValues structure
+    /// @param amountTokenInAfterFees Amount of token in after fees
+    /// @param priceUSDTokenIn Price of token in in USD
+    /// @param priceUSDSuperAssetShares Price of SuperAsset shares in USD
+    struct PreviewDeposit {
+        GetPrePostAllocationReturnValues allocations;
+        uint256 amountTokenInAfterFees;
+        uint256 priceUSDTokenIn;
+        uint256 priceUSDSuperAssetShares;
+    }
+
+    /// @notice Structure used for previewing redeem
+    /// @param allocations GetPrePostAllocationReturnValues structure
+    /// @param priceUSDSuperAssetShares Price of SuperAsset shares in USD
+    /// @param priceUSDTokenOut Price of token out in USD
+    /// @param amountTokenOutBeforeFees Amount of token out before fees
+    struct PreviewRedeem {
+        GetPrePostAllocationReturnValues allocations;
+        uint256 priceUSDSuperAssetShares;
+        uint256 priceUSDTokenOut;
+        uint256 amountTokenOutBeforeFees;
+    }
+    /*//////////////////////////////////////////////////////////////
+                            EXTERNAL METHODS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Initializes the SuperAsset contract
+    /// @param name_ Name of the token
+    /// @param symbol_ Symbol of the token
+    /// @param asset_ Address of the primary asset
+    /// @param superGovernor_ Address of the SuperGovernor contract
+    /// @param swapFeeInPercentage_ Initial swap fee percentage for deposits
+    /// @param swapFeeOutPercentage_ Initial swap fee percentage for redemptions
     function initialize(
         string memory name_,
         string memory symbol_,
@@ -194,40 +237,30 @@ interface ISuperAsset is IERC20 {
     )
         external;
 
-    /**
-     * @notice Returns the token data for a given token
-     * @param token The token address
-     * @return TokenData structure containing the token data
-     */
+    /// @notice Returns the token data for a given token
+    /// @param token The token address
+    /// @return TokenData structure containing the token data
     function getTokenData(address token) external view returns (TokenData memory);
 
-    /**
-     * @notice Returns the PPS of the SuperAsset
-     * @return PPS of the SuperAsset
-     */
+    /// @notice Returns the PPS of the SuperAsset
+    /// @return PPS of the SuperAsset
     function getSuperAssetPPS() external view returns (uint256);
 
-    /**
-     * @notice Mints new tokens. Can only be called by accounts with MINTER_ROLE.
-     * @param to The address that will receive the minted tokens
-     * @param amount The amount of tokens to mint
-     */
+    /// @notice Mints new tokens. Can only be called by accounts with MINTER_ROLE.
+    /// @param to The address that will receive the minted tokens
+    /// @param amount The amount of tokens to mint
     function mint(address to, uint256 amount) external;
 
-    /**
-     * @notice Burns tokens. Can only be called by accounts with BURNER_ROLE.
-     * @param from The address whose tokens will be burned
-     * @param amount The amount of tokens to burn
-     */
+    /// @notice Burns tokens. Can only be called by accounts with BURNER_ROLE.
+    /// @param from The address whose tokens will be burned
+    /// @param amount The amount of tokens to burn
     function burn(address from, uint256 amount) external;
 
-    /**
-     * @notice Gets the current and target allocations of assets
-     * @return absoluteCurrentAllocation Array of current absolute allocations
-     * @return totalCurrentAllocation Sum of all current allocations
-     * @return absoluteTargetAllocation Array of target absolute allocations
-     * @return totalTargetAllocation Sum of all target allocations
-     */
+    /// @notice Gets the current and target allocations of assets
+    /// @return absoluteCurrentAllocation Array of current absolute allocations
+    /// @return totalCurrentAllocation Sum of all current allocations
+    /// @return absoluteTargetAllocation Array of target absolute allocations
+    /// @return totalTargetAllocation Sum of all target allocations
     function getAllocations()
         external
         view
@@ -238,20 +271,18 @@ interface ISuperAsset is IERC20 {
             uint256 totalTargetAllocation
         );
 
-    /**
-     * @notice Gets the allocations before and after an operation
-     * @param token The token address involved in the operation
-     * @param deltaToken The change in token amount (positive for deposit, negative for withdrawal)
-     * @param isSoft Whether the operation is soft or strict on checks
-     * @return absoluteAllocationPreOperation Array of pre-operation absolute allocations
-     * @return totalAllocationPreOperation Sum of all pre-operation allocations
-     * @return absoluteAllocationPostOperation Array of post-operation absolute allocations
-     * @return totalAllocationPostOperation Sum of all post-operation allocations
-     * @return absoluteTargetAllocation Array of target absolute allocations
-     * @return totalTargetAllocation Sum of all target allocations
-     * @return vaultWeights Array of vault weights
-     * @return isSuccess Whether the operation was successful
-     */
+    /// @notice Gets the allocations before and after an operation
+    /// @param token The token address involved in the operation
+    /// @param deltaToken The change in token amount (positive for deposit, negative for withdrawal)
+    /// @param isSoft Whether the operation is soft or strict on checks
+    /// @return absoluteAllocationPreOperation Array of pre-operation absolute allocations
+    /// @return totalAllocationPreOperation Sum of all pre-operation allocations
+    /// @return absoluteAllocationPostOperation Array of post-operation absolute allocations
+    /// @return totalAllocationPostOperation Sum of all post-operation allocations
+    /// @return absoluteTargetAllocation Array of target absolute allocations
+    /// @return totalTargetAllocation Sum of all target allocations
+    /// @return vaultWeights Array of vault weights
+    /// @return isSuccess Whether the operation was successful
     function getAllocationsPrePostOperation(
         address token,
         int256 deltaToken,
@@ -270,28 +301,22 @@ interface ISuperAsset is IERC20 {
             bool isSuccess
         );
 
-    /**
-     * @notice Sets the swap fee percentage for deposits (input operations)
-     * @param _feePercentage The fee percentage (scaled by SWAP_FEE_PERC)
-     */
+    /// @notice Sets the swap fee percentage for deposits (input operations)
+    /// @param _feePercentage The fee percentage (scaled by SWAP_FEE_PERC)
     function setSwapFeeInPercentage(uint256 _feePercentage) external;
 
-    /**
-     * @notice Sets the swap fee percentage for redemptions (output operations)
-     * @param _feePercentage The fee percentage (scaled by SWAP_FEE_PERC)
-     */
+    /// @notice Sets the swap fee percentage for redemptions (output operations)
+    /// @param _feePercentage The fee percentage (scaled by SWAP_FEE_PERC)
     function setSwapFeeOutPercentage(uint256 _feePercentage) external;
 
-    /**
-     * @notice Deposits an underlying asset into a whitelisted vault and mints SuperUSD shares.
-     * @param receiver The address to receive the output shares.
-     * @param tokenIn The address of the underlying asset to deposit.
-     * @param amountTokenToDeposit The amount of the underlying asset to deposit.
-     * @param minSharesOut The minimum amount of SuperUSD shares to receive.
-     * @return amountSharesMinted The amount of SuperUSD shares minted.
-     * @return swapFee The amount of swap fee paid.
-     * @return amountIncentiveUSDDeposit The amount of incentives paid.
-     */
+    /// @notice Deposits an underlying asset into a whitelisted vault and mints SuperUSD shares.
+    /// @param receiver The address to receive the output shares.
+    /// @param tokenIn The address of the underlying asset to deposit.
+    /// @param amountTokenToDeposit The amount of the underlying asset to deposit.
+    /// @param minSharesOut The minimum amount of SuperUSD shares to receive.
+    /// @return amountSharesMinted The amount of SuperUSD shares minted.
+    /// @return swapFee The amount of swap fee paid.
+    /// @return amountIncentiveUSDDeposit The amount of incentives paid.
     function deposit(
         address receiver,
         address tokenIn,
@@ -301,16 +326,14 @@ interface ISuperAsset is IERC20 {
         external
         returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit);
 
-    /**
-     * @notice Redeems SuperUSD shares for underlying assets from a whitelisted vault.
-     * @param receiver The address to receive the output assets.
-     * @param amountSharesToRedeem The amount of SuperUSD shares to redeem.
-     * @param tokenOut The address of the underlying asset to redeem for.
-     * @param minTokenOut The minimum amount of the underlying asset to receive.
-     * @return amountTokenOutAfterFees The amount of the underlying asset received.
-     * @return swapFee The amount of swap fee paid.
-     * @return amountIncentiveUSDRedeem The amount of incentives paid.
-     */
+    /// @notice Redeems SuperUSD shares for underlying assets from a whitelisted vault.
+    /// @param receiver The address to receive the output assets.
+    /// @param amountSharesToRedeem The amount of SuperUSD shares to redeem.
+    /// @param tokenOut The address of the underlying asset to redeem for.
+    /// @param minTokenOut The minimum amount of the underlying asset to receive.
+    /// @return amountTokenOutAfterFees The amount of the underlying asset received.
+    /// @return swapFee The amount of swap fee paid.
+    /// @return amountIncentiveUSDRedeem The amount of incentives paid.
     function redeem(
         address receiver,
         uint256 amountSharesToRedeem,
@@ -320,20 +343,18 @@ interface ISuperAsset is IERC20 {
         external
         returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem);
 
-    /**
-     * @notice Swaps an underlying asset for another.
-     * @param receiver The address to receive the output assets.
-     * @param tokenIn The address of the input asset.
-     * @param amountTokenToDeposit The amount of the input asset to deposit.
-     * @param tokenOut The address of the output asset.
-     * @param minTokenOut The minimum amount of the output asset to receive.
-     * @return amountSharesIntermediateStep The amount of shares received in the intermediate step.
-     * @return amountTokenOutAfterFees The amount of the output asset received.
-     * @return swapFeeIn The amount of swap fee paid for the input asset.
-     * @return swapFeeOut The amount of swap fee paid for the output asset.
-     * @return amountIncentivesIn The amount of incentives paid for the input asset.
-     * @return amountIncentivesOut The amount of incentives paid for the output asset.
-     */
+    /// @notice Swaps an underlying asset for another.
+    /// @param receiver The address to receive the output assets.
+    /// @param tokenIn The address of the input asset.
+    /// @param amountTokenToDeposit The amount of the input asset to deposit.
+    /// @param tokenOut The address of the output asset.
+    /// @param minTokenOut The minimum amount of the output asset to receive.
+    /// @return amountSharesIntermediateStep The amount of shares received in the intermediate step.
+    /// @return amountTokenOutAfterFees The amount of the output asset received.
+    /// @return swapFeeIn The amount of swap fee paid for the input asset.
+    /// @return swapFeeOut The amount of swap fee paid for the output asset.
+    /// @return amountIncentivesIn The amount of incentives paid for the input asset.
+    /// @return amountIncentivesOut The amount of incentives paid for the output asset.
     function swap(
         address receiver,
         address tokenIn,
@@ -351,40 +372,31 @@ interface ISuperAsset is IERC20 {
             int256 amountIncentivesOut
         );
 
-    /**
-     * @notice Whitelists a vault
-     * @param vault Address of the vault to whitelist
-     * @param oracle Address of the oracle to use to fetch vault prices
-     */
+    /// @notice Whitelists a vault
+    /// @param vault Address of the vault to whitelist
+    /// @param oracle Address of the oracle to use to fetch vault prices
     function whitelistVault(address vault, address oracle) external;
 
-    /**
-     * @notice Removes a vault from whitelist
-     * @param vault Address of the vault to remove
-     */
+    /// @notice Removes a vault from whitelist
+    /// @param vault Address of the vault to remove
     function removeVault(address vault) external;
 
-    /**
-     * @notice Whitelists an ERC20 token
-     * @param token Address of the token to whitelist
-     */
+    /// @notice Whitelists an ERC20 token
+    /// @param token Address of the token to whitelist
     function whitelistERC20(address token) external;
 
-    /**
-     * @notice Removes an ERC20 token from whitelist
-     * @param token Address of the token to remove
-     */
+    /// @notice Removes an ERC20 token from whitelist
+    /// @param token Address of the token to remove
     function removeERC20(address token) external;
-    /**
-     * @notice Preview a deposit.
-     * @param tokenIn The address of the underlying asset to deposit.
-     * @param amountTokenToDeposit The amount of the underlying asset to deposit.
-     * @param isSoft Whether the operation is soft or strict on checks
-     * @return amountSharesMinted The amount of SuperUSD shares that would be minted.
-     * @return swapFee The amount of swap fee paid.
-     * @return amountIncentiveUSD The amount of incentives in USD.
-     * @return isSuccess Whether the preview was successful.
-     */
+
+    /// @notice Preview a deposit.
+    /// @param tokenIn The address of the underlying asset to deposit.
+    /// @param amountTokenToDeposit The amount of the underlying asset to deposit.
+    /// @param isSoft Whether the operation is soft or strict on checks
+    /// @return amountSharesMinted The amount of SuperUSD shares that would be minted.
+    /// @return swapFee The amount of swap fee paid.
+    /// @return amountIncentiveUSD The amount of incentives in USD.
+    /// @return isSuccess Whether the preview was successful.
     function previewDeposit(
         address tokenIn,
         uint256 amountTokenToDeposit,
@@ -394,16 +406,14 @@ interface ISuperAsset is IERC20 {
         view
         returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess);
 
-    /**
-     * @notice Preview a redemption.
-     * @param tokenOut The address of the underlying asset to redeem for.
-     * @param amountSharesToRedeem The amount of SuperUSD shares to redeem.
-     * @param isSoft Whether the operation is soft or strict on checks
-     * @return amountTokenOutAfterFees The amount of the underlying asset that would be received.
-     * @return swapFee The amount of swap fee paid.
-     * @return amountIncentiveUSD The amount of incentives in USD.
-     * @return isSuccess Whether the preview was successful
-     */
+    /// @notice Preview a redemption.
+    /// @param tokenOut The address of the underlying asset to redeem for.
+    /// @param amountSharesToRedeem The amount of SuperUSD shares to redeem.
+    /// @param isSoft Whether the operation is soft or strict on checks
+    /// @return amountTokenOutAfterFees The amount of the underlying asset that would be received.
+    /// @return swapFee The amount of swap fee paid.
+    /// @return amountIncentiveUSD The amount of incentives in USD.
+    /// @return isSuccess Whether the preview was successful
     function previewRedeem(
         address tokenOut,
         uint256 amountSharesToRedeem,
@@ -413,19 +423,17 @@ interface ISuperAsset is IERC20 {
         view
         returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess);
 
-    /**
-     * @notice Preview a swap.
-     * @param tokenIn The address of the input asset.
-     * @param amountTokenToDeposit The amount of the input asset to deposit.
-     * @param tokenOut The address of the output asset.
-     * @param isSoft Whether the operation is soft or strict on checks
-     * @return amountTokenOutAfterFees The amount of the output asset that would be received.
-     * @return swapFeeIn The amount of swap fee paid for the input asset.
-     * @return swapFeeOut The amount of swap fee paid for the output asset.
-     * @return amountIncentiveUSDDeposit The amount of incentives paid for the input asset.
-     * @return amountIncentiveUSDRedeem The amount of incentives paid for the output asset.
-     * @return isSuccess Whether the preview was successful
-     */
+    /// @notice Preview a swap.
+    /// @param tokenIn The address of the input asset.
+    /// @param amountTokenToDeposit The amount of the input asset to deposit.
+    /// @param tokenOut The address of the output asset.
+    /// @param isSoft Whether the operation is soft or strict on checks
+    /// @return amountTokenOutAfterFees The amount of the output asset that would be received.
+    /// @return swapFeeIn The amount of swap fee paid for the input asset.
+    /// @return swapFeeOut The amount of swap fee paid for the output asset.
+    /// @return amountIncentiveUSDDeposit The amount of incentives paid for the input asset.
+    /// @return amountIncentiveUSDRedeem The amount of incentives paid for the output asset.
+    /// @return isSuccess Whether the preview was successful
     function previewSwap(
         address tokenIn,
         uint256 amountTokenToDeposit,
@@ -443,54 +451,42 @@ interface ISuperAsset is IERC20 {
             bool isSuccess
         );
 
-    /**
-     * @notice Gets the price of a token in USD with circuit breakers
-     * @dev This function should not revert, just return booleans for the circuit breakers, it is up to the caller to
-     * decide if to revert
-     * @dev Getting only single unit price
-     * @param tokenIn The address of the token to get the price of
-     * @return priceUSD The price of the token in USD
-     * @return isDepeg Whether the token is depegged
-     * @return isDispersion Whether the token is dispersed
-     * @return isOracleOff Whether the oracle is off
-     */
+    /// @notice Gets the price of a token in USD with circuit breakers
+    /// @dev This function should not revert, just return booleans for the circuit breakers, it is up to the caller to
+    /// decide if to revert
+    /// @dev Getting only single unit price
+    /// @param tokenIn The address of the token to get the price of
+    /// @return priceUSD The price of the token in USD
+    /// @return isDepeg Whether the token is depegged
+    /// @return isDispersion Whether the token is dispersed
+    /// @return isOracleOff Whether the oracle is off
     function getPriceWithCircuitBreakers(address tokenIn)
         external
         view
         returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff);
 
-    /**
-     * @notice Gets the precision constant used for percentage calculations
-     * @return The precision constant (e.g., 10000 for 4 decimal places)
-     */
+    /// @notice Gets the precision constant used for percentage calculations
+    /// @return The precision constant (e.g., 10000 for 4 decimal places)
     function getPrecision() external pure returns (uint256);
 
-    /**
-     * @notice Sets the weight for a vault
-     * @param vault The vault address
-     * @param weight The weight percentage (scaled by PRECISION)
-     */
+    /// @notice Sets the weight for a vault
+    /// @param vault The vault address
+    /// @param weight The weight percentage (scaled by PRECISION)
     function setWeight(address vault, uint256 weight) external;
 
-    /**
-     * @notice Sets target allocations for multiple tokens at once
-     * @param tokens Array of token addresses
-     * @param allocations Array of target allocation percentages (scaled by PRECISION)
-     */
+    /// @notice Sets target allocations for multiple tokens at once
+    /// @param tokens Array of token addresses
+    /// @param allocations Array of target allocation percentages (scaled by PRECISION)
     function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external;
 
-    /**
-     * @notice Sets the target allocation for a token
-     * @param token The token address
-     * @param allocation The target allocation percentage (scaled by PRECISION)
-     */
+    /// @notice Sets the target allocation for a token
+    /// @param token The token address
+    /// @param allocation The target allocation percentage (scaled by PRECISION)
     function setTargetAllocation(address token, uint256 allocation) external;
 
-    /**
-     * @notice Sets the exchange ratio between energy units and USD
-     * @param newRatio The new exchange ratio (scaled by PRECISION)
-     * @dev This is the ratio between energy units and USD
-     * @dev No checks on zero on purpose in case we want to disable incentives
-     */
+    /// @notice Sets the exchange ratio between energy units and USD
+    /// @param newRatio The new exchange ratio (scaled by PRECISION)
+    /// @dev This is the ratio between energy units and USD
+    /// @dev No checks on zero on purpose in case we want to disable incentives
     function setEnergyToUSDExchangeRatio(uint256 newRatio) external;
 }

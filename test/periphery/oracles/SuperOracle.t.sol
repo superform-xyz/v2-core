@@ -802,30 +802,6 @@ contract SuperOracleTest is Helpers {
         assertEq(availableProviders, 2, "Available providers should be 2 (1 is zero)");
     }
 
-    function test_TransferOwnership() public {
-        address newOwner = address(0x1234);
-
-        // Transfer ownership
-        superOracle.transferOwnership(newOwner);
-
-        // Try to use a restricted function (should still work because ownership is not transferred yet)
-        superOracle.setMaxStaleness(1 days);
-
-        // Accept the ownership as the new owner
-        vm.startPrank(newOwner);
-        superOracle.acceptOwnership();
-        vm.stopPrank();
-
-        // Try to use a restricted function as the old owner (should revert)
-        vm.expectRevert();
-        superOracle.setMaxStaleness(12 hours);
-
-        // New owner should be able to use restricted functions
-        vm.startPrank(newOwner);
-        superOracle.setMaxStaleness(12 hours);
-        vm.stopPrank();
-    }
-
     function test_HundredPercentDeviationCase() public {
         // Create a scenario with extreme price differences
         mockFeed1.setAnswer(2e8); // $2000

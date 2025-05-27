@@ -2,20 +2,20 @@
 pragma solidity 0.8.30;
 
 // external
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ERC7579ExecutorBase} from "modulekit/Modules.sol";
-import {IModule} from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
+import { IModule } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
-import {ISuperExecutor} from "../interfaces/ISuperExecutor.sol";
-import {ISuperLedger} from "../interfaces/accounting/ISuperLedger.sol";
-import {ISuperLedgerConfiguration} from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-import {ISuperHook, ISuperHookResult, ISuperHookResultOutflow} from "../interfaces/ISuperHook.sol";
-import {HookDataDecoder} from "../libraries/HookDataDecoder.sol";
-import {IVaultBank} from "../../periphery/interfaces/IVaultBank.sol";
+import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
+import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
+import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
+import { IVaultBank } from "../../periphery/interfaces/VaultBank/IVaultBank.sol";
 
 /// @title SuperExecutorBase
 /// @author Superform Labs
@@ -186,7 +186,12 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     /// @param assetToken The ERC20 token to transfer
     /// @param feeRecipient The address to receive the fee
     /// @param feeAmount The amount of tokens to transfer as a fee
-    function _performErc20FeeTransfer(address account, address assetToken, address feeRecipient, uint256 feeAmount)
+    function _performErc20FeeTransfer(
+        address account,
+        address assetToken,
+        address feeRecipient,
+        uint256 feeAmount
+    )
         internal
         virtual
     {
@@ -237,7 +242,12 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     /// @param hook The hook to process
     /// @param prevHook The previous hook in the sequence (or address(0) if first)
     /// @param hookData The data provided to the hook for execution
-    function _processHook(address account, ISuperHook hook, address prevHook, bytes memory hookData)
+    function _processHook(
+        address account,
+        ISuperHook hook,
+        address prevHook,
+        bytes memory hookData
+    )
         internal
         nonReentrant
     {

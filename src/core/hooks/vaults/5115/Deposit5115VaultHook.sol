@@ -2,15 +2,15 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-import {IStandardizedYield} from "../../../../vendor/pendle/IStandardizedYield.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { IStandardizedYield } from "../../../../vendor/pendle/IStandardizedYield.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
@@ -35,12 +35,16 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     uint256 private constant AMOUNT_POSITION = 44;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 108;
 
-    constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC5115) {}
+    constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC5115) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address account, bytes memory data)
+    function build(
+        address prevHook,
+        address account,
+        bytes memory data
+    )
         external
         view
         override

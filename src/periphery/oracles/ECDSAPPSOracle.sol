@@ -1,14 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
-pragma solidity ^0.8.30;
+pragma solidity 0.8.30;
 
 // External
-import { ECDSA } from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
-import { MessageHashUtils } from "openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol";
-
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 // Superform
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
+import { ISuperVaultAggregator } from "../interfaces/SuperVault/ISuperVaultAggregator.sol";
 import { IECDSAPPSOracle } from "../interfaces/oracles/IECDSAPPSOracle.sol";
-import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
 
 /// @title ECDSAPPSOracle
 /// @author Superform Labs

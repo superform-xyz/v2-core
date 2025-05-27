@@ -22,9 +22,9 @@ ftest-vvv :; forge test -vvv --jobs 10
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_RequestRedeem_VerifyAmounts -vvv --jobs 10
+test-vvv :; forge test --match-test test_GetQuote_NoUptimeFeed_Reverts -vvv --jobs 10
 
-test-integration :; forge test --match-contract IncentiveFundContractTest -vvv --jobs 10
+test-integration :; forge test --match-contract SuperOracleL2Test -vvvvv --jobs 10
 
 test-gas-report-user :; forge test --match-test test_gasReport --gas-report --jobs 10
 test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10
