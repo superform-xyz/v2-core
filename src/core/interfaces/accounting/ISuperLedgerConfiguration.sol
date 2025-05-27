@@ -108,8 +108,8 @@ interface ISuperLedgerConfiguration {
         bytes4 indexed yieldSourceOracleId,
         address indexed yieldSourceOracle,
         uint256 feePercent,
-        address manager,
         address feeRecipient,
+        address manager,
         address ledger
     );
 
