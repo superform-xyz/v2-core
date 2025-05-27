@@ -54,6 +54,7 @@ contract SuperAssetTest is Helpers {
     MockAggregator public mockFeed6;
     IncentiveCalculationContract public icc;
     IncentiveFundContract public incentiveFund;
+    SuperVaultAggregator public aggregator;
     SuperGovernor public superGovernor;
     SuperBank public superBank;
     address public admin;
@@ -87,8 +88,8 @@ contract SuperAssetTest is Helpers {
         console.log("SuperGovernor Roles Granted");
 
         // Deploy SuperVaultAggregator
-        address aggregator = address(new SuperVaultAggregator(address(superGovernor)));
-        superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), aggregator);
+        aggregator = new SuperVaultAggregator(address(superGovernor));
+        superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), address(aggregator));
 
         // Deploy mock tokens and vault
         underlyingToken1 = new MockERC20("Underlying Token1", "UTKN1", 18);

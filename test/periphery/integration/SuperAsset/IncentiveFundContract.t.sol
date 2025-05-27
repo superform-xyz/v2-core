@@ -154,8 +154,7 @@ contract IncentiveFundContractTest is Helpers {
         console.log("SuperGovernor deployed");
 
         // Deploy SuperVaultAggregator
-        address aggregator = address(new SuperVaultAggregator(address(superGovernor)));
-        superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), aggregator);
+        superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), address(mockFeed1));
         console.log(superGovernor.getAddress(superGovernor.SUPER_VAULT_AGGREGATOR()));
 
         // Create SuperAsset using factory
