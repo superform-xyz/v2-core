@@ -353,8 +353,22 @@ interface ISuperGovernor is IAccessControl {
     )
         external;
 
+    /// @notice Sets the emergency price for a token
+    /// @param token_ The address of the token
+    /// @param price_ The emergency price to set
+    function setEmergencyPrice(address token_, uint256 price_) external;
+
+    /// @notice Sets the emergency price for multiple tokens o
+    /// @param tokens_ Array of token addresses
+    /// @param prices_ Array of emergency prices
+    function batchSetEmergencyPrices(
+        address[] calldata tokens_,
+        uint256[] calldata prices_
+    )
+        external;
+
     /*//////////////////////////////////////////////////////////////
-                         HOOK MANAGEMENT
+                                  HOOK MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @notice Registers a hook for use in SuperVaults
     /// @param hook The address of the hook to register

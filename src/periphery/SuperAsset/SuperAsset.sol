@@ -579,7 +579,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             N = _n;
             M = _m;
         } catch {
-            //priceUSD = superOracle.getEmergencyPrice(token);
+            priceUSD = superOracle.getEmergencyPrice(token);
             isOracleOff = true;
         }
 
@@ -595,7 +595,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             ) {
                 assetPriceUSD = _priceUSD;
             } catch {
-                //assetPriceUSD = superOracle.getEmergencyPrice(primaryAsset);
+                assetPriceUSD = superOracle.getEmergencyPrice(primaryAsset);
             }
             uint256 ratio = Math.mulDiv(priceUSD, PRECISION, assetPriceUSD);
 
@@ -858,25 +858,23 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Circuit Breaker for Dispersion
         if (isDispersion) {
             ISuperOracle superOracle = ISuperOracle(superGovernor.getAddress(superGovernor.SUPER_ORACLE()));
-            /*
+
             if (superOracle.getEmergencyPrice(token) != 0) {
                 payIncentive = true;
             } else {
                 payIncentive = false;
             }
-            */
         }
 
         // Circuit Breaker for Oracle Off
         if (underlyingSuperVaultAssetPriceUSD == 0) {
             ISuperOracle superOracle = ISuperOracle(superGovernor.getAddress(superGovernor.SUPER_ORACLE()));
-            /*
+
             if (superOracle.getEmergencyPrice(token) != 0) {
                 payIncentive = true;
             } else {
                 payIncentive = false;
             }
-            */
         }
         if (isOracleOff) {
             payIncentive = false;

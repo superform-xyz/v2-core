@@ -101,6 +101,11 @@ interface ISuperOracle {
     /// @param providers Array of provider ids that were removed
     event ProviderRemovalExecuted(bytes32[] providers);
 
+    /// @notice Emitted when emergency price is updated
+    /// @param token Token address
+    /// @param price Emergency price
+    event EmergencyPriceUpdated(address token, uint256 price);
+
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
@@ -186,4 +191,19 @@ interface ISuperOracle {
     /// @notice Get all active provider ids
     /// @return Array of active provider ids
     function getActiveProviders() external view returns (bytes32[] memory);
+
+    /// @notice Get the emergency price for a token
+    /// @param token Token address
+    /// @return Emergency price
+    function getEmergencyPrice(address token) external view returns (uint256);
+
+    /// @notice Set the emergency price for a token
+    /// @param token Token address
+    /// @param price Emergency price
+    function setEmergencyPrice(address token, uint256 price) external;
+
+    /// @notice Set the emergency price for multiple tokens in a batch
+    /// @param tokens_ Array of token addresses
+    /// @param prices_ Array of emergency prices
+    function batchSetEmergencyPrice(address[] calldata tokens_, uint256[] calldata prices_) external;
 }

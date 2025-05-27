@@ -213,22 +213,24 @@ contract SuperAssetTest is Helpers {
         // Deploy and configure oracle with regular providers only
         console.log("Trying to deploy SuperOracle");
         vm.startPrank(admin);
-        oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
-        oracle.setMaxStaleness(2 weeks);
-        // Set Oracle
+        oracle = new SuperOracle(address(superGovernor), bases, quotes, providers, feeds);
         superGovernor.setAddress(superGovernor.SUPER_ORACLE(), address(oracle));
+
+        superGovernor.setOracleMaxStaleness(2 weeks);
+        // Set Oracle
         console.log("Oracle deployed");
 
         // Set staleness for each feed
-        oracle.setFeedMaxStaleness(address(mockFeed1), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeed2), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeed3), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeed4), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeed5), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeed6), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeedSuperAssetShares1), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeedSuperVault1Shares), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeedSuperVault2Shares), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed1), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed2), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed3), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed4), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed5), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed6), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeedSuperAssetShares1), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeedSuperVault1Shares), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeedSuperVault2Shares), 14 days);
+        superGovernor.setEmergencyPrice(address(primaryAsset), 1e18);
         vm.stopPrank();
 
         console.log("Feed staleness set");
