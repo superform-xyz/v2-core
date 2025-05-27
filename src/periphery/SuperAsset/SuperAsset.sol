@@ -56,8 +56,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     uint256 public swapFeeOutPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
     uint256 public energyToUSDExchangeRatio;
 
-    mapping(address token => uint256 priceUSD) public emergencyPrices; // Used when an oracle is down, managed by us
-
     // --- Addresses ---
     address public constant USD = address(840);
     address public primaryAsset;
@@ -183,13 +181,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             _yieldSourceOracles[vault] = address(0);
         }
         emit VaultRemoved(vault);
-    }
-
-    /// @inheritdoc ISuperAsset
-    function setEmergencyPrice(address token, uint256 priceUSD) external onlyManager {
-        if (token == address(0)) revert ZERO_ADDRESS();
-        emergencyPrices[token] = priceUSD;
-        emit EmergencyPriceSet(token, priceUSD);
     }
 
     /// @inheritdoc ISuperAsset
@@ -600,7 +591,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             N = _n;
             M = _m;
         } catch {
-            priceUSD = emergencyPrices[token];
+            priceUSD = superOracle.getEmergencyPrice(token);
             isOracleOff = true;
         }
 
@@ -617,7 +608,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                 ) {
                     assetPriceUSD = _priceUSD;
                 } catch {
-                    assetPriceUSD = emergencyPrices[primaryAsset];
+                    assetPriceUSD = superOracle.getEmergencyPrice(primaryAsset);
                 }
                 uint256 ratio = Math.mulDiv(priceUSD, PRECISION, assetPriceUSD);
                 if (decimalsToken != 1e18) {
@@ -882,7 +873,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Circuit Breaker for Dispersion
         if (isDispersion) {
-            if (emergencyPrices[token] != 0) {
+            if (superOracle.getEmergencyPrice(token) != 0) {
                 payIncentive = true;
             } else {
                 payIncentive = false;
@@ -891,7 +882,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Circuit Breaker for Oracle Off
         if (underlyingSuperVaultAssetPriceUSD == 0) {
-            if (emergencyPrices[token] != 0) {
+            if (superOracle.getEmergencyPrice(token) != 0) {
                 payIncentive = true;
             } else {
                 payIncentive = false;

@@ -97,7 +97,6 @@ interface ISuperAsset is IERC20 {
     event TargetAllocationSet(address indexed token, uint256 allocation);
     event EnergyToUSDExchangeRatioSet(uint256 newRatio);
     event WeightSet(address indexed vault, uint256 weight);
-    event EmergencyPriceSet(address indexed token, uint256 priceUSD);
 
     // --- Errors ---
     /// @notice Thrown when an address parameter is zero
@@ -144,9 +143,6 @@ interface ISuperAsset is IERC20 {
 
     /// @notice Thrown when the contract is paused
     error CONTRACT_PAUSED();
-
-    /// @notice Thrown when emergency price is not set
-    error EMERGENCY_PRICE_NOT_SET();
 
     /// @notice Thrown when caller is not authorized
     error UNAUTHORIZED();
@@ -504,11 +500,4 @@ interface ISuperAsset is IERC20 {
      * @dev No checks on zero on purpose in case we want to disable incentives
      */
     function setEnergyToUSDExchangeRatio(uint256 newRatio) external;
-
-    /**
-     * @notice Sets the emergency price for a token when oracle is down
-     * @param token The token address to set the emergency price for
-     * @param priceUSD The USD price with 18 decimals precision
-     */
-    function setEmergencyPrice(address token, uint256 priceUSD) external;
 }
