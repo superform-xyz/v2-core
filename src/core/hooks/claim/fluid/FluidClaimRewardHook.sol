@@ -17,11 +17,15 @@ import {
 import {BaseHook} from "../../BaseHook.sol";
 import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
 import {BaseClaimRewardHook} from "../BaseClaimRewardHook.sol";
+import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
 
 /// @title FluidClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address stakingRewards = BytesLib.toAddress(data, 0);
+/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         address stakingRewards = BytesLib.toAddress(data, 4);
+/// @notice         address rewardToken = BytesLib.toAddress(data, 24);
+/// @notice         address account = BytesLib.toAddress(data, 44);
 contract FluidClaimRewardHook is
     BaseHook,
     BaseClaimRewardHook,
@@ -30,6 +34,8 @@ contract FluidClaimRewardHook is
     ISuperHookContextAware,
     ISuperHookInspector
 {
+    using HookDataDecoder for bytes;
+    
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) {}
 
     /*//////////////////////////////////////////////////////////////
@@ -41,7 +47,7 @@ contract FluidClaimRewardHook is
         override
         returns (Execution[] memory executions)
     {
-        address stakingRewards = BytesLib.toAddress(data, 0);
+        address stakingRewards = data.extractYieldSource();
         if (stakingRewards == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(stakingRewards, abi.encodeCall(IFluidLendingStakingRewards.getReward, ()));
@@ -64,14 +70,14 @@ contract FluidClaimRewardHook is
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
-        return abi.encodePacked(BytesLib.toAddress(data, 0));
+        return abi.encodePacked(data.extractYieldSource());
     }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address, bytes calldata data) internal override {
-        asset = BytesLib.toAddress(data, 20);
+        asset = BytesLib.toAddress(data, 24);
         if (asset == address(0)) revert ASSET_ZERO_ADDRESS();
 
         outAmount = _getBalance(data);

@@ -80,6 +80,6 @@ contract GearboxClaimRewardHookTest is Helpers {
     }
 
     function _encodeData() internal view returns (bytes memory) {
-        return abi.encodePacked(mockFarmingPool, mockRewardToken, mockAccount);
+        return abi.encodePacked(bytes4(0), mockFarmingPool, mockRewardToken, mockAccount);
     }
 }

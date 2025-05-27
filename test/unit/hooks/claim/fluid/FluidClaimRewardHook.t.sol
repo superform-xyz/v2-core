@@ -80,6 +80,6 @@ contract FluidClaimRewardHookTest is Helpers {
     }
 
     function _encodeData() internal view returns (bytes memory) {
-        return abi.encodePacked(stakingRewards, rewardToken, account);
+        return abi.encodePacked(bytes4(0), stakingRewards, rewardToken, account);
     }
 }

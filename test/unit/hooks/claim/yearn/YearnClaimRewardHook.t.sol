@@ -80,6 +80,6 @@ contract YearnClaimOneRewardHookTest is Helpers {
     }
 
     function _encodeData() internal view returns (bytes memory) {
-        return abi.encodePacked(mockYieldSource, mockRewardToken, mockAccount);
+        return abi.encodePacked(bytes4(0), mockYieldSource, mockRewardToken, mockAccount);
     }
 }
