@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
+import { console } from "forge-std/console.sol";
+
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
@@ -23,7 +24,7 @@ import { IIncentiveFundContract } from "../interfaces/SuperAsset/IIncentiveFundC
  * @notice A meta-vault that manages deposits and redemptions across multiple underlying vaults.
  * Implements ERC20 standard for compatibility with integrators.
  */
-contract SuperAsset is AccessControl, ERC20, ISuperAsset {
+contract SuperAsset is ERC20, ISuperAsset {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
     using Math for uint256;
@@ -431,6 +432,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         amountSharesMinted = _deriveAmountSharesMinted(tokenIn, s.amountTokenInAfterFees);
 
+        console.log("amountSharesMinted", amountSharesMinted);
+
         // Get current and post-operation allocations
         (
             s.allocations.absoluteAllocationPreOperation,
@@ -443,12 +446,18 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             s.allocations.isSuccess
         ) = getAllocationsPrePostOperation(tokenIn, int256(amountTokenToDeposit), isSoft);
 
+        console.log("s.allocations.isSuccess", s.allocations.isSuccess);
+
         if (!s.allocations.isSuccess) {
             return (0, 0, 0, false);
         }
 
         ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(_SUPER_ASSET_FACTORY));
         address icc = factory.getIncentiveCalculationContract(address(this));
+
+        console.log("s.allocations.totalTargetAllocation", s.allocations.totalTargetAllocation);
+        console.log("s.allocations.totalAllocationPreOperation", s.allocations.totalAllocationPreOperation);
+        console.log("energyToUSDExchangeRatio", energyToUSDExchangeRatio);
 
         // Calculate incentives (via ICC)
         (amountIncentiveUSD, s.allocations.isSuccess) = IIncentiveCalculationContract(icc).calculateIncentive(
@@ -816,8 +825,13 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         // Get price of underlying vault shares in USD
         (uint256 priceUSDTokenIn, uint256 priceUSDSuperAssetShares) = _fetchPrices(tokenIn);
 
+        console.log("priceUSDTokenIn", priceUSDTokenIn);
+        console.log("priceUSDSuperAssetShares", priceUSDSuperAssetShares);
+
         // Calculate SuperUSD shares to mint
         amountSharesMinted = Math.mulDiv(amountTokenInAfterFees, priceUSDTokenIn, priceUSDSuperAssetShares);
+
+        console.log("amountSharesMinted", amountSharesMinted);
 
         // Adjust for decimals
         uint8 decimalsTokenIn = IERC20Metadata(tokenIn).decimals();
