@@ -64,7 +64,6 @@ contract IncentiveFundContract is IIncentiveFundContract {
     /*//////////////////////////////////////////////////////////////
                           EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc IIncentiveFundContract
     function setTokenInIncentive(address token) external onlyManager {
         if (token == address(0)) revert ZERO_ADDRESS();

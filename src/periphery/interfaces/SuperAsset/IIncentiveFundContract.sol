@@ -124,6 +124,12 @@ interface IIncentiveFundContract {
     function withdraw(address receiver, address tokenOut, uint256 amount) external;
 
     /**
+     * @notice Sets the token for incoming incentives
+     * @param token Address of the token
+     */
+    function setTokenInIncentive(address token) external;
+
+    /**
      * @notice Proposes a new token for outgoing incentives
      * @param token Address of the token
      */

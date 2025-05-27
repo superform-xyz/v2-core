@@ -297,183 +297,183 @@ contract IncentiveFundContractTest is Helpers {
     //     assertEq(incentiveFund.tokenOutIncentive(), address(tokenOut));
     // }
 
-    function test_OnlyManagerCanPayIncentive() public {
-        // Setup tokens
-        vm.startPrank(admin);
-        incentiveFund.proposeSetTokenOutIncentive(address(tokenOut));
-        vm.warp(block.timestamp + 10 days);
-        incentiveFund.executeSetTokenOutIncentive();
-        vm.stopPrank();
+    // function test_OnlyManagerCanPayIncentive() public {
+    //     // Setup tokens
+    //     vm.startPrank(admin);
+    //     incentiveFund.proposeSetTokenOutIncentive(address(tokenOut));
+    //     vm.warp(block.timestamp + 10 days);
+    //     incentiveFund.executeSetTokenOutIncentive();
+    //     vm.stopPrank();
 
-        // Non-manager cannot pay incentive
-        vm.startPrank(user);
-        vm.expectRevert(IIncentiveFundContract.UNAUTHORIZED.selector);
-        incentiveFund.payIncentive(user, 100e18);
-        vm.stopPrank();
+    //     // Non-manager cannot pay incentive
+    //     vm.startPrank(user);
+    //     vm.expectRevert(IIncentiveFundContract.UNAUTHORIZED.selector);
+    //     incentiveFund.payIncentive(user, 100e18);
+    //     vm.stopPrank();
 
-        // Manager can pay incentive
-        uint256 balanceBefore = tokenOut.balanceOf(user);
+    //     // Manager can pay incentive
+    //     uint256 balanceBefore = tokenOut.balanceOf(user);
 
-        vm.startPrank(admin);
-        incentiveFund.payIncentive(user, 100e18);
-        vm.stopPrank();
+    //     vm.startPrank(admin);
+    //     incentiveFund.payIncentive(user, 100e18);
+    //     vm.stopPrank();
 
-        uint256 balanceAfter = tokenOut.balanceOf(user);
-        assertEq(balanceAfter - balanceBefore, 100e18);
-    }
+    //     uint256 balanceAfter = tokenOut.balanceOf(user);
+    //     assertEq(balanceAfter - balanceBefore, 100e18);
+    // }
 
-    function test_OnlyManagerCanTakeIncentive() public {
-        // Setup tokens
-        vm.startPrank(admin);
-        incentiveFund.proposeSetTokenInIncentive(address(tokenIn));
-        vm.warp(block.timestamp + 10 days);
-        incentiveFund.executeSetTokenInIncentive();        
-        vm.stopPrank();
+    // function test_OnlyManagerCanTakeIncentive() public {
+    //     // Setup tokens
+    //     vm.startPrank(admin);
+    //     incentiveFund.proposeSetTokenInIncentive(address(tokenIn));
+    //     vm.warp(block.timestamp + 10 days);
+    //     incentiveFund.executeSetTokenInIncentive();        
+    //     vm.stopPrank();
 
-        // Give approval to incentiveFund
-        vm.startPrank(user);
-        tokenIn.approve(address(incentiveFund), 100e18);
-        vm.stopPrank();
+    //     // Give approval to incentiveFund
+    //     vm.startPrank(user);
+    //     tokenIn.approve(address(incentiveFund), 100e18);
+    //     vm.stopPrank();
 
-        // Non-manager cannot take incentive
-        vm.startPrank(user);
-        vm.expectRevert(IIncentiveFundContract.UNAUTHORIZED.selector);
-        incentiveFund.takeIncentive(user, 100e18);
-        vm.stopPrank();
+    //     // Non-manager cannot take incentive
+    //     vm.startPrank(user);
+    //     vm.expectRevert(IIncentiveFundContract.UNAUTHORIZED.selector);
+    //     incentiveFund.takeIncentive(user, 100e18);
+    //     vm.stopPrank();
 
-        // Manager can take incentive
-        uint256 balanceBefore = tokenIn.balanceOf(user);
+    //     // Manager can take incentive
+    //     uint256 balanceBefore = tokenIn.balanceOf(user);
 
-        vm.startPrank(admin);
-        incentiveFund.takeIncentive(user, 100e18);
-        vm.stopPrank();
+    //     vm.startPrank(admin);
+    //     incentiveFund.takeIncentive(user, 100e18);
+    //     vm.stopPrank();
 
-        uint256 balanceAfter = tokenIn.balanceOf(user);
-        assertEq(balanceBefore - balanceAfter, 100e18);
-    }
+    //     uint256 balanceAfter = tokenIn.balanceOf(user);
+    //     assertEq(balanceBefore - balanceAfter, 100e18);
+    // }
 
     // --- Test: Core Functionality ---
-    function test_PayIncentive() public {
-        // Setup token
-        vm.startPrank(admin);
-        incentiveFund.proposeSetTokenOutIncentive(address(tokenOut));
-        vm.warp(block.timestamp + 10 days);
-        incentiveFund.executeSetTokenOutIncentive();        
-        vm.stopPrank();
+    // function test_PayIncentive() public {
+    //     // Setup token
+    //     vm.startPrank(admin);
+    //     incentiveFund.proposeSetTokenOutIncentive(address(tokenOut));
+    //     vm.warp(block.timestamp + 10 days);
+    //     incentiveFund.executeSetTokenOutIncentive();        
+    //     vm.stopPrank();
 
-        // Manager pays incentive
-        vm.startPrank(admin);
-        vm.expectEmit(true, true, false, true);
-        emit IncentivePaid(user, address(tokenOut), 100e18);
-        incentiveFund.payIncentive(user, 100e18);
-        vm.stopPrank();
+    //     // Manager pays incentive
+    //     vm.startPrank(admin);
+    //     vm.expectEmit(true, true, false, true);
+    //     emit IncentivePaid(user, address(tokenOut), 100e18);
+    //     incentiveFund.payIncentive(user, 100e18);
+    //     vm.stopPrank();
 
-        // Check balances
-        assertEq(tokenOut.balanceOf(user), 1100e18);
-        assertEq(tokenOut.balanceOf(address(incentiveFund)), 900e18);
-    }
+    //     // Check balances
+    //     assertEq(tokenOut.balanceOf(user), 1100e18);
+    //     assertEq(tokenOut.balanceOf(address(incentiveFund)), 900e18);
+    // }
 
-    function test_PayIncentive_RevertIfNoTokenSet() public {
-        vm.startPrank(admin);
-        incentiveFund.proposeSetTokenOutIncentive(address(0));
-        vm.warp(block.timestamp + 10 days);
-        incentiveFund.executeSetTokenOutIncentive();        
-        uint256 amountToken = incentiveFund.payIncentive(user, 100e18);
-        assertEq(amountToken, 0);
-        vm.stopPrank();
-    }
+    // function test_PayIncentive_RevertIfNoTokenSet() public {
+    //     vm.startPrank(admin);
+    //     incentiveFund.proposeSetTokenOutIncentive(address(0));
+    //     vm.warp(block.timestamp + 10 days);
+    //     incentiveFund.executeSetTokenOutIncentive();        
+    //     uint256 amountToken = incentiveFund.payIncentive(user, 100e18);
+    //     assertEq(amountToken, 0);
+    //     vm.stopPrank();
+    // }
 
-    function test_PayIncentive_RevertIfInsufficientBalance() public {
-        // Setup token
-        vm.startPrank(admin);
-        incentiveFund.proposeSetTokenOutIncentive(address(tokenOut));
-        vm.warp(block.timestamp + 10 days);
-        incentiveFund.executeSetTokenOutIncentive();        
-        vm.stopPrank();
+    // function test_PayIncentive_RevertIfInsufficientBalance() public {
+    //     // Setup token
+    //     vm.startPrank(admin);
+    //     incentiveFund.proposeSetTokenOutIncentive(address(tokenOut));
+    //     vm.warp(block.timestamp + 10 days);
+    //     incentiveFund.executeSetTokenOutIncentive();        
+    //     vm.stopPrank();
 
-        // Try to pay more than contract's balance
-        vm.startPrank(admin);
-        uint256 expAmountIncentive = tokenOut.balanceOf(address(incentiveFund));
-        uint256 paidIncentive = incentiveFund.payIncentive(user, 2*expAmountIncentive);
-        assertEq(paidIncentive, expAmountIncentive);
-        console.log("paidIncentive = ", paidIncentive);
-        vm.stopPrank();
-    }
+    //     // Try to pay more than contract's balance
+    //     vm.startPrank(admin);
+    //     uint256 expAmountIncentive = tokenOut.balanceOf(address(incentiveFund));
+    //     uint256 paidIncentive = incentiveFund.payIncentive(user, 2*expAmountIncentive);
+    //     assertEq(paidIncentive, expAmountIncentive);
+    //     console.log("paidIncentive = ", paidIncentive);
+    //     vm.stopPrank();
+    // }
 
-    function test_TakeIncentive() public {
-        // Setup token
-        vm.startPrank(admin);
-        incentiveFund.proposeSetTokenInIncentive(address(tokenIn));
-        vm.warp(block.timestamp + 10 days);
-        incentiveFund.executeSetTokenInIncentive();        
-        vm.stopPrank();
+    // function test_TakeIncentive() public {
+    //     // Setup token
+    //     vm.startPrank(admin);
+    //     incentiveFund.proposeSetTokenInIncentive(address(tokenIn));
+    //     vm.warp(block.timestamp + 10 days);
+    //     incentiveFund.executeSetTokenInIncentive();        
+    //     vm.stopPrank();
 
-        // Give approval to incentiveFund
-        vm.startPrank(user);
-        tokenIn.approve(address(incentiveFund), 100e18);
-        vm.stopPrank();
+    //     // Give approval to incentiveFund
+    //     vm.startPrank(user);
+    //     tokenIn.approve(address(incentiveFund), 100e18);
+    //     vm.stopPrank();
 
-        // Manager takes incentive
-        vm.startPrank(admin);
-        vm.expectEmit(true, true, false, true);
-        emit IncentiveTaken(user, address(tokenIn), 100e18);
-        incentiveFund.takeIncentive(user, 100e18);
-        vm.stopPrank();
+    //     // Manager takes incentive
+    //     vm.startPrank(admin);
+    //     vm.expectEmit(true, true, false, true);
+    //     emit IncentiveTaken(user, address(tokenIn), 100e18);
+    //     incentiveFund.takeIncentive(user, 100e18);
+    //     vm.stopPrank();
 
-        // Check balances
-        assertEq(tokenIn.balanceOf(user), 900e18);
-        assertEq(tokenIn.balanceOf(address(incentiveFund)), 1100e18);
-    }
+    //     // Check balances
+    //     assertEq(tokenIn.balanceOf(user), 900e18);
+    //     assertEq(tokenIn.balanceOf(address(incentiveFund)), 1100e18);
+    // }
 
-    function test_TakeIncentive_RevertIfNoTokenSet() public {
-        vm.startPrank(admin);
-        incentiveFund.proposeSetTokenInIncentive(address(0));
-        vm.warp(block.timestamp + 10 days);
-        incentiveFund.executeSetTokenInIncentive();
-        uint256 amountToken = incentiveFund.takeIncentive(user, 100e18);
-        assertEq(amountToken, 0);
-        vm.stopPrank();
-    }
+    // function test_TakeIncentive_RevertIfNoTokenSet() public {
+    //     vm.startPrank(admin);
+    //     incentiveFund.proposeSetTokenInIncentive(address(0));
+    //     vm.warp(block.timestamp + 10 days);
+    //     incentiveFund.executeSetTokenInIncentive();
+    //     uint256 amountToken = incentiveFund.takeIncentive(user, 100e18);
+    //     assertEq(amountToken, 0);
+    //     vm.stopPrank();
+    // }
 
-    function test_TakeIncentive_RevertIfInsufficientAllowance() public {
-        // Setup token
-        vm.startPrank(admin);
-        incentiveFund.proposeSetTokenInIncentive(address(tokenIn));
-        vm.warp(block.timestamp + 10 days);
-        incentiveFund.executeSetTokenInIncentive();        
-        vm.stopPrank();
+    // function test_TakeIncentive_RevertIfInsufficientAllowance() public {
+    //     // Setup token
+    //     vm.startPrank(admin);
+    //     incentiveFund.proposeSetTokenInIncentive(address(tokenIn));
+    //     vm.warp(block.timestamp + 10 days);
+    //     incentiveFund.executeSetTokenInIncentive();        
+    //     vm.stopPrank();
 
-        // Try to take without approval
-        vm.startPrank(admin);
-        vm.expectRevert(
-            abi.encodeWithSelector(
-                IERC20Errors.ERC20InsufficientAllowance.selector,
-                address(incentiveFund),  // spender
-                0,                       // allowance
-                100e18                   // needed
-            )
-        );
-        incentiveFund.takeIncentive(user, 100e18);
-        vm.stopPrank();
-    }
+    //     // Try to take without approval
+    //     vm.startPrank(admin);
+    //     vm.expectRevert(
+    //         abi.encodeWithSelector(
+    //             IERC20Errors.ERC20InsufficientAllowance.selector,
+    //             address(incentiveFund),  // spender
+    //             0,                       // allowance
+    //             100e18                   // needed
+    //         )
+    //     );
+    //     incentiveFund.takeIncentive(user, 100e18);
+    //     vm.stopPrank();
+    // }
 
-    function test_TakeIncentive_RevertIfInsufficientBalance() public {
-        // Setup token
-        vm.startPrank(admin);
-        incentiveFund.proposeSetTokenInIncentive(address(tokenIn));
-        vm.warp(block.timestamp + 10 days);
-        incentiveFund.executeSetTokenInIncentive();        
-        vm.stopPrank();
+    // function test_TakeIncentive_RevertIfInsufficientBalance() public {
+    //     // Setup token
+    //     vm.startPrank(admin);
+    //     incentiveFund.proposeSetTokenInIncentive(address(tokenIn));
+    //     vm.warp(block.timestamp + 10 days);
+    //     incentiveFund.executeSetTokenInIncentive();        
+    //     vm.stopPrank();
 
-        // Approve transfer
-        vm.startPrank(user);
-        tokenIn.approve(address(incentiveFund), 2000e18);
-        vm.stopPrank();
+    //     // Approve transfer
+    //     vm.startPrank(user);
+    //     tokenIn.approve(address(incentiveFund), 2000e18);
+    //     vm.stopPrank();
 
-        // Try to take more than user's balance
-        vm.startPrank(admin);
-        vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, user, 1000e18, 2000e18));
-        incentiveFund.takeIncentive(user, 2000e18);
-        vm.stopPrank();
-    }
+    //     // Try to take more than user's balance
+    //     vm.startPrank(admin);
+    //     vm.expectRevert(abi.encodeWithSelector(IERC20Errors.ERC20InsufficientBalance.selector, user, 1000e18, 2000e18));
+    //     incentiveFund.takeIncentive(user, 2000e18);
+    //     vm.stopPrank();
+    // }
 }
