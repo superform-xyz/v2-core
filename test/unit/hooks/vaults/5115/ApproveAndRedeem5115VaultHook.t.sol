@@ -128,13 +128,12 @@ contract ApproveAndRedeem5115VaultHookTest is Helpers {
 
     function test_ApproveAndRedeem_PreAndPostExecute() public {
         yieldSource = tokenIn; // for the .balanceOf call
-        _getTokens(tokenIn, address(this), shares);
         bytes memory data = _encodeData(false);
         hook.preExecute(address(0), address(this), data);
-        assertEq(hook.outAmount(), shares);
-
+        assertEq(hook.outAmount(), 0, "A");
+        _getTokens(tokenOut, address(this), shares);
         hook.postExecute(address(0), address(this), data);
-        assertEq(hook.outAmount(), 0);
+        assertEq(hook.outAmount(), shares, "B");
     }
 
     function test_Inspector() public view {
