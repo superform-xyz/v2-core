@@ -2,8 +2,8 @@
 pragma solidity 0.8.30;
 
 // Superform
-import {VaultBankSuperPosition} from "./VaultBankSuperPosition.sol";
-import {IVaultBankDestination} from "../interfaces/IVaultBank.sol";
+import { VaultBankSuperPosition } from "./VaultBankSuperPosition.sol";
+import { IVaultBankDestination } from "../interfaces/VaultBank/IVaultBank.sol";
 
 abstract contract VaultBankDestination is IVaultBankDestination {
     /*//////////////////////////////////////////////////////////////
@@ -41,7 +41,10 @@ abstract contract VaultBankDestination is IVaultBankDestination {
         string calldata _srcName,
         string calldata _srcSymbol,
         uint8 _srcDecimals
-    ) internal returns (address) {
+    )
+        internal
+        returns (address)
+    {
         address _created = _tokenToSuperPosition[srcChainId][srcAsset];
         if (_created != address(0)) return _created;
 

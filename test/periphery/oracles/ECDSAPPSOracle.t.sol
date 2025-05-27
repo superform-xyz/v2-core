@@ -10,10 +10,10 @@ import { Test } from "forge-std/Test.sol";
 import { ISuperGovernor } from "../../../src/periphery/interfaces/ISuperGovernor.sol";
 import { SuperGovernor } from "../../../src/periphery/SuperGovernor.sol";
 import { SuperVaultAggregator } from "../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
-import { ISuperVaultAggregator } from "../../../src/periphery/interfaces/ISuperVaultAggregator.sol";
+import { ISuperVaultAggregator } from "../../../src/periphery/interfaces/SuperVault/ISuperVaultAggregator.sol";
 import { ECDSAPPSOracle } from "../../../src/periphery/oracles/ECDSAPPSOracle.sol";
-import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
-import { IECDSAPPSOracle } from "../../../src/periphery/interfaces/IECDSAPPSOracle.sol";
+import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/SuperVault/ISuperVaultStrategy.sol";
+import { IECDSAPPSOracle } from "../../../src/periphery/interfaces/oracles/IECDSAPPSOracle.sol";
 import { SuperVault } from "../../../src/periphery/SuperVault/SuperVault.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
 

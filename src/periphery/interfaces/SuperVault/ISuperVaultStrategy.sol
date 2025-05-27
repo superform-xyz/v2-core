@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { ISuperHook, Execution } from "../../core/interfaces/ISuperHook.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ISuperHook, Execution } from "../../../core/interfaces/ISuperHook.sol";
 
 /// @title ISuperVaultStrategy
 /// @author Superform Labs
@@ -245,7 +245,7 @@ interface ISuperVaultStrategy {
 
     /// @notice Execute the proposed vault fee configuration update after timelock
     function executeVaultFeeConfigUpdate() external;
-    
+
     /// @notice Update the maximum allowed PPS slippage for redemptions
     /// @param maxSlippageBps Maximum slippage in basis points (e.g., 100 = 1%)
     function updateMaxPPSSlippage(uint256 maxSlippageBps) external;

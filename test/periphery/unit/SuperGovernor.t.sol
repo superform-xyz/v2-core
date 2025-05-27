@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {SuperGovernor} from "src/periphery/SuperGovernor.sol";
-import {ISuperGovernor, FeeType} from "src/periphery/interfaces/ISuperGovernor.sol";
-import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
-import {ISuperVaultAggregator} from "src/periphery/interfaces/ISuperVaultAggregator.sol";
-import {SuperVaultAggregator} from "src/periphery/SuperVault/SuperVaultAggregator.sol";
-import {ISuperVaultStrategy} from "src/periphery/interfaces/ISuperVaultStrategy.sol";
-import {Helpers} from "../../utils/Helpers.sol";
+import { SuperGovernor } from "src/periphery/SuperGovernor.sol";
+import { ISuperGovernor, FeeType } from "src/periphery/interfaces/ISuperGovernor.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
+import { ISuperVaultAggregator } from "src/periphery/interfaces/SuperVault/ISuperVaultAggregator.sol";
+import { SuperVaultAggregator } from "src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { ISuperVaultStrategy } from "src/periphery/interfaces/SuperVault/ISuperVaultStrategy.sol";
+import { Helpers } from "../../utils/Helpers.sol";
 
 contract SuperGovernorTest is Helpers {
     SuperGovernor internal superGovernor;
@@ -67,7 +67,7 @@ contract SuperGovernorTest is Helpers {
                 symbol: "SUP",
                 minUpdateInterval: 5,
                 maxStaleness: 300,
-                feeConfig: ISuperVaultStrategy.FeeConfig({performanceFeeBps: 1000, recipient: address(this)})
+                feeConfig: ISuperVaultStrategy.FeeConfig({ performanceFeeBps: 1000, recipient: address(this) })
             })
         );
         strategy1 = strategy;
