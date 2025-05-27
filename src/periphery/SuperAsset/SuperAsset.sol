@@ -33,7 +33,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     string private tokenSymbol;
 
     // --- Interfaces ---
-    ISuperOracle public superOracle;
     ISuperGovernor public superGovernor;
 
     // --- Constants ---
@@ -193,13 +192,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     function setSwapFeeOutPercentage(uint256 _feePercentage) external onlyManager {
         if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
         swapFeeOutPercentage = _feePercentage;
-    }
-
-    /// @inheritdoc ISuperAsset
-    function setSuperOracle(address oracle) external onlyManager {
-        if (oracle == address(0)) revert ZERO_ADDRESS();
-        superOracle = ISuperOracle(oracle);
-        emit SuperOracleSet(oracle);
     }
 
     /// @inheritdoc ISuperAsset
@@ -583,6 +575,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         uint256 M;
 
         // @dev Passing oneUnit to get the price of a single unit of asset to check if it has depegged
+        ISuperOracle superOracle = ISuperOracle(superGovernor.getAddress(superGovernor.SUPER_ORACLE()));
         try superOracle.getQuoteFromProvider(one, token, USD, AVERAGE_PROVIDER) returns (
             uint256 _priceUSD, uint256 _stddev, uint256 _n, uint256 _m
         ) {
@@ -610,8 +603,10 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                 } catch {
                     assetPriceUSD = superOracle.getEmergencyPrice(primaryAsset);
                 }
+
                 uint256 ratio = Math.mulDiv(priceUSD, PRECISION, assetPriceUSD);
-                if (decimalsToken != 1e18) {
+
+                if (decimalsToken != 18) {
                     ratio = Math.mulDiv(ratio, 10 ** (1e18 - decimalsToken), PRECISION);
                 }
                 if (ratio < DEPEG_LOWER_THRESHOLD || ratio > DEPEG_UPPER_THRESHOLD) {
@@ -833,7 +828,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Adjust for decimals
         uint8 decimalsTokenIn = IERC20Metadata(tokenIn).decimals();
-        if (decimalsTokenIn != 1e18) {
+        if (decimalsTokenIn != 18) {
             amountSharesMinted = Math.mulDiv(amountSharesMinted, 10 ** (1e18 - decimalsTokenIn), PRECISION);
         }
     }
@@ -873,6 +868,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Circuit Breaker for Dispersion
         if (isDispersion) {
+            ISuperOracle superOracle = ISuperOracle(superGovernor.getAddress(superGovernor.SUPER_ORACLE()));
             if (superOracle.getEmergencyPrice(token) != 0) {
                 payIncentive = true;
             } else {
@@ -882,6 +878,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Circuit Breaker for Oracle Off
         if (underlyingSuperVaultAssetPriceUSD == 0) {
+            ISuperOracle superOracle = ISuperOracle(superGovernor.getAddress(superGovernor.SUPER_ORACLE()));
             if (superOracle.getEmergencyPrice(token) != 0) {
                 payIncentive = true;
             } else {
