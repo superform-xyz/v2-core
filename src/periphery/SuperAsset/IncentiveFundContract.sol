@@ -116,9 +116,9 @@ contract IncentiveFundContract is IIncentiveFundContract {
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function payIncentive(address receiver, uint256 amountUSD) external onlyManager {
+    function payIncentive(address receiver, uint256 amountUSD) external onlyManager returns (uint256 amountToken) {
         if (!incentivesEnabled) {
-            return;
+            return 0;
         }
 
         _validateInput(receiver, amountUSD);
@@ -130,17 +130,20 @@ contract IncentiveFundContract is IIncentiveFundContract {
         if (priceUSD > 0) {
             // Convert USD amount to token amount using price
             // amountToken = amountUSD / priceUSD
-            uint256 amountToken = Math.mulDiv(amountUSD, IERC20Metadata(tokenInIncentive).decimals(), priceUSD);
+            amountToken = Math.mulDiv(amountUSD, IERC20Metadata(tokenInIncentive).decimals(), priceUSD);
 
             IERC20(tokenOutIncentive).safeTransfer(receiver, amountToken);
             emit IncentivePaid(receiver, tokenOutIncentive, amountToken);
         }
+
+        emit IncentivePaid(receiver, tokenOutIncentive, 0);
+        return 0;
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function takeIncentive(address sender, uint256 amountUSD) external onlyManager {
+    function takeIncentive(address sender, uint256 amountUSD) external onlyManager returns (uint256 amountToken) {
         if (!incentivesEnabled) {
-            return;
+            return 0;
         }
 
         _validateInput(sender, amountUSD);
@@ -152,11 +155,14 @@ contract IncentiveFundContract is IIncentiveFundContract {
         if (priceUSD > 0) {
             // Convert USD amount to token amount using price
             // amountToken = amountUSD / priceUSD
-            uint256 amountToken = Math.mulDiv(amountUSD, IERC20Metadata(tokenInIncentive).decimals(), priceUSD);
+            amountToken = Math.mulDiv(amountUSD, IERC20Metadata(tokenInIncentive).decimals(), priceUSD);
 
             IERC20(tokenInIncentive).safeTransferFrom(sender, address(this), amountToken);
             emit IncentiveTaken(sender, tokenInIncentive, amountToken);
         }
+
+        emit IncentiveTaken(sender, tokenInIncentive, 0);
+        return 0;
     }
 
     /// @inheritdoc IIncentiveFundContract

@@ -110,10 +110,10 @@ interface IIncentiveFundContract {
     /**
      * @notice Takes incentives from a sender
      * @param sender Address to take incentives from
-     * @param amount Amount of incentives to take
+     * @param amountUSD Amount of incentives to take
      * @return amountToken Amount of tokens taken
      */
-    function takeIncentive(address sender, uint256 amount) external returns (uint256 amountToken);
+    function takeIncentive(address sender, uint256 amountUSD) external returns (uint256 amountToken);
 
     /**
      * @notice Withdraws tokens during rebalancing
@@ -122,17 +122,6 @@ interface IIncentiveFundContract {
      * @param amount Amount to withdraw
      */
     function withdraw(address receiver, address tokenOut, uint256 amount) external;
-
-    /**
-     * @notice Proposes a new token for incoming incentives
-     * @param token Address of the token
-     */
-    function proposeSetTokenInIncentive(address token) external;
-
-    /**
-     * @notice Executes the proposal for a new token for incoming incentives
-     */
-    function executeSetTokenInIncentive() external;
 
     /**
      * @notice Proposes a new token for outgoing incentives
