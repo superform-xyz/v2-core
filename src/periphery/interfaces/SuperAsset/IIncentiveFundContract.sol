@@ -29,8 +29,23 @@ interface IIncentiveFundContract {
     error TOKEN_NOT_WHITELISTED();
 
     // --- Events ---
+    /**
+     * @notice Emitted when the token for incoming incentives is set
+     * @param token Address of the token
+     */
     event TokenInIncentiveSet(address indexed token);
+
+    /**
+     * @notice Emitted when the token for outgoing incentives is set
+     * @param token Address of the token
+     */
     event TokenOutIncentiveSet(address indexed token);
+
+    /**
+     * @notice Emitted when incentives are toggled
+     * @param enabled Whether incentives are enabled
+     */
+    event IncentivesToggled(bool indexed enabled);
 
     /**
      * @notice Emitted when incentives are paid to a receiver
@@ -115,4 +130,10 @@ interface IIncentiveFundContract {
      * @param token Address of the token
      */
     function setTokenOutIncentive(address token) external;
+
+    /**
+     * @notice Toggles incentives
+     * @param enabled Whether incentives are enabled
+     */
+    function toggleIncentives(bool enabled) external;
 }

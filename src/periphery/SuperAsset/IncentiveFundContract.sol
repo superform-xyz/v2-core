@@ -26,6 +26,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
     address public tokenOutIncentive;
     ISuperAsset public superAsset;
     ISuperGovernor public superGovernor;
+    bool public incentivesEnabled;
 
     // --- Modifiers ---
     modifier onlyManager() {
@@ -53,6 +54,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IIncentiveFundContract
     function setTokenInIncentive(address token) external onlyManager {
+        if (token == address(0)) revert ZERO_ADDRESS();
         address[] memory incentiveTokens = superGovernor.getWhitelistedIncentiveTokens();
 
         bool isWhitelisted = false;
@@ -74,6 +76,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
 
     /// @inheritdoc IIncentiveFundContract
     function setTokenOutIncentive(address token) external onlyManager {
+        if (token == address(0)) revert ZERO_ADDRESS();
         address[] memory incentiveTokens = superGovernor.getWhitelistedIncentiveTokens();
 
         bool isWhitelisted = false;
@@ -94,7 +97,17 @@ contract IncentiveFundContract is IIncentiveFundContract {
     }
 
     /// @inheritdoc IIncentiveFundContract
+    function toggleIncentives(bool enabled) external onlyManager {
+        incentivesEnabled = enabled;
+        emit IncentivesToggled(enabled);
+    }
+
+    /// @inheritdoc IIncentiveFundContract
     function payIncentive(address receiver, uint256 amountUSD) external onlyManager {
+        if (!incentivesEnabled) {
+            return;
+        }
+
         _validateInput(receiver, amountUSD);
         if (tokenOutIncentive == address(0)) revert TOKEN_OUT_NOT_SET();
 
@@ -114,6 +127,10 @@ contract IncentiveFundContract is IIncentiveFundContract {
 
     /// @inheritdoc IIncentiveFundContract
     function takeIncentive(address sender, uint256 amountUSD) external onlyManager {
+        if (!incentivesEnabled) {
+            return;
+        }
+
         _validateInput(sender, amountUSD);
         if (tokenInIncentive == address(0)) revert TOKEN_IN_NOT_SET();
 
