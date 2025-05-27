@@ -12,7 +12,7 @@ import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.s
 import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 
 // Interfaces
-import {ISuperVault} from "../interfaces/ISuperVault.sol";
+import {ISuperVault} from "../../vendor/periphery/ISuperVault.sol";
 import {ISuperVaultStrategy} from "../interfaces/ISuperVaultStrategy.sol";
 import {IERC7540Operator, IERC7540Redeem, IERC7741} from "../../vendor/standards/ERC7540/IERC7540Vault.sol";
 import {IERC7575} from "../../vendor/standards/ERC7575/IERC7575.sol";

@@ -22,7 +22,7 @@ import {
 import { IYieldSourceOracle } from "../../core/interfaces/accounting/IYieldSourceOracle.sol";
 
 // Periphery Interfaces
-import { ISuperVault } from "../interfaces/ISuperVault.sol";
+import { ISuperVault } from "../../vendor/periphery/ISuperVault.sol";
 import { HookDataDecoder } from "../../core/libraries/HookDataDecoder.sol";
 import { ISuperVaultStrategy } from "../interfaces/ISuperVaultStrategy.sol";
 import { ISuperGovernor, FeeType } from "../interfaces/ISuperGovernor.sol";

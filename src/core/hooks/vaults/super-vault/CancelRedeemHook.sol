@@ -11,7 +11,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {BaseHook} from "../../BaseHook.sol";
 import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
 import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
-import {ISuperVault} from "../../../../periphery/interfaces/ISuperVault.sol";
+import {ISuperVault} from "../../../../vendor/periphery/ISuperVault.sol";
 import {ISuperHookAsyncCancelations, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
 
 /// @title CancelRedeemHook

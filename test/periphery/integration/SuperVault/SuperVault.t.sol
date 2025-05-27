@@ -12,7 +12,7 @@ import { IERC165 } from "openzeppelin-contracts/contracts/interfaces/IERC165.sol
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 // superform
-import { ISuperVault } from "../../../../src/periphery/interfaces/ISuperVault.sol";
+import { ISuperVault } from "../../../../src/vendor/periphery/ISuperVault.sol";
 import { SuperVault } from "../../../../src/periphery/SuperVault/SuperVault.sol";
 import { SuperVaultEscrow } from "../../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
 import { SuperVaultStrategy } from "../../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
