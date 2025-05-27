@@ -12,6 +12,7 @@ interface ISuperAssetFactory {
      * @param symbol Symbol of the SuperAsset token
      * @param swapFeeInPercentage Initial swap fee percentage for deposits
      * @param swapFeeOutPercentage Initial swap fee percentage for redemptions
+     * @param asset Address of the primary asset
      * @param superAssetManager Address of the manager
      * @param superAssetStrategist Address of the strategist
      * @param incentiveFundManager Address of the incentive fund manager
@@ -21,6 +22,7 @@ interface ISuperAssetFactory {
         string symbol;
         uint256 swapFeeInPercentage;
         uint256 swapFeeOutPercentage;
+        address asset;
         address superAssetManager;
         address superAssetStrategist;
         address incentiveFundManager;

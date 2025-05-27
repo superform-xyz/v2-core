@@ -6,70 +6,46 @@ pragma solidity ^0.8.30;
  * @notice Interface for IncentiveFundContract which manages incentive tokens in the SuperAsset system
  */
 interface IIncentiveFundContract {
-    /// @notice The token users send incentives to
-    function tokenInIncentive() external view returns (address);
+    // --- Errors ---
+    /// @notice Thrown when an address parameter is zero
+    error ZERO_ADDRESS();
 
-    /// @notice The token used to pay incentives
-    function tokenOutIncentive() external view returns (address);
+    /// @notice Thrown when amount is zero
+    error ZERO_AMOUNT();
 
-    /**
-     * @notice Initializes the IncentiveFundContract
-     * @param _superGovernor Address of the SuperGovernor contract
-     * @param superAsset_ Address of the SuperAsset contract
-     * @param tokenInIncentive_ Address of the token users send incentives to
-     * @param tokenOutIncentive_ Address of the token used to pay incentives
-     */
-    function initialize(address _superGovernor, address superAsset_, address tokenInIncentive_, address tokenOutIncentive_) external;
+    /// @notice Thrown when tokenOut is not configured
+    error TOKEN_OUT_NOT_SET();
 
-    /**
-     * @notice Pays incentives to a receiver
-     * @param receiver Address to receive the incentives
-     * @param amount Amount of incentives to pay
-     * @return amountToken Amount of tokens paid
-     */
-    function payIncentive(address receiver, uint256 amount) external returns (uint256 amountToken);
+    /// @notice Thrown when tokenIn is not configured
+    error TOKEN_IN_NOT_SET();
 
-    /**
-     * @notice Takes incentives from a sender
-     * @param sender Address to take incentives from
-     * @param amount Amount of incentives to take
-     * @return amountToken Amount of tokens taken
-     */
-    function takeIncentive(address sender, uint256 amount) external returns (uint256 amountToken);
+    /// @notice Thrown when contract is already initialized
+    error ALREADY_INITIALIZED();
 
-    /**
-     * @notice Withdraws tokens during rebalancing
-     * @param receiver Address to receive the tokens
-     * @param tokenOut Token to withdraw
-     * @param amount Amount to withdraw
-     */
-    function withdraw(address receiver, address tokenOut, uint256 amount) external;
+    /// @notice Thrown when the caller is not authorized
+    error UNAUTHORIZED();
 
-    /**
-     * @notice Proposes a new token for incoming incentives
-     * @param token Address of the token
-     */
-    function proposeSetTokenInIncentive(address token) external;
-
-    /**
-     * @notice Executes the proposal for a new token for incoming incentives
-     */
-    function executeSetTokenInIncentive() external;
-
-    /**
-     * @notice Proposes a new token for outgoing incentives
-     * @param token Address of the token
-     */
-    function proposeSetTokenOutIncentive(address token) external;
-
-    /**
-     * @notice Executes the proposal for a new token for outgoing incentives
-     */
-    function executeSetTokenOutIncentive() external;
+    /// @notice Thrown when attempting to set a non-whitelisted incentive token
+    error TOKEN_NOT_WHITELISTED();
 
     // --- Events ---
+    /**
+     * @notice Emitted when the token for incoming incentives is set
+     * @param token Address of the token
+     */
     event TokenInIncentiveSet(address indexed token);
+
+    /**
+     * @notice Emitted when the token for outgoing incentives is set
+     * @param token Address of the token
+     */
     event TokenOutIncentiveSet(address indexed token);
+
+    /**
+     * @notice Emitted when incentives are toggled
+     * @param enabled Whether incentives are enabled
+     */
+    event IncentivesToggled(bool indexed enabled);
 
     /**
      * @notice Emitted when incentives are paid to a receiver
@@ -107,31 +83,61 @@ interface IIncentiveFundContract {
      */
     event SettlementTokenOutSet(address indexed token);
 
-    // --- Errors ---
-    /// @notice Thrown when an address parameter is zero
-    error ZERO_ADDRESS();
+    // --- Functions ---
+    /// @notice The token users send incentives to
+    function tokenInIncentive() external view returns (address);
 
-    /// @notice Thrown when amount is zero
-    error ZERO_AMOUNT();
+    /// @notice The token used to pay incentives
+    function tokenOutIncentive() external view returns (address);
 
-    /// @notice Thrown when tokenOut is not configured
-    error TOKEN_OUT_NOT_SET();
+    /**
+     * @notice Initializes the IncentiveFundContract
+     * @param _superGovernor Address of the SuperGovernor contract
+     * @param superAsset_ Address of the SuperAsset contract
+     * @param tokenInIncentive_ Address of the token users send incentives to
+     * @param tokenOutIncentive_ Address of the token used to pay incentives
+     */
+    function initialize(address _superGovernor, address superAsset_, address tokenInIncentive_, address tokenOutIncentive_) external;
 
-    /// @notice Thrown when tokenIn is not configured
-    error TOKEN_IN_NOT_SET();
+    /**
+     * @notice Pays incentives to a receiver
+     * @param receiver Address to receive the incentives
+     * @param amount Amount of incentives to pay
+     * @return amountToken Amount of tokens paid
+     */
+    function payIncentive(address receiver, uint256 amount) external returns (uint256 amountToken);
 
-    /// @notice Thrown when any circuit breaker is triggered during price check
-    error CIRCUIT_BREAKER_TRIGGERED();
+    /**
+     * @notice Takes incentives from a sender
+     * @param sender Address to take incentives from
+     * @param amountUSD Amount of incentives to take
+     * @return amountToken Amount of tokens taken
+     */
+    function takeIncentive(address sender, uint256 amountUSD) external returns (uint256 amountToken);
 
-    /// @notice Thrown when price in USD is zero
-    error PRICE_USD_ZERO();
+    /**
+     * @notice Withdraws tokens during rebalancing
+     * @param receiver Address to receive the tokens
+     * @param tokenOut Token to withdraw
+     * @param amount Amount to withdraw
+     */
+    function withdraw(address receiver, address tokenOut, uint256 amount) external;
 
-    /// @notice Thrown when contract is already initialized
-    error ALREADY_INITIALIZED();
+    /**
+     * @notice Sets the token for incoming incentives
+     * @param token Address of the token
+     */
+    function setTokenInIncentive(address token) external;
 
-    /// @notice Thrown when the caller is not authorized
-    error UNAUTHORIZED();
+    /**
+     * @notice Proposes a new token for outgoing incentives
+     * @param token Address of the token
+     */
+    function setTokenOutIncentive(address token) external;
 
-    /// @notice Thrown when timelock is not expired
-    error TIMELOCK_NOT_EXPIRED();
+    /**
+     * @notice Toggles incentives
+     * @param enabled Whether incentives are enabled
+     */
+    function toggleIncentives(bool enabled) external;
 }

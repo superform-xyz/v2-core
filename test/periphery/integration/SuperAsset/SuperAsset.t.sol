@@ -3,8 +3,10 @@ pragma solidity ^0.8.30;
 
 import { Test } from "forge-std/Test.sol";
 import "forge-std/console.sol";
+import { ERC4626YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
 import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
+import { SuperVaultAggregator } from "../../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
 import { SuperGovernor } from "../../../../src/periphery/SuperGovernor.sol";
 import { IncentiveFundContract } from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
 import { IncentiveCalculationContract } from "../../../../src/periphery/SuperAsset/IncentiveCalculationContract.sol";
@@ -52,6 +54,7 @@ contract SuperAssetTest is Helpers {
     MockAggregator public mockFeed6;
     IncentiveCalculationContract public icc;
     IncentiveFundContract public incentiveFund;
+    SuperVaultAggregator public aggregator;
     SuperGovernor public superGovernor;
     SuperBank public superBank;
     address public admin;
@@ -78,7 +81,18 @@ contract SuperAssetTest is Helpers {
         );
         console.log("SuperGovernor deployed");
 
+        // Grant roles
+        superGovernor.grantRole(superGovernor.SUPER_GOVERNOR_ROLE(), admin);
+        superGovernor.grantRole(superGovernor.GOVERNOR_ROLE(), admin);
+        superGovernor.grantRole(superGovernor.BANK_MANAGER_ROLE(), admin);
+        console.log("SuperGovernor Roles Granted");
+
+        // Deploy SuperVaultAggregator
+        aggregator = new SuperVaultAggregator(address(superGovernor));
+        superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), address(aggregator));
+
         // Deploy mock tokens and vault
+        MockERC20 primaryAsset = new MockERC20("Primary Asset", "PA", 18);
         underlyingToken1 = new MockERC20("Underlying Token1", "UTKN1", 18);
         tokenIn = new Mock4626Vault(address(underlyingToken1), "Vault Token", "vTKN");
         underlyingToken2 = new MockERC20("Underlying Token2", "UTKN2", 18);
@@ -162,16 +176,9 @@ contract SuperAssetTest is Helpers {
         console.log("Factory deployed");
         superGovernor.setAddress(superGovernor.SUPER_ASSET_FACTORY(), address(factory));
 
-        
         // Deploy SuperBank
         superBank = new SuperBank(address(superGovernor));
         superGovernor.setAddress(superGovernor.SUPER_BANK(), address(superBank));
-
-        // Grant roles
-        superGovernor.grantRole(superGovernor.SUPER_GOVERNOR_ROLE(), admin);
-        superGovernor.grantRole(superGovernor.GOVERNOR_ROLE(), admin);
-        superGovernor.grantRole(superGovernor.BANK_MANAGER_ROLE(), admin);
-        console.log("SuperGovernor Roles Granted");
 
         // Create SuperAsset using factory
         ISuperAssetFactory.AssetCreationParams memory params = ISuperAssetFactory.AssetCreationParams({
@@ -179,6 +186,7 @@ contract SuperAssetTest is Helpers {
             symbol: "SA",
             swapFeeInPercentage: 100, // 0.1% swap fee in
             swapFeeOutPercentage: 100, // 0.1% swap fee out
+            asset: address(primaryAsset),
             superAssetManager: admin,
             superAssetStrategist: admin,
             incentiveFundManager: admin,
@@ -190,10 +198,13 @@ contract SuperAssetTest is Helpers {
         // NOTE: Whitelisting ICC so that's possible to instantiate SuperAsset using it 
         superGovernor.addICCToWhitelist(address(icc));
         (address superAssetAddr, address incentiveFundAddr) = factory.createSuperAsset(params);
+
         vm.stopPrank();
         console.log("SuperAsset and IncentiveFund deployed via factory");
         superAsset = SuperAsset(superAssetAddr);
         incentiveFund = IncentiveFundContract(incentiveFundAddr);
+        vm.prank(admin);
+        incentiveFund.toggleIncentives(false);
         console.log("SuperAsset and IncentiveFund deployed via factory");
 
         // Add SuperOracle Init
@@ -204,6 +215,8 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(admin);
         oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
         oracle.setMaxStaleness(2 weeks);
+        // Set Oracle
+        superGovernor.setAddress(superGovernor.SUPER_ORACLE(), address(oracle));
         console.log("Oracle deployed");
 
         // Set staleness for each feed
@@ -216,20 +229,20 @@ contract SuperAssetTest is Helpers {
         oracle.setFeedMaxStaleness(address(mockFeedSuperAssetShares1), 14 days);
         oracle.setFeedMaxStaleness(address(mockFeedSuperVault1Shares), 14 days);
         oracle.setFeedMaxStaleness(address(mockFeedSuperVault2Shares), 14 days);
+        oracle.setEmergencyPrice(address(primaryAsset), 1e18);
         vm.stopPrank();
 
         console.log("Feed staleness set");
 
         // Set SuperAsset oracle
         vm.startPrank(admin);
-        superAsset.setSuperOracle(address(oracle));
         superAsset.whitelistERC20(address(tokenIn));
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
         assertEq(tokenData.isSupportedERC20, true, "Token In should be whitelisted");
         superAsset.whitelistERC20(address(tokenOut));
         tokenData = superAsset.getTokenData(address(tokenOut));
         assertEq(tokenData.isSupportedERC20, true, "Token Out should be whitelisted");
-        superAsset.whitelistERC20(address(superAsset));
+        superAsset.whitelistERC20(address(superAsset)); // Todo: is this correct?
         tokenData = superAsset.getTokenData(address(superAsset));
         assertEq(tokenData.isSupportedERC20, true, "SuperAsset should be whitelisted");
         vm.stopPrank();
@@ -274,13 +287,14 @@ contract SuperAssetTest is Helpers {
         superAsset.initialize(
             "SuperAsset", // name
             "SA", // symbol
+            address(underlyingToken1),
             address(superGovernor),
             100, // swapFeeInPercentage
             100 // swapFeeOutPercentage
         );
     }
-    // --- Test: Token Management ---
 
+    // --- Test: Token Management ---
     function test_OnlyVaultManagerCanWhitelistTokens() public {
         address newToken = makeAddr("newToken");
 
@@ -297,24 +311,6 @@ contract SuperAssetTest is Helpers {
 
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(newToken);
         assertTrue(tokenData.isSupportedERC20);
-    }
-
-    // --- Test: Oracle Integration ---
-    function test_OnlyAdminCanSetOracle() public {
-        address newOracle = makeAddr("newOracle");
-
-        // Non-admin cannot set oracle
-        vm.startPrank(user);
-        vm.expectRevert(ISuperAsset.UNAUTHORIZED.selector);
-        superAsset.setSuperOracle(newOracle);
-        vm.stopPrank();
-
-        // Admin can set oracle
-        vm.startPrank(admin);
-        superAsset.setSuperOracle(newOracle);
-        vm.stopPrank();
-
-        assertEq(address(superAsset.superOracle()), newOracle);
     }
 
     // --- Test: Fee Management ---
@@ -466,7 +462,7 @@ contract SuperAssetTest is Helpers {
     function test_BasicRedeem() public {
         // First deposit to get some shares
         uint256 depositAmount = 100e18;
-        (uint256 expSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSD, bool isSuccess) =
+        (uint256 expSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSD, ) =
             superAsset.previewDeposit(address(tokenIn), depositAmount, false);
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
@@ -485,7 +481,7 @@ contract SuperAssetTest is Helpers {
         uint256 sharesToRedeem = sharesMinted / 2;
         uint256 minTokenOut = sharesToRedeem * 99 / 100; // Allowing for 1% slippage
 
-        (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem, isSuccess) =
+        (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem, ) =
             superAsset.previewRedeem(address(tokenIn), sharesToRedeem, false);
         assertGt(expAmountTokenOutAfterFees, 0, "Should receive tokens");
         assertGt(expSwapFee, 0, "Should pay swap fees");

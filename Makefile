@@ -24,7 +24,7 @@ coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --rep
 
 test-vvv :; forge test --match-test test_RequestRedeem_VerifyAmounts -vvv --jobs 10
 
-test-integration :; forge test --match-contract ECDSAPPSOracleTest -vv --jobs 10
+test-integration :; forge test --match-contract IncentiveFundContractTest -vvv --jobs 10
 
 test-gas-report-user :; forge test --match-test test_gasReport --gas-report --jobs 10
 test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10

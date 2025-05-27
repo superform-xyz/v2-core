@@ -10,18 +10,12 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
  * fee handling, and incentive calculations.
  */
 interface ISuperAsset is IERC20 {
-
+    // --- Structs ---
     struct TokenData {
         bool isSupportedUnderlyingVault;
         bool isSupportedERC20;
         uint256 targetAllocations;
         uint256 weights;
-    }
-
-    struct PreviewErrors {
-        bool isDepeg;
-        bool isDispersion;
-        bool isOracleOff;
     }
 
     struct GetAllocationsPrePostOperations {
@@ -54,20 +48,138 @@ interface ISuperAsset is IERC20 {
         GetPrePostAllocationReturnValues allocations;
         uint256 amountTokenInAfterFees;
         uint256 priceUSDTokenIn;
-        uint256 priceUSDThisShares;
+        uint256 priceUSDSuperAssetShares;
     }
 
     struct PreviewRedeem {
         GetPrePostAllocationReturnValues allocations;
-        uint256 priceUSDThisShares;
+        uint256 priceUSDSuperAssetShares;
         uint256 priceUSDTokenOut;
         uint256 amountTokenOutBeforeFees;
     }
 
+    // --- Events ---
+    event Deposit(
+        address indexed receiver,
+        address indexed tokenIn,
+        uint256 amountTokenToDeposit,
+        uint256 amountSharesOut,
+        uint256 swapFee,
+        int256 amountIncentives
+    );
+    event Redeem(
+        address indexed receiver,
+        address indexed tokenOut,
+        uint256 amountSharesToRedeem,
+        uint256 amountTokenOut,
+        uint256 swapFee,
+        int256 amountIncentives
+    );
+    event Swap(
+        address indexed receiver,
+        address indexed tokenIn,
+        uint256 amountTokenToDeposit,
+        address indexed tokenOut,
+        uint256 amountSharesIntermediateStep,
+        uint256 amountTokenOutAfterFees,
+        uint256 swapFeeIn,
+        uint256 swapFeeOut,
+        int256 amountIncentivesIn,
+        int256 amountIncentivesOut
+    );
+    event VaultWhitelisted(address indexed vault);
+    event VaultRemoved(address indexed vault);
+    event ERC20Whitelisted(address indexed token);
+    event ERC20Removed(address indexed token);
+    event SettlementTokenInSet(address indexed token);
+    event SettlementTokenOutSet(address indexed token);
+    event SuperOracleSet(address indexed oracle);
+    event TargetAllocationSet(address indexed token, uint256 allocation);
+    event EnergyToUSDExchangeRatioSet(uint256 newRatio);
+    event WeightSet(address indexed vault, uint256 weight);
+
+    // --- Errors ---
+    /// @notice Thrown when an address parameter is zero
+    error ZERO_ADDRESS();
+
+    /// @notice Thrown when token is not in the ERC20 whitelist
+    error NOT_ERC20_TOKEN();
+
+    /// @notice Thrown when a token is not supported (neither vault nor ERC20)
+    error NOT_SUPPORTED_TOKEN();
+
+    /// @notice Thrown when vault is not in the vault whitelist
+    error NOT_VAULT();
+
+    /// @notice Thrown when vault is already whitelisted
+    error ALREADY_WHITELISTED();
+
+    /// @notice Thrown when contract is already initialized
+    error ALREADY_INITIALIZED();
+
+    /// @notice Thrown when vault or token is not whitelisted
+    error NOT_WHITELISTED();
+
+    /// @notice Thrown when swap fee percentage is too high
+    error INVALID_SWAP_FEE_PERCENTAGE();
+
+    /// @notice Thrown when amount is zero
+    error ZERO_AMOUNT();
+
+    /// @notice Thrown when insufficient balance for operation
+    error INSUFFICIENT_BALANCE();
+
+    /// @notice Thrown when insufficient allowance for transfer
+    error INSUFFICIENT_ALLOWANCE();
+
+    /// @notice Thrown when slippage tolerance is exceeded
+    error SLIPPAGE_PROTECTION();
+
+    /// @notice Thrown when oracle price is invalid
+    error INVALID_ORACLE_PRICE();
+
+    /// @notice Thrown when allocation is invalid
+    error INVALID_ALLOCATION();
+
+    /// @notice Thrown when the contract is paused
+    error CONTRACT_PAUSED();
+
+    /// @notice Thrown when caller is not authorized
+    error UNAUTHORIZED();
+
+    /// @notice Thrown when operation would result in invalid state
+    error INVALID_OPERATION();
+
+    /// @notice Thrown when incentive calculation fails
+    error INCENTIVE_CALCULATION_FAILED();
+
+    /// @notice Thrown when input arrays have mismatched lengths in batch operations
+    error INVALID_INPUT();
+
+    /// @notice Thrown when the sum of all allocations exceeds 100% (PRECISION)
+    error INVALID_TOTAL_ALLOCATION();
+
+    /// @notice Thrown when price in USD is zero
+    error PRICE_USD_ZERO();
+
+    /// @notice Thrown when underlying SV asset price is zero
+    error UNDERLYING_SV_ASSET_PRICE_ZERO();
+
+    /// @notice Thrown when underlying SV asset price is oracle off
+    error UNDERLYING_SV_ASSET_PRICE_ORACLE_OFF();
+
+    /// @notice Thrown when deposit fails
+    error DEPOSIT_FAILED();
+
+    /// @notice Thrown when redeem fails
+    error REDEEM_FAILED();
+
+    // --- Functions ---
     /**
      * @notice Initializes the SuperAsset contract
      * @param name_ Name of the token
      * @param symbol_ Symbol of the token
+     * @param asset_ Address of the primary asset
      * @param superGovernor_ Address of the SuperGovernor contract
      * @param swapFeeInPercentage_ Initial swap fee percentage for deposits
      * @param swapFeeOutPercentage_ Initial swap fee percentage for redemptions
@@ -75,12 +187,13 @@ interface ISuperAsset is IERC20 {
     function initialize(
         string memory name_,
         string memory symbol_,
+        address asset_,
         address superGovernor_,
         uint256 swapFeeInPercentage_,
         uint256 swapFeeOutPercentage_
     )
         external;
-        
+
     /**
      * @notice Returns the token data for a given token
      * @param token The token address
@@ -92,8 +205,8 @@ interface ISuperAsset is IERC20 {
      * @notice Returns the PPS of the SuperAsset
      * @return PPS of the SuperAsset
      */
-    function getPPS() external view returns(uint256);
-    
+    function getSuperAssetPPS() external view returns (uint256);
+
     /**
      * @notice Mints new tokens. Can only be called by accounts with MINTER_ROLE.
      * @param to The address that will receive the minted tokens
@@ -241,8 +354,9 @@ interface ISuperAsset is IERC20 {
     /**
      * @notice Whitelists a vault
      * @param vault Address of the vault to whitelist
+     * @param oracle Address of the oracle to use to fetch vault prices
      */
-    function whitelistVault(address vault) external;
+    function whitelistVault(address vault, address oracle) external;
 
     /**
      * @notice Removes a vault from whitelist
@@ -261,13 +375,6 @@ interface ISuperAsset is IERC20 {
      * @param token Address of the token to remove
      */
     function removeERC20(address token) external;
-
-    /**
-     * @notice Sets the oracle contract address
-     * @param oracle Address of the new oracle contract
-     */
-    function setSuperOracle(address oracle) external;
-
     /**
      * @notice Preview a deposit.
      * @param tokenIn The address of the underlying asset to deposit.
@@ -276,7 +383,7 @@ interface ISuperAsset is IERC20 {
      * @return amountSharesMinted The amount of SuperUSD shares that would be minted.
      * @return swapFee The amount of swap fee paid.
      * @return amountIncentiveUSD The amount of incentives in USD.
-     * @return isSuccess Whether the preview was successful
+     * @return isSuccess Whether the preview was successful.
      */
     function previewDeposit(
         address tokenIn,
@@ -386,132 +493,4 @@ interface ISuperAsset is IERC20 {
      * @dev No checks on zero on purpose in case we want to disable incentives
      */
     function setEnergyToUSDExchangeRatio(uint256 newRatio) external;
-
-    /**
-     * @notice Sets the emergency price for a token when oracle is down
-     * @param token The token address to set the emergency price for
-     * @param priceUSD The USD price with 18 decimals precision
-     */
-    function setEmergencyPrice(address token, uint256 priceUSD) external;
-
-    // --- Events ---
-    event Deposit(
-        address indexed receiver,
-        address indexed tokenIn,
-        uint256 amountTokenToDeposit,
-        uint256 amountSharesOut,
-        uint256 swapFee,
-        int256 amountIncentives
-    );
-    event Redeem(
-        address indexed receiver,
-        address indexed tokenOut,
-        uint256 amountSharesToRedeem,
-        uint256 amountTokenOut,
-        uint256 swapFee,
-        int256 amountIncentives
-    );
-    event Swap(
-        address indexed receiver,
-        address indexed tokenIn,
-        uint256 amountTokenToDeposit,
-        address indexed tokenOut,
-        uint256 amountSharesIntermediateStep,
-        uint256 amountTokenOutAfterFees,
-        uint256 swapFeeIn,
-        uint256 swapFeeOut,
-        int256 amountIncentivesIn,
-        int256 amountIncentivesOut
-    );
-    event VaultWhitelisted(address indexed vault);
-    event VaultRemoved(address indexed vault);
-    event ERC20Whitelisted(address indexed token);
-    event ERC20Removed(address indexed token);
-    event SettlementTokenInSet(address indexed token);
-    event SettlementTokenOutSet(address indexed token);
-    event SuperOracleSet(address indexed oracle);
-    event TargetAllocationSet(address indexed token, uint256 allocation);
-    event EnergyToUSDExchangeRatioSet(uint256 newRatio);
-    event WeightSet(address indexed vault, uint256 weight);
-    event EmergencyPriceSet(address indexed token, uint256 priceUSD);
-
-
-    // --- Errors ---
-    /// @notice Thrown when an address parameter is zero
-    error ZERO_ADDRESS();
-
-    /// @notice Thrown when token is not in the ERC20 whitelist
-    error NOT_ERC20_TOKEN();
-
-    /// @notice Thrown when a token is not supported (neither vault nor ERC20)
-    error NOT_SUPPORTED_TOKEN();
-
-    /// @notice Thrown when vault is not in the vault whitelist
-    error NOT_VAULT();
-
-    /// @notice Thrown when vault is already whitelisted
-    error ALREADY_WHITELISTED();
-
-    /// @notice Thrown when contract is already initialized
-    error ALREADY_INITIALIZED();
-
-    /// @notice Thrown when vault or token is not whitelisted
-    error NOT_WHITELISTED();
-
-    /// @notice Thrown when swap fee percentage is too high
-    error INVALID_SWAP_FEE_PERCENTAGE();
-
-    /// @notice Thrown when amount is zero
-    error ZERO_AMOUNT();
-
-    /// @notice Thrown when insufficient balance for operation
-    error INSUFFICIENT_BALANCE();
-
-    /// @notice Thrown when insufficient allowance for transfer
-    error INSUFFICIENT_ALLOWANCE();
-
-    /// @notice Thrown when slippage tolerance is exceeded
-    error SLIPPAGE_PROTECTION();
-
-    /// @notice Thrown when oracle price is invalid
-    error INVALID_ORACLE_PRICE();
-
-    /// @notice Thrown when allocation is invalid
-    error INVALID_ALLOCATION();
-
-    /// @notice Thrown when the contract is paused
-    error CONTRACT_PAUSED();
-
-    /// @notice Thrown when emergency price is not set
-    error EMERGENCY_PRICE_NOT_SET();
-
-    /// @notice Thrown when caller is not authorized
-    error UNAUTHORIZED();
-
-    /// @notice Thrown when operation would result in invalid state
-    error INVALID_OPERATION();
-
-    /// @notice Thrown when incentive calculation fails
-    error INCENTIVE_CALCULATION_FAILED();
-
-    /// @notice Thrown when input arrays have mismatched lengths in batch operations
-    error INVALID_INPUT();
-
-    /// @notice Thrown when the sum of all allocations exceeds 100% (PRECISION)
-    error INVALID_TOTAL_ALLOCATION();
-
-    /// @notice Thrown when price in USD is zero
-    error PRICE_USD_ZERO();
-
-    /// @notice Thrown when underlying SV asset price is zero
-    error UNDERLYING_SV_ASSET_PRICE_ZERO();
-
-    /// @notice Thrown when underlying SV asset price is depegged
-    error UNDERLYING_SV_ASSET_PRICE_DEPEG();
-
-    /// @notice Thrown when underlying SV asset price is dispersed
-    error UNDERLYING_SV_ASSET_PRICE_DISPERSION();
-
-    /// @notice Thrown when underlying SV asset price is oracle off
-    error UNDERLYING_SV_ASSET_PRICE_ORACLE_OFF();
 }

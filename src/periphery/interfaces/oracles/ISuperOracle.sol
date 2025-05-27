@@ -58,7 +58,6 @@ interface ISuperOracle {
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Emitted when oracles are configured
     /// @param bases Array of base assets
     /// @param providers Array of provider indexes
@@ -98,10 +97,14 @@ interface ISuperOracle {
     /// @param providers Array of provider ids that were removed
     event ProviderRemovalExecuted(bytes32[] providers);
 
+    /// @notice Emitted when emergency price is updated
+    /// @param token Token address
+    /// @param price Emergency price
+    event EmergencyPriceUpdated(address token, uint256 price);
+
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Struct for pending oracle update
     struct PendingUpdate {
         address[] bases;
@@ -178,4 +181,14 @@ interface ISuperOracle {
     /// @notice Get all active provider ids
     /// @return Array of active provider ids
     function getActiveProviders() external view returns (bytes32[] memory);
+
+    /// @notice Get the emergency price for a token
+    /// @param token Token address
+    /// @return Emergency price
+    function getEmergencyPrice(address token) external view returns (uint256);
+
+    /// @notice Set the emergency price for a token
+    /// @param token Token address
+    /// @param price Emergency price
+    function setEmergencyPrice(address token, uint256 price) external;
 }
