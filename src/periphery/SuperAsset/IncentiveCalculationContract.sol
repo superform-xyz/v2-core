@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
+import { console } from "forge-std/console.sol";
+
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IIncentiveCalculationContract } from "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 
@@ -35,10 +37,14 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
             revert INVALID_ARRAY_LENGTH();
         }
 
+        console.log("1");
+
         // NOTE: This is to ensure we won't divide by zero in the subsequent calculations
         if (totalCurrentAllocation == 0 || totalAllocationTarget == 0) {
             return (0, false);
         }
+
+        console.log("2");
 
         uint256 length = currentAllocation.length;
         for (uint256 i; i < length; i++) {
@@ -49,6 +55,7 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
             uint256 diff2 = Math.mulDiv(uint256(diff * diff), 1, PRECISION);
             // Apply weight and maintain precision
             res += Math.mulDiv(diff2, weights[i], PRECISION);
+            console.log("result", res);
         }
         return (res, true);
     }
@@ -79,6 +86,8 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
         uint256 energyAfter;
         bool _isSuccess;
 
+        console.log("beforeEnergy", energyBefore);
+
         (energyBefore, _isSuccess) = energy(
             allocationPreOperation, allocationTarget, weights, totalAllocationPreOperation, totalAllocationTarget
         );
@@ -87,9 +96,13 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
             return (0, false);
         }
 
+        console.log("beforeEnergy2", energyBefore);
+
         (energyAfter, _isSuccess) = energy(
             allocationPostOperation, allocationTarget, weights, totalAllocationPostOperation, totalAllocationTarget
         );
+
+        console.log("afterEnergy", energyAfter);
 
         if (!_isSuccess) {
             return (0, false);
@@ -98,10 +111,14 @@ contract IncentiveCalculationContract is IIncentiveCalculationContract {
         // Calculate energy difference first
         int256 energyDiff = int256(energyBefore) - int256(energyAfter);
 
+        console.log("energyDiff", energyDiff);
+
         // Handle positive and negative cases separately for safe multiplication
         if (energyDiff >= 0) {
+            console.log("energyDiff >= 0");
             incentiveUSD = int256(Math.mulDiv(uint256(energyDiff), energyToUSDExchangeRatio, PRECISION));
         } else {
+            console.log("energyDiff < 0");
             incentiveUSD = -int256(Math.mulDiv(uint256(-energyDiff), energyToUSDExchangeRatio, PRECISION));
         }
         return (incentiveUSD, true);
