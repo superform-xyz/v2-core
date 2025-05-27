@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.30;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 
 import { IIncentiveFundContract } from "../interfaces/SuperAsset/IIncentiveFundContract.sol";
@@ -118,7 +119,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
         if (priceUSD > 0) {
             // Convert USD amount to token amount using price
             // amountToken = amountUSD / priceUSD
-            uint256 amountToken = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
+            uint256 amountToken = Math.mulDiv(amountUSD, IERC20Metadata(tokenInIncentive).decimals(), priceUSD);
 
             IERC20(tokenOutIncentive).safeTransfer(receiver, amountToken);
             emit IncentivePaid(receiver, tokenOutIncentive, amountToken);
@@ -141,7 +142,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
         if (priceUSD > 0) {
             // Convert USD amount to token amount using price
             // amountToken = amountUSD / priceUSD
-            uint256 amountToken = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
+            uint256 amountToken = Math.mulDiv(amountUSD, IERC20Metadata(tokenInIncentive).decimals(), priceUSD);
 
             IERC20(tokenInIncentive).safeTransferFrom(sender, address(this), amountToken);
             emit IncentiveTaken(sender, tokenInIncentive, amountToken);
