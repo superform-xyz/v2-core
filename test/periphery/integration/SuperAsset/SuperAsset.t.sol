@@ -91,9 +91,6 @@ contract SuperAssetTest is Helpers {
         aggregator = new SuperVaultAggregator(address(superGovernor));
         superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), address(aggregator));
 
-        // Set Oracle
-        superGovernor.setAddress(superGovernor.SUPER_ORACLE(), address(oracle));
-
         // Deploy mock tokens and vault
         underlyingToken1 = new MockERC20("Underlying Token1", "UTKN1", 18);
         tokenIn = new Mock4626Vault(address(underlyingToken1), "Vault Token", "vTKN");
@@ -214,6 +211,8 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(admin);
         oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
         oracle.setMaxStaleness(2 weeks);
+        // Set Oracle
+        superGovernor.setAddress(superGovernor.SUPER_ORACLE(), address(oracle));
         console.log("Oracle deployed");
 
         // Set staleness for each feed
@@ -232,7 +231,6 @@ contract SuperAssetTest is Helpers {
 
         // Set SuperAsset oracle
         vm.startPrank(admin);
-        superAsset.setSuperOracle(address(oracle));
         superAsset.whitelistERC20(address(tokenIn));
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
         assertEq(tokenData.isSupportedERC20, true, "Token In should be whitelisted");
