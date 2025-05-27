@@ -65,7 +65,7 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
 
     /// @inheritdoc ISuperHookAsync
     function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
-        return (outAmount, true);
+        return (usedShares, true);
     }
 
     /// @inheritdoc ISuperHookInspector
