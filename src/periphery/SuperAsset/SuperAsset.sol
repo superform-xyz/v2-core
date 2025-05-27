@@ -16,12 +16,10 @@ import { IYieldSourceOracle } from "../../../src/core/interfaces/accounting/IYie
 import { IIncentiveCalculationContract } from "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 import { IIncentiveFundContract } from "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 
-/**
- * @title SuperAsset
- * @author Superform Labs
- * @notice A meta-vault that manages deposits and redemptions across multiple underlying vaults.
- * Implements ERC20 standard for better compatibility with integrators.
- */
+/// @title SuperAsset
+/// @author Superform Labs
+/// @notice A meta-vault that manages deposits and redemptions across multiple underlying vaults.
+/// @dev Implements ERC20 standard for better compatibility with integrators.
 contract SuperAsset is ERC20, ISuperAsset {
     using EnumerableSet for EnumerableSet.AddressSet;
     using SafeERC20 for IERC20;
