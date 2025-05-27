@@ -122,4 +122,8 @@ interface IIncentiveFundContract {
     /// @notice Toggles incentives
     /// @param enabled Whether incentives are enabled
     function toggleIncentives(bool enabled) external;
+
+    /// @notice Returns whether incentives are enabled
+    /// @return Whether incentives are enabled
+    function incentivesEnabled() external view returns (bool);
 }

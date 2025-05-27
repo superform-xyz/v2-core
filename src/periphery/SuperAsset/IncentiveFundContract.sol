@@ -23,9 +23,11 @@ contract IncentiveFundContract is IIncentiveFundContract {
     // --- State Variables ---
     address public tokenInIncentive;
     address public tokenOutIncentive;
+
     ISuperAsset public superAsset;
     ISuperGovernor public superGovernor;
-    bool public incentivesEnabled;
+
+    bool public incentivesActive;
 
     // --- Modifiers ---
     modifier onlyManager() {
@@ -108,13 +110,13 @@ contract IncentiveFundContract is IIncentiveFundContract {
 
     /// @inheritdoc IIncentiveFundContract
     function toggleIncentives(bool enabled) external onlyManager {
-        incentivesEnabled = enabled;
+        incentivesActive = enabled;
         emit IncentivesToggled(enabled);
     }
 
     /// @inheritdoc IIncentiveFundContract
     function payIncentive(address receiver, uint256 amountUSD) external onlyManager returns (uint256 amountToken) {
-        if (!incentivesEnabled) {
+        if (!incentivesActive) {
             return 0;
         }
 
@@ -139,7 +141,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
 
     /// @inheritdoc IIncentiveFundContract
     function takeIncentive(address sender, uint256 amountUSD) external onlyManager returns (uint256 amountToken) {
-        if (!incentivesEnabled) {
+        if (!incentivesActive) {
             return 0;
         }
 
@@ -169,6 +171,11 @@ contract IncentiveFundContract is IIncentiveFundContract {
 
         IERC20(tokenOut).safeTransfer(receiver, amount);
         emit RebalanceWithdrawal(receiver, tokenOut, amount);
+    }
+
+    /// @inheritdoc IIncentiveFundContract
+    function incentivesEnabled() external view returns (bool) {
+        return incentivesActive;
     }
 
     /*//////////////////////////////////////////////////////////////
