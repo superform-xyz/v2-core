@@ -609,9 +609,6 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
                 if (decimalsToken != 18) {
                     ratio = Math.mulDiv(ratio, 10 ** (1e18 - decimalsToken), PRECISION);
                 }
-                if (ratio < DEPEG_LOWER_THRESHOLD || ratio > DEPEG_UPPER_THRESHOLD) {
-                    isDepeg = true;
-                }
             }
             // Calculate relative standard deviation
             uint256 relativeStdDev = Math.mulDiv(stddev, PRECISION, priceUSD);
