@@ -91,6 +91,9 @@ contract SuperAssetTest is Helpers {
         aggregator = new SuperVaultAggregator(address(superGovernor));
         superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), address(aggregator));
 
+        // Set Oracle
+        superGovernor.setAddress(superGovernor.SUPER_ORACLE(), address(oracle));
+
         // Deploy mock tokens and vault
         underlyingToken1 = new MockERC20("Underlying Token1", "UTKN1", 18);
         tokenIn = new Mock4626Vault(address(underlyingToken1), "Vault Token", "vTKN");

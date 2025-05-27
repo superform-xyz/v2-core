@@ -127,6 +127,7 @@ contract IncentiveFundContractTest is Helpers {
         // Deploy and configure oracle with regular providers only
         oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
         oracle.setMaxStaleness(2 weeks);
+        vm.stopPrank();
 
         // Set staleness for each feed
         vm.startPrank(admin);
@@ -156,6 +157,8 @@ contract IncentiveFundContractTest is Helpers {
         // Deploy SuperVaultAggregator
         superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), address(mockFeed1));
         console.log(superGovernor.getAddress(superGovernor.SUPER_VAULT_AGGREGATOR()));
+
+        superGovernor.setAddress(superGovernor.SUPER_ORACLE(), address(oracle));
 
         // Create SuperAsset using factory
         ISuperAssetFactory.AssetCreationParams memory params = ISuperAssetFactory.AssetCreationParams({
@@ -193,9 +196,7 @@ contract IncentiveFundContractTest is Helpers {
 
 
         vm.startPrank(admin);
-
         // Configure SuperAsset
-        superAsset.setSuperOracle(address(oracle));
         superAsset.whitelistERC20(address(tokenIn));
         superAsset.whitelistERC20(address(tokenOut));
 
