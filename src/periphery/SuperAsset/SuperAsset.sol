@@ -277,10 +277,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Calculate and settle incentives
         // @notice For deposits, we want strict checks
-        bool isSuccess;
-        (amountSharesMinted, swapFee, amountIncentiveUSDDeposit, isSuccess) =
+        (amountSharesMinted, swapFee, amountIncentiveUSDDeposit,) =
             previewDeposit(yieldSourceShare, amountTokenToDeposit, false);
-        if (!isSuccess) revert DEPOSIT_FAILED();
 
         // Slippage Check
         if (amountSharesMinted < minSharesOut) revert SLIPPAGE_PROTECTION();
@@ -608,6 +606,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
                 if (decimalsToken != 18) {
                     ratio = Math.mulDiv(ratio, 10 ** (1e18 - decimalsToken), PRECISION);
+                }
+                if (ratio < DEPEG_LOWER_THRESHOLD || ratio > DEPEG_UPPER_THRESHOLD) {
+                    isDepeg = true;
                 }
             }
             // Calculate relative standard deviation
