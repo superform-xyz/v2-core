@@ -37,6 +37,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
     // --- Constants ---
     uint256 public constant PRECISION = 1e18;
+    uint256 public constant DECIMALS = 18;
     uint256 public constant MAX_SWAP_FEE_PERCENTAGE = 10 ** 4; // Max 10% (1000 basis points)
     uint256 public constant DEPEG_LOWER_THRESHOLD = 98e16; // 0.98
     uint256 public constant DEPEG_UPPER_THRESHOLD = 102e16; // 1.02
@@ -90,7 +91,7 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
     /*//////////////////////////////////////////////////////////////
                         CONTRACT INITIALIZATION
     //////////////////////////////////////////////////////////////*/
-    constructor() ERC20("", "") {}
+    constructor() ERC20("", "") { }
 
     /// @inheritdoc ISuperAsset
     function initialize(
@@ -323,10 +324,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Calculate and settle incentives
         // @notice For redemptions, we want soft checks
-        bool isSuccess;
-        (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem, isSuccess) =
+        (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem,) =
             previewRedeem(tokenOut, amountSharesToRedeem, false);
-        if (!isSuccess) revert REDEEM_FAILED();
 
         // Slippage Check
         if (amountTokenOutAfterFees < minTokenOut) revert SLIPPAGE_PROTECTION();
@@ -591,33 +590,26 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
             isOracleOff = true;
         } else {
             // Circuit Breaker for Depeg - price deviates more than ±2% from expected
-            if (priceUSD < DEPEG_LOWER_THRESHOLD || priceUSD > DEPEG_UPPER_THRESHOLD) {
-                uint256 oneUnitAsset = 10 ** IERC20Metadata(primaryAsset).decimals();
-                uint256 assetPriceUSD;
-                try superOracle.getQuoteFromProvider(oneUnitAsset, primaryAsset, USD, AVERAGE_PROVIDER) returns (
-                    uint256 _priceUSD, uint256, uint256, uint256
-                ) {
-                    assetPriceUSD = _priceUSD;
-                } catch {
-                    assetPriceUSD = superOracle.getEmergencyPrice(primaryAsset);
-                }
-
-                uint256 ratio = Math.mulDiv(priceUSD, PRECISION, assetPriceUSD);
-
-                if (decimalsToken != 18) {
-                    ratio = Math.mulDiv(ratio, 10 ** (1e18 - decimalsToken), PRECISION);
-                }
-                if (ratio < DEPEG_LOWER_THRESHOLD || ratio > DEPEG_UPPER_THRESHOLD) {
-                    isDepeg = true;
-                }
+            uint256 assetPriceUSD;
+            uint256 oneUnitAsset = 10 ** IERC20Metadata(primaryAsset).decimals();
+            try superOracle.getQuoteFromProvider(oneUnitAsset, primaryAsset, USD, AVERAGE_PROVIDER) returns (
+                uint256 _priceUSD, uint256, uint256, uint256
+            ) {
+                assetPriceUSD = _priceUSD;
+            } catch {
+                assetPriceUSD = superOracle.getEmergencyPrice(primaryAsset);
             }
+            uint256 ratio = Math.mulDiv(priceUSD, PRECISION, assetPriceUSD);
+
+            if (decimalsToken != DECIMALS) {
+                ratio = Math.mulDiv(ratio, 10 ** (DECIMALS - decimalsToken), PRECISION);
+            }
+            if (ratio < DEPEG_LOWER_THRESHOLD || ratio > DEPEG_UPPER_THRESHOLD) {
+                isDepeg = true;
+            }
+
             // Calculate relative standard deviation
-            uint256 relativeStdDev = Math.mulDiv(stddev, PRECISION, priceUSD);
-
-            // Circuit Breaker for Dispersion
-            if (relativeStdDev > DISPERSION_THRESHOLD) {
-                isDispersion = true;
-            }
+            isDispersion = _isSTDDevDegged(stddev, priceUSD);
         }
         return (priceUSD, isDepeg, isDispersion, isOracleOff);
     }
@@ -826,8 +818,8 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Adjust for decimals
         uint8 decimalsTokenIn = IERC20Metadata(tokenIn).decimals();
-        if (decimalsTokenIn != 18) {
-            amountSharesMinted = Math.mulDiv(amountSharesMinted, 10 ** (1e18 - decimalsTokenIn), PRECISION);
+        if (decimalsTokenIn != DECIMALS) {
+            amountSharesMinted = Math.mulDiv(amountSharesMinted, 10 ** (DECIMALS - decimalsTokenIn), PRECISION);
         }
     }
 
@@ -850,8 +842,9 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
 
         // Adjust for decimals
         uint8 decimalsTokenOut = IERC20Metadata(tokenOut).decimals();
-        if (decimalsTokenOut != 1e18) {
-            amountTokenOutBeforeFees = Math.mulDiv(amountTokenOutBeforeFees, 10 ** (1e18 - decimalsTokenOut), PRECISION);
+        if (decimalsTokenOut != DECIMALS) {
+            amountTokenOutBeforeFees =
+                Math.mulDiv(amountTokenOutBeforeFees, 10 ** (DECIMALS - decimalsTokenOut), PRECISION);
         }
     }
 
@@ -888,5 +881,16 @@ contract SuperAsset is AccessControl, ERC20, ISuperAsset {
         }
 
         return payIncentive;
+    }
+
+    function _isSTDDevDegged(uint256 stddev, uint256 priceUSD) internal pure returns (bool) {
+        // Calculate relative standard deviation
+        uint256 relativeStdDev = Math.mulDiv(stddev, PRECISION, priceUSD);
+
+        // Circuit Breaker for Dispersion
+        if (relativeStdDev > DISPERSION_THRESHOLD) {
+            return true;
+        }
+        return false;
     }
 }
