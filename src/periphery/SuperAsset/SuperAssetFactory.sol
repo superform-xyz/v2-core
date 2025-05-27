@@ -140,7 +140,12 @@ contract SuperAssetFactory is ISuperAssetFactory {
         );
 
         // Initialize IncentiveFund
-        IncentiveFundContract(incentiveFundContract).initialize(superGovernor, superAsset);
+        IncentiveFundContract(incentiveFundContract).initialize(
+            superGovernor, 
+            superAsset,
+            params.tokenInIncentive,
+            params.tokenOutIncentive
+        );
 
         data[superAsset] = SuperAssetData({
             superAssetManager: params.superAssetManager,
