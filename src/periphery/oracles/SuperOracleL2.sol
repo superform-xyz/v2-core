@@ -2,13 +2,13 @@
 pragma solidity 0.8.30;
 
 // Superform
-import {SuperOracleBase} from "./SuperOracleBase.sol";
-import {ISuperOracleL2} from "../interfaces/ISuperOracleL2.sol";
+import { SuperOracleBase } from "./SuperOracleBase.sol";
+import { ISuperOracleL2 } from "../interfaces/oracles/ISuperOracleL2.sol";
 
 // external
-import {IERC20} from "forge-std/interfaces/IERC20.sol";
-import {BoringERC20} from "../../vendor/BoringSolidity/BoringERC20.sol";
-import {AggregatorV3Interface} from "../../vendor/chainlink/AggregatorV3Interface.sol";
+import { IERC20 } from "forge-std/interfaces/IERC20.sol";
+import { BoringERC20 } from "../../vendor/BoringSolidity/BoringERC20.sol";
+import { AggregatorV3Interface } from "../../vendor/chainlink/AggregatorV3Interface.sol";
 
 /// @title SuperOracleL2
 /// @author Superform Labs
@@ -25,29 +25,59 @@ contract SuperOracleL2 is SuperOracleBase, ISuperOracleL2 {
     uint256 private constant DEFAULT_GRACE_PERIOD_TIME = 3600;
 
     constructor(
-        address owner_,
+        address superGovernor_,
         address[] memory bases,
         address[] memory quotes,
         bytes32[] memory providers,
         address[] memory feeds
-    ) SuperOracleBase(owner_, bases, quotes, providers, feeds) {}
+    )
+        SuperOracleBase(superGovernor_, bases, quotes, providers, feeds)
+    { }
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperOracleL2
-    function setUptimeFeed(address dataOracle, address uptimeOracle, uint256 gracePeriod) external onlyOwner {
-        if (dataOracle == address(0) || uptimeOracle == address(0)) revert ZERO_ADDRESS();
-        uptimeFeeds[dataOracle] = uptimeOracle;
-        gracePeriods[uptimeOracle] = gracePeriod;
-        emit UptimeFeedSet(dataOracle, uptimeOracle);
-        emit GracePeriodSet(uptimeOracle, gracePeriod);
+    function batchSetUptimeFeed(
+        address[] calldata dataOracles,
+        address[] calldata uptimeOracles,
+        uint256[] calldata gracePeriods_
+    )
+        external
+    {
+        if (msg.sender != SUPER_GOVERNOR) revert UNAUTHORIZED_UPDATE_AUTHORITY();
+
+        uint256 length = dataOracles.length;
+        if (length == 0) revert ZERO_ADDRESS(); // Reusing error code
+        if (length != uptimeOracles.length || length != gracePeriods_.length) {
+            revert ARRAY_LENGTH_MISMATCH();
+        }
+
+        for (uint256 i; i < length; ++i) {
+            address dataOracle = dataOracles[i];
+            address uptimeOracle = uptimeOracles[i];
+            uint256 gracePeriod = gracePeriods_[i];
+
+            if (dataOracle == address(0) || uptimeOracle == address(0)) revert ZERO_ADDRESS();
+
+            uptimeFeeds[dataOracle] = uptimeOracle;
+            gracePeriods[uptimeOracle] = gracePeriod;
+
+            emit UptimeFeedSet(dataOracle, uptimeOracle);
+            emit GracePeriodSet(uptimeOracle, gracePeriod);
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    function _getQuoteFromOracle(address oracle, uint256 baseAmount, address base, address quote, bool revertOnError)
+    function _getQuoteFromOracle(
+        address oracle,
+        uint256 baseAmount,
+        address base,
+        address quote,
+        bool revertOnError
+    )
         internal
         view
         override

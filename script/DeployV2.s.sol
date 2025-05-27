@@ -96,6 +96,8 @@ import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggr
 import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
+import { SuperYieldSourceOracle } from "../src/periphery/oracles/SuperYieldSourceOracle.sol";
+
 contract DeployV2 is Script, Configuration {
     mapping(uint64 chainId => mapping(string contractName => address contractAddress)) public contractAddresses;
 
@@ -127,6 +129,8 @@ contract DeployV2 is Script, Configuration {
         address superDestinationValidator;
         address superNativePaymaster;
         address ecdsappsOracle;
+        address superYieldSourceOracle;
+        address superOracle;
     }
 
     struct HookAddresses {
@@ -218,24 +222,6 @@ contract DeployV2 is Script, Configuration {
 
         // retrieve deployer
         ISuperDeployer deployer = ISuperDeployer(configuration.deployer);
-
-        // todo decide arguments for this
-        deployedContracts.superGovernor = __deployContract(
-            deployer,
-            SUPER_GOVERNOR_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_GOVERNOR_KEY),
-            abi.encodePacked(
-                type(SuperGovernor).creationCode,
-                abi.encode(
-                    configuration.owner,
-                    configuration.owner,
-                    configuration.owner,
-                    configuration.treasury,
-                    configuration.polymerProvers[chainId]
-                )
-            )
-        );
 
         // Deploy SuperOracle
         deployedContracts.oracleRegistry = __deployContract(
@@ -366,6 +352,26 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(SuperNativePaymaster).creationCode, abi.encode(ENTRY_POINT))
         );
 
+        /// @dev periphery from here on
+
+        // todo decide arguments for this
+        deployedContracts.superGovernor = __deployContract(
+            deployer,
+            SUPER_GOVERNOR_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_GOVERNOR_KEY),
+            abi.encodePacked(
+                type(SuperGovernor).creationCode,
+                abi.encode(
+                    configuration.owner,
+                    configuration.owner,
+                    configuration.owner,
+                    configuration.treasury,
+                    configuration.polymerProvers[chainId]
+                )
+            )
+        );
+
         // Deploy SuperVaultAggregator
         deployedContracts.superVaultAggregator = __deployContract(
             deployer,
@@ -383,6 +389,33 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(ECDSAPPSOracle).creationCode, abi.encode(address(deployedContracts.superGovernor)))
         );
 
+        deployedContracts.superOracle = __deployContract(
+            deployer,
+            SUPER_ORACLE_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_ORACLE_KEY),
+            abi.encodePacked(
+                type(SuperYieldSourceOracle).creationCode,
+                abi.encode(
+                    deployedContracts.superGovernor,
+                    new address[](0),
+                    new address[](0),
+                    new bytes32[](0),
+                    new address[](0)
+                )
+            )
+        );
+
+        deployedContracts.superYieldSourceOracle = __deployContract(
+            deployer,
+            SUPER_YIELD_SOURCE_ORACLE_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_YIELD_SOURCE_ORACLE_KEY),
+            abi.encodePacked(
+                type(SuperYieldSourceOracle).creationCode, abi.encode(address(deployedContracts.superOracle))
+            )
+        );
+
         SuperGovernor(deployedContracts.superGovernor).setActivePPSOracle(address(deployedContracts.ecdsappsOracle));
         SuperGovernor(deployedContracts.superGovernor).addValidator(configuration.validator);
 
@@ -398,7 +431,7 @@ contract DeployV2 is Script, Configuration {
         SuperGovernor superGovernor = SuperGovernor(deployedContracts.superGovernor);
         superGovernor.grantRole(keccak256("SUPER_GOVERNOR_ROLE"), 0xd95f4bc7733d9E94978244C0a27c1815878a59BB);
         console2.log("Granted SUPER_GOVERNOR_ROLE to: 0xd95f4bc7733d9E94978244C0a27c1815878a59BB");
-        
+
         superGovernor.revokeRole(keccak256("SUPER_GOVERNOR_ROLE"), TEST_DEPLOYER);
         console2.log("Revoked SUPER_GOVERNOR_ROLE from TEST_DEPLOYER");
     }

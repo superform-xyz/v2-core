@@ -2,12 +2,12 @@
 pragma solidity 0.8.30;
 
 // External
-import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import { ReentrancyGuard } from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
-import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { IERC20Metadata } from "openzeppelin-contracts/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Core Interfaces
 import {
@@ -22,11 +22,11 @@ import {
 import { IYieldSourceOracle } from "../../core/interfaces/accounting/IYieldSourceOracle.sol";
 
 // Periphery Interfaces
-import { ISuperVault } from "../interfaces/ISuperVault.sol";
+import { ISuperVault } from "../interfaces/SuperVault/ISuperVault.sol";
 import { HookDataDecoder } from "../../core/libraries/HookDataDecoder.sol";
-import { ISuperVaultStrategy } from "../interfaces/ISuperVaultStrategy.sol";
+import { ISuperVaultStrategy } from "../interfaces/SuperVault/ISuperVaultStrategy.sol";
 import { ISuperGovernor, FeeType } from "../interfaces/ISuperGovernor.sol";
-import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
+import { ISuperVaultAggregator } from "../interfaces/SuperVault/ISuperVaultAggregator.sol";
 
 /// @title SuperVaultStrategy
 /// @author Superform Labs

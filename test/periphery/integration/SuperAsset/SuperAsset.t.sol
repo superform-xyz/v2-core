@@ -195,7 +195,7 @@ contract SuperAssetTest is Helpers {
             tokenOutIncentive: address(tokenOut)
         });
 
-        // NOTE: Whitelisting ICC so that's possible to instantiate SuperAsset using it 
+        // NOTE: Whitelisting ICC so that's possible to instantiate SuperAsset using it
         superGovernor.addICCToWhitelist(address(icc));
         (address superAssetAddr, address incentiveFundAddr) = factory.createSuperAsset(params);
 
@@ -213,23 +213,24 @@ contract SuperAssetTest is Helpers {
         // Deploy and configure oracle with regular providers only
         console.log("Trying to deploy SuperOracle");
         vm.startPrank(admin);
-        oracle = new SuperOracle(admin, bases, quotes, providers, feeds);
-        oracle.setMaxStaleness(2 weeks);
-        // Set Oracle
+        oracle = new SuperOracle(address(superGovernor), bases, quotes, providers, feeds);
         superGovernor.setAddress(superGovernor.SUPER_ORACLE(), address(oracle));
+
+        superGovernor.setOracleMaxStaleness(2 weeks);
+        // Set Oracle
         console.log("Oracle deployed");
 
         // Set staleness for each feed
-        oracle.setFeedMaxStaleness(address(mockFeed1), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeed2), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeed3), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeed4), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeed5), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeed6), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeedSuperAssetShares1), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeedSuperVault1Shares), 14 days);
-        oracle.setFeedMaxStaleness(address(mockFeedSuperVault2Shares), 14 days);
-        oracle.setEmergencyPrice(address(primaryAsset), 1e18);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed1), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed2), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed3), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed4), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed5), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed6), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeedSuperAssetShares1), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeedSuperVault1Shares), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeedSuperVault2Shares), 14 days);
+        superGovernor.setEmergencyPrice(address(primaryAsset), 1e18);
         vm.stopPrank();
 
         console.log("Feed staleness set");
@@ -462,7 +463,7 @@ contract SuperAssetTest is Helpers {
     function test_BasicRedeem() public {
         // First deposit to get some shares
         uint256 depositAmount = 100e18;
-        (uint256 expSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSD, ) =
+        (uint256 expSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSD,) =
             superAsset.previewDeposit(address(tokenIn), depositAmount, false);
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
@@ -481,7 +482,7 @@ contract SuperAssetTest is Helpers {
         uint256 sharesToRedeem = sharesMinted / 2;
         uint256 minTokenOut = sharesToRedeem * 99 / 100; // Allowing for 1% slippage
 
-        (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem, ) =
+        (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem,) =
             superAsset.previewRedeem(address(tokenIn), sharesToRedeem, false);
         assertGt(expAmountTokenOutAfterFees, 0, "Should receive tokens");
         assertGt(expSwapFee, 0, "Should pay swap fees");

@@ -9,7 +9,7 @@ import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.so
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 // Superform
-import { IVaultBank, IVaultBankSource } from "../interfaces/IVaultBank.sol";
+import { IVaultBank, IVaultBankSource } from "../interfaces/VaultBank/IVaultBank.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { VaultBankDestination } from "./VaultBankDestination.sol";
 import { VaultBankSource } from "./VaultBankSource.sol";

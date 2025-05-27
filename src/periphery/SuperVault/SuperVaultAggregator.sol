@@ -2,19 +2,19 @@
 pragma solidity 0.8.30;
 
 // External
-import { Math } from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import { SafeERC20 } from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import { Clones } from "openzeppelin-contracts/contracts/proxy/Clones.sol";
-import { EnumerableSet } from "openzeppelin-contracts/contracts/utils/structs/EnumerableSet.sol";
-import { MerkleProof } from "openzeppelin-contracts/contracts/utils/cryptography/MerkleProof.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
 import { SuperVault } from "./SuperVault.sol";
 import { SuperVaultStrategy } from "./SuperVaultStrategy.sol";
 import { SuperVaultEscrow } from "./SuperVaultEscrow.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
-import { ISuperVaultAggregator } from "../interfaces/ISuperVaultAggregator.sol";
+import { ISuperVaultAggregator } from "../interfaces/SuperVault/ISuperVaultAggregator.sol";
 // Libraries
 import { AssetMetadataLib } from "../libraries/AssetMetadataLib.sol";
 
@@ -427,7 +427,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         // Store proposal in the strategy data
         _strategyData[strategy].proposedStrategist = newStrategist;
         _strategyData[strategy].strategistChangeEffectiveTime = effectiveTime;
-        _strategyData[strategy].strategistChangeProposer = msg.sender;
 
         emit PrimaryStrategistChangeProposed(strategy, msg.sender, newStrategist, effectiveTime);
     }
@@ -456,8 +455,6 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
         // Clear the proposal
         _strategyData[strategy].proposedStrategist = address(0);
-        _strategyData[strategy].strategistChangeEffectiveTime = 0;
-        _strategyData[strategy].strategistChangeProposer = address(0);
 
         emit PrimaryStrategistChanged(strategy, oldStrategist, newStrategist);
     }
