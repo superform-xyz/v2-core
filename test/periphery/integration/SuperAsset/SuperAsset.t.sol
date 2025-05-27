@@ -80,6 +80,16 @@ contract SuperAssetTest is Helpers {
         );
         console.log("SuperGovernor deployed");
 
+        // Grant roles
+        superGovernor.grantRole(superGovernor.SUPER_GOVERNOR_ROLE(), admin);
+        superGovernor.grantRole(superGovernor.GOVERNOR_ROLE(), admin);
+        superGovernor.grantRole(superGovernor.BANK_MANAGER_ROLE(), admin);
+        console.log("SuperGovernor Roles Granted");
+
+        // Deploy SuperVaultAggregator
+        address aggregator = address(new SuperVaultAggregator(address(superGovernor)));
+        superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), aggregator);
+
         // Deploy mock tokens and vault
         underlyingToken1 = new MockERC20("Underlying Token1", "UTKN1", 18);
         tokenIn = new Mock4626Vault(address(underlyingToken1), "Vault Token", "vTKN");
@@ -164,16 +174,9 @@ contract SuperAssetTest is Helpers {
         console.log("Factory deployed");
         superGovernor.setAddress(superGovernor.SUPER_ASSET_FACTORY(), address(factory));
 
-        
         // Deploy SuperBank
         superBank = new SuperBank(address(superGovernor));
         superGovernor.setAddress(superGovernor.SUPER_BANK(), address(superBank));
-
-        // Grant roles
-        superGovernor.grantRole(superGovernor.SUPER_GOVERNOR_ROLE(), admin);
-        superGovernor.grantRole(superGovernor.GOVERNOR_ROLE(), admin);
-        superGovernor.grantRole(superGovernor.BANK_MANAGER_ROLE(), admin);
-        console.log("SuperGovernor Roles Granted");
 
         // Create SuperAsset using factory
         ISuperAssetFactory.AssetCreationParams memory params = ISuperAssetFactory.AssetCreationParams({
@@ -196,10 +199,6 @@ contract SuperAssetTest is Helpers {
         superAsset = SuperAsset(superAssetAddr);
         incentiveFund = IncentiveFundContract(incentiveFundAddr);
         console.log("SuperAsset and IncentiveFund deployed via factory");
-        
-        // Deploy SuperVaultAggregator
-        address aggregator = address(new SuperVaultAggregator(address(superGovernor)));
-        superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), aggregator);
 
         // Add SuperOracle Init
         // NOTE: Initially superAsset was not defined, now it is because it gets instantiated with the factory

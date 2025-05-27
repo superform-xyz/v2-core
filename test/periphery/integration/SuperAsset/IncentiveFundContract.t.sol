@@ -4,6 +4,7 @@ pragma solidity ^0.8.30;
 import "forge-std/console.sol";
 
 import { IncentiveFundContract } from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
+import { SuperVaultAggregator } from "../../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
 import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
 import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
 import { IIncentiveFundContract } from "../../../../src/periphery/interfaces/SuperAsset/IIncentiveFundContract.sol";
@@ -152,6 +153,11 @@ contract IncentiveFundContractTest is Helpers {
         // Admin is SuperGovernor Role 
         console.log("SuperGovernor deployed");
 
+        // Deploy SuperVaultAggregator
+        address aggregator = address(new SuperVaultAggregator(address(superGovernor)));
+        superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), aggregator);
+        console.log(superGovernor.getAddress(superGovernor.SUPER_VAULT_AGGREGATOR()));
+
         // Create SuperAsset using factory
         ISuperAssetFactory.AssetCreationParams memory params = ISuperAssetFactory.AssetCreationParams({
             name: "SuperAsset",
@@ -181,7 +187,6 @@ contract IncentiveFundContractTest is Helpers {
         superAsset = SuperAsset(superAssetAddr);
         incentiveFund = IncentiveFundContract(incentiveFundAddr);
         console.log("SuperAsset and IncentiveFund deployed via factory");
-
 
         vm.stopPrank();
 
