@@ -308,9 +308,7 @@ contract SuperAsset is ERC20, ISuperAsset {
         // Mint SuperUSD shares
         _mint(receiver, amountSharesMinted);
 
-        emit Deposit(
-            receiver, tokenIn, amountTokenToDeposit, amountSharesMinted, swapFee, amountIncentiveUSDDeposit
-        );
+        emit Deposit(receiver, tokenIn, amountTokenToDeposit, amountSharesMinted, swapFee, amountIncentiveUSDDeposit);
     }
 
     /// @inheritdoc ISuperAsset
@@ -537,7 +535,7 @@ contract SuperAsset is ERC20, ISuperAsset {
             return (amountTokenOutAfterFees, swapFee, amountIncentiveUSD, s.allocations.isSuccess);
         } else {
             return (amountTokenOutAfterFees, swapFee, 0, true);
-        }        
+        }
     }
 
     /// @inheritdoc ISuperAsset
@@ -590,7 +588,7 @@ contract SuperAsset is ERC20, ISuperAsset {
         public
         view
         returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff)
-    {   
+    {
         if (primaryAsset == USD) {
             return (PRECISION, false, false, false);
         }
