@@ -147,6 +147,7 @@ interface ISuperAsset is IERC20 {
     struct TokenData {
         bool isSupportedUnderlyingVault;
         bool isSupportedERC20;
+        address oracle;
         uint256 targetAllocations;
         uint256 weights;
     }

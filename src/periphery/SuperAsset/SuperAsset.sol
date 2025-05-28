@@ -44,10 +44,9 @@ contract SuperAsset is ERC20, ISuperAsset {
 
     // --- State ---
     mapping(address token => TokenData data) public tokenData;
-    mapping(address token => address oracle) private _tokenOracles;
 
     // @notice Contains supported Vaults shares and standard ERC20s
-    EnumerableSet.AddressSet private _supportedAssets;
+    EnumerableSet.AddressSet private _supportedAssets; // Replace w above
     EnumerableSet.AddressSet private _activeAssets;
 
     uint256 public swapFeeInPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
@@ -126,7 +125,7 @@ contract SuperAsset is ERC20, ISuperAsset {
         if (tokenData[token].isSupportedERC20) revert ALREADY_WHITELISTED();
         tokenData[token].isSupportedERC20 = true;
 
-        _tokenOracles[token] = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
+        tokenData[token].oracle = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
         _supportedAssets.add(token);
         _activeAssets.add(token);
 
@@ -143,7 +142,7 @@ contract SuperAsset is ERC20, ISuperAsset {
 
         if (IERC20(token).balanceOf(address(this)) == 0) {
             _activeAssets.remove(token);
-            _tokenOracles[token] = address(0);
+            tokenData[token].oracle = address(0);
         }
 
         emit ERC20Removed(token);
@@ -156,7 +155,7 @@ contract SuperAsset is ERC20, ISuperAsset {
 
         tokenData[vault].isSupportedUnderlyingVault = true;
 
-        _tokenOracles[vault] = yieldSourceOracle;
+        tokenData[vault].oracle = yieldSourceOracle;
         _supportedAssets.add(vault);
         _activeAssets.add(vault);
 
@@ -173,7 +172,7 @@ contract SuperAsset is ERC20, ISuperAsset {
 
         if (IERC20(vault).balanceOf(address(this)) == 0) {
             _activeAssets.remove(vault);
-            _tokenOracles[vault] = address(0);
+            tokenData[vault].oracle = address(0);
         }
         emit VaultRemoved(vault);
     }
@@ -644,10 +643,10 @@ contract SuperAsset is ERC20, ISuperAsset {
             if (balance == 0) continue;
 
             uint256 priceUSD;
-            if (_tokenOracles[token] == superGovernor.getAddress(superGovernor.SUPER_ORACLE())) {
+            if (tokenData[token].oracle == superGovernor.getAddress(superGovernor.SUPER_ORACLE())) {
                 (priceUSD,,,) = getPriceWithCircuitBreakers(token);
             } else {
-                uint256 pricePerShare = IYieldSourceOracle(_tokenOracles[token]).getPricePerShare(token);
+                uint256 pricePerShare = IYieldSourceOracle(tokenData[token].oracle).getPricePerShare(token);
                 (uint256 ppsUSD,,,) = getPriceWithCircuitBreakers(token);
                 priceUSD = pricePerShare * ppsUSD;
             }
@@ -803,10 +802,10 @@ contract SuperAsset is ERC20, ISuperAsset {
         returns (uint256 priceUSDToken, uint256 priceUSDSuperAssetShares)
     {
         priceUSDSuperAssetShares = getSuperAssetPPS();
-        if (_tokenOracles[token] == superGovernor.getAddress(superGovernor.SUPER_ORACLE())) {
+        if (tokenData[token].oracle == superGovernor.getAddress(superGovernor.SUPER_ORACLE())) {
             (priceUSDToken,,,) = getPriceWithCircuitBreakers(token);
         } else {
-            uint256 pricePerShare = IYieldSourceOracle(_tokenOracles[token]).getPricePerShare(token);
+            uint256 pricePerShare = IYieldSourceOracle(tokenData[token].oracle).getPricePerShare(token);
             (uint256 ppsUSD,,,) = getPriceWithCircuitBreakers(token);
             priceUSDToken = pricePerShare * ppsUSD;
         }
