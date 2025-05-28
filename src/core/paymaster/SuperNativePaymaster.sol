@@ -43,7 +43,7 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         uint256 costWithPremium =
             Math.mulDiv(actualGasCost, MAX_NODE_OPERATOR_PREMIUM + nodeOperatorPremium, MAX_NODE_OPERATOR_PREMIUM);
 
-        uint256 maxCost = maxGasLimit * maxFeePerGas;
+        uint256 maxCost = Math.mulDiv(maxGasLimit, maxFeePerGas, 1);
         if (costWithPremium < maxCost) {
             refund = maxCost - costWithPremium;
         }
