@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { console } from "forge-std/console.sol";
-
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -48,7 +46,7 @@ contract SuperAsset is ERC20, ISuperAsset {
     mapping(address token => TokenData data) public tokenData;
 
     // @notice Contains supported Vaults shares and standard ERC20s
-    EnumerableSet.AddressSet private _supportedAssets; // Replace w above
+    EnumerableSet.AddressSet private _supportedAssets;
     EnumerableSet.AddressSet private _activeAssets;
 
     uint256 public swapFeeInPercentage; // Swap fee as a percentage (e.g., 10 for 0.1%)
@@ -266,12 +264,8 @@ contract SuperAsset is ERC20, ISuperAsset {
         if (receiver == address(0)) revert ZERO_ADDRESS();
         if (amountTokenToDeposit == 0) revert ZERO_AMOUNT();
 
-        // Circuit Breakers preventing deposit
-        if (tokenData[tokenIn].isSupportedUnderlyingVault) {
-            _checkCircuitBreakers(IERC4626(tokenIn).asset());
-        } else if (tokenData[tokenIn].isSupportedERC20) {
-            _checkCircuitBreakers(tokenIn);
-        } else {
+        // Check that tokenIn is allowed to be deposited
+        if (!tokenData[tokenIn].isSupportedUnderlyingVault && !tokenData[tokenIn].isSupportedERC20) {
             revert NOT_SUPPORTED_TOKEN();
         }
 
@@ -789,35 +783,25 @@ contract SuperAsset is ERC20, ISuperAsset {
     /// @dev Fetches the price of a token in USD
     /// @param token The address of the token to fetch the prices for
     /// @return priceUSDToken The price of the token in USD
-    function _fetchTokenPriceUSD(address token)
-        internal
-        view
-        returns (uint256 priceUSDToken)
-    {
+    function _fetchTokenPriceUSD(address token) internal view returns (uint256 priceUSDToken) {
         ISuperOracle superOracle = ISuperOracle(superGovernor.getAddress(superGovernor.SUPER_ORACLE()));
         uint256 oneUnit = 10 ** IERC20Metadata(token).decimals();
 
+        uint256 priceUSD;
+        try superOracle.getQuoteFromProvider(oneUnit, token, USD, AVERAGE_PROVIDER) returns (
+            uint256 _priceUSD, uint256, uint256, uint256
+        ) {
+            priceUSD = _priceUSD;
+        } catch {
+            priceUSD = superOracle.getEmergencyPrice(token);
+        }
+
         if (tokenData[token].oracle == superGovernor.getAddress(superGovernor.SUPER_ORACLE())) {
-            try superOracle.getQuoteFromProvider(oneUnit, token, USD, AVERAGE_PROVIDER) returns (
-                uint256 _priceUSD, uint256, uint256, uint256
-            ) {
-                priceUSDToken = _priceUSD;
-            } catch {
-                priceUSDToken = superOracle.getEmergencyPrice(token);
-            }
+            priceUSDToken = priceUSD;
         } else {
             uint256 pricePerShare = IYieldSourceOracle(tokenData[token].oracle).getPricePerShare(token);
 
-            uint256 ppsUSD;
-            try superOracle.getQuoteFromProvider(oneUnit, token, USD, AVERAGE_PROVIDER) returns (
-                uint256 _priceUSD, uint256, uint256, uint256
-            ) {
-                ppsUSD = _priceUSD;
-            } catch {
-                ppsUSD = superOracle.getEmergencyPrice(token);
-            }
-
-            priceUSDToken = pricePerShare * ppsUSD;
+            priceUSDToken = pricePerShare * priceUSD;
         }
     }
 
