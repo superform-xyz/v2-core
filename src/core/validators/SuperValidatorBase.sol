@@ -41,6 +41,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     error ZERO_ADDRESS();
     error INVALID_PROOF();
     error ALREADY_INITIALIZED();
+    error SIGNATURE_LENGTH_EXCEEDED();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS

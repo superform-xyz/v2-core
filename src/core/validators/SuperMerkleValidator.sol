@@ -29,6 +29,10 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     ///      This is more gas efficient than regular storage for temporary data
     bytes32 internal constant SIGNATURE_KEY_STORAGE = keccak256("transient.signature.bytes.mapping");
 
+    /// @notice Maximum length of signature data in bytes
+    /// @dev 32000 bytes is the maximum length of signature data in bytes that can be stored in transient storage
+    uint256 internal constant SIGNATURE_MAX_LENGTH = 32000; // 1000 words
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -147,6 +151,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     function _storeSignature(uint256 identifier, bytes calldata data) private {
         bytes32 storageKey = _makeKey(identifier);
         uint256 len = data.length;
+        require(len <= SIGNATURE_MAX_LENGTH, SIGNATURE_LENGTH_EXCEEDED());
 
         assembly {
             tstore(storageKey, len)
