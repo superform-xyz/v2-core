@@ -216,7 +216,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
             dstToken = NATIVE;
         }
 
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             amount = ISuperHookResult(prevHook).outAmount();
         }
 
@@ -237,7 +237,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
             revert INVALID_RECEIVER();
         }
 
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             updatedTxData = abi.encode(to, token, amount, minReturn, dex);
         }
     }
@@ -268,7 +268,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
             revert INVALID_RECEIVER();
         }
 
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             desc.amount = ISuperHookResult(prevHook).outAmount();
         }
 
@@ -280,7 +280,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
             revert INVALID_OUTPUT_AMOUNT();
         }
 
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             updatedTxData = abi.encode(executor, desc, data);
         }
     }
@@ -314,7 +314,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
             revert INVALID_RECEIVER();
         }
 
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             inputAmount = ISuperHookResult(prevHook).outAmount();
         }
 
@@ -329,7 +329,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         if (address(dstToken) != toToken) {
             revert INVALID_DESTINATION_TOKEN();
         }
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             updatedTxData = abi.encode(
                 clipperExchange, recipient, srcToken, dstToken, inputAmount, outputAmount, expiryWithFlags, r, vs
             );

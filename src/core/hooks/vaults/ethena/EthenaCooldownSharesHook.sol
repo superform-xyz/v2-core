@@ -48,7 +48,7 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
         uint256 shares = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, 56);
 
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             shares = ISuperHookResult(prevHook).outAmount();
         }
 

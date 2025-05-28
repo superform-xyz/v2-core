@@ -44,7 +44,7 @@ contract FluidUnstakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspect
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             amount = ISuperHookResultOutflow(prevHook).outAmount();
         }
         if (amount == 0) revert AMOUNT_NOT_VALID();

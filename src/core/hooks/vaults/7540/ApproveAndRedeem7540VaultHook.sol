@@ -60,7 +60,7 @@ contract ApproveAndRedeem7540VaultHook is
         uint256 shares = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             shares = ISuperHookResultOutflow(prevHook).outAmount();
         }
 

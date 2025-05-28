@@ -59,7 +59,7 @@ contract RequestDeposit7540VaultHook is
         uint256 amount = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             amount = ISuperHookResult(prevHook).outAmount();
         }
 

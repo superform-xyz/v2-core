@@ -42,7 +42,7 @@ contract FluidStakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             amount = ISuperHookResult(prevHook).outAmount();
         }
         if (amount == 0) revert AMOUNT_NOT_VALID();

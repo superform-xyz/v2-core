@@ -207,7 +207,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
                 if (params.pt != pt) revert INVALID_PT();
                 if (params.ptRecipient != account || params.ytRecipient != account) revert INVALID_RECIPIENT();
 
-                if (usePrevHookAmount) {
+                if (usePrevHookAmount && prevHook != address(0)) {
                     params.assets = ISuperHookResult(prevHook).outAmount();
                 }
                 if (params.assets == 0) revert AMOUNT_NOT_VALID();
@@ -220,7 +220,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
                 if (params.ibt == address(0)) revert INVALID_IBT();
                 if (params.recipient != account) revert INVALID_RECIPIENT();
 
-                if (usePrevHookAmount) {
+                if (usePrevHookAmount && prevHook != address(0)) {
                     params.assets = ISuperHookResult(prevHook).outAmount();
                 }
                 if (params.assets == 0) revert AMOUNT_NOT_VALID();
@@ -232,7 +232,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
                 (params.transferToken, params.assets) = abi.decode(input, (address, uint256));
                 if (params.transferToken == address(0)) revert INVALID_TRANSFER_TOKEN();
 
-                if (usePrevHookAmount) {
+                if (usePrevHookAmount && prevHook != address(0)) {
                     params.assets = ISuperHookResult(prevHook).outAmount();
                 }
                 if (params.assets == 0) revert AMOUNT_NOT_VALID();

@@ -175,7 +175,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
         view
         returns (uint256 finalAmount)
     {
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             finalAmount = ISuperHookResult(prevHook).outAmount();
             if (finalAmount == 0) revert AMOUNT_NOT_VALID(); // Amount from prevHook must be > 0
         } else {

@@ -230,7 +230,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
             // validate token input
             if (input.tokenMintSy == address(0) || input.pendleSwap == address(0)) revert ADDRESS_NOT_VALID();
 
-            if (usePrevHookAmount) {
+            if (usePrevHookAmount && prevHook != address(0)) {
                 input.netTokenIn = ISuperHookResult(prevHook).outAmount();
             }
             if (input.netTokenIn == 0) revert AMOUNT_IN_NOT_VALID();
@@ -257,7 +257,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
             if (receiver != account) revert RECEIVER_NOT_VALID();
             if (market != pendleMarket) revert MARKET_NOT_VALID();
 
-            if (usePrevHookAmount) {
+            if (usePrevHookAmount && prevHook != address(0)) {
                 exactPtIn = ISuperHookResult(prevHook).outAmount();
             }
             if (exactPtIn == 0) revert AMOUNT_IN_NOT_VALID();

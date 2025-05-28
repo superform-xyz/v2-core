@@ -60,7 +60,7 @@ contract Redeem5115VaultHook is
         bool burnFromInternalBalance = _decodeBool(data, 108);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             shares = ISuperHookResultOutflow(prevHook).outAmount();
         }
 

@@ -38,7 +38,7 @@ contract TransferERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspec
         uint256 amount = BytesLib.toUint256(data, 40);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             amount = ISuperHookResult(prevHook).outAmount();
         }
 

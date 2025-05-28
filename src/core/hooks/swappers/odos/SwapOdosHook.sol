@@ -53,7 +53,7 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
         uint256 inputAmount = BytesLib.toUint256(data, 20);
 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             inputAmount = ISuperHookResult(prevHook).outAmount();
         }
 
@@ -126,7 +126,7 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
         uint256 outputMin = BytesLib.toUint256(data, 124);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
-        if (usePrevHookAmount) {
+        if (usePrevHookAmount && prevHook != address(0)) {
             inputAmount = ISuperHookResult(prevHook).outAmount();
         }
         return IOdosRouterV2.swapTokenInfo(
