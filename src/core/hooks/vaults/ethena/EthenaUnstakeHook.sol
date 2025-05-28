@@ -18,14 +18,12 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 24);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
 /// @notice         address vaultBank = BytesLib.toAddress(data, 57);
 /// @notice         uint256 dstChainId = BytesLib.toUint256(data, 77);
 contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 24;
+    error NOT_IMPLEMENTED();
 
     constructor() BaseHook(HookType.OUTFLOW, "Ethena") { }
 
@@ -61,13 +59,13 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return _decodeAmount(data);
+    function decodeAmount(bytes memory) external pure returns (uint256) {
+        revert NOT_IMPLEMENTED();
     }
 
     /// @inheritdoc ISuperHookOutflow
-    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
-        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
+    function replaceCalldataAmount(bytes memory, uint256) external pure returns (bytes memory) {
+        revert NOT_IMPLEMENTED();
     }
 
     /// @inheritdoc ISuperHookInspector
@@ -96,10 +94,6 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(data, AMOUNT_POSITION);
-    }
-
     function _getBalance(address account, bytes memory) private view returns (uint256) {
         return IERC20(asset).balanceOf(account);
     }
