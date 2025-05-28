@@ -142,6 +142,7 @@ interface ISuperAsset is IERC20 {
     /// @notice Token data structure
     /// @param isSupportedUnderlyingVault Whether the token is a supported underlying vault
     /// @param isSupportedERC20 Whether the token is a supported ERC20
+    /// @param oracle Address of the oracle to use to fetch token prices
     /// @param targetAllocations Target allocations for the token
     /// @param weights Weights for the token
     struct TokenData {
