@@ -158,6 +158,10 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         } else {
             revert INVALID_SELECTOR();
         }
+
+        if (updatedTxData.length > 0) {
+            updatedTxData = bytes.concat(selector, updatedTxData);
+        }
     }
 
     function _validateUnoswap(
