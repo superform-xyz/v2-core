@@ -230,7 +230,6 @@ struct Addresses {
     ISuperExecutor superExecutorWithSPLock;
     MockTargetExecutor mockTargetExecutor;
     MockBaseHook mockBaseHook; // this is needed for all tests which we need to use executeWithoutHookRestrictions
-
     SuperBank superBank;
 }
 
@@ -328,8 +327,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     bool public useLatestFork = false;
     bool public useRealOdosRouter = false;
     address[] public globalMerkleHooks;
-    address globalSVStrategy;
-    address globalSVGearStrategy;
+    address public globalSVStrategy;
+    address public globalSVGearStrategy;
+    address public globalRuggableVault;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -1242,6 +1242,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                     ),
                     aggregator
                 );
+
+                globalRuggableVault = SuperVaultAggregator(aggregator).STRATEGY_IMPLEMENTATION()
+                    .predictDeterministicAddress(
+                    keccak256(
+                        abi.encodePacked(
+                            existingUnderlyingTokens[ETH][USDC_KEY], "SuperVault", "SV_USDC_RUG", uint256(1)
+                        )
+                    ),
+                    aggregator
+                );
                 _generateMerkleTree(ETH);
             }
         }
@@ -1268,10 +1278,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         console2.log("[DEBUG] Predicted strategy addresses:");
         console2.log("  - globalSVStrategy:", globalSVStrategy);
         console2.log("  - globalSVGearStrategy:", globalSVGearStrategy);
+        console2.log("  - globalRuggableVault:", globalRuggableVault);
 
-        address[] memory globalTreeOwnerAddresses = new address[](2);
+        address[] memory globalTreeOwnerAddresses = new address[](3);
         globalTreeOwnerAddresses[0] = globalSVStrategy;
         globalTreeOwnerAddresses[1] = globalSVGearStrategy;
+        globalTreeOwnerAddresses[2] = globalRuggableVault;
 
         string[] memory cmd = new string[](globalTreeOwnerAddresses.length > 0 ? 4 : 3);
         cmd[0] = "node";
