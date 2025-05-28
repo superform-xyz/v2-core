@@ -25,7 +25,8 @@ import { ISuperLedger } from "../../../../src/core/interfaces/accounting/ISuperL
 import { ISuperHookInspector } from "../../../../src/core/interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../../src/vendor/gearbox/IGearboxFarmingPool.sol";
 import { ISuperExecutor } from "../../../../src/core/interfaces/ISuperExecutor.sol";
-import { ModuleKitHelpers, AccountInstance, AccountType, UserOpData } from "modulekit/ModuleKit.sol";
+import { AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
+import { Mock4626Vault } from "../../../mocks/Mock4626Vault.sol";
 
 contract SuperVaultTest is BaseSuperVaultTest {
     using Math for uint256;
@@ -2517,5 +2518,415 @@ contract SuperVaultTest is BaseSuperVaultTest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: claimHooksAddresses, hooksData: claimHooksData });
         UserOpData memory claimUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(claimEntry));
         executeOp(claimUserOpData);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        ALLOCATE TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    struct RebalanceVars {
+        uint256 depositAmount;
+        uint256 initialFluidVaultBalance;
+        uint256 initialAaveVaultBalance;
+        uint256 totalAssets;
+        uint256 targetFluidVaultAssets;
+        uint256 targetAaveVaultAssets;
+        uint256 currentFluidVaultAssets;
+        uint256 currentAaveVaultAssets;
+        uint256 assetsToMove;
+        uint256 sharesToRedeem;
+        uint256 finalFluidVaultBalance;
+        uint256 finalAaveVaultBalance;
+        uint256 finalFluidVaultAssets;
+        uint256 finalAaveVaultAssets;
+        uint256 finalTotalAssets;
+        uint256 fluidVaultPercentage;
+        uint256 aaveVaultPercentage;
+        uint256 initialTotalValue;
+    }
+
+    function test_Allocate_Rebalance() public executeWithoutHookRestrictions {
+        RebalanceVars memory vars;
+        vars.depositAmount = 1000e6;
+
+        //60/40 initial allo
+        _completeDepositFlow(vars.depositAmount);
+
+        vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
+        console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
+
+        vars.totalAssets = vault.totalAssets();
+        console2.log("vars.totalAssets", vars.totalAssets);
+        vars.targetFluidVaultAssets = vars.totalAssets * 70 / 100;
+        vars.targetAaveVaultAssets = vars.totalAssets * 30 / 100;
+        console2.log("vars.targetFluidVaultAssets", vars.targetFluidVaultAssets);
+        console2.log("vars.targetAaveVaultAssets", vars.targetAaveVaultAssets);
+
+        vars.currentFluidVaultAssets = fluidVault.convertToAssets(vars.initialFluidVaultBalance);
+        vars.currentAaveVaultAssets = aaveVault.convertToAssets(vars.initialAaveVaultBalance);
+        console2.log("vars.currentFluidVaultAssets", vars.currentFluidVaultAssets);
+        console2.log("vars.currentAaveVaultAssets", vars.currentAaveVaultAssets);
+
+        console2.log("Current FluidVault assets:", vars.currentFluidVaultAssets);
+        console2.log("Current AaveVault assets:", vars.currentAaveVaultAssets);
+        console2.log("Target FluidVault assets:", vars.targetFluidVaultAssets);
+        console2.log("Target AaveVault assets:", vars.targetAaveVaultAssets);
+
+        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = withdrawHookAddress;
+        hooksAddresses[1] = depositHookAddress;
+
+        bytes[] memory hooksData = new bytes[](2);
+
+        // Determine which way to rebalance
+        if (vars.currentFluidVaultAssets < vars.targetFluidVaultAssets) {
+            _rebalanceFromAaveToFluid(vars, hooksAddresses, hooksData);
+        } else {
+            _rebalanceFromFluidToAave(vars, hooksAddresses, hooksData);
+        }
+
+        // final balances
+        vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.finalFluidVaultAssets = fluidVault.convertToAssets(vars.finalFluidVaultBalance);
+        vars.finalAaveVaultAssets = aaveVault.convertToAssets(vars.finalAaveVaultBalance);
+        vars.finalTotalAssets = vars.finalFluidVaultAssets + vars.finalAaveVaultAssets;
+        vars.fluidVaultPercentage = vars.finalFluidVaultAssets * 10_000 / vars.finalTotalAssets;
+        vars.aaveVaultPercentage = vars.finalAaveVaultAssets * 10_000 / vars.finalTotalAssets;
+
+        console2.log("Final FluidVault assets:", vars.finalFluidVaultAssets);
+        console2.log("Final AaveVault assets:", vars.finalAaveVaultAssets);
+        console2.log("Final FluidVault percentage:", vars.fluidVaultPercentage, "%");
+        console2.log("Final AaveVault percentage:", vars.aaveVaultPercentage, "%");
+
+        // checks
+        assertApproxEqRel(vars.fluidVaultPercentage, 7000, 0.02e18, "FluidVault should have ~70% allocation");
+        assertApproxEqRel(vars.aaveVaultPercentage, 3000, 0.02e18, "AaveVault should have ~30% allocation");
+
+        // check total vcalue
+        vars.initialTotalValue = fluidVault.convertToAssets(vars.initialFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.initialAaveVaultBalance);
+
+        assertApproxEqRel(
+            vars.finalTotalAssets, vars.initialTotalValue, 0.01e18, "Total value should be preserved during rebalancing"
+        );
+    }
+
+    function test_Allocate_SmallAmounts() public executeWithoutHookRestrictions {
+        RebalanceVars memory vars;
+        vars.depositAmount = 5e5; //0.5 usd
+
+        _completeDepositFlow(vars.depositAmount);
+
+        vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
+        console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
+
+        address[] memory hooksAddresses = new address[](2);
+        bytes[] memory hooksData = new bytes[](2);
+
+        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        hooksAddresses[0] = withdrawHookAddress;
+        hooksAddresses[1] = depositHookAddress;
+
+        vars.currentFluidVaultAssets = fluidVault.convertToAssets(vars.initialFluidVaultBalance);
+        vars.currentAaveVaultAssets = aaveVault.convertToAssets(vars.initialAaveVaultBalance);
+        vars.totalAssets = vars.currentFluidVaultAssets + vars.currentAaveVaultAssets;
+
+        vars.targetFluidVaultAssets = (vars.totalAssets * 7000) / 10_000;
+        vars.targetAaveVaultAssets = (vars.totalAssets * 3000) / 10_000;
+
+        console2.log("Current FluidVault assets:", vars.currentFluidVaultAssets);
+        console2.log("Target FluidVault assets:", vars.targetFluidVaultAssets);
+        console2.log("Current AaveVault assets:", vars.currentAaveVaultAssets);
+        console2.log("Target AaveVault assets:", vars.targetAaveVaultAssets);
+
+        vm.startPrank(STRATEGIST);
+        if (vars.currentFluidVaultAssets < vars.targetFluidVaultAssets) {
+            _rebalanceFromAaveToFluid(vars, hooksAddresses, hooksData);
+        } else {
+            _rebalanceFromFluidToAave(vars, hooksAddresses, hooksData);
+        }
+        vm.stopPrank();
+
+        vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.finalFluidVaultAssets = fluidVault.convertToAssets(vars.finalFluidVaultBalance);
+        vars.finalAaveVaultAssets = aaveVault.convertToAssets(vars.finalAaveVaultBalance);
+        vars.finalTotalAssets = vars.finalFluidVaultAssets + vars.finalAaveVaultAssets;
+        vars.fluidVaultPercentage = (vars.finalFluidVaultAssets * 10_000) / vars.finalTotalAssets;
+        vars.aaveVaultPercentage = (vars.finalAaveVaultAssets * 10_000) / vars.finalTotalAssets;
+
+        console2.log("Final FluidVault balance:", vars.finalFluidVaultBalance);
+        console2.log("Final AaveVault balance:", vars.finalAaveVaultBalance);
+        console2.log("FluidVault percentage:", vars.fluidVaultPercentage);
+        console2.log("AaveVault percentage:", vars.aaveVaultPercentage);
+
+        assertApproxEqRel(
+            vars.fluidVaultPercentage, 7000, 0.05e18, "FluidVault allocation should be ~70% even for small amounts"
+        );
+        assertApproxEqRel(
+            vars.aaveVaultPercentage, 3000, 0.05e18, "AaveVault allocation should be ~30% even for small amounts"
+        );
+
+        vars.initialTotalValue = fluidVault.convertToAssets(vars.initialFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.initialAaveVaultBalance);
+
+        assertApproxEqRel(
+            vars.finalTotalAssets,
+            vars.initialTotalValue,
+            0.02e18,
+            "Total value should be preserved even with small amounts"
+        );
+    }
+
+    function test_Allocate_LargeAmounts() public executeWithoutHookRestrictions {
+        RebalanceVars memory vars;
+        vars.depositAmount = 10_000_000e6; // 10M USD * 30
+
+        _completeDepositFlow(vars.depositAmount);
+
+        vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
+        console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
+
+        address[] memory hooksAddresses = new address[](2);
+        bytes[] memory hooksData = new bytes[](2);
+
+        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = withdrawHookAddress;
+        hooksAddresses[1] = depositHookAddress;
+
+        vars.currentFluidVaultAssets = fluidVault.convertToAssets(vars.initialFluidVaultBalance);
+        vars.currentAaveVaultAssets = aaveVault.convertToAssets(vars.initialAaveVaultBalance);
+        vars.totalAssets = vars.currentFluidVaultAssets + vars.currentAaveVaultAssets;
+
+        vars.targetFluidVaultAssets = (vars.totalAssets * 7000) / 10_000;
+        vars.targetAaveVaultAssets = (vars.totalAssets * 3000) / 10_000;
+
+        console2.log("Current FluidVault assets:", vars.currentFluidVaultAssets);
+        console2.log("Target FluidVault assets:", vars.targetFluidVaultAssets);
+        console2.log("Current AaveVault assets:", vars.currentAaveVaultAssets);
+        console2.log("Target AaveVault assets:", vars.targetAaveVaultAssets);
+
+        vm.startPrank(STRATEGIST);
+        if (vars.currentFluidVaultAssets < vars.targetFluidVaultAssets) {
+            _rebalanceFromAaveToFluid(vars, hooksAddresses, hooksData);
+        } else {
+            _rebalanceFromFluidToAave(vars, hooksAddresses, hooksData);
+        }
+        vm.stopPrank();
+
+        vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.finalFluidVaultAssets = fluidVault.convertToAssets(vars.finalFluidVaultBalance);
+        vars.finalAaveVaultAssets = aaveVault.convertToAssets(vars.finalAaveVaultBalance);
+        vars.finalTotalAssets = vars.finalFluidVaultAssets + vars.finalAaveVaultAssets;
+        vars.fluidVaultPercentage = (vars.finalFluidVaultAssets * 10_000) / vars.finalTotalAssets;
+        vars.aaveVaultPercentage = (vars.finalAaveVaultAssets * 10_000) / vars.finalTotalAssets;
+
+        console2.log("Final FluidVault balance:", vars.finalFluidVaultBalance);
+        console2.log("Final AaveVault balance:", vars.finalAaveVaultBalance);
+        console2.log("FluidVault percentage:", vars.fluidVaultPercentage);
+        console2.log("AaveVault percentage:", vars.aaveVaultPercentage);
+
+        assertApproxEqRel(
+            vars.fluidVaultPercentage, 7000, 0.01e18, "FluidVault allocation should be ~70% for large amounts"
+        );
+        assertApproxEqRel(
+            vars.aaveVaultPercentage, 3000, 0.01e18, "AaveVault allocation should be ~30% for large amounts"
+        );
+
+        vars.initialTotalValue = fluidVault.convertToAssets(vars.initialFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.initialAaveVaultBalance);
+
+        assertApproxEqRel(
+            vars.finalTotalAssets,
+            vars.initialTotalValue,
+            0.01e18,
+            "Total value should be preserved even with large amounts"
+        );
+    }
+
+    struct AllocateNewYieldSourceVars {
+        uint256 depositAmount;
+        uint256 initialFluidVaultBalance;
+        uint256 initialAaveVaultBalance;
+        uint256 initialNewVaultBalance;
+        uint256 finalFluidVaultBalance;
+        uint256 finalAaveVaultBalance;
+        uint256 finalNewVaultBalance;
+        uint256 initialTotalValue;
+        uint256 finalTotalValue;
+    }
+
+    function test_Allocate_NewYieldSource() public executeWithoutHookRestrictions {
+        AllocateNewYieldSourceVars memory vars;
+        vars.depositAmount = 1000e6;
+
+        // do an initial allo
+        _completeDepositFlow(vars.depositAmount);
+        IERC4626 newVault = IERC4626(CHAIN_1_EulerVault);
+
+        //  -- add funds to the newVault to respect LARGE_DEPOSIT
+        _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);
+        asset.approve(address(newVault), type(uint256).max);
+        newVault.deposit(2 * LARGE_DEPOSIT, address(this));
+
+        // -- add it as a new yield source
+        vm.startPrank(STRATEGIST);
+        strategy.manageYieldSource(address(newVault), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        vm.stopPrank();
+
+        vars.initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.initialNewVaultBalance = newVault.balanceOf(address(strategy));
+
+        console2.log("Initial FluidVault balance:", vars.initialFluidVaultBalance);
+        console2.log("Initial AaveVault balance:", vars.initialAaveVaultBalance);
+        console2.log("Initial NewVault balance:", vars.initialNewVaultBalance);
+
+        // 30/30/40
+        // allocate 20% from each vault to the new one
+        uint256 amountToReallocateFluidVault = vars.initialFluidVaultBalance * 20 / 100;
+        uint256 amountToReallocateAaveVault = vars.initialAaveVaultBalance * 20 / 100;
+        uint256 assetAmountToReallocateFromFluidVault = fluidVault.convertToAssets(amountToReallocateFluidVault);
+        uint256 assetAmountToReallocateFromAaveVault = aaveVault.convertToAssets(amountToReallocateAaveVault);
+        uint256 assetAmountToReallocateToNewVault =
+            assetAmountToReallocateFromFluidVault + assetAmountToReallocateFromAaveVault;
+        console2.log("Asset amount to reallocate from FluidVault:", assetAmountToReallocateFromFluidVault);
+        console2.log("Asset amount to reallocate from AaveVault:", assetAmountToReallocateFromAaveVault);
+
+        // allocation
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        address[] memory hooksAddresses = new address[](3);
+        hooksAddresses[0] = withdrawHookAddress;
+        hooksAddresses[1] = withdrawHookAddress;
+        hooksAddresses[2] = depositHookAddress;
+
+        bytes[] memory hooksData = new bytes[](3);
+        // redeem from FluidVault
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(fluidVault),
+            address(strategy),
+            amountToReallocateFluidVault,
+            false
+        );
+        // redeem from AaveVault
+        hooksData[1] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(aaveVault),
+            address(strategy),
+            amountToReallocateAaveVault,
+            false
+        );
+        // deposit to NewVault
+        hooksData[2] = _createApproveAndDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(newVault),
+            address(asset),
+            assetAmountToReallocateToNewVault,
+            false,
+            address(0),
+            0
+        );
+        bytes[] memory argsForProofs = new bytes[](3);
+        argsForProofs[0] = ISuperHookInspector(hooksAddresses[0]).inspect(hooksData[0]);
+        argsForProofs[1] = ISuperHookInspector(hooksAddresses[1]).inspect(hooksData[1]);
+        argsForProofs[2] = ISuperHookInspector(hooksAddresses[2]).inspect(hooksData[2]);
+
+        vm.startPrank(STRATEGIST);
+        strategy.executeHooks(
+            ISuperVaultStrategy.ExecuteArgs({
+                hooks: hooksAddresses,
+                hookCalldata: hooksData,
+                expectedAssetsOrSharesOut: new uint256[](3),
+                globalProofs: _getMerkleProofsForHooks(hooksAddresses, argsForProofs),
+                strategyProofs: new bytes32[][](hooksAddresses.length)
+            })
+        );
+        vm.stopPrank();
+
+        // check new balances
+        vars.finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
+        vars.finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        vars.finalNewVaultBalance = newVault.balanceOf(address(strategy));
+
+        console2.log("Final FluidVault balance:", vars.finalFluidVaultBalance);
+        console2.log("Final AaveVault balance:", vars.finalAaveVaultBalance);
+        console2.log("Final NewVault balance:", vars.finalNewVaultBalance);
+
+        assertApproxEqRel(
+            vars.finalFluidVaultBalance,
+            vars.initialFluidVaultBalance - amountToReallocateFluidVault,
+            0.01e18,
+            "FluidVault balance should decrease by the reallocated amount"
+        );
+
+        assertApproxEqRel(
+            vars.finalAaveVaultBalance,
+            vars.initialAaveVaultBalance - amountToReallocateAaveVault,
+            0.01e18,
+            "AaveVault balance should decrease by the reallocated amount"
+        );
+
+        assertGt(vars.finalNewVaultBalance, vars.initialNewVaultBalance, "NewVault balance should increase");
+
+        vars.initialTotalValue = fluidVault.convertToAssets(vars.initialFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.initialAaveVaultBalance)
+            + newVault.convertToAssets(vars.initialNewVaultBalance);
+
+        vars.finalTotalValue = fluidVault.convertToAssets(vars.finalFluidVaultBalance)
+            + aaveVault.convertToAssets(vars.finalAaveVaultBalance) + newVault.convertToAssets(vars.finalNewVaultBalance);
+        assertApproxEqRel(
+            vars.finalTotalValue, vars.initialTotalValue, 0.01e18, "Total value should be preserved during allocation"
+        );
+    }
+
+    function _rebalanceFromAaveToFluid(
+        RebalanceVars memory vars,
+        address[] memory hooksAddresses,
+        bytes[] memory hooksData
+    )
+        private
+    {
+        _rebalanceFromVaultToVault(
+            hooksAddresses,
+            hooksData,
+            address(aaveVault),
+            address(fluidVault),
+            vars.targetFluidVaultAssets,
+            vars.currentFluidVaultAssets
+        );
+    }
+
+    function _rebalanceFromFluidToAave(
+        RebalanceVars memory vars,
+        address[] memory hooksAddresses,
+        bytes[] memory hooksData
+    )
+        private
+    {
+        _rebalanceFromVaultToVault(
+            hooksAddresses,
+            hooksData,
+            address(fluidVault),
+            address(aaveVault),
+            vars.targetAaveVaultAssets,
+            vars.currentAaveVaultAssets
+        );
     }
 }
