@@ -193,6 +193,8 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         returns (bool)
     {
         uint256 len = dstTokens.length;
+        if (len != intentAmounts.length) revert INVALID_BALANCE_ARRAY_LENGTH();
+
         for (uint256 i; i < len; i++) {
             address _token = dstTokens[i];
             uint256 _intentAmount = intentAmounts[i];

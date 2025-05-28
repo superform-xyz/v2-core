@@ -75,6 +75,10 @@ interface ISuperExecutor {
     /// @dev Ensures operations only proceed when proper compensation can be provided
     error INSUFFICIENT_BALANCE_FOR_FEE();
 
+    /// @notice Thrown when the length of token and amount arrays do not match
+    /// @dev Ensures proper alignment of token and amount arrays for balance validation
+    error INVALID_BALANCE_ARRAY_LENGTH();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
