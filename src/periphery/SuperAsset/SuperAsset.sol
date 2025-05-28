@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import { console } from "forge-std/console.sol";
+
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -642,7 +644,7 @@ contract SuperAsset is ERC20, ISuperAsset {
             uint256 balance = IERC20(token).balanceOf(address(this));
             if (balance == 0) continue;
 
-            (uint256 priceUSD,) = _fetchPrices(token);
+            uint256 priceUSD = _fetchTokenPriceUSD(token);
 
             uint256 valueUSD = Math.mulDiv(balance, priceUSD, 10 ** IERC20Metadata(token).decimals());
             totalValueUSD += valueUSD;
@@ -784,16 +786,14 @@ contract SuperAsset is ERC20, ISuperAsset {
         }
     }
 
-    /// @dev Fetches the prices of a token and the super asset shares
+    /// @dev Fetches the price of a token in USD
     /// @param token The address of the token to fetch the prices for
     /// @return priceUSDToken The price of the token in USD
-    /// @return priceUSDSuperAssetShares The price of the super asset shares in USD
-    function _fetchPrices(address token)
+    function _fetchTokenPriceUSD(address token)
         internal
         view
-        returns (uint256 priceUSDToken, uint256 priceUSDSuperAssetShares)
+        returns (uint256 priceUSDToken)
     {
-        priceUSDSuperAssetShares = getSuperAssetPPS();
         ISuperOracle superOracle = ISuperOracle(superGovernor.getAddress(superGovernor.SUPER_ORACLE()));
         uint256 oneUnit = 10 ** IERC20Metadata(token).decimals();
 
@@ -834,7 +834,8 @@ contract SuperAsset is ERC20, ISuperAsset {
         returns (uint256 amountSharesMinted)
     {
         // Get price of underlying vault shares in USD
-        (uint256 priceUSDTokenIn, uint256 priceUSDSuperAssetShares) = _fetchPrices(tokenIn);
+        uint256 priceUSDTokenIn = _fetchTokenPriceUSD(tokenIn);
+        uint256 priceUSDSuperAssetShares = getSuperAssetPPS();
 
         // Calculate SuperUSD shares to mint
         amountSharesMinted = Math.mulDiv(amountTokenInAfterFees, priceUSDTokenIn, priceUSDSuperAssetShares);
@@ -859,7 +860,8 @@ contract SuperAsset is ERC20, ISuperAsset {
         returns (uint256 amountTokenOutBeforeFees)
     {
         // Get price of underlying vault shares in USD
-        (uint256 priceUSDTokenOut, uint256 priceUSDSuperAssetShares) = _fetchPrices(tokenOut);
+        uint256 priceUSDTokenOut = _fetchTokenPriceUSD(tokenOut);
+        uint256 priceUSDSuperAssetShares = getSuperAssetPPS();
 
         amountTokenOutBeforeFees = Math.mulDiv(amountTokenOutToRedeem, priceUSDSuperAssetShares, priceUSDTokenOut);
 
