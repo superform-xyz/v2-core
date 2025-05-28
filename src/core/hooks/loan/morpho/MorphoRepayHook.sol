@@ -202,7 +202,8 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
         if (amount == 0) revert AMOUNT_NOT_VALID();
         uint256 fee = deriveFeeAmount(marketParams);
         uint256 interest = deriveInterest(marketParams);
-        uint256 totalAmount = amount + fee + interest;
-        if (amount < totalAmount) revert AMOUNT_NOT_VALID();
+        
+        // Ensure amount is at least enough to cover fee and interest
+        if (amount < fee + interest) revert AMOUNT_NOT_VALID();
     }
 }
