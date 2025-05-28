@@ -637,43 +637,14 @@ contract SuperAsset is ERC20, ISuperAsset {
         uint256 totalValueUSD;
         uint256 len = _activeAssets.length();
 
-        address superOracleAddress = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
-
-        ISuperOracle superOracle = ISuperOracle(superOracleAddress);
-
         for (uint256 i; i < len; i++) {
             address token = _activeAssets.at(i);
             uint256 balance = IERC20(token).balanceOf(address(this));
             if (balance == 0) continue;
 
-            uint256 tokenDecimals = IERC20Metadata(token).decimals();
-            uint256 oneUnit = 10 ** tokenDecimals;
+            (uint256 priceUSD,) = _fetchPrices(token);
 
-            uint256 priceUSD;
-            if (tokenData[token].oracle == superOracleAddress) {
-                try superOracle.getQuoteFromProvider(oneUnit, token, USD, AVERAGE_PROVIDER) returns (
-                    uint256 _priceUSD, uint256, uint256, uint256
-                ) {
-                    priceUSD = _priceUSD;
-                } catch {
-                    priceUSD = superOracle.getEmergencyPrice(token);
-                }
-            } else {
-                uint256 pricePerShare = IYieldSourceOracle(tokenData[token].oracle).getPricePerShare(token);
-
-                uint256 ppsUSD;
-                try superOracle.getQuoteFromProvider(oneUnit, token, USD, AVERAGE_PROVIDER) returns (
-                    uint256 _priceUSD, uint256, uint256, uint256
-                ) {
-                    ppsUSD = _priceUSD;
-                } catch {
-                    ppsUSD = superOracle.getEmergencyPrice(token);
-                }
-
-                priceUSD = pricePerShare * ppsUSD;
-            }
-
-            uint256 valueUSD = Math.mulDiv(balance, priceUSD, 10 ** tokenDecimals);
+            uint256 valueUSD = Math.mulDiv(balance, priceUSD, 10 ** IERC20Metadata(token).decimals());
             totalValueUSD += valueUSD;
         }
 
