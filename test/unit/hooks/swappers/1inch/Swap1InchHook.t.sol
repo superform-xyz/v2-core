@@ -136,42 +136,42 @@ contract Swap1InchHookTest is Helpers {
         Execution[] memory executions = hook.build(address(0), account, hookData);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions[0].value, 0, "A");
 
         selectorOffset = 4;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
         executions = hook.build(address(0), account, hookData);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions[0].value, 0, "B");
 
         selectorOffset = 8;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
         executions = hook.build(address(0), account, hookData);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions[0].value, 0, "C");
 
         selectorOffset = 12;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
         executions = hook.build(address(0), account, hookData);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions[0].value, 0, "D");
 
         selectorOffset = 16;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
         executions = hook.build(address(0), account, hookData);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions[0].value, 0, "E");
 
         selectorOffset = 16;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, true);
         executions = hook.build(address(this), account, hookData);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions[0].value, 1000, "F");
 
         selectorOffset = 16;
         hookData = _buildCurveHookData(selectorOffset, true, dstReceiver, 1000, 100, false);
