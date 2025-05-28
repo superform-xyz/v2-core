@@ -651,7 +651,6 @@ contract SuperAsset is ERC20, ISuperAsset {
 
             uint256 priceUSD;
             if (tokenData[token].oracle == superOracleAddress) {
-                
                 try superOracle.getQuoteFromProvider(oneUnit, token, USD, AVERAGE_PROVIDER) returns (
                     uint256 _priceUSD, uint256, uint256, uint256
                 ) {
@@ -661,7 +660,7 @@ contract SuperAsset is ERC20, ISuperAsset {
                 }
             } else {
                 uint256 pricePerShare = IYieldSourceOracle(tokenData[token].oracle).getPricePerShare(token);
-                
+
                 uint256 ppsUSD;
                 try superOracle.getQuoteFromProvider(oneUnit, token, USD, AVERAGE_PROVIDER) returns (
                     uint256 _priceUSD, uint256, uint256, uint256
@@ -824,11 +823,29 @@ contract SuperAsset is ERC20, ISuperAsset {
         returns (uint256 priceUSDToken, uint256 priceUSDSuperAssetShares)
     {
         priceUSDSuperAssetShares = getSuperAssetPPS();
+        ISuperOracle superOracle = ISuperOracle(superGovernor.getAddress(superGovernor.SUPER_ORACLE()));
+        uint256 oneUnit = 10 ** IERC20Metadata(token).decimals();
+
         if (tokenData[token].oracle == superGovernor.getAddress(superGovernor.SUPER_ORACLE())) {
-            (priceUSDToken,,,) = getPriceWithCircuitBreakers(token);
+            try superOracle.getQuoteFromProvider(oneUnit, token, USD, AVERAGE_PROVIDER) returns (
+                uint256 _priceUSD, uint256, uint256, uint256
+            ) {
+                priceUSDToken = _priceUSD;
+            } catch {
+                priceUSDToken = superOracle.getEmergencyPrice(token);
+            }
         } else {
             uint256 pricePerShare = IYieldSourceOracle(tokenData[token].oracle).getPricePerShare(token);
-            (uint256 ppsUSD,,,) = getPriceWithCircuitBreakers(token);
+
+            uint256 ppsUSD;
+            try superOracle.getQuoteFromProvider(oneUnit, token, USD, AVERAGE_PROVIDER) returns (
+                uint256 _priceUSD, uint256, uint256, uint256
+            ) {
+                ppsUSD = _priceUSD;
+            } catch {
+                ppsUSD = superOracle.getEmergencyPrice(token);
+            }
+
             priceUSDToken = pricePerShare * ppsUSD;
         }
     }
