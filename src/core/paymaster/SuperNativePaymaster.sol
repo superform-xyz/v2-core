@@ -62,7 +62,10 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         // note: msg.sender is the SuperBundler on same chain, or a cross-chain Gateway contract on the destination
         // chain
         entryPoint.handleOps(ops, payable(msg.sender));
-        entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
+        uint256 withdrawnAmount = entryPoint.getDepositInfo(address(this)).deposit;
+        entryPoint.withdrawTo(payable(msg.sender), withdrawnAmount);
+
+        emit UserOperationsHandled(msg.sender, ops.length, balance, withdrawnAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
