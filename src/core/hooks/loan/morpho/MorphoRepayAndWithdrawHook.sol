@@ -149,17 +149,22 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     }
 
     /// @inheritdoc ISuperHookLoans
-    function getUsedAssets(address account, bytes memory data) external view returns (uint256) {
-        BuildHookLocalVars memory vars = _decodeHookData(data);
-        MarketParams memory marketParams =
-            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
-        Id id = marketParams.id();
-        if (vars.isFullRepayment) {
-            return outAmount + deriveCollateralForFullRepayment(id, account) + deriveInterest(marketParams);
-        } else {
-            return outAmount;
+        function getUsedAssets(address account, bytes memory data) external view returns (uint256) {
+            BuildHookLocalVars memory vars = _decodeHookData(data);
+            MarketParams memory marketParams = _generateMarketParams(
+                vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv
+            );
+            Id id = marketParams.id();
+            
+            if (vars.isFullRepayment) {
+                // For full repayment, only count the actual cost to the user:
+                // loan principal + interest (collateral is received, not spent)
+                return deriveLoanAmount(id, account) + deriveInterest(marketParams);
+            } else {
+                // For partial repayment, outAmount represents the actual repayment amount
+                return outAmount;
+            }
         }
-    }
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
