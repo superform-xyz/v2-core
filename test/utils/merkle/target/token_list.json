@@ -59,10 +59,6 @@
     {
       "symbol": "GearboxVault",
       "address": "0xda00000035fef4082F78dEF6A8903bee419FbF8E"
-    },
-    {
-      "symbol": "NewVaultAllocate",
-      "address": "0x8b26827CCA35B559599d64d7147badF7d9Dc291D"
     }
   ],
   "10": [

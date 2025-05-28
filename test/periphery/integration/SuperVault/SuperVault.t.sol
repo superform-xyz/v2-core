@@ -2776,10 +2776,8 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         // do an initial allo
         _completeDepositFlow(vars.depositAmount);
+        IERC4626 newVault = IERC4626(CHAIN_1_EulerVault);
 
-        // add new vault as yield source
-        Mock4626Vault newVault = new Mock4626Vault{ salt: "TEST" }(address(asset), "New Vault", "NV");
-        console2.log("newVault", address(newVault));
         //  -- add funds to the newVault to respect LARGE_DEPOSIT
         _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);
         asset.approve(address(newVault), type(uint256).max);
