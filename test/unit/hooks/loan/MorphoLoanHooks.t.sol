@@ -603,13 +603,14 @@ contract MorphoLoanHooksTest is Helpers {
                       PRE/POST EXECUTE TESTS
     //////////////////////////////////////////////////////////////*/
     function test_BorrowHook_PrePostExecute() public {
+        loanToken = collateralToken;
         bytes memory data = _encodeBorrowData(false);
-        deal(address(collateralToken), address(this), amount);
+        deal(address(loanToken), address(this), amount);
         borrowHook.preExecute(address(0), address(this), data);
-        assertEq(borrowHook.outAmount(), amount);
+        assertEq(borrowHook.outAmount(), amount, "A");
 
         borrowHook.postExecute(address(0), address(this), data);
-        assertEq(borrowHook.outAmount(), 0);
+        assertEq(borrowHook.outAmount(), 0, "B");
     }
 
     function test_RepayHook_PrePostExecute() public {
