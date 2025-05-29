@@ -172,9 +172,6 @@ interface ISuperAsset is IERC20 {
         uint256 extraSlot;
         address vault;
         uint256 priceUSD;
-        bool isDepeg;
-        bool isDispersion;
-        bool isOracleOff;
         uint256 balance;
         uint256 absDeltaValue;
         int256 deltaValue;
@@ -250,9 +247,24 @@ interface ISuperAsset is IERC20 {
     /// @return TokenData structure containing the token data
     function getTokenData(address token) external view returns (TokenData memory);
 
-    /// @notice Returns the PPS of the SuperAsset
-    /// @return PPS of the SuperAsset
-    function getSuperAssetPPS() external view returns (uint256);
+    /// @notice Returns the PPS of the SuperAsset and the prices of the tokens in USD
+    /// @return activeTokens Array of active tokens
+    /// @return pricePerTokenUSD Array of prices in USD
+    /// @return isDepeg Array of depeg breakers
+    /// @return isDispersion Array of dispersion breakers
+    /// @return isOracleOff Array of oracle off breakers
+    /// @return pps PPS of the SuperAsset
+    function getSuperAssetPPS()
+        external
+        view
+        returns (
+            address[] memory activeTokens,
+            uint256[] memory pricePerTokenUSD,
+            bool[] memory isDepeg,
+            bool[] memory isDispersion,
+            bool[] memory isOracleOff,
+            uint256 pps
+        );
 
     /// @notice Mints new tokens. Can only be called by accounts with MINTER_ROLE.
     /// @param to The address that will receive the minted tokens
@@ -282,6 +294,7 @@ interface ISuperAsset is IERC20 {
     /// @notice Gets the allocations before and after an operation
     /// @param token The token address involved in the operation
     /// @param deltaToken The change in token amount (positive for deposit, negative for withdrawal)
+    /// @param circuitBreakerTriggered Whether the circuit breaker is triggered
     /// @param isSoft Whether the operation is soft or strict on checks
     /// @return absoluteAllocationPreOperation Array of pre-operation absolute allocations
     /// @return totalAllocationPreOperation Sum of all pre-operation allocations
@@ -294,6 +307,7 @@ interface ISuperAsset is IERC20 {
     function getAllocationsPrePostOperation(
         address token,
         int256 deltaToken,
+        bool circuitBreakerTriggered,
         bool isSoft
     )
         external
@@ -332,7 +346,11 @@ interface ISuperAsset is IERC20 {
         uint256 minSharesOut // Slippage Protection
     )
         external
-        returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit);
+        returns (
+            uint256 amountSharesMinted,
+            uint256 swapFee,
+            int256 amountIncentiveUSDDeposit
+        );
 
     /// @notice Redeems SuperUSD shares for underlying assets from a whitelisted vault.
     /// @param receiver The address to receive the output assets.
@@ -403,7 +421,10 @@ interface ISuperAsset is IERC20 {
     /// @param isSoft Whether the operation is soft or strict on checks
     /// @return amountSharesMinted The amount of SuperUSD shares that would be minted.
     /// @return swapFee The amount of swap fee paid.
-    /// @return amountIncentiveUSD The amount of incentives in USD.
+    /// @return amountIncentiveUSDDeposit The amount of incentives in USD.
+    /// @return isTokenInDepeg Whether the token in is depegged.
+    /// @return isTokenInDispersion Whether the token in is dispersed.
+    /// @return isTokenInOracleOff Whether the token in is oracle off.
     /// @return isSuccess Whether the preview was successful.
     function previewDeposit(
         address tokenIn,
@@ -412,7 +433,15 @@ interface ISuperAsset is IERC20 {
     )
         external
         view
-        returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess);
+        returns (
+            uint256 amountSharesMinted,
+            uint256 swapFee,
+            int256 amountIncentiveUSDDeposit,
+            bool isTokenInDepeg,
+            bool isTokenInDispersion,
+            bool isTokenInOracleOff,
+            bool isSuccess
+        );
 
     /// @notice Preview a redemption.
     /// @param tokenOut The address of the underlying asset to redeem for.
@@ -429,7 +458,12 @@ interface ISuperAsset is IERC20 {
     )
         external
         view
-        returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess);
+        returns (
+            uint256 amountTokenOutAfterFees,
+            uint256 swapFee,
+            int256 amountIncentiveUSD,
+            bool isSuccess
+        );
 
     /// @notice Preview a swap.
     /// @param tokenIn The address of the input asset.

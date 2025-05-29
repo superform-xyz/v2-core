@@ -355,8 +355,15 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
 
-        (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit, bool isSuccess) =
-            superAsset.previewDeposit(address(tokenIn), depositAmount, false);
+        (
+            uint256 expAmountSharesMinted,
+            uint256 expSwapFee,
+            int256 expAmountIncentiveUSDDeposit,
+            bool isTokenInDepeg,
+            bool isTokenInDispersion,
+            bool isTokenInOracleOff,
+            bool isSuccess
+        ) = superAsset.previewDeposit(address(tokenIn), depositAmount, false);
         assertEq(isSuccess, true, "isSuccess should be true, because of zero initial allocation");
 
         console.log("test_BasicDepositSimple() Preview");
@@ -463,8 +470,15 @@ contract SuperAssetTest is Helpers {
     function test_BasicRedeem() public {
         // First deposit to get some shares
         uint256 depositAmount = 100e18;
-        (uint256 expSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSD,) =
-            superAsset.previewDeposit(address(tokenIn), depositAmount, false);
+        (
+            uint256 expSharesMinted,
+            uint256 expSwapFee,
+            int256 expAmountIncentiveUSD,
+            bool isTokenInDepeg,
+            bool isTokenInDispersion,
+            bool isTokenInOracleOff,
+            bool isSuccess
+        ) = superAsset.previewDeposit(address(tokenIn), depositAmount, false);
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
         (uint256 sharesMinted, uint256 swapFee, int256 amountIncentiveUSD) =
@@ -482,7 +496,7 @@ contract SuperAssetTest is Helpers {
         uint256 sharesToRedeem = sharesMinted / 2;
         uint256 minTokenOut = sharesToRedeem * 99 / 100; // Allowing for 1% slippage
 
-        (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem,) =
+        (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem, isSuccess) =
             superAsset.previewRedeem(address(tokenIn), sharesToRedeem, false);
         assertGt(expAmountTokenOutAfterFees, 0, "Should receive tokens");
         assertGt(expSwapFee, 0, "Should pay swap fees");
