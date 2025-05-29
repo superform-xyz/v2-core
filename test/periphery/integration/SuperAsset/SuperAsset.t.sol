@@ -355,21 +355,9 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
 
-        (
-            uint256 expAmountSharesMinted,
-            uint256 expSwapFee,
-            int256 expAmountIncentiveUSDDeposit,
-            bool isTokenInDepeg,
-            bool isTokenInDispersion,
-            bool isTokenInOracleOff,
-            bool isSuccess
-        ) = superAsset.previewDeposit(address(tokenIn), depositAmount, false);
+        (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit,,,, bool isSuccess) =
+            superAsset.previewDeposit(address(tokenIn), depositAmount, false);
         assertEq(isSuccess, true, "isSuccess should be true, because of zero initial allocation");
-
-        console.log("test_BasicDepositSimple() Preview");
-        console.log("Amount Shares Minted:", expAmountSharesMinted);
-        console.log("Swap Fee:", expSwapFee);
-        console.log("Amount Incentive USD Deposit:", expAmountIncentiveUSDDeposit);
 
         uint256 b1 = tokenIn.balanceOf(address(superBank));
         // Deposit tokens
@@ -380,11 +368,6 @@ contract SuperAssetTest is Helpers {
         assertEq(expAmountSharesMinted, amountSharesMinted);
         assertEq(expSwapFee, swapFee);
         assertEq(expAmountIncentiveUSDDeposit, amountIncentiveUSDDeposit);
-        console.log("test_BasicDepositSimple() Deposit");
-        console.log("Amount Shares Minted:", amountSharesMinted);
-        console.log("Swap Fee:", swapFee);
-        console.log("Amount Incentive USD Deposit:", amountIncentiveUSDDeposit);
-        console.log("test_BasicDepositSimple() End");
 
         // Verify results
         assertGt(amountSharesMinted, 0, "Should mint shares");
