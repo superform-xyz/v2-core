@@ -49,7 +49,9 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /// @notice Magic value returned by ERC-1271 contracts when a signature is valid
     /// @dev From EIP-1271 standard:
     /// https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
-    bytes4 internal constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
+    /// @dev From `SuperDestinationValidator`:
+    /// `bytes4(keccak256("isValidDestinationSignature(address,bytes)")) = 0x5c2ec0f3`
+    bytes4 internal constant SIGNATURE_MAGIC_VALUE = bytes4(0x5c2ec0f3);
 
     /// @notice Length of an empty execution data structure
     /// @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays
