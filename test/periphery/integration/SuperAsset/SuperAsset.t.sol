@@ -26,6 +26,7 @@ contract SuperAssetTest is Helpers {
     bytes32 public constant PROVIDER_4 = keccak256("PROVIDER_4");
     bytes32 public constant PROVIDER_5 = keccak256("PROVIDER_5");
     bytes32 public constant PROVIDER_6 = keccak256("PROVIDER_6");
+    bytes32 public constant PROVIDER_PRIMARY_ASSET = keccak256("PROVIDER_PRIMARY_ASSET");
     bytes32 public constant PROVIDER_SUPERASSET = keccak256("PROVIDER_SUPERASSET");
     bytes32 public constant PROVIDER_SUPERVAULT1 = keccak256("PROVIDER_SUPERVAULT1");
     bytes32 public constant PROVIDER_SUPERVAULT2 = keccak256("PROVIDER_SUPERVAULT2");
@@ -49,6 +50,7 @@ contract SuperAssetTest is Helpers {
     MockAggregator public mockFeed4;
     MockAggregator public mockFeed5;
     MockAggregator public mockFeed6;
+    MockAggregator public mockFeedPrimaryAsset;
     IncentiveCalculationContract public icc;
     IncentiveFundContract public incentiveFund;
     SuperVaultAggregator public aggregator;
@@ -106,6 +108,8 @@ contract SuperAssetTest is Helpers {
         mockFeedSuperAssetShares1 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeedSuperVault1Shares = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeedSuperVault2Shares = new MockAggregator(1e8, 8); // Token/USD = $1
+        //mockFeedPrimaryAsset = new MockAggregator(1e18, 18); 
+        mockFeedPrimaryAsset = new MockAggregator(1e8, 8);
 
         mockFeed1 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed2 = new MockAggregator(1e8, 8); // Token/USD = $1
@@ -117,6 +121,7 @@ contract SuperAssetTest is Helpers {
 
         // Update timestamps to ensure prices are fresh
         mockFeedSuperAssetShares1.setUpdatedAt(block.timestamp);
+        mockFeedPrimaryAsset.setUpdatedAt(block.timestamp);
         mockFeed1.setUpdatedAt(block.timestamp);
         mockFeed2.setUpdatedAt(block.timestamp);
         mockFeed3.setUpdatedAt(block.timestamp);
@@ -126,7 +131,7 @@ contract SuperAssetTest is Helpers {
         console.log("Feed timestamps updated");
 
         // Setup oracle parameters with regular providers
-        address[] memory bases = new address[](7);
+        address[] memory bases = new address[](8);
         bases[0] = address(underlyingToken1);
         bases[1] = address(underlyingToken1);
         bases[2] = address(underlyingToken1);
@@ -134,8 +139,9 @@ contract SuperAssetTest is Helpers {
         bases[4] = address(underlyingToken2);
         bases[5] = address(underlyingToken2);
         bases[6] = address(superAsset);
+        bases[7] = address(primaryAsset);
 
-        address[] memory quotes = new address[](7);
+        address[] memory quotes = new address[](8);
         quotes[0] = USD;
         quotes[1] = USD;
         quotes[2] = USD;
@@ -143,8 +149,9 @@ contract SuperAssetTest is Helpers {
         quotes[4] = USD;
         quotes[5] = USD;
         quotes[6] = USD;
+        quotes[7] = USD;
 
-        bytes32[] memory providers = new bytes32[](7);
+        bytes32[] memory providers = new bytes32[](8);
         providers[0] = PROVIDER_1;
         providers[1] = PROVIDER_2;
         providers[2] = PROVIDER_3;
@@ -152,8 +159,9 @@ contract SuperAssetTest is Helpers {
         providers[4] = PROVIDER_5;
         providers[5] = PROVIDER_6;
         providers[6] = PROVIDER_SUPERASSET;
+        providers[7] = PROVIDER_PRIMARY_ASSET;
 
-        address[] memory feeds = new address[](7);
+        address[] memory feeds = new address[](8);
         feeds[0] = address(mockFeed1);
         feeds[1] = address(mockFeed2);
         feeds[2] = address(mockFeed3);
@@ -161,6 +169,7 @@ contract SuperAssetTest is Helpers {
         feeds[4] = address(mockFeed5);
         feeds[5] = address(mockFeed6);
         feeds[6] = address(mockFeedSuperAssetShares1);
+        feeds[7] = address(mockFeedPrimaryAsset);
 
         // Deploy factory and contracts
         factory = new SuperAssetFactory(address(superGovernor));
@@ -223,7 +232,7 @@ contract SuperAssetTest is Helpers {
         superGovernor.setOracleFeedMaxStaleness(address(mockFeedSuperAssetShares1), 14 days);
         superGovernor.setOracleFeedMaxStaleness(address(mockFeedSuperVault1Shares), 14 days);
         superGovernor.setOracleFeedMaxStaleness(address(mockFeedSuperVault2Shares), 14 days);
-        superGovernor.setEmergencyPrice(address(primaryAsset), 1e18);
+        superGovernor.setEmergencyPrice(address(primaryAsset), 1e8);
         vm.stopPrank();
 
         console.log("Feed staleness set");
@@ -457,6 +466,9 @@ contract SuperAssetTest is Helpers {
         assertEq(expSwapFee, swapFee);
         assertEq(expAmountIncentiveUSD, amountIncentiveUSD);
 
+        tokenIn.approve(address(superAsset), depositAmount);
+        superAsset.deposit(user, address(tokenIn), depositAmount, 0);
+
         // Now redeem the shares
         uint256 amountTokenOutAfterFees;
         int256 amountIncentiveUSDRedeem;
@@ -466,12 +478,12 @@ contract SuperAssetTest is Helpers {
         uint256 minTokenOut = sharesToRedeem * 99 / 100; // Allowing for 1% slippage
 
         (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem, isSuccess) =
-            superAsset.previewRedeem(address(tokenOut), sharesToRedeem, false);
+            superAsset.previewRedeem(address(tokenIn), sharesToRedeem, false);
         assertGt(expAmountTokenOutAfterFees, 0, "Should receive tokens");
         assertGt(expSwapFee, 0, "Should pay swap fees");
 
         (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem) =
-            superAsset.redeem(user, sharesToRedeem, address(tokenOut), minTokenOut);
+            superAsset.redeem(user, sharesToRedeem, address(tokenIn), minTokenOut);
         vm.stopPrank();
 
         assertEq(expAmountTokenOutAfterFees, amountTokenOutAfterFees);
