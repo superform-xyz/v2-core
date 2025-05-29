@@ -33,6 +33,7 @@ contract ERC5115Ledger is BaseLedger {
         override
         returns (uint256)
     {
+        if (decimals == 0) revert INVALID_DECIMALS();
         return Math.mulDiv(usedShares, pps, 10 ** decimals);
     }
 }
