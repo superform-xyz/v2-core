@@ -79,7 +79,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
 
             if (existingConfig.manager != msg.sender) revert NOT_MANAGER();
 
-            if (yieldSourceOracleConfigProposalExpirationTime[config.yieldSourceOracleId] > 0) {
+            if (yieldSourceOracleConfigProposalExpirationTime[config.yieldSourceOracleId] > block.timestamp) {
                 revert CHANGE_ALREADY_PROPOSED();
             }
 
