@@ -117,20 +117,20 @@ interface ISuperAsset is IERC20 {
     /// @notice Thrown when price in USD is zero
     error PRICE_USD_ZERO();
 
-    /// @notice Thrown when underlying SV asset price is zero
-    error UNDERLYING_SV_ASSET_PRICE_ZERO();
+    /// @notice Thrown when a supported asset price is oracle off
+    error SUPPORTED_ASSET_PRICE_ORACLE_OFF(address assetWithBreakerTriggered);
 
-    /// @notice Thrown when underlying SV asset price is oracle off
-    error UNDERLYING_SV_ASSET_PRICE_ORACLE_OFF();
+    /// @notice Thrown when a supported asset price is depegged
+    error SUPPORTED_ASSET_PRICE_DEPEG(address assetWithBreakerTriggered);
 
-    /// @notice Thrown when underlying SV asset price is depegged
-    error UNDERLYING_SV_ASSET_PRICE_DEPEG();
+    /// @notice Thrown when a supported asset price is dispersed
+    error SUPPORTED_ASSET_PRICE_DISPERSION(address assetWithBreakerTriggered);
 
-    /// @notice Thrown when underlying SV asset price is dispersed
-    error UNDERLYING_SV_ASSET_PRICE_DISPERSION();
+    /// @notice Thrown when a supported asset price is 0
+    error SUPPORTED_ASSET_PRICE_ZERO(address assetWithBreakerTriggered);
 
-    /// @notice Thrown when deposit fails
-    error DEPOSIT_FAILED();
+    /// @notice Thrown when incentive calculation fails (only if totalSupply != 0)
+    error INCENTIVE_CALCULATION_FAILED();
 
     /// @notice Thrown when redeem fails
     error REDEEM_FAILED();
@@ -157,12 +157,12 @@ interface ISuperAsset is IERC20 {
     /// @param length Length of the array
     /// @param extendedLength Extended length of the array
     /// @param extraSlot Extra slot for the array
-    /// @param vault Address of the vault
-    /// @param priceUSD Price of the vault in USD
-    /// @param isDepeg Whether the vault is depegged
-    /// @param isDispersion Whether the vault is dispersed
+    /// @param token Address of the token
+    /// @param priceUSD Price of the token in USD
+    /// @param isDepeg Whether the token is depegged
+    /// @param isDispersion Whether the token is dispersed
     /// @param isOracleOff Whether the oracle is off
-    /// @param balance Balance of the vault
+    /// @param balance Balance of the token
     /// @param absDeltaValue Absolute delta value
     /// @param deltaValue Delta value
     /// @param absDeltaToken Absolute delta token
@@ -170,7 +170,7 @@ interface ISuperAsset is IERC20 {
         uint256 length;
         uint256 extendedLength;
         uint256 extraSlot;
-        address vault;
+        address token;
         uint256 priceUSD;
         uint256 balance;
         uint256 absDeltaValue;
@@ -186,7 +186,6 @@ interface ISuperAsset is IERC20 {
     /// @param absoluteTargetAllocation Array of target absolute allocations
     /// @param totalTargetAllocation Sum of all target allocations
     /// @param vaultWeights Array of vault weights
-    /// @param isSuccess Whether the operation was successful
     struct GetPrePostAllocationReturnValues {
         uint256[] absoluteAllocationPreOperation;
         uint256 totalAllocationPreOperation;
@@ -195,7 +194,6 @@ interface ISuperAsset is IERC20 {
         uint256[] absoluteTargetAllocation;
         uint256 totalTargetAllocation;
         uint256[] vaultWeights;
-        bool isSuccess;
     }
 
     /// @notice Structure used for previewing deposit
@@ -346,11 +344,7 @@ interface ISuperAsset is IERC20 {
         uint256 minSharesOut // Slippage Protection
     )
         external
-        returns (
-            uint256 amountSharesMinted,
-            uint256 swapFee,
-            int256 amountIncentiveUSDDeposit
-        );
+        returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit);
 
     /// @notice Redeems SuperUSD shares for underlying assets from a whitelisted vault.
     /// @param receiver The address to receive the output assets.
@@ -458,12 +452,7 @@ interface ISuperAsset is IERC20 {
     )
         external
         view
-        returns (
-            uint256 amountTokenOutAfterFees,
-            uint256 swapFee,
-            int256 amountIncentiveUSD,
-            bool isSuccess
-        );
+        returns (uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess);
 
     /// @notice Preview a swap.
     /// @param tokenIn The address of the input asset.
