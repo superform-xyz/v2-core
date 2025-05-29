@@ -40,6 +40,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
     error INVALID_INPUT_AMOUNT();
     error INVALID_OUTPUT_AMOUNT();
     error INVALID_SELECTOR_OFFSET();
+    error INSUFFICIENT_DATA_LENGTH();
     error PARTIAL_FILL_NOT_ALLOWED();
     error INVALID_DESTINATION_TOKEN();
 
@@ -64,6 +65,8 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         override
         returns (Execution[] memory executions)
     {
+        require(data.length >= 73, INSUFFICIENT_DATA_LENGTH());
+
         address dstToken = address(bytes20(data[:20]));
         address dstReceiver = address(bytes20(data[20:40]));
         uint256 value = uint256(bytes32(data[40:USE_PREV_HOOK_AMOUNT_POSITION]));
