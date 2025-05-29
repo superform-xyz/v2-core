@@ -1,8 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.30;
 
-import { Test } from "forge-std/Test.sol";
-import "forge-std/console.sol";
+import { console } from "forge-std/console.sol";
 import { ERC4626YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
 import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
@@ -14,9 +13,7 @@ import { SuperOracle } from "../../../../src/periphery/oracles/SuperOracle.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { Mock4626Vault } from "../../../mocks/Mock4626Vault.sol";
 import { MockAggregator } from "../../mocks/MockAggregator.sol";
-import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
 import { SuperAssetFactory, ISuperAssetFactory } from "../../../../src/periphery/SuperAsset/SuperAssetFactory.sol";
 import { SuperBank } from "../../../../src/periphery/SuperBank.sol";
@@ -61,6 +58,8 @@ contract SuperAssetTest is Helpers {
     address public manager;
     address public user;
     address public user11;
+
+    ERC4626YieldSourceOracle public yieldSourceOracle;
 
     // --- Setup ---
     function setUp() public {
@@ -127,7 +126,7 @@ contract SuperAssetTest is Helpers {
         console.log("Feed timestamps updated");
 
         // Setup oracle parameters with regular providers
-        address[] memory bases = new address[](9);
+        address[] memory bases = new address[](7);
         bases[0] = address(underlyingToken1);
         bases[1] = address(underlyingToken1);
         bases[2] = address(underlyingToken1);
@@ -135,10 +134,8 @@ contract SuperAssetTest is Helpers {
         bases[4] = address(underlyingToken2);
         bases[5] = address(underlyingToken2);
         bases[6] = address(superAsset);
-        bases[7] = address(tokenIn);
-        bases[8] = address(tokenOut);
 
-        address[] memory quotes = new address[](9);
+        address[] memory quotes = new address[](7);
         quotes[0] = USD;
         quotes[1] = USD;
         quotes[2] = USD;
@@ -146,10 +143,8 @@ contract SuperAssetTest is Helpers {
         quotes[4] = USD;
         quotes[5] = USD;
         quotes[6] = USD;
-        quotes[7] = USD;
-        quotes[8] = USD;
 
-        bytes32[] memory providers = new bytes32[](9);
+        bytes32[] memory providers = new bytes32[](7);
         providers[0] = PROVIDER_1;
         providers[1] = PROVIDER_2;
         providers[2] = PROVIDER_3;
@@ -157,10 +152,8 @@ contract SuperAssetTest is Helpers {
         providers[4] = PROVIDER_5;
         providers[5] = PROVIDER_6;
         providers[6] = PROVIDER_SUPERASSET;
-        providers[7] = PROVIDER_SUPERVAULT1;
-        providers[8] = PROVIDER_SUPERVAULT2;
 
-        address[] memory feeds = new address[](9);
+        address[] memory feeds = new address[](7);
         feeds[0] = address(mockFeed1);
         feeds[1] = address(mockFeed2);
         feeds[2] = address(mockFeed3);
@@ -168,8 +161,6 @@ contract SuperAssetTest is Helpers {
         feeds[4] = address(mockFeed5);
         feeds[5] = address(mockFeed6);
         feeds[6] = address(mockFeedSuperAssetShares1);
-        feeds[7] = address(mockFeedSuperVault1Shares);
-        feeds[8] = address(mockFeedSuperVault2Shares);
 
         // Deploy factory and contracts
         factory = new SuperAssetFactory(address(superGovernor));
@@ -194,6 +185,8 @@ contract SuperAssetTest is Helpers {
             tokenInIncentive: address(tokenIn),
             tokenOutIncentive: address(tokenOut)
         });
+
+        yieldSourceOracle = new ERC4626YieldSourceOracle();
 
         // NOTE: Whitelisting ICC so that's possible to instantiate SuperAsset using it
         superGovernor.addICCToWhitelist(address(icc));
@@ -237,15 +230,23 @@ contract SuperAssetTest is Helpers {
 
         // Set SuperAsset oracle
         vm.startPrank(admin);
-        superAsset.whitelistERC20(address(tokenIn));
+        superAsset.whitelistVault(address(tokenIn), address(yieldSourceOracle));
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
-        assertEq(tokenData.isSupportedERC20, true, "Token In should be whitelisted");
-        superAsset.whitelistERC20(address(tokenOut));
+        assertEq(tokenData.isSupportedUnderlyingVault, true, "Token In should be whitelisted");
+
+        superAsset.whitelistERC20(address(underlyingToken1));
+        tokenData = superAsset.getTokenData(address(underlyingToken1));
+        assertEq(tokenData.isSupportedERC20, true, "Underlying Token 1 should be whitelisted");
+
+        superAsset.whitelistVault(address(tokenOut), address(yieldSourceOracle));
         tokenData = superAsset.getTokenData(address(tokenOut));
-        assertEq(tokenData.isSupportedERC20, true, "Token Out should be whitelisted");
+        assertEq(tokenData.isSupportedUnderlyingVault, true, "Token Out should be whitelisted");
+
+        superAsset.whitelistERC20(address(underlyingToken2));
+        tokenData = superAsset.getTokenData(address(underlyingToken2));
+        assertEq(tokenData.isSupportedERC20, true, "Underlying Token 2 should be whitelisted");
+
         superAsset.whitelistERC20(address(superAsset)); // Todo: is this correct?
-        tokenData = superAsset.getTokenData(address(superAsset));
-        assertEq(tokenData.isSupportedERC20, true, "SuperAsset should be whitelisted");
         vm.stopPrank();
 
         console.log("Start Minting");
@@ -346,10 +347,6 @@ contract SuperAssetTest is Helpers {
         console.log("test_BasicDepositSimple() Start");
         uint256 depositAmount = 100e18;
         uint256 minSharesOut = 99e18; // Allowing for 1% slippage
-        ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
-        assertTrue(tokenData.isSupportedERC20);
-        ISuperAsset.TokenData memory tokenData2 = superAsset.getTokenData(address(tokenOut));
-        assertTrue(tokenData2.isSupportedERC20);
 
         // Approve tokens
         vm.startPrank(user);
@@ -394,10 +391,6 @@ contract SuperAssetTest is Helpers {
         BasicDepositWithCircuitBreaker memory s;
         s.depositAmount = 100e18;
         s.minSharesOut = 99e18; // Allowing for 1% slippage
-        ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
-        assertTrue(tokenData.isSupportedERC20);
-        ISuperAsset.TokenData memory tokenData2 = superAsset.getTokenData(address(tokenOut));
-        assertTrue(tokenData2.isSupportedERC20);
 
         // Approve tokens
         vm.startPrank(user);
@@ -453,15 +446,8 @@ contract SuperAssetTest is Helpers {
     function test_BasicRedeem() public {
         // First deposit to get some shares
         uint256 depositAmount = 100e18;
-        (
-            uint256 expSharesMinted,
-            uint256 expSwapFee,
-            int256 expAmountIncentiveUSD,
-            bool isTokenInDepeg,
-            bool isTokenInDispersion,
-            bool isTokenInOracleOff,
-            bool isSuccess
-        ) = superAsset.previewDeposit(address(tokenIn), depositAmount, false);
+        (uint256 expSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSD,,,, bool isSuccess) =
+            superAsset.previewDeposit(address(tokenIn), depositAmount, false);
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
         (uint256 sharesMinted, uint256 swapFee, int256 amountIncentiveUSD) =
@@ -480,12 +466,12 @@ contract SuperAssetTest is Helpers {
         uint256 minTokenOut = sharesToRedeem * 99 / 100; // Allowing for 1% slippage
 
         (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem, isSuccess) =
-            superAsset.previewRedeem(address(tokenIn), sharesToRedeem, false);
+            superAsset.previewRedeem(address(tokenOut), sharesToRedeem, false);
         assertGt(expAmountTokenOutAfterFees, 0, "Should receive tokens");
         assertGt(expSwapFee, 0, "Should pay swap fees");
 
         (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem) =
-            superAsset.redeem(user, sharesToRedeem, address(tokenIn), minTokenOut);
+            superAsset.redeem(user, sharesToRedeem, address(tokenOut), minTokenOut);
         vm.stopPrank();
 
         assertEq(expAmountTokenOutAfterFees, amountTokenOutAfterFees);
