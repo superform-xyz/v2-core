@@ -463,7 +463,7 @@ contract SuperAsset is ERC20, ISuperAsset {
             s.allocations.vaultWeights,
             s.allocations.isSuccess
         ) = getAllocationsPrePostOperation(tokenIn, int256(amountTokenToDeposit), !isSuccess, isSoft);
-            // !isSuccess, means circuit breaker triggered
+        // !isSuccess, means circuit breaker triggered
 
         if (!s.allocations.isSuccess) {
             return (0, 0, 0, false, false, false, false);
@@ -531,8 +531,8 @@ contract SuperAsset is ERC20, ISuperAsset {
             s.allocations.totalTargetAllocation,
             s.allocations.vaultWeights,
             s.allocations.isSuccess
-        ) = getAllocationsPrePostOperation(tokenOut, -int256(s.amountTokenOutBeforeFees), !isSuccess, isSoft); 
-            // !isSuccess, means circuit breaker triggered
+        ) = getAllocationsPrePostOperation(tokenOut, -int256(s.amountTokenOutBeforeFees), !isSuccess, isSoft);
+        // !isSuccess, means circuit breaker triggered
 
         if (!s.allocations.isSuccess) {
             return (0, 0, 0, false);
@@ -625,20 +625,20 @@ contract SuperAsset is ERC20, ISuperAsset {
         // @dev Passing oneUnit to get the price of a single unit of asset to check if it has depegged
         address superOracleAddress = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
         ISuperOracle superOracle = ISuperOracle(superOracleAddress);
-        try superOracle.getQuoteFromProvider(one, token, USD, AVERAGE_PROVIDER) returns (
-            uint256 _priceUSD, uint256 _stddev, uint256, uint256 _m
-        ) {
-            priceUSD = _priceUSD;
-            stddev = _stddev;
-            M = _m;
-        } catch {
-            priceUSD = superOracle.getEmergencyPrice(token);
-            isOracleOff = true;
-        }
-
-        address tokenOracle = tokenData[token].oracle;
-        if (tokenOracle != superOracleAddress) {
+        if (tokenData[token].isSupportedERC20) {
+            try superOracle.getQuoteFromProvider(one, token, USD, AVERAGE_PROVIDER) returns (
+                uint256 _priceUSD, uint256 _stddev, uint256, uint256 _m
+            ) {
+                priceUSD = _priceUSD;
+                stddev = _stddev;
+                M = _m;
+            } catch {
+                priceUSD = superOracle.getEmergencyPrice(token);
+                M = 0;
+            }
+        } else if (tokenData[token].isSupportedUnderlyingVault) {
             (priceUSD, stddev, M) = _derivePriceFromUnderlyingVault(token);
+            console.log("----vaultPriceUSD", priceUSD);
         }
 
         // Circuit Breaker for Oracle Off
@@ -659,6 +659,7 @@ contract SuperAsset is ERC20, ISuperAsset {
             } catch {
                 assetPriceUSD = superOracle.getEmergencyPrice(primaryAsset);
             }
+            console.log("----assetPriceUSD", assetPriceUSD);
             isDepeg = _isTokenDepeg(token, priceUSD, assetPriceUSD);
 
             // Calculate relative standard deviation
@@ -680,21 +681,21 @@ contract SuperAsset is ERC20, ISuperAsset {
             uint256 pps
         )
     {
-        uint256 totalValueUSD;
         uint256 len = _activeAssets.length();
-
         activeTokens = new address[](len);
         pricePerTokenUSD = new uint256[](len);
         isDepeg = new bool[](len);
         isDispersion = new bool[](len);
         isOracleOff = new bool[](len);
 
+        uint256 totalValueUSD;
         for (uint256 i; i < len; i++) {
             address token = _activeAssets.at(i);
             activeTokens[i] = token;
 
             (uint256 priceUSD, bool isTokenDepeg, bool isTokenDispersion, bool isTokenOracleOff) =
                 getPriceWithCircuitBreakers(token);
+            console.log("----priceUSD", priceUSD);
 
             pricePerTokenUSD[i] = priceUSD;
             isDepeg[i] = isTokenDepeg;
@@ -709,13 +710,15 @@ contract SuperAsset is ERC20, ISuperAsset {
         }
 
         uint256 totalSupply_ = totalSupply();
+        console.log("----totalSupply_", totalSupply_);
         // PPS = Total Value in USD / Total Supply, normalized to PRECISION
         if (totalSupply_ == 0) {
             pps = PRECISION;
         } else {
             pps = Math.mulDiv(totalValueUSD, PRECISION, totalSupply_);
+            console.log("----totalValueUSD", totalValueUSD);
+            console.log("----pps", pps);
         }
-        console.log("----pps", pps);
     }
 
     /// @inheritdoc ISuperAsset
@@ -1008,6 +1011,7 @@ contract SuperAsset is ERC20, ISuperAsset {
     {
         (uint256 priceTokenOutUSD, uint256 priceUSDSuperAssetShares, bool success) =
             _getTokenOutPriceWithCircuitBreakers(tokenOut);
+        console.log("----priceUSDSuperAssetShares", priceUSDSuperAssetShares);
 
         isSuccess = success;
 
@@ -1039,6 +1043,7 @@ contract SuperAsset is ERC20, ISuperAsset {
 
         (activeTokens, pricePerTokenUSD, isDepeg, isDispersion, isOracleOff, priceUSDSuperAssetShares) =
             getSuperAssetPPS();
+        console.log("----priceUSDSuperAssetShares", priceUSDSuperAssetShares);
 
         for (uint256 i; i < activeTokens.length; i++) {
             if (activeTokens[i] == tokenOut) {
@@ -1088,15 +1093,21 @@ contract SuperAsset is ERC20, ISuperAsset {
             priceUSD = _priceUSD;
             stddev = _stddev;
             M = _m;
+            console.log("----try");
+            console.log("----_m", _m);
         } catch {
             priceUSD = superOracle.getEmergencyPrice(vaultAsset);
             stddev = 0;
             M = 0;
+            console.log("----catch");
         }
 
         uint256 pricePerShare = IYieldSourceOracle(tokenOracle).getPricePerShare(token);
+        console.log("----pricePerShare", pricePerShare);
         if (priceUSD > 0) {
+            console.log("----priceUSD", priceUSD);
             priceUSD = pricePerShare * priceUSD;
+            console.log("----priceUSD*pricePerShare", priceUSD);
         }
     }
 
@@ -1146,9 +1157,8 @@ contract SuperAsset is ERC20, ISuperAsset {
     {
         uint256 ratio = Math.mulDiv(priceUSD, PRECISION, assetPriceUSD);
 
-        uint8 decimalsToken = IERC20Metadata(token).decimals();
-
         // Adjust for decimals
+        uint8 decimalsToken = IERC20Metadata(token).decimals();
         if (decimalsToken != DECIMALS) {
             ratio = Math.mulDiv(ratio, 10 ** (DECIMALS - decimalsToken), PRECISION);
         }
