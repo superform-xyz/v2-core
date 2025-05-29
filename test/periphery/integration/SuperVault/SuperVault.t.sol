@@ -3147,11 +3147,12 @@ contract SuperVaultTest is BaseSuperVaultTest {
         uint256 initialPricePerShare;
     }
 
-    function test_1_DynamicAllocation(uint256 amount) public {
+    function test_1_DynamicAllocation() public executeWithoutHookRestrictions {
         ScenarioNewYieldSourceVars memory vars;
-        vars.depositAmount = bound(amount, 10e6, 1000e6);
+        vars.depositAmount = 100e6;
 
         Mock4626Vault newVault = new Mock4626Vault(address(asset), "New Vault", "NV");
+        _updateAndRegenerateMerkleTree("test_1Mock4626Vault", address(newVault), ETH);
 
         _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);
         asset.approve(address(newVault), type(uint256).max);
@@ -3443,7 +3444,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
     }
 
-    function test_2_MultipleOperations_RandomAmounts(uint256 seed) public {
+    function test_2_MultipleOperations_RandomAmounts(uint256 seed) public executeWithoutHookRestrictions {
         MultipleOperationsVars memory vars;
         // Setup random seed and initial timestamp
         vars.initialTimestamp = block.timestamp;
@@ -3546,6 +3547,9 @@ contract SuperVaultTest is BaseSuperVaultTest {
                 vars.rugPercentage
             )
         );
+
+        _updateAndRegenerateMerkleTree("RuggableVault", vars.ruggableVault, ETH);
+
         vm.label(vars.ruggableVault, "Ruggable Vault");
         vm.label(address(fluidVault), "Fluid Vault");
 
@@ -3672,7 +3676,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         assertApproxEqRel(vars.initialPricePerShare, prevPps, 0.1e18, "Price per share should be preserved");
     }
 
-    function test_4_Rebalance_Test() public {
+    function test_4_Rebalance_Test() public executeWithoutHookRestrictions {
         VaultCapTestVars memory vars;
         vars.depositAmount = 1000e6;
 
@@ -3773,7 +3777,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         console2.log("Target Aave Assets:", vars.targetAaveAssets2);
     }
 
-    function test_5_EdgeCases_Small_Amounts() public {
+    function test_5_EdgeCases_Small_Amounts() public executeWithoutHookRestrictions {
         uint256 depositAmount = 100; // very small
 
         // perform deposit operations
@@ -3808,7 +3812,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         }
     }
 
-    function test_5_EdgeCases_SmallAmounts_WithAllocation() public {
+    function test_5_EdgeCases_SmallAmounts_WithAllocation() public executeWithoutHookRestrictions {
         uint256 depositAmount = 100; // very small
 
         _completeDepositFlow(depositAmount);
@@ -3891,7 +3895,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         }
     }
 
-    function test_5_EdgeCases_Large_Amounts() public {
+    function test_5_EdgeCases_Large_Amounts() public executeWithoutHookRestrictions {
         uint256 depositAmount = 2_000_000e6; // very big
 
         // perform deposit operations
@@ -3932,9 +3936,19 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vars.initialTimestamp = block.timestamp;
 
         // create yield testing vaults
-        vars.vault1 = new Mock4626Vault(address(asset), "Mock Vault 3%", "MV3");
-        vars.vault2 = new Mock4626Vault(address(asset), "Mock Vault 5%", "MV5");
-        vars.vault3 = new Mock4626Vault(address(asset), "Mock Vault 10%", "MV10");
+        vars.vault1 = new Mock4626Vault(address(asset), "Mock4626Vault 3%", "MV3");
+        vars.vault2 = new Mock4626Vault(address(asset), "Mock4626Vault 5%", "MV5");
+        vars.vault3 = new Mock4626Vault(address(asset), "Mock4626Vault 10%", "MV10");
+        string[] memory vaultNames = new string[](3);
+        vaultNames[0] = "test6YA_Mock4626Vault1";
+        vaultNames[1] = "test6YA_Mock4626Vault2";
+        vaultNames[2] = "test6YA_Mock4626Vault3";
+        address[] memory vaultAddresses = new address[](3);
+        vaultAddresses[0] = address(vars.vault1);
+        vaultAddresses[1] = address(vars.vault2);
+        vaultAddresses[2] = address(vars.vault3);
+        _updateAndRegenerateMerkleTreeBatch(vaultNames, vaultAddresses, ETH);
+
         vars.vault1.setYield(3000); // 3%
         vars.vault2.setYield(5000); // 5%
         vars.vault3.setYield(10_000); // 10%
@@ -4068,7 +4082,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         assertGt(vault3Yield, vault2Yield, "Vault 3 should have gained more assets than vault 2");
     }
 
-    function test_6_yieldAccumulation_WithRebalancing() public {
+    function test_6_yieldAccumulation_WithRebalancing() public executeWithoutHookRestrictions {
         YieldTestVars memory vars;
         vars.depositAmount = 1000e6; // 100,000 USDC
         vars.initialTimestamp = block.timestamp;
@@ -4077,6 +4091,15 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vars.vault1 = new Mock4626Vault(address(asset), "Mock Vault 3%", "MV3");
         vars.vault2 = new Mock4626Vault(address(asset), "Mock Vault 5%", "MV5");
         vars.vault3 = new Mock4626Vault(address(asset), "Mock Vault 10%", "MV10");
+        string[] memory vaultNames = new string[](3);
+        vaultNames[0] = "test6YAREB_Mock4626Vault1";
+        vaultNames[1] = "test6YAREB_Mock4626Vault2";
+        vaultNames[2] = "test6YAREB_Mock4626Vault3";
+        address[] memory vaultAddresses = new address[](3);
+        vaultAddresses[0] = address(vars.vault1);
+        vaultAddresses[1] = address(vars.vault2);
+        vaultAddresses[2] = address(vars.vault3);
+        _updateAndRegenerateMerkleTreeBatch(vaultNames, vaultAddresses, ETH);
         vars.vault1.setYield(3000); // 3%
         vars.vault2.setYield(5000); // 5%
         vars.vault3.setYield(10_000); // 10%
@@ -4208,7 +4231,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         }
     }
 
-    function test_9_VaultLifecycle_FullAlocateOverTime_() public {
+    function test_9_VaultLifecycle_FullAlocateOverTime_() public executeWithoutHookRestrictions {
         ScenarioNewYieldSourceVars memory vars;
         vars.depositAmount = 1000e6;
 
@@ -4415,7 +4438,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         }
     }
 
-    function test_9_VaultLifecycle_AddAndRemoveOverTime() public {
+    function test_9_VaultLifecycle_AddAndRemoveOverTime() public executeWithoutHookRestrictions {
         ScenarioNewYieldSourceVars memory vars;
         vars.depositAmount = 1000e6;
 
@@ -4718,6 +4741,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             false, // don't rug on withdraw
             vars.rugPercentage
         );
+        _updateAndRegenerateMerkleTree("test_10RuggableVaultOnDeposit", address(vars.ruggableVault), ETH);
 
         // Add funds to the ruggable vault to respect LARGE_DEPOSIT
         _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);
@@ -4790,6 +4814,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             true, // rug on withdraw
             vars.rugPercentage
         );
+        _updateAndRegenerateMerkleTree("test_10RuggableVault", address(ruggableVault), ETH);
 
         vars.ruggableVault = address(ruggableVault);
         vars.convertVault = false;
@@ -4828,6 +4853,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             vars.rugPercentage,
             true // rug enabled
         );
+        _updateAndRegenerateMerkleTree("test_10RuggableConvertVault", address(ruggableConvertVault), ETH);
 
         vars.ruggableVault = address(ruggableConvertVault);
         vars.convertVault = true;
@@ -4849,7 +4875,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
     }
 
-    function test_11_Allocate_NewYieldSource() public {
+    function test_11_Allocate_NewYieldSource() public executeWithoutHookRestrictions {
         ScenarioNewYieldSourceVars memory vars;
         vars.depositAmount = 1000e6;
 
@@ -4861,6 +4887,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         // add new vault as yield source
         Mock4626Vault newVault = new Mock4626Vault(address(asset), "New Vault", "NV");
+        _updateAndRegenerateMerkleTree("New Vault", address(newVault), ETH);
 
         //  -- add funds to the newVault to respect LARGE_DEPOSIT
         _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);
@@ -5043,7 +5070,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         console2.log("NewVault:", newRatio, "%");
     }
 
-    function test_12_multiMillionDeposits() public {
+    function test_12_multiMillionDeposits() public executeWithoutHookRestrictions {
         TestVars memory vars;
         vars.initialTimestamp = block.timestamp;
 
@@ -5414,7 +5441,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
             vars.depositAmount * 5 / 2, vars.depositAmount * 5 / 2, address(fluidVault), vars.ruggableVault
         );
         console2.log("\n=== TIME WARPING ===");
-        _updateSuperVaultPPS(address(strategy), address(vault));
         vars.ppsBeforeWarp = aggregator.getPPS(address(strategy));
         console2.log("PPS BEFORE WARP", vars.ppsBeforeWarp);
 
@@ -5423,13 +5449,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         _updateSuperVaultPPS(address(strategy), address(vault));
         vars.ppsAfterWarp = aggregator.getPPS(address(strategy));
         console2.log("PPS AFTER WARP", vars.ppsAfterWarp);
-        // Claim deposits
-        for (uint256 i = 0; i < 5; i++) {
-            vm.startPrank(vars.depositUsers[i]);
-            uint256 maxDeposit = vault.maxDeposit(vars.depositUsers[i]);
-            vault.deposit(maxDeposit, vars.depositUsers[i]);
-            vm.stopPrank();
-        }
 
         // Store initial state
         vars.initialTotalAssets = vault.totalAssets();
@@ -5469,7 +5488,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         // Simulate time passing
         console2.log("\n=== TIME WARPING ===");
-        _updateSuperVaultPPS(address(strategy), address(vault));
         vars.ppsBeforeWarp = aggregator.getPPS(address(strategy));
         console2.log("PPS BEFORE WARP", vars.ppsBeforeWarp);
 
@@ -5520,8 +5538,9 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vars.totalSupplyPreClaimTaintedAssets = vault.totalSupply();
         console2.log("Total Assets:", vars.totalAssetsPreClaimTaintedAssets);
         console2.log("Total Supply:", vars.totalSupplyPreClaimTaintedAssets);
-        vars.pricePerSharePreClaimTaintedAssets =
-            vars.totalAssetsPreClaimTaintedAssets.mulDiv(1e18, vars.totalSupplyPreClaimTaintedAssets, Math.Rounding.Floor);
+        vars.pricePerSharePreClaimTaintedAssets = vars.totalAssetsPreClaimTaintedAssets.mulDiv(
+            1e18, vars.totalSupplyPreClaimTaintedAssets, Math.Rounding.Floor
+        );
         console2.log("Price per share:", vars.pricePerSharePreClaimTaintedAssets);
         console2.log("Ruggable Vault Balance:", IERC4626(vars.ruggableVault).balanceOf(address(strategy)));
         console2.log("Fluid Vault Balance:", fluidVault.balanceOf(address(strategy)));

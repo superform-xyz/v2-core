@@ -863,14 +863,14 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, vault2, address(strategy), redeemSharesVault2, false
         );
-
+        bytes[] memory argsForProofs = new bytes[](2);
+        argsForProofs[0] = ISuperHookInspector(fulfillHooksAddresses[0]).inspect(fulfillHooksData[0]);
+        argsForProofs[1] = ISuperHookInspector(fulfillHooksAddresses[1]).inspect(fulfillHooksData[1]);
+        bytes32[][] memory proofs = _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs);
         vm.startPrank(STRATEGIST);
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        bytes[] memory argsForProofs = new bytes[](2);
-        argsForProofs[0] = ISuperHookInspector(fulfillHooksAddresses[0]).inspect(fulfillHooksData[0]);
-        argsForProofs[1] = ISuperHookInspector(fulfillHooksAddresses[1]).inspect(fulfillHooksData[1]);
 
         strategy.fulfillRedeemRequests(
             ISuperVaultStrategy.FulfillArgs({
@@ -878,7 +878,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                globalProofs: _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs),
+                globalProofs: proofs,
                 strategyProofs: new bytes32[][](2)
             })
         );

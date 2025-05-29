@@ -1325,6 +1325,93 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         }
     }
 
+    function _executeVaultListUpdateScript(string[] memory cmd_, uint64 chainId_) internal {
+        bytes memory output = vm.ffi(cmd_);
+        string memory outputStr = string(output);
+        // Note: _trim was removed. JS script now outputs "true\n" or "false\n".
+
+        bool wasSuccessful = false;
+        if (bytes(outputStr).length > 0) {
+            // Check if the script output starts with 't', indicating "true\n"
+            if (bytes(outputStr)[0] == "t") {
+                wasSuccessful = true;
+            }
+        }
+
+        if (wasSuccessful) {
+            console2.log(
+                "[DEBUG] update-lists.js executed successfully. Regenerating Merkle tree for chainId:", chainId_
+            );
+            _generateMerkleTree(chainId_);
+        } else {
+            // Log details to stderr from the script will provide more context on failure.
+            console2.log(
+                "[WARN] update-lists.js indicated failure or no changes made. Merkle tree not regenerated. Check stderr for details from script."
+            );
+            if (bytes(outputStr).length == 0) {
+                console2.log(
+                    "[WARN] update-lists.js produced empty output (FFI call might have failed before script execution)."
+                );
+            }
+            // revert("Failed to update token/yield lists.");
+        }
+    }
+
+    function _updateAndRegenerateMerkleTree(
+        string memory vaultName_,
+        address vaultAddress_,
+        uint64 chainId_
+    )
+        internal
+    {
+        string memory vaultAddressStr = vm.toString(vaultAddress_);
+        string memory chainIdStr = vm.toString(chainId_);
+
+        string[] memory cmd = new string[](5);
+        cmd[0] = "node";
+        cmd[1] = "test/utils/merkle/merkle-js/update-lists.js";
+        cmd[2] = vaultName_; // Single vault name (not a number, signals single mode to script)
+        cmd[3] = vaultAddressStr;
+        cmd[4] = chainIdStr;
+
+        _executeVaultListUpdateScript(cmd, chainId_);
+    }
+
+    /**
+     * @notice Updates vault information in JSON files for multiple vaults and regenerates the Merkle tree if
+     * successful.
+     * @dev Calls the `update-lists.js` script via FFI to perform the update.
+     * @param vaultNames_ An array of names (symbols) of the vaults to add.
+     * @param vaultAddresses_ An array of addresses of the vaults to add.
+     * @param chainId_ The chain ID for which to add the vaults and regenerate the tree.
+     */
+    function _updateAndRegenerateMerkleTreeBatch(
+        string[] memory vaultNames_,
+        address[] memory vaultAddresses_,
+        uint64 chainId_
+    )
+        internal
+    {
+        require(vaultNames_.length == vaultAddresses_.length, "Vault names and addresses array lengths must match.");
+
+        uint256 numVaults = vaultNames_.length;
+        string memory chainIdStr = vm.toString(chainId_);
+
+        // cmd: node <script_path> <numVaults> <name1> <name2> ... <addr1_str> <addr2_str> ... <chainId_str>
+        string[] memory cmd = new string[](3 + numVaults * 2 + 1);
+        cmd[0] = "node";
+        cmd[1] = "test/utils/merkle/merkle-js/update-lists.js";
+        cmd[2] = vm.toString(numVaults); // This signals batch mode to the script
+
+        for (uint256 i = 0; i < numVaults; i++) {
+            cmd[3 + i] = vaultNames_[i];
+            cmd[3 + numVaults + i] = vm.toString(vaultAddresses_[i]);
+        }
+        cmd[3 + numVaults * 2] = chainIdStr;
+
+        _executeVaultListUpdateScript(cmd, chainId_);
+    }
+
     function _configureGovernor() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);

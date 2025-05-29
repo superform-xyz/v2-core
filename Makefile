@@ -22,7 +22,7 @@ ftest-vvv :; forge test -vvv --jobs 10
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_Allocate_Rebalance -vv --jobs 10
+test-vvv :; forge test --match-test test_10_RuggableVault_Withdraw -vvv --jobs 10
 
 test-integration :; forge test --match-contract SuperOracleL2Test -vvvvv --jobs 10
 
