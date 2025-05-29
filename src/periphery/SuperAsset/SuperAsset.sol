@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import { console } from "forge-std/console.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -261,8 +262,11 @@ contract SuperAsset is ERC20, ISuperAsset {
         returns (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit)
     {
         // First all the non state changing functions
-        if (receiver == address(0)) revert ZERO_ADDRESS();
+        if (receiver == address(0) || tokenIn == address(0)) revert ZERO_ADDRESS();
         if (amountTokenToDeposit == 0) revert ZERO_AMOUNT();
+        if (!tokenData[tokenIn].isSupportedUnderlyingVault && !tokenData[tokenIn].isSupportedERC20) {
+            revert NOT_SUPPORTED_TOKEN();
+        }
 
         // Calculate and settle incentives
         // @notice For deposits, we want strict checks
@@ -287,6 +291,7 @@ contract SuperAsset is ERC20, ISuperAsset {
         // Slippage Check
         if (amountSharesMinted < minSharesOut) revert SLIPPAGE_PROTECTION();
 
+        // Circuit Breaker Checks
         if (isTokenInDepeg) {
             revert UNDERLYING_SV_ASSET_PRICE_DEPEG();
         }
@@ -329,6 +334,9 @@ contract SuperAsset is ERC20, ISuperAsset {
     {
         if (receiver == address(0)) revert ZERO_ADDRESS();
         if (amountTokenOutToRedeem == 0) revert ZERO_AMOUNT();
+        if (!tokenData[tokenOut].isSupportedUnderlyingVault && !tokenData[tokenOut].isSupportedERC20) {
+            revert NOT_SUPPORTED_TOKEN();
+        }
 
         // Calculate and settle incentives
         // @notice For redemptions, we want hard checks
@@ -383,10 +391,10 @@ contract SuperAsset is ERC20, ISuperAsset {
             int256 amountIncentivesOut
         )
     {
-        if (tokenIn == address(0) || tokenOut == address(0)) revert ZERO_ADDRESS();
+        if (receiver == address(0) || tokenIn == address(0) || tokenOut == address(0)) revert ZERO_ADDRESS();
 
         (amountSharesIntermediateStep, swapFeeIn, amountIncentivesIn) =
-            deposit(msg.sender, tokenIn, amountTokenToDeposit, 0); // TODO: does deposit have to return so much info?
+            deposit(msg.sender, tokenIn, amountTokenToDeposit, 0);
 
         (amountTokenOutAfterFees, swapFeeOut, amountIncentivesOut) =
             redeem(receiver, amountSharesIntermediateStep, tokenOut, minTokenOut);
@@ -455,6 +463,7 @@ contract SuperAsset is ERC20, ISuperAsset {
             s.allocations.vaultWeights,
             s.allocations.isSuccess
         ) = getAllocationsPrePostOperation(tokenIn, int256(amountTokenToDeposit), !isSuccess, isSoft);
+            // !isSuccess, means circuit breaker triggered
 
         if (!s.allocations.isSuccess) {
             return (0, 0, 0, false, false, false, false);
@@ -502,9 +511,13 @@ contract SuperAsset is ERC20, ISuperAsset {
     {
         PreviewRedeem memory s;
 
-        // Calculate underlying shares to redeem
+        // Calculate amount token out before fees
         (s.amountTokenOutBeforeFees, isSuccess) = _previewAmountTokenOutBeforeFees(tokenOut, amountTokenOutToRedeem);
 
+        console.log("----s.amountTokenOutBeforeFees", s.amountTokenOutBeforeFees);
+        console.log("----isSuccess", isSuccess);
+
+        // Calculate swap fee
         swapFee = Math.mulDiv(s.amountTokenOutBeforeFees, swapFeeOutPercentage, SWAP_FEE_PERC); // 0.1%
         amountTokenOutAfterFees = s.amountTokenOutBeforeFees - swapFee;
 
@@ -518,7 +531,8 @@ contract SuperAsset is ERC20, ISuperAsset {
             s.allocations.totalTargetAllocation,
             s.allocations.vaultWeights,
             s.allocations.isSuccess
-        ) = getAllocationsPrePostOperation(tokenOut, -int256(s.amountTokenOutBeforeFees), !isSuccess, isSoft);
+        ) = getAllocationsPrePostOperation(tokenOut, -int256(s.amountTokenOutBeforeFees), !isSuccess, isSoft); 
+            // !isSuccess, means circuit breaker triggered
 
         if (!s.allocations.isSuccess) {
             return (0, 0, 0, false);
@@ -606,21 +620,25 @@ contract SuperAsset is ERC20, ISuperAsset {
         uint8 decimalsToken = IERC20Metadata(token).decimals();
         uint256 one = 10 ** decimalsToken;
         uint256 stddev;
-        uint256 N;
         uint256 M;
 
         // @dev Passing oneUnit to get the price of a single unit of asset to check if it has depegged
-        ISuperOracle superOracle = ISuperOracle(superGovernor.getAddress(superGovernor.SUPER_ORACLE()));
+        address superOracleAddress = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
+        ISuperOracle superOracle = ISuperOracle(superOracleAddress);
         try superOracle.getQuoteFromProvider(one, token, USD, AVERAGE_PROVIDER) returns (
-            uint256 _priceUSD, uint256 _stddev, uint256 _n, uint256 _m
+            uint256 _priceUSD, uint256 _stddev, uint256, uint256 _m
         ) {
             priceUSD = _priceUSD;
             stddev = _stddev;
-            N = _n;
             M = _m;
         } catch {
             priceUSD = superOracle.getEmergencyPrice(token);
             isOracleOff = true;
+        }
+
+        address tokenOracle = tokenData[token].oracle;
+        if (tokenOracle != superOracleAddress) {
+            (priceUSD, stddev, M) = _derivePriceFromUnderlyingVault(token);
         }
 
         // Circuit Breaker for Oracle Off
@@ -641,14 +659,7 @@ contract SuperAsset is ERC20, ISuperAsset {
             } catch {
                 assetPriceUSD = superOracle.getEmergencyPrice(primaryAsset);
             }
-            uint256 ratio = Math.mulDiv(priceUSD, PRECISION, assetPriceUSD);
-
-            if (decimalsToken != DECIMALS) {
-                ratio = Math.mulDiv(ratio, 10 ** (DECIMALS - decimalsToken), PRECISION);
-            }
-            if (ratio < DEPEG_LOWER_THRESHOLD || ratio > DEPEG_UPPER_THRESHOLD) {
-                isDepeg = true;
-            }
+            isDepeg = _isTokenDepeg(token, priceUSD, assetPriceUSD);
 
             // Calculate relative standard deviation
             isDispersion = _isSTDDevDegged(stddev, priceUSD);
@@ -669,17 +680,17 @@ contract SuperAsset is ERC20, ISuperAsset {
             uint256 pps
         )
     {
-        uint256 totalSupply_ = totalSupply();
-        if (totalSupply_ == 0) return (activeTokens, pricePerTokenUSD, isDepeg, isDispersion, isOracleOff, pps);
-
         uint256 totalValueUSD;
         uint256 len = _activeAssets.length();
 
+        activeTokens = new address[](len);
+        pricePerTokenUSD = new uint256[](len);
+        isDepeg = new bool[](len);
+        isDispersion = new bool[](len);
+        isOracleOff = new bool[](len);
+
         for (uint256 i; i < len; i++) {
             address token = _activeAssets.at(i);
-            uint256 balance = IERC20(token).balanceOf(address(this));
-            if (balance == 0) continue;
-
             activeTokens[i] = token;
 
             (uint256 priceUSD, bool isTokenDepeg, bool isTokenDispersion, bool isTokenOracleOff) =
@@ -690,12 +701,21 @@ contract SuperAsset is ERC20, ISuperAsset {
             isDispersion[i] = isTokenDispersion;
             isOracleOff[i] = isTokenOracleOff;
 
-            uint256 valueUSD = Math.mulDiv(balance, priceUSD, 10 ** IERC20Metadata(token).decimals());
-            totalValueUSD += valueUSD;
+            uint256 balance = IERC20(token).balanceOf(address(this));
+
+            if (balance > 0) {
+                totalValueUSD += Math.mulDiv(balance, priceUSD, 10 ** IERC20Metadata(token).decimals());
+            }
         }
 
+        uint256 totalSupply_ = totalSupply();
         // PPS = Total Value in USD / Total Supply, normalized to PRECISION
-        pps = Math.mulDiv(totalValueUSD, PRECISION, totalSupply_);
+        if (totalSupply_ == 0) {
+            pps = PRECISION;
+        } else {
+            pps = Math.mulDiv(totalValueUSD, PRECISION, totalSupply_);
+        }
+        console.log("----pps", pps);
     }
 
     /// @inheritdoc ISuperAsset
@@ -832,7 +852,6 @@ contract SuperAsset is ERC20, ISuperAsset {
 
     /// @dev Previews the amount of shares minted in previewDeposit
     /// @param tokenIn The address of the token to derive the amount of shares minted for
-    /// @param amountTokenInAfterFees The amount of token in after fees
     /// @return amountSharesMinted The amount of shares minted
     /// @return isTokenInDepeg Whether the token in is depegged.
     /// @return isTokenInDispersion Whether the token in is dispersed.
@@ -852,44 +871,19 @@ contract SuperAsset is ERC20, ISuperAsset {
             bool isSuccess
         )
     {
-        address[] memory activeTokens;
-        uint256[] memory pricePerTokenUSD;
-        bool[] memory isDepeg;
-        bool[] memory isDispersion;
-        bool[] memory isOracleOff;
-        uint256 priceUSDSuperAssetShares;
-        (activeTokens, pricePerTokenUSD, isDepeg, isDispersion, isOracleOff, priceUSDSuperAssetShares) =
-            getSuperAssetPPS();
+        (
+            uint256 priceUSDTokenIn,
+            uint256 priceUSDSuperAssetShares,
+            bool tokenInDepeg,
+            bool tokenInDispersion,
+            bool tokenInOracleOff,
+            bool sucess
+        ) = _getTokenInPriceWithCircuitBreakers(tokenIn);
 
-        uint256 priceUSDTokenIn;
-        bool isActiveToken;
-        for (uint256 i; i < activeTokens.length; i++) {
-            if (activeTokens[i] == tokenIn) {
-                if (isDepeg[i]) {
-                    isSuccess = false;
-                    isTokenInDepeg = true;
-                    return (amountSharesMinted, isTokenInDepeg, isTokenInDispersion, isTokenInOracleOff, isSuccess);
-                }
-                if (isOracleOff[i]) {
-                    isSuccess = false;
-                    isTokenInOracleOff = true;
-                    return (amountSharesMinted, isTokenInDepeg, isTokenInDispersion, isTokenInOracleOff, isSuccess);
-                }
-                if (isDispersion[i]) {
-                    isSuccess = false;
-                    isTokenInDispersion = true;
-                    return (amountSharesMinted, isTokenInDepeg, isTokenInDispersion, isTokenInOracleOff, isSuccess);
-                }
-                isActiveToken = true;
-                priceUSDTokenIn = pricePerTokenUSD[i];
-            }
-        }
-
-        // Check that tokenIn is allowed to be deposited
-        if (!isActiveToken) {
-            isSuccess = false;
-            return (amountSharesMinted, isTokenInDepeg, isTokenInDispersion, isTokenInOracleOff, isSuccess);
-        }
+        isTokenInDepeg = tokenInDepeg;
+        isTokenInDispersion = tokenInDispersion;
+        isTokenInOracleOff = tokenInOracleOff;
+        isSuccess = sucess;
 
         // Calculate SuperUSD shares to mint
         amountSharesMinted = Math.mulDiv(amountTokenInAfterFees, priceUSDTokenIn, priceUSDSuperAssetShares);
@@ -901,6 +895,102 @@ contract SuperAsset is ERC20, ISuperAsset {
         }
 
         isSuccess = true;
+    }
+
+    /// @dev Gets the price of the token in and the price of the super asset shares
+    /// @param tokenIn The address of the token to get the price of
+    /// @return priceUSDTokenIn The price of the token in
+    /// @return priceUSDSuperAssetShares The price of the super asset shares
+    /// @return isTokenInDepeg Whether the token in is depegged
+    /// @return isTokenInDispersion Whether the token in is dispersed
+    /// @return isTokenInOracleOff Whether the token in is oracle off
+    function _getTokenInPriceWithCircuitBreakers(address tokenIn)
+        internal
+        view
+        returns (
+            uint256 priceUSDTokenIn,
+            uint256 priceUSDSuperAssetShares,
+            bool isTokenInDepeg,
+            bool isTokenInDispersion,
+            bool isTokenInOracleOff,
+            bool isSuccess
+        )
+    {
+        address[] memory activeTokens;
+        uint256[] memory pricePerTokenUSD;
+        bool[] memory isDepeg;
+        bool[] memory isDispersion;
+        bool[] memory isOracleOff;
+
+        (activeTokens, pricePerTokenUSD, isDepeg, isDispersion, isOracleOff, priceUSDSuperAssetShares) =
+            getSuperAssetPPS();
+
+        for (uint256 i; i < activeTokens.length; i++) {
+            if (activeTokens[i] == tokenIn) {
+                priceUSDTokenIn = pricePerTokenUSD[i];
+                if (tokenData[tokenIn].isSupportedUnderlyingVault) {
+                    isSuccess = _checkUnderlyingVaultStatus(tokenIn);
+                    if (!isSuccess) {
+                        return (
+                            priceUSDTokenIn,
+                            priceUSDSuperAssetShares,
+                            isTokenInDepeg,
+                            isTokenInDispersion,
+                            isTokenInOracleOff,
+                            isSuccess
+                        );
+                    }
+                } else if (tokenData[tokenIn].isSupportedERC20) {
+                    if (isDepeg[i]) {
+                        isTokenInDepeg = true;
+                        isSuccess = false;
+                        return (
+                            priceUSDTokenIn,
+                            priceUSDSuperAssetShares,
+                            isTokenInDepeg,
+                            isTokenInDispersion,
+                            isTokenInOracleOff,
+                            isSuccess
+                        );
+                    }
+                }
+                if (isOracleOff[i]) {
+                    isSuccess = false;
+                    isTokenInOracleOff = true;
+                    return (
+                        priceUSDTokenIn,
+                        priceUSDSuperAssetShares,
+                        isTokenInDepeg,
+                        isTokenInDispersion,
+                        isTokenInOracleOff,
+                        isSuccess
+                    );
+                }
+                if (isDispersion[i]) {
+                    isSuccess = false;
+                    isTokenInDispersion = true;
+                    return (
+                        priceUSDTokenIn,
+                        priceUSDSuperAssetShares,
+                        isTokenInDepeg,
+                        isTokenInDispersion,
+                        isTokenInOracleOff,
+                        isSuccess
+                    );
+                }
+            } else {
+                // Not supported active token
+                isSuccess = false;
+                return (
+                    priceUSDTokenIn,
+                    priceUSDSuperAssetShares,
+                    isTokenInDepeg,
+                    isTokenInDispersion,
+                    isTokenInOracleOff,
+                    isSuccess
+                );
+            }
+        }
     }
 
     /// @dev Previews the amount of token out before fees in previewRedeem
@@ -916,43 +1006,12 @@ contract SuperAsset is ERC20, ISuperAsset {
         view
         returns (uint256 amountTokenOutBeforeFees, bool isSuccess)
     {
-        (
-            address[] memory activeTokens,
-            uint256[] memory pricePerTokenUSD,
-            bool[] memory isDepeg,
-            bool[] memory isDispersion,
-            bool[] memory isOracleOff,
-            uint256 priceUSDSuperAssetShares
-        ) = getSuperAssetPPS();
+        (uint256 priceTokenOutUSD, uint256 priceUSDSuperAssetShares, bool success) =
+            _getTokenOutPriceWithCircuitBreakers(tokenOut);
 
-        uint256 priceUSDTokenOut;
-        bool isActiveToken;
-        for (uint256 i; i < activeTokens.length; i++) {
-            if (activeTokens[i] == tokenOut) {
-                if (isDepeg[i]) {
-                    isSuccess = false;
-                    return (amountTokenOutBeforeFees, isSuccess);
-                }
-                if (isOracleOff[i]) {
-                    isSuccess = false;
-                    return (amountTokenOutBeforeFees, isSuccess);
-                }
-                if (isDispersion[i]) {
-                    isSuccess = false;
-                    return (amountTokenOutBeforeFees, isSuccess);
-                }
-                isActiveToken = true;
-                priceUSDTokenOut = pricePerTokenUSD[i];
-            }
-        }
+        isSuccess = success;
 
-        // Check that tokenOut is allowed to be redeemed
-        if (!isActiveToken) {
-            isSuccess = false;
-            return (amountTokenOutBeforeFees, isSuccess);
-        }
-
-        amountTokenOutBeforeFees = Math.mulDiv(amountTokenOutToRedeem, priceUSDSuperAssetShares, priceUSDTokenOut);
+        amountTokenOutBeforeFees = Math.mulDiv(amountTokenOutToRedeem, priceUSDSuperAssetShares, priceTokenOutUSD);
 
         // Adjust for decimals
         uint8 decimalsTokenOut = IERC20Metadata(tokenOut).decimals();
@@ -960,7 +1019,99 @@ contract SuperAsset is ERC20, ISuperAsset {
             amountTokenOutBeforeFees =
                 Math.mulDiv(amountTokenOutBeforeFees, 10 ** (DECIMALS - decimalsTokenOut), PRECISION);
         }
+    }
 
+    /// @dev Gets the price of the token out and the price of the super asset shares
+    /// @param tokenOut The address of the token to get the price of
+    /// @return priceUSDTokenOut The price of the token out
+    /// @return priceUSDSuperAssetShares The price of the super asset shares
+    /// @return isSuccess Whether the price was successfully retrieved
+    function _getTokenOutPriceWithCircuitBreakers(address tokenOut)
+        internal
+        view
+        returns (uint256 priceUSDTokenOut, uint256 priceUSDSuperAssetShares, bool isSuccess)
+    {
+        address[] memory activeTokens;
+        uint256[] memory pricePerTokenUSD;
+        bool[] memory isDepeg;
+        bool[] memory isDispersion;
+        bool[] memory isOracleOff;
+
+        (activeTokens, pricePerTokenUSD, isDepeg, isDispersion, isOracleOff, priceUSDSuperAssetShares) =
+            getSuperAssetPPS();
+
+        for (uint256 i; i < activeTokens.length; i++) {
+            if (activeTokens[i] == tokenOut) {
+                priceUSDTokenOut = pricePerTokenUSD[i];
+                if (tokenData[tokenOut].isSupportedUnderlyingVault) {
+                    isSuccess = _checkUnderlyingVaultStatus(tokenOut);
+                    console.log("----isSuccessVaultStatus", isSuccess);
+                    if (!isSuccess) {
+                        return (priceUSDTokenOut, priceUSDSuperAssetShares, isSuccess);
+                    }
+                } else if (tokenData[tokenOut].isSupportedERC20) {
+                    if (isDepeg[i]) {
+                        isSuccess = false;
+                        return (priceUSDTokenOut, priceUSDSuperAssetShares, isSuccess);
+                    }
+                }
+                if (isOracleOff[i]) {
+                    isSuccess = false;
+                    return (priceUSDTokenOut, priceUSDSuperAssetShares, isSuccess);
+                }
+                if (isDispersion[i]) {
+                    isSuccess = false;
+                    return (priceUSDTokenOut, priceUSDSuperAssetShares, isSuccess);
+                }
+            }
+        }
+    }
+
+    /// @dev Derives the price of the token from the underlying vault
+    /// @param token The address of the token to derive the price of
+    /// @return priceUSD The price of the token in USD
+    /// @return stddev The standard deviation of the token
+    /// @return M The number of quote providers
+    function _derivePriceFromUnderlyingVault(address token)
+        internal
+        view
+        returns (uint256 priceUSD, uint256 stddev, uint256 M)
+    {
+        address vaultAsset = IERC4626(token).asset();
+        address tokenOracle = tokenData[token].oracle;
+        uint256 unitVaultAsset = 10 ** IERC20Metadata(vaultAsset).decimals();
+
+        ISuperOracle superOracle = ISuperOracle(superGovernor.getAddress(superGovernor.SUPER_ORACLE()));
+        try superOracle.getQuoteFromProvider(unitVaultAsset, vaultAsset, USD, AVERAGE_PROVIDER) returns (
+            uint256 _priceUSD, uint256 _stddev, uint256, uint256 _m
+        ) {
+            priceUSD = _priceUSD;
+            stddev = _stddev;
+            M = _m;
+        } catch {
+            priceUSD = superOracle.getEmergencyPrice(vaultAsset);
+            stddev = 0;
+            M = 0;
+        }
+
+        uint256 pricePerShare = IYieldSourceOracle(tokenOracle).getPricePerShare(token);
+        if (priceUSD > 0) {
+            priceUSD = pricePerShare * priceUSD;
+        }
+    }
+
+    /// @dev Checks if the vault is depegged, dispersed, or oracle off
+    /// @param vaultAsset The address of the vault asset to check the status of
+    /// @return isSuccess Whether the vault is depegged, dispersed, or oracle off
+    function _checkUnderlyingVaultStatus(address vaultAsset) internal view returns (bool isSuccess) {
+        (, bool isTokenDepeg, bool isTokenDispersion, bool isTokenOracleOff) = getPriceWithCircuitBreakers(vaultAsset);
+        console.log("----isTokenDepeg", isTokenDepeg);
+        console.log("----isTokenDispersion", isTokenDispersion);
+        console.log("----isTokenOracleOff", isTokenOracleOff);
+        if (isTokenDepeg || isTokenDispersion || isTokenOracleOff) {
+            isSuccess = false;
+            return (isSuccess);
+        }
         isSuccess = true;
     }
 
@@ -977,5 +1128,32 @@ contract SuperAsset is ERC20, ISuperAsset {
             return true;
         }
         return false;
+    }
+
+    /// @dev Checks if the token is depegged
+    /// @param token The address of the token to check the status of
+    /// @param priceUSD The price of the token in USD
+    /// @param assetPriceUSD The price of the asset in USD
+    /// @return isDepeg True if the token is depegged
+    function _isTokenDepeg(
+        address token,
+        uint256 priceUSD,
+        uint256 assetPriceUSD
+    )
+        internal
+        view
+        returns (bool isDepeg)
+    {
+        uint256 ratio = Math.mulDiv(priceUSD, PRECISION, assetPriceUSD);
+
+        uint8 decimalsToken = IERC20Metadata(token).decimals();
+
+        // Adjust for decimals
+        if (decimalsToken != DECIMALS) {
+            ratio = Math.mulDiv(ratio, 10 ** (DECIMALS - decimalsToken), PRECISION);
+        }
+        if (ratio < DEPEG_LOWER_THRESHOLD || ratio > DEPEG_UPPER_THRESHOLD) {
+            isDepeg = true;
+        }
     }
 }
