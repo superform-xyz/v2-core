@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { console } from "forge-std/console.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -123,7 +122,10 @@ contract SuperAsset is ERC20, ISuperAsset {
     function whitelistERC20(address token) external onlyManager {
         if (token == address(0)) revert ZERO_ADDRESS();
         if (tokenData[token].isSupportedERC20) revert ALREADY_WHITELISTED();
+
+        // Set token as supported and active
         tokenData[token].isSupportedERC20 = true;
+        tokenData[token].isActive = true;
 
         tokenData[token].oracle = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
         _supportedAssets.add(token);
@@ -132,16 +134,36 @@ contract SuperAsset is ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function removeERC20(address token) external onlyManager {
+    function removeERC20(address token, bool fullPurge_) external onlyManager {
         if (token == address(0)) revert ZERO_ADDRESS();
 
-        // remove regardless of balance. Manager has to be careful to keep positions with balance not removed (if he
-        // desires)
-        _supportedAssets.remove(token);
-        tokenData[token].oracle = address(0);
-        tokenData[token].isSupportedERC20 = false;
+        // Mark token as inactive
+        tokenData[token].isActive = false;
+
+        if (fullPurge_) {
+            // Prevent full purge if token has non-zero balance
+            uint256 tokenBalance = IERC20(token).balanceOf(address(this));
+            if (tokenBalance > 0) revert TOKEN_HAS_BALANCE();
+
+            // Full removal - clear all data
+            _supportedAssets.remove(token);
+            tokenData[token].oracle = address(0);
+            tokenData[token].isSupportedERC20 = false;
+        }
 
         emit ERC20Removed(token);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function activateERC20(address token) external onlyManager {
+        if (token == address(0)) revert ZERO_ADDRESS();
+        if (!tokenData[token].isSupportedERC20) revert TOKEN_NOT_SUPPORTED();
+        if (tokenData[token].isActive) revert TOKEN_ALREADY_ACTIVE();
+
+        // Reactivate the token
+        tokenData[token].isActive = true;
+
+        emit ERC20Activated(token);
     }
 
     /// @inheritdoc ISuperAsset
@@ -149,7 +171,9 @@ contract SuperAsset is ERC20, ISuperAsset {
         if (vault == address(0) || yieldSourceOracle == address(0)) revert ZERO_ADDRESS();
         if (tokenData[vault].isSupportedUnderlyingVault) revert ALREADY_WHITELISTED();
 
+        // Set vault as supported and active
         tokenData[vault].isSupportedUnderlyingVault = true;
+        tokenData[vault].isActive = true;
 
         tokenData[vault].oracle = yieldSourceOracle;
         _supportedAssets.add(vault);
@@ -158,16 +182,36 @@ contract SuperAsset is ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function removeVault(address vault) external onlyManager {
+    function removeVault(address vault, bool fullPurge_) external onlyManager {
         if (vault == address(0)) revert ZERO_ADDRESS();
 
-        // remove regardless of balance. Manager has to be careful to keep positions with balance not removed (if he
-        // desires)
-        _supportedAssets.remove(vault);
-        tokenData[vault].oracle = address(0);
-        tokenData[vault].isSupportedUnderlyingVault = false;
+        // Mark vault as inactive
+        tokenData[vault].isActive = false;
+
+        if (fullPurge_) {
+            // Prevent full purge if vault has non-zero balance
+            uint256 vaultBalance = IERC20(vault).balanceOf(address(this));
+            if (vaultBalance > 0) revert TOKEN_HAS_BALANCE();
+
+            // Full removal - clear all data
+            _supportedAssets.remove(vault);
+            tokenData[vault].oracle = address(0);
+            tokenData[vault].isSupportedUnderlyingVault = false;
+        }
 
         emit VaultRemoved(vault);
+    }
+
+    /// @inheritdoc ISuperAsset
+    function activateVault(address vault) external onlyManager {
+        if (vault == address(0)) revert ZERO_ADDRESS();
+        if (!tokenData[vault].isSupportedUnderlyingVault) revert VAULT_NOT_SUPPORTED();
+        if (tokenData[vault].isActive) revert TOKEN_ALREADY_ACTIVE();
+
+        // Reactivate the vault
+        tokenData[vault].isActive = true;
+
+        emit VaultActivated(vault);
     }
 
     /// @inheritdoc ISuperAsset
@@ -211,19 +255,17 @@ contract SuperAsset is ERC20, ISuperAsset {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperAsset
     function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external onlyStrategist {
-        if (tokens.length != allocations.length) revert INVALID_INPUT();
+        uint256 tokensLen = tokens.length;
+        if (tokensLen != allocations.length) revert INVALID_INPUT();
 
         uint256 totalAllocation;
-        for (uint256 i = 0; i < tokens.length; i++) {
+        for (uint256 i; i < tokensLen; i++) {
             if (tokens[i] == address(0)) revert ZERO_ADDRESS();
             if (!tokenData[tokens[i]].isSupportedUnderlyingVault && !tokenData[tokens[i]].isSupportedERC20) {
                 revert NOT_SUPPORTED_TOKEN();
             }
-            totalAllocation += allocations[i];
-        }
-
-        for (uint256 i = 0; i < tokens.length; i++) {
             tokenData[tokens[i]].targetAllocations = allocations[i];
+            totalAllocation += allocations[i];
             emit TargetAllocationSet(tokens[i], allocations[i]);
         }
     }
@@ -245,12 +287,13 @@ contract SuperAsset is ERC20, ISuperAsset {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperAsset
     function deposit(DepositArgs memory args) public returns (DepositReturnVars memory ret) {
-        uint256 totalSupply_ = totalSupply();
-        console.log("----2totalSupply_b4", totalSupply_);
         // First all the non state changing functions
         if (args.receiver == address(0) || args.tokenIn == address(0)) revert ZERO_ADDRESS();
         if (args.amountTokenToDeposit == 0) revert ZERO_AMOUNT();
-        if (!tokenData[args.tokenIn].isSupportedUnderlyingVault && !tokenData[args.tokenIn].isSupportedERC20) {
+        if (
+            !tokenData[args.tokenIn].isSupportedERC20 && !tokenData[args.tokenIn].isSupportedUnderlyingVault
+                || !tokenData[args.tokenIn].isActive
+        ) {
             revert NOT_SUPPORTED_TOKEN();
         }
 
@@ -306,7 +349,6 @@ contract SuperAsset is ERC20, ISuperAsset {
 
         // Transfer swap fees to SuperBank
         IERC20(args.tokenIn).safeTransfer(superGovernor.getAddress(superGovernor.SUPER_BANK()), ret.swapFee);
-        console.log("mint");
         // Mint SuperUSD shares
         _mint(args.receiver, ret.amountSharesMinted);
 
@@ -325,10 +367,12 @@ contract SuperAsset is ERC20, ISuperAsset {
         // First validate parameters
         if (args.receiver == address(0) || args.tokenOut == address(0)) revert ZERO_ADDRESS();
         if (args.amountSharesToRedeem == 0) revert ZERO_AMOUNT();
-        if (!tokenData[args.tokenOut].isSupportedUnderlyingVault && !tokenData[args.tokenOut].isSupportedERC20) {
+        if (
+            !tokenData[args.tokenOut].isSupportedERC20 && !tokenData[args.tokenOut].isSupportedUnderlyingVault
+                || !tokenData[args.tokenOut].isActive
+        ) {
             revert NOT_SUPPORTED_TOKEN();
         }
-
         // Create preview redeem args
         PreviewRedeemArgs memory previewArgs = PreviewRedeemArgs({
             tokenOut: args.tokenOut,
@@ -378,10 +422,8 @@ contract SuperAsset is ERC20, ISuperAsset {
         if (ret.amountIncentiveUSDRedeem > 0) {
             _settleIncentive(msg.sender, ret.amountIncentiveUSDRedeem);
         }
-        console.log("totalAssets b4 burn", totalSupply());
         // Burn SuperUSD shares from the sender
         _burn(msg.sender, args.amountSharesToRedeem);
-        console.log("totalAssets after burn", totalSupply());
 
         // Transfer swap fees to SuperBank
         IERC20(args.tokenOut).safeTransfer(superGovernor.getAddress(superGovernor.SUPER_BANK()), ret.swapFee);
@@ -476,7 +518,6 @@ contract SuperAsset is ERC20, ISuperAsset {
             ret.swapFee = 0;
             ret.amountIncentiveUSDDeposit = 0;
             ret.incentiveCalculationSuccess = false;
-            console.log("\n EARLY RETURN");
 
             return ret;
         }
@@ -521,7 +562,6 @@ contract SuperAsset is ERC20, ISuperAsset {
             ret.swapFee = 0;
             ret.amountIncentiveUSDRedeem = 0;
             ret.incentiveCalculationSuccess = false;
-            console.log("\n EARLY RETURN");
 
             return ret;
         }
@@ -655,7 +695,6 @@ contract SuperAsset is ERC20, ISuperAsset {
             }
         } else if (tokenData[token].isSupportedUnderlyingVault) {
             (priceUSD, stddev, M) = _derivePriceFromUnderlyingVault(token);
-            console.log("----vaultPriceUSD", priceUSD);
         }
 
         // Circuit Breaker for Oracle Off
@@ -676,7 +715,6 @@ contract SuperAsset is ERC20, ISuperAsset {
             } catch {
                 assetPriceUSD = superOracle.getEmergencyPrice(primaryAsset);
             }
-            console.log("----assetPriceUSD", assetPriceUSD);
             isDepeg = _isTokenDepeg(token, priceUSD, assetPriceUSD);
 
             // Calculate relative standard deviation
@@ -814,14 +852,11 @@ contract SuperAsset is ERC20, ISuperAsset {
 
         uint256 superAssetPPS;
         uint256 totalSupply_ = totalSupply();
-        console.log("----2totalSupply_", totalSupply_);
         // PPS = Total Value in USD / Total Supply, normalized to PRECISION
         if (totalSupply_ == 0) {
             superAssetPPS = PRECISION;
         } else {
             superAssetPPS = Math.mulDiv(s.totalValueUSD, PRECISION, totalSupply_);
-            console.log("----totalValueUSD", s.totalValueUSD);
-            console.log("----superAssetPPS", superAssetPPS);
         }
 
         ret.amountAssets = Math.mulDiv(amountToken, s.priceUSDToken, superAssetPPS);
@@ -903,14 +938,11 @@ contract SuperAsset is ERC20, ISuperAsset {
         ret.vaultWeights = new uint256[](s.extendedLength);
 
         uint256 totalSupply_ = totalSupply();
-        console.log("----3totalSupply_", totalSupply_);
         // PPS = Total Value in USD / Total Supply, normalized to PRECISION
         if (totalSupply_ == 0) {
             s.superAssetPPS = PRECISION;
         } else {
             s.superAssetPPS = Math.mulDiv(s.totalValueUSD, PRECISION, totalSupply_);
-            console.log("----totalValueUSD", s.totalValueUSD);
-            console.log("----superAssetPPS", s.superAssetPPS);
         }
 
         ret.amountAssets = Math.mulDiv(amountToken, s.superAssetPPS, s.priceUSDToken);
@@ -1008,21 +1040,15 @@ contract SuperAsset is ERC20, ISuperAsset {
             priceUSD = _priceUSD;
             stddev = _stddev;
             M = _m;
-            console.log("----try");
-            console.log("----_m", _m);
         } catch {
             priceUSD = superOracle.getEmergencyPrice(vaultAsset);
             stddev = 0;
             M = 0;
-            console.log("----catch");
         }
 
         uint256 pricePerShare = IYieldSourceOracle(tokenOracle).getPricePerShare(token);
-        console.log("----pricePerShare", pricePerShare);
         if (priceUSD > 0) {
-            console.log("----priceUSD", priceUSD);
             priceUSD = pricePerShare.mulDiv(priceUSD, PRECISION, Math.Rounding.Floor);
-            console.log("----priceUSD*pricePerShare LIKELY PROBLEM", priceUSD);
         }
     }
 

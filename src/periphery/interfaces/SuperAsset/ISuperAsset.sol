@@ -41,8 +41,10 @@ interface ISuperAsset is IERC20 {
     );
     event VaultWhitelisted(address indexed vault);
     event VaultRemoved(address indexed vault);
+    event VaultActivated(address indexed vault);
     event ERC20Whitelisted(address indexed token);
     event ERC20Removed(address indexed token);
+    event ERC20Activated(address indexed token);
     event SettlementTokenInSet(address indexed token);
     event SettlementTokenOutSet(address indexed token);
     event SuperOracleSet(address indexed oracle);
@@ -96,8 +98,23 @@ interface ISuperAsset is IERC20 {
     /// @notice Thrown when allocation is invalid
     error INVALID_ALLOCATION();
 
-    /// @notice Thrown when the contract is paused
-    error CONTRACT_PAUSED();
+    /// @notice Thrown when token not found
+    error TOKEN_NOT_FOUND();
+
+    /// @notice Thrown when token not supported
+    error TOKEN_NOT_SUPPORTED();
+
+    /// @notice Thrown when attempting to activate an already active token
+    error TOKEN_ALREADY_ACTIVE();
+
+    /// @notice Thrown when attempting to use an inactive token
+    error TOKEN_NOT_ACTIVE();
+
+    /// @notice Thrown when attempting to full purge a token with non-zero balance
+    error TOKEN_HAS_BALANCE();
+
+    /// @notice Thrown when vault is not supported
+    error VAULT_NOT_SUPPORTED();
 
     /// @notice Thrown when caller is not authorized
     error UNAUTHORIZED();
@@ -145,6 +162,7 @@ interface ISuperAsset is IERC20 {
     struct TokenData {
         bool isSupportedUnderlyingVault;
         bool isSupportedERC20;
+        bool isActive; // Whether the token is currently active and usable
         address oracle;
         uint256 targetAllocations;
         uint256 weights;
@@ -632,7 +650,13 @@ interface ISuperAsset is IERC20 {
 
     /// @notice Removes a vault from whitelist
     /// @param vault Address of the vault to remove
-    function removeVault(address vault) external;
+    /// @param fullPurge If true, completely removes the vault including its data. If false, keeps data but deactivates
+    /// the vault
+    function removeVault(address vault, bool fullPurge) external;
+
+    /// @notice Activates a previously deactivated vault
+    /// @param vault Address of the vault to activate
+    function activateVault(address vault) external;
 
     /// @notice Whitelists an ERC20 token
     /// @param token Address of the token to whitelist
@@ -640,7 +664,13 @@ interface ISuperAsset is IERC20 {
 
     /// @notice Removes an ERC20 token from whitelist
     /// @param token Address of the token to remove
-    function removeERC20(address token) external;
+    /// @param fullPurge If true, completely removes the token including its data. If false, keeps data but deactivates
+    /// the token
+    function removeERC20(address token, bool fullPurge) external;
+
+    /// @notice Activates a previously deactivated ERC20 token
+    /// @param token Address of the token to activate
+    function activateERC20(address token) external;
 
     /// @notice Preview a deposit.
     /// @notice Preview deposit to SuperAsset.
