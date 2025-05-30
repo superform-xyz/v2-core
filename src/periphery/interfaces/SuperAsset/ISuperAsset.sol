@@ -110,9 +110,6 @@ interface ISuperAsset is IERC20 {
     /// @notice Thrown when attempting to use an inactive token
     error TOKEN_NOT_ACTIVE();
 
-    /// @notice Thrown when attempting to full purge a token with non-zero balance
-    error TOKEN_HAS_BALANCE();
-
     /// @notice Thrown when vault is not supported
     error VAULT_NOT_SUPPORTED();
 
@@ -650,9 +647,7 @@ interface ISuperAsset is IERC20 {
 
     /// @notice Removes a vault from whitelist
     /// @param vault Address of the vault to remove
-    /// @param fullPurge If true, completely removes the vault including its data. If false, keeps data but deactivates
-    /// the vault
-    function removeVault(address vault, bool fullPurge) external;
+    function removeVault(address vault) external;
 
     /// @notice Activates a previously deactivated vault
     /// @param vault Address of the vault to activate
@@ -664,9 +659,7 @@ interface ISuperAsset is IERC20 {
 
     /// @notice Removes an ERC20 token from whitelist
     /// @param token Address of the token to remove
-    /// @param fullPurge If true, completely removes the token including its data. If false, keeps data but deactivates
-    /// the token
-    function removeERC20(address token, bool fullPurge) external;
+    function removeERC20(address token) external;
 
     /// @notice Activates a previously deactivated ERC20 token
     /// @param token Address of the token to activate
