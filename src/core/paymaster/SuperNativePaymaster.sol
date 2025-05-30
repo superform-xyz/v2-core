@@ -18,7 +18,6 @@ import {ISuperNativePaymaster} from "../interfaces/ISuperNativePaymaster.sol";
 contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     using UserOperationLib for PackedUserOperation;
 
-    uint256 internal constant UINT128_BYTES = 16;
     uint256 internal constant MAX_NODE_OPERATOR_PREMIUM = 10_000;
 
     /*//////////////////////////////////////////////////////////////
