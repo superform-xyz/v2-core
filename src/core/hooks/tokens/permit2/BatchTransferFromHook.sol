@@ -23,7 +23,8 @@ import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
 /// @notice     uint256 sigDeadline = BytesLib.toUint256(data, 52);
 /// @notice     address[] tokens = BytesLib.slice(data, 84, 20 * amountTokens);
 /// @notice     uint256[] amounts = BytesLib.slice(data, 84 + 20 * amountTokens, 32 * amountTokens);
-/// @notice     bytes signature = BytesLib.slice(data, 84 + 20 * amountTokens + 32 * amountTokens, 65);
+/// @notice     uint48[] nonces = BytesLib.slice(data, 84 + 20 * amountTokens + 32 * amountTokens, 48 * amountTokens);
+/// @notice     bytes signature = BytesLib.slice(data, 84 + 20 * amountTokens + 32 * amountTokens + 48 * amountTokens, 65);
 contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
     using SafeCast for uint256;
 
@@ -69,6 +70,7 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
         // Extract tokens and amounts as raw bytes
         bytes memory tokensData = BytesLib.slice(data, 84, 20 * amountTokens);
         bytes memory amountsData = BytesLib.slice(data, 84 + (20 * amountTokens), 32 * amountTokens);
+        bytes memory noncesData = BytesLib.slice(data, 84 + (20 * amountTokens) + (32 * amountTokens), 6 * amountTokens); 
 
         bytes memory signature = BytesLib.slice(data, data.length - 65, 65);
 
@@ -82,6 +84,8 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
         for (uint256 i; i < amountTokens; i++) {
             address token = BytesLib.toAddress(tokensData, i * 20);
             uint256 amount = BytesLib.toUint256(amountsData, i * 32);
+            bytes memory nonceSlice = BytesLib.slice(noncesData, i * 6, 6);
+            uint48 nonce = uint48(uint256(bytes32(nonceSlice)) >> 208);
 
             if (token == address(0)) revert ADDRESS_NOT_VALID();
             if (amount == 0) revert AMOUNT_NOT_VALID();
@@ -90,7 +94,7 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
                 token: token,
                 amount: uint160(amount),
                 expiration: uint48(sigDeadline),
-                nonce: uint48(0)
+                nonce: nonce
             });
         }
 

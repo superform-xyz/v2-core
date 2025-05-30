@@ -25,6 +25,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
     address[] public tokens;
 
     uint256[] public amounts;
+    uint48[] public nonces;
     uint256 public sigDeadline;
 
     bytes32 public DOMAIN_SEPARATOR;
@@ -54,6 +55,11 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         amounts[0] = 1e18;
         amounts[1] = 1e18;
         amounts[2] = 1e18;
+
+        nonces = new uint48[](3);
+        nonces[0] = 0;
+        nonces[1] = 1;
+        nonces[2] = 2;
 
         sigDeadline = block.timestamp + 2 weeks;
 
@@ -96,12 +102,12 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
 
         bytes memory sig = getPermitBatchSignature(permitBatch, 0x12341234, DOMAIN_SEPARATOR);
 
-        bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, sigDeadline, tokens, amounts, sig);
+        bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, sigDeadline, tokens, amounts, nonces, sig);
 
         bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;
 
-        uint256 expectedLength = 20 + 32 + 32 + (20 * 3) + (32 * 3) + 65;
+        uint256 expectedLength = 20 + 32 + 32 + (20 * 3) + (32 * 3) + (6 * 3) + 65;
         assertEq(hookData.length, expectedLength);
 
         ISuperExecutor.ExecutorEntry memory entry =
