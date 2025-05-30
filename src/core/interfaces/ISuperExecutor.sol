@@ -88,6 +88,16 @@ interface ISuperExecutor {
         address indexed account, address indexed spToken, uint256 amount, uint256 indexed dstChainId
     );
 
+    /// @notice Emitted when a module is installed for an account
+    /// @param typeID The module type identifier
+    /// @param module The module address
+    event ModuleInstalled(uint256 indexed typeID, address indexed module);
+
+    /// @notice Emitted when a module is uninstalled from an account
+    /// @param typeID The module type identifier
+    /// @param module The module address
+    event ModuleUninstalled(uint256 indexed typeID, address indexed module);
+
     /*//////////////////////////////////////////////////////////////
                                   VIEW METHODS
     //////////////////////////////////////////////////////////////*/

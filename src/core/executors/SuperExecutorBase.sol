@@ -86,12 +86,14 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     function onInstall(bytes calldata) external override(IModule, ISuperExecutor) {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         _initialized[msg.sender] = true;
+        emit ModuleInstalled(TYPE_EXECUTOR, address(this));
     }
 
     /// @inheritdoc ISuperExecutor
     function onUninstall(bytes calldata) external override(IModule, ISuperExecutor) {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
+        emit ModuleUninstalled(TYPE_EXECUTOR, address(this));
     }
 
     /// @inheritdoc ISuperExecutor
