@@ -194,8 +194,8 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
         outAmount = getCollateralTokenBalance(account, data);
     }
 
-    function _postExecute(address, address, bytes calldata) internal override {
-        outAmount = 0;
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = getCollateralTokenBalance(account, data);
     }
 
     function _verifyAmount(uint256 amount, MarketParams memory marketParams) internal view {
