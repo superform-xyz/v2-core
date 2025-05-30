@@ -107,7 +107,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
 
     /// @inheritdoc IYieldSourceOracle
     function isValidUnderlyingAsset(address yieldSourceAddress, address expectedUnderlying)
-        external
+        public
         view
         virtual
         returns (bool);
@@ -117,5 +117,14 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         external
         view
         virtual
-        returns (bool[] memory);
+        returns (bool[] memory isValid)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        if (length != expectedUnderlying.length) revert ARRAY_LENGTH_MISMATCH();
+
+        isValid = new bool[](length);
+        for (uint256 i; i < length; ++i) {
+            isValid[i] = isValidUnderlyingAsset(yieldSourceAddresses[i], expectedUnderlying[i]);
+        }
+    }
 }
