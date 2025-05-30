@@ -13,7 +13,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookSetter } from "../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 import { IVaultBank } from "../../periphery/interfaces/VaultBank/IVaultBank.sol";
 
@@ -136,7 +136,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     /// @param account The smart account executing the operation
     /// @param hook The hook that was just executed
     /// @param hookData The data provided to the hook for execution
-    function _updateAccounting(address account, address hook, bytes memory hookData) internal virtual {
+    function _updateAccounting(address account, address hook, bytes memory hookData) internal virtual returns (uint256 feeAmount) {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             // Extract yield source information from the hook data
@@ -148,20 +148,21 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
                 ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
             if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
+            uint256 _outAmount = ISuperHookResult(address(hook)).outAmount(); // Amount of shares or assets processed
             // Update accounting records and calculate any fees
-            uint256 feeAmount = ISuperLedger(config.ledger).updateAccounting(
+            feeAmount = ISuperLedger(config.ledger).updateAccounting(
                 account,
                 yieldSource,
                 yieldSourceOracleId,
                 _type == ISuperHook.HookType.INFLOW, // True for inflow, false for outflow
-                ISuperHookResult(address(hook)).outAmount(), // Amount of shares or assets processed
+                _outAmount, // Amount of shares or assets processed
                 ISuperHookResultOutflow(address(hook)).usedShares() // Shares consumed (for outflows)
             );
 
             // Handle fee collection for outflows if a fee was generated
             if (feeAmount > 0 && _type == ISuperHook.HookType.OUTFLOW) {
                 // Sanity check to ensure fee isn't greater than the output amount
-                if (feeAmount > ISuperHookResult(address(hook)).outAmount()) revert INVALID_FEE();
+                if (feeAmount > _outAmount) revert INVALID_FEE();
 
                 // Determine token type (native or ERC20) and process fee transfer
                 address assetToken = ISuperHookResultOutflow(hook).asset();
@@ -174,6 +175,9 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
                     if (IERC20(assetToken).balanceOf(account) < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
                     _performErc20FeeTransfer(account, assetToken, config.feeRecipient, feeAmount);
                 }
+
+                // refresh `outAmount`
+                ISuperHookSetter(hook).setOutAmount(_outAmount - feeAmount);
             }
         }
     }
