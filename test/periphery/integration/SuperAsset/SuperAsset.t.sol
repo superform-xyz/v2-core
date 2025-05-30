@@ -108,7 +108,7 @@ contract SuperAssetTest is Helpers {
         mockFeedSuperAssetShares1 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeedSuperVault1Shares = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeedSuperVault2Shares = new MockAggregator(1e8, 8); // Token/USD = $1
-        //mockFeedPrimaryAsset = new MockAggregator(1e18, 18); 
+        //mockFeedPrimaryAsset = new MockAggregator(1e18, 18);
         mockFeedPrimaryAsset = new MockAggregator(1e8, 8);
 
         mockFeed1 = new MockAggregator(1e8, 8); // Token/USD = $1
@@ -361,24 +361,53 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
 
-        (uint256 expAmountSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSDDeposit,,,, bool isSuccess) =
-            superAsset.previewDeposit(address(tokenIn), depositAmount, false);
+        // Create preview deposit args using the new struct approach
+        ISuperAsset.PreviewDepositArgs memory previewDepositArgs = ISuperAsset.PreviewDepositArgs({
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: depositAmount,
+            isSoft: false
+        });
+
+        // Call previewDeposit with the new struct
+        ISuperAsset.PreviewDepositReturnVars memory previewDepositRet = superAsset.previewDeposit(previewDepositArgs);
+
+        console.log("Oracle Price USD:", previewDepositRet.oraclePriceUSD);
+        console.log("Is Depeg:", previewDepositRet.isDepeg);
+        console.log("Is Dispersion:", previewDepositRet.isDispersion);
+        console.log("Is Oracle Off:", previewDepositRet.isOracleOff);
+        console.log("Token In Found:", previewDepositRet.tokenInFound);
+        console.log("Incentive Calculation Success:", previewDepositRet.incentiveCalculationSuccess);
+        // Check if operation should succeed based on circuit breakers and other conditions
+        bool isSuccess = previewDepositRet.oraclePriceUSD != 0 && !previewDepositRet.isDepeg
+            && !previewDepositRet.isDispersion && !previewDepositRet.isOracleOff && previewDepositRet.tokenInFound;
+
         assertEq(isSuccess, true, "isSuccess should be true, because of zero initial allocation");
 
         uint256 b1 = tokenIn.balanceOf(address(superBank));
         // Deposit tokens
-        (uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit) =
-            superAsset.deposit(user, address(tokenIn), depositAmount, minSharesOut);
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: depositAmount,
+            minSharesOut: minSharesOut
+        });
+        ISuperAsset.DepositReturnVars memory ret = superAsset.deposit(depositArgs);
         vm.stopPrank();
-        assertEq(tokenIn.balanceOf(address(superBank)) - b1, swapFee);
-        assertEq(expAmountSharesMinted, amountSharesMinted);
-        assertEq(expSwapFee, swapFee);
-        assertEq(expAmountIncentiveUSDDeposit, amountIncentiveUSDDeposit);
+        assertEq(tokenIn.balanceOf(address(superBank)) - b1, ret.swapFee, "SuperBank should receive the swap fee");
+        assertEq(
+            previewDepositRet.amountSharesMinted, ret.amountSharesMinted, "Actual shares minted should match preview"
+        );
+        assertEq(previewDepositRet.swapFee, ret.swapFee, "Actual swap fee should match preview");
+        assertEq(
+            previewDepositRet.amountIncentiveUSDDeposit,
+            ret.amountIncentiveUSDDeposit,
+            "Actual incentive should match preview"
+        );
 
         // Verify results
-        assertGt(amountSharesMinted, 0, "Should mint shares");
+        assertGt(ret.amountSharesMinted, 0, "Should mint shares");
         assertEq(
-            swapFee,
+            ret.swapFee,
             (depositAmount * superAsset.swapFeeInPercentage()) / superAsset.SWAP_FEE_PERC(),
             "Incorrect swap fee"
         );
@@ -420,7 +449,13 @@ contract SuperAssetTest is Helpers {
     function test_DepositWithZeroAmount() public {
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.ZERO_AMOUNT.selector);
-        superAsset.deposit(user, address(tokenIn), 0, 0);
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: 0,
+            minSharesOut: 0
+        });
+        superAsset.deposit(depositArgs);
         vm.stopPrank();
     }
 
@@ -428,14 +463,26 @@ contract SuperAssetTest is Helpers {
         address unsupportedToken = makeAddr("unsupportedToken");
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.NOT_SUPPORTED_TOKEN.selector);
-        superAsset.deposit(user, unsupportedToken, 100e18, 0);
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: unsupportedToken,
+            amountTokenToDeposit: 100e18,
+            minSharesOut: 0
+        });
+        superAsset.deposit(depositArgs);
         vm.stopPrank();
     }
 
     function test_DepositWithZeroAddress() public {
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.ZERO_ADDRESS.selector);
-        superAsset.deposit(address(0), address(tokenIn), 100e18, 0);
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: address(0),
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: 100e18,
+            minSharesOut: 0
+        });
+        superAsset.deposit(depositArgs);
         vm.stopPrank();
     }
 
@@ -447,7 +494,13 @@ contract SuperAssetTest is Helpers {
         tokenIn.approve(address(superAsset), depositAmount);
 
         vm.expectRevert(ISuperAsset.SLIPPAGE_PROTECTION.selector);
-        superAsset.deposit(user, address(tokenIn), depositAmount, tooHighMinSharesOut);
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: depositAmount,
+            minSharesOut: tooHighMinSharesOut
+        });
+        superAsset.deposit(depositArgs);
         vm.stopPrank();
     }
 
@@ -455,50 +508,112 @@ contract SuperAssetTest is Helpers {
     function test_BasicRedeem() public {
         // First deposit to get some shares
         uint256 depositAmount = 100e18;
-        (uint256 expSharesMinted, uint256 expSwapFee, int256 expAmountIncentiveUSD,,,, bool isSuccess) =
-            superAsset.previewDeposit(address(tokenIn), depositAmount, false);
+        // Create preview deposit args using the new struct approach
+        ISuperAsset.PreviewDepositArgs memory previewDepositArgs = ISuperAsset.PreviewDepositArgs({
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: depositAmount,
+            isSoft: false
+        });
+
+        // Call previewDeposit with the new struct
+        ISuperAsset.PreviewDepositReturnVars memory previewDepositRet = superAsset.previewDeposit(previewDepositArgs);
+
+        // Check if operation should succeed based on circuit breakers and other conditions
+        bool isSuccess = previewDepositRet.oraclePriceUSD != 0 && !previewDepositRet.isDepeg
+            && !previewDepositRet.isDispersion && !previewDepositRet.isOracleOff && previewDepositRet.tokenInFound;
+
+        assertEq(isSuccess, true, "isSuccess should be true, because of zero initial allocation");
+
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
-        (uint256 sharesMinted, uint256 swapFee, int256 amountIncentiveUSD) =
-            superAsset.deposit(user, address(tokenIn), depositAmount, 0);
-        assertEq(tokenIn.balanceOf(address(superAsset)), depositAmount - swapFee);
-        assertEq(expSharesMinted, sharesMinted);
-        assertEq(expSwapFee, swapFee);
-        assertEq(expAmountIncentiveUSD, amountIncentiveUSD);
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: depositAmount,
+            minSharesOut: 0
+        });
+        console.log("\n DEPOSIT 1 START");
+        ISuperAsset.DepositReturnVars memory ret = superAsset.deposit(depositArgs);
+        console.log("\n DEPOSIT 1 END");
+
+        assertEq(tokenIn.balanceOf(address(superAsset)), depositAmount - ret.swapFee);
+        assertEq(previewDepositRet.amountSharesMinted, ret.amountSharesMinted);
+        uint256 userShareBalancePostDeposit = superAsset.balanceOf(user);
+        assertEq(userShareBalancePostDeposit, ret.amountSharesMinted, "User should have received the shares");
+        assertEq(previewDepositRet.swapFee, ret.swapFee);
+        assertEq(previewDepositRet.amountIncentiveUSDDeposit, ret.amountIncentiveUSDDeposit);
 
         tokenIn.approve(address(superAsset), depositAmount);
-        superAsset.deposit(user, address(tokenIn), depositAmount, 0);
+        ISuperAsset.DepositArgs memory depositArgs2 = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: depositAmount,
+            minSharesOut: 0
+        });
+        console.log("\n DEPOSIT 2 START");
+        ISuperAsset.DepositReturnVars memory ret2 = superAsset.deposit(depositArgs2);
+        console.log("\n DEPOSIT 2 END");
 
         // Now redeem the shares
-        uint256 amountTokenOutAfterFees;
-        int256 amountIncentiveUSDRedeem;
-        uint256 expAmountTokenOutAfterFees;
-        int256 expAmountIncentiveUSDRedeem;
-        uint256 sharesToRedeem = sharesMinted / 2;
-        uint256 minTokenOut = sharesToRedeem * 99 / 100; // Allowing for 1% slippage
+        uint256 minTokenOut = (ret.amountSharesMinted + ret2.amountSharesMinted) * 99 / 100; // Allowing for 1% slippage
 
-        (expAmountTokenOutAfterFees, expSwapFee, expAmountIncentiveUSDRedeem, isSuccess) =
-            superAsset.previewRedeem(address(tokenIn), sharesToRedeem, false);
-        assertGt(expAmountTokenOutAfterFees, 0, "Should receive tokens");
-        assertGt(expSwapFee, 0, "Should pay swap fees");
+        // Create preview redeem args using the new struct approach
+        ISuperAsset.PreviewRedeemArgs memory previewRedeemArgs = ISuperAsset.PreviewRedeemArgs({
+            tokenOut: address(tokenIn),
+            amountSharesToRedeem: ret.amountSharesMinted + ret2.amountSharesMinted,
+            isSoft: false
+        });
 
-        (amountTokenOutAfterFees, swapFee, amountIncentiveUSDRedeem) =
-            superAsset.redeem(user, sharesToRedeem, address(tokenIn), minTokenOut);
+        // Call previewRedeem with the new struct
+        ISuperAsset.PreviewRedeemReturnVars memory previewRedeemRet = superAsset.previewRedeem(previewRedeemArgs);
+
+        // Check if redeem operation should succeed based on circuit breakers and other conditions
+        isSuccess = previewRedeemRet.oraclePriceUSD != 0 && !previewRedeemRet.isDepeg && !previewRedeemRet.isDispersion
+            && !previewRedeemRet.isOracleOff && previewRedeemRet.tokenOutFound
+            && previewRedeemRet.incentiveCalculationSuccess;
+        assertEq(isSuccess, true, "isSuccess should be true, because of zero initial allocation");
+        assertGt(previewRedeemRet.amountTokenOutAfterFees, 0, "Should receive tokens");
+        assertGt(previewRedeemRet.swapFee, 0, "Should pay swap fees");
+
+        ISuperAsset.RedeemArgs memory redeemArgs = ISuperAsset.RedeemArgs({
+            receiver: user,
+            amountSharesToRedeem: ret.amountSharesMinted + ret2.amountSharesMinted,
+            tokenOut: address(tokenIn),
+            minTokenOut: minTokenOut
+        });
+
+        console.log("\n USER SHARE BALANCE PRE REDEEM", userShareBalancePostDeposit);
+        ISuperAsset.RedeemReturnVars memory retRedeem = superAsset.redeem(redeemArgs);
         vm.stopPrank();
 
-        assertEq(expAmountTokenOutAfterFees, amountTokenOutAfterFees);
-        assertEq(expSwapFee, swapFee);
-        assertEq(expAmountIncentiveUSDRedeem, amountIncentiveUSDRedeem);
+        // Verify the actual redeem results match the preview results
+        assertEq(
+            previewRedeemRet.amountTokenOutAfterFees,
+            retRedeem.amountTokenOutAfterFees,
+            "Actual token output should match preview"
+        );
+        assertEq(previewRedeemRet.swapFee, retRedeem.swapFee, "Actual swap fee should match preview");
+        assertEq(
+            previewRedeemRet.amountIncentiveUSDRedeem,
+            retRedeem.amountIncentiveUSDRedeem,
+            "Actual incentive should match preview"
+        );
 
         // Verify results
-        assertGt(amountTokenOutAfterFees, 0, "Should receive tokens");
-        assertEq(superAsset.balanceOf(user), sharesMinted - sharesToRedeem, "User should have no shares left");
+        assertGt(retRedeem.amountTokenOutAfterFees, 0, "Should receive tokens");
+        assertEq(superAsset.balanceOf(user), 0, "User should have no shares left");
     }
 
     function test_RedeemWithZeroAmount() public {
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.ZERO_AMOUNT.selector);
-        superAsset.redeem(user, 0, address(tokenIn), 0);
+        ISuperAsset.RedeemArgs memory redeemArgs = ISuperAsset.RedeemArgs({
+            receiver: user,
+            amountSharesToRedeem: 0,
+            tokenOut: address(tokenIn),
+            minTokenOut: 0
+        });
+        superAsset.redeem(redeemArgs);
         vm.stopPrank();
     }
 
@@ -506,14 +621,26 @@ contract SuperAssetTest is Helpers {
         address unsupportedToken = makeAddr("unsupportedToken");
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.NOT_SUPPORTED_TOKEN.selector);
-        superAsset.redeem(user, 100e18, unsupportedToken, 0);
+        ISuperAsset.RedeemArgs memory redeemArgs = ISuperAsset.RedeemArgs({
+            receiver: user,
+            amountSharesToRedeem: 100e18,
+            tokenOut: unsupportedToken,
+            minTokenOut: 0
+        });
+        superAsset.redeem(redeemArgs);
         vm.stopPrank();
     }
 
     function test_RedeemWithZeroAddress() public {
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.ZERO_ADDRESS.selector);
-        superAsset.redeem(address(0), 100e18, address(tokenIn), 0);
+        ISuperAsset.RedeemArgs memory redeemArgs = ISuperAsset.RedeemArgs({
+            receiver: address(0),
+            amountSharesToRedeem: 100e18,
+            tokenOut: address(tokenIn),
+            minTokenOut: 0
+        });
+        superAsset.redeem(redeemArgs);
         vm.stopPrank();
     }
 
@@ -522,12 +649,24 @@ contract SuperAssetTest is Helpers {
         uint256 depositAmount = 100e18;
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), depositAmount);
-        (uint256 sharesMinted,,) = superAsset.deposit(user, address(tokenIn), depositAmount, 0);
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: depositAmount,
+            minSharesOut: 0
+        });
+        ISuperAsset.DepositReturnVars memory ret = superAsset.deposit(depositArgs);
 
         // Try to redeem with too high minimum output requirement
         uint256 tooHighMinTokenOut = 101e18; // Requiring more tokens than possible
+        ISuperAsset.RedeemArgs memory redeemArgs = ISuperAsset.RedeemArgs({
+            receiver: user,
+            amountSharesToRedeem: ret.amountSharesMinted,
+            tokenOut: address(tokenIn),
+            minTokenOut: tooHighMinTokenOut
+        });
         vm.expectRevert(ISuperAsset.SLIPPAGE_PROTECTION.selector);
-        superAsset.redeem(user, sharesMinted, address(tokenIn), tooHighMinTokenOut);
+        superAsset.redeem(redeemArgs);
         vm.stopPrank();
     }
 
@@ -554,20 +693,37 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(user11);
         // We need enough tokenOut deposited
         tokenOut.approve(address(superAsset), s.swapAmount);
-        (s.sharesMinted, s.swapFee, s.amountIncentiveUSD) =
-            superAsset.deposit(user11, address(tokenOut), s.swapAmount, 0);
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user11,
+            tokenIn: address(tokenOut),
+            amountTokenToDeposit: s.swapAmount,
+            minSharesOut: 0
+        });
+        ISuperAsset.DepositReturnVars memory ret = superAsset.deposit(depositArgs);
         vm.stopPrank();
-        assertEq(tokenOut.balanceOf(address(superAsset)), s.swapAmount - s.swapFee, "Should deposit tokenOut");
-        assertEq(superAsset.balanceOf(user11), s.sharesMinted, "Should mint shares");
+        assertEq(tokenOut.balanceOf(address(superAsset)), s.swapAmount - ret.swapFee, "Should deposit tokenOut");
+        assertEq(superAsset.balanceOf(user11), ret.amountSharesMinted, "Should mint shares");
+        // Create preview swap args
+        ISuperAsset.PreviewSwapArgs memory previewArgs = ISuperAsset.PreviewSwapArgs({
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: s.swapAmount,
+            tokenOut: address(tokenOut),
+            isSoft: false
+        });
 
-        (
-            s.expAmountTokenOutAfterFees,
-            s.expSwapFeeIn,
-            s.expSwapFeeOut,
-            s.expAmountIncentiveUSDDeposit,
-            s.expAmountIncentiveUSDRedeem,
-            s.isSuccess
-        ) = superAsset.previewSwap(address(tokenIn), s.swapAmount, address(tokenOut), false);
+        // Call previewSwap with the new struct approach
+        ISuperAsset.PreviewSwapReturnVars memory previewRet = superAsset.previewSwap(previewArgs);
+
+        // Store results for later assertions
+        s.expAmountTokenOutAfterFees = previewRet.amountTokenOutAfterFees;
+        s.expSwapFeeIn = previewRet.swapFeeIn;
+        s.expSwapFeeOut = previewRet.swapFeeOut;
+        s.expAmountIncentiveUSDDeposit = previewRet.amountIncentiveUSDDeposit;
+        s.expAmountIncentiveUSDRedeem = previewRet.amountIncentiveUSDRedeem;
+
+        s.isSuccess = previewRet.oraclePriceUSD != 0 && !previewRet.isDepeg && !previewRet.isDispersion
+            && !previewRet.isOracleOff && previewRet.tokenInFound;
+        assertEq(s.isSuccess, true, "isSuccess should be true, because of zero initial allocation");
         assertGt(s.expAmountTokenOutAfterFees, 0, "Should receive output tokens");
         assertGt(s.expSwapFeeIn, 0, "Should charge deposit fee");
         assertGt(s.expSwapFeeOut, 0, "Should charge redeem fee");
@@ -589,33 +745,48 @@ contract SuperAssetTest is Helpers {
         tokenIn.approve(address(superAsset), s.swapAmount);
 
         // Perform swap
-        (
-            uint256 amountSharesIntermediateStep,
-            uint256 amountTokenOutAfterFees,
-            uint256 swapFeeIn,
-            uint256 swapFeeOut,
-            int256 amountIncentivesIn,
-            int256 amountIncentivesOut
-        ) = superAsset.swap(user, address(tokenIn), s.swapAmount, address(tokenOut), s.minTokenOut);
+        ISuperAsset.SwapArgs memory swapArgs = ISuperAsset.SwapArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: s.swapAmount,
+            tokenOut: address(tokenOut),
+            minTokenOut: s.minTokenOut
+        });
+        ISuperAsset.SwapReturnVars memory swapRet = superAsset.swap(swapArgs);
+
+        // Store return values for assertions
+        uint256 sharesStep = swapRet.amountSharesIntermediateStep;
+        uint256 tokensOut = swapRet.amountTokenOutAfterFees;
+        uint256 swapFeeIn = swapRet.swapFeeIn;
+        uint256 swapFeeOut = swapRet.swapFeeOut;
+        int256 incentivesIn = swapRet.amountIncentivesIn;
+        int256 incentivesOut = swapRet.amountIncentivesOut;
 
         vm.stopPrank();
 
         // Verify results
-        assertGt(amountSharesIntermediateStep, 0, "Should create intermediate shares");
-        assertGt(amountTokenOutAfterFees, 0, "Should receive output tokens");
+        assertGt(sharesStep, 0, "Should create intermediate shares");
+        assertGt(tokensOut, 0, "Should receive output tokens");
         assertGt(swapFeeIn, 0, "Should charge deposit fee");
         assertGt(swapFeeOut, 0, "Should charge redeem fee");
 
         // NOTE: No incentives here
         // TODO: Check if correct
-        assertTrue(amountIncentivesIn == 0, "Should calculate deposit incentives");
-        assertTrue(amountIncentivesOut == 0, "Should calculate redeem incentives");
+        assertTrue(incentivesIn == 0, "Should calculate deposit incentives");
+        assertTrue(incentivesOut == 0, "Should calculate redeem incentives");
     }
 
     function test_SwapWithZeroAmount() public {
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.ZERO_AMOUNT.selector);
-        superAsset.swap(user, address(tokenIn), 0, address(tokenOut), 0);
+        ISuperAsset.SwapArgs memory swapArgs = ISuperAsset.SwapArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: 0,
+            tokenOut: address(tokenOut),
+            minTokenOut: 0
+        });
+        superAsset.swap(swapArgs);
         vm.stopPrank();
     }
 
@@ -623,14 +794,28 @@ contract SuperAssetTest is Helpers {
         address unsupportedToken = makeAddr("unsupportedToken");
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.NOT_SUPPORTED_TOKEN.selector);
-        superAsset.swap(user, unsupportedToken, 100e18, address(tokenOut), 0);
+        ISuperAsset.SwapArgs memory swapArgs = ISuperAsset.SwapArgs({
+            receiver: user,
+            tokenIn: unsupportedToken,
+            amountTokenToDeposit: 100e18,
+            tokenOut: address(tokenOut),
+            minTokenOut: 0
+        });
+        superAsset.swap(swapArgs);
         vm.stopPrank();
     }
 
     function test_SwapWithZeroAddress() public {
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.ZERO_ADDRESS.selector);
-        superAsset.swap(address(0), address(tokenIn), 100e18, address(tokenOut), 0);
+        ISuperAsset.SwapArgs memory swapArgs = ISuperAsset.SwapArgs({
+            receiver: address(0),
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: 100e18,
+            tokenOut: address(tokenOut),
+            minTokenOut: 0
+        });
+        superAsset.swap(swapArgs);
         vm.stopPrank();
     }
 
@@ -642,7 +827,14 @@ contract SuperAssetTest is Helpers {
         tokenIn.approve(address(superAsset), swapAmount);
 
         vm.expectRevert(ISuperAsset.SLIPPAGE_PROTECTION.selector);
-        superAsset.swap(user, address(tokenIn), swapAmount, address(tokenOut), tooHighMinTokenOut);
+        ISuperAsset.SwapArgs memory swapArgs = ISuperAsset.SwapArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: swapAmount,
+            tokenOut: address(tokenOut),
+            minTokenOut: tooHighMinTokenOut
+        });
+        superAsset.swap(swapArgs);
         vm.stopPrank();
     }
 }
