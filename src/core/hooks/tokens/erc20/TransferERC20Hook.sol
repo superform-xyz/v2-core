@@ -21,6 +21,8 @@ import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../
 contract TransferERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
 
+    error INVALID_FINAL_BALANCE();
+
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) {}
 
     /*//////////////////////////////////////////////////////////////
@@ -70,20 +72,21 @@ contract TransferERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspec
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data);
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(account, data);
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data) - outAmount;
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        uint256 finalBalance = _getBalance(account, data);
+        require(finalBalance <= outAmount, INVALID_FINAL_BALANCE());
+        outAmount = outAmount - finalBalance; // outAmount = tokens sent
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getBalance(bytes memory data) private view returns (uint256) {
+    function _getBalance(address account, bytes memory data) private view returns (uint256) {
         address token = BytesLib.toAddress(data, 0);
-        address to = BytesLib.toAddress(data, 20);
-        return IERC20(token).balanceOf(to);
+        return IERC20(token).balanceOf(account);
     }
 }
