@@ -418,23 +418,6 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        GET USED ASSETS TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_GetUsedAssets() public view {
-        bytes memory data = _encodeRepayData(false, false);
-        uint256 usedAssets = repayHook.getUsedAssets(address(this), data);
-
-        assertEq(usedAssets, 0);
-    }
-
-    function test_RepayAndWithdrawHook_GetUsedAssets() public view {
-        bytes memory data = _encodeRepayAndWithdrawData(false, false);
-        uint256 usedAssets = repayAndWithdrawHook.getUsedAssets(address(this), data);
-
-        assertEq(usedAssets, 0);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                           DERIVE INTEREST TESTS
     //////////////////////////////////////////////////////////////*/
     function test_RepayHook_DeriveInterest() public view {

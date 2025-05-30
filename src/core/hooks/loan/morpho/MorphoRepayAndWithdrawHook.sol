@@ -148,18 +148,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         }
     }
 
-    /// @inheritdoc ISuperHookLoans
-    function getUsedAssets(address account, bytes memory data) external view returns (uint256) {
-        BuildHookLocalVars memory vars = _decodeHookData(data);
-        MarketParams memory marketParams =
-            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
-        Id id = marketParams.id();
-        if (vars.isFullRepayment) {
-            return outAmount + deriveCollateralForFullRepayment(id, account) + deriveInterest(marketParams);
-        } else {
-            return outAmount;
-        }
-    }
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {

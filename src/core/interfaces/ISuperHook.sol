@@ -159,13 +159,6 @@ interface ISuperHookLoans is ISuperHookContextAware {
     /// @param data The hook-specific data containing collateral parameters
     /// @return The amount of tokens currently used as collateral
     function getCollateralTokenBalance(address account, bytes memory data) external view returns (uint256);
-
-    /// @notice Gets the amount of assets used in the loan operation
-    /// @dev Used for accounting and tracking of asset usage
-    /// @param account The account to check
-    /// @param data The hook-specific data
-    /// @return The amount of assets used
-    function getUsedAssets(address account, bytes memory data) external view returns (uint256);
 }
 
 /// @title ISuperHookAsyncCancelations
