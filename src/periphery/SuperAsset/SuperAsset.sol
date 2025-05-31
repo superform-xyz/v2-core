@@ -143,12 +143,12 @@ contract SuperAsset is ERC20, ISuperAsset {
         if (fullPurge_) {
             // Prevent full purge if token has non-zero balance
             uint256 tokenBalance = IERC20(token).balanceOf(address(this));
-            if (tokenBalance > 0) revert TOKEN_HAS_BALANCE();
-
-            // Full removal - clear all data
-            _supportedAssets.remove(token);
-            tokenData[token].oracle = address(0);
-            tokenData[token].isSupportedERC20 = false;
+            if (tokenBalance == 0) {
+                // Full removal - clear all data
+                _supportedAssets.remove(token);
+                tokenData[token].oracle = address(0);
+                tokenData[token].isSupportedERC20 = false;
+            }
         }
 
         emit ERC20Removed(token);
@@ -191,12 +191,12 @@ contract SuperAsset is ERC20, ISuperAsset {
         if (fullPurge_) {
             // Prevent full purge if vault has non-zero balance
             uint256 vaultBalance = IERC20(vault).balanceOf(address(this));
-            if (vaultBalance > 0) revert TOKEN_HAS_BALANCE();
-
-            // Full removal - clear all data
-            _supportedAssets.remove(vault);
-            tokenData[vault].oracle = address(0);
-            tokenData[vault].isSupportedUnderlyingVault = false;
+            if (vaultBalance == 0) {
+                // Full removal - clear all data
+                _supportedAssets.remove(vault);
+                tokenData[vault].oracle = address(0);
+                tokenData[vault].isSupportedUnderlyingVault = false;
+            }
         }
 
         emit VaultRemoved(vault);
