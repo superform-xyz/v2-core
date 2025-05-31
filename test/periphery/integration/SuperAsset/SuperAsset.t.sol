@@ -842,31 +842,36 @@ contract SuperAssetTest is Helpers {
     function test_ERC20TokenActivationAndDeactivation() public {
         // Deploy a new test token
         MockERC20 testToken = new MockERC20("Test Token", "TEST", 18);
-
+        
         // Whitelist the token (also sets isActive to true)
         vm.startPrank(admin);
         superAsset.whitelistERC20(address(testToken));
-
+        
         // Check initial state
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(testToken));
         assertTrue(tokenData.isSupportedERC20, "Token should be supported");
         assertTrue(tokenData.isActive, "Token should be active after whitelisting");
-
-        // Soft remove (deactivate) the token
-        superAsset.removeERC20(address(testToken), false);
-
-        // Check token is inactive but still supported
+        
+        // Give the token some balance to prevent complete purge
+        vm.stopPrank();
+        deal(address(testToken), address(superAsset), 100e18);
+        vm.startPrank(admin);
+        
+        // Deactivate the token (with balance, it will remain in system but inactive)
+        superAsset.removeERC20(address(testToken));
+        
+        // Check token is inactive but still supported because it has balance
         tokenData = superAsset.getTokenData(address(testToken));
-        assertTrue(tokenData.isSupportedERC20, "Token should still be supported after soft removal");
-        assertFalse(tokenData.isActive, "Token should be inactive after soft removal");
-
+        assertTrue(tokenData.isSupportedERC20, "Token should still be supported after deactivation when it has balance");
+        assertFalse(tokenData.isActive, "Token should be inactive after deactivation");
+        
         // Reactivate the token
         superAsset.activateERC20(address(testToken));
-
+        
         // Check token is active again
         tokenData = superAsset.getTokenData(address(testToken));
         assertTrue(tokenData.isActive, "Token should be active after reactivation");
-
+        
         vm.stopPrank();
     }
 
@@ -874,70 +879,75 @@ contract SuperAssetTest is Helpers {
         // Deploy a new test vault
         MockERC20 underlying = new MockERC20("Vault Underlying", "VUND", 18);
         Mock4626Vault testVault = new Mock4626Vault(address(underlying), "Test Vault", "TVAULT");
-
+        
         // Whitelist the vault (also sets isActive to true)
         vm.startPrank(admin);
         superAsset.whitelistVault(address(testVault), address(yieldSourceOracle));
-
+        
         // Check initial state
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(testVault));
         assertTrue(tokenData.isSupportedUnderlyingVault, "Vault should be supported");
         assertTrue(tokenData.isActive, "Vault should be active after whitelisting");
-
-        // Soft remove (deactivate) the vault
-        superAsset.removeVault(address(testVault), false);
-
-        // Check vault is inactive but still supported
+        
+        // Give the vault token a non-zero balance in SuperAsset to prevent auto-purge
+        vm.stopPrank();  // Stop being admin to do token operations
+        
+        // Use deal to give SuperAsset some vault tokens
+        deal(address(testVault), address(superAsset), 100e18);
+        
+        // Start being admin again
+        vm.startPrank(admin);
+        
+        // Deactivate the vault (with balance, it will remain in system but inactive)
+        superAsset.removeVault(address(testVault));
+        
+        // Check vault is inactive but still supported because it has balance
         tokenData = superAsset.getTokenData(address(testVault));
-        assertTrue(tokenData.isSupportedUnderlyingVault, "Vault should still be supported after soft removal");
-        assertFalse(tokenData.isActive, "Vault should be inactive after soft removal");
-
+        assertTrue(tokenData.isSupportedUnderlyingVault, "Vault should still be supported after deactivation when it has balance");
+        assertFalse(tokenData.isActive, "Vault should be inactive after deactivation");
+        
         // Reactivate the vault
         superAsset.activateVault(address(testVault));
-
+        
         // Check vault is active again
         tokenData = superAsset.getTokenData(address(testVault));
         assertTrue(tokenData.isActive, "Vault should be active after reactivation");
-
+        
         vm.stopPrank();
     }
 
-    function test_PreventFullPurgeWithBalance() public {
+    function test_AutoPurgeWithZeroBalance() public {
         // Deploy a new test token
         MockERC20 testToken = new MockERC20("Test Token", "TEST", 18);
-
+        
         // Whitelist the token
         vm.startPrank(admin);
         superAsset.whitelistERC20(address(testToken));
         vm.stopPrank();
-
+        
         // Mint tokens to SuperAsset contract
         testToken.mint(address(superAsset), 100e18);
         assertEq(testToken.balanceOf(address(superAsset)), 100e18, "SuperAsset should have token balance");
-
-        // Try to fully purge the token with balance - should revert
+        
+        // Deactivate with balance - token should remain in system but inactive
         vm.startPrank(admin);
-        vm.expectRevert(ISuperAsset.TOKEN_HAS_BALANCE.selector);
-        superAsset.removeERC20(address(testToken), true);
-
-        // Soft removal should still work
-        superAsset.removeERC20(address(testToken), false);
+        superAsset.removeERC20(address(testToken));
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(testToken));
-        assertFalse(tokenData.isActive, "Token should be inactive after soft removal");
-        assertTrue(tokenData.isSupportedERC20, "Token should still be supported after soft removal");
-
-        // Transfer all tokens out
+        assertFalse(tokenData.isActive, "Token should be inactive after deactivation");
+        assertTrue(tokenData.isSupportedERC20, "Token should still be supported when it has balance");
         vm.stopPrank();
+        
+        // Transfer all tokens out
         vm.prank(address(superAsset));
         testToken.transfer(address(this), 100e18);
         assertEq(testToken.balanceOf(address(superAsset)), 0, "SuperAsset should have no token balance");
-
-        // Now full purge should work
+        
+        // Now try to deactivate again - should auto-purge since balance is zero
         vm.startPrank(admin);
-        superAsset.removeERC20(address(testToken), true);
+        superAsset.removeERC20(address(testToken));
         tokenData = superAsset.getTokenData(address(testToken));
-        assertFalse(tokenData.isActive, "Token should be inactive after full purge");
-        assertFalse(tokenData.isSupportedERC20, "Token should not be supported after full purge");
+        assertFalse(tokenData.isActive, "Token should be inactive after purge");
+        assertFalse(tokenData.isSupportedERC20, "Token should be completely removed when it has no balance");
         vm.stopPrank();
     }
 
@@ -955,7 +965,7 @@ contract SuperAssetTest is Helpers {
 
         // Deactivate the token
         vm.startPrank(admin);
-        superAsset.removeERC20(address(testToken), false);
+        superAsset.removeERC20(address(testToken));
         vm.stopPrank();
 
         // Deposit should work with active token
@@ -995,7 +1005,7 @@ contract SuperAssetTest is Helpers {
 
         // Now deactivate tokenOut
         vm.startPrank(admin);
-        superAsset.removeVault(address(tokenOut), false);
+        superAsset.removeVault(address(tokenOut));
         vm.stopPrank();
 
         // Try to redeem to inactive token - should revert
@@ -1014,27 +1024,32 @@ contract SuperAssetTest is Helpers {
     function test_ReactivationErrors() public {
         // Deploy a new test token
         MockERC20 testToken = new MockERC20("Test Token", "TEST", 18);
-
+        
         // Try to activate non-supported token
         vm.startPrank(admin);
         vm.expectRevert(ISuperAsset.TOKEN_NOT_SUPPORTED.selector);
         superAsset.activateERC20(address(testToken));
-
+        
         // Whitelist the token
         superAsset.whitelistERC20(address(testToken));
-
+        
         // Try to activate already active token
         vm.expectRevert(ISuperAsset.TOKEN_ALREADY_ACTIVE.selector);
         superAsset.activateERC20(address(testToken));
-
+        
+        // Add token balance to prevent complete removal
+        vm.stopPrank();
+        deal(address(testToken), address(superAsset), 100e18);
+        vm.startPrank(admin);
+        
         // Deactivate the token
-        superAsset.removeERC20(address(testToken), false);
-
+        superAsset.removeERC20(address(testToken));
+        
         // Activation should now succeed
         superAsset.activateERC20(address(testToken));
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(testToken));
         assertTrue(tokenData.isActive, "Token should be active after reactivation");
-
+        
         vm.stopPrank();
     }
 }

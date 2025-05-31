@@ -134,21 +134,18 @@ contract SuperAsset is ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function removeERC20(address token, bool fullPurge_) external onlyManager {
+    function removeERC20(address token) external onlyManager {
         if (token == address(0)) revert ZERO_ADDRESS();
 
         // Mark token as inactive
         tokenData[token].isActive = false;
 
-        if (fullPurge_) {
-            // Prevent full purge if token has non-zero balance
-            uint256 tokenBalance = IERC20(token).balanceOf(address(this));
-            if (tokenBalance == 0) {
-                // Full removal - clear all data
-                _supportedAssets.remove(token);
-                tokenData[token].oracle = address(0);
-                tokenData[token].isSupportedERC20 = false;
-            }
+        // Prevent full purge if token has 0 balance
+        if (IERC20(token).balanceOf(address(this)) == 0) {
+            // Full removal - clear all data
+            _supportedAssets.remove(token);
+            tokenData[token].oracle = address(0);
+            tokenData[token].isSupportedERC20 = false;
         }
 
         emit ERC20Removed(token);
@@ -182,21 +179,18 @@ contract SuperAsset is ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function removeVault(address vault, bool fullPurge_) external onlyManager {
+    function removeVault(address vault) external onlyManager {
         if (vault == address(0)) revert ZERO_ADDRESS();
 
         // Mark vault as inactive
         tokenData[vault].isActive = false;
 
-        if (fullPurge_) {
-            // Prevent full purge if vault has non-zero balance
-            uint256 vaultBalance = IERC20(vault).balanceOf(address(this));
-            if (vaultBalance == 0) {
-                // Full removal - clear all data
-                _supportedAssets.remove(vault);
-                tokenData[vault].oracle = address(0);
-                tokenData[vault].isSupportedUnderlyingVault = false;
-            }
+        // Prevent full purge if vault has 9 balance
+        if (IERC20(vault).balanceOf(address(this)) == 0) {
+            // Full removal - clear all data
+            _supportedAssets.remove(vault);
+            tokenData[vault].oracle = address(0);
+            tokenData[vault].isSupportedUnderlyingVault = false;
         }
 
         emit VaultRemoved(vault);
@@ -255,17 +249,20 @@ contract SuperAsset is ERC20, ISuperAsset {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperAsset
     function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external onlyStrategist {
-        uint256 tokensLen = tokens.length;
-        if (tokensLen != allocations.length) revert INVALID_INPUT();
+        uint256 lenTokens = tokens.length;
+        if (lenTokens != allocations.length) revert INVALID_INPUT();
 
         uint256 totalAllocation;
-        for (uint256 i; i < tokensLen; i++) {
+        for (uint256 i; i < lenTokens; i++) {
             if (tokens[i] == address(0)) revert ZERO_ADDRESS();
             if (!tokenData[tokens[i]].isSupportedUnderlyingVault && !tokenData[tokens[i]].isSupportedERC20) {
                 revert NOT_SUPPORTED_TOKEN();
             }
-            tokenData[tokens[i]].targetAllocations = allocations[i];
             totalAllocation += allocations[i];
+        }
+
+        for (uint256 i; i < lenTokens; i++) {
+            tokenData[tokens[i]].targetAllocations = allocations[i];
             emit TargetAllocationSet(tokens[i], allocations[i]);
         }
     }
@@ -341,7 +338,7 @@ contract SuperAsset is ERC20, ISuperAsset {
 
         // Settle Incentives
         if (ret.amountIncentiveUSDDeposit > 0) {
-            _settleIncentive(msg.sender, ret.amountIncentiveUSDDeposit);
+            _settleIncentive(args.receiver, ret.amountIncentiveUSDDeposit);
         }
 
         // Transfer the tokenIn from the sender to this contract
@@ -420,7 +417,7 @@ contract SuperAsset is ERC20, ISuperAsset {
 
         // Settle Incentives
         if (ret.amountIncentiveUSDRedeem > 0) {
-            _settleIncentive(msg.sender, ret.amountIncentiveUSDRedeem);
+            _settleIncentive(args.receiver, ret.amountIncentiveUSDRedeem);
         }
         // Burn SuperUSD shares from the sender
         _burn(msg.sender, args.amountSharesToRedeem);
