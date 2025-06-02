@@ -65,6 +65,9 @@ contract SuperAssetTest is Helpers {
 
     // --- Setup ---
     function setUp() public {
+        // Setup volatile vault
+        MockERC20 volatileUnderlying = new MockERC20("Volatile Underlying", "VUND", 18);
+        volatileVault = new Mock4626Vault(address(volatileUnderlying), "Volatile Vault", "VVAULT");
         // Setup accounts
         admin = makeAddr("admin");
         manager = makeAddr("manager");
@@ -281,6 +284,11 @@ contract SuperAssetTest is Helpers {
         vm.stopPrank();
         assertGt(tokenIn.balanceOf(user11), 0);
         assertGt(tokenOut.balanceOf(user11), 0);
+
+        // Whitelist volatile vault
+        vm.startPrank(admin);
+        superAsset.whitelistVault(address(volatileVault), address(yieldSourceOracle));
+        vm.stopPrank();
 
         vm.stopPrank();
     }
@@ -1149,6 +1157,37 @@ contract SuperAssetTest is Helpers {
             address(tokenIn)
         ));
         superAsset.deposit(depositArgs);
+        vm.stopPrank();
+    }
+
+    Mock4626Vault public volatileVault;
+
+    function test_TargetAllocationManagement() public {
+        // Test setting and managing target allocations
+        vm.startPrank(admin);
+        
+        address[] memory tokens = new address[](3);
+        tokens[0] = address(tokenIn);
+        tokens[1] = address(tokenOut);
+        tokens[2] = address(volatileVault);
+        
+        uint256[] memory allocations = new uint256[](3);
+        allocations[0] = 50e18; // 50%
+        allocations[1] = 30e18; // 30%  
+        allocations[2] = 20e18; // 20%
+        
+        superAsset.setTargetAllocations(tokens, allocations);
+        
+        // Verify allocations were set
+        ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
+        assertEq(tokenData.targetAllocations, 50e18, "TokenIn allocation should be 50%");
+        
+        tokenData = superAsset.getTokenData(address(tokenOut));
+        assertEq(tokenData.targetAllocations, 30e18, "TokenOut allocation should be 30%");
+        
+        tokenData = superAsset.getTokenData(address(volatileVault));
+        assertEq(tokenData.targetAllocations, 20e18, "VolatileVault allocation should be 20%");
+        
         vm.stopPrank();
     }
 
