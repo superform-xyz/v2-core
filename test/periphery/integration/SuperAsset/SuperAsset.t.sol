@@ -1127,6 +1127,30 @@ contract SuperAssetTest is Helpers {
         vm.stopPrank();
     }
 
+    function test_CircuitBreaker_OracleOff() public {
+        // Test zero price detection
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), 100e18);
+        
+        // Set price to zero
+        mockFeed1.setAnswer(0);
+        mockFeed2.setAnswer(0);
+        mockFeed3.setAnswer(0);
+        
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: 100e18,
+            minSharesOut: 0
+        });
+        
+        vm.expectRevert(abi.encodeWithSelector(
+            ISuperAsset.SUPPORTED_ASSET_PRICE_ORACLE_OFF.selector,
+            address(tokenIn)
+        ));
+        superAsset.deposit(depositArgs);
+        vm.stopPrank();
+    }
 
 
 }
