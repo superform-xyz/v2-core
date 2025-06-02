@@ -70,6 +70,21 @@ contract SuperAssetTest is Helpers {
 
     ERC4626YieldSourceOracle public yieldSourceOracle;
 
+    function _updateAllFeedTimestamps() internal {
+        mockFeedSuperAssetShares1.setUpdatedAt(block.timestamp);
+        mockFeedPrimaryAsset.setUpdatedAt(block.timestamp);
+        mockFeed1.setUpdatedAt(block.timestamp);
+        mockFeed2.setUpdatedAt(block.timestamp);
+        mockFeed3.setUpdatedAt(block.timestamp);
+        mockFeed4.setUpdatedAt(block.timestamp);
+        mockFeed5.setUpdatedAt(block.timestamp);
+        mockFeed6.setUpdatedAt(block.timestamp);
+        mockFeed7.setUpdatedAt(block.timestamp);
+        mockFeed8.setUpdatedAt(block.timestamp);
+        mockFeed9.setUpdatedAt(block.timestamp);
+    }
+
+
     // --- Setup ---
     function setUp() public {
         // Setup volatile vault
@@ -1414,6 +1429,44 @@ contract SuperAssetTest is Helpers {
             // If it reverts, that's also acceptable for minimal amounts
             assertTrue(true, "Minimal amount operations may revert");
         }
+        
+        vm.stopPrank();
+    }
+
+
+    function test_SequentialPriceUpdates() public {
+        // Test system behavior with sequential price updates
+        uint256 depositAmount = 100e18;
+        underlyingToken1.mint(user, 2*depositAmount);
+        
+        vm.startPrank(user);
+        underlyingToken1.approve(address(superAsset), depositAmount);
+        
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(underlyingToken1),
+            amountTokenToDeposit: depositAmount,
+            minSharesOut: 0
+        });
+        
+        // Initial deposit
+        ISuperAsset.DepositReturnVars memory ret1 = superAsset.deposit(depositArgs);
+        
+        // Update prices (within acceptable range)
+        (, int256 currentPrice,,,) = mockFeed1.latestRoundData();
+        mockFeed1.setAnswer(currentPrice * 103 / 100); // 3% increase
+        mockFeed2.setAnswer(currentPrice * 103 / 100);
+        mockFeed3.setAnswer(currentPrice * 103 / 100);
+        _updateAllFeedTimestamps();
+        
+        // Second deposit with updated prices
+        underlyingToken1.approve(address(superAsset), depositAmount);
+        ISuperAsset.DepositReturnVars memory ret2 = superAsset.deposit(depositArgs);
+        console.log("ret1.amountSharesMinted = ", ret1.amountSharesMinted);
+        console.log("ret2.amountSharesMinted = ", ret2.amountSharesMinted);
+        
+        // Verify price changes affect share calculations
+        assertTrue(ret1.amountSharesMinted != ret2.amountSharesMinted, "Price updates should affect share calculations");
         
         vm.stopPrank();
     }
