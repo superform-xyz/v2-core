@@ -512,15 +512,15 @@ contract SuperAsset is ERC20, ISuperAsset {
         ret.isOracleOff = allocRet.isOracleOff;
         ret.tokenInFound = allocRet.tokenFound;
 
-        // console.log("ret.assetWithBreakerTriggered = ", ret.assetWithBreakerTriggered);
-        // console.log("ret.isDepeg = ", ret.isDepeg);
-        // console.log("ret.isDispersion = ", ret.isDispersion);
-        // console.log("ret.isOracleOff = ", ret.isOracleOff);
-        // console.log("ret.oraclePriceUSD = ", ret.oraclePriceUSD);
-        // console.log("ret.tokenInFound = ", ret.tokenInFound);
+        console.log("ret.assetWithBreakerTriggered = ", ret.assetWithBreakerTriggered);
+        console.log("ret.isDepeg = ", ret.isDepeg);
+        console.log("ret.isDispersion = ", ret.isDispersion);
+        console.log("ret.isOracleOff = ", ret.isOracleOff);
+        console.log("ret.oraclePriceUSD = ", ret.oraclePriceUSD);
+        console.log("ret.tokenInFound = ", ret.tokenInFound);
 
         if ((ret.isDepeg || ret.isDispersion || ret.isOracleOff || ret.oraclePriceUSD == 0)) {
-            // console.log("previewDeposit() Exit1");
+            console.log("previewDeposit() Exit1");
             // Early return with empty result but with circuit breaker info
             ret.amountSharesMinted = 0;
             ret.swapFee = 0;
@@ -826,12 +826,12 @@ contract SuperAsset is ERC20, ISuperAsset {
         s.totalValueUSD = 0;
         s.priceUSDToken = 0;
 
-        // console.log("getAllocationsPrePostOperationDeposit() Start");
+        console.log("getAllocationsPrePostOperationDeposit() Start");
 
         for (uint256 i; i < s.extendedLength; i++) {
             s.token = _supportedAssets.at(i);
-            // console.log("i = ", i);
-            // console.log("s.token = ", s.token);
+            console.log("i = ", i);
+            console.log("s.token = ", s.token);
             (ret.oraclePriceUSD, ret.isDepeg, ret.isDispersion, ret.isOracleOff) = getPriceWithCircuitBreakers(s.token);
 
             if (!isSoft && (ret.isDepeg || ret.isDispersion || ret.isOracleOff || ret.oraclePriceUSD == 0)) {
@@ -873,10 +873,15 @@ contract SuperAsset is ERC20, ISuperAsset {
         }
 
         ret.amountAssets = Math.mulDiv(amountToken, s.priceUSDToken, superAssetPPS);
+        console.log("amountToken = ", amountToken);
+        console.log("s.priceUSDToken = ", s.priceUSDToken);
+        console.log("superAssetPPS = ", superAssetPPS);
+        console.log("ret.amountAssets = ", ret.amountAssets);
 
         uint8 decimalsToken = IERC20Metadata(token).decimals();
 
         // Adjust for decimals
+        // TODO: I am not sure this decimals adjustment is correct
         if (decimalsToken < DECIMALS) {
             ret.amountAssets = Math.mulDiv(ret.amountAssets, 10 ** (DECIMALS - decimalsToken), PRECISION);
         } else if (decimalsToken > DECIMALS) {
