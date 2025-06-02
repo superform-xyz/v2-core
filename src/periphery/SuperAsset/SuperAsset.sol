@@ -30,8 +30,8 @@ contract SuperAsset is ERC20, ISuperAsset {
     string private tokenSymbol;
 
     // --- Interfaces ---
-    ISuperGovernor public superGovernor;
-    ISuperAssetFactory public factory;
+    ISuperGovernor private superGovernor;
+    ISuperAssetFactory private factory;
 
     // --- Constants ---
     uint256 private constant PRECISION = 1e18;
@@ -45,7 +45,7 @@ contract SuperAsset is ERC20, ISuperAsset {
     uint256 public constant MAX_SWAP_FEE_PERC = 10 ** 4; // Max 10% (1000 basis points)
 
     // --- State Variables ---
-    mapping(address token => TokenData data) public tokenData;
+    mapping(address token => TokenData data) private tokenData;
 
     // @notice Contains supported Vaults shares and standard ERC20s
     EnumerableSet.AddressSet private _supportedAssets;
