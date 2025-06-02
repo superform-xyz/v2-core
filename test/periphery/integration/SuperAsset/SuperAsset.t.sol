@@ -1364,4 +1364,32 @@ contract SuperAssetTest is Helpers {
     }
 
 
+    function test_LargeAmountOperations() public {
+        address liquidityProvider = user11;
+
+        // Test with very large amounts near uint256 limits
+        uint256 largeAmount = type(uint128).max; // Use uint128 max to avoid overflow
+        
+        // Setup large liquidity
+        underlyingToken1.mint(liquidityProvider, largeAmount);
+        
+        vm.startPrank(liquidityProvider);
+        underlyingToken1.approve(address(tokenIn), largeAmount);
+        tokenIn.deposit(largeAmount / 2, liquidityProvider);
+        tokenIn.approve(address(superAsset), largeAmount / 2);
+        
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: liquidityProvider,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: largeAmount / 4, // Use 1/4 to leave room for fees
+            minSharesOut: 0
+        });
+        
+        // Should not revert with large amounts
+        ISuperAsset.DepositReturnVars memory ret = superAsset.deposit(depositArgs);
+        assertGt(ret.amountSharesMinted, 0, "Should mint shares even with large amounts");
+        
+        vm.stopPrank();
+    }
+
 }
