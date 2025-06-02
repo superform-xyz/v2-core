@@ -388,10 +388,8 @@ contract SuperAssetTest is Helpers {
             isSoft: false
         });
 
-        console.log("test_BasicDepositSimple() T1");
         // Call previewDeposit with the new struct
         ISuperAsset.PreviewDepositReturnVars memory previewDepositRet = superAsset.previewDeposit(previewDepositArgs);
-        console.log("test_BasicDepositSimple() T2");
 
         console.log("Oracle Price USD:", previewDepositRet.oraclePriceUSD);
         console.log("Is Depeg:", previewDepositRet.isDepeg);
@@ -1228,7 +1226,6 @@ contract SuperAssetTest is Helpers {
     }
 
     function test_MultiUserDepositRedeemSequence() public {
-        console.log("test_MultiUserDepositRedeemSequence() Start");
         // Test complex sequence with multiple users
         uint256 deposit1 = 100e18;
         uint256 deposit2 = 200e18;
@@ -1246,15 +1243,8 @@ contract SuperAssetTest is Helpers {
         console.log("TokenIn = ", address(tokenIn));
         console.log("TokenOut = ", address(tokenOut));
         console.log("SuperAsset Shares = ", address(superAsset));
-        // Create high dispersion by setting feeds to very different values
-        // (, int256 basePrice,,,) = mockFeed1.latestRoundData();
-        // mockFeed2.setAnswer(basePrice);
-        // mockFeed3.setAnswer(basePrice);
-        console.log("test_MultiUserDepositRedeemSequence() T1");
         ISuperAsset.DepositReturnVars memory ret1 = superAsset.deposit(depositArgs1);
         vm.stopPrank();
-
-        console.log("test_MultiUserDepositRedeemSequence() T2");
         
         // User11 deposits different token
         vm.startPrank(user11);
@@ -1267,8 +1257,6 @@ contract SuperAssetTest is Helpers {
         });
         ISuperAsset.DepositReturnVars memory ret2 = superAsset.deposit(depositArgs2);
         vm.stopPrank();
-
-        console.log("test_MultiUserDepositRedeemSequence() T3");
 
         // Verify balances
         assertEq(superAsset.balanceOf(user), ret1.amountSharesMinted, "User should have correct shares");
@@ -1286,8 +1274,6 @@ contract SuperAssetTest is Helpers {
         ISuperAsset.RedeemReturnVars memory redeemRet = superAsset.redeem(redeemArgs);
         vm.stopPrank();
         
-        console.log("test_MultiUserDepositRedeemSequence() T5");
-
         // Verify partial redemption
         assertEq(superAsset.balanceOf(user), ret1.amountSharesMinted - redeemAmount, "User should have remaining shares");
         assertGt(redeemRet.amountTokenOutAfterFees, 0, "User should receive tokens");
