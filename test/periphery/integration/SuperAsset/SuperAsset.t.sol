@@ -26,6 +26,9 @@ contract SuperAssetTest is Helpers {
     bytes32 public constant PROVIDER_4 = keccak256("PROVIDER_4");
     bytes32 public constant PROVIDER_5 = keccak256("PROVIDER_5");
     bytes32 public constant PROVIDER_6 = keccak256("PROVIDER_6");
+    bytes32 public constant PROVIDER_7 = keccak256("PROVIDER_7");
+    bytes32 public constant PROVIDER_8 = keccak256("PROVIDER_8");
+    bytes32 public constant PROVIDER_9 = keccak256("PROVIDER_9");
     bytes32 public constant PROVIDER_PRIMARY_ASSET = keccak256("PROVIDER_PRIMARY_ASSET");
     bytes32 public constant PROVIDER_SUPERASSET = keccak256("PROVIDER_SUPERASSET");
     bytes32 public constant PROVIDER_SUPERVAULT1 = keccak256("PROVIDER_SUPERVAULT1");
@@ -41,6 +44,7 @@ contract SuperAssetTest is Helpers {
     SuperAssetFactory public factory;
     MockERC20 public underlyingToken1;
     MockERC20 public underlyingToken2;
+    MockERC20 public underlyingToken6d;
     MockAggregator public mockFeedSuperAssetShares1;
     MockAggregator public mockFeedSuperVault1Shares;
     MockAggregator public mockFeedSuperVault2Shares;
@@ -50,6 +54,9 @@ contract SuperAssetTest is Helpers {
     MockAggregator public mockFeed4;
     MockAggregator public mockFeed5;
     MockAggregator public mockFeed6;
+    MockAggregator public mockFeed7;
+    MockAggregator public mockFeed8;
+    MockAggregator public mockFeed9;
     MockAggregator public mockFeedPrimaryAsset;
     IncentiveCalculationContract public icc;
     IncentiveFundContract public incentiveFund;
@@ -101,6 +108,10 @@ contract SuperAssetTest is Helpers {
         tokenIn = new Mock4626Vault(address(underlyingToken1), "Vault Token", "vTKN");
         underlyingToken2 = new MockERC20("Underlying Token2", "UTKN2", 18);
         tokenOut = new Mock4626Vault(address(underlyingToken2), "Vault Token", "vTKN");
+
+        // Token with 6d
+        underlyingToken6d = new MockERC20("Underlying Token 6d", "UTKN6D", 6);
+
         console.log("Mock tokens deployed");
 
         // Deploy actual ICC
@@ -120,6 +131,9 @@ contract SuperAssetTest is Helpers {
         mockFeed4 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed5 = new MockAggregator(1e8, 8); // Token/USD = $1
         mockFeed6 = new MockAggregator(1e8, 8); // Token/USD = $1
+        mockFeed7 = new MockAggregator(1e8, 8); // Token/USD = $1
+        mockFeed8 = new MockAggregator(1e8, 8); // Token/USD = $1
+        mockFeed9 = new MockAggregator(1e8, 8); // Token/USD = $1
         console.log("Mock feeds deployed");
 
         // Update timestamps to ensure prices are fresh
@@ -131,10 +145,13 @@ contract SuperAssetTest is Helpers {
         mockFeed4.setUpdatedAt(block.timestamp);
         mockFeed5.setUpdatedAt(block.timestamp);
         mockFeed6.setUpdatedAt(block.timestamp);
+        mockFeed7.setUpdatedAt(block.timestamp);
+        mockFeed8.setUpdatedAt(block.timestamp);
+        mockFeed9.setUpdatedAt(block.timestamp);
         console.log("Feed timestamps updated");
 
         // Setup oracle parameters with regular providers
-        address[] memory bases = new address[](8);
+        address[] memory bases = new address[](11);
         bases[0] = address(underlyingToken1);
         bases[1] = address(underlyingToken1);
         bases[2] = address(underlyingToken1);
@@ -143,8 +160,12 @@ contract SuperAssetTest is Helpers {
         bases[5] = address(underlyingToken2);
         bases[6] = address(superAsset);
         bases[7] = address(primaryAsset);
+        bases[8] = address(underlyingToken6d);
+        bases[9] = address(underlyingToken6d);
+        bases[10] = address(underlyingToken6d);
 
-        address[] memory quotes = new address[](8);
+
+        address[] memory quotes = new address[](11);
         quotes[0] = USD;
         quotes[1] = USD;
         quotes[2] = USD;
@@ -153,8 +174,11 @@ contract SuperAssetTest is Helpers {
         quotes[5] = USD;
         quotes[6] = USD;
         quotes[7] = USD;
+        quotes[8] = USD;
+        quotes[9] = USD;
+        quotes[10] = USD;
 
-        bytes32[] memory providers = new bytes32[](8);
+        bytes32[] memory providers = new bytes32[](11);
         providers[0] = PROVIDER_1;
         providers[1] = PROVIDER_2;
         providers[2] = PROVIDER_3;
@@ -163,8 +187,11 @@ contract SuperAssetTest is Helpers {
         providers[5] = PROVIDER_6;
         providers[6] = PROVIDER_SUPERASSET;
         providers[7] = PROVIDER_PRIMARY_ASSET;
+        providers[8] = PROVIDER_1;
+        providers[9] = PROVIDER_2;
+        providers[10] = PROVIDER_3;
 
-        address[] memory feeds = new address[](8);
+        address[] memory feeds = new address[](11);
         feeds[0] = address(mockFeed1);
         feeds[1] = address(mockFeed2);
         feeds[2] = address(mockFeed3);
@@ -173,6 +200,9 @@ contract SuperAssetTest is Helpers {
         feeds[5] = address(mockFeed6);
         feeds[6] = address(mockFeedSuperAssetShares1);
         feeds[7] = address(mockFeedPrimaryAsset);
+        feeds[8] = address(mockFeed7);
+        feeds[9] = address(mockFeed8);
+        feeds[10] = address(mockFeed9);
 
         // Deploy factory and contracts
         factory = new SuperAssetFactory(address(superGovernor));
@@ -232,6 +262,9 @@ contract SuperAssetTest is Helpers {
         superGovernor.setOracleFeedMaxStaleness(address(mockFeed4), 14 days);
         superGovernor.setOracleFeedMaxStaleness(address(mockFeed5), 14 days);
         superGovernor.setOracleFeedMaxStaleness(address(mockFeed6), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed7), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed8), 14 days);
+        superGovernor.setOracleFeedMaxStaleness(address(mockFeed9), 14 days);
         superGovernor.setOracleFeedMaxStaleness(address(mockFeedSuperAssetShares1), 14 days);
         superGovernor.setOracleFeedMaxStaleness(address(mockFeedSuperVault1Shares), 14 days);
         superGovernor.setOracleFeedMaxStaleness(address(mockFeedSuperVault2Shares), 14 days);
@@ -1278,5 +1311,57 @@ contract SuperAssetTest is Helpers {
         assertEq(superAsset.balanceOf(user), ret1.amountSharesMinted - redeemAmount, "User should have remaining shares");
         assertGt(redeemRet.amountTokenOutAfterFees, 0, "User should receive tokens");
     }
+
+
+
+
+    function test_CrossTokenSwapsWithDifferentDecimals() public {
+        // Whitelist underlyingToken6d
+        vm.startPrank(admin);
+        superAsset.whitelistERC20(address(underlyingToken6d));
+        vm.stopPrank();
+        console.log("test_CrossTokenSwapsWithDifferentDecimals() Start");
+        // Test swaps between tokens with different decimal places
+        address liquidityProvider = user11;
+        uint256 LPingAmount = 1000e6;
+        underlyingToken6d.mint(liquidityProvider, LPingAmount);
+        uint256 swapAmount = 100e18;
+
+        
+        // Provide liquidity in underlyingToken1 (6 decimals)
+        vm.startPrank(liquidityProvider);
+        underlyingToken6d.approve(address(superAsset), LPingAmount);
+        ISuperAsset.DepositArgs memory liquidityArgs = ISuperAsset.DepositArgs({
+            receiver: liquidityProvider,
+            tokenIn: address(underlyingToken6d),
+            amountTokenToDeposit: LPingAmount, 
+            minSharesOut: 0
+        });
+        superAsset.deposit(liquidityArgs);
+        vm.stopPrank();
+        console.log("test_CrossTokenSwapsWithDifferentDecimals() LPing Done");
+        
+        // Swap from 18 decimal token to 6 decimal token
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), swapAmount);
+        
+        ISuperAsset.SwapArgs memory swapArgs = ISuperAsset.SwapArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: swapAmount,
+            tokenOut: address(underlyingToken6d),
+            minTokenOut: 0
+        });
+        
+        ISuperAsset.SwapReturnVars memory swapRet = superAsset.swap(swapArgs);
+        
+        // Verify swap succeeded and amounts are reasonable
+        assertGt(swapRet.amountTokenOutAfterFees, 0, "Should receive volatile tokens");
+        assertGt(swapRet.swapFeeIn, 0, "Should pay input fee");
+        assertGt(swapRet.swapFeeOut, 0, "Should pay output fee");
+        
+        vm.stopPrank();
+    }
+
 
 }
