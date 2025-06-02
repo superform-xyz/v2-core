@@ -1052,4 +1052,33 @@ contract SuperAssetTest is Helpers {
         
         vm.stopPrank();
     }
+
+
+    function test_CircuitBreaker_DispersionDetection() public {
+        // Test depeg detection - price moves beyond ±2% threshold
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), 100e18);
+        
+        // Set mockFeed2 to trigger depeg (price drops by 5%)
+        // This should be not enough to trigger a depeg but enough to trigger a dispersion
+        (, int256 currentPrice,,,) = mockFeed2.latestRoundData();
+        mockFeed2.setAnswer(currentPrice * 95 / 100); // 5% drop
+        
+        // Should revert due to depeg
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: 100e18,
+            minSharesOut: 0
+        });
+        
+        vm.expectRevert(abi.encodeWithSelector(
+            ISuperAsset.SUPPORTED_ASSET_PRICE_DISPERSION.selector,
+            address(tokenIn)
+        ));
+        superAsset.deposit(depositArgs);
+        vm.stopPrank();
+    }
+
+
 }
