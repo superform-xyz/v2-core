@@ -1211,5 +1211,70 @@ contract SuperAssetTest is Helpers {
         vm.stopPrank();
     }
 
+    function test_MultiUserDepositRedeemSequence() public {
+        console.log("test_MultiUserDepositRedeemSequence() Start");
+        // Test complex sequence with multiple users
+        uint256 deposit1 = 100e18;
+        uint256 deposit2 = 200e18;
+        
+        // User deposits
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), deposit1);
+        ISuperAsset.DepositArgs memory depositArgs1 = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: deposit1,
+            minSharesOut: 0
+        });
+
+        console.log("TokenIn = ", address(tokenIn));
+        console.log("TokenOut = ", address(tokenOut));
+        console.log("SuperAsset Shares = ", address(superAsset));
+        // Create high dispersion by setting feeds to very different values
+        // (, int256 basePrice,,,) = mockFeed1.latestRoundData();
+        // mockFeed2.setAnswer(basePrice);
+        // mockFeed3.setAnswer(basePrice);
+        console.log("test_MultiUserDepositRedeemSequence() T1");
+        ISuperAsset.DepositReturnVars memory ret1 = superAsset.deposit(depositArgs1);
+        vm.stopPrank();
+
+        console.log("test_MultiUserDepositRedeemSequence() T2");
+        
+        // User11 deposits different token
+        vm.startPrank(user11);
+        tokenOut.approve(address(superAsset), deposit2);
+        ISuperAsset.DepositArgs memory depositArgs2 = ISuperAsset.DepositArgs({
+            receiver: user11,
+            tokenIn: address(tokenOut),
+            amountTokenToDeposit: deposit2,
+            minSharesOut: 0
+        });
+        ISuperAsset.DepositReturnVars memory ret2 = superAsset.deposit(depositArgs2);
+        vm.stopPrank();
+
+        console.log("test_MultiUserDepositRedeemSequence() T3");
+
+        // Verify balances
+        assertEq(superAsset.balanceOf(user), ret1.amountSharesMinted, "User should have correct shares");
+        assertEq(superAsset.balanceOf(user11), ret2.amountSharesMinted, "User11 should have correct shares");
+        
+        // User redeems half
+        vm.startPrank(user);
+        uint256 redeemAmount = ret1.amountSharesMinted / 2;
+        ISuperAsset.RedeemArgs memory redeemArgs = ISuperAsset.RedeemArgs({
+            receiver: user,
+            amountSharesToRedeem: redeemAmount,
+            tokenOut: address(tokenIn),
+            minTokenOut: 0
+        });
+        ISuperAsset.RedeemReturnVars memory redeemRet = superAsset.redeem(redeemArgs);
+        vm.stopPrank();
+        
+        console.log("test_MultiUserDepositRedeemSequence() T5");
+
+        // Verify partial redemption
+        assertEq(superAsset.balanceOf(user), ret1.amountSharesMinted - redeemAmount, "User should have remaining shares");
+        assertGt(redeemRet.amountTokenOutAfterFees, 0, "User should receive tokens");
+    }
 
 }
