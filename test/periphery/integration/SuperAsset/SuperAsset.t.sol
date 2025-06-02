@@ -1333,7 +1333,7 @@ contract SuperAssetTest is Helpers {
         uint256 swapAmount = 10e18;
 
         
-        // Provide liquidity in underlyingToken1 (6 decimals)
+        // Provide liquidity in underlyingToken6d (6 decimals)
         vm.startPrank(liquidityProvider);
         underlyingToken6d.approve(address(superAsset), LPingAmount);
         ISuperAsset.DepositArgs memory liquidityArgs = ISuperAsset.DepositArgs({
@@ -1444,7 +1444,7 @@ contract SuperAssetTest is Helpers {
         
         // Update prices (within acceptable range)
         (, int256 currentPrice,,,) = mockFeed1.latestRoundData();
-        mockFeed1.setAnswer(currentPrice * 102 / 100); // 3% increase
+        mockFeed1.setAnswer(currentPrice * 102 / 100); // 2% increase
         mockFeed2.setAnswer(currentPrice * 102 / 100);
         mockFeed3.setAnswer(currentPrice * 102 / 100);
         _updateAllFeedTimestamps();
