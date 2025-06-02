@@ -136,9 +136,10 @@ library SuperAssetPriceLib {
 
         // Adjust for decimals
         uint8 decimalsToken = IERC20Metadata(token).decimals();
-        if (decimalsToken != decimals) {
-            ratio = Math.mulDiv(ratio, 10 ** (decimals - decimalsToken), precision);
-        }
+        // NOTE: Probably need to remove this one 
+        // if (decimalsToken != decimals) {
+        //     ratio = Math.mulDiv(ratio, 10 ** (decimals - decimalsToken), precision);
+        // }
         if (ratio < depegLowerThreshold || ratio > depegUpperThreshold) {
             isDepeg = true;
         }
