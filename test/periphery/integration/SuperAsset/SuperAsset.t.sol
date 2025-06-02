@@ -65,6 +65,9 @@ contract SuperAssetTest is Helpers {
 
     // --- Setup ---
     function setUp() public {
+        // Setup volatile vault
+        MockERC20 volatileUnderlying = new MockERC20("Volatile Underlying", "VUND", 18);
+        volatileVault = new Mock4626Vault(address(volatileUnderlying), "Volatile Vault", "VVAULT");
         // Setup accounts
         admin = makeAddr("admin");
         manager = makeAddr("manager");
@@ -281,6 +284,11 @@ contract SuperAssetTest is Helpers {
         vm.stopPrank();
         assertGt(tokenIn.balanceOf(user11), 0);
         assertGt(tokenOut.balanceOf(user11), 0);
+
+        // Whitelist volatile vault
+        vm.startPrank(admin);
+        superAsset.whitelistVault(address(volatileVault), address(yieldSourceOracle));
+        vm.stopPrank();
 
         vm.stopPrank();
     }
@@ -1052,4 +1060,156 @@ contract SuperAssetTest is Helpers {
         
         vm.stopPrank();
     }
+
+
+    function test_CircuitBreaker_DispersionDetection1() public {
+        // Test depeg detection - price moves beyond ±2% threshold
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), 100e18);
+        
+        // Set mockFeed2 to trigger depeg (price drops by 5%)
+        // This should be not enough to trigger a depeg but enough to trigger a dispersion
+        (, int256 currentPrice,,,) = mockFeed2.latestRoundData();
+        mockFeed2.setAnswer(currentPrice * 95 / 100); // 5% drop
+        
+        // Should revert due to depeg
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: 100e18,
+            minSharesOut: 0
+        });
+        
+        vm.expectRevert(abi.encodeWithSelector(
+            ISuperAsset.SUPPORTED_ASSET_PRICE_DISPERSION.selector,
+            address(tokenIn)
+        ));
+        superAsset.deposit(depositArgs);
+        vm.stopPrank();
+    }
+
+    function test_CircuitBreaker_DispersionDetection2() public {
+        // Test dispersion detection - high standard deviation between price feeds
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), 100e18);
+        
+        // Create high dispersion by setting feeds to very different values
+        (, int256 basePrice,,,) = mockFeed1.latestRoundData();
+        mockFeed2.setAnswer(basePrice * 120 / 100); // +20%
+        mockFeed3.setAnswer(basePrice * 80 / 100);  // -20%
+        
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: 100e18,
+            minSharesOut: 0
+        });
+        
+        vm.expectRevert(abi.encodeWithSelector(
+            ISuperAsset.SUPPORTED_ASSET_PRICE_DISPERSION.selector,
+            address(tokenIn)
+        ));
+        superAsset.deposit(depositArgs);
+        vm.stopPrank();
+    }
+
+    function test_CircuitBreaker_OracleFailure() public {
+        // Test oracle failure detection
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), 100e18);
+        
+        // Set feed to stale timestamp to trigger oracle failure
+        vm.warp(block.timestamp + 30 days);
+        
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: 100e18,
+            minSharesOut: 0
+        });
+        vm.expectRevert(abi.encodeWithSelector(
+            ISuperAsset.SUPPORTED_ASSET_PRICE_ORACLE_OFF.selector,
+            address(tokenIn)
+        ));
+        superAsset.deposit(depositArgs);
+        vm.stopPrank();
+    }
+
+    function test_CircuitBreaker_OracleOff() public {
+        // Test zero price detection
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), 100e18);
+        
+        // Set price to zero
+        mockFeed1.setAnswer(0);
+        mockFeed2.setAnswer(0);
+        mockFeed3.setAnswer(0);
+        
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: 100e18,
+            minSharesOut: 0
+        });
+        
+        vm.expectRevert(abi.encodeWithSelector(
+            ISuperAsset.SUPPORTED_ASSET_PRICE_ORACLE_OFF.selector,
+            address(tokenIn)
+        ));
+        superAsset.deposit(depositArgs);
+        vm.stopPrank();
+    }
+
+    Mock4626Vault public volatileVault;
+
+    function test_TargetAllocationManagement() public {
+        // Test setting and managing target allocations
+        vm.startPrank(admin);
+        
+        address[] memory tokens = new address[](3);
+        tokens[0] = address(tokenIn);
+        tokens[1] = address(tokenOut);
+        tokens[2] = address(volatileVault);
+        
+        uint256[] memory allocations = new uint256[](3);
+        allocations[0] = 50e18; // 50%
+        allocations[1] = 30e18; // 30%  
+        allocations[2] = 20e18; // 20%
+        
+        superAsset.setTargetAllocations(tokens, allocations);
+        
+        // Verify allocations were set
+        ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
+        assertEq(tokenData.targetAllocations, 50e18, "TokenIn allocation should be 50%");
+        
+        tokenData = superAsset.getTokenData(address(tokenOut));
+        assertEq(tokenData.targetAllocations, 30e18, "TokenOut allocation should be 30%");
+        
+        tokenData = superAsset.getTokenData(address(volatileVault));
+        assertEq(tokenData.targetAllocations, 20e18, "VolatileVault allocation should be 20%");
+        
+        vm.stopPrank();
+    }
+
+    function test_WeightManagement() public {
+        // Test setting vault weights for rebalancing
+        vm.startPrank(admin);
+        superAsset.setWeight(address(tokenIn), 100);
+        superAsset.setWeight(address(tokenOut), 200);
+        superAsset.setWeight(address(volatileVault), 50);
+        
+        // Verify weights were set
+        ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
+        assertEq(tokenData.weights, 100, "TokenIn weight should be 100");
+        
+        tokenData = superAsset.getTokenData(address(tokenOut));
+        assertEq(tokenData.weights, 200, "TokenOut weight should be 200");
+        
+        tokenData = superAsset.getTokenData(address(volatileVault));
+        assertEq(tokenData.weights, 50, "VolatileVault weight should be 50");
+        
+        vm.stopPrank();
+    }
+
+
 }
