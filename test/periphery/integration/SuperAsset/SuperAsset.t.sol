@@ -1191,5 +1191,25 @@ contract SuperAssetTest is Helpers {
         vm.stopPrank();
     }
 
+    function test_WeightManagement() public {
+        // Test setting vault weights for rebalancing
+        vm.startPrank(admin);
+        superAsset.setWeight(address(tokenIn), 100);
+        superAsset.setWeight(address(tokenOut), 200);
+        superAsset.setWeight(address(volatileVault), 50);
+        
+        // Verify weights were set
+        ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
+        assertEq(tokenData.weights, 100, "TokenIn weight should be 100");
+        
+        tokenData = superAsset.getTokenData(address(tokenOut));
+        assertEq(tokenData.weights, 200, "TokenOut weight should be 200");
+        
+        tokenData = superAsset.getTokenData(address(volatileVault));
+        assertEq(tokenData.weights, 50, "VolatileVault weight should be 50");
+        
+        vm.stopPrank();
+    }
+
 
 }
