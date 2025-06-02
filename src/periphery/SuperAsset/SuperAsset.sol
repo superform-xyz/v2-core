@@ -681,6 +681,7 @@ contract SuperAsset is ERC20, ISuperAsset {
         view
         returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff)
     {
+        // console.log("getPriceWithCircuitBreakers() Start");
         // Get token decimals
         uint8 decimalsToken = IERC20Metadata(token).decimals();
         uint256 one = 10 ** decimalsToken;
@@ -1093,15 +1094,24 @@ contract SuperAsset is ERC20, ISuperAsset {
         view
         returns (bool isDepeg)
     {
+        // console.log("_isTokenDepeg() Start");
         uint256 ratio = Math.mulDiv(priceUSD, PRECISION, assetPriceUSD);
-
+        // console.log("ratio = ", ratio);
         // Adjust for decimals
         uint8 decimalsToken = IERC20Metadata(token).decimals();
-        if (decimalsToken != DECIMALS) {
-            ratio = Math.mulDiv(ratio, 10 ** (DECIMALS - decimalsToken), PRECISION);
-        }
+        // console.log("decimalsToken = ", decimalsToken);
+        // console.log("DECIMALS = ", DECIMALS);
+        // NOTE: This adjustment should not be needed since the prices are both in USD and therefore with the same decimals but better to check
+        // if (decimalsToken != DECIMALS) {
+        //     ratio = Math.mulDiv(ratio, 10 ** (DECIMALS - decimalsToken), PRECISION);
+        //     console.log("Fixing ratio = ", ratio);
+        // }
+        // console.log("Final ratio = ", ratio);
+        // console.log("DEPEG_LOWER_THRESHOLD = ", DEPEG_LOWER_THRESHOLD);
+        // console.log("DEPEG_UPPER_THRESHOLD = ", DEPEG_UPPER_THRESHOLD);
         if (ratio < DEPEG_LOWER_THRESHOLD || ratio > DEPEG_UPPER_THRESHOLD) {
             isDepeg = true;
         }
+        // console.log("isDepeg = ", isDepeg);
     }
 }
