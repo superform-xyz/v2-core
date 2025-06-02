@@ -1105,6 +1105,28 @@ contract SuperAssetTest is Helpers {
         vm.stopPrank();
     }
 
+    function test_CircuitBreaker_OracleFailure() public {
+        // Test oracle failure detection
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), 100e18);
+        
+        // Set feed to stale timestamp to trigger oracle failure
+        vm.warp(block.timestamp + 30 days);
+        
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: 100e18,
+            minSharesOut: 0
+        });
+        vm.expectRevert(abi.encodeWithSelector(
+            ISuperAsset.SUPPORTED_ASSET_PRICE_ORACLE_OFF.selector,
+            address(tokenIn)
+        ));
+        superAsset.deposit(depositArgs);
+        vm.stopPrank();
+    }
+
 
 
 }
