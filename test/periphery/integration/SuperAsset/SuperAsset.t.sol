@@ -67,7 +67,7 @@ contract SuperAssetTest is Helpers {
     function setUp() public {
         // Setup volatile vault
         MockERC20 volatileUnderlying = new MockERC20("Volatile Underlying", "VUND", 18);
-        volatileVault = new Mock4626Vault(address(volatileUnderlying), "Volatile Vault", "VVAULT");
+        // volatileVault = new Mock4626Vault(address(volatileUnderlying), "Volatile Vault", "VVAULT");
         // Setup accounts
         admin = makeAddr("admin");
         manager = makeAddr("manager");
@@ -240,6 +240,16 @@ contract SuperAssetTest is Helpers {
 
         console.log("Feed staleness set");
 
+        console.log("List of Token Addresses");
+        console.log("tokenIn = ", address(tokenIn));
+        console.log("tokenOut = ", address(tokenOut));
+        console.log("underlyingToken1 = ", address(underlyingToken1));
+        console.log("underlyingToken2 = ", address(underlyingToken2));
+        console.log("superAsset = ", address(superAsset));
+        console.log("primaryAsset = ", address(primaryAsset));
+        // console.log("volatileVault = ", address(volatileVault));
+        console.log("---------------");
+
         // Set SuperAsset oracle
         vm.startPrank(admin);
         superAsset.whitelistVault(address(tokenIn), address(yieldSourceOracle));
@@ -287,7 +297,7 @@ contract SuperAssetTest is Helpers {
 
         // Whitelist volatile vault
         vm.startPrank(admin);
-        superAsset.whitelistVault(address(volatileVault), address(yieldSourceOracle));
+        // superAsset.whitelistVault(address(volatileVault), address(yieldSourceOracle));
         vm.stopPrank();
 
         vm.stopPrank();
@@ -367,17 +377,19 @@ contract SuperAssetTest is Helpers {
 
         // Approve tokens
         vm.startPrank(user);
-        tokenIn.approve(address(superAsset), depositAmount);
+        underlyingToken1.approve(address(superAsset), depositAmount);
 
         // Create preview deposit args using the new struct approach
         ISuperAsset.PreviewDepositArgs memory previewDepositArgs = ISuperAsset.PreviewDepositArgs({
-            tokenIn: address(tokenIn),
+            tokenIn: address(underlyingToken1),
             amountTokenToDeposit: depositAmount,
             isSoft: false
         });
 
+        console.log("test_BasicDepositSimple() T1");
         // Call previewDeposit with the new struct
         ISuperAsset.PreviewDepositReturnVars memory previewDepositRet = superAsset.previewDeposit(previewDepositArgs);
+        console.log("test_BasicDepositSimple() T2");
 
         console.log("Oracle Price USD:", previewDepositRet.oraclePriceUSD);
         console.log("Is Depeg:", previewDepositRet.isDepeg);
@@ -1169,7 +1181,7 @@ contract SuperAssetTest is Helpers {
         address[] memory tokens = new address[](3);
         tokens[0] = address(tokenIn);
         tokens[1] = address(tokenOut);
-        tokens[2] = address(volatileVault);
+        tokens[2] = address(underlyingToken1);
         
         uint256[] memory allocations = new uint256[](3);
         allocations[0] = 50e18; // 50%
@@ -1185,8 +1197,8 @@ contract SuperAssetTest is Helpers {
         tokenData = superAsset.getTokenData(address(tokenOut));
         assertEq(tokenData.targetAllocations, 30e18, "TokenOut allocation should be 30%");
         
-        tokenData = superAsset.getTokenData(address(volatileVault));
-        assertEq(tokenData.targetAllocations, 20e18, "VolatileVault allocation should be 20%");
+        tokenData = superAsset.getTokenData(address(underlyingToken1));
+        assertEq(tokenData.targetAllocations, 20e18, "underlyingToken1 allocation should be 20%");
         
         vm.stopPrank();
     }
@@ -1196,7 +1208,7 @@ contract SuperAssetTest is Helpers {
         vm.startPrank(admin);
         superAsset.setWeight(address(tokenIn), 100);
         superAsset.setWeight(address(tokenOut), 200);
-        superAsset.setWeight(address(volatileVault), 50);
+        superAsset.setWeight(address(underlyingToken1), 50);
         
         // Verify weights were set
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
@@ -1205,8 +1217,8 @@ contract SuperAssetTest is Helpers {
         tokenData = superAsset.getTokenData(address(tokenOut));
         assertEq(tokenData.weights, 200, "TokenOut weight should be 200");
         
-        tokenData = superAsset.getTokenData(address(volatileVault));
-        assertEq(tokenData.weights, 50, "VolatileVault weight should be 50");
+        tokenData = superAsset.getTokenData(address(underlyingToken1));
+        assertEq(tokenData.weights, 50, "underlyingToken1 weight should be 50");
         
         vm.stopPrank();
     }
