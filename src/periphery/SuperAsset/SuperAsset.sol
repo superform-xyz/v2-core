@@ -212,7 +212,7 @@ contract SuperAsset is ERC20, ISuperAsset {
     function setWeight(address vault, uint256 weight) external {
         _onlyManager();
         if (vault == address(0)) revert ZERO_ADDRESS();
-        if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_VAULT();
+        if (!tokenData[vault].isSupportedUnderlyingVault && !tokenData[vault].isSupportedERC20) revert NOT_SUPPORTED_TOKEN();
         tokenData[vault].weights = weight;
         emit WeightSet(vault, weight);
     }
