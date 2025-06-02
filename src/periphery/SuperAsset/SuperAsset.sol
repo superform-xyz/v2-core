@@ -245,14 +245,11 @@ contract SuperAsset is ERC20, ISuperAsset {
         uint256 lenTokens = tokens.length;
         if (lenTokens != allocations.length) revert INVALID_INPUT();
 
-        // NOTE: This seems to be useless, should be able to remove
-        // uint256 totalAllocation;
         for (uint256 i; i < lenTokens; i++) {
             if (tokens[i] == address(0)) revert ZERO_ADDRESS();
             if (!tokenData[tokens[i]].isSupportedUnderlyingVault && !tokenData[tokens[i]].isSupportedERC20) {
                 revert NOT_SUPPORTED_TOKEN();
             }
-            // totalAllocation += allocations[i];
         }
 
         for (uint256 i; i < lenTokens; i++) {
