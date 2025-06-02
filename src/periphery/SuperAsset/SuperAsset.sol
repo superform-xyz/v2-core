@@ -15,6 +15,7 @@ import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.
 import { IYieldSourceOracle } from "../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
 import { IIncentiveCalculationContract } from "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 import { IIncentiveFundContract } from "../interfaces/SuperAsset/IIncentiveFundContract.sol";
+import {console} from "forge-std/console.sol";
 
 /// @title SuperAsset
 /// @author Superform Labs
@@ -223,7 +224,7 @@ contract SuperAsset is ERC20, ISuperAsset {
     /// @inheritdoc ISuperAsset
     function setWeight(address vault, uint256 weight) external onlyManager {
         if (vault == address(0)) revert ZERO_ADDRESS();
-        if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_VAULT();
+        if (!tokenData[vault].isSupportedUnderlyingVault && !tokenData[vault].isSupportedERC20) revert NOT_VAULT();
         tokenData[vault].weights = weight;
         emit WeightSet(vault, weight);
     }
@@ -492,6 +493,7 @@ contract SuperAsset is ERC20, ISuperAsset {
     /// @inheritdoc ISuperAsset
     function previewDeposit(PreviewDepositArgs memory args) public view returns (PreviewDepositReturnVars memory ret) {
         // Calculate swap fees
+        console.log("previewDeposit() T1");
         ret.swapFee = Math.mulDiv(args.amountTokenToDeposit, swapFeeInPercentage, SWAP_FEE_PERC);
 
         // Get current and post-operation allocations using the struct-based return value
@@ -510,7 +512,15 @@ contract SuperAsset is ERC20, ISuperAsset {
         ret.isOracleOff = allocRet.isOracleOff;
         ret.tokenInFound = allocRet.tokenFound;
 
+        console.log("ret.assetWithBreakerTriggered = ", ret.assetWithBreakerTriggered);
+        console.log("ret.isDepeg = ", ret.isDepeg);
+        console.log("ret.isDispersion = ", ret.isDispersion);
+        console.log("ret.isOracleOff = ", ret.isOracleOff);
+        console.log("ret.oraclePriceUSD = ", ret.oraclePriceUSD);
+        console.log("ret.tokenInFound = ", ret.tokenInFound);
+
         if ((ret.isDepeg || ret.isDispersion || ret.isOracleOff || ret.oraclePriceUSD == 0)) {
+            console.log("previewDeposit() Exit1");
             // Early return with empty result but with circuit breaker info
             ret.amountSharesMinted = 0;
             ret.swapFee = 0;
@@ -815,8 +825,12 @@ contract SuperAsset is ERC20, ISuperAsset {
         s.totalValueUSD = 0;
         s.priceUSDToken = 0;
 
+        console.log("getAllocationsPrePostOperationDeposit() Start");
+
         for (uint256 i; i < s.extendedLength; i++) {
             s.token = _supportedAssets.at(i);
+            console.log("i = ", i);
+            console.log("s.token = ", s.token);
             (ret.oraclePriceUSD, ret.isDepeg, ret.isDispersion, ret.isOracleOff) = getPriceWithCircuitBreakers(s.token);
 
             if (!isSoft && (ret.isDepeg || ret.isDispersion || ret.isOracleOff || ret.oraclePriceUSD == 0)) {
