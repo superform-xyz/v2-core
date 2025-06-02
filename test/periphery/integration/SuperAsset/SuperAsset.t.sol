@@ -1054,7 +1054,7 @@ contract SuperAssetTest is Helpers {
     }
 
 
-    function test_CircuitBreaker_DispersionDetection() public {
+    function test_CircuitBreaker_DispersionDetection1() public {
         // Test depeg detection - price moves beyond ±2% threshold
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), 100e18);
@@ -1079,6 +1079,32 @@ contract SuperAssetTest is Helpers {
         superAsset.deposit(depositArgs);
         vm.stopPrank();
     }
+
+    function test_CircuitBreaker_DispersionDetection2() public {
+        // Test dispersion detection - high standard deviation between price feeds
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), 100e18);
+        
+        // Create high dispersion by setting feeds to very different values
+        (, int256 basePrice,,,) = mockFeed1.latestRoundData();
+        mockFeed2.setAnswer(basePrice * 120 / 100); // +20%
+        mockFeed3.setAnswer(basePrice * 80 / 100);  // -20%
+        
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: 100e18,
+            minSharesOut: 0
+        });
+        
+        vm.expectRevert(abi.encodeWithSelector(
+            ISuperAsset.SUPPORTED_ASSET_PRICE_DISPERSION.selector,
+            address(tokenIn)
+        ));
+        superAsset.deposit(depositArgs);
+        vm.stopPrank();
+    }
+
 
 
 }
