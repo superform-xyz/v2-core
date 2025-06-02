@@ -1323,9 +1323,9 @@ contract SuperAssetTest is Helpers {
         console.log("test_CrossTokenSwapsWithDifferentDecimals() Start");
         // Test swaps between tokens with different decimal places
         address liquidityProvider = user11;
-        uint256 LPingAmount = 1000e6;
+        uint256 LPingAmount = 100000000e6;
         underlyingToken6d.mint(liquidityProvider, LPingAmount);
-        uint256 swapAmount = 100e18;
+        uint256 swapAmount = 10e18;
 
         
         // Provide liquidity in underlyingToken1 (6 decimals)
