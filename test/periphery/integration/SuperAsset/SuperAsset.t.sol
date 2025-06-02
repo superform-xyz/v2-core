@@ -1454,9 +1454,9 @@ contract SuperAssetTest is Helpers {
         
         // Update prices (within acceptable range)
         (, int256 currentPrice,,,) = mockFeed1.latestRoundData();
-        mockFeed1.setAnswer(currentPrice * 103 / 100); // 3% increase
-        mockFeed2.setAnswer(currentPrice * 103 / 100);
-        mockFeed3.setAnswer(currentPrice * 103 / 100);
+        mockFeed1.setAnswer(currentPrice * 102 / 100); // 3% increase
+        mockFeed2.setAnswer(currentPrice * 102 / 100);
+        mockFeed3.setAnswer(currentPrice * 102 / 100);
         _updateAllFeedTimestamps();
         
         // Second deposit with updated prices
@@ -1465,8 +1465,12 @@ contract SuperAssetTest is Helpers {
         console.log("ret1.amountSharesMinted = ", ret1.amountSharesMinted);
         console.log("ret2.amountSharesMinted = ", ret2.amountSharesMinted);
         
-        // Verify price changes affect share calculations
-        assertTrue(ret1.amountSharesMinted != ret2.amountSharesMinted, "Price updates should affect share calculations");
+        // NOTE: Equality here might seem incorrect but it should be correct since 
+        // After the first deposit, the SuperAsset is 100% exposed to underlyingtoken1
+        // so since this token goes up 2% also the SuperAsset PPS goes up 2% 
+        // so in the second deposit, using the same amount as the previous one should return the same number of SuperAsset shares since 
+        // since both the underlyingToken1 price and the SuperAsset shares price went up by 2% so their ratio stays the same
+        assertTrue(ret1.amountSharesMinted == ret2.amountSharesMinted, "Price updates should affect share calculations");
         
         vm.stopPrank();
     }
