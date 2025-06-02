@@ -55,7 +55,6 @@ interface ISuperAsset is IERC20 {
     /*//////////////////////////////////////////////////////////////
                             ERRORS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Thrown when an address parameter is zero
     error ZERO_ADDRESS();
 
@@ -149,7 +148,6 @@ interface ISuperAsset is IERC20 {
     /*//////////////////////////////////////////////////////////////
                             STRUCTS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Token data structure
     /// @param isSupportedUnderlyingVault Whether the token is a supported underlying vault
     /// @param isSupportedERC20 Whether the token is a supported ERC20
@@ -489,10 +487,19 @@ interface ISuperAsset is IERC20 {
         bool incentiveCalculationSuccess;
     }
 
+    struct PriceArgs {
+        address superOracle;
+        address superAsset;
+        address token;
+        address usd;
+        uint256 depegLowerThreshold;
+        uint256 depegUpperThreshold;
+        uint256 dispersionThreshold;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Initializes the SuperAsset contract
     /// @param name_ Name of the token
     /// @param symbol_ Symbol of the token
@@ -514,6 +521,21 @@ interface ISuperAsset is IERC20 {
     /// @param token The token address
     /// @return TokenData structure containing the token data
     function getTokenData(address token) external view returns (TokenData memory);
+
+    /// @notice Returns the primary asset of the SuperAsset
+    /// @return The address of the primary asset
+    function getPrimaryAsset() external view returns (address);
+
+    /// @dev Gets the price of a token and circuit breaker data
+    /// @param token The address of the token
+    /// @return priceUSD The price of the token in USD
+    /// @return isDepeg Whether the token is depegged
+    /// @return isDispersion Whether the token has price dispersion
+    /// @return isOracleOff Whether the oracle is off
+    function getPriceAndCircuitBreakers(address token)
+        external
+        view
+        returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff);
 
     /// @notice Returns the PPS of the SuperAsset and the prices of the tokens in USD
     /// @return activeTokens Array of active tokens
@@ -685,20 +707,6 @@ interface ISuperAsset is IERC20 {
     /// @param args The preview swap arguments (tokenIn, amountTokenToDeposit, tokenOut, isSoft)
     /// @return ret The preview swap return variables
     function previewSwap(PreviewSwapArgs memory args) external view returns (PreviewSwapReturnVars memory ret);
-
-    /// @notice Gets the price of a token in USD with circuit breakers
-    /// @dev This function should not revert, just return booleans for the circuit breakers, it is up to the caller to
-    /// decide if to revert
-    /// @dev Getting only single unit price
-    /// @param tokenIn The address of the token to get the price of
-    /// @return priceUSD The price of the token in USD
-    /// @return isDepeg Whether the token is depegged
-    /// @return isDispersion Whether the token is dispersed
-    /// @return isOracleOff Whether the oracle is off
-    function getPriceWithCircuitBreakers(address tokenIn)
-        external
-        view
-        returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff);
 
     /// @notice Gets the precision constant used for percentage calculations
     /// @return The precision constant (e.g., 10000 for 4 decimal places)
