@@ -14,7 +14,7 @@ import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { Mock4626Vault } from "../../../mocks/Mock4626Vault.sol";
 import { MockAggregator } from "../../mocks/MockAggregator.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
-import { IERC4626 } from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { SuperAssetFactory, ISuperAssetFactory } from "../../../../src/periphery/SuperAsset/SuperAssetFactory.sol";
 import { SuperBank } from "../../../../src/periphery/SuperBank.sol";
 
@@ -351,7 +351,7 @@ contract SuperAssetTest is Helpers {
     }
 
     function test_CannotSetFeesAboveMaximum() public {
-        uint256 tooHighFee = superAsset.MAX_SWAP_FEE_PERCENTAGE() + 1;
+        uint256 tooHighFee = superAsset.MAX_SWAP_FEE_PERC() + 1;
 
         vm.startPrank(admin);
         vm.expectRevert(ISuperAsset.INVALID_SWAP_FEE_PERCENTAGE.selector);
@@ -448,7 +448,7 @@ contract SuperAssetTest is Helpers {
         mockFeed3.setAnswer(s.currentPrice * 5);
 
         (s.priceUSD, s.isDepeg, s.isDispersion, s.isOracleOff) =
-            superAsset.getPriceWithCircuitBreakers(IERC4626(tokenIn).asset());
+            superAsset.getPriceAndCircuitBreakers(IERC4626(tokenIn).asset());
         assertEq(s.isDepeg, true);
         assertEq(s.isDispersion, true);
         assertEq(s.isOracleOff, false);
@@ -850,36 +850,36 @@ contract SuperAssetTest is Helpers {
     function test_ERC20TokenActivationAndDeactivation() public {
         // Deploy a new test token
         MockERC20 testToken = new MockERC20("Test Token", "TEST", 18);
-        
+
         // Whitelist the token (also sets isActive to true)
         vm.startPrank(admin);
         superAsset.whitelistERC20(address(testToken));
-        
+
         // Check initial state
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(testToken));
         assertTrue(tokenData.isSupportedERC20, "Token should be supported");
         assertTrue(tokenData.isActive, "Token should be active after whitelisting");
-        
+
         // Give the token some balance to prevent complete purge
         vm.stopPrank();
         deal(address(testToken), address(superAsset), 100e18);
         vm.startPrank(admin);
-        
+
         // Deactivate the token (with balance, it will remain in system but inactive)
         superAsset.removeERC20(address(testToken));
-        
+
         // Check token is inactive but still supported because it has balance
         tokenData = superAsset.getTokenData(address(testToken));
         assertTrue(tokenData.isSupportedERC20, "Token should still be supported after deactivation when it has balance");
         assertFalse(tokenData.isActive, "Token should be inactive after deactivation");
-        
+
         // Reactivate the token
         superAsset.activateERC20(address(testToken));
-        
+
         // Check token is active again
         tokenData = superAsset.getTokenData(address(testToken));
         assertTrue(tokenData.isActive, "Token should be active after reactivation");
-        
+
         vm.stopPrank();
     }
 
@@ -887,56 +887,59 @@ contract SuperAssetTest is Helpers {
         // Deploy a new test vault
         MockERC20 underlying = new MockERC20("Vault Underlying", "VUND", 18);
         Mock4626Vault testVault = new Mock4626Vault(address(underlying), "Test Vault", "TVAULT");
-        
+
         // Whitelist the vault (also sets isActive to true)
         vm.startPrank(admin);
         superAsset.whitelistVault(address(testVault), address(yieldSourceOracle));
-        
+
         // Check initial state
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(testVault));
         assertTrue(tokenData.isSupportedUnderlyingVault, "Vault should be supported");
         assertTrue(tokenData.isActive, "Vault should be active after whitelisting");
-        
+
         // Give the vault token a non-zero balance in SuperAsset to prevent auto-purge
-        vm.stopPrank();  // Stop being admin to do token operations
-        
+        vm.stopPrank(); // Stop being admin to do token operations
+
         // Use deal to give SuperAsset some vault tokens
         deal(address(testVault), address(superAsset), 100e18);
-        
+
         // Start being admin again
         vm.startPrank(admin);
-        
+
         // Deactivate the vault (with balance, it will remain in system but inactive)
         superAsset.removeVault(address(testVault));
-        
+
         // Check vault is inactive but still supported because it has balance
         tokenData = superAsset.getTokenData(address(testVault));
-        assertTrue(tokenData.isSupportedUnderlyingVault, "Vault should still be supported after deactivation when it has balance");
+        assertTrue(
+            tokenData.isSupportedUnderlyingVault,
+            "Vault should still be supported after deactivation when it has balance"
+        );
         assertFalse(tokenData.isActive, "Vault should be inactive after deactivation");
-        
+
         // Reactivate the vault
         superAsset.activateVault(address(testVault));
-        
+
         // Check vault is active again
         tokenData = superAsset.getTokenData(address(testVault));
         assertTrue(tokenData.isActive, "Vault should be active after reactivation");
-        
+
         vm.stopPrank();
     }
 
     function test_AutoPurgeWithZeroBalance() public {
         // Deploy a new test token
         MockERC20 testToken = new MockERC20("Test Token", "TEST", 18);
-        
+
         // Whitelist the token
         vm.startPrank(admin);
         superAsset.whitelistERC20(address(testToken));
         vm.stopPrank();
-        
+
         // Mint tokens to SuperAsset contract
         testToken.mint(address(superAsset), 100e18);
         assertEq(testToken.balanceOf(address(superAsset)), 100e18, "SuperAsset should have token balance");
-        
+
         // Deactivate with balance - token should remain in system but inactive
         vm.startPrank(admin);
         superAsset.removeERC20(address(testToken));
@@ -944,12 +947,12 @@ contract SuperAssetTest is Helpers {
         assertFalse(tokenData.isActive, "Token should be inactive after deactivation");
         assertTrue(tokenData.isSupportedERC20, "Token should still be supported when it has balance");
         vm.stopPrank();
-        
+
         // Transfer all tokens out
         vm.prank(address(superAsset));
         testToken.transfer(address(this), 100e18);
         assertEq(testToken.balanceOf(address(superAsset)), 0, "SuperAsset should have no token balance");
-        
+
         // Now try to deactivate again - should auto-purge since balance is zero
         vm.startPrank(admin);
         superAsset.removeERC20(address(testToken));
@@ -1032,46 +1035,45 @@ contract SuperAssetTest is Helpers {
     function test_ReactivationErrors() public {
         // Deploy a new test token
         MockERC20 testToken = new MockERC20("Test Token", "TEST", 18);
-        
+
         // Try to activate non-supported token
         vm.startPrank(admin);
         vm.expectRevert(ISuperAsset.TOKEN_NOT_SUPPORTED.selector);
         superAsset.activateERC20(address(testToken));
-        
+
         // Whitelist the token
         superAsset.whitelistERC20(address(testToken));
-        
+
         // Try to activate already active token
         vm.expectRevert(ISuperAsset.TOKEN_ALREADY_ACTIVE.selector);
         superAsset.activateERC20(address(testToken));
-        
+
         // Add token balance to prevent complete removal
         vm.stopPrank();
         deal(address(testToken), address(superAsset), 100e18);
         vm.startPrank(admin);
-        
+
         // Deactivate the token
         superAsset.removeERC20(address(testToken));
-        
+
         // Activation should now succeed
         superAsset.activateERC20(address(testToken));
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(testToken));
         assertTrue(tokenData.isActive, "Token should be active after reactivation");
-        
+
         vm.stopPrank();
     }
-
 
     function test_CircuitBreaker_DispersionDetection1() public {
         // Test depeg detection - price moves beyond ±2% threshold
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), 100e18);
-        
+
         // Set mockFeed2 to trigger depeg (price drops by 5%)
         // This should be not enough to trigger a depeg but enough to trigger a dispersion
         (, int256 currentPrice,,,) = mockFeed2.latestRoundData();
         mockFeed2.setAnswer(currentPrice * 95 / 100); // 5% drop
-        
+
         // Should revert due to depeg
         ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
             receiver: user,
@@ -1079,11 +1081,8 @@ contract SuperAssetTest is Helpers {
             amountTokenToDeposit: 100e18,
             minSharesOut: 0
         });
-        
-        vm.expectRevert(abi.encodeWithSelector(
-            ISuperAsset.SUPPORTED_ASSET_PRICE_DISPERSION.selector,
-            address(tokenIn)
-        ));
+
+        vm.expectRevert(abi.encodeWithSelector(ISuperAsset.SUPPORTED_ASSET_PRICE_DISPERSION.selector, address(tokenIn)));
         superAsset.deposit(depositArgs);
         vm.stopPrank();
     }
@@ -1092,23 +1091,20 @@ contract SuperAssetTest is Helpers {
         // Test dispersion detection - high standard deviation between price feeds
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), 100e18);
-        
+
         // Create high dispersion by setting feeds to very different values
         (, int256 basePrice,,,) = mockFeed1.latestRoundData();
         mockFeed2.setAnswer(basePrice * 120 / 100); // +20%
-        mockFeed3.setAnswer(basePrice * 80 / 100);  // -20%
-        
+        mockFeed3.setAnswer(basePrice * 80 / 100); // -20%
+
         ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
             receiver: user,
             tokenIn: address(tokenIn),
             amountTokenToDeposit: 100e18,
             minSharesOut: 0
         });
-        
-        vm.expectRevert(abi.encodeWithSelector(
-            ISuperAsset.SUPPORTED_ASSET_PRICE_DISPERSION.selector,
-            address(tokenIn)
-        ));
+
+        vm.expectRevert(abi.encodeWithSelector(ISuperAsset.SUPPORTED_ASSET_PRICE_DISPERSION.selector, address(tokenIn)));
         superAsset.deposit(depositArgs);
         vm.stopPrank();
     }
@@ -1117,20 +1113,17 @@ contract SuperAssetTest is Helpers {
         // Test oracle failure detection
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), 100e18);
-        
+
         // Set feed to stale timestamp to trigger oracle failure
         vm.warp(block.timestamp + 30 days);
-        
+
         ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
             receiver: user,
             tokenIn: address(tokenIn),
             amountTokenToDeposit: 100e18,
             minSharesOut: 0
         });
-        vm.expectRevert(abi.encodeWithSelector(
-            ISuperAsset.SUPPORTED_ASSET_PRICE_ORACLE_OFF.selector,
-            address(tokenIn)
-        ));
+        vm.expectRevert(abi.encodeWithSelector(ISuperAsset.SUPPORTED_ASSET_PRICE_ORACLE_OFF.selector, address(tokenIn)));
         superAsset.deposit(depositArgs);
         vm.stopPrank();
     }
@@ -1139,23 +1132,20 @@ contract SuperAssetTest is Helpers {
         // Test zero price detection
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), 100e18);
-        
+
         // Set price to zero
         mockFeed1.setAnswer(0);
         mockFeed2.setAnswer(0);
         mockFeed3.setAnswer(0);
-        
+
         ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
             receiver: user,
             tokenIn: address(tokenIn),
             amountTokenToDeposit: 100e18,
             minSharesOut: 0
         });
-        
-        vm.expectRevert(abi.encodeWithSelector(
-            ISuperAsset.SUPPORTED_ASSET_PRICE_ORACLE_OFF.selector,
-            address(tokenIn)
-        ));
+
+        vm.expectRevert(abi.encodeWithSelector(ISuperAsset.SUPPORTED_ASSET_PRICE_ORACLE_OFF.selector, address(tokenIn)));
         superAsset.deposit(depositArgs);
         vm.stopPrank();
     }
@@ -1165,29 +1155,29 @@ contract SuperAssetTest is Helpers {
     function test_TargetAllocationManagement() public {
         // Test setting and managing target allocations
         vm.startPrank(admin);
-        
+
         address[] memory tokens = new address[](3);
         tokens[0] = address(tokenIn);
         tokens[1] = address(tokenOut);
         tokens[2] = address(volatileVault);
-        
+
         uint256[] memory allocations = new uint256[](3);
         allocations[0] = 50e18; // 50%
-        allocations[1] = 30e18; // 30%  
+        allocations[1] = 30e18; // 30%
         allocations[2] = 20e18; // 20%
-        
+
         superAsset.setTargetAllocations(tokens, allocations);
-        
+
         // Verify allocations were set
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
         assertEq(tokenData.targetAllocations, 50e18, "TokenIn allocation should be 50%");
-        
+
         tokenData = superAsset.getTokenData(address(tokenOut));
         assertEq(tokenData.targetAllocations, 30e18, "TokenOut allocation should be 30%");
-        
+
         tokenData = superAsset.getTokenData(address(volatileVault));
         assertEq(tokenData.targetAllocations, 20e18, "VolatileVault allocation should be 20%");
-        
+
         vm.stopPrank();
     }
 
@@ -1197,19 +1187,17 @@ contract SuperAssetTest is Helpers {
         superAsset.setWeight(address(tokenIn), 100);
         superAsset.setWeight(address(tokenOut), 200);
         superAsset.setWeight(address(volatileVault), 50);
-        
+
         // Verify weights were set
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
         assertEq(tokenData.weights, 100, "TokenIn weight should be 100");
-        
+
         tokenData = superAsset.getTokenData(address(tokenOut));
         assertEq(tokenData.weights, 200, "TokenOut weight should be 200");
-        
+
         tokenData = superAsset.getTokenData(address(volatileVault));
         assertEq(tokenData.weights, 50, "VolatileVault weight should be 50");
-        
+
         vm.stopPrank();
     }
-
-
 }

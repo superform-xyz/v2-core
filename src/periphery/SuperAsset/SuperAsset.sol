@@ -5,14 +5,13 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import { ISuperOracle } from "../interfaces/oracles/ISuperOracle.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
+
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { ISuperAsset } from "../interfaces/SuperAsset/ISuperAsset.sol";
+import { SuperAssetPriceLib } from "../libraries/SuperAssetPriceLib.sol";
 import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
-import { IYieldSourceOracle } from "../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
 import { IIncentiveCalculationContract } from "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 import { IIncentiveFundContract } from "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 
@@ -30,20 +29,22 @@ contract SuperAsset is ERC20, ISuperAsset {
     string private tokenSymbol;
 
     // --- Interfaces ---
-    ISuperGovernor public superGovernor;
-    ISuperAssetFactory public factory;
+    ISuperGovernor private superGovernor;
+    ISuperAssetFactory private factory;
 
     // --- Constants ---
-    uint256 public constant PRECISION = 1e18;
-    uint256 public constant DECIMALS = 18;
-    uint256 public constant MAX_SWAP_FEE_PERCENTAGE = 10 ** 4; // Max 10% (1000 basis points)
-    uint256 public constant DEPEG_LOWER_THRESHOLD = 98e16; // 0.98
-    uint256 public constant DEPEG_UPPER_THRESHOLD = 102e16; // 1.02
-    uint256 public constant DISPERSION_THRESHOLD = 1e16; // 1% relative standard deviation threshold
-    uint256 public constant SWAP_FEE_PERC = 10 ** 6;
+    uint256 private constant PRECISION = 1e18;
+    uint256 private constant DECIMALS = 18;
+    uint256 private constant DEPEG_LOWER_THRESHOLD = 98e16; // 0.98
+    uint256 private constant DEPEG_UPPER_THRESHOLD = 102e16; // 1.02
+    uint256 private constant DISPERSION_THRESHOLD = 1e16; // 1% relative standard deviation threshold
 
-    // --- State ---
-    mapping(address token => TokenData data) public tokenData;
+    // --- Fee Constants ---
+    uint256 public constant SWAP_FEE_PERC = 10 ** 6;
+    uint256 public constant MAX_SWAP_FEE_PERC = 10 ** 4; // Max 10% (1000 basis points)
+
+    // --- State Variables ---
+    mapping(address token => TokenData data) private tokenData;
 
     // @notice Contains supported Vaults shares and standard ERC20s
     EnumerableSet.AddressSet private _supportedAssets;
@@ -53,32 +54,11 @@ contract SuperAsset is ERC20, ISuperAsset {
     uint256 public energyToUSDExchangeRatio;
 
     // --- Addresses ---
-    address public constant USD = address(840);
+    address private constant USD = address(840);
     address public primaryAsset;
 
     // SuperOracle related
-    bytes32 public constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
-
-    // --- Modifiers ---
-    modifier onlyVault() {
-        if (!tokenData[msg.sender].isSupportedUnderlyingVault) revert NOT_VAULT();
-        _;
-    }
-
-    modifier onlyERC20() {
-        if (!tokenData[msg.sender].isSupportedERC20) revert NOT_ERC20_TOKEN();
-        _;
-    }
-
-    modifier onlyStrategist() {
-        if (msg.sender != factory.getSuperAssetStrategist(address(this))) revert UNAUTHORIZED();
-        _;
-    }
-
-    modifier onlyManager() {
-        if (msg.sender != factory.getSuperAssetManager(address(this))) revert UNAUTHORIZED();
-        _;
-    }
+    bytes32 private constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
 
     /*//////////////////////////////////////////////////////////////
                         CONTRACT INITIALIZATION
@@ -99,8 +79,8 @@ contract SuperAsset is ERC20, ISuperAsset {
         // Ensure this can only be called once
         if (address(superGovernor) != address(0)) revert ALREADY_INITIALIZED();
 
-        if (swapFeeInPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
-        if (swapFeeOutPercentage_ > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
+        if (swapFeeInPercentage_ > MAX_SWAP_FEE_PERC) revert INVALID_SWAP_FEE_PERCENTAGE();
+        if (swapFeeOutPercentage_ > MAX_SWAP_FEE_PERC) revert INVALID_SWAP_FEE_PERCENTAGE();
 
         swapFeeInPercentage = swapFeeInPercentage_;
         swapFeeOutPercentage = swapFeeOutPercentage_;
@@ -119,7 +99,8 @@ contract SuperAsset is ERC20, ISuperAsset {
                             MANAGER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperAsset
-    function whitelistERC20(address token) external onlyManager {
+    function whitelistERC20(address token) external {
+        _onlyManager();
         if (token == address(0)) revert ZERO_ADDRESS();
         if (tokenData[token].isSupportedERC20) revert ALREADY_WHITELISTED();
 
@@ -134,7 +115,8 @@ contract SuperAsset is ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function removeERC20(address token) external onlyManager {
+    function removeERC20(address token) external {
+        _onlyManager();
         if (token == address(0)) revert ZERO_ADDRESS();
 
         // Mark token as inactive
@@ -152,7 +134,8 @@ contract SuperAsset is ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function activateERC20(address token) external onlyManager {
+    function activateERC20(address token) external {
+        _onlyManager();
         if (token == address(0)) revert ZERO_ADDRESS();
         if (!tokenData[token].isSupportedERC20) revert TOKEN_NOT_SUPPORTED();
         if (tokenData[token].isActive) revert TOKEN_ALREADY_ACTIVE();
@@ -164,7 +147,8 @@ contract SuperAsset is ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function whitelistVault(address vault, address yieldSourceOracle) external onlyManager {
+    function whitelistVault(address vault, address yieldSourceOracle) external {
+        _onlyManager();
         if (vault == address(0) || yieldSourceOracle == address(0)) revert ZERO_ADDRESS();
         if (tokenData[vault].isSupportedUnderlyingVault) revert ALREADY_WHITELISTED();
 
@@ -179,7 +163,8 @@ contract SuperAsset is ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function removeVault(address vault) external onlyManager {
+    function removeVault(address vault) external {
+        _onlyManager();
         if (vault == address(0)) revert ZERO_ADDRESS();
 
         // Mark vault as inactive
@@ -197,7 +182,8 @@ contract SuperAsset is ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function activateVault(address vault) external onlyManager {
+    function activateVault(address vault) external {
+        _onlyManager();
         if (vault == address(0)) revert ZERO_ADDRESS();
         if (!tokenData[vault].isSupportedUnderlyingVault) revert VAULT_NOT_SUPPORTED();
         if (tokenData[vault].isActive) revert TOKEN_ALREADY_ACTIVE();
@@ -209,19 +195,22 @@ contract SuperAsset is ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function setSwapFeeInPercentage(uint256 _feePercentage) external onlyManager {
-        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
+    function setSwapFeeInPercentage(uint256 _feePercentage) external {
+        _onlyManager();
+        if (_feePercentage > MAX_SWAP_FEE_PERC) revert INVALID_SWAP_FEE_PERCENTAGE();
         swapFeeInPercentage = _feePercentage;
     }
 
     /// @inheritdoc ISuperAsset
-    function setSwapFeeOutPercentage(uint256 _feePercentage) external onlyManager {
-        if (_feePercentage > MAX_SWAP_FEE_PERCENTAGE) revert INVALID_SWAP_FEE_PERCENTAGE();
+    function setSwapFeeOutPercentage(uint256 _feePercentage) external {
+        _onlyManager();
+        if (_feePercentage > MAX_SWAP_FEE_PERC) revert INVALID_SWAP_FEE_PERCENTAGE();
         swapFeeOutPercentage = _feePercentage;
     }
 
     /// @inheritdoc ISuperAsset
-    function setWeight(address vault, uint256 weight) external onlyManager {
+    function setWeight(address vault, uint256 weight) external {
+        _onlyManager();
         if (vault == address(0)) revert ZERO_ADDRESS();
         if (!tokenData[vault].isSupportedUnderlyingVault) revert NOT_VAULT();
         tokenData[vault].weights = weight;
@@ -229,18 +218,21 @@ contract SuperAsset is ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function setEnergyToUSDExchangeRatio(uint256 newRatio) external onlyManager {
+    function setEnergyToUSDExchangeRatio(uint256 newRatio) external {
+        _onlyManager();
         energyToUSDExchangeRatio = newRatio;
         emit EnergyToUSDExchangeRatioSet(newRatio);
     }
 
     /// @inheritdoc ISuperAsset
-    function mint(address to, uint256 amount) external onlyManager {
+    function mint(address to, uint256 amount) external {
+        _onlyManager();
         _mint(to, amount);
     }
 
     /// @inheritdoc ISuperAsset
-    function burn(address from, uint256 amount) external onlyManager {
+    function burn(address from, uint256 amount) external {
+        _onlyManager();
         _burn(from, amount);
     }
 
@@ -248,7 +240,8 @@ contract SuperAsset is ERC20, ISuperAsset {
                           STRATEGIST FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperAsset
-    function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external onlyStrategist {
+    function setTargetAllocations(address[] calldata tokens, uint256[] calldata allocations) external {
+        _onlyStrategist();
         uint256 lenTokens = tokens.length;
         if (lenTokens != allocations.length) revert INVALID_INPUT();
 
@@ -269,7 +262,8 @@ contract SuperAsset is ERC20, ISuperAsset {
     }
 
     /// @inheritdoc ISuperAsset
-    function setTargetAllocation(address token, uint256 allocation) external onlyStrategist {
+    function setTargetAllocation(address token, uint256 allocation) external {
+        _onlyStrategist();
         if (token == address(0)) revert ZERO_ADDRESS();
         if (!tokenData[token].isSupportedUnderlyingVault && !tokenData[token].isSupportedERC20) {
             revert NOT_SUPPORTED_TOKEN();
@@ -666,59 +660,24 @@ contract SuperAsset is ERC20, ISuperAsset {
                         PUBLIC GETTER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperAsset
-    function getPriceWithCircuitBreakers(address token)
+    function getPriceAndCircuitBreakers(address token)
         public
         view
         returns (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff)
     {
-        // Get token decimals
-        uint8 decimalsToken = IERC20Metadata(token).decimals();
-        uint256 one = 10 ** decimalsToken;
-        uint256 stddev;
-        uint256 M;
+        address superOracle = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
 
-        // @dev Passing oneUnit to get the price of a single unit of asset to check if it has depegged
-        address superOracleAddress = superGovernor.getAddress(superGovernor.SUPER_ORACLE());
-        ISuperOracle superOracle = ISuperOracle(superOracleAddress);
-        if (tokenData[token].isSupportedERC20) {
-            try superOracle.getQuoteFromProvider(one, token, USD, AVERAGE_PROVIDER) returns (
-                uint256 _priceUSD, uint256 _stddev, uint256, uint256 _m
-            ) {
-                priceUSD = _priceUSD;
-                stddev = _stddev;
-                M = _m;
-            } catch {
-                priceUSD = superOracle.getEmergencyPrice(token);
-                M = 0;
-            }
-        } else if (tokenData[token].isSupportedUnderlyingVault) {
-            (priceUSD, stddev, M) = _derivePriceFromUnderlyingVault(token);
-        }
-
-        // Circuit Breaker for Oracle Off
-        if (M == 0) {
-            isOracleOff = true;
-        } else {
-            if (primaryAsset == USD) {
-                return (PRECISION, false, false, false);
-            }
-
-            // Circuit Breaker for Depeg - price deviates more than ±2% from expected
-            uint256 assetPriceUSD;
-            uint256 oneUnitAsset = 10 ** IERC20Metadata(primaryAsset).decimals();
-            try superOracle.getQuoteFromProvider(oneUnitAsset, primaryAsset, USD, AVERAGE_PROVIDER) returns (
-                uint256 _priceUSD, uint256, uint256, uint256
-            ) {
-                assetPriceUSD = _priceUSD;
-            } catch {
-                assetPriceUSD = superOracle.getEmergencyPrice(primaryAsset);
-            }
-            isDepeg = _isTokenDepeg(token, priceUSD, assetPriceUSD);
-
-            // Calculate relative standard deviation
-            isDispersion = _isSTDDevDegged(stddev, priceUSD);
-        }
-        return (priceUSD, isDepeg, isDispersion, isOracleOff);
+        return SuperAssetPriceLib.getPriceWithCircuitBreakers(
+            ISuperAsset.PriceArgs({
+                superOracle: superOracle,
+                superAsset: address(this),
+                token: token,
+                usd: USD,
+                depegLowerThreshold: DEPEG_LOWER_THRESHOLD,
+                depegUpperThreshold: DEPEG_UPPER_THRESHOLD,
+                dispersionThreshold: DISPERSION_THRESHOLD
+            })
+        );
     }
 
     /// @inheritdoc ISuperAsset
@@ -747,7 +706,7 @@ contract SuperAsset is ERC20, ISuperAsset {
             activeTokens[i] = token;
 
             (uint256 priceUSD, bool isTokenDepeg, bool isTokenDispersion, bool isTokenOracleOff) =
-                getPriceWithCircuitBreakers(token);
+                getPriceAndCircuitBreakers(token);
 
             pricePerTokenUSD[i] = priceUSD;
             isDepeg[i] = isTokenDepeg;
@@ -817,7 +776,7 @@ contract SuperAsset is ERC20, ISuperAsset {
 
         for (uint256 i; i < s.extendedLength; i++) {
             s.token = _supportedAssets.at(i);
-            (ret.oraclePriceUSD, ret.isDepeg, ret.isDispersion, ret.isOracleOff) = getPriceWithCircuitBreakers(s.token);
+            (ret.oraclePriceUSD, ret.isDepeg, ret.isDispersion, ret.isOracleOff) = getPriceAndCircuitBreakers(s.token);
 
             if (!isSoft && (ret.isDepeg || ret.isDispersion || ret.isOracleOff || ret.oraclePriceUSD == 0)) {
                 // Return early with circuit breaker information
@@ -897,7 +856,7 @@ contract SuperAsset is ERC20, ISuperAsset {
         for (uint256 i; i < s.extendedLength; i++) {
             s.token = _supportedAssets.at(i);
             (s.oraclePriceUSDs[i], s.isDepegs[i], s.isDispersions[i], s.isOracleOffs[i]) =
-                getPriceWithCircuitBreakers(s.token);
+                getPriceAndCircuitBreakers(s.token);
 
             if (!isSoft && (s.isDepegs[i] || s.isDispersions[i] || s.isOracleOffs[i] || s.oraclePriceUSDs[i] == 0)) {
                 // Return early with circuit breaker information
@@ -984,6 +943,12 @@ contract SuperAsset is ERC20, ISuperAsset {
             ret.vaultWeights[i] = tokenData[s.token].weights;
         }
     }
+
+    /// @inheritdoc ISuperAsset
+    function getPrimaryAsset() external view returns (address) {
+        return primaryAsset;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             ERC20 OVERRIDES
     //////////////////////////////////////////////////////////////*/
@@ -1017,77 +982,12 @@ contract SuperAsset is ERC20, ISuperAsset {
         }
     }
 
-    /// @dev Derives the price of the token from the underlying vault
-    /// @param token The address of the token to derive the price of
-    /// @return priceUSD The price of the token in USD
-    /// @return stddev The standard deviation of the token
-    /// @return M The number of quote providers
-    function _derivePriceFromUnderlyingVault(address token)
-        internal
-        view
-        returns (uint256 priceUSD, uint256 stddev, uint256 M)
-    {
-        address vaultAsset = IERC4626(token).asset();
-        address tokenOracle = tokenData[token].oracle;
-        uint256 unitVaultAsset = 10 ** IERC20Metadata(vaultAsset).decimals();
-
-        ISuperOracle superOracle = ISuperOracle(superGovernor.getAddress(superGovernor.SUPER_ORACLE()));
-        try superOracle.getQuoteFromProvider(unitVaultAsset, vaultAsset, USD, AVERAGE_PROVIDER) returns (
-            uint256 _priceUSD, uint256 _stddev, uint256, uint256 _m
-        ) {
-            priceUSD = _priceUSD;
-            stddev = _stddev;
-            M = _m;
-        } catch {
-            priceUSD = superOracle.getEmergencyPrice(vaultAsset);
-            stddev = 0;
-            M = 0;
-        }
-
-        uint256 pricePerShare = IYieldSourceOracle(tokenOracle).getPricePerShare(token);
-        if (priceUSD > 0) {
-            priceUSD = pricePerShare.mulDiv(priceUSD, PRECISION, Math.Rounding.Floor);
-        }
+    // --- Modifiers ---
+    function _onlyStrategist() internal view {
+        if (msg.sender != factory.getSuperAssetStrategist(address(this))) revert UNAUTHORIZED();
     }
 
-    /// @dev Checks if the standard deviation is greater than the dispersion threshold
-    /// @param stddev The standard deviation
-    /// @param priceUSD The price in USD
-    /// @return isDispersion True if the standard deviation is greater than the dispersion threshold
-    function _isSTDDevDegged(uint256 stddev, uint256 priceUSD) internal pure returns (bool) {
-        // Calculate relative standard deviation
-        uint256 relativeStdDev = Math.mulDiv(stddev, PRECISION, priceUSD);
-
-        // Circuit Breaker for Dispersion
-        if (relativeStdDev > DISPERSION_THRESHOLD) {
-            return true;
-        }
-        return false;
-    }
-
-    /// @dev Checks if the token is depegged
-    /// @param token The address of the token to check the status of
-    /// @param priceUSD The price of the token in USD
-    /// @param assetPriceUSD The price of the asset in USD
-    /// @return isDepeg True if the token is depegged
-    function _isTokenDepeg(
-        address token,
-        uint256 priceUSD,
-        uint256 assetPriceUSD
-    )
-        internal
-        view
-        returns (bool isDepeg)
-    {
-        uint256 ratio = Math.mulDiv(priceUSD, PRECISION, assetPriceUSD);
-
-        // Adjust for decimals
-        uint8 decimalsToken = IERC20Metadata(token).decimals();
-        if (decimalsToken != DECIMALS) {
-            ratio = Math.mulDiv(ratio, 10 ** (DECIMALS - decimalsToken), PRECISION);
-        }
-        if (ratio < DEPEG_LOWER_THRESHOLD || ratio > DEPEG_UPPER_THRESHOLD) {
-            isDepeg = true;
-        }
+    function _onlyManager() internal view {
+        if (msg.sender != factory.getSuperAssetManager(address(this))) revert UNAUTHORIZED();
     }
 }
