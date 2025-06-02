@@ -296,9 +296,9 @@ contract SuperAssetTest is Helpers {
         assertGt(tokenOut.balanceOf(user11), 0);
 
         // Whitelist volatile vault
-        vm.startPrank(admin);
-        // superAsset.whitelistVault(address(volatileVault), address(yieldSourceOracle));
-        vm.stopPrank();
+        // vm.startPrank(admin);
+        // // superAsset.whitelistVault(address(volatileVault), address(yieldSourceOracle));
+        // vm.stopPrank();
 
         vm.stopPrank();
     }
@@ -374,9 +374,11 @@ contract SuperAssetTest is Helpers {
         console.log("test_BasicDepositSimple() Start");
         uint256 depositAmount = 100e18;
         uint256 minSharesOut = 99e18; // Allowing for 1% slippage
+        underlyingToken1.mint(user, depositAmount);
 
         // Approve tokens
         vm.startPrank(user);
+        assertEq(underlyingToken1.balanceOf(user), depositAmount);
         underlyingToken1.approve(address(superAsset), depositAmount);
 
         // Create preview deposit args using the new struct approach
@@ -407,13 +409,15 @@ contract SuperAssetTest is Helpers {
         // Deposit tokens
         ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
             receiver: user,
-            tokenIn: address(tokenIn),
+            tokenIn: address(underlyingToken1),
             amountTokenToDeposit: depositAmount,
             minSharesOut: minSharesOut
         });
+        console.log("test_BasicDepositSimple() Pre-Deposit");
         ISuperAsset.DepositReturnVars memory ret = superAsset.deposit(depositArgs);
+        console.log("test_BasicDepositSimple() Post-Deposit");
         vm.stopPrank();
-        assertEq(tokenIn.balanceOf(address(superBank)) - b1, ret.swapFee, "SuperBank should receive the swap fee");
+        assertEq(underlyingToken1.balanceOf(address(superBank)) - b1, ret.swapFee, "SuperBank should receive the swap fee");
         assertEq(
             previewDepositRet.amountSharesMinted, ret.amountSharesMinted, "Actual shares minted should match preview"
         );
