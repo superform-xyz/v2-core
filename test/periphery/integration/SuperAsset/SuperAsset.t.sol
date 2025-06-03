@@ -89,7 +89,6 @@ contract SuperAssetTest is Helpers {
     function setUp() public {
         // Setup volatile vault
         MockERC20 volatileUnderlying = new MockERC20("Volatile Underlying", "VUND", 18);
-        // volatileVault = new Mock4626Vault(address(volatileUnderlying), "Volatile Vault", "VVAULT");
         // Setup accounts
         admin = makeAddr("admin");
         manager = makeAddr("manager");
@@ -295,7 +294,6 @@ contract SuperAssetTest is Helpers {
         console.log("underlyingToken2 = ", address(underlyingToken2));
         console.log("superAsset = ", address(superAsset));
         console.log("primaryAsset = ", address(primaryAsset));
-        // console.log("volatileVault = ", address(volatileVault));
         console.log("---------------");
 
         // Set SuperAsset oracle
@@ -342,11 +340,6 @@ contract SuperAssetTest is Helpers {
         vm.stopPrank();
         assertGt(tokenIn.balanceOf(user11), 0);
         assertGt(tokenOut.balanceOf(user11), 0);
-
-        // Whitelist volatile vault
-        // vm.startPrank(admin);
-        // // superAsset.whitelistVault(address(volatileVault), address(yieldSourceOracle));
-        // vm.stopPrank();
 
         vm.stopPrank();
     }
@@ -1211,8 +1204,6 @@ contract SuperAssetTest is Helpers {
         superAsset.deposit(depositArgs);
         vm.stopPrank();
     }
-
-    Mock4626Vault public volatileVault;
 
     function test_TargetAllocationManagement() public {
         // Test setting and managing target allocations
