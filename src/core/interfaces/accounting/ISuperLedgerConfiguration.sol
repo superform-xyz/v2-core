@@ -78,6 +78,9 @@ interface ISuperLedgerConfiguration {
     /// @notice Thrown when a critical address parameter is set to the zero address
     error ZERO_ADDRESS_NOT_ALLOWED();
 
+    /// @notice Thrown when a manager transfer is pending
+    error MANAGER_TRANSFER_PENDING();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/

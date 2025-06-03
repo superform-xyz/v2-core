@@ -184,6 +184,9 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
         if (config.manager != msg.sender) revert NOT_MANAGER();
 
+        address _pending = pendingManager[yieldSourceOracleId];
+        if (_pending != address(0)) revert MANAGER_TRANSFER_PENDING();
+        
         pendingManager[yieldSourceOracleId] = newManager;
 
         emit ManagerRoleTransferStarted(yieldSourceOracleId, msg.sender, newManager);
