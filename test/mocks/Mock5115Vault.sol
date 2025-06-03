@@ -27,6 +27,10 @@ contract Mock5115Vault {
         decimals = uint8(asset.decimals());
     }
 
+    function decimals() external pure returns(uint8) {
+        return 18;
+    }
+    
     function exchangeRate() external pure returns (uint256) {
         return 1e18;
     }

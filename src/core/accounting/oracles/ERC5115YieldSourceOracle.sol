@@ -17,8 +17,8 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc AbstractYieldSourceOracle
-    function decimals(address /*yieldSourceAddress*/ ) public pure override returns (uint8) {
-        return 18;
+    function decimals(address yieldSourceAddress ) public view override returns (uint8) {
+        return IStandardizedYield(yieldSourceAddress).decimals();
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -43,7 +43,7 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
 
     /// @inheritdoc AbstractYieldSourceOracle
     function getPricePerShare(address yieldSourceAddress) public view override returns (uint256) {
-        return IStandardizedYield(yieldSourceAddress).exchangeRate();
+        return IStandardizedYield(yieldSourceAddress).exchangeRate() * (10 ** IStandardizedYield(yieldSourceAddress).decimals())/1e18;
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
