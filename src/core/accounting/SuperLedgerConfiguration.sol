@@ -121,6 +121,34 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         }
     }
 
+    /// @notice Cancels a pending yield source oracle configuration proposal.
+    /// @param yieldSourceOracleId The identifier of the yield source oracle.
+    /// @dev Only the current manager can call this function.
+    function cancelYieldSourceOracleConfigProposal(bytes4 yieldSourceOracleId) external virtual {
+        // Ensure only the current manager can cancel
+        if (yieldSourceOracleConfig[yieldSourceOracleId].manager != msg.sender) {
+            revert NOT_MANAGER();
+        }
+        // Check if there is a pending proposal
+        if (yieldSourceOracleConfigProposalExpirationTime[yieldSourceOracleId] == 0) {
+            revert NO_PENDING_PROPOSAL();
+        }
+        // Store proposal details for event emission
+        YieldSourceOracleConfig memory proposal = yieldSourceOracleConfigProposals[yieldSourceOracleId];
+        // Clear the pending proposal and expiration time
+        delete yieldSourceOracleConfigProposals[yieldSourceOracleId];
+        delete yieldSourceOracleConfigProposalExpirationTime[yieldSourceOracleId];
+        // Emit event for transparency
+        emit YieldSourceOracleConfigProposalCancelled(
+            yieldSourceOracleId,
+            proposal.yieldSourceOracle,
+            proposal.feePercent,
+            proposal.feeRecipient,
+            proposal.manager,
+            proposal.ledger
+        );
+    }
+
     /// @inheritdoc ISuperLedgerConfiguration
     function acceptYieldSourceOracleConfigProposal(bytes4[] calldata yieldSourceOracleIds) external virtual {
         uint256 length = yieldSourceOracleIds.length;
