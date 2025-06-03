@@ -517,7 +517,7 @@ contract MorphoLoanHooksTest is Helpers {
         uint256 loanAmount = 100e18;
         uint256 collateral = repayHook.deriveCollateralAmountFromLoanAmount(address(mockOracle), loanAmount);
 
-        assertEq(collateral, 200e18);
+        assertEq(collateral, 50e18);
     }
 
     function test_RepayAndWithdrawHook_DeriveCollateralAmountFromLoanAmount() public view {

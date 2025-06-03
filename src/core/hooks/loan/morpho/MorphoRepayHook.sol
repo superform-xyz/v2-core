@@ -176,7 +176,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
         IOracle oracleInstance = IOracle(oracle);
         uint256 price = oracleInstance.price();
 
-        collateralAmount = Math.mulDiv(loanAmount, price, PRICE_SCALING_FACTOR);
+        collateralAmount = Math.mulDiv(loanAmount, PRICE_SCALING_FACTOR, price);
     }
 
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {
