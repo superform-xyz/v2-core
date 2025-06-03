@@ -109,7 +109,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
         if (tokenOutIncentive == address(0)) revert TOKEN_OUT_NOT_SET();
 
         // Get token price and check circuit breakers
-        (uint256 priceUSD,,,) = superAsset.getPriceWithCircuitBreakers(tokenOutIncentive);
+        (uint256 priceUSD,,,) = superAsset.getPriceAndCircuitBreakers(tokenOutIncentive);
 
         if (priceUSD > 0) {
             // Convert USD amount to token amount using price
@@ -134,7 +134,7 @@ contract IncentiveFundContract is IIncentiveFundContract {
         if (tokenInIncentive == address(0)) revert TOKEN_IN_NOT_SET();
 
         // Get token price and check circuit breakers
-        (uint256 priceUSD,,,) = superAsset.getPriceWithCircuitBreakers(tokenInIncentive);
+        (uint256 priceUSD,,,) = superAsset.getPriceAndCircuitBreakers(tokenInIncentive);
 
         if (priceUSD > 0) {
             // Convert USD amount to token amount using price
