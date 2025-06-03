@@ -131,14 +131,15 @@ library SuperAssetPriceLib {
         view
         returns (bool isDepeg)
     {
-        uint256 decimals = IERC20Metadata(superAsset).decimals();
+        // NOTE: There should be no need to adjust for decimals since 
+        // the token specific decimals and 
+        // the Oracle Price decimals 
+        // can be different 
+        // Example, if we send 2 USDC to someone then the transferred amount is 2e6 since USDC has 6d 
+        // but the USDC price quoted in USD can have its own decimals, for example 
+        // if USDC depegs high and is worth 3 USD then its price quoted in a 18d oracle will be 3e18 
         uint256 ratio = Math.mulDiv(priceUSD, precision, assetPriceUSD);
 
-        // Adjust for decimals
-        uint8 decimalsToken = IERC20Metadata(token).decimals();
-        if (decimalsToken != decimals) {
-            ratio = Math.mulDiv(ratio, 10 ** (decimals - decimalsToken), precision);
-        }
         if (ratio < depegLowerThreshold || ratio > depegUpperThreshold) {
             isDepeg = true;
         }
