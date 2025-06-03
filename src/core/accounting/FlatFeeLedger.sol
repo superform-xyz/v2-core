@@ -19,6 +19,16 @@ contract FlatFeeLedger is BaseLedger {
         BaseLedger(ledgerConfiguration_, allowedExecutors_)
     {}
 
+    function _takeSnapshot(
+        address,
+        uint256,
+        address,
+        uint256,
+        uint256
+    ) internal pure override {
+        // no-op: cost basis not tracked
+    }
+
     /// @notice Processes outflow operations with a flat fee calculation
     /// @dev Overrides the base implementation to apply fees to the entire amount
     ///      Sets the cost basis to zero, treating the entire amount as profit
