@@ -60,7 +60,7 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
         accountEth = instanceOnEth.account;
         _getTokens(underlyingEth_USDC, accountEth, 1e18);
 
-        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
+        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(this))));
 
         superExecutorOnEth = ISuperExecutor(new SuperExecutor(address(ledgerConfig)));
         instanceOnEth.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorOnEth), data: "" });

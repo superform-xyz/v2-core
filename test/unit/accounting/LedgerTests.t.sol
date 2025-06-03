@@ -60,7 +60,7 @@ contract LedgerTests is Helpers {
     function setUp() public {
         exec = new MockExecutorModule();
         mockLedger = new MockLedger(); // ToDo: update to inherit BaseLedger
-        config = new SuperLedgerConfiguration();
+        config = new SuperLedgerConfiguration(address(this));
         mockOracle = new MockYieldSourceOracle();
 
         address[] memory executors = new address[](1);

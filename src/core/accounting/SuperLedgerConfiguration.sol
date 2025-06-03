@@ -46,13 +46,24 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     /// @dev After this period elapses, proposals can be accepted
     uint256 internal constant PROPOSAL_EXPIRATION_TIME = 1 weeks;
 
+    address internal immutable DEPLOYER;
+    bool internal _initialized;
+
+    constructor(address _deployer) {
+        DEPLOYER = _deployer;
+    }
+
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperLedgerConfiguration
     function setYieldSourceOracles(YieldSourceOracleConfigArgs[] calldata configs) external virtual {
+        if (msg.sender != DEPLOYER) revert NOT_DEPLOYER();
+
         uint256 length = configs.length;
         if (length == 0) revert ZERO_LENGTH();
+        if (_initialized) revert ALREADY_INITIALIZED();
+        _initialized = true;
 
         for (uint256 i; i < length; ++i) {
             YieldSourceOracleConfigArgs calldata config = configs[i];

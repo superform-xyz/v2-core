@@ -118,7 +118,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
     /*//////////////////////////////////////////////////////////////
                           CONSTRUCTOR TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_Constructor() public view {
+    function test_ConstructorXQX() public view {
         // Test that constructor sets up the contract correctly
         assertEq(address(oracleECDSA.SUPER_GOVERNOR()), address(governor));
     }
