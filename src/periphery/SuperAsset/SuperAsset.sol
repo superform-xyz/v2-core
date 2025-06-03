@@ -15,8 +15,6 @@ import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.
 import { IIncentiveCalculationContract } from "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 import { IIncentiveFundContract } from "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 
-import { console } from "forge-std/console.sol";
-
 /// @title SuperAsset
 /// @author Superform Labs
 /// @notice A meta-vault that manages deposits and redemptions across multiple underlying vaults.
@@ -335,8 +333,6 @@ contract SuperAsset is ERC20, ISuperAsset {
             _settleIncentive(args.receiver, ret.amountIncentiveUSDDeposit);
         }
 
-        console.log("deposit() T6");
-
         // Transfer the tokenIn from the sender to this contract
         IERC20(args.tokenIn).safeTransferFrom(msg.sender, address(this), args.amountTokenToDeposit);
 
@@ -344,8 +340,6 @@ contract SuperAsset is ERC20, ISuperAsset {
         IERC20(args.tokenIn).safeTransfer(superGovernor.getAddress(superGovernor.SUPER_BANK()), ret.swapFee);
         // Mint SuperUSD shares
         _mint(args.receiver, ret.amountSharesMinted);
-
-        console.log("deposit() T12");
 
         emit Deposit(
             args.receiver,
@@ -355,28 +349,23 @@ contract SuperAsset is ERC20, ISuperAsset {
             ret.swapFee,
             ret.amountIncentiveUSDDeposit
         );
-        console.log("deposit() End");
-
     }
 
     /// @inheritdoc ISuperAsset
     function redeem(RedeemArgs memory args) public returns (RedeemReturnVars memory ret) {
         // First validate parameters
-        console.log("redeem() Start");
         if (args.receiver == address(0) || args.tokenOut == address(0)) revert ZERO_ADDRESS();
         if (args.amountSharesToRedeem == 0) revert ZERO_AMOUNT();
 
-        // NOTE: Removing a token from the whitelist just prevents SuperAsset to increase its exposure to it but 
-        // it should not prevent to reduce its exposure to it 
-        // So these checks should not be applied in the case of the redeem
-        // if (
-        //     !tokenData[args.tokenOut].isSupportedERC20 && !tokenData[args.tokenOut].isSupportedUnderlyingVault
-        //         || !tokenData[args.tokenOut].isActive
-        // ) {
-        //     revert NOT_SUPPORTED_TOKEN();
-        // }
+        bool isAddRemove = !tokenData[args.tokenOut].isSupportedERC20 && !tokenData[args.tokenOut].isSupportedUnderlyingVault
+                || !tokenData[args.tokenOut].isActive;
 
-        // TODO: Maybe check if the outToken.balanceOf(SuperAsset) == 0 in which case revert with a clean error there
+        if (isAddRemove) {
+            // revert NOT_SUPPORTED_TOKEN();
+            _supportedAssets.add(args.tokenOut);
+            tokenData[args.tokenOut].isSupportedERC20 = true;
+            tokenData[args.tokenOut].isActive = true;
+        }
 
         // Create preview redeem args
         PreviewRedeemArgs memory previewArgs = PreviewRedeemArgs({
@@ -385,10 +374,8 @@ contract SuperAsset is ERC20, ISuperAsset {
             isSoft: false // isSoft = false for hard checks
          });
 
-        console.log("redeem() T1");
         // Call previewRedeem with the new struct approach
         PreviewRedeemReturnVars memory previewRet = previewRedeem(previewArgs);
-        console.log("redeem() T3");
 
         // Store results in return variable
         ret.amountTokenOutAfterFees = previewRet.amountTokenOutAfterFees;
@@ -437,6 +424,13 @@ contract SuperAsset is ERC20, ISuperAsset {
 
         // Transfer assets to receiver
         IERC20(args.tokenOut).safeTransfer(args.receiver, ret.amountTokenOutAfterFees);
+
+        if (isAddRemove) {
+            // revert NOT_SUPPORTED_TOKEN();
+            _supportedAssets.remove(args.tokenOut);
+            tokenData[args.tokenOut].isSupportedERC20 = false;
+            tokenData[args.tokenOut].isActive = false;
+        }
 
         // --- Emit event and set return values ---
         emit Redeem(
@@ -551,11 +545,10 @@ contract SuperAsset is ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function previewRedeem(PreviewRedeemArgs memory args) public view returns (PreviewRedeemReturnVars memory ret) {
-        console.log("previewRedeem() Start");
         // Get current and post-operation allocations using the struct-based return value
         ISuperAsset.AllocationOperationReturnVars memory allocRet =
             getAllocationsPrePostOperationRedeem(args.tokenOut, args.amountSharesToRedeem, args.isSoft);
-        console.log("previewRedeem() T1");
+
         // Copy circuit breaker info to return struct
         ret.assetWithBreakerTriggered = allocRet.assetWithBreakerTriggered;
         ret.oraclePriceUSD = allocRet.oraclePriceUSD;
@@ -574,12 +567,10 @@ contract SuperAsset is ERC20, ISuperAsset {
             return ret;
         }
 
-        console.log("previewRedeem() T2");
         // Calculate swap fee
         ret.swapFee = Math.mulDiv(allocRet.amountAssets, swapFeeOutPercentage, SWAP_FEE_PERC); // 0.1%
         ret.amountTokenOutAfterFees = allocRet.amountAssets - ret.swapFee;
 
-        console.log("previewRedeem() T3");
         // Calculate incentives (via ICC)
         if (IIncentiveFundContract(factory.getIncentiveFundContract(address(this))).incentivesEnabled()) {
             (ret.amountIncentiveUSDRedeem, ret.incentiveCalculationSuccess) = IIncentiveCalculationContract(
@@ -598,8 +589,6 @@ contract SuperAsset is ERC20, ISuperAsset {
             // if incentives disabled, soft return incentiveCalculationSuccess as true
             ret.incentiveCalculationSuccess = true;
         }
-
-        console.log("previewRedeem() T5");
     }
 
     /// @inheritdoc ISuperAsset
@@ -785,8 +774,7 @@ contract SuperAsset is ERC20, ISuperAsset {
     {
         GetAllocationsPrePostOperationsDeposit memory s;
 
-        uint256 length = _supportedAssets.length();
-        s.extendedLength = length + (_supportedAssets.contains(token) ? 0 : 1);
+        s.extendedLength = _supportedAssets.length();
         // Initialize the arrays in the return struct
         ret.absoluteAllocationPreOperation = new uint256[](s.extendedLength);
         ret.absoluteAllocationPostOperation = new uint256[](s.extendedLength);
@@ -795,7 +783,7 @@ contract SuperAsset is ERC20, ISuperAsset {
         s.totalValueUSD = 0;
         s.priceUSDToken = 0;
 
-        for (uint256 i; i < length; i++) {
+        for (uint256 i; i < s.extendedLength; i++) {
             s.token = _supportedAssets.at(i);
             (ret.oraclePriceUSD, ret.isDepeg, ret.isDispersion, ret.isOracleOff) = getPriceAndCircuitBreakers(s.token);
 
@@ -810,35 +798,6 @@ contract SuperAsset is ERC20, ISuperAsset {
             if (s.balance > 0) {
                 s.totalValueUSD += Math.mulDiv(s.balance, ret.oraclePriceUSD, 10 ** decimals);
             }
-            // Convert balance to USD value using price
-            ret.absoluteAllocationPreOperation[i] = Math.mulDiv(s.balance, ret.oraclePriceUSD, 10 ** decimals);
-            ret.totalAllocationPreOperation += ret.absoluteAllocationPreOperation[i];
-            ret.absoluteAllocationPostOperation[i] = ret.absoluteAllocationPreOperation[i];
-            if (s.token == token) {
-                s.priceUSDToken = ret.oraclePriceUSD;
-                ret.tokenFound = true;
-                s.absDeltaValue = Math.mulDiv(deltaToken, s.priceUSDToken, 10 ** decimals);
-                s.deltaValue = int256(s.absDeltaValue);
-                ret.absoluteAllocationPostOperation[i] =
-                    uint256(int256(ret.absoluteAllocationPreOperation[i]) + s.deltaValue);
-            }
-            ret.totalAllocationPostOperation += ret.absoluteAllocationPostOperation[i];
-            ret.absoluteTargetAllocation[i] = tokenData[s.token].targetAllocations;
-            ret.totalTargetAllocation += ret.absoluteTargetAllocation[i];
-            ret.vaultWeights[i] = tokenData[s.token].weights;
-        }
-
-        if(s.extendedLength > length) {
-            uint256 i = length;
-            s.token = token;
-            (ret.oraclePriceUSD, ret.isDepeg, ret.isDispersion, ret.isOracleOff) = getPriceAndCircuitBreakers(s.token);
-            s.balance = IERC20(s.token).balanceOf(address(this));
-            uint256 decimals = IERC20Metadata(s.token).decimals();
-            if (s.balance > 0) {
-                s.totalValueUSD += Math.mulDiv(s.balance, ret.oraclePriceUSD, 10 ** decimals);
-            }
-
-
             // Convert balance to USD value using price
             ret.absoluteAllocationPreOperation[i] = Math.mulDiv(s.balance, ret.oraclePriceUSD, 10 ** decimals);
             ret.totalAllocationPreOperation += ret.absoluteAllocationPreOperation[i];
@@ -878,8 +837,6 @@ contract SuperAsset is ERC20, ISuperAsset {
         }
     }
 
-
-
     /// @inheritdoc ISuperAsset
     function getAllocationsPrePostOperationRedeem(
         address token,
@@ -890,14 +847,12 @@ contract SuperAsset is ERC20, ISuperAsset {
         view
         returns (ISuperAsset.AllocationOperationReturnVars memory ret)
     {
-        console.log("getAllocationsPrePostOperationRedeem() Start");
         // 1. if deposit, deltaToken is amountTokenToDeposit (that the user sent)
         // 2. however, if redeem, all prices are fetched first (priceUSD of token out and superAsset PPS)
         // 2.1 then, these prices are used to calculate amountTokenOutBeforeFees, which is the delta token
         GetAllocationsPrePostOperationsRedeem memory s;
 
-        uint256 length = _supportedAssets.length();
-        s.extendedLength = length + (_supportedAssets.contains(token) ? 0 : 1);
+        s.extendedLength = _supportedAssets.length();
         s.oraclePriceUSDs = new uint256[](s.extendedLength);
         s.balances = new uint256[](s.extendedLength);
         s.decimals = new uint256[](s.extendedLength);
@@ -907,10 +862,7 @@ contract SuperAsset is ERC20, ISuperAsset {
         s.totalValueUSD = 0;
         s.priceUSDToken = 0;
 
-    
-        console.log("getAllocationsPrePostOperationRedeem() T1");
-
-        for (uint256 i; i < length; i++) {
+        for (uint256 i; i < s.extendedLength; i++) {
             s.token = _supportedAssets.at(i);
             (s.oraclePriceUSDs[i], s.isDepegs[i], s.isDispersions[i], s.isOracleOffs[i]) =
                 getPriceAndCircuitBreakers(s.token);
@@ -927,15 +879,11 @@ contract SuperAsset is ERC20, ISuperAsset {
 
             s.balances[i] = IERC20(s.token).balanceOf(address(this));
             s.decimals[i] = IERC20Metadata(s.token).decimals();
-            console.log("i = ", i);
-            console.log("s.balances[i] = ", s.balances[i]);
             if (s.balances[i] > 0) {
                 s.totalValueUSD += Math.mulDiv(s.balances[i], s.oraclePriceUSDs[i], 10 ** s.decimals[i]);
             }
             if (s.token == token) {
-                console.log("T11 s.token = ", s.token);
                 s.priceUSDToken = s.oraclePriceUSDs[i];
-                console.log("T11 s.priceUSDToken = ", s.priceUSDToken);
                 ret.tokenFound = true;
             }
 
@@ -946,23 +894,6 @@ contract SuperAsset is ERC20, ISuperAsset {
                 ret.isDepeg = s.isDepegs[i];
                 ret.isDispersion = s.isDispersions[i];
                 ret.isOracleOff = s.isOracleOffs[i];
-            }
-        }
-
-        console.log("getAllocationsPrePostOperationRedeem() T3");
-
-        if(s.extendedLength > length) {
-            s.token = token;
-            (s.oraclePriceUSDs[length], s.isDepegs[length], s.isDispersions[length], s.isOracleOffs[length]) =
-                getPriceAndCircuitBreakers(token);
-            s.balances[length] = IERC20(token).balanceOf(address(this));
-            s.decimals[length] = IERC20Metadata(token).decimals();
-            if (s.balances[length] > 0) {
-                s.totalValueUSD += Math.mulDiv(s.balances[length], s.oraclePriceUSDs[length], 10 ** s.decimals[length]);
-            }
-            if (s.token == token) {
-                s.priceUSDToken = s.oraclePriceUSDs[length];
-                ret.tokenFound = true;
             }
         }
 
@@ -979,12 +910,10 @@ contract SuperAsset is ERC20, ISuperAsset {
         } else {
             s.superAssetPPS = Math.mulDiv(s.totalValueUSD, PRECISION, totalSupply_);
         }
-        console.log("getAllocationsPrePostOperationRedeem() T5");
-        console.log("s.priceUSDToken = ", s.priceUSDToken);
+
         ret.amountAssets = Math.mulDiv(amountToken, s.superAssetPPS, s.priceUSDToken);
 
         s.decimalsToken = IERC20Metadata(token).decimals();
-        console.log("getAllocationsPrePostOperationRedeem() T6");
 
         // Adjust for decimals
         if (s.decimalsToken < DECIMALS) {
@@ -992,7 +921,6 @@ contract SuperAsset is ERC20, ISuperAsset {
         } else if (s.decimalsToken > DECIMALS) {
             ret.amountAssets = Math.mulDiv(ret.amountAssets, 10 ** (s.decimalsToken - DECIMALS), PRECISION);
         }
-        console.log("getAllocationsPrePostOperationRedeem() T7");
 
         s.balanceOfDeltaToken = IERC20(token).balanceOf(address(this));
         if (ret.amountAssets > s.balanceOfDeltaToken) {
@@ -1005,32 +933,9 @@ contract SuperAsset is ERC20, ISuperAsset {
             s.deltaToken = ret.amountAssets;
         }
 
-        console.log("getAllocationsPrePostOperationRedeem() T11");
-
-        for (uint256 i; i < length; i++) {
+        for (uint256 i; i < s.extendedLength; i++) {
             s.token = _supportedAssets.at(i);
             // Convert balance to USD value using price
-            ret.absoluteAllocationPreOperation[i] =
-                Math.mulDiv(s.balances[i], s.oraclePriceUSDs[i], 10 ** s.decimals[i]);
-            ret.totalAllocationPreOperation += ret.absoluteAllocationPreOperation[i];
-            ret.absoluteAllocationPostOperation[i] = ret.absoluteAllocationPreOperation[i];
-            if (s.token == token) {
-                s.absDeltaValue = Math.mulDiv(s.deltaToken, s.oraclePriceUSDs[i], 10 ** s.decimals[i]);
-                s.deltaValue = -int256(s.absDeltaValue);
-                ret.absoluteAllocationPostOperation[i] =
-                    uint256(int256(ret.absoluteAllocationPreOperation[i]) + s.deltaValue);
-            }
-            ret.totalAllocationPostOperation += ret.absoluteAllocationPostOperation[i];
-            ret.absoluteTargetAllocation[i] = tokenData[s.token].targetAllocations;
-            ret.totalTargetAllocation += ret.absoluteTargetAllocation[i];
-            ret.vaultWeights[i] = tokenData[s.token].weights;
-        }
-
-        console.log("getAllocationsPrePostOperationRedeem() T12");
-        
-        if(s.extendedLength > length) {
-            uint256 i = length;
-            s.token = token;
             ret.absoluteAllocationPreOperation[i] =
                 Math.mulDiv(s.balances[i], s.oraclePriceUSDs[i], 10 ** s.decimals[i]);
             ret.totalAllocationPreOperation += ret.absoluteAllocationPreOperation[i];
