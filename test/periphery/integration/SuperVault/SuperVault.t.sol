@@ -3,7 +3,6 @@ pragma solidity 0.8.30;
 
 // testing
 import { BaseSuperVaultTest } from "./BaseSuperVaultTest.t.sol";
-import { AccountInstance } from "modulekit/ModuleKit.sol";
 
 // external
 import { console2 } from "forge-std/console2.sol";
@@ -3609,14 +3608,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         console2.log("Initial Price per share:", vars.initialPricePerShare);
         console2.log("Ruggable Vault Balance:", RuggableVault(vars.ruggableVault).balanceOf(address(strategy)));
 
-        // claim
-        for (uint256 i; i < 2; ++i) {
-            vm.startPrank(vars.depositUsers[i]);
-            uint256 maxDeposit = vault.maxDeposit(vars.depositUsers[i]);
-            vault.deposit(maxDeposit, vars.depositUsers[i]);
-            vm.stopPrank();
-        }
-
         vm.warp(block.timestamp + 12 weeks);
 
         uint256 prevPps = vars.initialPricePerShare;
@@ -5287,6 +5278,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             uint256 maxWithdrawAmount = vault.maxWithdraw(user);
             if (maxWithdrawAmount > 0) {
                 vm.startPrank(user);
+                console2.log("withdrawing", maxWithdrawAmount, "for user", user);
                 vault.withdraw(maxWithdrawAmount, user, user);
                 vm.stopPrank();
             }
@@ -5546,7 +5538,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         console2.log("Fluid Vault Balance:", fluidVault.balanceOf(address(strategy)));
 
         // Process claims for redeemed users, this will burn all tainted shares
-        _claimRedeemForUsers(vars.redeemUsers);
+        //_claimRedeemForUsers(vars.redeemUsers);
 
         // Verify global state
         vars.finalTotalAssets = vault.totalAssets();
