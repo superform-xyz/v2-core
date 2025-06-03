@@ -49,6 +49,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error ORDER_EXPIRED();
+    error INVALID_VALUE();
     error EPS_NOT_VALID();
     error MARKET_NOT_VALID();
     error INVALID_SWAP_TYPE();
@@ -80,6 +81,8 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
         address pendleMarket = data.extractYieldSource();
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         uint256 value = BytesLib.toUint256(data, 25);
+        if (value > msg.value) revert INVALID_VALUE();
+
         bytes memory txData_ = data[57:];
 
         bytes memory updatedTxData = _validateTxData(data[57:], account, usePrevHookAmount, prevHook, pendleMarket);
