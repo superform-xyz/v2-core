@@ -17,6 +17,7 @@ import {MockNexusFactory} from "../../mocks/MockNexusFactory.sol";
 import {MockLedger, MockLedgerConfiguration} from "../../mocks/MockLedger.sol";
 
 import {ISuperExecutor} from "../../../src/core/interfaces/ISuperExecutor.sol";
+import {ISuperDestinationExecutor} from "../../../src/core/interfaces/ISuperDestinationExecutor.sol";
 import {ISuperHook} from "../../../src/core/interfaces/ISuperHook.sol";
 
 import {Helpers} from "../../utils/Helpers.sol";
@@ -68,8 +69,12 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             address(ledgerConfig), address(superDestinationValidator), address(nexusFactory)
         );
 
+        address[] memory allowedCallers = new address[](1);
+        allowedCallers[0] = address(this);
+        bytes memory initData = abi.encode(address(this), allowedCallers);
+
         instance.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superSourceExecutor), data: ""});
-        instance.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superDestinationExecutor), data: ""});
+        instance.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superDestinationExecutor), data: initData});
         instance.installModule({
             moduleTypeId: MODULE_TYPE_VALIDATOR,
             module: address(superDestinationValidator),
@@ -415,22 +420,26 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_InvalidAccount() public {
-        vm.expectRevert();
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
+        address[] memory allowedCallers = new address[](1);
+        allowedCallers[0] = address(this);
+        bytes memory initData = abi.encode(address(this), allowedCallers);
+        superDestinationExecutor.onInstall(initData);
+        vm.expectRevert();
         superDestinationExecutor.processBridgedExecution(
-            address(token), address(this), dstTokens, intentAmounts, "", "", ""
+            address(token), address(this), dstTokens, intentAmounts, initData, "", ""
         );
 
         vm.mockCall(address(this), abi.encodeWithSignature("accountId()"), abi.encode(""));
-        vm.expectRevert(SuperDestinationExecutor.ADDRESS_NOT_ACCOUNT.selector);
+        vm.expectRevert(ISuperDestinationExecutor.ADDRESS_NOT_ACCOUNT.selector);
         superDestinationExecutor.processBridgedExecution(
             address(token), address(this), dstTokens, intentAmounts, "", "", ""
         );
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_Revert_AccountCreated() public {
-        vm.expectRevert(SuperDestinationExecutor.ACCOUNT_NOT_CREATED.selector);
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
+        vm.expectRevert(ISuperDestinationExecutor.ACCOUNT_NOT_CREATED.selector);
         superDestinationExecutor.processBridgedExecution(
             address(token), address(0), dstTokens, intentAmounts, "", "", ""
         );
@@ -454,7 +463,12 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_InvalidProof() public {
-        bytes memory initData = ""; // no initData
+        vm.mockCall(address(superDestinationExecutor), abi.encodeWithSignature("getAccountOwner(address)"), abi.encode(address(this)));
+        vm.mockCall(address(superDestinationExecutor), abi.encodeWithSignature("isCallerAllowed(address)"), abi.encode(true));
+        address[] memory allowedCallers = new address[](1);
+        allowedCallers[0] = address(this);
+        bytes memory initData = abi.encode(address(this), allowedCallers);
+        superDestinationExecutor.onInstall(initData);
         (bytes memory signatureData, bytes memory executorCalldata,,) = _createDestinationValidData(false);
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
@@ -464,7 +478,9 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_Erc20_BalanceNotMet() public {
-        bytes memory initData = ""; // no initData
+        address[] memory allowedCallers = new address[](1);
+        allowedCallers[0] = address(this);
+        bytes memory initData = abi.encode(address(this), allowedCallers);
         (bytes memory signatureData,, bytes memory executionDataForLeaf,) = _createDestinationValidData(true);
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         superDestinationExecutor.processBridgedExecution(
@@ -473,7 +489,9 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_Erc20_BalanceMet() public {
-        bytes memory initData = ""; // no initData
+        address[] memory allowedCallers = new address[](1);
+        allowedCallers[0] = address(this);
+        bytes memory initData = abi.encode(address(this), allowedCallers);
         (bytes memory signatureData,, bytes memory executionDataForLeaf,) = _createDestinationValidData(true);
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         _getTokens(address(token), address(account), 1);
@@ -483,7 +501,9 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_Eth_BalanceNotMet() public {
-        bytes memory initData = ""; // no initData
+        address[] memory allowedCallers = new address[](1);
+        allowedCallers[0] = address(this);
+        bytes memory initData = abi.encode(address(this), allowedCallers);
         (bytes memory signatureData,, bytes memory executionDataForLeaf,) = _createDestinationValidData(true);
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         deal(address(account), 0);
@@ -493,7 +513,9 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_Eth_BalanceMet() public {
-        bytes memory initData = ""; // no initData
+        address[] memory allowedCallers = new address[](1);
+        allowedCallers[0] = address(this);
+        bytes memory initData = abi.encode(address(this), allowedCallers);
         (bytes memory signatureData,, bytes memory executionDataForLeaf,) = _createDestinationValidData(true);
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         deal(address(account), 1);
@@ -503,7 +525,10 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_UsedRoot() public {
-        bytes memory initData = ""; // no initData
+        address[] memory allowedCallers = new address[](1);
+        allowedCallers[0] = address(this);
+        bytes memory initData = abi.encode(address(this), allowedCallers);
+        superDestinationExecutor.onInstall(initData);
         (bytes memory signatureData,, bytes memory executionDataForLeaf,) = _createDestinationValidData(true);
         address[] memory dstTokens2 = new address[](1);
         dstTokens2[0] = address(token);
@@ -514,7 +539,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData
         );
 
-        vm.expectRevert(SuperDestinationExecutor.MERKLE_ROOT_ALREADY_USED.selector);
+        vm.expectRevert(ISuperDestinationExecutor.MERKLE_ROOT_ALREADY_USED.selector);
         superDestinationExecutor.processBridgedExecution(
             address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData
         );

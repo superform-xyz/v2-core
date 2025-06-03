@@ -15,12 +15,15 @@ import {
     MODE_DEFAULT,
     ModePayload
 } from "modulekit/accounts/common/lib/ModeLib.sol";
+import { EnumerableSet } from "@openzeppelin/contracts/utils/structs/EnumerableSet.sol";
 
 // Superform
 import {SuperExecutorBase} from "./SuperExecutorBase.sol";
 import {ISuperExecutor} from "../interfaces/ISuperExecutor.sol";
 import {ISuperDestinationExecutor} from "../interfaces/ISuperDestinationExecutor.sol";
 import {ISuperDestinationValidator} from "../interfaces/ISuperDestinationValidator.sol";
+
+import "forge-std/console2.sol";
 
 /// @title SuperDestinationExecutor
 /// @author Superform Labs
@@ -30,6 +33,7 @@ import {ISuperDestinationValidator} from "../interfaces/ISuperDestinationValidat
 ///      Handles account creation, signature validation, and execution forwarding
 contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecutor {
     using SafeERC20 for IERC20;
+    using EnumerableSet for EnumerableSet.AddressSet;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -46,6 +50,13 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /// @dev Prevents replay attacks by ensuring each merkle root can only be used once per user
     mapping(address user => mapping(bytes32 merkleRoot => bool used)) public usedMerkleRoots;
 
+    /// @notice Maps accounts to their allowed callers
+    mapping(address account => mapping(address caller => bool isAllowed)) internal _allowedCallers;
+    mapping(address => EnumerableSet.AddressSet) private _allowedCallersSet;
+
+    /// @notice Maps accounts to their owners
+    mapping(address account => address owner) internal _accountOwners;
+
     /// @notice Magic value returned by ERC-1271 contracts when a signature is valid
     /// @dev From EIP-1271 standard:
     /// https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
@@ -56,15 +67,6 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     ///      plus the 4 bytes of the `execute` function selector
     ///      Used to check if actual hook execution data is present without full decoding
     uint256 internal constant EMPTY_EXECUTION_LENGTH = 228;
-
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-    error INVALID_ACCOUNT();
-    error INVALID_SIGNATURE();
-    error ADDRESS_NOT_ACCOUNT();
-    error ACCOUNT_NOT_CREATED();
-    error MERKLE_ROOT_ALREADY_USED();
 
     /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
@@ -103,10 +105,84 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         return usedMerkleRoots[user][merkleRoot];
     }
 
+    /// @inheritdoc ISuperDestinationExecutor
+    function getAccountOwner(address account) public view returns (address) {
+        return _accountOwners[account];
+    }
+
+    /// @inheritdoc ISuperDestinationExecutor
+    function isCallerAllowed(address account) public view returns (bool) {
+        console2.log("-- account ", account);
+        console2.log("-- msg.sender ", msg.sender);
+        console2.log("-- _allowedCallers[account][msg.sender] ", _allowedCallers[account][msg.sender]);
+        return _allowedCallers[account][msg.sender];
+    }
+
+    /// @inheritdoc ISuperDestinationExecutor
+    function getAllowedCallers(address account) external view returns (address[] memory) {
+        return _allowedCallersSet[account].values();
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          MODULE MANAGEMENT LOGIC
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperDestinationExecutor
+    function setAllowedCaller(address account_, address[] memory callers_, bool allowed_) external {
+        if (!_initialized[account_]) revert NOT_INITIALIZED();
+        if (getAccountOwner(account_) != msg.sender) revert CALLER_NOT_ALLOWED();
+
+        uint256 len = callers_.length;
+        for (uint256 i = 0; i < len; ++i) {
+            address _caller = callers_[i];
+            if (allowed_) {
+                if (_allowedCallers[account_][_caller]) continue;
+
+                _allowedCallers[account_][_caller] = true;
+                _allowedCallersSet[account_].add(_caller);
+            } else {
+                if (!_allowedCallers[account_][_caller]) continue;
+
+                _allowedCallers[account_][_caller] = false;
+                _allowedCallersSet[account_].remove(_caller);
+            }
+        }
+
+        emit AllowedCallerSet(account_, callers_, allowed_);
+    }
+
+    function onInstall(bytes calldata data) external override(SuperExecutorBase) {
+        if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
+
+        if (data.length > 0) {
+            (address owner, address[] memory allowedCallers) = abi.decode(data, (address, address[]));
+            if (owner == address(0)) revert ZERO_ADDRESS();
+            _accountOwners[msg.sender] = owner;
+
+            uint256 len = allowedCallers.length;
+            for (uint256 i; i < len; ++i) {
+                _allowedCallers[msg.sender][allowedCallers[i]] = true;
+            }
+        }
+
+        _initialized[msg.sender] = true;
+    }
+
+    function onUninstall(bytes calldata) external virtual override(SuperExecutorBase) {
+        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
+        _initialized[msg.sender] = false;
+        delete _accountOwners[msg.sender];
+        delete _allowedCallersSet[msg.sender];
+        address[] memory _callers = _allowedCallersSet[msg.sender].values();
+        uint256 len = _callers.length;
+        for (uint256 i; i < len; ++i) {
+            delete _allowedCallers[msg.sender][_callers[i]];
+        }
+    }
+
+
     /*//////////////////////////////////////////////////////////////
                           CORE EXECUTION LOGIC
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperDestinationExecutor
     function processBridgedExecution(
         address,
@@ -118,6 +194,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         bytes memory userSignatureData
     ) external override {
         account = _validateOrCreateAccount(account, initData);
+        if (!isCallerAllowed(account)) revert CALLER_NOT_ALLOWED();
 
         bytes32 merkleRoot = _decodeMerkleRoot(userSignatureData);
 

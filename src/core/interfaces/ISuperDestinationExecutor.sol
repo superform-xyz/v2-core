@@ -9,6 +9,17 @@ pragma solidity 0.8.30;
 ///      and execution of the intended operation on the destination chain.
 interface ISuperDestinationExecutor {
     /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+    error ZERO_ADDRESS();
+    error INVALID_ACCOUNT();
+    error INVALID_SIGNATURE();
+    error CALLER_NOT_ALLOWED();
+    error ADDRESS_NOT_ACCOUNT();
+    error ACCOUNT_NOT_CREATED();
+    error MERKLE_ROOT_ALREADY_USED();
+
+    /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
     /// @notice Emitted when a bridged execution is received but the account has insufficient balance
@@ -46,6 +57,12 @@ interface ISuperDestinationExecutor {
     /// @param salt The deterministic salt used to create the account
     event AccountCreated(address indexed account, bytes32 salt);
 
+    /// @notice Emitted when allowed callers are set for an account
+    /// @param account The account for which allowed callers are set
+    /// @param callers The caller addresses
+    /// @param allowed True if the caller is allowed, false otherwise
+    event AllowedCallerSet(address indexed account, address[] callers, bool allowed);
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -57,9 +74,30 @@ interface ISuperDestinationExecutor {
     /// @return True if the merkle root has already been used by this account, false otherwise
     function isMerkleRootUsed(address user, bytes32 merkleRoot) external view returns (bool);
 
+    /// @notice Returns the owner of a given account
+    /// @param account The account to query
+    /// @return The owner of the account
+    function getAccountOwner(address account) external view returns (address);
+
+    /// @notice Checks if a caller is allowed to execute on behalf of an account
+    /// @param account The account to check
+    /// @return True if the caller is allowed, false otherwise
+    function isCallerAllowed(address account) external view returns (bool);
+
+    /// @notice Returns all allowed callers for a given account
+    /// @param account The account to query
+    /// @return Array of allowed callers
+    function getAllowedCallers(address account) external view returns (address[] memory);
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Sets allowed callers for a given account
+    /// @param account_ The account to set allowed callers for
+    /// @param callers_ Array of caller addresses to set
+    /// @param allowed_ Boolean flag indicating whether to allow or disallow the callers
+    function setAllowedCaller(address account_, address[] memory callers_, bool allowed_) external;
+
     /// @notice Processes a cross-chain execution request that was bridged from another blockchain
     /// @dev This is the main entry point for cross-chain operations on the destination chain
     ///      The function handles several key tasks:

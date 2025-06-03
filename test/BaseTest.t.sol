@@ -1497,6 +1497,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
+            address[] memory _allowedCallers = new address[](2);
+            _allowedCallers[0] = _getContract(chainIds[i], ACROSS_V3_ADAPTER_KEY);
+            _allowedCallers[1] = _getContract(chainIds[i], DEBRIDGE_ADAPTER_KEY);
+
             // create Superform account
             string memory accountName = "SuperformAccount";
             AccountInstance memory instance = makeAccountInstance(keccak256(abi.encode(accountName)));
@@ -1509,7 +1513,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             instance.installModule({
                 moduleTypeId: MODULE_TYPE_EXECUTOR,
                 module: _getContract(chainIds[i], SUPER_DESTINATION_EXECUTOR_KEY),
-                data: ""
+                data: abi.encode(address(this), _allowedCallers)
             });
 
             instance.installModule({
@@ -1915,8 +1919,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         internal
         returns (address)
     {
+        address[] memory _allowedCallers = new address[](2);
+        _allowedCallers[0] = _getContract(chainId, ACROSS_V3_ADAPTER_KEY);
+        _allowedCallers[1] = _getContract(chainId, DEBRIDGE_ADAPTER_KEY);
         (, address account) = _createAccountCreationData_DestinationExecutor(
-            validator, signer, _getContract(chainId, SUPER_DESTINATION_EXECUTOR_KEY), nexusFactory, nexusBootstrap
+            validator, signer, _getContract(chainId, SUPER_DESTINATION_EXECUTOR_KEY), nexusFactory, nexusBootstrap, _allowedCallers
         );
         return account;
     }
@@ -1930,13 +1937,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         address accountToUse;
         bytes memory accountCreationData;
+        
         if (messageData.account == address(0)) {
+            address[] memory _allowedCallers = new address[](2);
+            _allowedCallers[0] = _getContract(messageData.chainId, ACROSS_V3_ADAPTER_KEY);
+            _allowedCallers[1] = _getContract(messageData.chainId, DEBRIDGE_ADAPTER_KEY);
             (accountCreationData, accountToUse) = _createAccountCreationData_DestinationExecutor(
                 messageData.validator,
                 messageData.signer,
                 _getContract(messageData.chainId, SUPER_DESTINATION_EXECUTOR_KEY),
                 messageData.nexusFactory,
-                messageData.nexusBootstrap
+                messageData.nexusBootstrap,
+                _allowedCallers
             );
             messageData.account = accountToUse; // prefill the account to use
         } else {
@@ -2027,7 +2039,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address theSigner,
         address executorOnDestinationChain,
         address nexusFactory,
-        address nexusBootstrap
+        address nexusBootstrap,
+        address[] memory allowedCallers
     )
         internal
         returns (bytes memory, address)
@@ -2037,7 +2050,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         validators[0] = BootstrapConfig({ module: validatorOnDestinationChain, data: abi.encode(theSigner) });
         // create executors
         BootstrapConfig[] memory executors = new BootstrapConfig[](1);
-        executors[0] = BootstrapConfig({ module: address(executorOnDestinationChain), data: "" });
+        executors[0] = BootstrapConfig({ module: address(executorOnDestinationChain), data: abi.encode(theSigner, allowedCallers) });
         // create hooks
         BootstrapConfig memory hook = BootstrapConfig({ module: address(0), data: "" });
         // create fallbacks

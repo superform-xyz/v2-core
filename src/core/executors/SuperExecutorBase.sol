@@ -37,6 +37,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     /// @dev Used to ensure only initialized accounts can execute operations
     mapping(address => bool) internal _initialized;
 
+
     /// @notice Configuration for yield sources and accounting
     /// @dev Provides access to ledger information and fee settings
     ISuperLedgerConfiguration public immutable ledgerConfiguration;
@@ -71,6 +72,8 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     /// @inheritdoc ISuperExecutor
     function version() external view virtual returns (string memory);
 
+  
+
     /// @notice Verifies if this module is of the specified type
     /// @dev Part of the ERC-7579 module interface
     /// @param typeID The module type identifier to check against
@@ -83,13 +86,13 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperExecutor
-    function onInstall(bytes calldata) external override(IModule, ISuperExecutor) {
+    function onInstall(bytes calldata) external virtual override(IModule, ISuperExecutor) {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         _initialized[msg.sender] = true;
     }
 
     /// @inheritdoc ISuperExecutor
-    function onUninstall(bytes calldata) external override(IModule, ISuperExecutor) {
+    function onUninstall(bytes calldata) external virtual override(IModule, ISuperExecutor) {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
     }
