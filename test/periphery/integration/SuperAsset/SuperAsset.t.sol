@@ -1054,13 +1054,16 @@ contract SuperAssetTest is Helpers {
     function test_CannotRedeemToInactiveToken() public {
         // First deposit some tokens to get shares
         uint256 depositAmount = 50e18;
+        underlyingToken1.mint(user, depositAmount);
+
+        console.log("test_CannotRedeemToInactiveToken() Deposit Start");
 
         vm.startPrank(user);
-        tokenIn.approve(address(superAsset), depositAmount);
+        underlyingToken1.approve(address(superAsset), depositAmount);
 
         ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
             receiver: user,
-            tokenIn: address(tokenIn),
+            tokenIn: address(underlyingToken1),
             amountTokenToDeposit: depositAmount,
             minSharesOut: 0
         });
@@ -1069,9 +1072,11 @@ contract SuperAssetTest is Helpers {
         assertGt(sharesBalance, 0, "User should have shares after deposit");
         vm.stopPrank();
 
+        console.log("test_CannotRedeemToInactiveToken() Deposit Successful");
+
         // Now deactivate tokenOut
         vm.startPrank(admin);
-        superAsset.removeVault(address(tokenOut));
+        superAsset.removeVault(address(underlyingToken1));
         vm.stopPrank();
 
         // Try to redeem to inactive token - should not revert if the token was removed from the whitelist
@@ -1079,15 +1084,14 @@ contract SuperAssetTest is Helpers {
         // vm.expectRevert(ISuperAsset.NOT_SUPPORTED_TOKEN.selector);
         ISuperAsset.RedeemArgs memory redeemArgs = ISuperAsset.RedeemArgs({
             receiver: user,
-            tokenOut: address(tokenOut),
+            tokenOut: address(underlyingToken1),
             amountSharesToRedeem: sharesBalance,
             minTokenOut: 0
         });
         ISuperAsset.RedeemReturnVars memory redeemRet = superAsset.redeem(redeemArgs);
         // superAsset.redeem(redeemArgs);
-        // Verify partial redemption
-        // assertEq(superAsset.balanceOf(user), sharesBalance - redeemRet.amountSharesRedeemed, "User should have remaining shares");
-        // assertGt(redeemRet.amountTokenOutAfterFees, 0, "User should receive tokens");
+        assertEq(superAsset.balanceOf(user), 0, "User should have no shares left");
+        assertGt(redeemRet.amountTokenOutAfterFees, 0, "User should receive tokens");
 
         vm.stopPrank();
     }
