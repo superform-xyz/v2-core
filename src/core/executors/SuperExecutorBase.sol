@@ -227,7 +227,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
         // Verify the transfer was successful (exact amount requirement for native tokens)
         uint256 balanceAfter = feeRecipient.balance;
-        if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
+        if (balanceAfter - balanceBefore < feeAmount) revert FEE_NOT_TRANSFERRED();
     }
 
     /// @notice Processes a single hook through its complete lifecycle
