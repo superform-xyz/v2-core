@@ -77,6 +77,11 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     address private immutable _validator;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
 
+    /*//////////////////////////////////////////////////////////////
+                                 ERROR
+    //////////////////////////////////////////////////////////////*/
+    error DATA_NOT_VALID();
+
     constructor(address dlnSource_, address validator_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (dlnSource_ == address(0) || validator_ == address(0)) revert ADDRESS_NOT_VALID();
         dlnSource = dlnSource_;
@@ -92,6 +97,8 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         override
         returns (Execution[] memory executions)
     {
+        if (data.length < 626) revert DATA_NOT_VALID();
+
         bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
         (IDlnSource.OrderCreation memory orderCreation, uint256 value, bytes memory affiliateFee, uint32 referralCode) =
             _createOrder(data, signature);
