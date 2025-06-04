@@ -75,8 +75,11 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 accumulatorShares = usersAccumulatorShares[user][yieldSource];
         uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user][yieldSource];
 
-        if (usedShares > accumulatorShares) revert INSUFFICIENT_SHARES();
-
+        if (usedShares > accumulatorShares) {
+            // take fees only for used shares
+            usedShares = accumulatorShares;
+        }
+        
         costBasis = Math.mulDiv(accumulatorCostBasis, usedShares, accumulatorShares);
     }
 

@@ -74,9 +74,6 @@ interface ISuperLedgerData {
     /// @notice Thrown when a referenced hook cannot be found
     error HOOK_NOT_FOUND();
 
-    /// @notice Thrown when a user attempts to consume more shares than they have available
-    error INSUFFICIENT_SHARES();
-
     /// @notice Thrown when a price returned from an oracle is invalid (typically zero)
     error INVALID_PRICE();
 
@@ -160,7 +157,6 @@ interface ISuperLedger is ISuperLedgerData {
     /// @dev Cost basis represents the original asset value of the shares when they were acquired
     ///      This is calculated proportionally based on the shares being consumed
     ///      Formula: user_cost_basis * (used_shares / total_shares)
-    ///      Reverts with INSUFFICIENT_SHARES if usedShares > user's total shares
     /// @param user The user address whose cost basis is being calculated
     /// @param yieldSource The yield source address (e.g. aUSDC, cUSDC, etc.)
     /// @param usedShares The amount of shares to calculate cost basis for

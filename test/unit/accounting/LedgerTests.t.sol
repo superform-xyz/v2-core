@@ -1194,52 +1194,6 @@ contract LedgerTests is Helpers {
         assertEq(previewFee, 0, "Preview fee should be 0 when fee percent is 0");
     }
 
-    function test_PreviewFees_InsufficientShares() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
-        address oracle = address(mockOracle);
-        uint256 feePercent = 1000; // 10%
-        address feeRecipient = address(this);
-        address ledger = address(mockBaseLedger);
-
-        // Set up config
-        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
-        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
-            yieldSourceOracle: oracle,
-            feePercent: feePercent,
-            feeRecipient: feeRecipient,
-            ledger: ledger
-        });
-        config.setYieldSourceOracles(configs);
-
-        // Set up initial shares for the user
-        address user = address(0x456);
-        address yieldSource = address(0x789);
-        uint256 amountAssets = 1000e18;
-        uint256 usedShares = 1000e18;
-
-        // First do an inflow to set up shares
-        vm.prank(address(exec));
-        mockBaseLedger.updateAccounting(
-            user,
-            yieldSource,
-            oracleId,
-            true, // isInflow
-            usedShares,
-            0
-        );
-
-        // Test preview fees with insufficient shares
-        vm.expectRevert(ISuperLedgerData.INSUFFICIENT_SHARES.selector);
-        mockBaseLedger.previewFees(
-            user,
-            yieldSource,
-            amountAssets,
-            usedShares * 2, // Try to use more shares than available
-            feePercent
-        );
-    }
 
     function test_PreviewFees_MaxFeePercent() public {
         bytes4 oracleId = bytes4(keccak256("test"));
@@ -1335,50 +1289,6 @@ contract LedgerTests is Helpers {
 
         // Expected cost basis should be half of the initial amount
         assertEq(costBasis, amountAssets / 2, "Cost basis calculation incorrect");
-    }
-
-    function test_CalculateCostBasisView_InsufficientShares() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
-        address oracle = address(mockOracle);
-        uint256 feePercent = 1000; // 10%
-        address feeRecipient = address(this);
-        address ledger = address(mockBaseLedger);
-
-        // Set up config
-        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
-        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
-            yieldSourceOracle: oracle,
-            feePercent: feePercent,
-            feeRecipient: feeRecipient,
-            ledger: ledger
-        });
-        config.setYieldSourceOracles(configs);
-
-        // Set up initial shares for the user
-        address user = address(0x456);
-        address yieldSource = address(0x789);
-        uint256 usedShares = 1000e18;
-
-        // First do an inflow to set up shares
-        vm.prank(address(exec));
-        mockBaseLedger.updateAccounting(
-            user,
-            yieldSource,
-            oracleId,
-            true, // isInflow
-            usedShares,
-            0
-        );
-
-        // Test cost basis calculation with insufficient shares
-        vm.expectRevert(ISuperLedgerData.INSUFFICIENT_SHARES.selector);
-        mockBaseLedger.calculateCostBasisView(
-            user,
-            yieldSource,
-            usedShares * 2 // Try to use more shares than available
-        );
     }
 
     function test_CalculateCostBasisView_ZeroShares() public {
