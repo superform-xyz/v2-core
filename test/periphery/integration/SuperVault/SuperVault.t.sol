@@ -3921,7 +3921,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         }
     }
 
-    function test_6_yieldAccumulation() public {
+    function test_6_yieldAccumulation() public executeWithoutHookRestrictions {
         YieldTestVars memory vars;
         vars.depositAmount = 1000e6; // 100,000 USDC
         vars.initialTimestamp = block.timestamp;
@@ -3938,8 +3938,8 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vaultAddresses[0] = address(vars.vault1);
         vaultAddresses[1] = address(vars.vault2);
         vaultAddresses[2] = address(vars.vault3);
-        _updateAndRegenerateMerkleTreeBatch(vaultNames, vaultAddresses, ETH);
 
+        _updateAndRegenerateMerkleTreeBatch(vaultNames, vaultAddresses, ETH);
         vars.vault1.setYield(3000); // 3%
         vars.vault2.setYield(5000); // 5%
         vars.vault3.setYield(10_000); // 10%
@@ -4020,15 +4020,17 @@ contract SuperVaultTest is BaseSuperVaultTest {
         argsForProofs[2] = ISuperHookInspector(fulfillHooksAddresses[2]).inspect(fulfillHooksData[2]);
 
         vm.startPrank(STRATEGIST);
+        console2.log("Executing hooks");
         strategy.executeHooks(
             ISuperVaultStrategy.ExecuteArgs({
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
                 globalProofs: _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs),
-                strategyProofs: new bytes32[][](3)
+                strategyProofs: new bytes32[][](fulfillHooksAddresses.length)
             })
         );
+        console2.log("Hooks executed");
         vm.stopPrank();
 
         vars.initialVault1Balance = vars.vault1.balanceOf(address(strategy));
@@ -4073,155 +4075,155 @@ contract SuperVaultTest is BaseSuperVaultTest {
         assertGt(vault3Yield, vault2Yield, "Vault 3 should have gained more assets than vault 2");
     }
 
-    // function test_6_yieldAccumulation_WithRebalancing() public executeWithoutHookRestrictions {
-    //     YieldTestVars memory vars;
-    //     vars.depositAmount = 1000e6; // 100,000 USDC
-    //     vars.initialTimestamp = block.timestamp;
+    function test_6_yieldAccumulation_WithRebalancing() public executeWithoutHookRestrictions {
+        YieldTestVars memory vars;
+        vars.depositAmount = 1000e6; // 100,000 USDC
+        vars.initialTimestamp = block.timestamp;
 
-    //     // create yield testing vaults
-    //     vars.vault1 = new Mock4626Vault(address(asset), "Mock Vault 3%", "MV3");
-    //     vars.vault2 = new Mock4626Vault(address(asset), "Mock Vault 5%", "MV5");
-    //     vars.vault3 = new Mock4626Vault(address(asset), "Mock Vault 10%", "MV10");
-    //     string[] memory vaultNames = new string[](3);
-    //     vaultNames[0] = "test6YAREB_Mock4626Vault1";
-    //     vaultNames[1] = "test6YAREB_Mock4626Vault2";
-    //     vaultNames[2] = "test6YAREB_Mock4626Vault3";
-    //     address[] memory vaultAddresses = new address[](3);
-    //     vaultAddresses[0] = address(vars.vault1);
-    //     vaultAddresses[1] = address(vars.vault2);
-    //     vaultAddresses[2] = address(vars.vault3);
-        
-    //     _updateAndRegenerateMerkleTreeBatch(vaultNames, vaultAddresses, ETH);
-    //     vars.vault1.setYield(3000); // 3%
-    //     vars.vault2.setYield(5000); // 5%
-    //     vars.vault3.setYield(10_000); // 10%
+        // create yield testing vaults
+        vars.vault1 = new Mock4626Vault(address(asset), "Mock Vault 3%", "MV3");
+        vars.vault2 = new Mock4626Vault(address(asset), "Mock Vault 5%", "MV5");
+        vars.vault3 = new Mock4626Vault(address(asset), "Mock Vault 10%", "MV10");
+        string[] memory vaultNames = new string[](3);
+        vaultNames[0] = "test6YAREB_Mock4626Vault1";
+        vaultNames[1] = "test6YAREB_Mock4626Vault2";
+        vaultNames[2] = "test6YAREB_Mock4626Vault3";
+        address[] memory vaultAddresses = new address[](3);
+        vaultAddresses[0] = address(vars.vault1);
+        vaultAddresses[1] = address(vars.vault2);
+        vaultAddresses[2] = address(vars.vault3);
 
-    //     // add some funds to each vault to bypass the VAULT_THRESHOLD_EXCEEDED error
-    //     _getTokens(address(asset), address(this), 10 * LARGE_DEPOSIT);
-    //     asset.approve(address(vars.vault1), type(uint256).max);
-    //     asset.approve(address(vars.vault2), type(uint256).max);
-    //     asset.approve(address(vars.vault3), type(uint256).max);
-    //     vars.vault1.deposit(2 * LARGE_DEPOSIT, address(this));
-    //     vars.vault2.deposit(2 * LARGE_DEPOSIT, address(this));
-    //     vars.vault3.deposit(2 * LARGE_DEPOSIT, address(this));
+        _updateAndRegenerateMerkleTreeBatch(vaultNames, vaultAddresses, ETH);
+        vars.vault1.setYield(3000); // 3%
+        vars.vault2.setYield(5000); // 5%
+        vars.vault3.setYield(10_000); // 10%
 
-    //     // add vaults to SV
-    //     vm.startPrank(STRATEGIST);
-    //     strategy.manageYieldSource(address(vars.vault1), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
-    //     strategy.manageYieldSource(address(vars.vault2), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
-    //     strategy.manageYieldSource(address(vars.vault3), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
-    //     vm.stopPrank();
+        // add some funds to each vault to bypass the VAULT_THRESHOLD_EXCEEDED error
+        _getTokens(address(asset), address(this), 10 * LARGE_DEPOSIT);
+        asset.approve(address(vars.vault1), type(uint256).max);
+        asset.approve(address(vars.vault2), type(uint256).max);
+        asset.approve(address(vars.vault3), type(uint256).max);
+        vars.vault1.deposit(2 * LARGE_DEPOSIT, address(this));
+        vars.vault2.deposit(2 * LARGE_DEPOSIT, address(this));
+        vars.vault3.deposit(2 * LARGE_DEPOSIT, address(this));
 
-    //     // use 3 users to perform deposits
-    //     for (uint256 i; i < 3; ++i) {
-    //         _getTokens(address(asset), accInstances[i].account, vars.depositAmount);
-    //         _depositForAccount(accInstances[i], vars.depositAmount);
-    //     }
+        // add vaults to SV
+        vm.startPrank(STRATEGIST);
+        strategy.manageYieldSource(address(vars.vault1), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(address(vars.vault2), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        strategy.manageYieldSource(address(vars.vault3), _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY), 0, true);
+        vm.stopPrank();
 
-    //     // fulfill deposits
-    //     {
-    //         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+        // use 3 users to perform deposits
+        for (uint256 i; i < 3; ++i) {
+            _getTokens(address(asset), accInstances[i].account, vars.depositAmount);
+            _depositForAccount(accInstances[i], vars.depositAmount);
+        }
 
-    //         address[] memory fulfillHooksAddresses = new address[](3);
-    //         fulfillHooksAddresses[0] = depositHookAddress;
-    //         fulfillHooksAddresses[1] = depositHookAddress;
-    //         fulfillHooksAddresses[2] = depositHookAddress;
+        // fulfill deposits
+        {
+            address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
-    //         bytes[] memory fulfillHooksData = new bytes[](3);
-    //         // allocate up to the max allocation rate in the two Vaults
-    //         fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
-    //             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-    //             address(vars.vault1),
-    //             address(asset),
-    //             vars.depositAmount,
-    //             false,
-    //             address(0),
-    //             0
-    //         );
-    //         fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
-    //             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-    //             address(vars.vault2),
-    //             address(asset),
-    //             vars.depositAmount,
-    //             false,
-    //             address(0),
-    //             0
-    //         );
-    //         fulfillHooksData[2] = _createApproveAndDeposit4626HookData(
-    //             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-    //             address(vars.vault3),
-    //             address(asset),
-    //             vars.depositAmount,
-    //             false,
-    //             address(0),
-    //             0
-    //         );
+            address[] memory fulfillHooksAddresses = new address[](3);
+            fulfillHooksAddresses[0] = depositHookAddress;
+            fulfillHooksAddresses[1] = depositHookAddress;
+            fulfillHooksAddresses[2] = depositHookAddress;
 
-    //         uint256[] memory expectedAssetsOrSharesOut = new uint256[](3);
-    //         expectedAssetsOrSharesOut[0] = IERC4626(address(vars.vault1)).convertToShares(vars.depositAmount);
-    //         expectedAssetsOrSharesOut[1] = IERC4626(address(vars.vault2)).convertToShares(vars.depositAmount);
-    //         expectedAssetsOrSharesOut[2] = IERC4626(address(vars.vault3)).convertToShares(vars.depositAmount);
+            bytes[] memory fulfillHooksData = new bytes[](3);
+            // allocate up to the max allocation rate in the two Vaults
+            fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                address(vars.vault1),
+                address(asset),
+                vars.depositAmount,
+                false,
+                address(0),
+                0
+            );
+            fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                address(vars.vault2),
+                address(asset),
+                vars.depositAmount,
+                false,
+                address(0),
+                0
+            );
+            fulfillHooksData[2] = _createApproveAndDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                address(vars.vault3),
+                address(asset),
+                vars.depositAmount,
+                false,
+                address(0),
+                0
+            );
 
-    //         address[] memory requestingUsers = new address[](3);
-    //         for (uint256 i; i < 3; ++i) {
-    //             requestingUsers[i] = accInstances[i].account;
-    //         }
+            uint256[] memory expectedAssetsOrSharesOut = new uint256[](3);
+            expectedAssetsOrSharesOut[0] = IERC4626(address(vars.vault1)).convertToShares(vars.depositAmount);
+            expectedAssetsOrSharesOut[1] = IERC4626(address(vars.vault2)).convertToShares(vars.depositAmount);
+            expectedAssetsOrSharesOut[2] = IERC4626(address(vars.vault3)).convertToShares(vars.depositAmount);
 
-    //         bytes[] memory argsForProofs = new bytes[](3);
-    //         argsForProofs[0] = ISuperHookInspector(fulfillHooksAddresses[0]).inspect(fulfillHooksData[0]);
-    //         argsForProofs[1] = ISuperHookInspector(fulfillHooksAddresses[1]).inspect(fulfillHooksData[1]);
-    //         argsForProofs[2] = ISuperHookInspector(fulfillHooksAddresses[2]).inspect(fulfillHooksData[2]);
+            address[] memory requestingUsers = new address[](3);
+            for (uint256 i; i < 3; ++i) {
+                requestingUsers[i] = accInstances[i].account;
+            }
 
-    //         vm.startPrank(STRATEGIST);
-    //         strategy.executeHooks(
-    //             ISuperVaultStrategy.ExecuteArgs({
-    //                 hooks: fulfillHooksAddresses,
-    //                 hookCalldata: fulfillHooksData,
-    //                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-    //                 globalProofs: _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs),
-    //                 strategyProofs: new bytes32[][](fulfillHooksAddresses.length)
-    //             })
-    //         );
-    //         vm.stopPrank();
-    //     }
+            bytes[] memory argsForProofs = new bytes[](3);
+            argsForProofs[0] = ISuperHookInspector(fulfillHooksAddresses[0]).inspect(fulfillHooksData[0]);
+            argsForProofs[1] = ISuperHookInspector(fulfillHooksAddresses[1]).inspect(fulfillHooksData[1]);
+            argsForProofs[2] = ISuperHookInspector(fulfillHooksAddresses[2]).inspect(fulfillHooksData[2]);
 
-    //     {
-    //         vars.initialVault1Balance = vars.vault1.balanceOf(address(strategy));
-    //         vars.initialVault2Balance = vars.vault2.balanceOf(address(strategy));
-    //         vars.initialVault3Balance = vars.vault3.balanceOf(address(strategy));
-    //         vars.initialVault1Assets = vars.vault1.convertToAssets(vars.initialVault1Balance);
-    //         vars.initialVault2Assets = vars.vault2.convertToAssets(vars.initialVault2Balance);
-    //         vars.initialVault3Assets = vars.vault3.convertToAssets(vars.initialVault3Balance);
+            vm.startPrank(STRATEGIST);
+            strategy.executeHooks(
+                ISuperVaultStrategy.ExecuteArgs({
+                    hooks: fulfillHooksAddresses,
+                    hookCalldata: fulfillHooksData,
+                    expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                    globalProofs: _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs),
+                    strategyProofs: new bytes32[][](fulfillHooksAddresses.length)
+                })
+            );
+            vm.stopPrank();
+        }
 
-    //         address[] memory hooksAddresses = new address[](2);
-    //         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
-    //         hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
-    //         bytes[] memory hooksData = new bytes[](2);
+        {
+            vars.initialVault1Balance = vars.vault1.balanceOf(address(strategy));
+            vars.initialVault2Balance = vars.vault2.balanceOf(address(strategy));
+            vars.initialVault3Balance = vars.vault3.balanceOf(address(strategy));
+            vars.initialVault1Assets = vars.vault1.convertToAssets(vars.initialVault1Balance);
+            vars.initialVault2Assets = vars.vault2.convertToAssets(vars.initialVault2Balance);
+            vars.initialVault3Assets = vars.vault3.convertToAssets(vars.initialVault3Balance);
 
-    //         uint256 amountToReallocate = vars.initialVault2Balance * 10 / 100; //10%
-    //         uint256 assetAmountToReallocate = vars.vault2.convertToAssets(amountToReallocate);
+            address[] memory hooksAddresses = new address[](2);
+            hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+            hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+            bytes[] memory hooksData = new bytes[](2);
 
-    //         _rebalanceFixedAmountFromVaultToVault(
-    //             hooksAddresses, hooksData, address(vars.vault2), address(vars.vault1), assetAmountToReallocate
-    //         );
+            uint256 amountToReallocate = vars.initialVault2Balance * 10 / 100; //10%
+            uint256 assetAmountToReallocate = vars.vault2.convertToAssets(amountToReallocate);
 
-    //         // fast forward time to simulate yield accumulation
-    //         vm.warp(vars.initialTimestamp + 1 weeks);
-    //         _updateSuperVaultPPS(address(strategy), address(vault));
-    //         vars.initialVault1Balance = vars.vault1.balanceOf(address(strategy));
-    //         vars.initialVault2Balance = vars.vault2.balanceOf(address(strategy));
-    //         vars.initialVault3Balance = vars.vault3.balanceOf(address(strategy));
-    //         vars.finalVault1Assets = vars.vault1.convertToAssets(vars.initialVault1Balance);
-    //         vars.finalVault2Assets = vars.vault2.convertToAssets(vars.initialVault2Balance);
-    //         vars.finalVault3Assets = vars.vault3.convertToAssets(vars.initialVault3Balance);
+            _rebalanceFixedAmountFromVaultToVault(
+                hooksAddresses, hooksData, address(vars.vault2), address(vars.vault1), assetAmountToReallocate
+            );
 
-    //         assertGt(
-    //             vars.finalVault1Assets + vars.finalVault2Assets + vars.finalVault3Assets,
-    //             vars.initialVault1Assets + vars.initialVault2Assets + vars.initialVault3Assets,
-    //             "Total assets should have increased"
-    //         );
-    //     }
-    // }
+            // fast forward time to simulate yield accumulation
+            vm.warp(vars.initialTimestamp + 1 weeks);
+            _updateSuperVaultPPS(address(strategy), address(vault));
+            vars.initialVault1Balance = vars.vault1.balanceOf(address(strategy));
+            vars.initialVault2Balance = vars.vault2.balanceOf(address(strategy));
+            vars.initialVault3Balance = vars.vault3.balanceOf(address(strategy));
+            vars.finalVault1Assets = vars.vault1.convertToAssets(vars.initialVault1Balance);
+            vars.finalVault2Assets = vars.vault2.convertToAssets(vars.initialVault2Balance);
+            vars.finalVault3Assets = vars.vault3.convertToAssets(vars.initialVault3Balance);
+
+            assertGt(
+                vars.finalVault1Assets + vars.finalVault2Assets + vars.finalVault3Assets,
+                vars.initialVault1Assets + vars.initialVault2Assets + vars.initialVault3Assets,
+                "Total assets should have increased"
+            );
+        }
+    }
 
     function test_9_VaultLifecycle_FullAlocateOverTime_() public executeWithoutHookRestrictions {
         ScenarioNewYieldSourceVars memory vars;
