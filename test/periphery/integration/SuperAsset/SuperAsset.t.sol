@@ -84,11 +84,8 @@ contract SuperAssetTest is Helpers {
         mockFeed9.setUpdatedAt(block.timestamp);
     }
 
-
     // --- Setup ---
     function setUp() public {
-        // Setup volatile vault
-        MockERC20 volatileUnderlying = new MockERC20("Volatile Underlying", "VUND", 18);
         // Setup accounts
         admin = makeAddr("admin");
         manager = makeAddr("manager");
@@ -177,7 +174,6 @@ contract SuperAssetTest is Helpers {
         bases[8] = address(underlyingToken6d);
         bases[9] = address(underlyingToken6d);
         bases[10] = address(underlyingToken6d);
-
 
         address[] memory quotes = new address[](11);
         quotes[0] = USD;
@@ -456,7 +452,9 @@ contract SuperAssetTest is Helpers {
         ISuperAsset.DepositReturnVars memory ret = superAsset.deposit(depositArgs);
         console.log("test_BasicDepositSimple() Post-Deposit");
         vm.stopPrank();
-        assertEq(underlyingToken1.balanceOf(address(superBank)) - b1, ret.swapFee, "SuperBank should receive the swap fee");
+        assertEq(
+            underlyingToken1.balanceOf(address(superBank)) - b1, ret.swapFee, "SuperBank should receive the swap fee"
+        );
         assertEq(
             previewDepositRet.amountSharesMinted, ret.amountSharesMinted, "Actual shares minted should match preview"
         );
@@ -1128,51 +1126,6 @@ contract SuperAssetTest is Helpers {
         vm.stopPrank();
     }
 
-    function test_CircuitBreaker_DispersionDetection1() public {
-        // Test depeg detection - price moves beyond ±2% threshold
-        vm.startPrank(user);
-        tokenIn.approve(address(superAsset), 100e18);
-
-        // Set mockFeed2 to trigger depeg (price drops by 5%)
-        // This should be not enough to trigger a depeg but enough to trigger a dispersion
-        (, int256 currentPrice,,,) = mockFeed2.latestRoundData();
-        mockFeed2.setAnswer(currentPrice * 95 / 100); // 5% drop
-
-        // Should revert due to depeg
-        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
-            receiver: user,
-            tokenIn: address(tokenIn),
-            amountTokenToDeposit: 100e18,
-            minSharesOut: 0
-        });
-
-        vm.expectRevert(abi.encodeWithSelector(ISuperAsset.SUPPORTED_ASSET_PRICE_DISPERSION.selector, address(tokenIn)));
-        superAsset.deposit(depositArgs);
-        vm.stopPrank();
-    }
-
-    function test_CircuitBreaker_DispersionDetection2() public {
-        // Test dispersion detection - high standard deviation between price feeds
-        vm.startPrank(user);
-        tokenIn.approve(address(superAsset), 100e18);
-
-        // Create high dispersion by setting feeds to very different values
-        (, int256 basePrice,,,) = mockFeed1.latestRoundData();
-        mockFeed2.setAnswer(basePrice * 120 / 100); // +20%
-        mockFeed3.setAnswer(basePrice * 80 / 100); // -20%
-
-        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
-            receiver: user,
-            tokenIn: address(tokenIn),
-            amountTokenToDeposit: 100e18,
-            minSharesOut: 0
-        });
-
-        vm.expectRevert(abi.encodeWithSelector(ISuperAsset.SUPPORTED_ASSET_PRICE_DISPERSION.selector, address(tokenIn)));
-        superAsset.deposit(depositArgs);
-        vm.stopPrank();
-    }
-
     function test_CircuitBreaker_OracleFailure() public {
         // Test oracle failure detection
         vm.startPrank(user);
@@ -1222,7 +1175,7 @@ contract SuperAssetTest is Helpers {
         tokens[0] = address(tokenIn);
         tokens[1] = address(tokenOut);
         tokens[2] = address(underlyingToken1);
-        
+
         uint256[] memory allocations = new uint256[](3);
         allocations[0] = 50e18; // 50%
         allocations[1] = 30e18; // 30%
@@ -1236,10 +1189,10 @@ contract SuperAssetTest is Helpers {
 
         tokenData = superAsset.getTokenData(address(tokenOut));
         assertEq(tokenData.targetAllocations, 30e18, "TokenOut allocation should be 30%");
-        
+
         tokenData = superAsset.getTokenData(address(underlyingToken1));
         assertEq(tokenData.targetAllocations, 20e18, "underlyingToken1 allocation should be 20%");
-        
+
         vm.stopPrank();
     }
 
@@ -1249,17 +1202,17 @@ contract SuperAssetTest is Helpers {
         superAsset.setWeight(address(tokenIn), 100);
         superAsset.setWeight(address(tokenOut), 200);
         superAsset.setWeight(address(underlyingToken1), 50);
-        
+
         // Verify weights were set
         ISuperAsset.TokenData memory tokenData = superAsset.getTokenData(address(tokenIn));
         assertEq(tokenData.weights, 100, "TokenIn weight should be 100");
 
         tokenData = superAsset.getTokenData(address(tokenOut));
         assertEq(tokenData.weights, 200, "TokenOut weight should be 200");
-        
+
         tokenData = superAsset.getTokenData(address(underlyingToken1));
         assertEq(tokenData.weights, 50, "underlyingToken1 weight should be 50");
-        
+
         vm.stopPrank();
     }
 
@@ -1267,7 +1220,7 @@ contract SuperAssetTest is Helpers {
         // Test complex sequence with multiple users
         uint256 deposit1 = 100e18;
         uint256 deposit2 = 200e18;
-        
+
         // User deposits
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), deposit1);
@@ -1283,7 +1236,7 @@ contract SuperAssetTest is Helpers {
         console.log("SuperAsset Shares = ", address(superAsset));
         ISuperAsset.DepositReturnVars memory ret1 = superAsset.deposit(depositArgs1);
         vm.stopPrank();
-        
+
         // User11 deposits different token
         vm.startPrank(user11);
         tokenOut.approve(address(superAsset), deposit2);
@@ -1299,7 +1252,7 @@ contract SuperAssetTest is Helpers {
         // Verify balances
         assertEq(superAsset.balanceOf(user), ret1.amountSharesMinted, "User should have correct shares");
         assertEq(superAsset.balanceOf(user11), ret2.amountSharesMinted, "User11 should have correct shares");
-        
+
         // User redeems half
         vm.startPrank(user);
         uint256 redeemAmount = ret1.amountSharesMinted / 2;
@@ -1311,14 +1264,13 @@ contract SuperAssetTest is Helpers {
         });
         ISuperAsset.RedeemReturnVars memory redeemRet = superAsset.redeem(redeemArgs);
         vm.stopPrank();
-        
+
         // Verify partial redemption
-        assertEq(superAsset.balanceOf(user), ret1.amountSharesMinted - redeemAmount, "User should have remaining shares");
+        assertEq(
+            superAsset.balanceOf(user), ret1.amountSharesMinted - redeemAmount, "User should have remaining shares"
+        );
         assertGt(redeemRet.amountTokenOutAfterFees, 0, "User should receive tokens");
     }
-
-
-
 
     function test_CrossTokenSwapsWithDifferentDecimals() public {
         // Whitelist underlyingToken6d
@@ -1328,28 +1280,27 @@ contract SuperAssetTest is Helpers {
         console.log("test_CrossTokenSwapsWithDifferentDecimals() Start");
         // Test swaps between tokens with different decimal places
         address liquidityProvider = user11;
-        uint256 LPingAmount = 100000000e6;
+        uint256 LPingAmount = 100_000_000e6;
         underlyingToken6d.mint(liquidityProvider, LPingAmount);
         uint256 swapAmount = 10e18;
 
-        
         // Provide liquidity in underlyingToken6d (6 decimals)
         vm.startPrank(liquidityProvider);
         underlyingToken6d.approve(address(superAsset), LPingAmount);
         ISuperAsset.DepositArgs memory liquidityArgs = ISuperAsset.DepositArgs({
             receiver: liquidityProvider,
             tokenIn: address(underlyingToken6d),
-            amountTokenToDeposit: LPingAmount, 
+            amountTokenToDeposit: LPingAmount,
             minSharesOut: 0
         });
         superAsset.deposit(liquidityArgs);
         vm.stopPrank();
         console.log("test_CrossTokenSwapsWithDifferentDecimals() LPing Done");
-        
+
         // Swap from 18 decimal token to 6 decimal token
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), swapAmount);
-        
+
         ISuperAsset.SwapArgs memory swapArgs = ISuperAsset.SwapArgs({
             receiver: user,
             tokenIn: address(tokenIn),
@@ -1357,60 +1308,105 @@ contract SuperAssetTest is Helpers {
             tokenOut: address(underlyingToken6d),
             minTokenOut: 0
         });
-        
+
         ISuperAsset.SwapReturnVars memory swapRet = superAsset.swap(swapArgs);
-        
+
         // Verify swap succeeded and amounts are reasonable
         assertGt(swapRet.amountTokenOutAfterFees, 0, "Should receive volatile tokens");
         assertGt(swapRet.swapFeeIn, 0, "Should pay input fee");
         assertGt(swapRet.swapFeeOut, 0, "Should pay output fee");
-        
+
         vm.stopPrank();
     }
 
+
+    function test_CircuitBreaker_DispersionDetection1() public {
+        // Test depeg detection - price moves beyond ±2% threshold
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), 100e18);
+
+        // Set mockFeed2 to trigger depeg (price drops by 5%)
+        // This should be not enough to trigger a depeg but enough to trigger a dispersion
+        (, int256 currentPrice,,,) = mockFeed2.latestRoundData();
+        mockFeed2.setAnswer(currentPrice * 95 / 100); // 5% drop
+
+        // Should revert due to depeg
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: 100e18,
+            minSharesOut: 0
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(ISuperAsset.SUPPORTED_ASSET_PRICE_DISPERSION.selector, address(tokenIn)));
+        superAsset.deposit(depositArgs);
+        vm.stopPrank();
+    }
+
+    function test_CircuitBreaker_DispersionDetection2() public {
+        // Test dispersion detection - high standard deviation between price feeds
+        vm.startPrank(user);
+        tokenIn.approve(address(superAsset), 100e18);
+
+        // Create high dispersion by setting feeds to very different values
+        (, int256 basePrice,,,) = mockFeed1.latestRoundData();
+        mockFeed2.setAnswer(basePrice * 120 / 100); // +20%
+        mockFeed3.setAnswer(basePrice * 80 / 100); // -20%
+
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(tokenIn),
+            amountTokenToDeposit: 100e18,
+            minSharesOut: 0
+        });
+
+        vm.expectRevert(abi.encodeWithSelector(ISuperAsset.SUPPORTED_ASSET_PRICE_DISPERSION.selector, address(tokenIn)));
+        superAsset.deposit(depositArgs);
+        vm.stopPrank();
+    }
 
     function test_LargeAmountOperations() public {
         address liquidityProvider = user11;
 
         // Test with very large amounts near uint256 limits
         uint256 largeAmount = type(uint128).max; // Use uint128 max to avoid overflow
-        
+
         // Setup large liquidity
         underlyingToken1.mint(liquidityProvider, largeAmount);
-        
+
         vm.startPrank(liquidityProvider);
         underlyingToken1.approve(address(tokenIn), largeAmount);
         tokenIn.deposit(largeAmount / 2, liquidityProvider);
         tokenIn.approve(address(superAsset), largeAmount / 2);
-        
+
         ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
             receiver: liquidityProvider,
             tokenIn: address(tokenIn),
             amountTokenToDeposit: largeAmount / 4, // Use 1/4 to leave room for fees
             minSharesOut: 0
         });
-        
+
         // Should not revert with large amounts
         ISuperAsset.DepositReturnVars memory ret = superAsset.deposit(depositArgs);
         assertGt(ret.amountSharesMinted, 0, "Should mint shares even with large amounts");
-        
+
         vm.stopPrank();
     }
 
     function test_MinimalAmountOperations() public {
         // Test with minimal amounts (1 wei)
         uint256 minAmount = 1;
-        
+
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), minAmount);
-        
+
         ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
             receiver: user,
             tokenIn: address(tokenIn),
             amountTokenToDeposit: minAmount,
             minSharesOut: 0
         });
-        
+
         // May revert or succeed depending on precision - test that it behaves consistently
         try superAsset.deposit(depositArgs) returns (ISuperAsset.DepositReturnVars memory ret) {
             // If it succeeds, verify the math is consistent
@@ -1419,65 +1415,65 @@ contract SuperAssetTest is Helpers {
             // If it reverts, that's also acceptable for minimal amounts
             assertTrue(true, "Minimal amount operations may revert");
         }
-        
+
         vm.stopPrank();
     }
-
 
     function test_SequentialPriceUpdates() public {
         // Test system behavior with sequential price updates
         uint256 depositAmount = 100e18;
-        underlyingToken1.mint(user, 2*depositAmount);
-        
+        underlyingToken1.mint(user, 2 * depositAmount);
+
         vm.startPrank(user);
         underlyingToken1.approve(address(superAsset), depositAmount);
-        
+
         ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
             receiver: user,
             tokenIn: address(underlyingToken1),
             amountTokenToDeposit: depositAmount,
             minSharesOut: 0
         });
-        
+
         // Initial deposit
         ISuperAsset.DepositReturnVars memory ret1 = superAsset.deposit(depositArgs);
-        
+
         // Update prices (within acceptable range)
         (, int256 currentPrice,,,) = mockFeed1.latestRoundData();
         mockFeed1.setAnswer(currentPrice * 102 / 100); // 2% increase
         mockFeed2.setAnswer(currentPrice * 102 / 100);
         mockFeed3.setAnswer(currentPrice * 102 / 100);
         _updateAllFeedTimestamps();
-        
+
         // Second deposit with updated prices
         underlyingToken1.approve(address(superAsset), depositAmount);
         ISuperAsset.DepositReturnVars memory ret2 = superAsset.deposit(depositArgs);
         console.log("ret1.amountSharesMinted = ", ret1.amountSharesMinted);
         console.log("ret2.amountSharesMinted = ", ret2.amountSharesMinted);
-        
-        // NOTE: Equality here might seem incorrect but it should be correct since 
+
+        // NOTE: Equality here might seem incorrect but it should be correct since
         // After the first deposit, the SuperAsset is 100% exposed to underlyingtoken1
-        // so since this token goes up 2% also the SuperAsset PPS goes up 2% 
-        // so in the second deposit, using the same amount as the previous one should return the same number of SuperAsset shares since 
-        // since both the underlyingToken1 price and the SuperAsset shares price went up by 2% so their ratio stays the same
+        // so since this token goes up 2% also the SuperAsset PPS goes up 2%
+        // so in the second deposit, using the same amount as the previous one should return the same number of
+        // SuperAsset shares since
+        // since both the underlyingToken1 price and the SuperAsset shares price went up by 2% so their ratio stays the
+        // same
         assertTrue(ret1.amountSharesMinted == ret2.amountSharesMinted, "Price updates should affect share calculations");
-        
+
         vm.stopPrank();
     }
-
 
     function test_EmergencyPriceActivation() public {
         // Test emergency price mechanism when oracles fail
         console.log("test_EmergencyPriceActivation() Start");
         vm.startPrank(user);
         tokenIn.approve(address(superAsset), 100e18);
-        
+
         // Make all feeds stale to trigger emergency price
         mockFeed1.setUpdatedAt(block.timestamp);
         mockFeed2.setUpdatedAt(block.timestamp);
         mockFeed3.setUpdatedAt(block.timestamp);
         vm.warp(block.timestamp + 30 days);
-        
+
         ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
             receiver: user,
             tokenIn: address(underlyingToken1),
@@ -1487,7 +1483,7 @@ contract SuperAssetTest is Helpers {
 
         vm.expectRevert();
         superAsset.deposit(depositArgs);
-        
+
         // // Should use emergency price and not revert
         // try superAsset.deposit(depositArgs) returns (ISuperAsset.DepositReturnVars memory ret) {
         //     assertGt(ret.amountSharesMinted, 0, "Should mint shares using emergency price");
@@ -1498,5 +1494,4 @@ contract SuperAssetTest is Helpers {
         // }
         vm.stopPrank();
     }
-
 }
