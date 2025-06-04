@@ -203,7 +203,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         hook.build(address(0), account, hookData);
     }
 
-    function test_Build_RevertIf_InvalidSignatureLength() public view {
+    function test_Build_RevertIf_InvalidSignatureLength() public {
         bytes memory hookData = abi.encodePacked(
             eoa,
             uint256(3),
@@ -213,9 +213,8 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
             new bytes(64) // Invalid signature length (not 65 bytes)
         );
 
-        // The hook doesn't actually check signature length, so this should succeed
-        Execution[] memory executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 2);
+        vm.expectRevert(BatchTransferFromHook.INSUFFICIENT_DATA.selector);
+        hook.build(address(0), account, hookData);
     }
 
     function test_Build_RevertIf_InvalidTokenAddress() public {

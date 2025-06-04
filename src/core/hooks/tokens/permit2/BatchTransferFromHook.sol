@@ -33,6 +33,11 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
     error INSUFFICIENT_ALLOWANCE();
     error INSUFFICIENT_BALANCE();
     error INVALID_ARRAY_LENGTH();
+    error TOKEN_AMOUNT_GAP();
+    error TOKEN_AMOUNT_OVERLAP();
+    error AMOUNT_SIGNATURE_GAP();
+    error AMOUNT_SIGNATURE_OVERLAP();
+    error INSUFFICIENT_DATA();
 
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
@@ -71,6 +76,8 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
         bytes memory amountsData = BytesLib.slice(data, 84 + (20 * amountTokens), 32 * amountTokens);
 
         bytes memory signature = BytesLib.slice(data, data.length - 65, 65);
+
+        _validateArrayBoundaries(data, amountTokens);
 
         // Create 2 executions - one for batch permit and one for batch transfer
         executions = new Execution[](2);
@@ -181,5 +188,22 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
             });
         }
         return details;
+    }
+
+    function _validateArrayBoundaries(bytes memory data, uint256 amountTokens) private pure { 
+        uint256 tokensStart = 84;
+        uint256 tokensEnd = tokensStart + (20 * amountTokens);
+        uint256 amountsStart = tokensEnd;
+        uint256 amountsEnd = amountsStart + (32 * amountTokens);
+        uint256 signatureStart = amountsEnd;
+
+        // Verify no overlaps
+        require(tokensEnd <= amountsStart, TOKEN_AMOUNT_OVERLAP());
+        require(amountsEnd <= signatureStart, AMOUNT_SIGNATURE_OVERLAP());
+        require(signatureStart + 65 <= data.length, INSUFFICIENT_DATA());
+
+        // Verify exact boundaries
+        require(tokensEnd == amountsStart, TOKEN_AMOUNT_GAP());
+        require(amountsEnd == signatureStart, AMOUNT_SIGNATURE_GAP());
     }
 }
