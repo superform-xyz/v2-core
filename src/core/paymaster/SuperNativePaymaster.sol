@@ -74,13 +74,13 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         override
         returns (bytes memory context, uint256 validationData)
     {
-        (uint256 maxGasLimit, uint256 nodeOperatorPremium) =
-            abi.decode(userOp.paymasterAndData[PAYMASTER_DATA_OFFSET:], (uint256, uint256));
+        (uint256 maxGasLimit, uint256 nodeOperatorPremium, uint256 postOpGas) =
+            abi.decode(userOp.paymasterAndData[PAYMASTER_DATA_OFFSET:], (uint256, uint256, uint256));
 
         if (nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) {
             revert INVALID_NODE_OPERATOR_PREMIUM();
         }
-        return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), maxGasLimit, nodeOperatorPremium), 0);
+        return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), maxGasLimit, nodeOperatorPremium, postOpGas), 0);
     }
 
     /// @notice Handle the post-operation logic.
@@ -98,9 +98,11 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         virtual
         override
     {
-        (address sender, uint256 maxFeePerGas, uint256 maxGasLimit, uint256 nodeOperatorPremium) =
-            abi.decode(context, (address, uint256, uint256, uint256));
+        (address sender, uint256 maxFeePerGas, uint256 maxGasLimit, uint256 nodeOperatorPremium, uint256 postOpGas) =
+            abi.decode(context, (address, uint256, uint256, uint256, uint256));
 
+        // add postOpGas
+        actualGasCost += postOpGas;
         uint256 refund = calculateRefund(maxGasLimit, maxFeePerGas, actualGasCost, nodeOperatorPremium);
         if (refund > 0) {
             entryPoint.withdrawTo(payable(sender), refund);
