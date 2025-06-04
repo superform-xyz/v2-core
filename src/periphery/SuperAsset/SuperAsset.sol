@@ -14,7 +14,6 @@ import { SuperAssetPriceLib } from "../libraries/SuperAssetPriceLib.sol";
 import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
 import { IIncentiveCalculationContract } from "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 import { IIncentiveFundContract } from "../interfaces/SuperAsset/IIncentiveFundContract.sol";
-import { console } from "forge-std/console.sol";
 
 /// @title SuperAsset
 /// @author Superform Labs
@@ -536,11 +535,9 @@ contract SuperAsset is ERC20, ISuperAsset {
 
     /// @inheritdoc ISuperAsset
     function previewRedeem(PreviewRedeemArgs memory args) public view returns (PreviewRedeemReturnVars memory ret) {
-        console.log("previewRedeem() Start");
         // Get current and post-operation allocations using the struct-based return value
         ISuperAsset.AllocationOperationReturnVars memory allocRet =
             getAllocationsPrePostOperationRedeem(args.tokenOut, args.amountSharesToRedeem, args.isSoft);
-        console.log("previewRedeem() T1");
 
         // Copy circuit breaker info to return struct
         ret.assetWithBreakerTriggered = allocRet.assetWithBreakerTriggered;
@@ -550,14 +547,8 @@ contract SuperAsset is ERC20, ISuperAsset {
         ret.isOracleOff = allocRet.isOracleOff;
         ret.tokenOutFound = allocRet.tokenFound;
 
-        console.log("ret.isDepeg = ", ret.isDepeg);
-        console.log("ret.isDispersion = ", ret.isDispersion);
-        console.log("ret.isOracleOff = ", ret.isOracleOff);
-        console.log("ret.oraclePriceUSD = ", ret.oraclePriceUSD);
-
         if ((ret.isDepeg || ret.isDispersion || ret.isOracleOff || ret.oraclePriceUSD == 0)) {
             // Early return with empty result but with circuit breaker info
-            console.log("previewRedeem() Exit1");
             ret.amountTokenOutAfterFees = 0;
             ret.swapFee = 0;
             ret.amountIncentiveUSDRedeem = 0;
@@ -566,7 +557,6 @@ contract SuperAsset is ERC20, ISuperAsset {
             return ret;
         }
 
-        console.log("previewRedeem() T3");
         // Calculate swap fee
         ret.swapFee = Math.mulDiv(allocRet.amountAssets, swapFeeOutPercentage, SWAP_FEE_PERC); // 0.1%
         ret.amountTokenOutAfterFees = allocRet.amountAssets - ret.swapFee;
@@ -851,7 +841,6 @@ contract SuperAsset is ERC20, ISuperAsset {
         // 2. however, if redeem, all prices are fetched first (priceUSD of token out and superAsset PPS)
         // 2.1 then, these prices are used to calculate amountTokenOutBeforeFees, which is the delta token
         GetAllocationsPrePostOperationsRedeem memory s;
-        console.log("getAllocationsPrePostOperationRedeem() Start");
 
         s.extendedLength = _supportedAssets.length();
         s.oraclePriceUSDs = new uint256[](s.extendedLength);
@@ -869,7 +858,6 @@ contract SuperAsset is ERC20, ISuperAsset {
                 getPriceAndCircuitBreakers(s.token);
 
             if (!isSoft && (s.isDepegs[i] || s.isDispersions[i] || s.isOracleOffs[i] || s.oraclePriceUSDs[i] == 0)) {
-                console.log("getAllocationsPrePostOperationRedeem() Exit1");
                 // Return early with circuit breaker information
                 ret.assetWithBreakerTriggered = s.token;
                 ret.oraclePriceUSD = s.oraclePriceUSDs[i];
