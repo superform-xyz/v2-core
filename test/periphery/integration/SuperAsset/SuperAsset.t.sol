@@ -475,6 +475,8 @@ contract SuperAssetTest is Helpers {
         assertTrue(superAsset.balanceOf(user) > 0, "User should have shares");
     }
 
+
+
     struct BasicDepositWithCircuitBreaker {
         uint256 depositAmount;
         uint256 minSharesOut;
