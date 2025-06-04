@@ -5,12 +5,15 @@ pragma solidity 0.8.30;
 import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import {BytesLib} from "../../../../vendor/BytesLib.sol";
 import {IAcrossSpokePoolV3} from "../../../../vendor/bridges/across/IAcrossSpokePoolV3.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
 import {BaseHook} from "../../BaseHook.sol";
 import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
 import {ISuperSignatureStorage} from "../../../interfaces/ISuperSignatureStorage.sol";
 import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
+
+import "forge-std/console2.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
@@ -86,6 +89,21 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
 
         if (acrossV3DepositAndExecuteData.usePrevHookAmount) {
             uint256 outAmount = ISuperHookResult(prevHook).outAmount();
+
+            // update `outputAmount` with the % `inputAmount` was updated by
+            console2.log("-----------outAmount", outAmount);
+            console2.log("-----------acrossV3DepositAndExecuteData", acrossV3DepositAndExecuteData.inputAmount);
+            if ( acrossV3DepositAndExecuteData.inputAmount > 0 && acrossV3DepositAndExecuteData.outputAmount > 0) {
+                console2.log("-----------acrossV3DepositAndExecuteData.outputAmount", acrossV3DepositAndExecuteData.outputAmount);
+                // outputAmount *= outAmount / inputAmount
+                acrossV3DepositAndExecuteData.outputAmount = Math.mulDiv(
+                    acrossV3DepositAndExecuteData.outputAmount,
+                    outAmount,
+                    acrossV3DepositAndExecuteData.inputAmount
+                );
+                console2.log("-----------acrossV3DepositAndExecuteData.outputAmount", acrossV3DepositAndExecuteData.outputAmount);
+            }
+
             acrossV3DepositAndExecuteData.inputAmount = outAmount;
             if (
                 acrossV3DepositAndExecuteData.inputToken

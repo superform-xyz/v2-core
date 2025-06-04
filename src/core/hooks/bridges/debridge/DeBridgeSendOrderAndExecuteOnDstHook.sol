@@ -5,6 +5,7 @@ pragma solidity 0.8.30;
 import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import {BytesLib} from "../../../../vendor/BytesLib.sol";
 import {IDlnSource} from "../../../../vendor/bridges/debridge/IDlnSource.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
 import {BaseHook} from "../../BaseHook.sol";
@@ -99,6 +100,18 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         if (usePrevHookAmount) {
             uint256 outAmount = ISuperHookResult(prevHook).outAmount();
+
+            // update `takeAmount` with the % `giveAmount` was updated by
+            if ( orderCreation.giveAmount > 0 && orderCreation.takeAmount > 0) {
+                // takeAmount *= outAmount / giveAmount
+                orderCreation.takeAmount = Math.mulDiv(
+                    orderCreation.takeAmount,
+                    outAmount,
+                    orderCreation.giveAmount
+                );
+            }
+
+
             uint256 _oldGiveAmount = orderCreation.giveAmount;
             orderCreation.giveAmount = outAmount;
             if (orderCreation.giveTokenAddress == address(0)) {

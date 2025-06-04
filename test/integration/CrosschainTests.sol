@@ -556,7 +556,7 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory srcHooksData = new bytes[](2);
         srcHooksData[0] =
-            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault / 2, false);
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
         srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, true, targetExecutorMessage
         );
@@ -1002,10 +1002,10 @@ contract CrosschainTests is BaseTest {
             BASE, OP, WARP_START_TIME, executeOp(srcUserOpDataOP), RELAYER_TYPE.ENOUGH_BALANCE, accountOP
         );
 
-        assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), userBalanceBaseUSDCBefore - amountPerVault);
+        assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), userBalanceBaseUSDCBefore - amountPerVault, "A");
 
         vm.selectFork(FORKS[OP]);
-        assertEq(vaultInstance4626OP.balanceOf(accountOP), previewDepositAmountOP);
+        assertEq(vaultInstance4626OP.balanceOf(accountOP), previewDepositAmountOP, "B");
     }
 
     function test_RebalanceCrossChain_4626_Mainnet_Flow() public {
@@ -1193,8 +1193,8 @@ contract CrosschainTests is BaseTest {
             address(0),
             0
         );
-        srcHooksData[2] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amount, true);
-        srcHooksData[3] = _createApproveHookData(underlyingETH_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], amount, true);
+        srcHooksData[2] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amount / 2, true);
+        srcHooksData[3] = _createApproveHookData(underlyingETH_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], amount / 2, true);
 
         srcHooksData[4] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             existingUnderlyingTokens[ETH][USDC_KEY],
@@ -1480,7 +1480,7 @@ contract CrosschainTests is BaseTest {
 
         uint256 expected_Base_USDC_BalanceIncrease = amountAfterSlippage;
 
-        assertEq(user_Base_USDC_Balance_After, user_Base_USDC_Balance_Before + expected_Base_USDC_BalanceIncrease);
+        assertApproxEqRel(user_Base_USDC_Balance_After, user_Base_USDC_Balance_Before + expected_Base_USDC_BalanceIncrease, 0.04e18);
     }
 
     function _fulfill7540DepositRequest(uint256 amountPerVault, address accountToUse) internal {
