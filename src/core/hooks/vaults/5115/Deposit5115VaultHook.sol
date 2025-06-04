@@ -116,6 +116,6 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        return IERC4626(data.extractYieldSource()).balanceOf(account);
+        return IStandardizedYield(data.extractYieldSource()).balanceOf(account);
     }
 }
