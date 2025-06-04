@@ -55,6 +55,11 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
         bytes destinationMessage;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+    error DATA_NOT_VALID();
+
     constructor(address spokePoolV3_, address validator_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (spokePoolV3_ == address(0) || validator_ == address(0)) revert ADDRESS_NOT_VALID();
         spokePoolV3 = spokePoolV3_;
@@ -70,6 +75,8 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
         override
         returns (Execution[] memory executions)
     {
+        if (data.length < 217) revert DATA_NOT_VALID();
+
         AcrossV3DepositAndExecuteData memory acrossV3DepositAndExecuteData;
         acrossV3DepositAndExecuteData.value = BytesLib.toUint256(data, 0);
         acrossV3DepositAndExecuteData.recipient = BytesLib.toAddress(data, 32);
