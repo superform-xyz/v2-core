@@ -70,7 +70,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
         //    This ensures the executor can reliably check the balance.
         //    Requires this adapter contract to hold the funds temporarily from Debridge.
         //    Account is encoded in the merkle tree and validated by the destination executor
-        (bool success,) = account.call{value: address(this).balance}("");
+        (bool success,) = account.call{value: msg.value}("");
         if (!success) revert ON_ETHER_RECEIVED_FAILED();
 
         // 2. Call the core executor's standardized function
