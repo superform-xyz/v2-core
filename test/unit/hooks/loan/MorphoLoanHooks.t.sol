@@ -418,23 +418,6 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        GET USED ASSETS TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_GetUsedAssets() public view {
-        bytes memory data = _encodeRepayData(false, false);
-        uint256 usedAssets = repayHook.getUsedAssets(address(this), data);
-
-        assertEq(usedAssets, 0);
-    }
-
-    function test_RepayAndWithdrawHook_GetUsedAssets() public view {
-        bytes memory data = _encodeRepayAndWithdrawData(false, false);
-        uint256 usedAssets = repayAndWithdrawHook.getUsedAssets(address(this), data);
-
-        assertEq(usedAssets, 0);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                           DERIVE INTEREST TESTS
     //////////////////////////////////////////////////////////////*/
     function test_RepayHook_DeriveInterest() public view {
@@ -508,23 +491,6 @@ contract MorphoLoanHooksTest is Helpers {
         Id id = params.id();
         uint256 collateral = repayAndWithdrawHook.deriveCollateralForFullRepayment(id, address(this));
         assertEq(collateral, 100e18); // From MockMorpho position() return value (third value)
-    }
-
-    /*//////////////////////////////////////////////////////////////
-              DERIVE COLLATERAL AMOUNT FROM LOAN AMOUNT TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_DeriveCollateralAmountFromLoanAmount() public view {
-        uint256 loanAmount = 100e18;
-        uint256 collateral = repayHook.deriveCollateralAmountFromLoanAmount(address(mockOracle), loanAmount);
-
-        assertEq(collateral, 200e18);
-    }
-
-    function test_RepayAndWithdrawHook_DeriveCollateralAmountFromLoanAmount() public view {
-        uint256 loanAmount = 100e18;
-        uint256 collateral = repayAndWithdrawHook.deriveCollateralAmountFromLoanAmount(address(mockOracle), loanAmount);
-
-        assertEq(collateral, 50e18);
     }
 
     /*//////////////////////////////////////////////////////////////

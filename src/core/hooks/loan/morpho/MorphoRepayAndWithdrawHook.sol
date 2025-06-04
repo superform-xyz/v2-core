@@ -148,19 +148,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         }
     }
 
-    /// @inheritdoc ISuperHookLoans
-    function getUsedAssets(address account, bytes memory data) external view returns (uint256) {
-        BuildHookLocalVars memory vars = _decodeHookData(data);
-        MarketParams memory marketParams =
-            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
-        Id id = marketParams.id();
-        if (vars.isFullRepayment) {
-            return outAmount + deriveCollateralForFullRepayment(id, account) + deriveInterest(marketParams);
-        } else {
-            return outAmount;
-        }
-    }
-
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
         BuildHookLocalVars memory vars = _decodeHookData(data);
@@ -193,20 +180,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     function deriveCollateralForFullRepayment(Id id, address account) public view returns (uint256 collateralAmount) {
         (,, uint128 collateral) = morphoStaticTyping.position(id, account);
         collateralAmount = uint256(collateral);
-    }
-
-    function deriveCollateralAmountFromLoanAmount(
-        address oracle,
-        uint256 loanAmount
-    )
-        public
-        view
-        returns (uint256 collateralAmount)
-    {
-        IOracle oracleInstance = IOracle(oracle);
-        uint256 price = oracleInstance.price();
-
-        collateralAmount = Math.mulDiv(loanAmount, PRICE_SCALING_FACTOR, price);
     }
 
     function deriveCollateralForPartialRepayment(
