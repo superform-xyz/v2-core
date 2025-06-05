@@ -330,7 +330,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     function convertToAssets(uint256 shares) public view override returns (uint256) {
         uint256 currentPPS = strategy.getStoredPPS();
         if (currentPPS == 0) return shares;
-        return Math.mulDiv(shares, currentPPS, PRECISION, Math.Rounding.Floor);
+        return Math.mulDiv(shares, currentPPS, PRECISION, Math.Rounding.Ceil);
     }
 
     /// @inheritdoc IERC4626
