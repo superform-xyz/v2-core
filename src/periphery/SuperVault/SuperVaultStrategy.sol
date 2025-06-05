@@ -395,9 +395,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         returns (address)
     {
         ExecutionVars memory vars;
-
         vars.hookContract = ISuperHook(hook);
+
         vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
+        if (!yieldSources[vars.targetedYieldSource].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
 
         bool usePrevHookAmount = _decodeHookUsePrevHookAmount(hook, hookCalldata);
         if (usePrevHookAmount && prevHook != address(0)) {
@@ -443,7 +444,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         vars.hookContract = ISuperHook(hook);
         vars.hookType = ISuperHookResult(hook).hookType();
         if (vars.hookType != ISuperHook.HookType.OUTFLOW) revert INVALID_HOOK_TYPE();
+
         vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
+        if (!yieldSources[vars.targetedYieldSource].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
+
         // we must always encode supervault shares when fulfilling redemptions
         vars.superVaultShares = ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
 
