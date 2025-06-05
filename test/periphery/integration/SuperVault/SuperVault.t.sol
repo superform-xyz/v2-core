@@ -3465,10 +3465,12 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         _completeDepositFlowWithVaryingAmounts(vars.depositAmounts);
 
+        _updateSuperVaultPPS(address(strategy), address(vault));
+
         // Store initial state for yield verification
         vars.initialTotalAssets = vault.totalAssets();
         vars.initialTotalSupply = vault.totalSupply();
-        vars.initialPricePerShare = vars.initialTotalAssets.mulDiv(1e18, vars.initialTotalSupply, Math.Rounding.Floor);
+        //vars.initialPricePerShare = vars.initialTotalAssets.mulDiv(1e18, vars.initialTotalSupply, Math.Rounding.Floor);
 
         // Verify initial balances and shares
         _verifyInitialBalances(vars.depositAmounts);
@@ -3487,9 +3489,11 @@ contract SuperVaultTest is BaseSuperVaultTest {
         // Select random users for redemption
         vars = _selectRandomUsersForRedemption(vars);
 
-        // Simulate some more time passing (12 hours) before redemption requests
-        vm.warp(vars.initialTimestamp + 1 days + 12 hours);
-        console2.log("\n=== After 1.5 days ===");
+        // Simulate some more time passing (12 days) before redemption requests
+        vm.warp(vars.initialTimestamp + 10 days);
+        _updateSuperVaultPPS(address(strategy), address(vault));
+        vars.initialPricePerShare = strategy.getStoredPPS();
+        console2.log("\n=== After 10 days ===");
         console2.log("Total Assets:", vault.totalAssets());
         console2.log("Price per share:", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
 
@@ -3497,14 +3501,13 @@ contract SuperVaultTest is BaseSuperVaultTest {
         _processRedemptionRequests(vars);
 
         // Calculate total redemption amount for allocation
-        vars.totalRedeemShares = 0;
         for (uint256 i; i < 15; i++) {
             vars.totalRedeemShares += vars.redeemAmounts[i];
         }
 
         // Simulate time passing (6 hours) before fulfilling redemptions
-        vm.warp(vars.initialTimestamp + 1 days + 18 hours);
-        console2.log("\n=== After 1.75 days ===");
+        vm.warp(vars.initialTimestamp + 10 days + 6 hours);
+        console2.log("\n=== After 10 days and 6 hours ===");
         console2.log("Total Assets:", vault.totalAssets());
         console2.log("Price per share:", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
 
@@ -3514,13 +3517,13 @@ contract SuperVaultTest is BaseSuperVaultTest {
         _fulfillRedeemForUsers(
             vars.redeemUsers, vars.redeemSharesVault1, vars.redeemSharesVault2, address(fluidVault), address(aaveVault)
         );
-
+        
+        // Simulate final time passing before final verification
+        vm.warp(vars.initialTimestamp + 11 days);
         // Process claims for redeemed users
         _claimRedeemForUsers(vars.redeemUsers);
 
-        // Simulate final time passing (6 hours) before final verification
-        vm.warp(vars.initialTimestamp + 2 days);
-        console2.log("\n=== After 2 days ===");
+        console2.log("\n=== After 11 days ===");
         console2.log("Total Assets:", vault.totalAssets());
         console2.log("Price per share:", vault.totalAssets().mulDiv(1e18, vault.totalSupply(), Math.Rounding.Floor));
 
@@ -3808,11 +3811,11 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         _completeDepositFlow(depositAmount);
 
-        uint256 initialFluidVaultBalance = fluidVault.balanceOf(address(strategy));
-        uint256 initialAaveVaultBalance = aaveVault.balanceOf(address(strategy));
+        uint256 fluidShares = fluidVault.balanceOf(address(strategy));
+        uint256 aaveShares = aaveVault.balanceOf(address(strategy));
 
-        uint256 currentFluidVaultAssets = fluidVault.convertToAssets(initialFluidVaultBalance);
-        uint256 currentAaveVaultAssets = aaveVault.convertToAssets(initialAaveVaultBalance);
+        uint256 currentFluidVaultAssets = fluidVault.convertToAssets(fluidShares);
+        uint256 currentAaveVaultAssets = aaveVault.convertToAssets(aaveShares);
         uint256 totalAssets = currentFluidVaultAssets + currentAaveVaultAssets;
 
         address[] memory hooksAddresses = new address[](2);
@@ -3825,20 +3828,20 @@ contract SuperVaultTest is BaseSuperVaultTest {
             address(fluidVault),
             address(fluidVault),
             address(strategy),
-            initialFluidVaultBalance,
+            fluidShares,
             false
         );
         hooksData[1] = _createApproveAndDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(aaveVault),
             address(asset),
-            initialAaveVaultBalance,
+            aaveShares,
             false,
             address(0),
             0
         );
 
-        uint256 amountToReallocate = initialFluidVaultBalance.mulDiv(3000, 10_000);
+        uint256 amountToReallocate = fluidShares.mulDiv(3000, 10_000);
         uint256 assetAmountToReallocate = fluidVault.convertToAssets(amountToReallocate);
 
         _rebalanceFromVaultToVault(
@@ -3853,31 +3856,21 @@ contract SuperVaultTest is BaseSuperVaultTest {
         uint256 finalFluidVaultBalance = fluidVault.balanceOf(address(strategy));
         uint256 finalAaveVaultBalance = aaveVault.balanceOf(address(strategy));
 
-        uint256 finalFluidVaultAssets = fluidVault.convertToAssets(finalFluidVaultBalance);
-        uint256 finalAaveVaultAssets = aaveVault.convertToAssets(finalAaveVaultBalance);
+        uint256 finalFluidVaultAssets = fluidVault.previewRedeem(finalFluidVaultBalance);
+        uint256 finalAaveVaultAssets = aaveVault.previewRedeem(finalAaveVaultBalance);
 
         uint256 finalTotalAssets = finalFluidVaultAssets + finalAaveVaultAssets;
 
-        uint256 proportionOfFluidAssets = finalFluidVaultAssets.mulDiv(10_000, finalTotalAssets);
-
         assertApproxEqRel(finalTotalAssets, totalAssets, 0.05e18, "Total value should be preserved");
-
-        uint256 totalRedeemShares;
-        for (uint256 i; i < ACCOUNT_COUNT; ++i) {
-            uint256 vaultBalance = vault.balanceOf(accInstances[i].account);
-            totalRedeemShares += vaultBalance;
-        }
 
         _requestRedeemForAllUsers(0);
 
-        uint256 allocationAmountVault1 = totalRedeemShares.mulDiv(proportionOfFluidAssets, 10_000);
-        uint256 allocationAmountVault2 = totalRedeemShares - allocationAmountVault1;
         address[] memory requestingUsers = new address[](ACCOUNT_COUNT);
         for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
         }
         _fulfillRedeemForUsers(
-            requestingUsers, allocationAmountVault1, allocationAmountVault2, address(fluidVault), address(aaveVault)
+            requestingUsers, finalFluidVaultBalance, finalAaveVaultBalance, address(fluidVault), address(aaveVault)
         );
 
         for (uint256 i; i < ACCOUNT_COUNT; ++i) {
@@ -4723,7 +4716,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
     function test_10_RuggableVault_Deposit() public {
         RugTestVarsDeposit memory vars;
         vars.depositAmount = 1000e6;
-        vars.rugPercentage = 10; // 0.1% rug
+        vars.rugPercentage = 5000; // 50% rug
         vars.initialTimestamp = block.timestamp;
 
         // Deploy a ruggable vault that rugs on deposit
@@ -4769,20 +4762,21 @@ contract SuperVaultTest is BaseSuperVaultTest {
         uint256 sharesVault2 = IERC4626(address(vars.ruggableVault)).convertToShares(vars.depositAmount * 5 / 2);
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
-        expectedAssetsOrSharesOut[0] = sharesVault1 - sharesVault1 * 1e4 / 1e5; //10% slippage
-        expectedAssetsOrSharesOut[1] = sharesVault2 * 5; // this should make the call revert
+        expectedAssetsOrSharesOut[0] = sharesVault1 - (sharesVault1 * 1e4 / 1e5); // 10% slippage
+        expectedAssetsOrSharesOut[1] = sharesVault2 * 3; // Should revert
 
         // expect revert on this call and try again after
         _depositFreeAssets(
-            vars.depositAmount * 5 / 2,
-            vars.depositAmount * 5 / 2,
+            (vars.depositAmount * 5) / 2,
+            (vars.depositAmount * 5) / 2,
             address(fluidVault),
             address(vars.ruggableVault),
             expectedAssetsOrSharesOut,
             ISuperVaultStrategy.MINIMUM_OUTPUT_AMOUNT_ASSETS_NOT_MET.selector
         );
 
-        expectedAssetsOrSharesOut[1] = sharesVault2 - sharesVault2 * 1e3 / 1e5; //1% slippage
+        expectedAssetsOrSharesOut[0] = sharesVault1 - sharesVault1 * 1e2 / 1e5; //1% slippage
+        expectedAssetsOrSharesOut[1] = sharesVault2 - sharesVault2 *vars.rugPercentage / 10_000; // 50% rug
         _depositFreeAssets(
             vars.depositAmount * 5 / 2,
             vars.depositAmount * 5 / 2,
@@ -4972,6 +4966,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
         vm.stopPrank();
 
+        vm.warp(block.timestamp + 20 days);
         _updateSuperVaultPPS(address(strategy), address(vault));
 
         // check new balances
@@ -5294,7 +5289,8 @@ contract SuperVaultTest is BaseSuperVaultTest {
         // Calculate global vault state
         v.finalTotalAssets = vault.totalAssets();
         v.finalTotalSupply = vault.totalSupply();
-        v.finalPricePerShare = v.finalTotalAssets.mulDiv(1e18, v.finalTotalSupply, Math.Rounding.Floor);
+        //v.finalPricePerShare = v.finalTotalAssets.mulDiv(1e18, v.finalTotalSupply, Math.Rounding.Floor);
+        v.finalPricePerShare = strategy.getStoredPPS();
         v.totalValueLocked = v.finalTotalAssets;
 
         // Get escrow balance
