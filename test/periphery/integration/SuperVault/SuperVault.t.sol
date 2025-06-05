@@ -4762,8 +4762,8 @@ contract SuperVaultTest is BaseSuperVaultTest {
         uint256 sharesVault2 = IERC4626(address(vars.ruggableVault)).convertToShares(vars.depositAmount * 5 / 2);
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
-        expectedAssetsOrSharesOut[0] = sharesVault1 - (sharesVault1 * 1e4 / 1e5); // 10% slippage
-        expectedAssetsOrSharesOut[1] = sharesVault2 * 3; // Should revert
+        expectedAssetsOrSharesOut[0] = sharesVault1 - (sharesVault1 * 1e2 / 1e5); // 1% slippage
+        expectedAssetsOrSharesOut[1] = (sharesVault2 - sharesVault2 *vars.rugPercentage / 10_000) * 2; // Should revert
 
         // expect revert on this call and try again after
         _depositFreeAssets(
@@ -4774,8 +4774,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
             expectedAssetsOrSharesOut,
             ISuperVaultStrategy.MINIMUM_OUTPUT_AMOUNT_ASSETS_NOT_MET.selector
         );
-
-        expectedAssetsOrSharesOut[0] = sharesVault1 - sharesVault1 * 1e2 / 1e5; //1% slippage
         expectedAssetsOrSharesOut[1] = sharesVault2 - sharesVault2 *vars.rugPercentage / 10_000; // 50% rug
         _depositFreeAssets(
             vars.depositAmount * 5 / 2,
