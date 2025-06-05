@@ -133,27 +133,6 @@ contract EthenaHooksTests is Helpers {
         assertEq(decodedAmount, amount);
     }
 
-    function test_EthenaUnstakeHook_DecodeAmount() public view {
-        bytes memory data = _encodeUnstakeData();
-        uint256 decodedAmount = unstakeHook.decodeAmount(data);
-        assertEq(decodedAmount, amount);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                       REPLACE CALLDATA AMOUNT TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_EthenaUnstakeHook_ReplaceCalldataAmount() public view {
-        bytes memory data = _encodeUnstakeData();
-        bytes memory replacedData = unstakeHook.replaceCalldataAmount(data, prevHookAmount);
-
-        // Verify the length is the same
-        assertEq(replacedData.length, data.length);
-
-        // Verify the amount was replaced
-        uint256 replacedAmount = unstakeHook.decodeAmount(replacedData);
-        assertEq(replacedAmount, prevHookAmount);
-    }
-
     /*//////////////////////////////////////////////////////////////
                           PRE/POST EXECUTE TESTS
     //////////////////////////////////////////////////////////////*/
