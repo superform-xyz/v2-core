@@ -30,6 +30,8 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     using HookDataDecoder for bytes;
     using Math for uint256;
 
+    address internal constant NATIVE_TOKEN_SENTINEL = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -165,7 +167,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
                 // Determine token type (native or ERC20) and process fee transfer
                 address assetToken = ISuperHookResultOutflow(hook).asset();
-                if (assetToken == address(0)) {
+                if (assetToken == address(0) || assetToken == NATIVE_TOKEN_SENTINEL) {
                     // Native token handling
                     if (account.balance < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
                     _performNativeFeeTransfer(account, config.feeRecipient, feeAmount);
