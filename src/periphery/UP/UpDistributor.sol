@@ -27,7 +27,6 @@ contract UpDistributor is Ownable2Step {
     event TokensReclaimed(uint256 amount);
 
     error AlreadyClaimed();
-    error InvalidSignature();
     error NoTokensToReclaim();
     error InvalidMerkleProof();
     error InvalidTokenAddress();
@@ -71,13 +70,11 @@ contract UpDistributor is Ownable2Step {
      * @param recipient The address to claim tokens for
      * @param amount The amount of tokens to claim
      * @param merkleProof A proof of inclusion in the merkle tree
-     * @param signature A signature from the recipient
      */
-    function claimWithSig(
+    function claimOnBehalf(
         address recipient,
         uint256 amount,
-        bytes32[] calldata merkleProof,
-        bytes calldata signature
+        bytes32[] calldata merkleProof
     )
         external
     {
@@ -87,10 +84,6 @@ contract UpDistributor is Ownable2Step {
         // Verify the merkle proof
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, amount))));
         if (!MerkleProof.verify(merkleProof, merkleRoot, leaf)) revert InvalidMerkleProof();
-
-        // Verify the signature
-        bytes32 digest = keccak256(abi.encodePacked(recipient, amount, address(this)));
-        if (ECDSA.recover(digest, signature) != recipient) revert InvalidSignature();
 
         // Mark as claimed and transfer tokens
         hasClaimed[recipient] = true;
