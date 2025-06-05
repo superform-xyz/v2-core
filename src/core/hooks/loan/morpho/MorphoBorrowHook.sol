@@ -89,20 +89,32 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
 
         uint256 loanAmount = deriveLoanAmount(vars.amount, vars.ltvRatio, vars.lltv, vars.oracle);
 
-        executions = new Execution[](4);
-        executions[0] =
-            Execution({target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0))});
-        executions[1] = Execution({
+        uint256 allowance = IERC20(vars.collateralToken).allowance(account, morpho);
+        bool needsReset = allowance > 0;
+
+        uint256 length = needsReset ? 4 : 3;
+        executions = new Execution[](length);
+        uint256 offset = 0;
+        if (needsReset) {
+            executions[0] = Execution({
+                target: vars.collateralToken,
+                value: 0,
+                callData: abi.encodeCall(IERC20.approve, (morpho, 0))
+            });
+            offset = 1;
+        }
+
+        executions[offset + 0] = Execution({
             target: vars.collateralToken,
             value: 0,
             callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
         });
-        executions[2] = Execution({
+        executions[offset + 1] = Execution({
             target: morpho,
             value: 0,
             callData: abi.encodeCall(IMorphoBase.supplyCollateral, (marketParams, vars.amount, account, ""))
         });
-        executions[3] = Execution({
+        executions[offset + 2] = Execution({
             target: morpho,
             value: 0,
             callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, loanAmount, 0, account, account))

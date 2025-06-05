@@ -58,23 +58,15 @@ contract ERC4626VaultHooksTest is Helpers {
         bytes memory data = _encodeApproveAndDepositData();
         Execution[] memory executions = approveAndDepositHook.build(address(0), address(this), data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
 
         assertEq(executions[0].target, token);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
 
-        assertEq(executions[1].target, token);
+        assertEq(executions[1].target, yieldSource);
         assertEq(executions[1].value, 0);
         assertGt(executions[1].callData.length, 0);
-
-        assertEq(executions[2].target, yieldSource);
-        assertEq(executions[2].value, 0);
-        assertGt(executions[2].callData.length, 0);
-
-        assertEq(executions[3].target, token);
-        assertEq(executions[3].value, 0);
-        assertGt(executions[3].callData.length, 0);
     }
 
     function test_DepositHook_Build() public view {
@@ -92,23 +84,15 @@ contract ERC4626VaultHooksTest is Helpers {
         bytes memory data = _encodeApproveAndRedeemData();
         Execution[] memory executions = approveAndRedeemHook.build(address(0), address(this), data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
 
         assertEq(executions[0].target, token);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
 
-        assertEq(executions[1].target, token);
+        assertEq(executions[1].target, yieldSource);
         assertEq(executions[1].value, 0);
         assertGt(executions[1].callData.length, 0);
-
-        assertEq(executions[2].target, yieldSource);
-        assertEq(executions[2].value, 0);
-        assertGt(executions[2].callData.length, 0);
-
-        assertEq(executions[3].target, token);
-        assertEq(executions[3].value, 0);
-        assertGt(executions[3].callData.length, 0);
     }
 
     function test_RedeemHook_Build() public view {
@@ -211,25 +195,17 @@ contract ERC4626VaultHooksTest is Helpers {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, prevHookAmount, true);
         Execution[] memory executions = approveAndDepositHook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
 
         assertEq(executions[0].target, token);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
 
-        assertEq(executions[1].target, token);
-        assertEq(executions[1].value, 0);
-        assertGt(executions[1].callData.length, 0);
-
         bytes memory expectedCallData = abi.encodeCall(IERC4626.deposit, (prevHookAmount, address(this)));
 
-        assertEq(executions[2].target, yieldSource);
-        assertEq(executions[2].value, 0);
-        assertEq(executions[2].callData, expectedCallData);
-
-        assertEq(executions[3].target, token);
-        assertEq(executions[3].value, 0);
-        assertGt(executions[3].callData.length, 0);
+        assertEq(executions[1].target, yieldSource);
+        assertEq(executions[1].value, 0);
+        assertEq(executions[1].callData, expectedCallData);
     }
 
     function test_ApproveAndRedeemHook_PrevHookAmount() public {
@@ -239,25 +215,17 @@ contract ERC4626VaultHooksTest is Helpers {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, address(this), shares, true);
         Execution[] memory executions = approveAndRedeemHook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
 
         assertEq(executions[0].target, token);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
 
-        assertEq(executions[1].target, token);
-        assertEq(executions[1].value, 0);
-        assertGt(executions[1].callData.length, 0);
-
         bytes memory expectedCallData = abi.encodeCall(IERC4626.redeem, (prevHookAmount, address(this), address(this)));
 
-        assertEq(executions[2].target, yieldSource);
-        assertEq(executions[2].value, 0);
-        assertEq(executions[2].callData, expectedCallData);
-
-        assertEq(executions[3].target, token);
-        assertEq(executions[3].value, 0);
-        assertGt(executions[3].callData.length, 0);
+        assertEq(executions[1].target, yieldSource);
+        assertEq(executions[1].value, 0);
+        assertEq(executions[1].callData, expectedCallData);
     }
 
     function test_DepositHook_PrevHookAmount() public {

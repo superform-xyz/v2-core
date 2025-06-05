@@ -30,6 +30,19 @@ import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../
 contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     IOdosRouterV2 public immutable odosRouterV2;
 
+    struct LocalVars {
+        uint256 pathDefinition_paramLength;
+        bytes pathDefinition;
+        address executor;
+        uint32 referralCode;
+        address inputToken;
+        uint256 inputAmount;
+        bool usePrevHookAmount;
+        address approveSpender;
+        uint256 allowance;
+        uint256 offset;
+    }
+
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
 
     constructor(address _routerV2) BaseHook(HookType.NONACCOUNTING, HookSubTypes.SWAP) {
@@ -46,42 +59,53 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookI
         override
         returns (Execution[] memory executions)
     {
-        uint256 pathDefinition_paramLength = BytesLib.toUint256(data, 177);
-        bytes memory pathDefinition = BytesLib.slice(data, 209, pathDefinition_paramLength);
-        address executor = BytesLib.toAddress(data, 209 + pathDefinition_paramLength);
-        uint32 referralCode = BytesLib.toUint32(data, 209 + pathDefinition_paramLength + 20);
+        LocalVars memory vars;
 
-        address inputToken = BytesLib.toAddress(data, 0);
-        uint256 inputAmount = BytesLib.toUint256(data, 20);
+        vars.pathDefinition_paramLength = BytesLib.toUint256(data, 177);
+        vars.pathDefinition = BytesLib.slice(data, 209, vars.pathDefinition_paramLength);
+        vars.executor = BytesLib.toAddress(data, 209 + vars.pathDefinition_paramLength);
+        vars.referralCode = BytesLib.toUint32(data, 209 + vars.pathDefinition_paramLength + 20);
 
-        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        if (usePrevHookAmount) {
-            inputAmount = ISuperHookResult(prevHook).outAmount();
+        vars.inputToken = BytesLib.toAddress(data, 0);
+        vars.inputAmount = BytesLib.toUint256(data, 20);
+
+        vars.usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
+        if (vars.usePrevHookAmount) {
+            vars.inputAmount = ISuperHookResult(prevHook).outAmount();
         }
 
-        address approveSpender = BytesLib.toAddress(data, 157);
-        if (approveSpender == address(0)) {
-            approveSpender = address(odosRouterV2);
+        vars.approveSpender = BytesLib.toAddress(data, 157);
+        if (vars.approveSpender == address(0)) {
+            vars.approveSpender = address(odosRouterV2);
         }
 
-        executions = new Execution[](4);
-        executions[0] =
-            Execution({target: inputToken, value: 0, callData: abi.encodeCall(IERC20.approve, (approveSpender, 0))});
-        executions[1] = Execution({
-            target: inputToken,
+        vars.allowance = IERC20(vars.inputToken).allowance(account, vars.approveSpender);
+
+        executions = new Execution[](vars.allowance > 0 ? 3 : 2);
+
+        vars.offset = 0;
+        if (vars.allowance > 0) {
+            executions[0] = Execution({
+                target: vars.inputToken,
+                value: 0,
+                callData: abi.encodeCall(IERC20.approve, (vars.approveSpender, 0))
+            });
+            vars.offset = 1;
+        }
+        executions[vars.offset + 0] = Execution({
+            target: vars.inputToken,
             value: 0,
-            callData: abi.encodeCall(IERC20.approve, (approveSpender, inputAmount))
+            callData: abi.encodeCall(IERC20.approve, (vars.approveSpender, vars.inputAmount))
         });
-        executions[2] = Execution({
+        executions[vars.offset + 1] = Execution({
             target: address(odosRouterV2),
             value: 0,
             callData: abi.encodeCall(
-                IOdosRouterV2.swap, (_getSwapInfo(account, prevHook, data), pathDefinition, executor, referralCode)
+                IOdosRouterV2.swap, (_getSwapInfo(account, prevHook, data), vars.pathDefinition, vars.executor, vars.referralCode)
             )
         });
-        executions[3] =
-            Execution({target: inputToken, value: 0, callData: abi.encodeCall(IERC20.approve, (approveSpender, 0))});
     }
+
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -149,5 +173,41 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookI
         return IOdosRouterV2.swapTokenInfo(
             inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, account
         );
+    }
+
+    function _createExecutions(
+        address account,
+        address inputToken,
+        address approveSpender,
+        uint256 inputAmount,
+        bytes memory pathDefinition,
+        address executor,
+        uint32 referralCode,
+        address prevHook,
+        bytes memory data
+    ) internal view returns (Execution[] memory executions) {
+        uint256 allowance = IERC20(inputToken).allowance(account, approveSpender);
+        executions = new Execution[](allowance > 0 ? 3 : 2);
+        uint256 offset = 0;
+        if (allowance > 0) {
+            executions[0] = Execution({
+                target: inputToken,
+                value: 0,
+                callData: abi.encodeCall(IERC20.approve, (approveSpender, 0))
+            });
+            offset = 1;
+        }
+        executions[offset + 0] = Execution({
+            target: inputToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (approveSpender, inputAmount))
+        });
+        executions[offset + 1] = Execution({
+            target: address(odosRouterV2),
+            value: 0,
+            callData: abi.encodeCall(
+                IOdosRouterV2.swap, (_getSwapInfo(account, prevHook, data), pathDefinition, executor, referralCode)
+            )
+        });
     }
 }

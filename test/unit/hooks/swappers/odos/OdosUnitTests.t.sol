@@ -109,15 +109,11 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         Execution[] memory executions = approveAndSwapOdosHook.build(address(prevHook), account, data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
         assertEq(executions[0].target, address(inputToken));
         assertEq(executions[0].value, 0);
-        assertEq(executions[1].target, address(inputToken));
+        assertEq(executions[1].target, address(odosRouter));
         assertEq(executions[1].value, 0);
-        assertEq(executions[2].target, address(odosRouter));
-        assertEq(executions[2].value, 0);
-        assertEq(executions[3].target, address(inputToken));
-        assertEq(executions[3].value, 0);
     }
 
     function test_Build_WithPrevHookAmount() public {
@@ -128,15 +124,11 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         Execution[] memory executions = approveAndSwapOdosHook.build(address(prevHook), account, data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
         assertEq(executions[0].target, address(inputToken));
         assertEq(executions[0].value, 0);
-        assertEq(executions[1].target, address(inputToken));
+        assertEq(executions[1].target, address(odosRouter));
         assertEq(executions[1].value, 0);
-        assertEq(executions[2].target, address(odosRouter));
-        assertEq(executions[2].value, 0);
-        assertEq(executions[3].target, address(inputToken));
-        assertEq(executions[3].value, 0);
     }
 
     function test_PreExecute() public {
@@ -185,7 +177,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         Execution[] memory executions = approveAndSwapOdosHook.build(address(prevHook), account, data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
     }
 
     function test_BooleanDecoding_True() public {
@@ -195,7 +187,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         Execution[] memory executions = approveAndSwapOdosHook.build(address(prevHook), account, data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
     }
 
     function test_BooleanDecoding_False() public view {
@@ -203,7 +195,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         Execution[] memory executions = approveAndSwapOdosHook.build(address(prevHook), account, data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
     }
 
     function test_ZeroValue() public view {
@@ -224,7 +216,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         Execution[] memory executions = approveAndSwapOdosHook.build(address(prevHook), account, data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
     }
 
     function test_ApproveAndSwapOdosHook_inspect() public view {

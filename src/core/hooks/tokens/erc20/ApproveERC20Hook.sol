@@ -28,7 +28,7 @@ contract ApproveERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspect
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address, bytes memory data)
+    function build(address prevHook, address account, bytes memory data)
         external
         view
         override
@@ -47,11 +47,18 @@ contract ApproveERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspect
         if (amount == 0) revert AMOUNT_NOT_VALID();
         if (token == address(0) || spender == address(0)) revert ADDRESS_NOT_VALID();
 
+        uint256 allowance = IERC20(token).allowance(account, spender);
         // @dev no-revert-on-failure tokens are not supported
-        executions = new Execution[](2);
-        executions[0] = Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (spender, 0))});
-        executions[1] =
-            Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (spender, amount))});
+        if (allowance > 0) {
+            executions = new Execution[](2);
+            executions[0] = Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (spender, 0))});
+            executions[1] =
+                Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (spender, amount))});
+        } else {
+            executions = new Execution[](1);
+            executions[0] =
+                Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (spender, amount))});
+        }
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -92,21 +92,15 @@ contract ApproveAndGearboxStakeHookTest is Helpers {
     }
 
     function _assertExecutions(Execution[] memory executions) internal view {
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
         assertEq(executions[0].target, token);
-        assertEq(executions[1].target, token);
-        assertEq(executions[2].target, yieldSource);
-        assertEq(executions[3].target, token);
+        assertEq(executions[1].target, yieldSource);
 
         assertEq(executions[0].value, 0);
         assertEq(executions[1].value, 0);
-        assertEq(executions[2].value, 0);
-        assertEq(executions[3].value, 0);
 
         assertGt(executions[0].callData.length, 0);
         assertGt(executions[1].callData.length, 0);
-        assertGt(executions[2].callData.length, 0);
-        assertGt(executions[3].callData.length, 0);
     }
 
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {

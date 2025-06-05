@@ -10,6 +10,7 @@ import {ISuperHook} from "../../../../src/core/interfaces/ISuperHook.sol";
 import {SharesMathLib} from "../../../../src/vendor/morpho/SharesMathLib.sol";
 import {Id, IMorpho, MarketParams, Market} from "../../../../src/vendor/morpho/IMorpho.sol";
 import {MarketParamsLib} from "../../../../src/vendor/morpho/MarketParamsLib.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Hooks
 import {BaseLoanHook} from "../../../../src/core/hooks/loan/BaseLoanHook.sol";
@@ -88,11 +89,21 @@ contract MorphoLoanHooksTest is Helpers {
     function setUp() public {
         loanToken = 0x4200000000000000000000000000000000000006;
 
+      
+
         mockMorpho = new MockMorpho();
         mockIRM = new MockIRM();
         borrowHook = new MorphoBorrowHook(address(mockMorpho));
         repayHook = new MorphoRepayHook(address(mockMorpho));
         repayAndWithdrawHook = new MorphoRepayAndWithdrawHook(address(mockMorpho));
+
+
+        vm.mockCall(
+            address(loanToken),
+            abi.encodeWithSelector(IERC20.allowance.selector, address(this), mockMorpho),
+            abi.encode(uint256(0))
+        );
+
 
         amount = 1e18;
         lltv = 860_000_000_000_000_000;
@@ -134,23 +145,18 @@ contract MorphoLoanHooksTest is Helpers {
 
         assertFalse(borrowHook.decodeUsePrevHookAmount(data));
 
-        assertEq(executions.length, 4);
-
-        // Check approve(0) call
+        assertEq(executions.length, 3);
+        // Check approve(collateralAmount) call
         assertEq(executions[0].target, address(collateralToken));
         assertEq(executions[0].value, 0);
 
-        // Check approve(collateralAmount) call
-        assertEq(executions[1].target, address(collateralToken));
+        // Check supplyCollateral call
+        assertEq(executions[1].target, address(mockMorpho));
         assertEq(executions[1].value, 0);
 
-        // Check supplyCollateral call
+        // Check borrow call
         assertEq(executions[2].target, address(mockMorpho));
         assertEq(executions[2].value, 0);
-
-        // Check borrow call
-        assertEq(executions[3].target, address(mockMorpho));
-        assertEq(executions[3].value, 0);
     }
 
     function test_BorrowHook_Inspector() public view {
@@ -227,27 +233,19 @@ contract MorphoLoanHooksTest is Helpers {
         );
     }
 
-    function test_RepayHook_Build() public view {
+    function test_RepayHook_BuildABC() public view {
         bytes memory data = _encodeRepayData(false, false);
         Execution[] memory executions = repayHook.build(address(0), address(this), data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
 
         assertEq(executions[0].target, address(loanToken));
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
 
-        assertEq(executions[1].target, address(loanToken));
+        assertEq(executions[1].target, address(mockMorpho));
         assertEq(executions[1].value, 0);
         assertGt(executions[1].callData.length, 0);
-
-        assertEq(executions[2].target, address(mockMorpho));
-        assertEq(executions[2].value, 0);
-        assertGt(executions[2].callData.length, 0);
-
-        assertEq(executions[3].target, address(loanToken));
-        assertEq(executions[3].value, 0);
-        assertGt(executions[3].callData.length, 0);
     }
 
     function test_RepayHook_Inspector() public view {
@@ -300,27 +298,19 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeRepayAndWithdrawData(false, false);
         Execution[] memory executions = repayAndWithdrawHook.build(address(0), address(this), data);
 
-        assertEq(executions.length, 5);
+        assertEq(executions.length, 3);
 
         assertEq(executions[0].target, address(loanToken));
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
 
-        assertEq(executions[1].target, address(loanToken));
+        assertEq(executions[1].target, address(mockMorpho));
         assertEq(executions[1].value, 0);
         assertGt(executions[1].callData.length, 0);
 
         assertEq(executions[2].target, address(mockMorpho));
         assertEq(executions[2].value, 0);
         assertGt(executions[2].callData.length, 0);
-
-        assertEq(executions[3].target, address(loanToken));
-        assertEq(executions[3].value, 0);
-        assertGt(executions[3].callData.length, 0);
-
-        assertEq(executions[4].target, address(mockMorpho));
-        assertEq(executions[4].value, 0);
-        assertGt(executions[4].callData.length, 0);
     }
 
     function test_RepayAndWithdrawHook_Inspector() public view {
@@ -380,11 +370,11 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeBorrowData(true);
         Execution[] memory executions = borrowHook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 3);
         // Verify the amount from previous hook is used in the approve call
-        assertEq(executions[1].target, collateralToken);
-        assertEq(executions[1].value, 0);
-        assertGt(executions[1].callData.length, 0);
+        assertEq(executions[0].target, collateralToken);
+        assertEq(executions[0].value, 0);
+        assertGt(executions[0].callData.length, 0);
     }
 
     function test_RepayHook_BuildWithPreviousHook() public {
@@ -395,11 +385,11 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeRepayData(true, false);
         Execution[] memory executions = repayHook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
         // Verify the amount from previous hook is used in the approve call
-        assertEq(executions[1].target, loanToken);
-        assertEq(executions[1].value, 0);
-        assertGt(executions[1].callData.length, 0);
+        assertEq(executions[0].target, loanToken);
+        assertEq(executions[0].value, 0);
+        assertGt(executions[0].callData.length, 0);
     }
 
     function test_RepayAndWithdrawHook_BuildWithPreviousHook() public {
@@ -410,11 +400,11 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeRepayAndWithdrawData(true, false);
         Execution[] memory executions = repayAndWithdrawHook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 5);
+        assertEq(executions.length, 3);
         // Verify the amount from previous hook is used in the approve call
-        assertEq(executions[1].target, loanToken);
-        assertEq(executions[1].value, 0);
-        assertGt(executions[1].callData.length, 0);
+        assertEq(executions[0].target, loanToken);
+        assertEq(executions[0].value, 0);
+        assertGt(executions[0].callData.length, 0);
     }
 
     /*//////////////////////////////////////////////////////////////

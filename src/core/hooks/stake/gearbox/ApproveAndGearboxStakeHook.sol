@@ -32,7 +32,7 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware, ISuperH
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address, bytes memory data)
+    function build(address prevHook, address account, bytes memory data)
         external
         view
         override
@@ -51,13 +51,22 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware, ISuperH
         }
         if (amount == 0) revert AMOUNT_NOT_VALID();
 
-        executions = new Execution[](4);
-        executions[0] = Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0))});
-        executions[1] =
+        uint256 allowance = IERC20(token).allowance(account, yieldSource);
+
+        executions = new Execution[](allowance > 0 ? 3 : 2);
+        uint256 offset = 0;
+        if (allowance > 0) {
+            executions[0] = Execution({
+                target: token,
+                value: 0,
+                callData: abi.encodeCall(IERC20.approve, (yieldSource, 0))
+            });
+            offset = 1;
+        }
+        executions[offset + 0] =
             Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, amount))});
-        executions[2] =
+        executions[offset + 1] =
             Execution({target: yieldSource, value: 0, callData: abi.encodeCall(IGearboxFarmingPool.deposit, (amount))});
-        executions[3] = Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0))});
     }
 
     /*//////////////////////////////////////////////////////////////

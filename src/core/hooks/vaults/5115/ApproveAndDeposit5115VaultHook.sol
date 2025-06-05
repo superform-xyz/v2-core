@@ -70,18 +70,23 @@ contract ApproveAndDeposit5115VaultHook is
         if (amount == 0) revert AMOUNT_NOT_VALID();
         if (yieldSource == address(0) || account == address(0) || tokenIn == address(0)) revert ADDRESS_NOT_VALID();
 
-        executions = new Execution[](4);
-        executions[0] =
-            Execution({ target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
-        executions[1] =
+        uint256 allowance = IERC20(tokenIn).allowance(account, yieldSource);
+
+        executions = new Execution[](allowance > 0 ? 3 : 2);
+        uint256 offset = 0;
+        if (allowance > 0) {
+            executions[0] =
+                Execution({ target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
+            offset = 1;
+        }
+        executions[offset + 0] =
             Execution({ target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, amount)) });
-        executions[2] = Execution({
+        executions[offset + 1] = Execution({
             target: yieldSource,
             value: 0,
             callData: abi.encodeCall(IStandardizedYield.deposit, (account, tokenIn, amount, minSharesOut))
         });
-        executions[3] =
-            Execution({ target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
+
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -47,6 +47,13 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     IMorphoBase public morphoBase;
     IMorphoStaticTyping public morphoStaticTyping;
 
+    struct FullRepaymentContext {
+        address account;
+        MarketParams marketParams;
+        Id id;
+        uint256 allowance;
+    }
+
     uint256 private constant AMOUNT_POSITION = 80;
     uint256 private constant PRICE_SCALING_FACTOR = 1e36;
     uint256 private constant PERCENTAGE_SCALING_FACTOR = 1e18;
@@ -80,74 +87,11 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         BuildHookLocalVars memory vars = _decodeHookData(data);
 
         if (vars.amount == 0) revert AMOUNT_NOT_VALID();
-
         if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
 
-        MarketParams memory marketParams =
-            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
-
-        Id id = marketParams.id();
-
-        uint256 fee = deriveFeeAmount(marketParams);
-        uint256 collateralForWithdraw;
-
-        executions = new Execution[](5);
-        executions[0] =
-            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
-        executions[3] =
-            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
-        if (vars.isFullRepayment) {
-            uint128 borrowBalance = deriveShareBalance(id, account);
-            uint256 shareBalance = uint256(borrowBalance);
-            uint256 amountToApprove = deriveLoanAmount(id, account) + deriveInterest(marketParams) + fee;
-            collateralForWithdraw = deriveCollateralForFullRepayment(id, account);
-
-            executions[1] = Execution({
-                target: vars.loanToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, amountToApprove))
-            });
-            executions[2] = Execution({
-                target: morpho,
-                value: 0,
-                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, 0, shareBalance, account, "")) // 0 assets as
-                    // we are repaying in full
-             });
-            executions[4] = Execution({
-                target: morpho,
-                value: 0,
-                callData: abi.encodeCall(
-                    IMorphoBase.withdrawCollateral, (marketParams, collateralForWithdraw, account, account)
-                )
-            });
-        } else {
-            if (vars.usePrevHookAmount) {
-                vars.amount = ISuperHookResult(prevHook).outAmount();
-            }
-            uint256 fullCollateral = deriveCollateralForFullRepayment(id, account);
-            collateralForWithdraw = deriveCollateralForPartialRepayment(id, account, vars.amount, fullCollateral);
-
-            executions[1] = Execution({
-                target: vars.loanToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
-            });
-            executions[2] = Execution({
-                target: morpho,
-                value: 0,
-                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, vars.amount, 0, account, "")) // 0 shares as
-                    // partial repayment
-             });
-            executions[4] = Execution({
-                target: morpho,
-                value: 0,
-                callData: abi.encodeCall(
-                    IMorphoBase.withdrawCollateral, (marketParams, collateralForWithdraw, account, account)
-                )
-            });
-        }
+        executions = _createExecutions(vars, prevHook, account);
     }
-
+    
     /// @inheritdoc ISuperHookLoans
     function getUsedAssets(address account, bytes memory data) external view returns (uint256) {
         BuildHookLocalVars memory vars = _decodeHookData(data);
@@ -256,5 +200,130 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         outAmount = getCollateralTokenBalance(account, data) - outAmount;
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            PRIVATE METHODS
+    //////////////////////////////////////////////////////////////*/
+    function _createExecutions(
+        BuildHookLocalVars memory vars,
+        address prevHook,
+        address account
+    ) private view returns (Execution[] memory) {
+        MarketParams memory marketParams =
+            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+
+        Id id = marketParams.id();
+        uint256 allowance = IERC20(vars.loanToken).allowance(account, morpho);
+
+        if (vars.isFullRepayment) {
+            FullRepaymentContext memory ctx = FullRepaymentContext({
+                account: account,
+                marketParams: marketParams,
+                id: id,
+                allowance: allowance
+            });
+            return _createFullRepaymentExecutions(vars, ctx);
+        } else {
+            return _createPartialRepaymentExecutions(vars, prevHook, account, marketParams, id, allowance);
+        }
+    }
+
+    function _createFullRepaymentExecutions(
+        BuildHookLocalVars memory vars,
+        FullRepaymentContext memory ctx
+    ) private view returns (Execution[] memory) {
+        uint256 fee = deriveFeeAmount(ctx.marketParams);
+        uint128 borrowBalance = deriveShareBalance(ctx.id, ctx.account);
+        uint256 shareBalance = uint256(borrowBalance);
+        uint256 amountToApprove = deriveLoanAmount(ctx.id, ctx.account) + deriveInterest(ctx.marketParams) + fee;
+        uint256 collateralForWithdraw = deriveCollateralForFullRepayment(ctx.id, ctx.account);
+
+        Execution[] memory executions = new Execution[](ctx.allowance > 0 ? 4 : 3);
+        uint256 offset = 0;
+
+        if (ctx.allowance > 0) {
+            executions[0] = Execution({
+                target: vars.loanToken,
+                value: 0,
+                callData: abi.encodeCall(IERC20.approve, (morpho, 0))
+            });
+            offset = 1;
+        }
+
+        executions[offset + 0] = Execution({
+            target: vars.loanToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (morpho, amountToApprove))
+        });
+
+        executions[offset + 1] = Execution({
+            target: morpho,
+            value: 0,
+            callData: abi.encodeCall(
+                IMorphoBase.repay,
+                (ctx.marketParams, 0, shareBalance, ctx.account, "")
+            )
+        });
+
+        executions[offset + 2] = Execution({
+            target: morpho,
+            value: 0,
+            callData: abi.encodeCall(
+                IMorphoBase.withdrawCollateral,
+                (ctx.marketParams, collateralForWithdraw, ctx.account, ctx.account)
+            )
+        });
+
+        return executions;
+    }
+
+    function _createPartialRepaymentExecutions(
+        BuildHookLocalVars memory vars,
+        address prevHook,
+        address account,
+        MarketParams memory marketParams,
+        Id id,
+        uint256 allowance
+    ) private view returns (Execution[] memory) {
+        if (vars.usePrevHookAmount) {
+            vars.amount = ISuperHookResult(prevHook).outAmount();
+        }
+
+        uint256 fullCollateral = deriveCollateralForFullRepayment(id, account);
+        uint256 collateralForWithdraw = deriveCollateralForPartialRepayment(id, account, vars.amount, fullCollateral);
+
+        Execution[] memory executions = new Execution[](allowance > 0 ? 4 : 3);
+        uint256 offset = 0;
+
+        if (allowance > 0) {
+            executions[0] = Execution({
+                target: vars.loanToken,
+                value: 0,
+                callData: abi.encodeCall(IERC20.approve, (morpho, 0))
+            });
+            offset = 1;
+        }
+
+        executions[offset + 0] = Execution({
+            target: vars.loanToken,
+            value: 0,
+            callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
+        });
+        executions[offset + 1] = Execution({
+            target: morpho,
+            value: 0,
+            callData: abi.encodeCall(IMorphoBase.repay, (marketParams, vars.amount, 0, account, ""))
+        });
+        executions[offset + 2] = Execution({
+            target: morpho,
+            value: 0,
+            callData: abi.encodeCall(
+                IMorphoBase.withdrawCollateral,
+                (marketParams, collateralForWithdraw, account, account)
+            )
+        });
+
+        return executions;
     }
 }

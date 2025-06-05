@@ -218,22 +218,14 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     function test_ApproveAndRequestDepositHook_Build() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = approveAndRequestDepositHook.build(address(0), address(this), data);
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
         assertEq(executions[0].target, token);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
 
-        assertEq(executions[1].target, token);
+        assertEq(executions[1].target, yieldSource);
         assertEq(executions[1].value, 0);
         assertGt(executions[1].callData.length, 0);
-
-        assertEq(executions[2].target, yieldSource);
-        assertEq(executions[2].value, 0);
-        assertGt(executions[2].callData.length, 0);
-
-        assertEq(executions[3].target, token);
-        assertEq(executions[3].value, 0);
-        assertGt(executions[3].callData.length, 0);
     }
 
     function test_DepositHook_Build() public view {
@@ -256,44 +248,28 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     function test_ApproveAndWithdrawHook_Build() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = approveAndWithdrawHook.build(address(0), address(this), data);
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
         assertEq(executions[0].target, token);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
 
-        assertEq(executions[1].target, token);
+        assertEq(executions[1].target, yieldSource);
         assertEq(executions[1].value, 0);
         assertGt(executions[1].callData.length, 0);
-
-        assertEq(executions[2].target, yieldSource);
-        assertEq(executions[2].value, 0);
-        assertGt(executions[2].callData.length, 0);
-
-        assertEq(executions[3].target, token);
-        assertEq(executions[3].value, 0);
-        assertGt(executions[3].callData.length, 0);
     }
 
     function test_ApproveAndRedeemHook_Build() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = redeemHook.build(address(0), address(this), data);
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
 
         assertEq(executions[0].target, token);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
 
-        assertEq(executions[1].target, token);
+        assertEq(executions[1].target, yieldSource);
         assertEq(executions[1].value, 0);
         assertGt(executions[1].callData.length, 0);
-
-        assertEq(executions[2].target, yieldSource);
-        assertEq(executions[2].value, 0);
-        assertGt(executions[2].callData.length, 0);
-
-        assertEq(executions[3].target, token);
-        assertEq(executions[3].value, 0);
-        assertGt(executions[3].callData.length, 0);
     }
 
     function test_WithdrawHook_Build() public view {
@@ -367,26 +343,18 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
         bytes memory data = _encodeData(true);
         Execution[] memory executions = approveAndRequestDepositHook.build(mockPrevHook, address(this), data);
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
 
         assertEq(executions[0].target, token);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
 
-        assertEq(executions[1].target, token);
-        assertEq(executions[1].value, 0);
-        assertGt(executions[1].callData.length, 0);
-
         bytes memory expectedCallData =
             abi.encodeCall(IERC7540.requestDeposit, (prevHookAmount, address(this), address(this)));
 
-        assertEq(executions[2].target, yieldSource);
-        assertEq(executions[2].value, 0);
-        assertEq(executions[2].callData, expectedCallData);
-
-        assertEq(executions[3].target, token);
-        assertEq(executions[3].value, 0);
-        assertGt(executions[3].callData.length, 0);
+        assertEq(executions[1].target, yieldSource);
+        assertEq(executions[1].value, 0);
+        assertEq(executions[1].callData, expectedCallData);
     }
 
     function test_RequestDepositHook_Build_WithPrevHook() public {
@@ -446,25 +414,17 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         bytes memory data = _encodeApproveAndRequestRedeemData(true, 1000, false);
         Execution[] memory executions = redeemHook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
 
         assertEq(executions[0].target, token);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
 
-        assertEq(executions[1].target, token);
-        assertEq(executions[1].value, 0);
-        assertGt(executions[1].callData.length, 0);
-
         bytes memory expectedCallData = abi.encodeCall(IERC7540.redeem, (prevHookAmount, address(this), address(this)));
 
-        assertEq(executions[2].target, yieldSource);
-        assertEq(executions[2].value, 0);
-        assertEq(executions[2].callData, expectedCallData);
-
-        assertEq(executions[3].target, token);
-        assertEq(executions[3].value, 0);
-        assertGt(executions[3].callData.length, 0);
+        assertEq(executions[1].target, yieldSource);
+        assertEq(executions[1].value, 0);
+        assertEq(executions[1].callData, expectedCallData);
     }
 
     function test_ApproveAndWithdrawHook_Build_WithPrevHook() public {
@@ -474,26 +434,18 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         bytes memory data = _encodeApproveAndRequestRedeemData(true, 1000, false);
         Execution[] memory executions = approveAndWithdrawHook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 2);
 
         assertEq(executions[0].target, token);
         assertEq(executions[0].value, 0);
         assertGt(executions[0].callData.length, 0);
 
-        assertEq(executions[1].target, token);
-        assertEq(executions[1].value, 0);
-        assertGt(executions[1].callData.length, 0);
-
         bytes memory expectedCallData =
             abi.encodeCall(IERC7540.withdraw, (prevHookAmount, address(this), address(this)));
 
-        assertEq(executions[2].target, yieldSource);
-        assertEq(executions[2].value, 0);
-        assertEq(executions[2].callData, expectedCallData);
-
-        assertEq(executions[3].target, token);
-        assertEq(executions[3].value, 0);
-        assertGt(executions[3].callData.length, 0);
+        assertEq(executions[1].target, yieldSource);
+        assertEq(executions[1].value, 0);
+        assertEq(executions[1].callData, expectedCallData);
     }
 
     function test_WithdrawHook_Build_WithPrevHook() public {
