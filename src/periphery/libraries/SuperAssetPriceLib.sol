@@ -114,7 +114,6 @@ library SuperAssetPriceLib {
     }
 
     /// @dev Checks if the token is depegged
-    /// @param token The address of the token to check the status of
     /// @param priceUSD The price of the token in USD
     /// @param assetPriceUSD The price of the asset in USD
     /// @return isDepeg True if the token is depegged
@@ -182,6 +181,13 @@ library SuperAssetPriceLib {
         }
     }
 
+    /// @dev Gets the depeg and dispersion status of a token
+    /// @param args The arguments for the price calculation
+    /// @param precision The precision of the token
+    /// @param priceUSD The price of the token in USD
+    /// @param stddev The standard deviation of the token
+    /// @return isDepeg True if the token is depegged
+    /// @return isDispersion True if the token has price dispersion
     function _getDepegAndDispersion(
         ISuperAsset.PriceArgs memory args,
         uint256 precision,
@@ -199,6 +205,11 @@ library SuperAssetPriceLib {
         isDispersion = _isSTDDevDegged(args.superAsset, stddev, priceUSD, args.dispersionThreshold);
     }
 
+    /// @dev Gets the price of the asset in USD
+    /// @param superOracleAddress The address of the super oracle
+    /// @param superAssetAddress The address of the super asset
+    /// @param USD The address of the USD token
+    /// @return assetPriceUSD The price of the asset in USD
     function _getAssetPriceUSD(
         address superOracleAddress,
         address superAssetAddress,
