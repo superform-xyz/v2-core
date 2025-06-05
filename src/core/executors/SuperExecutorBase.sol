@@ -196,18 +196,18 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         virtual
     {
         // Record balance before transfer to verify successful execution
-        uint256 balanceBefore = IERC20(assetToken).balanceOf(feeRecipient);
+        uint256 balanceBefore = IERC20(assetToken).balanceOf(account);
 
         // Execute the transfer from the account to the fee recipient
         _execute(account, assetToken, 0, abi.encodeCall(IERC20.transfer, (feeRecipient, feeAmount)));
 
         // Verify the transfer was successful within acceptable tolerance
-        uint256 balanceAfter = IERC20(assetToken).balanceOf(feeRecipient);
-        uint256 actualFee = balanceAfter - balanceBefore;
+        uint256 balanceAfter = IERC20(assetToken).balanceOf(account);
+        uint256 actualFee = balanceBefore - balanceAfter;
         uint256 maxAllowedDeviation = feeAmount.mulDiv(FEE_TOLERANCE, FEE_TOLERANCE_DENOMINATOR);
 
         // Ensure the actual fee received is within the allowed deviation range
-        if (actualFee < feeAmount - maxAllowedDeviation || actualFee > feeAmount + maxAllowedDeviation) {
+        if (actualFee < feeAmount - maxAllowedDeviation) {
             revert FEE_NOT_TRANSFERRED();
         }
     }
