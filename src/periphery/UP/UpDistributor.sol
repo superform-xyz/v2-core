@@ -65,7 +65,7 @@ contract UpDistributor is Ownable2Step {
     }
 
     /**
-     * @notice Claim tokens for a recipient using a signature
+     * @notice Claim tokens for a recipient
      * @dev This function can be called by users with smart accounts
      * @param recipient The address to claim tokens for
      * @param amount The amount of tokens to claim
