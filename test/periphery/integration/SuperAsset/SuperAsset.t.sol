@@ -1095,12 +1095,10 @@ contract SuperAssetTest is Helpers {
         vm.stopPrank();
     }
 
-    function test_CannotRedeemToInactiveToken() public {
+    function test_CanRedeemInactiveToken() public {
         // First deposit some tokens to get shares
         uint256 depositAmount = 50e18;
         underlyingToken1.mint(user, depositAmount);
-
-        console.log("test_CannotRedeemToInactiveToken() Deposit Start");
 
         vm.startPrank(user);
         underlyingToken1.approve(address(superAsset), depositAmount);
@@ -1116,8 +1114,6 @@ contract SuperAssetTest is Helpers {
         assertGt(sharesBalance, 0, "User should have shares after deposit");
         vm.stopPrank();
 
-        console.log("test_CannotRedeemToInactiveToken() Deposit Successful");
-
         // Now deactivate tokenOut
         vm.startPrank(admin);
         superAsset.removeVault(address(underlyingToken1));
@@ -1125,7 +1121,6 @@ contract SuperAssetTest is Helpers {
 
         // Try to redeem to inactive token - should not revert if the token was removed from the whitelist
         vm.startPrank(user);
-        // vm.expectRevert(ISuperAsset.NOT_SUPPORTED_TOKEN.selector);
         ISuperAsset.RedeemArgs memory redeemArgs = ISuperAsset.RedeemArgs({
             receiver: user,
             tokenOut: address(underlyingToken1),

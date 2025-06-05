@@ -368,7 +368,7 @@ contract SuperAsset is ERC20, ISuperAsset {
             // NOTE: Here we set isSoft=true on purpose since the desired behavior is to make the redeem() flow not to revert even in case of circtuit breakers triggered
             // The reason is the redeem() allows SuperAsset to sell assets and if an asset has circuit breakers triggered then it's likely an asset whose risk profile does not match the kind of risk that we desire in the SuperAsset balance sheet
             // This can be considered opinionated and an argument could be it should be the SuperAsset strategist making decision on that, we think it can be discussed
-            isSoft: true // isSoft = false for hard checks
+            isSoft: true // isSoft = true for soft checks that won't revert on circuit breaker triggers
          });
 
         // Call previewRedeem with the new struct approach
