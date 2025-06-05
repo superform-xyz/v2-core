@@ -56,8 +56,8 @@ contract UpDistributor is Ownable2Step {
 
         // Mark as claimed and transfer tokens
         hasClaimed[msg.sender] = true;
-        if (!token.transfer(msg.sender, amount)) revert TransferFailed();
         emit TokensClaimed(msg.sender, amount);
+        if (!token.transfer(msg.sender, amount)) revert TransferFailed();
     }
 
     /**
@@ -68,7 +68,7 @@ contract UpDistributor is Ownable2Step {
         uint256 balance = token.balanceOf(address(this));
         if (amount > balance) revert NoTokensToReclaim();
 
-        if (!token.transfer(owner(), amount)) revert TransferFailed();
         emit TokensReclaimed(amount);
+        if (!token.transfer(owner(), amount)) revert TransferFailed();
     }
 }
