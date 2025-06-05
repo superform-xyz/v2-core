@@ -80,6 +80,18 @@ contract YearnClaimOneRewardHook is
         asset = BytesLib.toAddress(data, 20);
         if (asset == address(0)) revert ASSET_ZERO_ADDRESS();
 
+        address yieldSource = BytesLib.toAddress(data, 0);
+        address[] memory rewardTokens = IYearnStakingRewardsMulti(yieldSource).rewardTokens();
+        bool found;
+        uint256 len = rewardTokens.length;
+        for (uint256 i; i < len; ++i) {
+            if (rewardTokens[i] == asset) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) revert REWARD_TOKEN_NOT_FOUND();
+
         outAmount = _getBalance(data);
     }
 

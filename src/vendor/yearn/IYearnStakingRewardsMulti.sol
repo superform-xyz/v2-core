@@ -10,4 +10,7 @@ interface IYearnStakingRewardsMulti {
     /// @dev Can claim rewards even if no tokens still staked.
     /// @param _rewardsToken Address of the rewards token to claim.
     function getOneReward(address _rewardsToken) external;
+
+    /// @notice Array containing the addresses of all of our reward tokens.
+    function rewardTokens() external view returns (address[] memory);
 }
