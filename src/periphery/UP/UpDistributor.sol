@@ -22,10 +22,11 @@ contract UpDistributor is Ownable2Step {
     event MerkleRootSet(bytes32 merkleRoot);
     event TokensClaimed(address indexed user, uint256 amount);
     event TokensReclaimed(uint256 amount);
-
-    error InvalidMerkleProof();
+    
     error AlreadyClaimed();
+    error TransferFailed();
     error NoTokensToReclaim();
+    error InvalidMerkleProof();
 
     constructor(address _token, address initialOwner) Ownable(initialOwner) {
         token = IERC20(_token);
@@ -55,7 +56,7 @@ contract UpDistributor is Ownable2Step {
 
         // Mark as claimed and transfer tokens
         hasClaimed[msg.sender] = true;
-        require(token.transfer(msg.sender, amount), "Transfer failed");
+        if (!token.transfer(msg.sender, amount)) revert TransferFailed();
         emit TokensClaimed(msg.sender, amount);
     }
 
@@ -67,7 +68,7 @@ contract UpDistributor is Ownable2Step {
         uint256 balance = token.balanceOf(address(this));
         if (amount > balance) revert NoTokensToReclaim();
 
-        require(token.transfer(owner(), amount), "Transfer failed");
+        if (!token.transfer(owner(), amount)) revert TransferFailed();
         emit TokensReclaimed(amount);
     }
 }
