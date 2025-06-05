@@ -9,7 +9,7 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 /**
  * @title UpDistributor
  * @notice A contract for distributing tokens using a merkle tree for verification
- * @dev The foundation can update the merkle root and reclaim unclaimed tokens
+ * @dev The foundation can reclaim unclaimed tokens
  */
 contract UpDistributor is Ownable2Step {
     IERC20 public immutable token;
