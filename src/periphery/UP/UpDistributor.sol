@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
+import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /**
@@ -12,8 +14,9 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
  * @dev The foundation can reclaim unclaimed tokens
  */
 contract UpDistributor is Ownable2Step {
-    IERC20 public immutable token;
+    using SafeERC20 for IERC20;
 
+    IERC20 public immutable token;
     bytes32 public merkleRoot;
 
     /// @notice Track which addresses have claimed their tokens
@@ -24,7 +27,7 @@ contract UpDistributor is Ownable2Step {
     event TokensReclaimed(uint256 amount);
     
     error AlreadyClaimed();
-    error TransferFailed();
+    error InvalidSignature();
     error NoTokensToReclaim();
     error InvalidMerkleProof();
     error InvalidTokenAddress();
@@ -59,7 +62,38 @@ contract UpDistributor is Ownable2Step {
         // Mark as claimed and transfer tokens
         hasClaimed[msg.sender] = true;
         emit TokensClaimed(msg.sender, amount);
-        if (!token.transfer(msg.sender, amount)) revert TransferFailed();
+        token.safeTransfer(msg.sender, amount);
+    }
+
+    /**
+     * @notice Claim tokens for a recipient using a signature
+     * @dev This function can be called by users with smart accounts
+     * @param recipient The address to claim tokens for
+     * @param amount The amount of tokens to claim
+     * @param merkleProof A proof of inclusion in the merkle tree
+     * @param signature A signature from the recipient
+     */
+    function claimWithSig(
+        address recipient,
+        uint256 amount,
+        bytes32[] calldata merkleProof,
+        bytes calldata signature
+    ) external {
+        // Verify user hasn't already claimed
+        if (hasClaimed[recipient]) revert AlreadyClaimed();
+
+        // Verify the merkle proof
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, amount))));
+        if (!MerkleProof.verify(merkleProof, merkleRoot, leaf)) revert InvalidMerkleProof();
+
+        // Verify the signature
+        bytes32 digest = keccak256(abi.encodePacked(recipient, amount, address(this)));
+        if (ECDSA.recover(digest, signature) != recipient) revert InvalidSignature();
+
+        // Mark as claimed and transfer tokens
+        hasClaimed[recipient] = true;
+        emit TokensClaimed(recipient, amount);
+        token.safeTransfer(recipient, amount);
     }
 
     /**
@@ -71,6 +105,6 @@ contract UpDistributor is Ownable2Step {
         if (amount > balance) revert NoTokensToReclaim();
 
         emit TokensReclaimed(amount);
-        if (!token.transfer(owner(), amount)) revert TransferFailed();
+        token.safeTransfer(owner(), amount);
     }
 }
