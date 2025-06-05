@@ -182,6 +182,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
 
     function transferManagerRole(bytes4 yieldSourceOracleId, address newManager) external virtual {
         YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
+        if (newManager == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (config.manager != msg.sender) revert NOT_MANAGER();
 
         pendingManager[yieldSourceOracleId] = newManager;
