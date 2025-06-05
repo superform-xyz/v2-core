@@ -27,8 +27,10 @@ contract UpDistributor is Ownable2Step {
     error TransferFailed();
     error NoTokensToReclaim();
     error InvalidMerkleProof();
+    error InvalidTokenAddress();
 
     constructor(address _token, address initialOwner) Ownable(initialOwner) {
+        if (_token == address(0)) revert InvalidTokenAddress();
         token = IERC20(_token);
     }
 
