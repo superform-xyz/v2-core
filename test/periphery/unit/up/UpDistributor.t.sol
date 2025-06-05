@@ -112,6 +112,19 @@ contract UpDistributorTest is Test, MerkleReader {
         vm.stopPrank();
     }
 
+    function test_ClaimWithSig() public {
+        bytes32 digest = keccak256(abi.encodePacked("\x19Ethereum Signed Message:\n32",
+        keccak256(abi.encode(user1, CLAIM_AMOUNT, address(distributor)))
+        ));
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(0x1, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+
+        vm.prank(user1);
+        distributor.claimWithSig(user1, CLAIM_AMOUNT, merkleProof1, bytes(signature));
+        assertEq(UpToken.balanceOf(user1), CLAIM_AMOUNT);
+        assertTrue(distributor.hasClaimed(user1));
+    }
+
     /**
      *
      * Token Reclamation Tests
