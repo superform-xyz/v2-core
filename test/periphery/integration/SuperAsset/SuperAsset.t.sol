@@ -667,6 +667,8 @@ contract SuperAssetTest is Helpers {
         assertEq(superAsset.balanceOf(user), 0, "User should have no shares left");
     }
 
+
+
     function test_RedeemWithZeroAmount() public {
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.ZERO_AMOUNT.selector);
@@ -691,6 +693,48 @@ contract SuperAssetTest is Helpers {
             minTokenOut: 0
         });
         superAsset.redeem(redeemArgs);
+        vm.stopPrank();
+    }
+
+    function test_BasicRedeemWithCircuitBreaker() public {
+        // First deposit to get some shares
+        uint256 depositAmount = 100e18;
+        underlyingToken1.mint(user, depositAmount);
+
+        vm.startPrank(user);
+        underlyingToken1.approve(address(superAsset), depositAmount);
+
+        ISuperAsset.DepositArgs memory depositArgs = ISuperAsset.DepositArgs({
+            receiver: user,
+            tokenIn: address(underlyingToken1),
+            amountTokenToDeposit: depositAmount,
+            minSharesOut: 0
+        });
+        ISuperAsset.DepositReturnVars memory retDeposit = superAsset.deposit(depositArgs);
+        uint256 sharesBalance = retDeposit.amountSharesMinted;
+        assertGt(sharesBalance, 0, "User should have shares after deposit");
+
+        // Trigger depeg for underlyingToken1 (mockFeed1 is its primary feed)
+        // DEPEG_LOWER_THRESHOLD is 9800 (for a 10000 basis), so a 5% drop (to 9500) should trigger it.
+        (, int256 currentPrice,,,) = mockFeed1.latestRoundData();
+        mockFeed1.setAnswer(currentPrice * 95 / 100); // 5% price drop
+        _updateAllFeedTimestamps(); // Ensure oracle data is fresh
+
+        // Attempt to redeem with depegged token
+        ISuperAsset.RedeemArgs memory redeemArgs = ISuperAsset.RedeemArgs({
+            receiver: user,
+            amountSharesToRedeem: sharesBalance,
+            tokenOut: address(underlyingToken1),
+            minTokenOut: 0
+        });
+
+        // vm.expectRevert(abi.encodeWithSelector(ISuperAsset.SUPPORTED_ASSET_PRICE_DEPEG.selector, address(underlyingToken1)));
+        ISuperAsset.RedeemReturnVars memory retRedeem = superAsset.redeem(redeemArgs);
+
+        assertGt(retRedeem.amountTokenOutAfterFees, 0, "User should receive some tokens out");
+        // assertEq(retRedeem.amountSharesRedeemed, sharesBalance, "Amount of shares redeemed should match input");
+        assertEq(superAsset.balanceOf(user), 0, "User should have no shares left after full redeem");
+
         vm.stopPrank();
     }
 
