@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Ownable} from "@openzeppelin/contracts/access/Ownable.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 /**
  * @title UpDistributor
@@ -25,7 +25,7 @@ contract UpDistributor is Ownable2Step {
     event MerkleRootSet(bytes32 merkleRoot);
     event TokensClaimed(address indexed user, uint256 amount);
     event TokensReclaimed(uint256 amount);
-    
+
     error AlreadyClaimed();
     error InvalidSignature();
     error NoTokensToReclaim();
@@ -78,7 +78,9 @@ contract UpDistributor is Ownable2Step {
         uint256 amount,
         bytes32[] calldata merkleProof,
         bytes calldata signature
-    ) external {
+    )
+        external
+    {
         // Verify user hasn't already claimed
         if (hasClaimed[recipient]) revert AlreadyClaimed();
 
