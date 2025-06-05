@@ -40,6 +40,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
 
     /// @notice Maximum allowed fee percentage change (50% = 5000 basis points)
     /// @dev Limits how much fees can be increased or decreased in a single proposal
+    /// @dev Allow fee percent change without validation when the new fee percentage is 0
     uint256 internal constant MAX_FEE_PERCENT_CHANGE = 5000;
 
     /// @notice Duration of the timelock period for configuration proposals
