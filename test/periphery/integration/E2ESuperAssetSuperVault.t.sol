@@ -174,6 +174,8 @@ contract E2ESuperAssetSuperVaultTest is BaseSuperVaultTest {
         // 4. Supply the share in SuperAsset, alongside other real assets which get whitelisted and test with SuperAsset
         // rebalances
 
+        // Note: This test will be composed of multiple internal helper functions
+
         // For 1.
         // Look at the __deposit() function in BaseSuperVaultTest and its variants
 
@@ -189,6 +191,9 @@ contract E2ESuperAssetSuperVaultTest is BaseSuperVaultTest {
         // Deposit SV share in SuperAsset as one or a few account instances
         // Deposit USDC in SuperAsset as one or a few account instances
         // Redeem some users from SuperAsset
+
+        // 5. (NB)
+        // Add gas benchmarks to as much of the above as possible
 
 
     }
