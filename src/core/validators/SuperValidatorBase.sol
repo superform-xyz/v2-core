@@ -127,6 +127,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
         returns (bool)
     {
         /// @dev block.timestamp could vary between chains
-        return signer == _accountOwners[sender] && validUntil >= block.timestamp;
+        /// @dev validUntil = 0 means infinite validity
+        return signer == _accountOwners[sender] && (validUntil == 0 || validUntil >= block.timestamp);
     }
 }
