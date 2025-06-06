@@ -49,6 +49,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
     error INVALID_DEADLINE();
     error INVALID_RECIPIENT();
     error INVALID_MIN_SHARES();
+    error INVALID_LAST_COMMAND();
     error INVALID_TRANSFER_TOKEN();
 
     constructor(address router_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
@@ -193,6 +194,11 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
 
         params.commands = _validateCommands(params.commandsData, params.inputsLength);
         params.commandsLength = params.commands.length;
+
+        // last command cannot be TRANSFER_FROM
+        if (params.commands[params.commandsLength - 1] == SpectraCommands.TRANSFER_FROM) {
+            revert INVALID_LAST_COMMAND();
+        }
 
         for (uint256 i; i < params.commandsLength; ++i) {
             uint256 command = params.commands[i];
