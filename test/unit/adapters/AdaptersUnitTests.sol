@@ -71,7 +71,7 @@ contract AcrossV3AdapterTest is Helpers {
         _getTokens(address(mockERC20), address(acrossV3Adapter), 1000);
         vm.mockCall(
             address(this),
-            abi.encodeWithSignature("processBridgedExecution(address,address,address[],uint256[],bytes,bytes,bytes)"),
+            abi.encodeWithSignature("processBridgedExecution(address,address,address[],uint256[],bytes,bytes,bytes,uint256)"),
             abi.encode(
                 address(mockERC20),
                 address(this),
@@ -79,7 +79,8 @@ contract AcrossV3AdapterTest is Helpers {
                 new uint256[](0),
                 new bytes(0),
                 new bytes(0),
-                new bytes(0)
+                new bytes(0),
+                uint256(0)
             )
         );
 
@@ -147,7 +148,7 @@ contract AcrossV3AdapterTest is Helpers {
         deal(address(debridgeAdapter), 1000);
         vm.mockCall(
             address(this),
-            abi.encodeWithSignature("processBridgedExecution(address,address,address[],uint256[],bytes,bytes,bytes)"),
+            abi.encodeWithSignature("processBridgedExecution(address,address,address[],uint256[],bytes,bytes,bytes,uint256)"),
             abi.encode(
                 address(mockERC20),
                 address(this),
@@ -155,7 +156,8 @@ contract AcrossV3AdapterTest is Helpers {
                 new uint256[](0),
                 new bytes(0),
                 new bytes(0),
-                new bytes(0)
+                new bytes(0),
+                uint256(0)
             )
         );
 
@@ -169,7 +171,7 @@ contract AcrossV3AdapterTest is Helpers {
         _getTokens(address(mockERC20), address(debridgeAdapter), 1000);
         vm.mockCall(
             address(this),
-            abi.encodeWithSignature("processBridgedExecution(address,address,address[],uint256[],bytes,bytes,bytes)"),
+            abi.encodeWithSignature("processBridgedExecution(address,address,address[],uint256[],bytes,bytes,bytes,uint256)"),
             abi.encode(
                 address(mockERC20),
                 address(this),
@@ -177,7 +179,8 @@ contract AcrossV3AdapterTest is Helpers {
                 new uint256[](0),
                 new bytes(0),
                 new bytes(0),
-                new bytes(0)
+                new bytes(0),
+                uint256(0)
             )
         );
 

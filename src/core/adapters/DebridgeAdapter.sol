@@ -63,7 +63,8 @@ contract DebridgeAdapter is IExternalCallExecutor {
             address account,
             address[] memory dstTokens,
             uint256[] memory intentAmounts,
-            bytes memory sigData
+            bytes memory sigData,
+            uint256 minExecutionGas
         ) = _decodeMessage(_payload);
 
         // 1. Transfer received funds to the target account *before* calling the executor.
@@ -74,7 +75,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
         if (!success) revert ON_ETHER_RECEIVED_FAILED();
 
         // 2. Call the core executor's standardized function
-        _handleMessageReceived(address(0), initData, executorCalldata, account, dstTokens, intentAmounts, sigData);
+        _handleMessageReceived(address(0), initData, executorCalldata, account, dstTokens, intentAmounts, sigData, minExecutionGas);
 
         return (true, "");
     }
@@ -91,7 +92,8 @@ contract DebridgeAdapter is IExternalCallExecutor {
             address account,
             address[] memory dstTokens,
             uint256[] memory intentAmounts,
-            bytes memory sigData
+            bytes memory sigData,
+            uint256 minExecutionGas
         ) = _decodeMessage(_payload);
 
         // 1. Transfer received funds to the target account *before* calling the executor.
@@ -101,7 +103,7 @@ contract DebridgeAdapter is IExternalCallExecutor {
         IERC20(_token).safeTransfer(account, _transferredAmount);
 
         // 2. Call the core executor's standardized function
-        _handleMessageReceived(_token, initData, executorCalldata, account, dstTokens, intentAmounts, sigData);
+        _handleMessageReceived(_token, initData, executorCalldata, account, dstTokens, intentAmounts, sigData, minExecutionGas);
 
         return (true, "");
     }
@@ -116,7 +118,8 @@ contract DebridgeAdapter is IExternalCallExecutor {
         address account,
         address[] memory dstTokens,
         uint256[] memory intentAmounts,
-        bytes memory sigData
+        bytes memory sigData,
+        uint256 minExecutionGas
     ) private {
         // Call the core executor's standardized function
         superDestinationExecutor.processBridgedExecution(
@@ -126,7 +129,8 @@ contract DebridgeAdapter is IExternalCallExecutor {
             intentAmounts,
             initData,
             executorCalldata,
-            sigData // User signature + validation payload
+            sigData, // User signature + validation payload
+            minExecutionGas
         );
     }
 
@@ -139,10 +143,11 @@ contract DebridgeAdapter is IExternalCallExecutor {
             address account,
             address[] memory dstTokens,
             uint256[] memory intentAmounts,
-            bytes memory sigData
+            bytes memory sigData,
+            uint256 minExecutionGas
         )
     {
-        (initData, executorCalldata, account, dstTokens, intentAmounts, sigData) =
-            abi.decode(message, (bytes, bytes, address, address[], uint256[], bytes));
+        (initData, executorCalldata, account, dstTokens, intentAmounts, sigData, minExecutionGas) =
+            abi.decode(message, (bytes, bytes, address, address[], uint256[], bytes, uint256));
     }
 }

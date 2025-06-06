@@ -60,6 +60,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
+    error NOT_ENOUGH_GAS();
     error INVALID_ACCOUNT();
     error INVALID_SIGNATURE();
     error ADDRESS_NOT_ACCOUNT();
@@ -115,7 +116,8 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         uint256[] memory intentAmounts,
         bytes memory initData,
         bytes memory executorCalldata,
-        bytes memory userSignatureData
+        bytes memory userSignatureData,
+        uint256 minGasForHookExecution
     ) external override {
         account = _validateOrCreateAccount(account, initData);
 
@@ -155,6 +157,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
             payload: ModePayload.wrap(bytes22(0))
         });
 
+        if(gasleft() < minGasForHookExecution) revert NOT_ENOUGH_GAS();       
         try IERC7579Account(account).executeFromExecutor(modeCode, ERC7579ExecutionLib.encodeBatch(execs)) {
             emit SuperDestinationExecutorExecuted(account);
         } catch Panic(uint256 errorCode) {

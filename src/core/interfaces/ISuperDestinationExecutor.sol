@@ -76,6 +76,7 @@ interface ISuperDestinationExecutor {
     /// @param initData Optional initialization data for creating a new account if needed
     /// @param executorCalldata The encoded execution data (typically a SuperExecutor entry)
     /// @param userSignatureData Verification data (signature or merkle proof) to validate the request
+    /// @param minExecutionGas The minimum gas required for execution
     function processBridgedExecution(
         address tokenSent,
         address targetAccount,
@@ -83,6 +84,7 @@ interface ISuperDestinationExecutor {
         uint256[] memory intentAmounts,
         bytes memory initData,
         bytes memory executorCalldata,
-        bytes memory userSignatureData
+        bytes memory userSignatureData,
+        uint256 minExecutionGas
     ) external;
 }

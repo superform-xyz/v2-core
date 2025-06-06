@@ -294,11 +294,12 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
             bytes memory executorCalldata,
             address account,
             address[] memory dstTokens,
-            uint256[] memory intentAmounts
-        ) = abi.decode(params.destinationMessage, (bytes, bytes, address, address[], uint256[]));
+            uint256[] memory intentAmounts,
+            uint256 minExecutionGas
+        ) = abi.decode(params.destinationMessage, (bytes, bytes, address, address[], uint256[], uint256));
 
         IDlnSource.ExternalCallEnvelopV1 memory envelope = IDlnSource.ExternalCallEnvelopV1({
-            payload: abi.encode(initData, executorCalldata, account, dstTokens, intentAmounts, params.sigData),
+            payload: abi.encode(initData, executorCalldata, account, dstTokens, intentAmounts, params.sigData, minExecutionGas),
             fallbackAddress: params.fallbackAddress,
             executorAddress: params.executorAddress,
             executionFee: uint160(params.executionFee),

@@ -69,7 +69,7 @@ contract BridgeHooks is Helpers {
         dstTokens[0] = address(mockOutputToken);
         uint256[] memory intentAmounts = new uint256[](1);
         intentAmounts[0] = 1;
-        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), dstTokens, intentAmounts, mockMessage);
+        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), dstTokens, intentAmounts, uint256(0));
     }
 
     function test_AcrossV3_Constructor() public view {
@@ -99,7 +99,7 @@ contract BridgeHooks is Helpers {
         dstTokens[0] = address(mockOutputToken);
         uint256[] memory intentAmounts = new uint256[](1);
         intentAmounts[0] = 1;
-        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), dstTokens, intentAmounts, sigData);
+        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), dstTokens, intentAmounts, sigData, uint256(0));
 
         bytes memory expectedCallData = abi.encodeCall(
             IAcrossSpokePoolV3.depositV3Now,
@@ -166,7 +166,8 @@ contract BridgeHooks is Helpers {
         uint256[] memory intentAmounts = new uint256[](1);
         intentAmounts[0] = 1;
         bytes memory sigData = mockSignatureStorage.retrieveSignatureData(address(0));
-        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), dstTokens, intentAmounts, sigData);
+
+        mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), dstTokens, intentAmounts, sigData, uint256(0));
 
         bytes memory expectedCallData = abi.encodeCall(
             IAcrossSpokePoolV3.depositV3Now,

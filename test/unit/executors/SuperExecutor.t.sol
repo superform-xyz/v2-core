@@ -418,13 +418,13 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.expectRevert();
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         superDestinationExecutor.processBridgedExecution(
-            address(token), address(this), dstTokens, intentAmounts, "", "", ""
+            address(token), address(this), dstTokens, intentAmounts, "", "", "", 0
         );
 
         vm.mockCall(address(this), abi.encodeWithSignature("accountId()"), abi.encode(""));
         vm.expectRevert(SuperDestinationExecutor.ADDRESS_NOT_ACCOUNT.selector);
         superDestinationExecutor.processBridgedExecution(
-            address(token), address(this), dstTokens, intentAmounts, "", "", ""
+            address(token), address(this), dstTokens, intentAmounts, "", "", "", 0
         );
     }
 
@@ -432,7 +432,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.expectRevert(SuperDestinationExecutor.ACCOUNT_NOT_CREATED.selector);
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         superDestinationExecutor.processBridgedExecution(
-            address(token), address(0), dstTokens, intentAmounts, "", "", ""
+            address(token), address(0), dstTokens, intentAmounts, "", "", "", 0
         );
     }
 
@@ -440,7 +440,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.expectRevert();
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         superDestinationExecutor.processBridgedExecution(
-            address(token), address(account), dstTokens, intentAmounts, "", "", ""
+            address(token), address(account), dstTokens, intentAmounts, "", "", "", 0
         );
     }
 
@@ -449,7 +449,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.expectRevert();
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         superDestinationExecutor.processBridgedExecution(
-            address(token), address(account), dstTokens, intentAmounts, "", "", signatureData
+            address(token), address(account), dstTokens, intentAmounts, "", "", signatureData, 0
         );
     }
 
@@ -459,7 +459,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
         superDestinationExecutor.processBridgedExecution(
-            address(token), address(account), dstTokens, intentAmounts, initData, executorCalldata, signatureData
+            address(token), address(account), dstTokens, intentAmounts, initData, executorCalldata, signatureData, 0
         );
     }
 
@@ -468,7 +468,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         (bytes memory signatureData,, bytes memory executionDataForLeaf,) = _createDestinationValidData(true);
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         superDestinationExecutor.processBridgedExecution(
-            address(token), address(account), dstTokens, intentAmounts, initData, executionDataForLeaf, signatureData
+            address(token), address(account), dstTokens, intentAmounts, initData, executionDataForLeaf, signatureData, 0
         );
     }
 
@@ -478,7 +478,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         _getTokens(address(token), address(account), 1);
         superDestinationExecutor.processBridgedExecution(
-            address(token), address(account), dstTokens, intentAmounts, initData, executionDataForLeaf, signatureData
+            address(token), address(account), dstTokens, intentAmounts, initData, executionDataForLeaf, signatureData, 0
         );
     }
 
@@ -488,7 +488,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         deal(address(account), 0);
         superDestinationExecutor.processBridgedExecution(
-            address(0), address(account), dstTokens, intentAmounts, initData, executionDataForLeaf, signatureData
+            address(0), address(account), dstTokens, intentAmounts, initData, executionDataForLeaf, signatureData, 0
         );
     }
 
@@ -498,7 +498,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         deal(address(account), 1);
         superDestinationExecutor.processBridgedExecution(
-            address(0), address(account), dstTokens, intentAmounts, initData, executionDataForLeaf, signatureData
+            address(0), address(account), dstTokens, intentAmounts, initData, executionDataForLeaf, signatureData, 0
         );
     }
 
@@ -511,12 +511,12 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         intentAmounts2[0] = 1;
         _getTokens(address(token), address(account), 1);
         superDestinationExecutor.processBridgedExecution(
-            address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData
+            address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData, 0
         );
 
         vm.expectRevert(SuperDestinationExecutor.MERKLE_ROOT_ALREADY_USED.selector);
         superDestinationExecutor.processBridgedExecution(
-            address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData
+            address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData, 0
         );
     }
 

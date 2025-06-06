@@ -1948,7 +1948,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint256[] memory intentAmounts = new uint256[](1);
         intentAmounts[0] = messageData.amount;
         return (
-            abi.encode(accountCreationData, executionData, messageData.account, dstTokens, intentAmounts), accountToUse
+            abi.encode(accountCreationData, executionData, messageData.account, dstTokens, intentAmounts, uint256(21000)), accountToUse
         );
     }
 

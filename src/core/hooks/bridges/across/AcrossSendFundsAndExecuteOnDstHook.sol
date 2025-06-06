@@ -110,12 +110,13 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
                 bytes memory executorCalldata,
                 address _account,
                 address[] memory dstTokens,
-                uint256[] memory intentAmounts
+                uint256[] memory intentAmounts,
+                uint256 minExecutionGas
             ) = abi.decode(
-                acrossV3DepositAndExecuteData.destinationMessage, (bytes, bytes, address, address[], uint256[])
+                acrossV3DepositAndExecuteData.destinationMessage, (bytes, bytes, address, address[], uint256[], uint256)
             );
             acrossV3DepositAndExecuteData.destinationMessage =
-                abi.encode(initData, executorCalldata, _account, dstTokens, intentAmounts, signature);
+                abi.encode(initData, executorCalldata, _account, dstTokens, intentAmounts, signature, minExecutionGas);
         }
 
         // build execution
