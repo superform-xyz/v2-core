@@ -40,6 +40,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @dev supports only Pendle vaults
     function build(
         address prevHook,
         address account,
