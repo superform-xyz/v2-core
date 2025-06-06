@@ -19,6 +19,8 @@ import {ISuperHookAsyncCancelations, ISuperHookInspector} from "../../../interfa
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         address receiver = BytesLib.toAddress(data, 24);
+/// @notice         address vaultBank = BytesLib.toAddress(data, 44);
+/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 64);
 contract ClaimCancelRedeemRequest7540Hook is BaseHook, ISuperHookAsyncCancelations, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
@@ -68,6 +70,9 @@ contract ClaimCancelRedeemRequest7540Hook is BaseHook, ISuperHookAsyncCancelatio
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
+        vaultBank = BytesLib.toAddress(data, 44);
+        dstChainId = BytesLib.toUint256(data, 64);
+        spToken = IERC7540(data.extractYieldSource()).share();
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
