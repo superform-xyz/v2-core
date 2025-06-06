@@ -87,8 +87,6 @@ contract SuperAssetTest is Helpers {
 
     // --- Setup ---
     function setUp() public {
-        // Setup volatile vault
-        MockERC20 volatileUnderlying = new MockERC20("Volatile Underlying", "VUND", 18);
         // Setup accounts
         admin = makeAddr("admin");
         manager = makeAddr("manager");
