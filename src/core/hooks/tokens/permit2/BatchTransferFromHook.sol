@@ -132,27 +132,9 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address account, bytes calldata data) internal override {
-        uint256 arrayLength = BytesLib.toUint256(data, 20);
-        bytes memory tokensData = BytesLib.slice(data, 84, 20 * arrayLength);
+    function _preExecute(address, address, bytes calldata) internal override {}
 
-        for (uint256 i; i < arrayLength; ++i) {
-            address token = BytesLib.toAddress(tokensData, i * 20);
-            outAmount += _getBalance(token, account);
-        }
-    }
-
-    function _postExecute(address, address account, bytes calldata data) internal override {
-        uint256 arrayLength = BytesLib.toUint256(data, 20);
-        uint256 newAmount;
-        bytes memory tokensData = BytesLib.slice(data, 84, 20 * arrayLength);
-
-        for (uint256 i; i < arrayLength; ++i) {
-            address token = BytesLib.toAddress(tokensData, i * 20);
-            newAmount += _getBalance(token, account);
-        }
-        outAmount = newAmount - outAmount;
-    }
+    function _postExecute(address, address, bytes calldata) internal override {}
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
