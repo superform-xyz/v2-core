@@ -123,12 +123,12 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data);
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(data, account);
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data) - outAmount;
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(data, account) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -336,9 +336,12 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         }
     }
 
-    function _getBalance(bytes calldata data) private view returns (uint256) {
+    function _getBalance(bytes calldata data, address account) private view returns (uint256) {
         address dstToken = address(bytes20(data[:20]));
         address dstReceiver = address(bytes20(data[20:40]));
+        if (dstReceiver == address(0)) {
+            dstReceiver = account;
+        }
 
         if (dstToken == NATIVE || dstToken == address(0)) {
             return dstReceiver.balance;
