@@ -87,7 +87,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
         Id id = marketParams.id();
-
         uint256 fee = deriveFeeAmount(marketParams);
         uint256 collateralForWithdraw;
 
@@ -250,6 +249,16 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
+        BuildHookLocalVars memory vars = _decodeHookData(data);
+
+        if (vars.amount == 0) revert AMOUNT_NOT_VALID();
+        if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
+
+        MarketParams memory marketParams =
+            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+
+        morphoInterface.accrueInterest(marketParams);
+
         // store current balance
         outAmount = getCollateralTokenBalance(account, data);
     }

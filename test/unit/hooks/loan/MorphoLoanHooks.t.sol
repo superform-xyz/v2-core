@@ -38,6 +38,8 @@ contract MockMorpho {
     function position(Id, address) external pure returns (uint256, uint128, uint128) {
         return (10e18, 100e18, 100e18);
     }
+
+    function accrueInterest(MarketParams memory marketParams) external {}
 }
 
 contract MockIRM {
