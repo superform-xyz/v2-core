@@ -9,20 +9,17 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 // Superform
 import {BaseHook} from "../../BaseHook.sol";
 import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
+import {ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
 
 /// @title BatchTransferERC20Hook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address to = BytesLib.toAddress(data, 0);
-/// @notice         uint256 usePrevHookAmountIndex = BytesLib.toUint256(data, 20);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
-/// @notice         bytes tokensArr = BytesLib.slice(data, 53, data.length - 53);
-contract BatchTransferERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+/// @notice         bytes tokensArr = BytesLib.slice(data, 20, data.length - 20);
+contract BatchTransferERC20Hook is BaseHook, ISuperHookInspector {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
 
     error LENGTH_MISMATCH();
-    error USE_PREV_INDEX_NOT_VALID();
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) {}
 
@@ -30,25 +27,19 @@ contract BatchTransferERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookI
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
 
-    function build(address prevHook, address, bytes memory data)
+    function build(address, address, bytes memory data)
         external
-        view
+        pure
         override
         returns (Execution[] memory executions)
     {
         address to = BytesLib.toAddress(data, 0);
-        uint256 usePrevHookAmountIndex = BytesLib.toUint256(data, 20);
-        bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        bytes memory tokensData = BytesLib.slice(data, 53, data.length - 53);
+        bytes memory tokensData = BytesLib.slice(data, 20, data.length - 20);
 
         (address[] memory tokens, uint256[] memory amounts) = abi.decode(tokensData, (address[], uint256[]));
 
         uint256 tokensLen = tokens.length;
         if (tokensLen != amounts.length) revert LENGTH_MISMATCH();
-        if (tokensLen <= usePrevHookAmountIndex) revert USE_PREV_INDEX_NOT_VALID();
-        if (usePrevHookAmount) {
-            amounts[usePrevHookAmountIndex] = ISuperHookResult(prevHook).outAmount();
-        }
 
         executions = new Execution[](tokensLen);
         for (uint i; i < tokensLen; i++) {
@@ -59,12 +50,6 @@ contract BatchTransferERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookI
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-
-    /// @inheritdoc ISuperHookContextAware
-    function decodeUsePrevHookAmount(bytes memory data) external pure returns (bool) {
-        return _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-    }
-
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
         bytes memory tokensData = BytesLib.slice(data, 53, data.length - 53);
