@@ -8,6 +8,7 @@ import { ISuperVaultAggregator } from "src/periphery/interfaces/SuperVault/ISupe
 import { SuperVaultAggregator } from "src/periphery/SuperVault/SuperVaultAggregator.sol";
 import { ISuperVaultStrategy } from "src/periphery/interfaces/SuperVault/ISuperVaultStrategy.sol";
 import { Helpers } from "../../utils/Helpers.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
 
 contract SuperGovernorTest is Helpers {
     SuperGovernor internal superGovernor;
@@ -41,6 +42,8 @@ contract SuperGovernorTest is Helpers {
     uint256 internal constant TIMELOCK = 7 days;
     uint256 internal constant BPS_MAX = 10_000;
 
+    MockERC20 internal asset;
+
     /// @notice Sets up the test environment before each test case.
     function setUp() public {
         sGovernor = _deployAccount(0x1, "SuperGovernor");
@@ -57,11 +60,13 @@ contract SuperGovernorTest is Helpers {
         ppsOracle2 = _deployAccount(0xC, "PPSOracle2");
         newStrategist = _deployAccount(0xF, "NewStrategist");
 
+        asset = new MockERC20("Asset", "ASSET", 18);
+
         superGovernor = new SuperGovernor(sGovernor, governor, governor, treasury, address(this));
         superVaultAggregator = address(new SuperVaultAggregator(address(superGovernor)));
         (, address strategy,) = ISuperVaultAggregator(superVaultAggregator).createVault(
             ISuperVaultAggregator.VaultCreationParams({
-                asset: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+                asset: address(asset),
                 mainStrategist: address(this),
                 name: "SUP",
                 symbol: "SUP",
