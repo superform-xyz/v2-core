@@ -2,11 +2,11 @@
 pragma solidity 0.8.30;
 
 // external
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
-import {IHookExecutionData} from "./interfaces/IHookExecutionData.sol";
-import {ISuperHook, Execution} from "../core/interfaces/ISuperHook.sol";
+import { IHookExecutionData } from "./interfaces/IHookExecutionData.sol";
+import { ISuperHook, Execution } from "../core/interfaces/ISuperHook.sol";
 
 abstract contract Bank {
     /*//////////////////////////////////////////////////////////////
@@ -56,7 +56,7 @@ abstract contract Bank {
             hookData = executionData.data[i];
             merkleProof = executionData.merkleProofs[i];
 
-             hook = ISuperHook(hookAddress);
+            hook = ISuperHook(hookAddress);
 
             // 1. Get the Merkle root specific to this hook
             merkleRoot = _getMerkleRootForHook(hookAddress);
@@ -81,7 +81,7 @@ abstract contract Bank {
                 }
 
                 // Execute the call after verification
-                (success,) = executionStep.target.call{value: executionStep.value}(executionStep.callData);
+                (success,) = executionStep.target.call{ value: executionStep.value }(executionStep.callData);
                 if (!success) {
                     revert HOOK_EXECUTION_FAILED();
                 }
