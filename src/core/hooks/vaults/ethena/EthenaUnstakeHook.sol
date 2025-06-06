@@ -85,7 +85,7 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
         usedShares = _getSharesBalance(account, data);
         vaultBank = BytesLib.toAddress(data, 57);
         dstChainId = BytesLib.toUint256(data, 77);
-        spToken = yieldSource;
+        spToken = asset;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
