@@ -179,13 +179,9 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
         if (balanceOf(owner) < shares) revert INVALID_AMOUNT();
 
-        // If msg.sender is operator of owner, the transfer is executed as if
-        // the sender is the owner, to bypass the allowance check
-        address sender = isOperator[owner][msg.sender] ? owner : msg.sender;
-
         // Transfer shares to escrow for temporary locking
-        _approve(sender, escrow, shares);
-        ISuperVaultEscrow(escrow).escrowShares(sender, shares);
+        _approve(owner, escrow, shares);
+        ISuperVaultEscrow(escrow).escrowShares(owner, shares);
 
         // Forward to strategy
         strategy.handleOperation(controller, 0, shares, ISuperVaultStrategy.Operation.RedeemRequest);
