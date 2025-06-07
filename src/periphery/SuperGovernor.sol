@@ -981,6 +981,40 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /// @inheritdoc ISuperGovernor
+    function getStrategistsPaginated(
+        uint256 cursor,
+        uint256 limit
+    )
+        external
+        view
+        returns (address[] memory chunkOfStrategists, uint256 next)
+    {
+        uint256 len = _superformStrategists.length();
+
+        // clamp limit so we don’t read past end
+        uint256 realLimit = limit;
+        // If cursor is beyond the end, return empty array
+        if (cursor >= len) {
+            return (new address[](0), 0);
+        }
+
+        uint256 remaining = len - cursor;
+        if (realLimit > remaining) realLimit = remaining;
+
+        chunkOfStrategists = new address[](realLimit);
+        for (uint256 i; i < realLimit; ++i) {
+            chunkOfStrategists[i] = _superformStrategists.at(cursor + i);
+        }
+
+        next = (cursor + realLimit < len) ? cursor + realLimit : 0;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getSuperformStrategistsCount() external view returns (uint256) {
+        return _superformStrategists.length();
+    }
+
+    /// @inheritdoc ISuperGovernor
     function isWhitelistedIncentiveToken(address token) external view returns (bool) {
         return _isWhitelistedIncentiveToken[token];
     }

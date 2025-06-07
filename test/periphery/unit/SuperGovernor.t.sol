@@ -604,6 +604,140 @@ contract SuperGovernorTest is Helpers {
     }
 
     // =============================================================
+    // Superform Strategist Management Tests
+    // =============================================================
+
+    /// @notice Tests adding a superform strategist
+    function test_SuperformStrategist_AddStrategist() public {
+        vm.prank(governor);
+        vm.expectEmit(true, false, false, false);
+        emit ISuperGovernor.SuperformStrategistAdded(newStrategist);
+        superGovernor.addSuperformStrategist(newStrategist);
+
+        assertTrue(superGovernor.isSuperformStrategist(newStrategist), "Strategist should be added");
+
+        address[] memory strategists = superGovernor.getAllSuperformStrategists();
+        assertEq(strategists.length, 1, "Should have 1 strategist");
+        assertEq(strategists[0], newStrategist, "Strategist in list should match");
+    }
+
+    /// @notice Tests reverting when adding a strategist with zero address
+    function test_SuperformStrategist_Revert_ZeroAddress() public {
+        vm.prank(governor);
+        vm.expectRevert(ISuperGovernor.INVALID_ADDRESS.selector);
+        superGovernor.addSuperformStrategist(address(0));
+    }
+
+    /// @notice Tests reverting when adding an already registered strategist
+    function test_SuperformStrategist_Revert_AlreadyRegistered() public {
+        // Add strategist first
+        vm.prank(governor);
+        superGovernor.addSuperformStrategist(newStrategist);
+
+        // Try to add again
+        vm.prank(governor);
+        vm.expectRevert(ISuperGovernor.STRATEGIST_ALREADY_REGISTERED.selector);
+        superGovernor.addSuperformStrategist(newStrategist);
+    }
+
+    /// @notice Tests removing a superform strategist
+    function test_SuperformStrategist_RemoveStrategist() public {
+        // Add strategist first
+        vm.prank(governor);
+        superGovernor.addSuperformStrategist(newStrategist);
+
+        // Remove strategist
+        vm.prank(governor);
+        vm.expectEmit(true, false, false, false);
+        emit ISuperGovernor.SuperformStrategistRemoved(newStrategist);
+        superGovernor.removeSuperformStrategist(newStrategist);
+
+        assertFalse(superGovernor.isSuperformStrategist(newStrategist), "Strategist should be removed");
+
+        address[] memory strategists = superGovernor.getAllSuperformStrategists();
+        assertEq(strategists.length, 0, "Should have 0 strategists");
+    }
+
+    /// @notice Tests reverting when removing a non-existent strategist
+    function test_SuperformStrategist_Revert_NotRegistered() public {
+        vm.prank(governor);
+        vm.expectRevert(ISuperGovernor.STRATEGIST_NOT_REGISTERED.selector);
+        superGovernor.removeSuperformStrategist(newStrategist);
+    }
+
+    /// @notice Tests paginated retrieval of strategists with various scenarios
+    function test_SuperformStrategist_GetStrategistsPaginated() public {
+        // Create additional strategist addresses for testing
+        address strategist1 = _deployAccount(0x10, "Strategist1");
+        address strategist2 = _deployAccount(0x11, "Strategist2");
+        address strategist3 = _deployAccount(0x12, "Strategist3");
+        address strategist4 = _deployAccount(0x13, "Strategist4");
+        address strategist5 = _deployAccount(0x14, "Strategist5");
+
+        // Test with no strategists
+        (address[] memory chunk, uint256 next) = superGovernor.getStrategistsPaginated(0, 10);
+        assertEq(chunk.length, 0, "Should return empty array when no strategists");
+        assertEq(next, 0, "Next cursor should be 0 when no strategists");
+
+        // Add 5 strategists
+        vm.startPrank(governor);
+        superGovernor.addSuperformStrategist(strategist1);
+        superGovernor.addSuperformStrategist(strategist2);
+        superGovernor.addSuperformStrategist(strategist3);
+        superGovernor.addSuperformStrategist(strategist4);
+        superGovernor.addSuperformStrategist(strategist5);
+        vm.stopPrank();
+
+        // Test getting first 3 strategists
+        (chunk, next) = superGovernor.getStrategistsPaginated(0, 3);
+        assertEq(chunk.length, 3, "Should return 3 strategists");
+        assertEq(next, 3, "Next cursor should be 3");
+
+        // Verify the strategists are in the expected order (note: EnumerableSet doesn't guarantee order)
+        assertTrue(_addressInArray(chunk, strategist1), "strategist1 should be in chunk");
+        assertTrue(_addressInArray(chunk, strategist2), "strategist2 should be in chunk");
+        assertTrue(_addressInArray(chunk, strategist3), "strategist3 should be in chunk");
+
+        // Test getting next 2 strategists
+        (chunk, next) = superGovernor.getStrategistsPaginated(3, 3);
+        assertEq(chunk.length, 2, "Should return 2 remaining strategists");
+        assertEq(next, 0, "Next cursor should be 0 when reached end");
+
+        assertTrue(_addressInArray(chunk, strategist4), "strategist4 should be in chunk");
+        assertTrue(_addressInArray(chunk, strategist5), "strategist5 should be in chunk");
+
+        // Test limit larger than remaining items
+        (chunk, next) = superGovernor.getStrategistsPaginated(0, 10);
+        assertEq(chunk.length, 5, "Should return all 5 strategists when limit > total");
+        assertEq(next, 0, "Next cursor should be 0 when all items returned");
+
+        // Test cursor at the end
+        (chunk, next) = superGovernor.getStrategistsPaginated(5, 3);
+        assertEq(chunk.length, 0, "Should return empty array when cursor at end");
+        assertEq(next, 0, "Next cursor should be 0 when cursor at end");
+
+        // Test getting single strategist
+        (chunk, next) = superGovernor.getStrategistsPaginated(1, 1);
+        assertEq(chunk.length, 1, "Should return 1 strategist");
+        assertEq(next, 2, "Next cursor should be 2");
+
+        // Test edge case: cursor beyond end
+        (chunk, next) = superGovernor.getStrategistsPaginated(10, 3);
+        assertEq(chunk.length, 0, "Should return empty array when cursor beyond end");
+        assertEq(next, 0, "Next cursor should be 0 when cursor beyond end");
+    }
+
+    /// @notice Helper function to check if an address is in an array
+    function _addressInArray(address[] memory array, address target) internal pure returns (bool) {
+        for (uint256 i = 0; i < array.length; i++) {
+            if (array[i] == target) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // =============================================================
     // SuperBank Hook Merkle Root Tests
     // =============================================================
 
