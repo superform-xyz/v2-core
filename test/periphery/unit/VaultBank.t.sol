@@ -1528,4 +1528,62 @@ contract VaultBankTest is Helpers {
         vaultBankSp.burn(address(this), 100 ether);
         assertEq(vaultBankSp.balanceOf(address(this)), 0);
     }
+
+    function test_transferSuperPositionOwnership_OnlyBankManager() public {
+        // Test that only bank manager can call this function
+        VaultBankSuperPosition testSP = new VaultBankSuperPosition("TestSP", "TSP", 18);
+        address newOwner = address(0x9999);
+
+        // Verify current owner
+        assertEq(testSP.owner(), address(this), "Initial owner should be test contract");
+
+        // Try calling from non-bank manager (should fail)
+        vm.startPrank(user);
+        vm.expectRevert(IVaultBank.INVALID_BANK_MANAGER.selector);
+        vaultBank.transferSuperPositionOwnership(address(testSP), newOwner);
+        vm.stopPrank();
+
+        // Verify ownership hasn't changed
+        assertEq(testSP.owner(), address(this), "Owner should not have changed");
+    }
+
+    function test_transferSuperPositionOwnership_Success() public {
+        // Test successful ownership transfer by bank manager
+        address mockToken = address(0x9ABC);
+        uint64 mockChainId = 6;
+        string memory name = "New Token";
+        string memory symbol = "NTKN";
+        uint8 decimals = 18;
+
+        address testSP = vaultBank.exposed_retrieveSuperPosition(mockChainId, mockToken, name, symbol, decimals);
+        address newOwner = address(0x9999);
+
+        // Call from bank manager (address(this) has BANK_MANAGER_ROLE)
+        vaultBank.transferSuperPositionOwnership(address(testSP), newOwner);
+
+        vm.prank(newOwner);
+        VaultBankSuperPosition(testSP).acceptOwnership();
+
+        // Verify ownership has changed
+        assertEq(VaultBankSuperPosition(testSP).owner(), newOwner, "Owner should have changed to new owner");
+    }
+
+    function test_transferSuperPositionOwnership_ZeroAddress() public {
+        // Test with zero address as new owner
+        VaultBankSuperPosition testSP = new VaultBankSuperPosition("TestSP", "TSP", 18);
+
+        // This should revert due to OpenZeppelin's Ownable constraints
+        vm.expectRevert();
+        vaultBank.transferSuperPositionOwnership(address(testSP), address(0));
+    }
+
+    function test_transferSuperPositionOwnership_InvalidSuperPosition() public {
+        // Test with invalid super position address
+        address invalidSP = address(0x1111);
+        address newOwner = address(0x9999);
+
+        // This should revert when trying to call transferOwnership on a non-contract
+        vm.expectRevert();
+        vaultBank.transferSuperPositionOwnership(invalidSP, newOwner);
+    }
 }
