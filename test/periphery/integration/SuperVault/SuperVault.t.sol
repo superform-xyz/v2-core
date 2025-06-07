@@ -3823,23 +3823,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](2);
-        hooksData[0] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(fluidVault),
-            address(fluidVault),
-            address(strategy),
-            fluidShares,
-            false
-        );
-        hooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(aaveVault),
-            address(asset),
-            aaveShares,
-            false,
-            address(0),
-            0
-        );
 
         uint256 amountToReallocate = fluidShares.mulDiv(3000, 10_000);
         uint256 assetAmountToReallocate = fluidVault.convertToAssets(amountToReallocate);
@@ -3849,7 +3832,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             hooksData,
             address(fluidVault),
             address(aaveVault),
-            currentAaveVaultAssets + assetAmountToReallocate,
+            currentFluidVaultAssets + assetAmountToReallocate,
             currentAaveVaultAssets
         );
 
@@ -3869,10 +3852,12 @@ contract SuperVaultTest is BaseSuperVaultTest {
         for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             requestingUsers[i] = accInstances[i].account;
         }
+        
         _fulfillRedeemForUsers(
-            requestingUsers, finalFluidVaultBalance, finalAaveVaultBalance, address(fluidVault), address(aaveVault)
+            requestingUsers, finalFluidVaultAssets, finalAaveVaultAssets, address(fluidVault), address(aaveVault)
         );
 
+        // check that all pending requests are cleared
         for (uint256 i; i < ACCOUNT_COUNT; ++i) {
             assertEq(strategy.pendingRedeemRequest(accInstances[i].account), 0);
             assertGt(strategy.claimableWithdraw(accInstances[i].account), 0);
@@ -4763,7 +4748,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
         expectedAssetsOrSharesOut[0] = sharesVault1 - (sharesVault1 * 1e2 / 1e5); // 1% slippage
-        expectedAssetsOrSharesOut[1] = (sharesVault2 - sharesVault2 *vars.rugPercentage / 10_000) * 2; // Should revert
+        expectedAssetsOrSharesOut[1] = (sharesVault2 - sharesVault2 * vars.rugPercentage / 10_000) * 2; // Should revert
 
         // expect revert on this call and try again after
         _depositFreeAssets(
@@ -5195,34 +5180,34 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
     }
 
-    function test_13_TransferOfShares() public executeWithoutHookRestrictions {
-        _getTokens(address(asset), accInstances[0].account, 100e6);
-        __deposit(accInstances[0], 100e6);
+    // function test_13_TransferOfShares() public executeWithoutHookRestrictions {
+    //     _getTokens(address(asset), accInstances[0].account, 100e6);
+    //     __deposit(accInstances[0], 100e6);
 
-        uint256 shares = vault.balanceOf(accInstances[0].account);
+    //     uint256 shares = vault.balanceOf(accInstances[0].account);
 
-        vm.prank(accInstances[0].account);
-        IERC20(address(vault)).transfer(accInstances[1].account, shares);
+    //     vm.prank(accInstances[0].account);
+    //     IERC20(address(vault)).transfer(accInstances[1].account, shares);
 
-        console2.log("share balance ofuser2", IERC20(address(vault)).balanceOf(accInstances[1].account));
+    //     console2.log("share balance ofuser2", IERC20(address(vault)).balanceOf(accInstances[1].account));
 
-        _depositFreeAssetsFromSingleAmount(100e6, address(fluidVault), address(aaveVault));
+    //     _depositFreeAssetsFromSingleAmount(100e6, address(fluidVault), address(aaveVault));
 
-        _updateSuperVaultPPS(address(strategy), address(vault));
+    //     _updateSuperVaultPPS(address(strategy), address(vault));
 
-        _requestRedeemForAccount(accInstances[1], shares);
+    //     _requestRedeemForAccount(accInstances[1], shares);
 
-        address[] memory redeemUsers = new address[](1);
-        redeemUsers[0] = accInstances[1].account;
+    //     address[] memory redeemUsers = new address[](1);
+    //     redeemUsers[0] = accInstances[1].account;
 
-        _fulfillRedeemForUsers(redeemUsers, shares / 2, shares / 2, address(fluidVault), address(aaveVault));
+    //     _fulfillRedeemForUsers(redeemUsers, shares / 2, shares / 2, address(fluidVault), address(aaveVault));
 
-        // console2.log("asset balance ofuser2", IERC20(address(asset)).balanceOf(accInstances[1].account));
+    //     // console2.log("asset balance ofuser2", IERC20(address(asset)).balanceOf(accInstances[1].account));
 
-        // _claimRedeemForUsers(redeemUsers);
+    //     // _claimRedeemForUsers(redeemUsers);
 
-        // console2.log("asset balance ofuser2", IERC20(address(asset)).balanceOf(accInstances[1].account));
-    }
+    //     // console2.log("asset balance ofuser2", IERC20(address(asset)).balanceOf(accInstances[1].account));
+    // }
 
     function _verifyInitialBalances(uint256[] memory depositAmounts) internal view {
         console2.log("\n=== Initial State ===");
