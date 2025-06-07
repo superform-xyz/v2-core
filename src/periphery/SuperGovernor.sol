@@ -746,8 +746,9 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
                 && block.timestamp < _proposedWhitelistedIncentiveTokensEffectiveTime
         ) revert TIMELOCK_NOT_EXPIRED();
 
+        address token;
         for (uint256 i; i < _proposedWhitelistedIncentiveTokens.length(); i++) {
-            address token = _proposedWhitelistedIncentiveTokens.at(i);
+            token = _proposedWhitelistedIncentiveTokens.at(i);
 
             _isWhitelistedIncentiveToken[token] = true;
             emit WhitelistedIncentiveTokensAdded(_proposedWhitelistedIncentiveTokens.values());
@@ -783,8 +784,9 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
                 && block.timestamp < _proposedWhitelistedIncentiveTokensEffectiveTime
         ) revert TIMELOCK_NOT_EXPIRED();
 
+        address token;
         for (uint256 i; i < _proposedRemoveWhitelistedIncentiveTokens.length(); i++) {
-            address token = _proposedRemoveWhitelistedIncentiveTokens.at(i);
+            token = _proposedRemoveWhitelistedIncentiveTokens.at(i);
             if (_isWhitelistedIncentiveToken[token]) {
                 _isWhitelistedIncentiveToken[token] = false;
 
