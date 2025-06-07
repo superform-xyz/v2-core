@@ -154,7 +154,7 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 INTERNAL METHODS
+                          INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _getMerkleRootForHook(address hookAddress) internal view override returns (bytes32) {
         return SUPER_GOVERNOR.getVaultBankHookMerkleRoot(hookAddress);

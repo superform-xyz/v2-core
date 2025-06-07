@@ -33,7 +33,6 @@ contract VaultBankSuperPosition is ERC20, Ownable2Step {
     /// @notice Mint tokens to the specified address
     /// @param to_ The address to mint tokens to
     /// @param amount_ The amount of tokens to mint
-
     function mint(address to_, uint256 amount_) external onlyOwner {
         _mint(to_, amount_);
     }
