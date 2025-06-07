@@ -5195,6 +5195,35 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
     }
 
+    function test_13_TransferOfShares() public executeWithoutHookRestrictions {
+        _getTokens(address(asset), accInstances[0].account, 100e6);
+        __deposit(accInstances[0], 100e6);
+
+        uint256 shares = vault.balanceOf(accInstances[0].account);
+
+        vm.prank(accInstances[0].account);
+        IERC20(address(vault)).transfer(accInstances[1].account, shares);
+
+        console2.log("share balance ofuser2", IERC20(address(vault)).balanceOf(accInstances[1].account));
+
+        _depositFreeAssetsFromSingleAmount(100e6, address(fluidVault), address(aaveVault));
+
+        _updateSuperVaultPPS(address(strategy), address(vault));
+
+        _requestRedeemForAccount(accInstances[1], shares);
+
+        address[] memory redeemUsers = new address[](1);
+        redeemUsers[0] = accInstances[1].account;
+
+        _fulfillRedeemForUsers(redeemUsers, shares / 2, shares / 2, address(fluidVault), address(aaveVault));
+
+        // console2.log("asset balance ofuser2", IERC20(address(asset)).balanceOf(accInstances[1].account));
+
+        // _claimRedeemForUsers(redeemUsers);
+
+        // console2.log("asset balance ofuser2", IERC20(address(asset)).balanceOf(accInstances[1].account));
+    }
+
     function _verifyInitialBalances(uint256[] memory depositAmounts) internal view {
         console2.log("\n=== Initial State ===");
         uint256 totalAssets = vault.totalAssets();
