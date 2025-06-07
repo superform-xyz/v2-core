@@ -66,7 +66,8 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     mapping(address token => bool isWhitelisted) private _isWhitelistedIncentiveToken;
     EnumerableSet.AddressSet private _proposedWhitelistedIncentiveTokens;
     EnumerableSet.AddressSet private _proposedRemoveWhitelistedIncentiveTokens;
-    uint256 private _proposedWhitelistedIncentiveTokensEffectiveTime;
+    uint256 private _proposedAddWhitelistedIncentiveTokensEffectiveTime;
+    uint256 private _proposedRemoveWhitelistedIncentiveTokensEffectiveTime;
 
     // Fee management
     // Current fee values
@@ -732,18 +733,18 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
             _proposedWhitelistedIncentiveTokens.add(tokens[i]);
         }
 
-        _proposedWhitelistedIncentiveTokensEffectiveTime = block.timestamp + TIMELOCK;
+        _proposedAddWhitelistedIncentiveTokensEffectiveTime = block.timestamp + TIMELOCK;
 
         emit WhitelistedIncentiveTokensProposed(
-            _proposedWhitelistedIncentiveTokens.values(), _proposedWhitelistedIncentiveTokensEffectiveTime
+            _proposedWhitelistedIncentiveTokens.values(), _proposedAddWhitelistedIncentiveTokensEffectiveTime
         );
     }
 
     /// @inheritdoc ISuperGovernor
     function executeAddIncentiveTokens() external {
         if (
-            _proposedWhitelistedIncentiveTokensEffectiveTime != 0
-                && block.timestamp < _proposedWhitelistedIncentiveTokensEffectiveTime
+            _proposedAddWhitelistedIncentiveTokensEffectiveTime != 0
+                && block.timestamp < _proposedAddWhitelistedIncentiveTokensEffectiveTime
         ) revert TIMELOCK_NOT_EXPIRED();
 
         address token;
@@ -758,7 +759,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         }
 
         // Reset proposal timestamp
-        _proposedWhitelistedIncentiveTokensEffectiveTime = 0;
+        _proposedAddWhitelistedIncentiveTokensEffectiveTime = 0;
     }
 
     /// @inheritdoc ISuperGovernor
@@ -770,18 +771,18 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
             _proposedRemoveWhitelistedIncentiveTokens.add(tokens[i]);
         }
 
-        _proposedWhitelistedIncentiveTokensEffectiveTime = block.timestamp + TIMELOCK;
+        _proposedRemoveWhitelistedIncentiveTokensEffectiveTime = block.timestamp + TIMELOCK;
 
         emit WhitelistedIncentiveTokensProposed(
-            _proposedRemoveWhitelistedIncentiveTokens.values(), _proposedWhitelistedIncentiveTokensEffectiveTime
+            _proposedRemoveWhitelistedIncentiveTokens.values(), _proposedRemoveWhitelistedIncentiveTokensEffectiveTime
         );
     }
 
     /// @inheritdoc ISuperGovernor
     function executeRemoveIncentiveTokens() external {
         if (
-            _proposedWhitelistedIncentiveTokensEffectiveTime != 0
-                && block.timestamp < _proposedWhitelistedIncentiveTokensEffectiveTime
+            _proposedRemoveWhitelistedIncentiveTokensEffectiveTime != 0
+                && block.timestamp < _proposedRemoveWhitelistedIncentiveTokensEffectiveTime
         ) revert TIMELOCK_NOT_EXPIRED();
 
         address token;
@@ -797,7 +798,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         }
 
         // Reset proposal timestamp
-        _proposedWhitelistedIncentiveTokensEffectiveTime = 0;
+        _proposedRemoveWhitelistedIncentiveTokensEffectiveTime = 0;
     }
 
     /*//////////////////////////////////////////////////////////////
