@@ -396,7 +396,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         shares = assets.mulDiv(PRECISION, averageWithdrawPrice, Math.Rounding.Floor);
 
         // Take assets from strategy
-        strategy.handleOperation(owner, assets, shares, ISuperVaultStrategy.Operation.ClaimRedeem);
+        strategy.handleOperation(receiver, assets, shares, ISuperVaultStrategy.Operation.ClaimRedeem);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
@@ -425,7 +425,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Take assets from strategy
-        strategy.handleOperation(owner, assets, shares, ISuperVaultStrategy.Operation.ClaimRedeem);
+        strategy.handleOperation(receiver, assets, shares, ISuperVaultStrategy.Operation.ClaimRedeem);
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
