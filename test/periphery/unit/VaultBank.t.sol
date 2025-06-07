@@ -16,7 +16,7 @@ import { MockHookTarget } from "../../mocks/MockHookTarget.sol";
 import { IHookExecutionData } from "../../../src/periphery/interfaces/IHookExecutionData.sol";
 import { SuperGovernor } from "../../../src/periphery/SuperGovernor.sol";
 import { MockCrossL2ProverV2 } from "../../mocks/MockCrossL2ProverV2.sol";
-
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "forge-std/console.sol";
 
 contract TestVaultBank is VaultBank {
@@ -483,6 +483,60 @@ contract VaultBankTest is Helpers {
             "Total locked amount after unlock incorrect"
         );
     }
+
+    // function test_unlockAsset_Success_WithSP_Transfer() public {
+    //     uint256 lockAmount = 100 ether;
+    //     token.mint(user, lockAmount);
+
+    //     vm.startPrank(user1);
+    //     token.approve(address(vaultBank), lockAmount);
+    //     vm.stopPrank();
+
+    //     vaultBank.lockAsset(user1, address(token), lockAmount, DST_CHAIN_ID);
+
+    //     assertEq(token.balanceOf(user1), 0, "Initial user balance incorrect");
+    //     assertEq(token.balanceOf(address(vaultBank)), lockAmount, "Initial vault balance incorrect");
+    //     assertEq(
+    //         vaultBank.viewLockedAmount(address(token), DST_CHAIN_ID),
+    //         lockAmount,
+    //         "Initial locked amount incorrect"
+    //     );
+
+    //     vm.startPrank(user1);
+    //     IERC20(0x4f81992FCe2E1846dD528eC0102e6eE1f61ed3e2).transfer(user2, lockAmount);
+    //     vm.stopPrank();
+
+    //     uint256 unlockAmount = lockAmount / 2;
+    //     mockProver.setEmittingContract(address(vaultBank));
+    //     mockProver.mockSuperpositionsBurnedEvent(
+    //         user2, address(token), unlockAmount, CURRENT_CHAIN_ID, 0, uint32(DST_CHAIN_ID)
+    //     );
+
+    //     uint256 expectedNonce = vaultBank.nonces(CURRENT_CHAIN_ID);
+
+    //     vm.expectEmit(true, true, false, true);
+    //     emit IVaultBankSource.SharesUnlocked(
+    //         user2, address(token), unlockAmount, CURRENT_CHAIN_ID, DST_CHAIN_ID, expectedNonce
+    //     );
+
+    //     bytes memory mockProof = new bytes(0);
+
+    //     vaultBank.unlockAsset(user2, address(token), unlockAmount, DST_CHAIN_ID, mockProof);
+
+    //     assertEq(vaultBank.nonces(CURRENT_CHAIN_ID), expectedNonce + 1, "Nonce not incremented");
+    //     assertEq(token.balanceOf(user2), unlockAmount, "User balance after unlock incorrect");
+    //     assertEq(token.balanceOf(address(vaultBank)), lockAmount - unlockAmount, "Vault balance after unlock incorrect");
+    //     assertEq(
+    //         vaultBank.viewLockedAmount(address(token), DST_CHAIN_ID),
+    //         lockAmount - unlockAmount,
+    //         "Locked amount after unlock incorrect"
+    //     );
+    //     assertEq(
+    //         vaultBank.viewTotalLockedAsset(address(token)),
+    //         lockAmount - unlockAmount,
+    //         "Total locked amount after unlock incorrect"
+    //     );
+    // }
 
     function test_distributeSuperPosition_InvalidProofEmitter() public {
         address account = address(0xaCC1000000000000000000000000000000000001);
