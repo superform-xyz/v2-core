@@ -365,7 +365,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         onlyRole(_GOVERNOR_ROLE)
     {
         address oracle = _addressRegistry[SUPER_ORACLE];
-        if(oracle == address(0)) revert CONTRACT_NOT_FOUND();
+        if (oracle == address(0)) revert CONTRACT_NOT_FOUND();
 
         ISuperOracle(oracle).batchSetEmergencyPrice(tokens_, prices_);
     }
@@ -741,7 +741,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
 
     /// @inheritdoc ISuperGovernor
     function executeAddIncentiveTokens() external {
-        if (block.timestamp < _proposedWhitelistedIncentiveTokensEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+        if (
+            _proposedWhitelistedIncentiveTokensEffectiveTime != 0
+                && block.timestamp < _proposedWhitelistedIncentiveTokensEffectiveTime
+        ) revert TIMELOCK_NOT_EXPIRED();
 
         for (uint256 i; i < _proposedWhitelistedIncentiveTokens.length(); i++) {
             address token = _proposedWhitelistedIncentiveTokens.at(i);
