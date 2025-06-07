@@ -351,6 +351,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function setEmergencyPrice(address token_, uint256 price_) external onlyRole(_GOVERNOR_ROLE) {
         address oracle = _addressRegistry[SUPER_ORACLE];
+        if (oracle == address(0)) revert CONTRACT_NOT_FOUND();
 
         ISuperOracle(oracle).setEmergencyPrice(token_, price_);
     }
@@ -365,6 +366,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     {
         address oracle = _addressRegistry[SUPER_ORACLE];
         if(oracle == address(0)) revert CONTRACT_NOT_FOUND();
+
         ISuperOracle(oracle).batchSetEmergencyPrice(tokens_, prices_);
     }
 
