@@ -778,7 +778,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
 
     /// @inheritdoc ISuperGovernor
     function executeRemoveIncentiveTokens() external {
-        if (block.timestamp < _proposedWhitelistedIncentiveTokensEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+        if (
+            _proposedWhitelistedIncentiveTokensEffectiveTime != 0
+                && block.timestamp < _proposedWhitelistedIncentiveTokensEffectiveTime
+        ) revert TIMELOCK_NOT_EXPIRED();
 
         for (uint256 i; i < _proposedRemoveWhitelistedIncentiveTokens.length(); i++) {
             address token = _proposedRemoveWhitelistedIncentiveTokens.at(i);
@@ -786,10 +789,9 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
                 _isWhitelistedIncentiveToken[token] = false;
 
                 emit WhitelistedIncentiveTokensRemoved(_proposedWhitelistedIncentiveTokens.values());
-
-                // Remove from proposed whitelisted tokens to be removed
-                _proposedRemoveWhitelistedIncentiveTokens.remove(token);
             }
+            // Remove from proposed whitelisted tokens to be removed
+            _proposedRemoveWhitelistedIncentiveTokens.remove(token);
         }
 
         // Reset proposal timestamp
