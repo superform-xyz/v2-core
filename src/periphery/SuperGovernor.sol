@@ -745,10 +745,8 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
 
         for (uint256 i; i < _proposedWhitelistedIncentiveTokens.length(); i++) {
             address token = _proposedWhitelistedIncentiveTokens.at(i);
-            if (!_proposedWhitelistedIncentiveTokens.contains(token)) revert NOT_PROPOSED_INCENTIVE_TOKEN();
 
             _isWhitelistedIncentiveToken[token] = true;
-
             emit WhitelistedIncentiveTokensAdded(_proposedWhitelistedIncentiveTokens.values());
 
             // Remove from proposed whitelisted tokens
