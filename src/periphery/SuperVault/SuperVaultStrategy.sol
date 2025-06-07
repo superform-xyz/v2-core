@@ -420,6 +420,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         }
         vars.hookContract.postExecute(prevHook, address(this), hookCalldata);
 
+        uint256 actualOutput = ISuperHookResult(hook).outAmount();
+        if (actualOutput == 0) revert ZERO_OUTPUT_AMOUNT();
+
+        uint256 minExpectedOut = expectedAssetsOrSharesOut * (BPS_PRECISION - _getSlippageTolerance()) / BPS_PRECISION;
+        if (actualOutput < minExpectedOut) {
+            revert MINIMUM_OUTPUT_AMOUNT_ASSETS_NOT_MET();
+        }
+
         emit HookExecuted(hook, prevHook, vars.targetedYieldSource, usePrevHookAmount, hookCalldata);
 
         return hook;
