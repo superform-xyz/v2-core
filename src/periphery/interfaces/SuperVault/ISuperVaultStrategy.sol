@@ -256,6 +256,14 @@ interface ISuperVaultStrategy {
     /// @param amount The amount of assets to withdraw (for action 3)
     function manageEmergencyWithdraw(uint8 action, address recipient, uint256 amount) external;
 
+     /*//////////////////////////////////////////////////////////////
+                        ACCOUNTING MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Update the controller for the given state
+    /// @param controller The new controller address
+    /// @param state The super vault state
+    function updateSuperVaultState(address controller, SuperVaultState memory state) external;
+
     /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -283,6 +291,11 @@ interface ISuperVaultStrategy {
     /// @param controller The controller address
     /// @return averageWithdrawPrice The average withdraw price
     function getAverageWithdrawPrice(address controller) external view returns (uint256 averageWithdrawPrice);
+
+    /// @notice Get the super vault state for a controller
+    /// @param controller The controller address
+    /// @return state The super vault state
+    function getSuperVaultState(address controller) external view returns (SuperVaultState memory state);
 
     /// @notice Previews the fee that would be taken for redeeming a specific amount of shares
     /// @param controller The address of the controller requesting the redemption

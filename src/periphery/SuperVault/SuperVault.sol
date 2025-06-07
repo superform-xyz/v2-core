@@ -128,6 +128,13 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         return vaultSymbol;
     }
 
+    function transfer(address to, uint256 value) public override(IERC20, ERC20) returns (bool) {
+        ISuperVaultStrategy.SuperVaultState memory state = strategy.getSuperVaultState(msg.sender);
+        strategy.updateSuperVaultState(to, state);
+        
+        return super.transfer(to, value);
+    }
+
     /*//////////////////////////////////////////////////////////////
                         USER EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
