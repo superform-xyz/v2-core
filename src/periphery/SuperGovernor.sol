@@ -364,6 +364,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         onlyRole(_GOVERNOR_ROLE)
     {
         address oracle = _addressRegistry[SUPER_ORACLE];
+        if(oracle == address(0)) revert CONTRACT_NOT_FOUND();
         ISuperOracle(oracle).batchSetEmergencyPrice(tokens_, prices_);
     }
 
