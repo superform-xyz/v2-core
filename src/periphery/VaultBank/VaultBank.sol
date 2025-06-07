@@ -9,6 +9,7 @@ import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.so
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 // Superform
+import { VaultBankSuperPosition } from "./VaultBankSuperPosition.sol";
 import { IVaultBank, IVaultBankSource } from "../interfaces/VaultBank/IVaultBank.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { VaultBankDestination } from "./VaultBankDestination.sol";
@@ -140,6 +141,16 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         emit SuperpositionsBurned(
             msg.sender, spAddress_, _spAssetsInfo[spAddress_].spToToken[forChainId_], amount_, forChainId_, _nonce
         );
+    }
+
+    function transferSuperPositionOwnership(
+        address superPos,
+        address newOwner
+    )
+        external
+        onlyBankManager
+    {
+        VaultBankSuperPosition(superPos).transferOwnership(newOwner);
     }
 
     /*//////////////////////////////////////////////////////////////

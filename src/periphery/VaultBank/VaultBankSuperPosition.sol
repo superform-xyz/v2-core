@@ -12,7 +12,11 @@ contract VaultBankSuperPosition is ERC20, Ownable2Step {
     uint8 private _decimals;
 
     /// @dev `msg.sender` is VaultBank
-    constructor(string memory name, string memory symbol, uint8 decimals_) ERC20(name, symbol) Ownable(msg.sender) {
+    constructor(
+        string memory name,
+        string memory symbol,
+        uint8 decimals_
+    ) ERC20(name, symbol) Ownable(msg.sender) {
         _decimals = decimals_;
     }
 
