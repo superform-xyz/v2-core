@@ -94,20 +94,20 @@ contract UpDistributorTest is Test, MerkleReader {
 
     function test_RevertWhen_ClaimingWithInvalidProof() public {
         vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSignature("InvalidMerkleProof()"));
+        vm.expectRevert(abi.encodeWithSignature("INVALID_MERKLE_PROOF()"));
         distributor.claim(CLAIM_AMOUNT, merkleProof2);
     }
 
     function test_RevertWhen_ClaimingWithInvalidAmount() public {
         vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSignature("InvalidMerkleProof()"));
+        vm.expectRevert(abi.encodeWithSignature("INVALID_MERKLE_PROOF()"));
         distributor.claim(CLAIM_AMOUNT + 1, merkleProof1);
     }
 
     function test_RevertWhen_ClaimingAlreadyClaimed() public {
         vm.startPrank(user1);
         distributor.claim(CLAIM_AMOUNT, merkleProof1);
-        vm.expectRevert(abi.encodeWithSignature("AlreadyClaimed()"));
+        vm.expectRevert(abi.encodeWithSignature("ALREADY_CLAIMED()"));
         distributor.claim(CLAIM_AMOUNT, merkleProof1);
         vm.stopPrank();
     }
@@ -120,20 +120,20 @@ contract UpDistributorTest is Test, MerkleReader {
 
     function test_RevertWhen_ClaimingOnBehalfWithInvalidProof() public {
         vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSignature("InvalidMerkleProof()"));
+        vm.expectRevert(abi.encodeWithSignature("INVALID_MERKLE_PROOF()"));
         distributor.claimOnBehalf(user1, CLAIM_AMOUNT, merkleProof2);
     }
 
     function test_RevertWhen_ClaimingOnBehalfWithInvalidAmount() public {
         vm.prank(user1);
-        vm.expectRevert(abi.encodeWithSignature("InvalidMerkleProof()"));
+        vm.expectRevert(abi.encodeWithSignature("INVALID_MERKLE_PROOF()"));
         distributor.claimOnBehalf(user1, CLAIM_AMOUNT + 1, merkleProof1);
     }
 
     function test_RevertWhen_ClaimingOnBehalfAlreadyClaimed() public {
         vm.startPrank(user1);
         distributor.claimOnBehalf(user1, CLAIM_AMOUNT, merkleProof1);
-        vm.expectRevert(abi.encodeWithSignature("AlreadyClaimed()"));
+        vm.expectRevert(abi.encodeWithSignature("ALREADY_CLAIMED()"));
         distributor.claimOnBehalf(user1, CLAIM_AMOUNT, merkleProof1);
         vm.stopPrank();
     }
@@ -161,7 +161,7 @@ contract UpDistributorTest is Test, MerkleReader {
 
     function test_RevertWhen_ReclaimingInsufficientBalance() public {
         uint256 balance = UpToken.balanceOf(address(distributor));
-        vm.expectRevert(abi.encodeWithSignature("NoTokensToReclaim()"));
+        vm.expectRevert(abi.encodeWithSignature("NO_TOKENS_TO_RECLAIM()"));
         distributor.reclaimTokens(balance + 1);
     }
 

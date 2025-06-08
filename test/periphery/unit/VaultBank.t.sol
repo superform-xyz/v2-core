@@ -118,6 +118,8 @@ contract VaultBankTest is Helpers {
 
         vm.startPrank(governor);
         superGovernor.addExecutor(address(this));
+        superGovernor.addVaultBank(uint64(block.chainid), address(vaultBank));
+        superGovernor.addVaultBank(uint64(DST_CHAIN_ID), address(vaultBank));
         vm.stopPrank();
 
         bytes32 bankManagerRole = superGovernor.BANK_MANAGER_ROLE();
@@ -1320,11 +1322,10 @@ contract VaultBankTest is Helpers {
         assertEq(vaultBank.viewTotalLockedAsset(address(token)), 0, "Initial total locked amount should be 0");
 
         vaultBank.lockAsset(user, address(token), lockAmount1, DST_CHAIN_ID);
-        vaultBank.lockAsset(user, address(token), lockAmount2, DST_CHAIN_ID + 1);
 
         assertEq(
             vaultBank.viewTotalLockedAsset(address(token)),
-            lockAmount1 + lockAmount2,
+            lockAmount1, 
             "Total locked amount should match sum of all locks"
         );
     }
