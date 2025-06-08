@@ -92,7 +92,10 @@ import { StakingYieldSourceOracle } from "../src/core/accounting/oracles/Staking
 import { SuperOracle } from "../src/periphery/oracles/SuperOracle.sol";
 
 // SuperVault
-import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { SuperAssetRegistry } from "../src/periphery/SuperVault/SuperAssetRegistry.sol";
+import { SuperVaultFactory } from "../src/periphery/SuperVault/SuperVaultFactory.sol";
+import { HookFactory } from "../src/periphery/SuperVault/HookFactory.sol";
+import { SuperVaultAggregatorV2 } from "../src/periphery/SuperVault/SuperVaultAggregatorV2.sol";
 import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
@@ -124,7 +127,10 @@ contract DeployV2 is Script, Configuration {
         address mockValidatorModule;
         address oracleRegistry;
         address superGovernor;
-        address superVaultAggregator;
+        address superAssetRegistry;
+        address superVaultFactory;
+        address hookFactory;
+        address superVaultAggregatorV2;
         address superMerkleValidator;
         address superDestinationValidator;
         address superNativePaymaster;
@@ -372,13 +378,54 @@ contract DeployV2 is Script, Configuration {
             )
         );
 
-        // Deploy SuperVaultAggregator
-        deployedContracts.superVaultAggregator = __deployContract(
+        // Deploy SuperAssetRegistry (takes only superGovernor)
+        deployedContracts.superAssetRegistry = __deployContract(
             deployer,
-            SUPER_VAULT_AGGREGATOR_KEY,
+            SUPER_ASSET_REGISTRY_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_VAULT_AGGREGATOR_KEY),
-            abi.encodePacked(type(SuperVaultAggregator).creationCode, abi.encode(deployedContracts.superGovernor))
+            __getSalt(configuration.owner, configuration.deployer, SUPER_ASSET_REGISTRY_KEY),
+            abi.encodePacked(type(SuperAssetRegistry).creationCode, abi.encode(deployedContracts.superGovernor))
+        );
+
+        // Deploy SuperVaultFactory (takes superGovernor and superAssetRegistry)
+        deployedContracts.superVaultFactory = __deployContract(
+            deployer,
+            SUPER_VAULT_FACTORY_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_VAULT_FACTORY_KEY),
+            abi.encodePacked(
+                type(SuperVaultFactory).creationCode,
+                abi.encode(deployedContracts.superGovernor, deployedContracts.superAssetRegistry)
+            )
+        );
+
+        // Deploy HookFactory (takes superGovernor and superAssetRegistry)
+        deployedContracts.hookFactory = __deployContract(
+            deployer,
+            HOOK_FACTORY_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, HOOK_FACTORY_KEY),
+            abi.encodePacked(
+                type(HookFactory).creationCode,
+                abi.encode(deployedContracts.superGovernor, deployedContracts.superAssetRegistry)
+            )
+        );
+
+        // Deploy SuperVaultAggregatorV2 (takes all four addresses)
+        deployedContracts.superVaultAggregatorV2 = __deployContract(
+            deployer,
+            SUPER_VAULT_AGGREGATOR_V2_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, SUPER_VAULT_AGGREGATOR_V2_KEY),
+            abi.encodePacked(
+                type(SuperVaultAggregatorV2).creationCode,
+                abi.encode(
+                    deployedContracts.superGovernor,
+                    deployedContracts.superVaultFactory,
+                    deployedContracts.hookFactory,
+                    deployedContracts.superAssetRegistry
+                )
+            )
         );
 
         deployedContracts.ecdsappsOracle = __deployContract(
@@ -423,7 +470,7 @@ contract DeployV2 is Script, Configuration {
         HookAddresses memory hookAddresses = _deployHooks(deployer, chainId);
 
         _registerHooks(hookAddresses, SuperGovernor(deployedContracts.superGovernor));
-        _configureGovernor(SuperGovernor(deployedContracts.superGovernor), deployedContracts.superVaultAggregator);
+        _configureGovernor(SuperGovernor(deployedContracts.superGovernor), deployedContracts.superVaultAggregatorV2);
         // Deploy Oracles
         _deployOracles(deployer, chainId);
 
