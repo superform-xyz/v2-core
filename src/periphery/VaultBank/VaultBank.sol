@@ -185,7 +185,9 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         (uint32 chainId, address emittingContract, bytes memory topics, bytes memory unindexedData) =
             ICrossL2ProverV2(SUPER_GOVERNOR.getProver()).validateEvent(proof);
 
-        if (emittingContract != address(this)) revert INVALID_PROOF_EMITTER();
+        address vaultBank = SUPER_GOVERNOR.getVaultBank(uint64(fromChainId));
+
+        if (emittingContract != vaultBank) revert INVALID_PROOF_EMITTER();
 
         _validateSPTopics(token, topics);
         _validateSPData(amount, fromChainId, chainId, unindexedData);
@@ -236,7 +238,10 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
             ICrossL2ProverV2(SUPER_GOVERNOR.getProver()).validateEvent(proof);
 
         if (uint64(chainId) != fromChainId) revert INVALID_PROOF_CHAIN();
-        if (emittingContract != address(this)) revert INVALID_PROOF_EMITTER();
+
+        address vaultBank = SUPER_GOVERNOR.getVaultBank(uint64(fromChainId));
+
+        if (emittingContract != vaultBank) revert INVALID_PROOF_EMITTER();
 
         _validateUnlockTopics(token, topics);
         _validateUnlockData(amount, fromChainId, unindexedData);
