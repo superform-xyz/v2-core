@@ -110,6 +110,7 @@ interface IVaultBank is IHookExecutionData {
     error INVALID_PROOF_ACCOUNT();
     error INVALID_PROOF_EMITTER();
     error INVALID_PROOF_SOURCE_CHAIN();
+    error INVALID_VAULT_BANK_ADDRESS();
     error INVALID_PROOF_TARGETED_CHAIN();
 
     /*//////////////////////////////////////////////////////////////

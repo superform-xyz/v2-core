@@ -62,6 +62,10 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
     // ------------------ SOURCE VAULTBANK METHODS ------------------
     /// @inheritdoc IVaultBank
     function lockAsset(address account, address token, uint256 amount, uint64 toChainId) external onlyExecutor {
+        address vaultBank = SUPER_GOVERNOR.getVaultBank(toChainId);
+
+        if (vaultBank == address(0)) revert INVALID_VAULT_BANK_ADDRESS();
+
         uint256 _nonce = nonces[toChainId];
         nonces[toChainId]++;
         _lockAssetForChain(account, token, amount, toChainId, _nonce);
