@@ -368,7 +368,7 @@ interface ISuperGovernor is IAccessControl {
     function batchSetEmergencyPrices(address[] calldata tokens_, uint256[] calldata prices_) external;
 
     /*//////////////////////////////////////////////////////////////
-                                  HOOK MANAGEMENT
+                          HOOK MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @notice Registers a hook for use in SuperVaults
     /// @param hook The address of the hook to register
@@ -669,6 +669,23 @@ interface ISuperGovernor is IAccessControl {
     /// @notice Gets the list of all superform strategists
     /// @return strategists The list of all superform strategist addresses
     function getAllSuperformStrategists() external view returns (address[] memory);
+
+    /// @notice Returns up to `limit` superform strategists starting from `cursor`
+    /// @param cursor The index to start reading from (0 … len-1)
+    /// @param limit The maximum number of records to return
+    /// @return chunkOfStrategists The array slice [cursor … cursor+limit-1]
+    /// @return next The next cursor value the caller should use, or 0 to indicate done
+    function getStrategistsPaginated(
+        uint256 cursor,
+        uint256 limit
+    )
+        external
+        view
+        returns (address[] memory chunkOfStrategists, uint256 next);
+
+    /// @notice Gets the number of superform strategists
+    /// @return The number of superform strategists
+    function getSuperformStrategistsCount() external view returns (uint256);
 
     /// @notice Gets the SUP ID
     /// @return The ID of the SUP token

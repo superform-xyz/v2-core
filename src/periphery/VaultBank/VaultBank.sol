@@ -9,6 +9,7 @@ import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.so
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 // Superform
+import { VaultBankSuperPosition } from "./VaultBankSuperPosition.sol";
 import { IVaultBank, IVaultBankSource } from "../interfaces/VaultBank/IVaultBank.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { VaultBankDestination } from "./VaultBankDestination.sol";
@@ -27,8 +28,8 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
     //////////////////////////////////////////////////////////////*/
     ISuperGovernor public immutable SUPER_GOVERNOR;
 
-    mapping(address account => mapping(uint64 toChainId => uint256 nonce)) public nonces;
-    mapping(address account => mapping(uint64 fromChainId => mapping(uint256 nonce => bool isUsed))) public noncesUsed;
+    mapping(uint64 toChainId => uint256 nonce) public nonces;
+    mapping(uint64 fromChainId => mapping(uint256 nonce => bool isUsed)) public noncesUsed;
 
     constructor(address governor_) {
         if (governor_ == address(0)) revert INVALID_VALUE();
@@ -61,8 +62,8 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
     // ------------------ SOURCE VAULTBANK METHODS ------------------
     /// @inheritdoc IVaultBank
     function lockAsset(address account, address token, uint256 amount, uint64 toChainId) external onlyExecutor {
-        uint256 _nonce = nonces[account][toChainId];
-        nonces[account][toChainId]++;
+        uint256 _nonce = nonces[toChainId];
+        nonces[toChainId]++;
         _lockAssetForChain(account, token, amount, toChainId, _nonce);
     }
 
@@ -77,11 +78,11 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         external
     {
         // validate and mark `proof.nonce[fromChainId]` as used
-        _validateUnlockAssetProof(account, token, amount, fromChainId, proof);
+        _validateUnlockAssetProof(token, amount, fromChainId, proof);
 
         //`toChainId` is current chain
-        uint256 _nonce = nonces[account][uint64(_chainId)];
-        nonces[account][uint64(_chainId)]++;
+        uint256 _nonce = nonces[uint64(_chainId)];
+        nonces[uint64(_chainId)]++;
         _releaseAssetFromChain(account, token, amount, fromChainId, _nonce);
     }
 
@@ -118,14 +119,14 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         onlyRelayer
     {
         // validate and mark `proof.nonce[sourceAsset_.chainId]` as used
-        _validateDistributeSPProof(account_, sourceAsset_.asset, amount_, sourceAsset_.chainId, proof_);
+        _validateDistributeSPProof(sourceAsset_.asset, amount_, sourceAsset_.chainId, proof_);
 
         address spAddress = _retrieveSuperPosition(
             sourceAsset_.chainId, sourceAsset_.asset, sourceAsset_.name, sourceAsset_.symbol, sourceAsset_.decimals
         );
         _mintSP(account_, spAddress, amount_);
 
-        nonces[account_][uint64(_chainId)]++;
+        nonces[uint64(_chainId)]++;
 
         emit SuperpositionsMinted(
             account_, spAddress, sourceAsset_.asset, amount_, sourceAsset_.chainId, _extractNonce(proof_)
@@ -135,15 +136,25 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
     /// @inheritdoc IVaultBank
     function burnSuperPosition(uint256 amount_, address spAddress_, uint64 forChainId_) external override {
         _burnSP(msg.sender, spAddress_, amount_);
-        uint256 _nonce = nonces[msg.sender][forChainId_];
-        nonces[msg.sender][forChainId_]++;
+        uint256 _nonce = nonces[forChainId_];
+        nonces[forChainId_]++;
         emit SuperpositionsBurned(
             msg.sender, spAddress_, _spAssetsInfo[spAddress_].spToToken[forChainId_], amount_, forChainId_, _nonce
         );
     }
 
+    function transferSuperPositionOwnership(
+        address superPos,
+        address newOwner
+    )
+        external
+        onlyBankManager
+    {
+        VaultBankSuperPosition(superPos).transferOwnership(newOwner);
+    }
+
     /*//////////////////////////////////////////////////////////////
-                                 INTERNAL METHODS
+                          INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _getMerkleRootForHook(address hookAddress) internal view override returns (bytes32) {
         return SUPER_GOVERNOR.getVaultBankHookMerkleRoot(hookAddress);
@@ -164,7 +175,6 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
     }
 
     function _validateDistributeSPProof(
-        address account,
         address token,
         uint256 amount,
         uint64 fromChainId,
@@ -177,8 +187,8 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
 
         if (emittingContract != address(this)) revert INVALID_PROOF_EMITTER();
 
-        _validateSPTopics(account, token, topics);
-        _validateSPData(account, amount, fromChainId, chainId, unindexedData);
+        _validateSPTopics(token, topics);
+        _validateSPData(amount, fromChainId, chainId, unindexedData);
     }
 
     function _extractNonce(bytes calldata proof_) internal view returns (uint256) {
@@ -188,18 +198,15 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         return eventNonce;
     }
 
-    function _validateSPTopics(address account, address token, bytes memory topics) private pure {
+    function _validateSPTopics(address token, bytes memory topics) private pure {
         bytes32 eventSelector = topics.toBytes32(0); // event signature
-        bytes32 eventAccount = topics.toBytes32(32); // account
         bytes32 eventSrcTokenAddress = topics.toBytes32(96); // srcTokenAddress
 
         if (eventSelector != IVaultBankSource.SharesLocked.selector) revert INVALID_PROOF_EVENT();
-        if (eventAccount != keccak256(abi.encodePacked(account))) revert INVALID_PROOF_ACCOUNT();
         if (eventSrcTokenAddress != keccak256(abi.encodePacked(token))) revert INVALID_PROOF_TOKEN();
     }
 
     function _validateSPData(
-        address account,
         uint256 amount,
         uint64 fromChainId,
         uint32 chainId,
@@ -213,12 +220,11 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         if (eventAmount != amount) revert INVALID_PROOF_AMOUNT();
         if (eventSrcChainId != fromChainId || uint64(chainId) != fromChainId) revert INVALID_PROOF_SOURCE_CHAIN();
         if (eventDstChainId != _chainId) revert INVALID_PROOF_TARGETED_CHAIN();
-        if (noncesUsed[account][fromChainId][eventNonce]) revert NONCE_ALREADY_USED();
-        noncesUsed[account][fromChainId][eventNonce] = true;
+        if (noncesUsed[fromChainId][eventNonce]) revert NONCE_ALREADY_USED();
+        noncesUsed[fromChainId][eventNonce] = true;
     }
 
     function _validateUnlockAssetProof(
-        address account,
         address token,
         uint256 amount,
         uint64 fromChainId,
@@ -232,18 +238,16 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         if (uint64(chainId) != fromChainId) revert INVALID_PROOF_CHAIN();
         if (emittingContract != address(this)) revert INVALID_PROOF_EMITTER();
 
-        _validateUnlockTopics(account, token, topics);
-        _validateUnlockData(account, amount, fromChainId, unindexedData);
+        _validateUnlockTopics(token, topics);
+        _validateUnlockData(amount, fromChainId, unindexedData);
     }
 
-    function _validateUnlockTopics(address account, address token, bytes memory topics) private pure {
+    function _validateUnlockTopics(address token, bytes memory topics) private pure {
         if (topics.toBytes32(0) != IVaultBank.SuperpositionsBurned.selector) revert INVALID_PROOF_EVENT();
-        if (topics.toBytes32(32) != keccak256(abi.encodePacked(account))) revert INVALID_PROOF_ACCOUNT();
         if (topics.toBytes32(96) != keccak256(abi.encodePacked(token))) revert INVALID_PROOF_TOKEN();
     }
 
     function _validateUnlockData(
-        address account,
         uint256 amount,
         uint64 fromChainId,
         bytes memory unindexedData
@@ -255,7 +259,7 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
 
         if (eventAmount != amount) revert INVALID_PROOF_AMOUNT();
         if (eventChainId != _chainId) revert INVALID_PROOF_TARGETED_CHAIN();
-        if (noncesUsed[account][fromChainId][eventNonce]) revert NONCE_ALREADY_USED();
-        noncesUsed[account][fromChainId][eventNonce] = true;
+        if (noncesUsed[fromChainId][eventNonce]) revert NONCE_ALREADY_USED();
+        noncesUsed[fromChainId][eventNonce] = true;
     }
 }

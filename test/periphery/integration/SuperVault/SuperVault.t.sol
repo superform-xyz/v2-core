@@ -18,7 +18,7 @@ import { SuperVaultEscrow } from "../../../../src/periphery/SuperVault/SuperVaul
 import { SuperVaultStrategy } from "../../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
 import { ISuperVaultEscrow } from "../../../../src/periphery/interfaces/SuperVault/ISuperVaultEscrow.sol";
 import { ISuperVaultAggregator } from "../../../../src/periphery/interfaces/SuperVault/ISuperVaultAggregator.sol";
-import { IERC7540Redeem, IERC7741 } from "../../../../src/vendor/standards/ERC7540/IERC7540Vault.sol";
+import { IERC7540Redeem, IERC7741} from "../../../../src/vendor/standards/ERC7540/IERC7540Vault.sol";
 import { ISuperVaultStrategy } from "../../../../src/periphery/interfaces/SuperVault/ISuperVaultStrategy.sol";
 import { ERC7540YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { ISuperLedger } from "../../../../src/core/interfaces/accounting/ISuperLedger.sol";
@@ -2894,6 +2894,33 @@ contract SuperVaultTest is BaseSuperVaultTest {
         assertApproxEqRel(
             vars.finalTotalValue, vars.initialTotalValue, 0.01e18, "Total value should be preserved during allocation"
         );
+    }
+
+    function test_13_TransferOfShares() public executeWithoutHookRestrictions {
+        _getTokens(address(asset), accInstances[0].account, 100e6);
+        __deposit(accInstances[0], 100e6);
+
+        uint256 shares = vault.balanceOf(accInstances[0].account);
+
+        vm.prank(accInstances[0].account);
+        IERC20(address(vault)).transfer(accInstances[1].account, shares);
+
+        console2.log("share balance ofuser2", IERC20(address(vault)).balanceOf(accInstances[1].account));
+
+        _depositFreeAssetsFromSingleAmount(100e6, address(fluidVault), address(aaveVault));
+
+        _updateSuperVaultPPS(address(strategy), address(vault));
+
+        _requestRedeemForAccount(accInstances[1], shares);
+
+        address[] memory redeemUsers = new address[](1);
+        redeemUsers[0] = accInstances[1].account;
+
+        _fulfillRedeemForUsers(redeemUsers, shares / 2, shares / 2, address(fluidVault), address(aaveVault));
+
+        assertGt(IERC7540Redeem(address(vault)).claimableRedeemRequest(0, accInstances[1].account), 0);
+        assertEq(IERC7540Redeem(address(vault)).pendingRedeemRequest(0, accInstances[1].account), 0);
+        assertEq(vault.balanceOf(accInstances[1].account), 0);
     }
 
     function _rebalanceFromAaveToFluid(

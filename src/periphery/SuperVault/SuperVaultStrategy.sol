@@ -266,6 +266,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        ACCOUNTING MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperVaultStrategy
+    function updateSuperVaultState(address controller, SuperVaultState memory state) external {
+        _requireVault();
+        superVaultState[controller] = state;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -289,6 +298,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     // @inheritdoc ISuperVaultStrategy
     function getStoredPPS() public view returns (uint256) {
         return _getSuperVaultAggregator().getPPS(address(this));
+    }
+
+    // @inheritdoc ISuperVaultStrategy
+    function getSuperVaultState(address controller) external view returns (SuperVaultState memory state) {
+        return superVaultState[controller];
     }
 
     // @inheritdoc ISuperVaultStrategy
