@@ -322,6 +322,8 @@ contract SuperExecutor_sameChainFlow is
 
         amount = _bound(amount);
 
+        superGovernor.addVaultBank(8453, address(vaultBank));
+
         _getTokens(underlying, testAccount, amount);
 
         address[] memory hooksAddresses = new address[](2);
