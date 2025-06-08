@@ -113,7 +113,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
 
         // Get ECDSA Oracle
         ecdsappsOracle = IECDSAPPSOracle(_getContract(ETH, ECDSAPPS_ORACLE_KEY));
-        
+
         superGovernor.proposeActivePPSOracle(address(ecdsappsOracle));
         vm.warp(block.timestamp + 7 days);
         superGovernor.executeActivePPSOracleChange();
