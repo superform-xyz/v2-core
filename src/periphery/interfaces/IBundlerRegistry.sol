@@ -3,6 +3,26 @@ pragma solidity 0.8.30;
 
 interface IBundlerRegistry {
     /*//////////////////////////////////////////////////////////////
+                                ERRORS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Thrown when the bundler address is invalid
+    error INVALID_BUNDLER_ADDRESS();
+    /// @notice Thrown when the bundler is already registered
+    error BUNDLER_ALREADY_REGISTERED();
+
+    /*//////////////////////////////////////////////////////////////
+                                EVENTS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Emitted when a bundler is registered
+    event BundlerRegistered(uint256 indexed id, address indexed bundler);
+    /// @notice Emitted when the address of a bundler is updated
+    event BundlerAddressUpdated(uint256 indexed id, address indexed oldBundler, address indexed newBundler);
+    /// @notice Emitted when the extra data of a bundler is updated
+    event BundlerExtraDataUpdated(uint256 indexed id, address indexed bundler, bytes extraData);
+    /// @notice Emitted when the status of a bundler is changed
+    event BundlerStatusChanged(uint256 indexed id, address indexed bundler, bool isActive);
+
+    /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
     struct Bundler {
@@ -11,14 +31,6 @@ interface IBundlerRegistry {
         bool isActive; //whether the bundler is active
         bytes extraData; //extra data for off-chain use
     }
-
-    /*//////////////////////////////////////////////////////////////
-                                EVENTS
-    //////////////////////////////////////////////////////////////*/
-    event BundlerRegistered(uint256 indexed id, address indexed bundler);
-    event BundlerAddressUpdated(uint256 indexed id, address indexed oldBundler, address indexed newBundler);
-    event BundlerExtraDataUpdated(uint256 indexed id, address indexed bundler, bytes extraData);
-    event BundlerStatusChanged(uint256 indexed id, address indexed bundler, bool isActive);
 
     /*//////////////////////////////////////////////////////////////
                                 VIEW FUNCTIONS

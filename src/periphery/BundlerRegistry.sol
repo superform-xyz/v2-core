@@ -9,9 +9,6 @@ contract BundlerRegistry is IBundlerRegistry, Ownable2Step {
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
-    error InvalidBundlerAddress();
-    error BundlerAlreadyRegistered();
-
     mapping(address bundlerAddress => Bundler bundlerData) public bundlers;
     mapping(uint256 bundlerId => address bundlerAddress) public bundlerIds;
 
@@ -48,8 +45,8 @@ contract BundlerRegistry is IBundlerRegistry, Ownable2Step {
     /// @param _extraData Extra data for off-chain use
     function registerBundler(address bundlerAddress, bytes calldata _extraData) external onlyOwner {
         // Input validation
-        if (bundlerAddress == address(0)) revert InvalidBundlerAddress();
-        if (bundlers[bundlerAddress].bundlerAddress != address(0)) revert BundlerAlreadyRegistered();
+        if (bundlerAddress == address(0)) revert INVALID_BUNDLER_ADDRESS();
+        if (bundlers[bundlerAddress].bundlerAddress != address(0)) revert BUNDLER_ALREADY_REGISTERED();
 
         IBundlerRegistry.Bundler memory bundler = IBundlerRegistry.Bundler({
             id: uint256(keccak256(abi.encodePacked(bundlerAddress, _extraData, block.timestamp, block.chainid))),
