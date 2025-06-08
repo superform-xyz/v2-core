@@ -220,14 +220,14 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     /// @param feeAmount The amount of native tokens to transfer as a fee
     function _performNativeFeeTransfer(address account, address feeRecipient, uint256 feeAmount) internal virtual {
         // Record balance before transfer to verify successful execution
-        uint256 balanceBefore = feeRecipient.balance;
+        uint256 balanceBefore = account.balance;
 
         // Execute the native token transfer from the account to the fee recipient
         _execute(account, feeRecipient, feeAmount, "");
 
         // Verify the transfer was successful (exact amount requirement for native tokens)
-        uint256 balanceAfter = feeRecipient.balance;
-        if (balanceAfter - balanceBefore != feeAmount) revert FEE_NOT_TRANSFERRED();
+        uint256 balanceAfter = account.balance;
+        if (balanceBefore - balanceAfter < feeAmount) revert FEE_NOT_TRANSFERRED();
     }
 
     /// @notice Processes a single hook through its complete lifecycle
