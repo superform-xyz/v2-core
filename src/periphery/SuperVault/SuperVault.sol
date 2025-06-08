@@ -138,7 +138,6 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     /*//////////////////////////////////////////////////////////////
                         USER EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc IERC4626
     function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256 shares) {
         if (receiver == address(0)) revert ZERO_ADDRESS();
@@ -262,6 +261,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
 
     //--ERC7540--
 
+    /// @inheritdoc IERC7540Redeem
     function pendingRedeemRequest(
         uint256, /*requestId*/
         address controller
@@ -273,6 +273,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         return strategy.pendingRedeemRequest(controller);
     }
 
+    /// @inheritdoc IERC7540Redeem
     function claimableRedeemRequest(
         uint256, /*requestId*/
         address controller
@@ -481,11 +482,13 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
+    /// @notice Validates that the controller is the msg.sender or has been authorized by the controller
+    /// @param controller The controller to validate
     function _validateController(address controller) internal view {
         if (controller != msg.sender && !isOperator[controller][msg.sender]) revert INVALID_CONTROLLER();
     }
 
+    /// @notice Calculates the EIP712 domain separator
     function _calculateDomainSeparator() internal view returns (bytes32) {
         return keccak256(
             abi.encode(
@@ -499,6 +502,9 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     }
 
     /// @notice Verify an EIP712 signature using OpenZeppelin's ECDSA library
+    /// @param signer The signer to verify
+    /// @param digest The digest to verify
+    /// @param signature The signature to verify
     function _isValidSignature(address signer, bytes32 digest, bytes memory signature) internal pure returns (bool) {
         address recoveredSigner = ECDSA.recover(digest, signature);
         return recoveredSigner == signer;
