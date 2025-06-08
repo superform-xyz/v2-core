@@ -41,6 +41,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     // SuperBank Hook Target validation
     mapping(address hook => ISuperGovernor.HookMerkleRootData merkleData) private superBankHooksMerkleRoots;
 
+    // VaultBank registry
+    EnumerableSet.AddressSet private _vaultBanks;
+    mapping(uint64 chainId => address vaultBank) private _vaultBanksByChainId;
+
     // VaultBank Hook Target validation
     mapping(address hook => ISuperGovernor.HookMerkleRootData merkleData) private vaultBankHooksMerkleRoots;
 
@@ -107,6 +111,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bytes32 public constant UP = keccak256("UP");
     bytes32 public constant SUP = keccak256("SUP");
     bytes32 public constant TREASURY = keccak256("TREASURY");
+    bytes32 public constant VAULT_BANK = keccak256("VAULT_BANK");
     bytes32 public constant SUPER_BANK = keccak256("SUPER_BANK");
     bytes32 public constant SUPER_ORACLE = keccak256("SUPER_ORACLE");
     bytes32 public constant BANK_MANAGER = keccak256("BANK_MANAGER");
@@ -583,7 +588,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                      UPKEEP COST MANAGEMENT
+                        UPKEEP COST MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
     function proposeUpkeepCostPerUpdate(uint256 newCost_) external onlyRole(_SUPER_GOVERNOR_ROLE) {
@@ -629,7 +634,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        SUPERFORM STRATEGIST MANAGEMENT
+                      SUPERFORM STRATEGIST MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
     function addSuperformStrategist(address strategist) external onlyRole(_GOVERNOR_ROLE) {
@@ -721,6 +726,29 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         data.effectiveTime = 0;
 
         emit SuperBankHookMerkleRootUpdated(hook, proposedRoot);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        VAULT BANK MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperGovernor
+    function addVaultBank(uint64 chainId, address vaultBank) external onlyRole(_GOVERNOR_ROLE) {
+        if (chainId == 0) revert INVALID_CHAIN_ID();
+        if (vaultBank == address(0)) revert INVALID_ADDRESS();
+
+        if (_vaultBanksByChainId[chainId] != address(0)) {
+            _vaultBanks.remove(_vaultBanksByChainId[chainId]);
+        }
+
+        _vaultBanks.add(vaultBank);
+        _vaultBanksByChainId[chainId] = vaultBank;
+
+        emit VaultBankAddressAdded(chainId, vaultBank);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getVaultBank(uint64 chainId) external view returns (address) {
+        return _vaultBanksByChainId[chainId];
     }
 
     /*//////////////////////////////////////////////////////////////

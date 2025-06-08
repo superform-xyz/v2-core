@@ -40,6 +40,8 @@ interface ISuperGovernor is IAccessControl {
     error CONTRACT_NOT_FOUND();
     /// @notice Thrown when providing an invalid address (typically zero address)
     error INVALID_ADDRESS();
+    /// @notice Thrown when providing an invalid chain ID
+    error INVALID_CHAIN_ID();
     /// @notice Thrown when a hook is already approved
     error HOOK_ALREADY_APPROVED();
     /// @notice Thrown when a hook is not approved but expected to be
@@ -211,6 +213,11 @@ interface ISuperGovernor is IAccessControl {
     /// @notice Emitted when a relayer is removed
     /// @param relayer The address of the removed relayer
     event RelayerRemoved(address indexed relayer);
+
+    /// @notice Emitted when a vault bank is added
+    /// @param chainId The chain ID of the added vault bank
+    /// @param vaultBank The address of the added vault bank
+    event VaultBankAddressAdded(uint64 indexed chainId, address indexed vaultBank);
 
     /// @notice Emitted when an executor is added
     /// @param executor The address of the added executor
@@ -392,7 +399,7 @@ interface ISuperGovernor is IAccessControl {
     function removeExecutor(address executor) external;
 
     /*//////////////////////////////////////////////////////////////
-                      RELAYER MANAGEMENT
+                        RELAYER MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @notice Adds a relayer to the approved list
     /// @param relayer The address of the relayer to add
@@ -497,6 +504,14 @@ interface ISuperGovernor is IAccessControl {
     function executeSuperBankHookMerkleRootUpdate(address hook) external;
 
     /*//////////////////////////////////////////////////////////////
+                        VAULT BANK MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Adds a vault bank address for a specific chain ID
+    /// @param chainId The chain ID to add the vault bank for
+    /// @param vaultBank The address of the vault bank to add
+    function addVaultBank(uint64 chainId, address vaultBank) external;
+
+    /*//////////////////////////////////////////////////////////////
                         INCENTIVE TOKEN MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @notice Proposes whitelisted incentive tokens
@@ -516,7 +531,6 @@ interface ISuperGovernor is IAccessControl {
     /*//////////////////////////////////////////////////////////////
                         EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice The identifier of the role that grants access to critical governance functions
     function SUPER_GOVERNOR_ROLE() external view returns (bytes32);
 
@@ -540,6 +554,11 @@ interface ISuperGovernor is IAccessControl {
     /// @notice Checks if strategist takeovers are frozen
     /// @return True if strategist takeovers are frozen, false otherwise
     function isStrategistTakeoverFrozen() external view returns (bool);
+
+    /// @notice Gets the vault bank address for a specific chain ID
+    /// @param chainId The chain ID to get the vault bank for
+    /// @return The vault bank address
+    function getVaultBank(uint64 chainId) external view returns (address);
 
     /// @notice Checks if a hook is registered
     /// @param hook The address of the hook to check

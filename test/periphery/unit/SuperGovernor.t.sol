@@ -829,4 +829,126 @@ contract SuperGovernorTest is Helpers {
         vm.expectRevert(ISuperGovernor.TIMELOCK_NOT_EXPIRED.selector);
         superGovernor.executeSuperBankHookMerkleRootUpdate(hook1);
     }
+
+    // =============================================================
+    // Vault Bank Management Tests
+    // =============================================================
+
+    /// @notice Tests adding a vault bank successfully
+    function test_VaultBankManagement_AddVaultBank() public {
+        uint64 chainId = 1;
+        address vaultBank = _deployAccount(0x20, "VaultBank1");
+
+        vm.prank(governor);
+        vm.expectEmit(true, true, false, false);
+        emit ISuperGovernor.VaultBankAddressAdded(chainId, vaultBank);
+        superGovernor.addVaultBank(chainId, vaultBank);
+
+        assertEq(superGovernor.getVaultBank(chainId), vaultBank, "Vault bank address mismatch");
+    }
+
+    /// @notice Tests adding multiple vault banks for different chains
+    function test_VaultBankManagement_AddMultipleVaultBanks() public {
+        uint64 chainId1 = 1;
+        uint64 chainId2 = 137;
+        address vaultBank1 = _deployAccount(0x20, "VaultBank1");
+        address vaultBank2 = _deployAccount(0x21, "VaultBank2");
+
+        vm.startPrank(governor);
+        superGovernor.addVaultBank(chainId1, vaultBank1);
+        superGovernor.addVaultBank(chainId2, vaultBank2);
+        vm.stopPrank();
+
+        assertEq(superGovernor.getVaultBank(chainId1), vaultBank1, "Chain 1 vault bank mismatch");
+        assertEq(superGovernor.getVaultBank(chainId2), vaultBank2, "Chain 2 vault bank mismatch");
+    }
+
+    /// @notice Tests replacing an existing vault bank for the same chain
+    function test_VaultBankManagement_ReplaceVaultBank() public {
+        uint64 chainId = 1;
+        address oldVaultBank = _deployAccount(0x20, "OldVaultBank");
+        address newVaultBank = _deployAccount(0x21, "NewVaultBank");
+
+        // Add initial vault bank
+        vm.prank(governor);
+        superGovernor.addVaultBank(chainId, oldVaultBank);
+        assertEq(superGovernor.getVaultBank(chainId), oldVaultBank, "Initial vault bank not set");
+
+        // Replace with new vault bank
+        vm.prank(governor);
+        vm.expectEmit(true, true, false, false);
+        emit ISuperGovernor.VaultBankAddressAdded(chainId, newVaultBank);
+        superGovernor.addVaultBank(chainId, newVaultBank);
+
+        assertEq(superGovernor.getVaultBank(chainId), newVaultBank, "Vault bank not replaced");
+    }
+
+    /// @notice Tests access control - only GOVERNOR_ROLE can add vault banks
+    function test_VaultBankManagement_AccessControl() public {
+        uint64 chainId = 1;
+        address vaultBank = _deployAccount(0x20, "VaultBank");
+
+        // Test with user (should fail)
+        vm.prank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user, GOVERNOR_ROLE)
+        );
+        superGovernor.addVaultBank(chainId, vaultBank);
+
+        // Test with sGovernor (should fail - needs GOVERNOR_ROLE specifically)
+        vm.prank(sGovernor);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, sGovernor, GOVERNOR_ROLE)
+        );
+        superGovernor.addVaultBank(chainId, vaultBank);
+
+        // Test with governor (should succeed)
+        vm.prank(governor);
+        superGovernor.addVaultBank(chainId, vaultBank);
+        assertEq(superGovernor.getVaultBank(chainId), vaultBank, "Governor should be able to add vault bank");
+    }
+
+    /// @notice Tests reverting when adding vault bank with zero chain ID
+    function test_VaultBankManagement_Revert_ZeroChainId() public {
+        address vaultBank = _deployAccount(0x20, "VaultBank");
+
+        vm.prank(governor);
+        vm.expectRevert(ISuperGovernor.INVALID_CHAIN_ID.selector);
+        superGovernor.addVaultBank(0, vaultBank);
+    }
+
+    /// @notice Tests reverting when adding vault bank with zero address
+    function test_VaultBankManagement_Revert_ZeroVaultBankAddress() public {
+        uint64 chainId = 1;
+
+        vm.prank(governor);
+        vm.expectRevert(ISuperGovernor.INVALID_ADDRESS.selector);
+        superGovernor.addVaultBank(chainId, address(0));
+    }
+
+    /// @notice Tests getting vault bank for non-existent chain returns zero address
+    function test_VaultBankManagement_GetNonExistentVaultBank() public view {
+        uint64 nonExistentChainId = 999;
+        address result = superGovernor.getVaultBank(nonExistentChainId);
+        assertEq(result, address(0), "Non-existent vault bank should return zero address");
+    }
+
+    /// @notice Tests edge case with maximum chain ID
+    function test_VaultBankManagement_MaxChainId() public {
+        uint64 maxChainId = type(uint64).max;
+        address vaultBank = _deployAccount(0x20, "MaxChainVaultBank");
+
+        vm.prank(governor);
+        vm.expectEmit(true, true, false, false);
+        emit ISuperGovernor.VaultBankAddressAdded(maxChainId, vaultBank);
+        superGovernor.addVaultBank(maxChainId, vaultBank);
+
+        assertEq(superGovernor.getVaultBank(maxChainId), vaultBank, "Max chain ID vault bank mismatch");
+    }
+
+    // =============================================================
+    // Incentive Token Management Tests
+    // =============================================================
+
+    // ... (Rest of the existing tests remain unchanged)
 }
