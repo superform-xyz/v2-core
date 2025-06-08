@@ -634,23 +634,35 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         expectedAssetsOrSharesOut[0] = IERC4626(address(vault1)).convertToShares(allocationAmountVault1);
         expectedAssetsOrSharesOut[1] = IERC4626(address(vault2)).convertToShares(allocationAmountVault2);
 
-        vm.startPrank(STRATEGIST);
-        if (revertSelector != bytes4(0)) {
-            vm.expectRevert(revertSelector);
-        }
         bytes[] memory argsForProofs = new bytes[](2);
         argsForProofs[0] = ISuperHookInspector(fulfillHooksAddresses[0]).inspect(fulfillHooksData[0]);
         argsForProofs[1] = ISuperHookInspector(fulfillHooksAddresses[1]).inspect(fulfillHooksData[1]);
 
-        strategy.executeHooks(
-            ISuperVaultStrategy.ExecuteArgs({
-                hooks: fulfillHooksAddresses,
-                hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                globalProofs: _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs),
-                strategyProofs: new bytes32[][](2)
-            })
-        );
+        vm.startPrank(STRATEGIST);
+        bool revertExpected = revertSelector != bytes4(0);
+
+        if (revertExpected) {
+            vm.expectRevert(revertSelector);
+            strategy.executeHooks(
+                ISuperVaultStrategy.ExecuteArgs({
+                    hooks: fulfillHooksAddresses,
+                    hookCalldata: fulfillHooksData,
+                    expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                    globalProofs: _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs),
+                    strategyProofs: new bytes32[][](2)
+                })
+            );
+        } else {
+            strategy.executeHooks(
+                ISuperVaultStrategy.ExecuteArgs({
+                    hooks: fulfillHooksAddresses,
+                    hookCalldata: fulfillHooksData,
+                    expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                    globalProofs: _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs),
+                    strategyProofs: new bytes32[][](2)
+                })
+            );
+        }
         vm.stopPrank();
     }
 
@@ -691,23 +703,36 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
             0
         );
 
-        vm.startPrank(STRATEGIST);
-        if (revertSelector != bytes4(0)) {
-            vm.expectRevert(revertSelector);
-        }
         bytes[] memory argsForProofs = new bytes[](2);
         argsForProofs[0] = ISuperHookInspector(fulfillHooksAddresses[0]).inspect(fulfillHooksData[0]);
         argsForProofs[1] = ISuperHookInspector(fulfillHooksAddresses[1]).inspect(fulfillHooksData[1]);
 
-        strategy.executeHooks(
-            ISuperVaultStrategy.ExecuteArgs({
-                hooks: fulfillHooksAddresses,
-                hookCalldata: fulfillHooksData,
-                expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                globalProofs: _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs),
-                strategyProofs: new bytes32[][](2)
-            })
-        );
+        vm.startPrank(STRATEGIST);
+        bool revertExpected = revertSelector != bytes4(0);
+
+        if (revertExpected) {
+            vm.expectRevert(revertSelector);
+            strategy.executeHooks(
+                ISuperVaultStrategy.ExecuteArgs({
+                    hooks: fulfillHooksAddresses,
+                    hookCalldata: fulfillHooksData,
+                    expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                    globalProofs: _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs),
+                    strategyProofs: new bytes32[][](2)
+                })
+            );
+        } else {
+            strategy.executeHooks(
+                ISuperVaultStrategy.ExecuteArgs({
+                    hooks: fulfillHooksAddresses,
+                    hookCalldata: fulfillHooksData,
+                    expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
+                    globalProofs: _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs),
+                    strategyProofs: new bytes32[][](2)
+                })
+            );
+        }
+
         vm.stopPrank();
     }
 
@@ -863,14 +888,14 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         fulfillHooksData[1] = _createApproveAndRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), vault2, vault2, address(strategy), redeemSharesVault2, false
         );
-
+        bytes[] memory argsForProofs = new bytes[](2);
+        argsForProofs[0] = ISuperHookInspector(fulfillHooksAddresses[0]).inspect(fulfillHooksData[0]);
+        argsForProofs[1] = ISuperHookInspector(fulfillHooksAddresses[1]).inspect(fulfillHooksData[1]);
+        bytes32[][] memory proofs = _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs);
         vm.startPrank(STRATEGIST);
         if (revertSelector != bytes4(0)) {
             vm.expectRevert(revertSelector);
         }
-        bytes[] memory argsForProofs = new bytes[](2);
-        argsForProofs[0] = ISuperHookInspector(fulfillHooksAddresses[0]).inspect(fulfillHooksData[0]);
-        argsForProofs[1] = ISuperHookInspector(fulfillHooksAddresses[1]).inspect(fulfillHooksData[1]);
 
         strategy.fulfillRedeemRequests(
             ISuperVaultStrategy.FulfillArgs({
@@ -878,7 +903,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
                 hooks: fulfillHooksAddresses,
                 hookCalldata: fulfillHooksData,
                 expectedAssetsOrSharesOut: expectedAssetsOrSharesOut,
-                globalProofs: _getMerkleProofsForHooks(fulfillHooksAddresses, argsForProofs),
+                globalProofs: proofs,
                 strategyProofs: new bytes32[][](2)
             })
         );
@@ -1101,6 +1126,8 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
                             vars.sharesToRedeem,
                             false
                         );
+                        expectedAssetsOrSharesOut[hookIndex] =
+                            IERC4626(vars.sources[i]).previewRedeem(vars.sharesToRedeem);
                         argsForProofs[hookIndex] =
                             ISuperHookInspector(allHooksAddresses[hookIndex]).inspect(allHooksData[hookIndex]);
                         hookIndex++;
@@ -1117,7 +1144,7 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
                             0
                         );
                         expectedAssetsOrSharesOut[hookIndex] =
-                            IERC4626(vars.sources[i]).previewRedeem(vars.sharesToRedeem);
+                            IERC4626(vars.sources[i]).previewDeposit(vars.amountToMove);
                         argsForProofs[hookIndex] =
                             ISuperHookInspector(allHooksAddresses[hookIndex]).inspect(allHooksData[hookIndex]);
                         hookIndex++;
@@ -1404,8 +1431,8 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](2);
-        expectedAssetsOrSharesOut[0] = 0;
-        expectedAssetsOrSharesOut[1] = IERC4626(sourceVault).previewRedeem(sharesToRedeem);
+        expectedAssetsOrSharesOut[0] = IERC4626(sourceVault).previewRedeem(sharesToRedeem);
+        expectedAssetsOrSharesOut[1] = IERC4626(targetVault).previewDeposit(assetsToMove);
         bytes[] memory argsForProofs = new bytes[](2);
         argsForProofs[0] = ISuperHookInspector(hooksAddresses[0]).inspect(hooksData[0]);
         argsForProofs[1] = ISuperHookInspector(hooksAddresses[1]).inspect(hooksData[1]);

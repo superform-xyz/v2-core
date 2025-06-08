@@ -409,9 +409,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         returns (address)
     {
         ExecutionVars memory vars;
-
         vars.hookContract = ISuperHook(hook);
+
         vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
+        if (!yieldSources[vars.targetedYieldSource].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
 
         bool usePrevHookAmount = _decodeHookUsePrevHookAmount(hook, hookCalldata);
         if (usePrevHookAmount && prevHook != address(0)) {
@@ -432,6 +433,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
             if (!vars.success) revert OPERATION_FAILED();
         }
         vars.hookContract.postExecute(prevHook, address(this), hookCalldata);
+
+        uint256 actualOutput = ISuperHookResult(hook).outAmount();
+        if (actualOutput == 0) revert ZERO_OUTPUT_AMOUNT();
+
+        uint256 minExpectedOut = expectedAssetsOrSharesOut * (BPS_PRECISION - _getSlippageTolerance()) / BPS_PRECISION;
+        if (actualOutput < minExpectedOut) {
+            revert MINIMUM_OUTPUT_AMOUNT_ASSETS_NOT_MET();
+        }
 
         emit HookExecuted(hook, prevHook, vars.targetedYieldSource, usePrevHookAmount, hookCalldata);
 
@@ -457,7 +466,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         vars.hookContract = ISuperHook(hook);
         vars.hookType = ISuperHookResult(hook).hookType();
         if (vars.hookType != ISuperHook.HookType.OUTFLOW) revert INVALID_HOOK_TYPE();
+
         vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
+        if (!yieldSources[vars.targetedYieldSource].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
+
         // we must always encode supervault shares when fulfilling redemptions
         vars.superVaultShares = ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
 

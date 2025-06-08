@@ -59,6 +59,18 @@
     {
       "symbol": "GearboxVault",
       "address": "0xda00000035fef4082F78dEF6A8903bee419FbF8E"
+    },
+    {
+      "symbol": "test_10RuggableVaultOnDeposit",
+      "address": "0x4a4e6F1Efa284fc1Bbe8E895150d8F273451AE2D"
+    },
+    {
+      "symbol": "test6YA_Mock4626Vault2",
+      "address": "0x6dA8858C6B0f0945787DF5F3E153D2De1d710FaD"
+    },
+    {
+      "symbol": "test6YA_Mock4626Vault3",
+      "address": "0xb4de8C7865754c92837370DBF693C4c2AdbB447d"
     }
   ],
   "10": [
