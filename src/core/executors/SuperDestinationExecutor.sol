@@ -21,6 +21,7 @@ import {SuperExecutorBase} from "./SuperExecutorBase.sol";
 import {ISuperExecutor} from "../interfaces/ISuperExecutor.sol";
 import {ISuperDestinationExecutor} from "../interfaces/ISuperDestinationExecutor.sol";
 import {ISuperDestinationValidator} from "../interfaces/ISuperDestinationValidator.sol";
+import {BytesLib} from "../../vendor/BytesLib.sol";
 
 /// @title SuperDestinationExecutor
 /// @author Superform Labs
@@ -140,11 +141,13 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         if (usedMerkleRoots[account][merkleRoot]) revert MERKLE_ROOT_ALREADY_USED();
         usedMerkleRoots[account][merkleRoot] = true;
 
-        if (executorCalldata.length <= EMPTY_EXECUTION_LENGTH) {
+        if (_shouldSkipCalldata(executorCalldata)) {
             emit SuperDestinationExecutorReceivedButNoHooks(account);
             return;
         }
 
+        // Executor expects the default template for `executorCalldata`
+        // Check `ExecutorEntry` struct
         Execution[] memory execs = new Execution[](1);
         execs[0] = Execution({target: address(this), value: 0, callData: executorCalldata});
 
@@ -164,6 +167,12 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         } catch (bytes memory lowLevelData) {
             emit SuperDestinationExecutorFailedLowLevel(account, lowLevelData);
         }
+    }
+
+    function _shouldSkipCalldata(bytes memory executorCalldata) internal pure returns (bool) {
+        bytes4 selector = bytes4(BytesLib.slice(executorCalldata, 0, 4));
+        if (selector != ISuperExecutor.execute.selector) return true;
+        return executorCalldata.length <= EMPTY_EXECUTION_LENGTH;
     }
 
     function _validateOrCreateAccount(address account, bytes memory initData) internal returns (address) {
