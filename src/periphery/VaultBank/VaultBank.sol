@@ -147,13 +147,7 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         );
     }
 
-    function transferSuperPositionOwnership(
-        address superPos,
-        address newOwner
-    )
-        external
-        onlyBankManager
-    {
+    function transferSuperPositionOwnership(address superPos, address newOwner) external onlyBankManager {
         VaultBankSuperPosition(superPos).transferOwnership(newOwner);
     }
 
@@ -212,14 +206,7 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         if (eventSrcTokenAddress != keccak256(abi.encodePacked(token))) revert INVALID_PROOF_TOKEN();
     }
 
-    function _validateSPData(
-        uint256 amount,
-        uint64 fromChainId,
-        uint32 chainId,
-        bytes memory unindexedData
-    )
-        private
-    {
+    function _validateSPData(uint256 amount, uint64 fromChainId, uint32 chainId, bytes memory unindexedData) private {
         (uint256 eventAmount, uint64 eventSrcChainId, uint64 eventDstChainId, uint256 eventNonce) =
             abi.decode(unindexedData, (uint256, uint64, uint64, uint256));
 
@@ -256,13 +243,7 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         if (topics.toBytes32(96) != keccak256(abi.encodePacked(token))) revert INVALID_PROOF_TOKEN();
     }
 
-    function _validateUnlockData(
-        uint256 amount,
-        uint64 fromChainId,
-        bytes memory unindexedData
-    )
-        private
-    {
+    function _validateUnlockData(uint256 amount, uint64 fromChainId, bytes memory unindexedData) private {
         (uint256 eventAmount, uint64 eventChainId, uint256 eventNonce) =
             abi.decode(unindexedData, (uint256, uint64, uint256));
 
