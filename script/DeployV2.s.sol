@@ -130,7 +130,7 @@ contract DeployV2 is Script, Configuration {
         address superAssetRegistry;
         address superVaultFactory;
         address hookFactory;
-        address superVaultAggregatorV2;
+        address superVaultAggregator;
         address superMerkleValidator;
         address superDestinationValidator;
         address superNativePaymaster;
@@ -411,14 +411,14 @@ contract DeployV2 is Script, Configuration {
             )
         );
 
-        // Deploy SuperVaultAggregatorV2 (takes all four addresses)
-        deployedContracts.superVaultAggregatorV2 = __deployContract(
+        // Deploy SuperVaultAggregator (takes all four addresses)
+        deployedContracts.superVaultAggregator = __deployContract(
             deployer,
-            SUPER_VAULT_AGGREGATOR_V2_KEY,
+            SUPER_VAULT_AGGREGATOR_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_VAULT_AGGREGATOR_V2_KEY),
+            __getSalt(configuration.owner, configuration.deployer, SUPER_VAULT_AGGREGATOR_KEY),
             abi.encodePacked(
-                type(SuperVaultAggregatorV2).creationCode,
+                type(SuperVaultAggregator).creationCode,
                 abi.encode(
                     deployedContracts.superGovernor,
                     deployedContracts.superVaultFactory,
@@ -470,7 +470,7 @@ contract DeployV2 is Script, Configuration {
         HookAddresses memory hookAddresses = _deployHooks(deployer, chainId);
 
         _registerHooks(hookAddresses, SuperGovernor(deployedContracts.superGovernor));
-        _configureGovernor(SuperGovernor(deployedContracts.superGovernor), deployedContracts.superVaultAggregatorV2);
+        _configureGovernor(SuperGovernor(deployedContracts.superGovernor), deployedContracts.superVaultAggregator);
         // Deploy Oracles
         _deployOracles(deployer, chainId);
 
