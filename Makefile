@@ -18,7 +18,7 @@ build :; forge build && $(MAKE) generate
 
 ftest :; forge test
 
-ftest-vvv :; forge test --verbosity 1 --jobs 2
+ftest-vvv :; forge test -v --jobs 2
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
