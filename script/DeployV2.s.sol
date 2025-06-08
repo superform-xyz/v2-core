@@ -95,7 +95,7 @@ import { SuperOracle } from "../src/periphery/oracles/SuperOracle.sol";
 import { SuperAssetRegistry } from "../src/periphery/SuperVault/SuperAssetRegistry.sol";
 import { SuperVaultFactory } from "../src/periphery/SuperVault/SuperVaultFactory.sol";
 import { HookFactory } from "../src/periphery/SuperVault/HookFactory.sol";
-import { SuperVaultAggregatorV2 } from "../src/periphery/SuperVault/SuperVaultAggregatorV2.sol";
+import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
 import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
