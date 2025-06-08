@@ -141,7 +141,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         if (usedMerkleRoots[account][merkleRoot]) revert MERKLE_ROOT_ALREADY_USED();
         usedMerkleRoots[account][merkleRoot] = true;
 
-        if (executorCalldata.length <= EMPTY_EXECUTION_LENGTH) {
+        if (_shouldSkipCalldata(executorCalldata)) {
             emit SuperDestinationExecutorReceivedButNoHooks(account);
             return;
         }
