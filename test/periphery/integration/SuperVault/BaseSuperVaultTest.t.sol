@@ -113,6 +113,10 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
 
         // Get ECDSA Oracle
         ecdsappsOracle = IECDSAPPSOracle(_getContract(ETH, ECDSAPPS_ORACLE_KEY));
+        
+        superGovernor.proposeActivePPSOracle(address(ecdsappsOracle));
+        vm.warp(block.timestamp + 7 days);
+        superGovernor.executeActivePPSOracleChange();
 
         address fluidVaultAddr = 0x9Fb7b4477576Fe5B32be4C1843aFB1e55F251B33;
         address aaveVaultAddr = 0x73edDFa87C71ADdC275c2b9890f5c3a8480bC9E6;

@@ -34,7 +34,7 @@ contract SuperAssetRegistry is ISuperAssetRegistry {
     mapping(address strategy => uint256 maxStaleness) private _strategyMaxStaleness;
     mapping(address strategy => bool isPaused) private _strategyIsPaused;
     mapping(address strategy => address mainStrategist) private _strategyMainStrategist;
-    mapping(address strategy => EnumerableSet.AddressSet) private _strategySecondaryStrategists;
+    mapping(address strategy => EnumerableSet.AddressSet secondaryStrategists) private _strategySecondaryStrategists;
     mapping(address strategy => address[] authorizedCallers) private _strategyAuthorizedCallers;
 
     // Strategist change proposal data
@@ -56,9 +56,9 @@ contract SuperAssetRegistry is ISuperAssetRegistry {
                                MODIFIERS
     //////////////////////////////////////////////////////////////*/
     /// @notice Validates that msg.sender is the active PPS Oracle
-    modifier onlyPPSOracle() {
-        if (!SUPER_GOVERNOR.isActivePPSOracle(msg.sender)) {
-            revert UNAUTHORIZED_PPS_ORACLE();
+    modifier onlyAggregator() {
+        if (msg.sender != SUPER_GOVERNOR.getAddress(SUPER_GOVERNOR.SUPER_VAULT_AGGREGATOR())) {
+            revert CALLER_NOT_AUTHORIZED();
         }
         _;
     }
@@ -88,7 +88,7 @@ contract SuperAssetRegistry is ISuperAssetRegistry {
         ISuperVaultAggregator.ForwardPPSArgs calldata args
     )
         external
-        onlyPPSOracle
+        onlyAggregator
         validStrategy(args.strategy)
     {
         // Check if the update is exempt from paying upkeep
@@ -110,7 +110,7 @@ contract SuperAssetRegistry is ISuperAssetRegistry {
     }
 
     /// @inheritdoc ISuperAssetRegistry
-    function batchForwardPPS(ISuperVaultAggregator.BatchForwardPPSArgs calldata args) external onlyPPSOracle {
+    function batchForwardPPS(ISuperVaultAggregator.BatchForwardPPSArgs calldata args) external onlyAggregator {
         // Check array lengths
         if (
             args.strategies.length != args.ppss.length || args.strategies.length != args.ppsStdevs.length

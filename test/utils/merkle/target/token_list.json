@@ -71,6 +71,18 @@
     {
       "symbol": "test6YA_Mock4626Vault3",
       "address": "0xb4de8C7865754c92837370DBF693C4c2AdbB447d"
+    },
+    {
+      "symbol": "test_10RuggableVaultOnDeposit",
+      "address": "0xB71cfe0a1d8E5480448cE6940Fd42456a2701E7C"
+    },
+    {
+      "symbol": "test6YA_Mock4626Vault2",
+      "address": "0xeF0e819FFFB402B45EBd49eFd4d73cbEC5fE98C5"
+    },
+    {
+      "symbol": "test6YA_Mock4626Vault3",
+      "address": "0x392b7e6096419e341aeBE77166C27165e304DC5a"
     }
   ],
   "10": [
