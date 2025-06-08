@@ -7,7 +7,7 @@ import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadat
 /// @author Superform Labs
 /// @notice Library for handling ERC20 metadata operations
 library AssetMetadataLib {
-    error InvalidAsset();
+    error INVALID_ASSET();
 
     /**
      * @notice Attempts to fetch an asset's decimals
@@ -17,7 +17,7 @@ library AssetMetadataLib {
      * @return assetDecimals The token's decimals if successful, 0 otherwise
      */
     function tryGetAssetDecimals(address asset_) internal view returns (bool ok, uint8 assetDecimals) {
-        if(asset_.code.length == 0) revert InvalidAsset();
+        if(asset_.code.length == 0) revert INVALID_ASSET();
         
         (bool success, bytes memory encodedDecimals) =
             address(asset_).staticcall(abi.encodeCall(IERC20Metadata.decimals, ()));
