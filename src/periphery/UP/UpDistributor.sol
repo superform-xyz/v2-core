@@ -26,13 +26,13 @@ contract UpDistributor is Ownable2Step {
     event TokensClaimed(address indexed user, uint256 amount);
     event TokensReclaimed(uint256 amount);
 
-    error AlreadyClaimed();
-    error NoTokensToReclaim();
-    error InvalidMerkleProof();
-    error InvalidTokenAddress();
+    error ALREADY_CLAIMED();
+    error NO_TOKENS_TO_RECLAIM();
+    error INVALID_MERKLE_PROOF();
+    error INVALID_TOKEN_ADDRESS();
 
     constructor(address _token, address initialOwner) Ownable(initialOwner) {
-        if (_token == address(0)) revert InvalidTokenAddress();
+        if (_token == address(0)) revert INVALID_TOKEN_ADDRESS();
         token = IERC20(_token);
     }
 
@@ -52,11 +52,11 @@ contract UpDistributor is Ownable2Step {
      */
     function claim(uint256 amount, bytes32[] calldata merkleProof) external {
         // Verify user hasn't already claimed
-        if (hasClaimed[msg.sender]) revert AlreadyClaimed();
+        if (hasClaimed[msg.sender]) revert ALREADY_CLAIMED();
 
         // Verify the merkle proof
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(msg.sender, amount))));
-        if (!MerkleProof.verify(merkleProof, merkleRoot, leaf)) revert InvalidMerkleProof();
+        if (!MerkleProof.verify(merkleProof, merkleRoot, leaf)) revert INVALID_MERKLE_PROOF();
 
         // Mark as claimed and transfer tokens
         hasClaimed[msg.sender] = true;
@@ -79,11 +79,11 @@ contract UpDistributor is Ownable2Step {
         external
     {
         // Verify user hasn't already claimed
-        if (hasClaimed[recipient]) revert AlreadyClaimed();
+        if (hasClaimed[recipient]) revert ALREADY_CLAIMED();
 
         // Verify the merkle proof
         bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(recipient, amount))));
-        if (!MerkleProof.verify(merkleProof, merkleRoot, leaf)) revert InvalidMerkleProof();
+        if (!MerkleProof.verify(merkleProof, merkleRoot, leaf)) revert INVALID_MERKLE_PROOF();
 
         // Mark as claimed and transfer tokens
         hasClaimed[recipient] = true;
@@ -97,7 +97,7 @@ contract UpDistributor is Ownable2Step {
      */
     function reclaimTokens(uint256 amount) external onlyOwner {
         uint256 balance = token.balanceOf(address(this));
-        if (amount > balance) revert NoTokensToReclaim();
+        if (amount > balance) revert NO_TOKENS_TO_RECLAIM();
 
         emit TokensReclaimed(amount);
         token.safeTransfer(owner(), amount);
