@@ -34,7 +34,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
 
     // Governance and registry contracts
     ISuperGovernor public immutable SUPER_GOVERNOR;
-    ISuperAssetRegistry public immutable SUPER_VAULT_REGISTRY;
+    ISuperVaultRegistry public immutable SUPER_VAULT_REGISTRY;
 
     // Registry of created vaults
     EnumerableSet.AddressSet private _superVaults;
@@ -59,9 +59,9 @@ contract SuperVaultFactory is ISuperVaultFactory {
     //////////////////////////////////////////////////////////////*/
     /// @notice Initializes the SuperVaultFactory
     /// @param superGovernor_ Address of the SuperGovernor contract
-    /// @param superAssetRegistry_ Address of the SuperAssetRegistry contract
-    constructor(address superGovernor_, address superAssetRegistry_) {
-        if (superGovernor_ == address(0) || superAssetRegistry_ == address(0)) revert ZERO_ADDRESS();
+    /// @param superVaultRegistry_ Address of the SuperVaultRegistry contract
+    constructor(address superGovernor_, address superVaultRegistry_) {
+        if (superGovernor_ == address(0) || superVaultRegistry_ == address(0)) revert ZERO_ADDRESS();
 
         // Deploy implementation contracts
         VAULT_IMPLEMENTATION = address(new SuperVault());
@@ -69,7 +69,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
         ESCROW_IMPLEMENTATION = address(new SuperVaultEscrow());
 
         SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
-        SUPER_VAULT_REGISTRY = ISuperAssetRegistry(superAssetRegistry_);
+        SUPER_VAULT_REGISTRY = ISuperVaultRegistry(superVaultRegistry_);
     }
 
     /*//////////////////////////////////////////////////////////////
