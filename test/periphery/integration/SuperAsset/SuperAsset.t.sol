@@ -115,9 +115,9 @@ contract SuperAssetTest is Helpers {
         // Deploy modular SuperVault system
         SuperVaultRegistry assetRegistry = new SuperVaultRegistry(address(superGovernor));
         SuperVaultFactory vaultFactory = new SuperVaultFactory(address(superGovernor), address(assetRegistry));
-        HookRegistry HookRegistry = new HookRegistry(address(superGovernor), address(assetRegistry));
+        HookRegistry hookRegistry = new HookRegistry(address(superGovernor), address(assetRegistry));
         aggregator = new SuperVaultAggregator(
-            address(superGovernor), address(vaultFactory), address(HookRegistry), address(assetRegistry)
+            address(superGovernor), address(vaultFactory), address(hookRegistry), address(assetRegistry)
         );
         superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), address(aggregator));
 
