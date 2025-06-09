@@ -13,7 +13,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookResetExecution } from "../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 import { IVaultBank } from "../../periphery/interfaces/VaultBank/IVaultBank.sol";
 
@@ -98,6 +98,33 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     function execute(bytes calldata data) external virtual {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _execute(msg.sender, abi.decode(data, (ExecutorEntry)));
+    }
+
+    /// @notice Validates that hook follows secure execution pattern
+    function validateHookCompliance(
+        address hook,
+        address prevHook,
+        address account, 
+        bytes memory hookData
+    ) public view returns (bool) {
+        try ISuperHook(hook).build(prevHook, account, hookData) returns (Execution[] memory executions) {
+            if (executions.length < 2) return false;
+            
+            // Check FIRST execution is preExecute
+            if (executions[0].target != hook) return false;
+            bytes4 firstSelector = bytes4(executions[0].callData);
+            if (firstSelector != ISuperHook.preExecute.selector) return false;
+            
+            // Check LAST execution is postExecute
+            uint256 lastIdx = executions.length - 1;
+            if (executions[lastIdx].target != hook) return false;
+            bytes4 lastSelector = bytes4(executions[lastIdx].callData);
+            if (lastSelector != ISuperHook.postExecute.selector) return false;
+            
+            return true;
+        } catch {
+            return false;
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -251,25 +278,25 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         internal
         nonReentrant
     {
-        // Stage 1: Initialize the hook execution context
-        hook.preExecute(prevHook, account, hookData);
+        // STEP 1: Validate hook compliance
+        if (!validateHookCompliance(address(hook), prevHook, account, hookData)) {
+            revert MALICIOUS_HOOK_DETECTED();
+        }
 
-        // Stage 2: Build execution instructions
+        // STEP 2: Build and execute (dual mutexes protect pre/post)
         Execution[] memory executions = hook.build(prevHook, account, hookData);
-
-        // Stage 3: Execute the operations defined by the hook
         if (executions.length > 0) {
             _execute(account, executions);
         }
 
-        // Stage 4: Finalize and set hook outputs
-        hook.postExecute(prevHook, account, hookData);
-
-        // Stage 5: Update accounting records based on hook type
+        // STEP 3: Update accounting (both mutexes active, preventing reentrancy)
         _updateAccounting(account, address(hook), hookData);
-
-        // Stage 6: Handle cross-chain operations if needed
+        
+        // STEP 4: Handle cross-chain operations
         _checkAndLockForSuperPosition(account, address(hook));
+        
+        // STEP 5: Reset both mutexes after all processing complete
+        ISuperHookResetExecution(address(hook)).resetExecutionState();
     }
 
     /// @notice Handles cross-chain asset locking for SuperPosition minting

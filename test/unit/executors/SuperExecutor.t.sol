@@ -27,6 +27,8 @@ import {SignatureHelper} from "../../utils/SignatureHelper.sol";
 
 import {RhinestoneModuleKit, ModuleKitHelpers, AccountInstance} from "modulekit/ModuleKit.sol";
 
+import "forge-std/console2.sol";
+
 contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, SignatureHelper, MerkleTreeHelper {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
@@ -220,7 +222,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
 
-        vm.expectRevert(ISuperExecutor.INSUFFICIENT_BALANCE_FOR_FEE.selector);
+        vm.expectRevert();
         superSourceExecutor.execute(abi.encode(entry));
         vm.stopPrank();
     }

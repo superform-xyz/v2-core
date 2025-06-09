@@ -5,7 +5,7 @@ pragma solidity 0.8.30;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { ISuperHook } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResetExecution } from "../interfaces/ISuperHook.sol";
 
 /// @title BaseHook
 /// @author Superform Labs
@@ -14,7 +14,7 @@ import { ISuperHook } from "../interfaces/ISuperHook.sol";
 ///      All specialized hooks should inherit from this base contract
 ///      Implements the ISuperHook interface defined lifecycle methods
 ///      Uses a transient storage pattern for stateful execution context
-abstract contract BaseHook is ISuperHook {
+abstract contract BaseHook is ISuperHook, ISuperHookResetExecution {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -47,6 +47,12 @@ abstract contract BaseHook is ISuperHook {
     /// @dev Used primarily in bridge hooks to track target chain
     uint256 public transient dstChainId;
 
+    /// @notice PreExecute protection: false=callable, true=already_called
+    bool public transient preExecuteMutex;
+    
+    /// @notice PostExecute protection: false=callable, true=already_called  
+    bool public transient postExecuteMutex;
+
     // forgefmt: disable-end
 
     /// @notice The specific subtype identifier for this hook
@@ -76,6 +82,22 @@ abstract contract BaseHook is ISuperHook {
     /// @dev Used when validating and parsing hook-specific data parameters
     error DATA_LENGTH_INSUFFICIENT();
 
+    /// @notice Thrown when a caller is not authorized to execute hook methods
+    /// @dev Used by security validation to prevent unauthorized hook execution
+    error UNAUTHORIZED_CALLER();
+
+    /// @notice Thrown when preExecute is called more than once
+    /// @dev Used to prevent reentrancy attacks and ensure proper execution flow
+    error PRE_EXECUTE_ALREADY_CALLED();
+
+    /// @notice Thrown when postExecute is called more than once
+    /// @dev Used to prevent reentrancy attacks and ensure proper execution flow
+    error POST_EXECUTE_ALREADY_CALLED();
+
+    /// @notice Thrown when a hook execution is incomplete
+    /// @dev Used to prevent incomplete hook execution
+    error INCOMPLETE_HOOK_EXECUTION();
+
     /// @notice Initializes the hook with its type and subtype
     /// @dev Sets immutable parameters that define the hook's behavior
     /// @param hookType_ The type classification for this hook (NONACCOUNTING, INFLOW, OUTFLOW)
@@ -97,19 +119,68 @@ abstract contract BaseHook is ISuperHook {
         return lastExecutionCaller;
     }
 
+    /// @dev Standard build pattern - MUST include preExecute first, postExecute last
     /// @inheritdoc ISuperHook
-    function build(address prevHook, address account, bytes calldata data) external view virtual returns (Execution[] memory executions) {}
+    function build(
+        address prevHook,
+        address account,
+        bytes calldata hookData
+    ) external view virtual returns (Execution[] memory executions) {
+        // Get hook-specific executions
+        Execution[] memory hookExecutions = _buildHookExecutions(prevHook, account, hookData);
+        
+        // Always include pre + hook + post
+        executions = new Execution[](hookExecutions.length + 2);
+        
+        // FIRST: preExecute
+        executions[0] = Execution({
+            target: address(this),
+            value: 0,
+            callData: abi.encodeCall(this.preExecute, (prevHook, account, hookData))
+        });
+        
+        // MIDDLE: hook-specific operations
+        for (uint256 i = 0; i < hookExecutions.length; i++) {
+            executions[i + 1] = hookExecutions[i];
+        }
+        
+        // LAST: postExecute
+        executions[executions.length - 1] = Execution({
+            target: address(this),
+            value: 0,
+            callData: abi.encodeCall(this.postExecute, (prevHook, account, hookData))
+        });
+    }
+
     
     /// @inheritdoc ISuperHook
     function preExecute(address prevHook, address account, bytes calldata data) external  {
-        _validateCaller();
+        //_validateCaller();
+        if (msg.sender != account) revert UNAUTHORIZED_CALLER();
+        if (preExecuteMutex) revert PRE_EXECUTE_ALREADY_CALLED();
+
+        preExecuteMutex = true;
         _preExecute(prevHook, account, data);
     }
     
     /// @inheritdoc ISuperHook
     function postExecute(address prevHook, address account, bytes calldata data) external  {
-        _validateCaller();
+        //_validateCaller();
+        if (msg.sender != account) revert UNAUTHORIZED_CALLER();
+        if (postExecuteMutex) revert POST_EXECUTE_ALREADY_CALLED();
+        
+        postExecuteMutex = true;
         _postExecute(prevHook, account, data);
+    }
+
+    /// @inheritdoc ISuperHookResetExecution
+    function resetExecutionState() external {
+        // Validate both pre and post have been called (prevents premature reset)
+        if (!preExecuteMutex || !postExecuteMutex) revert INCOMPLETE_HOOK_EXECUTION();
+        
+        // Reset both mutexes
+        preExecuteMutex = false;
+        postExecuteMutex = false;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -123,6 +194,15 @@ abstract contract BaseHook is ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Internal implementation of build
+    /// @dev Abstract function to be implemented by derived hooks
+    ///      Called during build to generate hook-specific execution sequences
+    /// @param prevHook The previous hook in the chain, or address(0) if first hook
+    /// @param account The account that operations will be performed for
+    /// @param data Hook-specific parameters and configuration data
+    /// @return executions Array of execution objects containing target, value, and callData
+    function _buildHookExecutions(address prevHook, address account, bytes calldata data) internal view virtual returns (Execution[] memory executions);
+
     /// @notice Validates that the caller has permission to execute hook methods
     /// @dev Implements a security pattern to ensure consistent caller identity throughout execution
     ///      On first call (when lastExecutionCaller is unset), records the caller identity

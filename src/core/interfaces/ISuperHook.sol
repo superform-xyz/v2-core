@@ -20,6 +20,14 @@ import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
  *      - OUTFLOW: Hooks that process withdrawals or reductions to positions
  */
 
+/// @title ISuperHookResetExecution
+/// @author Superform Labs
+/// @notice Interface for the ISuperHookResetExecution contract that manages hook context reset
+interface ISuperHookResetExecution {
+    /// @notice Resets hook mutexes
+    function resetExecutionState() external;
+}
+
 /// @title ISuperHookInspector
 /// @author Superform Labs
 /// @notice Interface for the SuperHookInspector contract that manages hook inspection
@@ -218,7 +226,7 @@ interface ISuperHook {
     /// @param account The account to perform executions for (usually an ERC7579 account)
     /// @param data The hook-specific parameters and configuration data
     /// @return executions Array of Execution structs defining calls to make
-    function build(address prevHook, address account, bytes memory data)
+    function build(address prevHook, address account, bytes calldata data)
         external
         view
         returns (Execution[] memory executions);

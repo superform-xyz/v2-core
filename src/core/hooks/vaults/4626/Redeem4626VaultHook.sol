@@ -44,13 +44,13 @@ contract Redeem4626VaultHook is
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address account,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)

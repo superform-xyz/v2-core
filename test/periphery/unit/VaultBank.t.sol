@@ -1162,15 +1162,8 @@ contract VaultBankTest is Helpers {
             abi.encodeWithSignature("getVaultBankHookMerkleRoot(address)", address(mockHook)),
             abi.encode(merkleRoot)
         );
-
-        vm.expectEmit(true, true, true, true, address(mockHook));
-        emit MockSuperHook.PreExecuteCalled(address(0), address(vaultBank), "data1");
-
         vm.expectEmit(true, true, false, false, address(mockTarget));
         emit MockHookTarget.Executed();
-
-        vm.expectEmit(true, true, true, true, address(mockHook));
-        emit MockSuperHook.PostExecuteCalled(address(0), address(vaultBank), "data1");
 
         vm.expectEmit(true, true, true, true, address(vaultBank));
         emit Bank.HooksExecuted(hooks, data);
