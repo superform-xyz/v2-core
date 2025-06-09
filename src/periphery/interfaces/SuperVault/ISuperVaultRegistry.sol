@@ -3,10 +3,10 @@ pragma solidity 0.8.30;
 
 import { ISuperVaultAggregator } from "./ISuperVaultAggregator.sol";
 
-/// @title ISuperAssetRegistry
+/// @title ISuperVaultRegistry
 /// @author Superform Labs
 /// @notice Interface for PPS updates, strategist management, and upkeep management
-interface ISuperAssetRegistry {
+interface ISuperVaultRegistry {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
