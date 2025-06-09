@@ -6,13 +6,13 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 
 // Superform
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
-import { IHookFactory } from "../interfaces/SuperVault/IHookFactory.sol";
+import { IHookRegistry } from "../interfaces/SuperVault/IHookRegistry.sol";
 import { ISuperVaultRegistry } from "../interfaces/SuperVault/ISuperVaultRegistry.sol";
 
-/// @title HookFactory
+/// @title HookRegistry
 /// @author Superform Labs
 /// @notice Factory contract for hook validation and Merkle root management
-contract HookFactory is IHookFactory {
+contract HookRegistry is IHookRegistry {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -48,7 +48,7 @@ contract HookFactory is IHookFactory {
     /*//////////////////////////////////////////////////////////////
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    /// @notice Initializes the HookFactory
+    /// @notice Initializes the HookRegistry
     /// @param superGovernor_ Address of the SuperGovernor contract
     /// @param superVaultRegistry_ Address of the SuperVaultRegistry contract
     constructor(address superGovernor_, address superVaultRegistry_) {
@@ -61,7 +61,7 @@ contract HookFactory is IHookFactory {
     /*//////////////////////////////////////////////////////////////
                         HOOK VALIDATION FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function setHooksRootUpdateTimelock(uint256 newTimelock) external {
         // Only SUPER_GOVERNOR or the SuperVaultAggregator can update the timelock
         address aggregator = SUPER_GOVERNOR.getAddress(SUPER_GOVERNOR.SUPER_VAULT_AGGREGATOR());
@@ -75,7 +75,7 @@ contract HookFactory is IHookFactory {
         emit HooksRootUpdateTimelockChanged(newTimelock);
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function proposeGlobalHooksRoot(bytes32 newRoot) external {
         // Only SUPER_GOVERNOR or the SuperVaultAggregator can update the global hooks root
         address aggregator = SUPER_GOVERNOR.getAddress(SUPER_GOVERNOR.SUPER_VAULT_AGGREGATOR());
@@ -90,7 +90,7 @@ contract HookFactory is IHookFactory {
         emit GlobalHooksRootUpdateProposed(newRoot, _globalHooksRootEffectiveTime);
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function executeGlobalHooksRootUpdate() external {
         // Ensure there is a pending proposal
         if (_proposedGlobalHooksRoot == bytes32(0)) {
@@ -111,7 +111,7 @@ contract HookFactory is IHookFactory {
         emit GlobalHooksRootUpdated(oldRoot, _globalHooksRoot);
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function setGlobalHooksRootVetoStatus(bool vetoed) external {
         // Only SuperGovernor or the SuperVaultAggregator can call this
         address aggregator = SUPER_GOVERNOR.getAddress(SUPER_GOVERNOR.SUPER_VAULT_AGGREGATOR());
@@ -130,7 +130,7 @@ contract HookFactory is IHookFactory {
         emit GlobalHooksRootVetoStatusChanged(vetoed, _globalHooksRoot);
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function proposeStrategyHooksRoot(address strategy, bytes32 newRoot) external validStrategy(strategy) {
         // Only the main strategist can propose strategy-specific hooks root
         if (SUPER_VAULT_REGISTRY.getMainStrategist(strategy) != msg.sender) {
@@ -144,7 +144,7 @@ contract HookFactory is IHookFactory {
         emit StrategyHooksRootUpdateProposed(strategy, msg.sender, newRoot, _strategyHooksRootEffectiveTimes[strategy]);
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function executeStrategyHooksRootUpdate(address strategy) external validStrategy(strategy) {
         // Ensure there is a pending proposal
         if (_proposedStrategyHooksRoots[strategy] == bytes32(0)) {
@@ -167,7 +167,7 @@ contract HookFactory is IHookFactory {
         emit StrategyHooksRootUpdated(strategy, oldRoot, _strategyHooksRoots[strategy]);
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function setStrategyHooksRootVetoStatus(address strategy, bool vetoed) external validStrategy(strategy) {
         // Only SuperGovernor or the SuperVaultAggregator can call this
         address aggregator = SUPER_GOVERNOR.getAddress(SUPER_GOVERNOR.SUPER_VAULT_AGGREGATOR());
@@ -186,7 +186,7 @@ contract HookFactory is IHookFactory {
         emit StrategyHooksRootVetoStatusChanged(strategy, vetoed, _strategyHooksRoots[strategy]);
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function validateHook(
         address strategy,
         bytes calldata hookArgs,
@@ -208,7 +208,7 @@ contract HookFactory is IHookFactory {
             _validateSingleHook(strategy, hookArgs, globalProof, strategyProof, globalHooksVetoed, strategyHooksVetoed);
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function validateHooks(
         address strategy,
         bytes[] calldata hooksArgs,
@@ -251,42 +251,42 @@ contract HookFactory is IHookFactory {
     /*//////////////////////////////////////////////////////////////
                               VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function isGlobalHooksRootVetoed() external view returns (bool vetoed) {
         return _globalHooksRootVetoed;
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function isStrategyHooksRootVetoed(address strategy) external view returns (bool vetoed) {
         return _strategyHooksRootVetoed[strategy];
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function getHooksRootUpdateTimelock() external view returns (uint256) {
         return _hooksRootUpdateTimelock;
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function getGlobalHooksRoot() external view returns (bytes32 root) {
         return _globalHooksRoot;
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function getProposedGlobalHooksRoot() external view returns (bytes32 root, uint256 effectiveTime) {
         return (_proposedGlobalHooksRoot, _globalHooksRootEffectiveTime);
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function isGlobalHooksRootActive() external view returns (bool) {
         return block.timestamp >= _globalHooksRootEffectiveTime && _globalHooksRoot != bytes32(0);
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function getStrategyHooksRoot(address strategy) external view returns (bytes32 root) {
         return _strategyHooksRoots[strategy];
     }
 
-    /// @inheritdoc IHookFactory
+    /// @inheritdoc IHookRegistry
     function getProposedStrategyHooksRoot(address strategy)
         external
         view

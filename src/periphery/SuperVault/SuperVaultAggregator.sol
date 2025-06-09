@@ -5,7 +5,7 @@ pragma solidity 0.8.30;
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { ISuperVaultAggregator } from "../interfaces/SuperVault/ISuperVaultAggregator.sol";
 import { ISuperVaultFactory } from "../interfaces/SuperVault/ISuperVaultFactory.sol";
-import { IHookFactory } from "../interfaces/SuperVault/IHookFactory.sol";
+import { IHookRegistry } from "../interfaces/SuperVault/IHookRegistry.sol";
 import { ISuperVaultRegistry } from "../interfaces/SuperVault/ISuperVaultRegistry.sol";
 
 /// @title SuperVaultAggregator
@@ -20,7 +20,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
     // Factory contracts
     ISuperVaultFactory public immutable SUPER_VAULT_FACTORY;
-    IHookFactory public immutable HOOK_FACTORY;
+    IHookRegistry public immutable HOOK_FACTORY;
     ISuperVaultRegistry public immutable SUPER_VAULT_REGISTRY;
 
     // Constant for PPS decimals
@@ -43,11 +43,16 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /// @notice Initializes the SuperVaultAggregator
     /// @param superGovernor_ Address of the SuperGovernor contract
     /// @param superVaultFactory_ Address of the SuperVaultFactory contract
-    /// @param hookFactory_ Address of the HookFactory contract
+    /// @param HookRegistry_ Address of the HookRegistry contract
     /// @param superVaultRegistry_ Address of the SuperVaultRegistry contract
-    constructor(address superGovernor_, address superVaultFactory_, address hookFactory_, address superVaultRegistry_) {
+    constructor(
+        address superGovernor_,
+        address superVaultFactory_,
+        address HookRegistry_,
+        address superVaultRegistry_
+    ) {
         if (
-            superGovernor_ == address(0) || superVaultFactory_ == address(0) || hookFactory_ == address(0)
+            superGovernor_ == address(0) || superVaultFactory_ == address(0) || HookRegistry_ == address(0)
                 || superVaultRegistry_ == address(0)
         ) {
             revert ZERO_ADDRESS();
@@ -55,7 +60,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
         SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
         SUPER_VAULT_FACTORY = ISuperVaultFactory(superVaultFactory_);
-        HOOK_FACTORY = IHookFactory(hookFactory_);
+        HOOK_FACTORY = IHookRegistry(HookRegistry_);
         SUPER_VAULT_REGISTRY = ISuperVaultRegistry(superVaultRegistry_);
     }
 

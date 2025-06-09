@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-/// @title IHookFactory
+/// @title IHookRegistry
 /// @author Superform Labs
 /// @notice Interface for hook validation and Merkle root management
-interface IHookFactory {
+interface IHookRegistry {
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/

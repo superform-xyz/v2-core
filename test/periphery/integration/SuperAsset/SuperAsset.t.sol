@@ -6,6 +6,9 @@ import { ERC4626YieldSourceOracle } from "../../../../src/core/accounting/oracle
 import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
 import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
 import { SuperVaultAggregator } from "../../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { SuperVaultFactory } from "../../../../src/periphery/SuperVault/SuperVaultFactory.sol";
+import { HookRegistry } from "../../../../src/periphery/SuperVault/HookRegistry.sol";
+import { SuperVaultRegistry } from "../../../../src/periphery/SuperVault/SuperVaultRegistry.sol";
 import { SuperGovernor } from "../../../../src/periphery/SuperGovernor.sol";
 import { IncentiveFundContract } from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
 import { IncentiveCalculationContract } from "../../../../src/periphery/SuperAsset/IncentiveCalculationContract.sol";
@@ -109,8 +112,13 @@ contract SuperAssetTest is Helpers {
         superGovernor.grantRole(superGovernor.BANK_MANAGER_ROLE(), admin);
         console.log("SuperGovernor Roles Granted");
 
-        // Deploy SuperVaultAggregator
-        aggregator = new SuperVaultAggregator(address(superGovernor));
+        // Deploy modular SuperVault system
+        SuperVaultRegistry assetRegistry = new SuperVaultRegistry(address(superGovernor));
+        SuperVaultFactory vaultFactory = new SuperVaultFactory(address(superGovernor), address(assetRegistry));
+        HookRegistry HookRegistry = new HookRegistry(address(superGovernor), address(assetRegistry));
+        aggregator = new SuperVaultAggregator(
+            address(superGovernor), address(vaultFactory), address(HookRegistry), address(assetRegistry)
+        );
         superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), address(aggregator));
 
         // Deploy mock tokens and vault
@@ -475,8 +483,6 @@ contract SuperAssetTest is Helpers {
         assertTrue(superAsset.balanceOf(user) > 0, "User should have shares");
     }
 
-
-
     struct BasicDepositWithCircuitBreaker {
         uint256 depositAmount;
         uint256 minSharesOut;
@@ -667,8 +673,6 @@ contract SuperAssetTest is Helpers {
         assertEq(superAsset.balanceOf(user), 0, "User should have no shares left");
     }
 
-
-
     function test_RedeemWithZeroAmount() public {
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.ZERO_AMOUNT.selector);
@@ -728,7 +732,8 @@ contract SuperAssetTest is Helpers {
             minTokenOut: 0
         });
 
-        // vm.expectRevert(abi.encodeWithSelector(ISuperAsset.SUPPORTED_ASSET_PRICE_DEPEG.selector, address(underlyingToken1)));
+        // vm.expectRevert(abi.encodeWithSelector(ISuperAsset.SUPPORTED_ASSET_PRICE_DEPEG.selector,
+        // address(underlyingToken1)));
         ISuperAsset.RedeemReturnVars memory retRedeem = superAsset.redeem(redeemArgs);
 
         assertGt(retRedeem.amountTokenOutAfterFees, 0, "User should receive some tokens out");
@@ -1359,7 +1364,6 @@ contract SuperAssetTest is Helpers {
 
         vm.stopPrank();
     }
-
 
     function test_CircuitBreaker_DispersionDetection1() public {
         // Test depeg detection - price moves beyond ±2% threshold
