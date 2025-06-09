@@ -43,8 +43,7 @@ interface IVaultBankSource {
     function viewTotalLockedAsset(address token) external view returns (uint256);
 
     /// @notice Get all the locked assets of a destination chain
-    /// @param dstChainId The destination chain ID
-    function viewAllLockedAssets(uint64 dstChainId) external view returns (address[] memory);
+    function viewAllLockedAssets() external view returns (address[] memory);
 }
 
 interface IVaultBankDestination {

@@ -37,7 +37,7 @@ abstract contract VaultBankSource is IVaultBankSource {
     }
 
     /// @inheritdoc IVaultBankSource
-    function viewAllLockedAssets(uint64 dstChainId) external view returns (address[] memory) {
+    function viewAllLockedAssets() external view returns (address[] memory) {
         return _lockedAssets.values();
     }
 

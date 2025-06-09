@@ -191,11 +191,10 @@ contract VaultBankTest is Helpers {
         vaultBank.lockAsset(user, address(token), lockAmount, destinationChainId);
 
         assertEq(vaultBank.nonces(destinationChainId), expectedNonce + 1, "Nonce not incremented");
-        assertEq(vaultBank.viewLockedAmount(address(token), destinationChainId), lockAmount, "Locked amount incorrect");
         assertEq(vaultBank.viewTotalLockedAsset(address(token)), lockAmount, "Total locked amount incorrect");
-        assertEq(vaultBank.viewAllLockedAssets(destinationChainId).length, 1, "Locked assets length incorrect");
+        assertEq(vaultBank.viewAllLockedAssets().length, 1, "Locked assets length incorrect");
         assertEq(
-            vaultBank.viewAllLockedAssets(destinationChainId)[0], address(token), "Token not in locked assets"
+            vaultBank.viewAllLockedAssets()[0], address(token), "Token not in locked assets"
         );
         assertEq(token.balanceOf(address(vaultBank)), lockAmount, "VaultBank balance incorrect");
         assertEq(token.balanceOf(user), 50 ether, "User balance incorrect");
@@ -448,11 +447,6 @@ contract VaultBankTest is Helpers {
 
         assertEq(token.balanceOf(user), 0, "Initial user balance incorrect");
         assertEq(token.balanceOf(address(vaultBank)), lockAmount, "Initial vault balance incorrect");
-        assertEq(
-            vaultBank.viewLockedAmount(address(token), DST_CHAIN_ID),
-            lockAmount,
-            "Initial locked amount incorrect"
-        );
 
         uint256 unlockAmount = lockAmount / 2;
         mockProver.setEmittingContract(address(vaultBank));
@@ -474,11 +468,6 @@ contract VaultBankTest is Helpers {
         assertEq(vaultBank.nonces(CURRENT_CHAIN_ID), expectedNonce + 1, "Nonce not incremented");
         assertEq(token.balanceOf(user), unlockAmount, "User balance after unlock incorrect");
         assertEq(token.balanceOf(address(vaultBank)), lockAmount - unlockAmount, "Vault balance after unlock incorrect");
-        assertEq(
-            vaultBank.viewLockedAmount(address(token), DST_CHAIN_ID),
-            lockAmount - unlockAmount,
-            "Locked amount after unlock incorrect"
-        );
         assertEq(
             vaultBank.viewTotalLockedAsset(address(token)),
             lockAmount - unlockAmount,
@@ -561,11 +550,6 @@ contract VaultBankTest is Helpers {
 
         assertEq(token.balanceOf(user2), 0, "Initial user balance incorrect");
         assertEq(token.balanceOf(address(vaultBank)), lockAmount, "Initial vault balance incorrect");
-        assertEq(
-            vaultBank.viewLockedAmount(address(token), DST_CHAIN_ID),
-            lockAmount,
-            "Initial locked amount incorrect"
-        );
 
         uint256 unlockAmount = lockAmount / 2;
         mockProver.setEmittingContract(address(vaultBank));
@@ -583,11 +567,6 @@ contract VaultBankTest is Helpers {
         assertEq(vaultBank.nonces(CURRENT_CHAIN_ID), 2, "Nonce not incremented");
         assertEq(token.balanceOf(user2), unlockAmount, "User balance after unlock incorrect");
         assertEq(token.balanceOf(address(vaultBank)), lockAmount - unlockAmount, "Vault balance after unlock incorrect");
-        assertEq(
-            vaultBank.viewLockedAmount(address(token), DST_CHAIN_ID),
-            lockAmount - unlockAmount,
-            "Locked amount after unlock incorrect"
-        );
         assertEq(
             vaultBank.viewTotalLockedAsset(address(token)),
             lockAmount - unlockAmount,
@@ -1291,25 +1270,6 @@ contract VaultBankTest is Helpers {
         new VaultBank(address(0));
     }
 
-    function test_viewLockedAmount() public {
-        uint256 lockAmount = 100 ether;
-        token.mint(user, lockAmount);
-
-        vm.startPrank(user);
-        token.approve(address(vaultBank), lockAmount);
-        vm.stopPrank();
-
-        assertEq(vaultBank.viewLockedAmount(address(token), DST_CHAIN_ID), 0, "Initial locked amount should be 0");
-
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
-
-        assertEq(
-            vaultBank.viewLockedAmount(address(token), DST_CHAIN_ID),
-            lockAmount,
-            "Locked amount should match the locked amount"
-        );
-    }
-
     function test_viewTotalLockedAsset() public {
         uint256 lockAmount1 = 100 ether;
         uint256 lockAmount2 = 50 ether;
@@ -1338,12 +1298,12 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        address[] memory initialAssets = vaultBank.viewAllLockedAssets(DST_CHAIN_ID);
+        address[] memory initialAssets = vaultBank.viewAllLockedAssets();
         assertEq(initialAssets.length, 0, "Initial locked assets array should be empty");
 
         vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
 
-        address[] memory assets = vaultBank.viewAllLockedAssets(DST_CHAIN_ID);
+        address[] memory assets = vaultBank.viewAllLockedAssets();
         assertEq(assets.length, 1, "Locked assets array should have one entry");
         assertEq(assets[0], address(token), "Locked asset should match the token address");
 
@@ -1356,7 +1316,7 @@ contract VaultBankTest is Helpers {
 
         vaultBank.lockAsset(user, address(token2), lockAmount, DST_CHAIN_ID);
 
-        address[] memory assetsAfterSecondLock = vaultBank.viewAllLockedAssets(DST_CHAIN_ID);
+        address[] memory assetsAfterSecondLock = vaultBank.viewAllLockedAssets();
         assertEq(assetsAfterSecondLock.length, 2, "Locked assets array should have two entries");
 
         bool foundToken1 = false;
