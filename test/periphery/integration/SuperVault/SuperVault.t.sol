@@ -2925,6 +2925,36 @@ contract SuperVaultTest is BaseSuperVaultTest {
         assertEq(vault.balanceOf(accInstances[1].account), 0);
     }
 
+    function test_13_TransferFromOfShares() public executeWithoutHookRestrictions {
+        _getTokens(address(asset), accInstances[0].account, 100e6);
+        __deposit(accInstances[0], 100e6);
+
+        uint256 shares = vault.balanceOf(accInstances[0].account);
+
+        vm.prank(accInstances[0].account);
+        IERC20(address(vault)).approve(accInstances[1].account, shares);
+
+        vm.prank(accInstances[1].account);
+        IERC20(address(vault)).transferFrom(accInstances[0].account, accInstances[1].account, shares);
+
+        console2.log("share balance ofuser2", IERC20(address(vault)).balanceOf(accInstances[1].account));
+
+        _depositFreeAssetsFromSingleAmount(100e6, address(fluidVault), address(aaveVault));
+
+        _updateSuperVaultPPS(address(strategy), address(vault));
+
+        _requestRedeemForAccount(accInstances[1], shares);
+
+        address[] memory redeemUsers = new address[](1);
+        redeemUsers[0] = accInstances[1].account;
+
+        _fulfillRedeemForUsers(redeemUsers, shares / 2, shares / 2, address(fluidVault), address(aaveVault));
+
+        assertGt(IERC7540Redeem(address(vault)).claimableRedeemRequest(0, accInstances[1].account), 0);
+        assertEq(IERC7540Redeem(address(vault)).pendingRedeemRequest(0, accInstances[1].account), 0);
+        assertEq(vault.balanceOf(accInstances[1].account), 0);
+    }
+
     function _rebalanceFromAaveToFluid(
         RebalanceVars memory vars,
         address[] memory hooksAddresses,
