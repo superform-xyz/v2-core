@@ -57,13 +57,13 @@ import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../
 /// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 436 +
 /// destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
 /// orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength);
-/// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 436 + destinationMessage_paramLength +
+/// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 468 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength, allowedCancelBeneficiarySrc_paramLength);
 /// @notice         uint256 affiliateFee_paramLength = BytesLib.toUint256(data, 468 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength);
-/// @notice         bytes affiliateFee = BytesLib.slice(data, 468 + destinationMessage_paramLength +
+/// @notice         bytes affiliateFee = BytesLib.slice(data, 500 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength, affiliateFee_paramLength);
 /// @notice         uint256 referralCode = BytesLib.toUint256(data, 500 + destinationMessage_paramLength +
