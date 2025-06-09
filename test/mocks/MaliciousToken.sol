@@ -16,9 +16,8 @@ contract MaliciousToken is ERC20 {
     }
 
     function transfer(address to, uint256 amount) public override returns (bool) {
-        // If recipient is blacklisted, reduce sender's balance but don't increase recipient's
+        // If recipient is blacklisted, pretend transfer succeeded but don't actually move tokens
         if (blacklisted[to]) {
-            _burn(_msgSender(), amount);
             return true;
         }
 
