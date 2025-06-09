@@ -250,6 +250,15 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
+        BuildHookLocalVars memory vars = _decodeHookData(data);
+        MarketParams memory marketParams = _generateMarketParams(
+            vars.loanToken,
+            vars.collateralToken,
+            vars.oracle,
+            vars.irm,
+            vars.lltv
+        );
+        morphoInterface.accrueInterest(marketParams);
         // store current balance
         outAmount = getCollateralTokenBalance(account, data);
     }
