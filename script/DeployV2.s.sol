@@ -93,9 +93,6 @@ import { StakingYieldSourceOracle } from "../src/core/accounting/oracles/Staking
 import { SuperOracle } from "../src/periphery/oracles/SuperOracle.sol";
 
 // SuperVault
-import { SuperAssetRegistry } from "../src/periphery/SuperVault/SuperAssetRegistry.sol";
-import { SuperVaultFactory } from "../src/periphery/SuperVault/SuperVaultFactory.sol";
-import { HookFactory } from "../src/periphery/SuperVault/HookFactory.sol";
 import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
 import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
@@ -128,9 +125,6 @@ contract DeployV2 is Script, Configuration {
         address mockValidatorModule;
         address oracleRegistry;
         address superGovernor;
-        address superAssetRegistry;
-        address superVaultFactory;
-        address hookFactory;
         address superVaultAggregator;
         address superMerkleValidator;
         address superDestinationValidator;
@@ -380,39 +374,6 @@ contract DeployV2 is Script, Configuration {
             )
         );
 
-        // Deploy SuperAssetRegistry (takes only superGovernor)
-        deployedContracts.superAssetRegistry = __deployContract(
-            deployer,
-            SUPER_ASSET_REGISTRY_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_ASSET_REGISTRY_KEY),
-            abi.encodePacked(type(SuperAssetRegistry).creationCode, abi.encode(deployedContracts.superGovernor))
-        );
-
-        // Deploy SuperVaultFactory (takes superGovernor and superAssetRegistry)
-        deployedContracts.superVaultFactory = __deployContract(
-            deployer,
-            SUPER_VAULT_FACTORY_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_VAULT_FACTORY_KEY),
-            abi.encodePacked(
-                type(SuperVaultFactory).creationCode,
-                abi.encode(deployedContracts.superGovernor, deployedContracts.superAssetRegistry)
-            )
-        );
-
-        // Deploy HookFactory (takes superGovernor and superAssetRegistry)
-        deployedContracts.hookFactory = __deployContract(
-            deployer,
-            HOOK_FACTORY_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, HOOK_FACTORY_KEY),
-            abi.encodePacked(
-                type(HookFactory).creationCode,
-                abi.encode(deployedContracts.superGovernor, deployedContracts.superAssetRegistry)
-            )
-        );
-
         // Deploy SuperVaultAggregator (takes all four addresses)
         deployedContracts.superVaultAggregator = __deployContract(
             deployer,
@@ -422,10 +383,7 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(
                 type(SuperVaultAggregator).creationCode,
                 abi.encode(
-                    deployedContracts.superGovernor,
-                    deployedContracts.superVaultFactory,
-                    deployedContracts.hookFactory,
-                    deployedContracts.superAssetRegistry
+                    deployedContracts.superGovernor
                 )
             )
         );

@@ -6,9 +6,6 @@ import { ISuperGovernor, FeeType } from "src/periphery/interfaces/ISuperGovernor
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { ISuperVaultAggregator } from "src/periphery/interfaces/SuperVault/ISuperVaultAggregator.sol";
 import { SuperVaultAggregator } from "src/periphery/SuperVault/SuperVaultAggregator.sol";
-import { SuperVaultFactory } from "src/periphery/SuperVault/SuperVaultFactory.sol";
-import { HookFactory } from "src/periphery/SuperVault/HookFactory.sol";
-import { SuperAssetRegistry } from "src/periphery/SuperVault/SuperAssetRegistry.sol";
 import { ISuperVaultStrategy } from "src/periphery/interfaces/SuperVault/ISuperVaultStrategy.sol";
 import { Helpers } from "../../utils/Helpers.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
@@ -66,13 +63,9 @@ contract SuperGovernorTest is Helpers {
         asset = new MockERC20("Asset", "ASSET", 18);
 
         superGovernor = new SuperGovernor(sGovernor, governor, governor, treasury, address(this));
-        // Deploy modular SuperVault system for testing
-        SuperAssetRegistry assetRegistry = new SuperAssetRegistry(address(superGovernor));
-        SuperVaultFactory vaultFactory = new SuperVaultFactory(address(superGovernor), address(assetRegistry));
-        HookFactory hookFactory = new HookFactory(address(superGovernor), address(assetRegistry));
         superVaultAggregator = address(
             new SuperVaultAggregator(
-                address(superGovernor), address(vaultFactory), address(hookFactory), address(assetRegistry)
+                address(superGovernor)
             )
         );
         (, address strategy,) = ISuperVaultAggregator(superVaultAggregator).createVault(

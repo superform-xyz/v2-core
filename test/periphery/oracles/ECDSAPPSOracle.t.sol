@@ -8,9 +8,6 @@ import { MessageHashUtils } from "openzeppelin-contracts/contracts/utils/cryptog
 // Superform
 import { SuperGovernor } from "../../../src/periphery/SuperGovernor.sol";
 import { SuperVaultAggregator } from "../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
-import { SuperVaultFactory } from "../../../src/periphery/SuperVault/SuperVaultFactory.sol";
-import { HookFactory } from "../../../src/periphery/SuperVault/HookFactory.sol";
-import { SuperAssetRegistry } from "../../../src/periphery/SuperVault/SuperAssetRegistry.sol";
 import { ISuperVaultAggregator } from "../../../src/periphery/interfaces/SuperVault/ISuperVaultAggregator.sol";
 import { ECDSAPPSOracle } from "../../../src/periphery/oracles/ECDSAPPSOracle.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/SuperVault/ISuperVaultStrategy.sol";
@@ -65,13 +62,8 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         governor =
             new SuperGovernor(governorAddress, governorAddress, governorAddress, TREASURY, CHAIN_1_POLYMER_PROVER);
 
-        // Deploy modular SuperVault system for testing
-        SuperAssetRegistry assetRegistry = new SuperAssetRegistry(address(governor));
-        SuperVaultFactory vaultFactory = new SuperVaultFactory(address(governor), address(assetRegistry));
-        HookFactory hookFactory = new HookFactory(address(governor), address(assetRegistry));
-        aggregatorSuperVault = new SuperVaultAggregator(
-            address(governor), address(vaultFactory), address(hookFactory), address(assetRegistry)
-        );
+        // Deploy SuperVaultAggregator
+        aggregatorSuperVault = new SuperVaultAggregator(address(governor));
 
         (sv, svStrategy,) = aggregatorSuperVault.createVault(
             ISuperVaultAggregator.VaultCreationParams({
