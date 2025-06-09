@@ -82,7 +82,7 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
     /*//////////////////////////////////////////////////////////////
                           PPS UPDATE FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function forwardPPS(
         address updateAuthority,
         ISuperVaultAggregator.ForwardPPSArgs calldata args
@@ -109,7 +109,7 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
         );
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function batchForwardPPS(ISuperVaultAggregator.BatchForwardPPSArgs calldata args) external onlyAggregator {
         // Check array lengths
         if (
@@ -155,7 +155,7 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
         }
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function initializeStrategyData(
         address strategy,
         address mainStrategist,
@@ -189,7 +189,7 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
     /*//////////////////////////////////////////////////////////////
                         UPKEEP MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function depositUpkeep(address strategist, uint256 amount) external {
         if (amount == 0) revert ZERO_ADDRESS(); // Reusing error code for consistency
 
@@ -205,7 +205,7 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
         emit UpkeepDeposited(strategist, amount);
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function withdrawUpkeep(uint256 amount) external {
         if (amount == 0) revert ZERO_ADDRESS(); // Reusing error code for consistency
 
@@ -229,7 +229,7 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
     /*//////////////////////////////////////////////////////////////
                         AUTHORIZED CALLER MANAGEMENT
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function addAuthorizedCaller(address strategy, address caller) external validStrategy(strategy) {
         // Either primary or secondary strategist can add authorized callers
         if (!isAnyStrategist(msg.sender, strategy)) revert UNAUTHORIZED_UPDATE_AUTHORITY();
@@ -248,7 +248,7 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
         emit AuthorizedCallerAdded(strategy, caller);
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function removeAuthorizedCaller(address strategy, address caller) external validStrategy(strategy) {
         // Either primary or secondary strategist can remove authorized callers
         if (!isAnyStrategist(msg.sender, strategy)) revert UNAUTHORIZED_UPDATE_AUTHORITY();
@@ -274,7 +274,7 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
     /*//////////////////////////////////////////////////////////////
                        STRATEGIST MANAGEMENT FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function addSecondaryStrategist(address strategy, address strategist) external validStrategy(strategy) {
         // Only the primary strategist can add secondary strategists
         if (msg.sender != _strategyMainStrategist[strategy]) revert UNAUTHORIZED_UPDATE_AUTHORITY();
@@ -290,7 +290,7 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
         emit SecondaryStrategistAdded(strategy, strategist);
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function removeSecondaryStrategist(address strategy, address strategist) external validStrategy(strategy) {
         // Only the primary strategist can remove secondary strategists
         if (msg.sender != _strategyMainStrategist[strategy]) revert UNAUTHORIZED_UPDATE_AUTHORITY();
@@ -301,7 +301,7 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
         emit SecondaryStrategistRemoved(strategy, strategist);
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function updatePPSVerificationThresholds(
         address strategy,
         uint256 dispersionThreshold_,
@@ -328,7 +328,7 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
         emit PPSVerificationThresholdsUpdated(strategy, dispersionThreshold_, deviationThreshold_, mnThreshold_);
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function changePrimaryStrategist(address strategy, address newStrategist) external validStrategy(strategy) {
         // Only SuperGovernor or the SuperVaultAggregator can call this
         address aggregator = SUPER_GOVERNOR.getAddress(SUPER_GOVERNOR.SUPER_VAULT_AGGREGATOR());
@@ -354,7 +354,7 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
         emit PrimaryStrategistChanged(strategy, oldStrategist, newStrategist);
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function proposeChangePrimaryStrategist(address strategy, address newStrategist) external validStrategy(strategy) {
         // Only secondary strategists can propose changes to the primary strategist
         if (!_strategySecondaryStrategists[strategy].contains(msg.sender)) {
@@ -373,7 +373,7 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
         emit PrimaryStrategistChangeProposed(strategy, msg.sender, newStrategist, effectiveTime);
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function executeChangePrimaryStrategist(address strategy) external validStrategy(strategy) {
         // Check if there is a pending proposal
         if (_strategyProposedStrategist[strategy] == address(0)) revert NO_PENDING_STRATEGIST_CHANGE();
@@ -404,12 +404,12 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
     /*//////////////////////////////////////////////////////////////
                               VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function getPPS(address strategy) external view validStrategy(strategy) returns (uint256 pps) {
         return _strategyPPS[strategy];
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function getPPSWithStdDev(address strategy)
         external
         view
@@ -419,22 +419,22 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
         return (_strategyPPS[strategy], _strategyPPSStdev[strategy]);
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function getLastUpdateTimestamp(address strategy) external view returns (uint256 timestamp) {
         return _strategyLastUpdateTimestamp[strategy];
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function getMinUpdateInterval(address strategy) external view returns (uint256 interval) {
         return _strategyMinUpdateInterval[strategy];
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function getMaxStaleness(address strategy) external view returns (uint256 staleness) {
         return _strategyMaxStaleness[strategy];
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function getPPSVerificationThresholds(address strategy)
         external
         view
@@ -448,22 +448,22 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
         );
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function isStrategyPaused(address strategy) external view returns (bool isPaused) {
         return _strategyIsPaused[strategy];
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function getUpkeepBalance(address strategist) external view returns (uint256 balance) {
         return _strategistUpkeepBalance[strategist];
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function getAuthorizedCallers(address strategy) external view returns (address[] memory callers) {
         return _strategyAuthorizedCallers[strategy];
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function getMainStrategist(address strategy) external view returns (address strategist) {
         strategist = _strategyMainStrategist[strategy];
         if (strategist == address(0)) revert ZERO_ADDRESS();
@@ -471,22 +471,22 @@ contract SuperVaultRegistry is ISuperVaultRegistry {
         return strategist;
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function isMainStrategist(address strategist, address strategy) external view returns (bool) {
         return _strategyMainStrategist[strategy] == strategist;
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function getSecondaryStrategists(address strategy) external view returns (address[] memory) {
         return _strategySecondaryStrategists[strategy].values();
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function isSecondaryStrategist(address strategist, address strategy) external view returns (bool) {
         return _strategySecondaryStrategists[strategy].contains(strategist);
     }
 
-    /// @inheritdoc ISuperAssetRegistry
+    /// @inheritdoc ISuperVaultRegistry
     function isAnyStrategist(address strategist, address strategy) public view returns (bool) {
         // Check if primary strategist
         if (_strategyMainStrategist[strategy] == strategist) {
