@@ -151,7 +151,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
 
         _asset.safeTransferFrom(msg.sender, address(strategy), assets);
 
-        strategy.handleOperation(receiver, assets, shares, ISuperVaultStrategy.Operation.Deposit);
+        strategy.handleOperation(msg.sender, receiver, assets, shares, ISuperVaultStrategy.Operation.Deposit);
 
         _mint(receiver, shares);
 
@@ -171,7 +171,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
 
         _asset.safeTransferFrom(msg.sender, address(strategy), assets);
 
-        strategy.handleOperation(receiver, assets, shares, ISuperVaultStrategy.Operation.Deposit);
+        strategy.handleOperation(msg.sender, receiver, assets, shares, ISuperVaultStrategy.Operation.Deposit);
 
         _mint(receiver, shares);
 
@@ -191,7 +191,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         ISuperVaultEscrow(escrow).escrowShares(owner, shares);
 
         // Forward to strategy
-        strategy.handleOperation(controller, 0, shares, ISuperVaultStrategy.Operation.RedeemRequest);
+        strategy.handleOperation(controller, address(0), 0, shares, ISuperVaultStrategy.Operation.RedeemRequest);
 
         emit RedeemRequest(controller, owner, REQUEST_ID, msg.sender, shares);
         return REQUEST_ID;
@@ -205,7 +205,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         if (shares == 0) revert REQUEST_NOT_FOUND();
 
         // Forward to strategy
-        strategy.handleOperation(controller, 0, 0, ISuperVaultStrategy.Operation.CancelRedeem);
+        strategy.handleOperation(controller, address(0), 0, 0, ISuperVaultStrategy.Operation.CancelRedeem);
 
         // Return shares to controller
         ISuperVaultEscrow(escrow).returnShares(controller, shares);
