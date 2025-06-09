@@ -8,6 +8,7 @@ import { BaseSuperVaultTest } from "../integration/SuperVault/BaseSuperVaultTest
 import { SuperVaultFactory } from "../../../src/periphery/SuperVault/SuperVaultFactory.sol";
 import { ISuperVaultFactory } from "../../../src/periphery/interfaces/SuperVault/ISuperVaultFactory.sol";
 import { ISuperAssetRegistry } from "../../../src/periphery/interfaces/SuperVault/ISuperAssetRegistry.sol";
+import { ISuperVaultAggregator } from "../../../src/periphery/interfaces/SuperVault/ISuperVaultAggregator.sol";
 import { SuperGovernor } from "../../../src/periphery/SuperGovernor.sol";
 import { SuperAssetRegistry } from "../../../src/periphery/SuperVault/SuperAssetRegistry.sol";
 import { SuperVault } from "../../../src/periphery/SuperVault/SuperVault.sol";
@@ -15,42 +16,33 @@ import { SuperVaultStrategy } from "../../../src/periphery/SuperVault/SuperVault
 import { SuperVaultEscrow } from "../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
 
 // External
-import { ERC20Mock } from "forge-std/mocks/MockERC20.sol";
+import { MockERC20 } from "forge-std/mocks/MockERC20.sol";
 import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
 
 contract SuperVaultFactoryTest is BaseSuperVaultTest {
     SuperVaultFactory public superVaultFactory;
-    SuperGovernor public superGovernor;
     SuperAssetRegistry public superAssetRegistry;
-    
+
     address public constant CREATOR = address(0x1234);
-    address public constant STRATEGIST = address(0x5678);
     address public constant UNAUTHORIZED = address(0xDEF0);
-    
-    ERC20Mock public underlyingAsset;
-    
+
+    MockERC20 public underlyingAsset;
+
     event VaultCreated(
-        address indexed superVault,
-        address indexed strategy,
-        address indexed escrow,
-        address creator,
-        uint256 nonce
+        address indexed superVault, address indexed strategy, address indexed escrow, address creator, uint256 nonce
     );
 
     function setUp() public override {
         super.setUp();
-        
-        // Deploy SuperGovernor
-        superGovernor = SuperGovernor(A[0].superGovernor);
-        
+
         // Deploy SuperAssetRegistry
         superAssetRegistry = new SuperAssetRegistry(address(superGovernor));
-        
+
         // Deploy SuperVaultFactory
         superVaultFactory = new SuperVaultFactory(address(superGovernor), address(superAssetRegistry));
-        
+
         // Setup underlying asset
-        underlyingAsset = new ERC20Mock();
+        underlyingAsset = new MockERC20();
         underlyingAsset.mint(CREATOR, 1000 ether);
         underlyingAsset.mint(STRATEGIST, 1000 ether);
     }
@@ -77,15 +69,15 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
 
     function test_constructor_DeploysImplementations() public {
         SuperVaultFactory factory = new SuperVaultFactory(address(superGovernor), address(superAssetRegistry));
-        
+
         address vaultImpl = factory.VAULT_IMPLEMENTATION();
         address strategyImpl = factory.STRATEGY_IMPLEMENTATION();
         address escrowImpl = factory.ESCROW_IMPLEMENTATION();
-        
+
         assertNotEq(vaultImpl, address(0));
         assertNotEq(strategyImpl, address(0));
         assertNotEq(escrowImpl, address(0));
-        
+
         // Verify implementations are actual contracts
         assertTrue(vaultImpl.code.length > 0);
         assertTrue(strategyImpl.code.length > 0);
@@ -97,7 +89,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
     //////////////////////////////////////////////////////////////*/
 
     function test_createVault_Success() public {
-        ISuperVaultFactory.VaultCreationParams memory params = ISuperVaultFactory.VaultCreationParams({
+        ISuperVaultAggregator.VaultCreationParams memory params = ISuperVaultAggregator.VaultCreationParams({
             creator: CREATOR,
             asset: address(underlyingAsset),
             strategist: STRATEGIST,
@@ -107,7 +99,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         });
 
         uint256 currentNonce = superVaultFactory.getCurrentNonce();
-        
+
         vm.expectEmit(false, false, false, false);
         emit VaultCreated(address(0), address(0), address(0), CREATOR, currentNonce);
 
@@ -144,7 +136,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
     }
 
     function test_createVault_RevertIf_ZeroCreator() public {
-        ISuperVaultFactory.VaultCreationParams memory params = ISuperVaultFactory.VaultCreationParams({
+        ISuperVaultAggregator.VaultCreationParams memory params = ISuperVaultAggregator.VaultCreationParams({
             creator: address(0),
             asset: address(underlyingAsset),
             strategist: STRATEGIST,
@@ -158,7 +150,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
     }
 
     function test_createVault_RevertIf_ZeroAsset() public {
-        ISuperVaultFactory.VaultCreationParams memory params = ISuperVaultFactory.VaultCreationParams({
+        ISuperVaultAggregator.VaultCreationParams memory params = ISuperVaultAggregator.VaultCreationParams({
             creator: CREATOR,
             asset: address(0),
             strategist: STRATEGIST,
@@ -172,7 +164,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
     }
 
     function test_createVault_RevertIf_ZeroStrategist() public {
-        ISuperVaultFactory.VaultCreationParams memory params = ISuperVaultFactory.VaultCreationParams({
+        ISuperVaultAggregator.VaultCreationParams memory params = ISuperVaultAggregator.VaultCreationParams({
             creator: CREATOR,
             asset: address(underlyingAsset),
             strategist: address(0),
@@ -195,7 +187,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
     }
 
     function test_getAllSuperVaults_AfterCreation() public {
-        ISuperVaultFactory.VaultCreationParams memory params = ISuperVaultFactory.VaultCreationParams({
+        ISuperVaultAggregator.VaultCreationParams memory params = ISuperVaultAggregator.VaultCreationParams({
             creator: CREATOR,
             asset: address(underlyingAsset),
             strategist: STRATEGIST,
@@ -205,7 +197,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         });
 
         (address vault,,) = superVaultFactory.createVault(params);
-        
+
         address[] memory vaults = superVaultFactory.getAllSuperVaults();
         assertEq(vaults.length, 1);
         assertEq(vaults[0], vault);
@@ -217,7 +209,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
     }
 
     function test_getAllSuperVaultStrategies_AfterCreation() public {
-        ISuperVaultFactory.VaultCreationParams memory params = ISuperVaultFactory.VaultCreationParams({
+        ISuperVaultAggregator.VaultCreationParams memory params = ISuperVaultAggregator.VaultCreationParams({
             creator: CREATOR,
             asset: address(underlyingAsset),
             strategist: STRATEGIST,
@@ -227,7 +219,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         });
 
         (, address strategy,) = superVaultFactory.createVault(params);
-        
+
         address[] memory strategies = superVaultFactory.getAllSuperVaultStrategies();
         assertEq(strategies.length, 1);
         assertEq(strategies[0], strategy);
@@ -239,7 +231,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
     }
 
     function test_getAllSuperVaultEscrows_AfterCreation() public {
-        ISuperVaultFactory.VaultCreationParams memory params = ISuperVaultFactory.VaultCreationParams({
+        ISuperVaultAggregator.VaultCreationParams memory params = ISuperVaultAggregator.VaultCreationParams({
             creator: CREATOR,
             asset: address(underlyingAsset),
             strategist: STRATEGIST,
@@ -249,14 +241,14 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         });
 
         (,, address escrow) = superVaultFactory.createVault(params);
-        
+
         address[] memory escrows = superVaultFactory.getAllSuperVaultEscrows();
         assertEq(escrows.length, 1);
         assertEq(escrows[0], escrow);
     }
 
     function test_superVaults_ValidIndex() public {
-        ISuperVaultFactory.VaultCreationParams memory params = ISuperVaultFactory.VaultCreationParams({
+        ISuperVaultAggregator.VaultCreationParams memory params = ISuperVaultAggregator.VaultCreationParams({
             creator: CREATOR,
             asset: address(underlyingAsset),
             strategist: STRATEGIST,
@@ -266,12 +258,12 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         });
 
         (address vault,,) = superVaultFactory.createVault(params);
-        
+
         assertEq(superVaultFactory.superVaults(0), vault);
     }
 
     function test_superVaultStrategies_ValidIndex() public {
-        ISuperVaultFactory.VaultCreationParams memory params = ISuperVaultFactory.VaultCreationParams({
+        ISuperVaultAggregator.VaultCreationParams memory params = ISuperVaultAggregator.VaultCreationParams({
             creator: CREATOR,
             asset: address(underlyingAsset),
             strategist: STRATEGIST,
@@ -281,12 +273,12 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         });
 
         (, address strategy,) = superVaultFactory.createVault(params);
-        
+
         assertEq(superVaultFactory.superVaultStrategies(0), strategy);
     }
 
     function test_superVaultEscrows_ValidIndex() public {
-        ISuperVaultFactory.VaultCreationParams memory params = ISuperVaultFactory.VaultCreationParams({
+        ISuperVaultAggregator.VaultCreationParams memory params = ISuperVaultAggregator.VaultCreationParams({
             creator: CREATOR,
             asset: address(underlyingAsset),
             strategist: STRATEGIST,
@@ -296,7 +288,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         });
 
         (,, address escrow) = superVaultFactory.createVault(params);
-        
+
         assertEq(superVaultFactory.superVaultEscrows(0), escrow);
     }
 
@@ -309,7 +301,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
     }
 
     function test_getCurrentNonce_IncrementsAfterCreation() public {
-        ISuperVaultFactory.VaultCreationParams memory params = ISuperVaultFactory.VaultCreationParams({
+        ISuperVaultAggregator.VaultCreationParams memory params = ISuperVaultAggregator.VaultCreationParams({
             creator: CREATOR,
             asset: address(underlyingAsset),
             strategist: STRATEGIST,
@@ -328,7 +320,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
     //////////////////////////////////////////////////////////////*/
 
     function test_clonePattern_CreatesMinimalProxies() public {
-        ISuperVaultFactory.VaultCreationParams memory params = ISuperVaultFactory.VaultCreationParams({
+        ISuperVaultAggregator.VaultCreationParams memory params = ISuperVaultAggregator.VaultCreationParams({
             creator: CREATOR,
             asset: address(underlyingAsset),
             strategist: STRATEGIST,
@@ -360,9 +352,9 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
     //////////////////////////////////////////////////////////////*/
 
     function test_createVault_DeterministicAddresses() public {
-        bytes32 salt = bytes32(uint256(12345));
-        
-        ISuperVaultFactory.VaultCreationParams memory params = ISuperVaultFactory.VaultCreationParams({
+        bytes32 salt = bytes32(uint256(12_345));
+
+        ISuperVaultAggregator.VaultCreationParams memory params = ISuperVaultAggregator.VaultCreationParams({
             creator: CREATOR,
             asset: address(underlyingAsset),
             strategist: STRATEGIST,
@@ -405,7 +397,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
 
     function test_integration_FullVaultWorkflow() public {
         // Create vault
-        ISuperVaultFactory.VaultCreationParams memory params = ISuperVaultFactory.VaultCreationParams({
+        ISuperVaultAggregator.VaultCreationParams memory params = ISuperVaultAggregator.VaultCreationParams({
             creator: CREATOR,
             asset: address(underlyingAsset),
             strategist: STRATEGIST,
@@ -426,7 +418,7 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         uint256 depositAmount = 100e18;
         vm.startPrank(CREATOR);
         underlyingAsset.approve(vaultAddr, depositAmount);
-        
+
         // This might fail if vault needs more setup, but structure should be correct
         try vault.deposit(depositAmount, CREATOR) {
             // If successful, verify shares were minted
@@ -440,4 +432,4 @@ contract SuperVaultFactoryTest is BaseSuperVaultTest {
         assertEq(address(strategy.vault()), vaultAddr);
         assertEq(address(strategy.asset()), address(underlyingAsset));
     }
-} 
+}

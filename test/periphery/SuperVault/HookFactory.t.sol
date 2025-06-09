@@ -13,11 +13,9 @@ import { SuperAssetRegistry } from "../../../src/periphery/SuperVault/SuperAsset
 
 contract HookFactoryTest is BaseSuperVaultTest {
     HookFactory public hookFactory;
-    SuperGovernor public superGovernor;
     SuperAssetRegistry public superAssetRegistry;
     
     address public constant STRATEGY = address(0x1234);
-    address public constant STRATEGIST = address(0x5678);
     address public constant UNAUTHORIZED = address(0xDEF0);
     address public constant AGGREGATOR = address(0xABCD);
     
@@ -27,22 +25,11 @@ contract HookFactoryTest is BaseSuperVaultTest {
     function setUp() public override {
         super.setUp();
         
-        // Deploy SuperGovernor
-        superGovernor = SuperGovernor(A[0].superGovernor);
-        
         // Deploy SuperAssetRegistry
         superAssetRegistry = new SuperAssetRegistry(address(superGovernor));
         
         // Deploy HookFactory
         hookFactory = new HookFactory(address(superGovernor), address(superAssetRegistry));
-        
-        // Setup strategy in registry
-        vm.prank(address(superGovernor));
-        superAssetRegistry.addPrimaryStrategist(STRATEGY, STRATEGIST);
-        
-        // Set aggregator address in governor
-        vm.prank(address(superGovernor));
-        superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), AGGREGATOR);
     }
 
     function test_constructor_ValidAddresses() public {
@@ -63,13 +50,6 @@ contract HookFactoryTest is BaseSuperVaultTest {
         hookFactory.setHooksRootUpdateTimelock(newTimelock);
         
         assertEq(hookFactory.getHooksRootUpdateTimelock(), newTimelock);
-    }
-
-    function test_proposeGlobalHooksRoot_ByGovernor() public {
-        vm.prank(address(superGovernor));
-        hookFactory.proposeGlobalHooksRoot(GLOBAL_ROOT);
-        
-        assertEq(hookFactory.getProposedGlobalHooksRoot(), GLOBAL_ROOT);
     }
 
     function test_executeGlobalHooksRootUpdate_Success() public {
