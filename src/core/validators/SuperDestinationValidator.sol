@@ -126,7 +126,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
         returns (bool)
     {
         /// @dev block.timestamp could vary between chains
-        return signer == _accountOwners[sender] && validUntil >= block.timestamp;
+        return signer == _accountOwners[sender] && (validUntil == 0 || validUntil >= block.timestamp);
     }
 
     /*//////////////////////////////////////////////////////////////
