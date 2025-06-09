@@ -387,7 +387,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     function withdraw(
         uint256 assets,
         address receiver,
-        address owner
+        address controller
     )
         public
         override
@@ -395,28 +395,28 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         returns (uint256 shares)
     {
         if (receiver == address(0)) revert ZERO_ADDRESS();
-        _validateController(owner);
+        _validateController(controller);
 
-        uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(owner);
+        uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(controller);
         if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
-        uint256 maxWithdrawAmount = maxWithdraw(owner);
+        uint256 maxWithdrawAmount = maxWithdraw(controller);
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Calculate shares based on assets and average withdraw price
         shares = assets.mulDiv(PRECISION, averageWithdrawPrice, Math.Rounding.Floor);
 
         // Take assets from strategy
-        strategy.handleOperation(owner, receiver, assets, shares, ISuperVaultStrategy.Operation.ClaimRedeem);
+        strategy.handleOperation(controller, receiver, assets, shares, ISuperVaultStrategy.Operation.ClaimRedeem);
 
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+        emit Withdraw(msg.sender, receiver, controller, assets, shares);
     }
 
     /// @inheritdoc IERC4626
     function redeem(
         uint256 shares,
         address receiver,
-        address owner
+        address controller
     )
         public
         override
@@ -424,21 +424,21 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         returns (uint256 assets)
     {
         if (receiver == address(0)) revert ZERO_ADDRESS();
-        _validateController(owner);
+        _validateController(controller);
 
-        uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(owner);
+        uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(controller);
         if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
         // Calculate assets based on shares and average withdraw price
         assets = shares.mulDiv(averageWithdrawPrice, PRECISION, Math.Rounding.Floor);
 
-        uint256 maxWithdrawAmount = maxWithdraw(owner);
+        uint256 maxWithdrawAmount = maxWithdraw(controller);
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Take assets from strategy
-        strategy.handleOperation(owner, receiver, assets, shares, ISuperVaultStrategy.Operation.ClaimRedeem);
+        strategy.handleOperation(controller, receiver, assets, shares, ISuperVaultStrategy.Operation.ClaimRedeem);
 
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+        emit Withdraw(msg.sender, receiver, controller, assets, shares);
     }
 
     // @inheritdoc ISuperVault
