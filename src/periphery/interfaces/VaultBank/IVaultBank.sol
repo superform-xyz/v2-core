@@ -38,11 +38,6 @@ interface IVaultBankSource {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Get the locked amount of  a token
-    /// @param token The token to get the locked amount for
-    /// @param dstChainId The destination chain ID
-    function viewLockedAmount(address token, uint64 dstChainId) external view returns (uint256);
-
     /// @notice Get the total locked amount of a token
     /// @param token The token to get the total locked amount for
     function viewTotalLockedAsset(address token) external view returns (uint256);
