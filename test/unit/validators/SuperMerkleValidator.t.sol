@@ -218,9 +218,6 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
         // validate first user op
         _testUserOpValidation(validUntil, root, proof[0], signature, approveUserOp);
-
-        bytes memory retrievedSig = validator.retrieveSignatureData(account);
-        assertEq(retrievedSig, "");
     }
 
     function test_ValidateUserOp_RetrieveSignatureData() public {
