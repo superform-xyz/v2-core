@@ -8,6 +8,9 @@ import { MessageHashUtils } from "openzeppelin-contracts/contracts/utils/cryptog
 // Superform
 import { SuperGovernor } from "../../../src/periphery/SuperGovernor.sol";
 import { SuperVaultAggregator } from "../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { SuperVault } from "../../../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultStrategy } from "../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
 import { ISuperVaultAggregator } from "../../../src/periphery/interfaces/SuperVault/ISuperVaultAggregator.sol";
 import { ECDSAPPSOracle } from "../../../src/periphery/oracles/ECDSAPPSOracle.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/SuperVault/ISuperVaultStrategy.sol";
@@ -62,8 +65,13 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         governor =
             new SuperGovernor(governorAddress, governorAddress, governorAddress, TREASURY, CHAIN_1_POLYMER_PROVER);
 
+        // Deploy implementation contracts first
+        address vaultImpl = address(new SuperVault());
+        address strategyImpl = address(new SuperVaultStrategy());
+        address escrowImpl = address(new SuperVaultEscrow());
+
         // Deploy SuperVaultAggregator
-        aggregatorSuperVault = new SuperVaultAggregator(address(governor));
+        aggregatorSuperVault = new SuperVaultAggregator(address(governor), vaultImpl, strategyImpl, escrowImpl);
 
         (sv, svStrategy,) = aggregatorSuperVault.createVault(
             ISuperVaultAggregator.VaultCreationParams({

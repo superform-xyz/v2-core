@@ -6,6 +6,9 @@ import { ISuperGovernor, FeeType } from "src/periphery/interfaces/ISuperGovernor
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 import { ISuperVaultAggregator } from "src/periphery/interfaces/SuperVault/ISuperVaultAggregator.sol";
 import { SuperVaultAggregator } from "src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { SuperVault } from "../../../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultStrategy } from "../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
 import { ISuperVaultStrategy } from "src/periphery/interfaces/SuperVault/ISuperVaultStrategy.sol";
 import { Helpers } from "../../utils/Helpers.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
@@ -63,11 +66,14 @@ contract SuperGovernorTest is Helpers {
         asset = new MockERC20("Asset", "ASSET", 18);
 
         superGovernor = new SuperGovernor(sGovernor, governor, governor, treasury, address(this));
-        superVaultAggregator = address(
-            new SuperVaultAggregator(
-                address(superGovernor)
-            )
-        );
+
+        // Deploy implementation contracts first
+        address vaultImpl = address(new SuperVault());
+        address strategyImpl = address(new SuperVaultStrategy());
+        address escrowImpl = address(new SuperVaultEscrow());
+
+        superVaultAggregator =
+            address(new SuperVaultAggregator(address(superGovernor), vaultImpl, strategyImpl, escrowImpl));
         (, address strategy,) = ISuperVaultAggregator(superVaultAggregator).createVault(
             ISuperVaultAggregator.VaultCreationParams({
                 asset: address(asset),

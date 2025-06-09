@@ -148,6 +148,9 @@ import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "./mocks/MockRegistry.sol";
 
 import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { SuperVault } from "../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultStrategy } from "../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../src/periphery/SuperVault/SuperVaultEscrow.sol";
 import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 
 import { BaseHook } from "../src/core/hooks/BaseHook.sol";
@@ -587,13 +590,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.label(address(A[i].stakingYieldSourceOracle), STAKING_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][STAKING_YIELD_SOURCE_ORACLE_KEY] = address(A[i].stakingYieldSourceOracle);
 
-            A[i].superVaultAggregator = new SuperVaultAggregator(address(A[i].superGovernor));
-            vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
-            contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
-
             A[i].ecdsappsOracle = new ECDSAPPSOracle(address(A[i].superGovernor));
             vm.label(address(A[i].ecdsappsOracle), ECDSAPPS_ORACLE_KEY);
             contractAddresses[chainIds[i]][ECDSAPPS_ORACLE_KEY] = address(A[i].ecdsappsOracle);
+
+            // Deploy implementation contracts first
+            address vaultImpl = address(new SuperVault());
+            address strategyImpl = address(new SuperVaultStrategy());
+            address escrowImpl = address(new SuperVaultEscrow());
+
+            A[i].superVaultAggregator =
+                new SuperVaultAggregator(address(A[i].superGovernor), vaultImpl, strategyImpl, escrowImpl);
+            vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
 
             A[i].superGovernor.setActivePPSOracle(address(A[i].ecdsappsOracle));
             A[i].superGovernor.addValidator(VALIDATOR);
