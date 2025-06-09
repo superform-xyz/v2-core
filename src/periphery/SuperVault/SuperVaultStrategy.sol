@@ -105,7 +105,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperVaultStrategy
-    function handleOperation(address controller, address receiver, uint256 assets, uint256 shares, Operation operation) external {
+    function handleOperation(
+        address controller,
+        address receiver,
+        uint256 assets,
+        uint256 shares,
+        Operation operation
+    )
+        external
+    {
         _requireVault();
 
         if (operation == Operation.Deposit) {
