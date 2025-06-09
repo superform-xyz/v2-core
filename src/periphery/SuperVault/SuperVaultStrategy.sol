@@ -105,7 +105,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperVaultStrategy
-    function handleOperation(address controller, uint256 assets, uint256 shares, Operation operation) external {
+    function handleOperation(address controller, address receiver, uint256 assets, uint256 shares, Operation operation) external {
         _requireVault();
 
         if (operation == Operation.Deposit) {
@@ -115,7 +115,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         } else if (operation == Operation.CancelRedeem) {
             _handleCancelRedeem(controller);
         } else if (operation == Operation.ClaimRedeem) {
-            _handleClaimRedeem(controller, assets);
+            _handleClaimRedeem(controller, receiver, assets);
         } else {
             revert ACTION_TYPE_DISALLOWED();
         }
@@ -944,8 +944,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
     /// @notice Internal function to handle a redeem claim
     /// @param controller Address of the controller
+    /// @param receiver Address of the receiver
     /// @param assetsToClaim Amount of assets to claim
-    function _handleClaimRedeem(address controller, uint256 assetsToClaim) private {
+    function _handleClaimRedeem(address controller, address receiver, uint256 assetsToClaim) private {
         if (assetsToClaim == 0) revert INVALID_AMOUNT();
         if (controller == address(0)) revert ZERO_ADDRESS();
         SuperVaultState storage state = superVaultState[controller];
@@ -962,8 +963,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
         if (state.maxWithdraw < actualAmountToClaim) revert INVALID_REDEEM_CLAIM();
         state.maxWithdraw -= actualAmountToClaim;
-        _asset.safeTransfer(controller, actualAmountToClaim);
-        emit RedeemRequestFulfilled(controller, controller, actualAmountToClaim, 0);
+        _asset.safeTransfer(receiver, actualAmountToClaim);
+        emit RedeemRequestFulfilled(receiver, controller, actualAmountToClaim, 0);
     }
 
     /// @notice Internal function to safely transfer tokens
