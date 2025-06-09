@@ -59,7 +59,7 @@ abstract contract Bank {
                 Execution memory executionStep = executions[j];
 
                 // valid hooks encapsulate execution between a `.preExecute` and ` .postExecute` 
-                // target for preExecute and postExecute are the hook address
+                // target for preExecute and postExecute is the hook address
                 // keep the original behavior for validating the tree against the actual execution steps
                 if (executionStep.target != hookAddress) {
                     // Verify that this target is allowed for this hook using the Merkle proof
