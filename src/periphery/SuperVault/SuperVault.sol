@@ -131,13 +131,13 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     /*//////////////////////////////////////////////////////////////
                         USER EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+
     /// @inheritdoc IERC4626
     function deposit(uint256 assets, address receiver) public override nonReentrant returns (uint256 shares) {
         if (receiver == address(0)) revert ZERO_ADDRESS();
         if (assets == 0) revert ZERO_AMOUNT();
 
-        uint256 currentPPS = strategy.getStoredPPS();
-        if (currentPPS == 0) revert INVALID_PPS();
+        uint256 currentPPS = _getStoredPPSWithRevert();
 
         shares = Math.mulDiv(assets, PRECISION, currentPPS, Math.Rounding.Floor);
         if (shares == 0) revert ZERO_AMOUNT();
@@ -156,8 +156,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         if (receiver == address(0)) revert ZERO_ADDRESS();
         if (shares == 0) revert ZERO_AMOUNT();
 
-        uint256 currentPPS = strategy.getStoredPPS();
-        if (currentPPS == 0) revert INVALID_PPS();
+        uint256 currentPPS = _getStoredPPSWithRevert();
 
         assets = Math.mulDiv(shares, currentPPS, PRECISION, Math.Rounding.Ceil);
         if (assets == 0) revert ZERO_AMOUNT();
@@ -207,7 +206,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     }
 
     /// @inheritdoc IERC7540Operator
-    function setOperator(address operator, bool approved) public returns (bool success) {
+    function setOperator(address operator, bool approved) external returns (bool success) {
         if (msg.sender == operator) revert UNAUTHORIZED();
         isOperator[msg.sender][operator] = approved;
         emit OperatorSet(msg.sender, operator, approved);
@@ -312,23 +311,23 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     }
 
     /// @inheritdoc IERC4626
-    function totalAssets() public view override returns (uint256) {
+    function totalAssets() external view override returns (uint256) {
         uint256 supply = totalSupply();
         if (supply == 0) return 0;
-        uint256 currentPPS = strategy.getStoredPPS();
+        uint256 currentPPS = _getStoredPPS();
         return Math.mulDiv(supply, currentPPS, PRECISION, Math.Rounding.Floor);
     }
 
     /// @inheritdoc IERC4626
     function convertToShares(uint256 assets) public view override returns (uint256) {
-        uint256 currentPPS = strategy.getStoredPPS();
+        uint256 currentPPS = _getStoredPPS();
         if (currentPPS == 0) return assets;
         return Math.mulDiv(assets, PRECISION, currentPPS, Math.Rounding.Floor);
     }
 
     /// @inheritdoc IERC4626
     function convertToAssets(uint256 shares) public view override returns (uint256) {
-        uint256 currentPPS = strategy.getStoredPPS();
+        uint256 currentPPS = _getStoredPPS();
         if (currentPPS == 0) return shares;
         return Math.mulDiv(shares, currentPPS, PRECISION, Math.Rounding.Ceil);
     }
@@ -339,7 +338,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     }
 
     /// @inheritdoc IERC4626
-    function maxMint(address owner) public view override returns (uint256) {
+    function maxMint(address owner) external view override returns (uint256) {
         uint256 maxAssets = maxDeposit(owner);
         return convertToShares(maxAssets);
     }
@@ -513,5 +512,15 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
             strategy.updateSuperVaultState(to, state);
         }
         super._update(from, to, value);
+    }
+
+    function _getStoredPPS() internal view returns (uint256) {
+        return strategy.getStoredPPS();
+    }
+
+    function _getStoredPPSWithRevert() internal view returns (uint256) {
+        uint256 currentPPS = _getStoredPPS();
+        if (currentPPS == 0) revert INVALID_PPS();
+        return currentPPS;
     }
 }

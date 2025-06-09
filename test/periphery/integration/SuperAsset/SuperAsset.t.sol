@@ -6,9 +6,6 @@ import { ERC4626YieldSourceOracle } from "../../../../src/core/accounting/oracle
 import { SuperAsset } from "../../../../src/periphery/SuperAsset/SuperAsset.sol";
 import { ISuperAsset } from "../../../../src/periphery/interfaces/SuperAsset/ISuperAsset.sol";
 import { SuperVaultAggregator } from "../../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
-import { SuperVaultFactory } from "../../../../src/periphery/SuperVault/SuperVaultFactory.sol";
-import { HookRegistry } from "../../../../src/periphery/SuperVault/HookRegistry.sol";
-import { SuperVaultRegistry } from "../../../../src/periphery/SuperVault/SuperVaultRegistry.sol";
 import { SuperGovernor } from "../../../../src/periphery/SuperGovernor.sol";
 import { IncentiveFundContract } from "../../../../src/periphery/SuperAsset/IncentiveFundContract.sol";
 import { IncentiveCalculationContract } from "../../../../src/periphery/SuperAsset/IncentiveCalculationContract.sol";
@@ -20,6 +17,9 @@ import { Helpers } from "../../../utils/Helpers.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { SuperAssetFactory, ISuperAssetFactory } from "../../../../src/periphery/SuperAsset/SuperAssetFactory.sol";
 import { SuperBank } from "../../../../src/periphery/SuperBank.sol";
+import { SuperVault } from "../../../../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultStrategy } from "../../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
 
 contract SuperAssetTest is Helpers {
     // --- Constants ---
@@ -112,13 +112,13 @@ contract SuperAssetTest is Helpers {
         superGovernor.grantRole(superGovernor.BANK_MANAGER_ROLE(), admin);
         console.log("SuperGovernor Roles Granted");
 
-        // Deploy modular SuperVault system
-        SuperVaultRegistry assetRegistry = new SuperVaultRegistry(address(superGovernor));
-        SuperVaultFactory vaultFactory = new SuperVaultFactory(address(superGovernor), address(assetRegistry));
-        HookRegistry hookRegistry = new HookRegistry(address(superGovernor), address(assetRegistry));
-        aggregator = new SuperVaultAggregator(
-            address(superGovernor), address(vaultFactory), address(hookRegistry), address(assetRegistry)
-        );
+        // Deploy implementation contracts first
+        address vaultImpl = address(new SuperVault());
+        address strategyImpl = address(new SuperVaultStrategy());
+        address escrowImpl = address(new SuperVaultEscrow());
+
+        // Deploy SuperVaultAggregator
+        aggregator = new SuperVaultAggregator(address(superGovernor), vaultImpl, strategyImpl, escrowImpl);
         superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), address(aggregator));
 
         // Deploy mock tokens and vault

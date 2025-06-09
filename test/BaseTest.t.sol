@@ -148,9 +148,9 @@ import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "./mocks/MockRegistry.sol";
 
 import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
-import { SuperVaultFactory } from "../src/periphery/SuperVault/SuperVaultFactory.sol";
-import { HookRegistry } from "../src/periphery/SuperVault/HookRegistry.sol";
-import { SuperVaultRegistry } from "../src/periphery/SuperVault/SuperVaultRegistry.sol";
+import { SuperVault } from "../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultStrategy } from "../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../src/periphery/SuperVault/SuperVaultEscrow.sol";
 import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 
 import { BaseHook } from "../src/core/hooks/BaseHook.sol";
@@ -229,9 +229,6 @@ struct Addresses {
     SuperGovernor superGovernor;
     SuperNativePaymaster superNativePaymaster;
     SuperVaultAggregator superVaultAggregator;
-    SuperVaultFactory superVaultFactory;
-    HookRegistry HookRegistry;
-    SuperVaultRegistry superVaultRegistry;
     ECDSAPPSOracle ecdsappsOracle;
     ISuperExecutor superExecutorWithSPLock;
     MockTargetExecutor mockTargetExecutor;
@@ -593,29 +590,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.label(address(A[i].stakingYieldSourceOracle), STAKING_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][STAKING_YIELD_SOURCE_ORACLE_KEY] = address(A[i].stakingYieldSourceOracle);
 
-            // Deploy modular SuperVault contracts
-            A[i].superVaultRegistry = new SuperVaultRegistry(address(A[i].superGovernor));
-            vm.label(address(A[i].superVaultRegistry), "SuperVaultRegistry");
-
-            A[i].superVaultFactory =
-                new SuperVaultFactory(address(A[i].superGovernor), address(A[i].superVaultRegistry));
-            vm.label(address(A[i].superVaultFactory), "SuperVaultFactory");
-
-            A[i].HookRegistry = new HookRegistry(address(A[i].superGovernor), address(A[i].superVaultRegistry));
-            vm.label(address(A[i].HookRegistry), "HookRegistry");
-
-            A[i].superVaultAggregator = new SuperVaultAggregator(
-                address(A[i].superGovernor),
-                address(A[i].superVaultFactory),
-                address(A[i].HookRegistry),
-                address(A[i].superVaultRegistry)
-            );
-            vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
-            contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
-
             A[i].ecdsappsOracle = new ECDSAPPSOracle(address(A[i].superGovernor));
             vm.label(address(A[i].ecdsappsOracle), ECDSAPPS_ORACLE_KEY);
             contractAddresses[chainIds[i]][ECDSAPPS_ORACLE_KEY] = address(A[i].ecdsappsOracle);
+
+            // Deploy implementation contracts first
+            address vaultImpl = address(new SuperVault());
+            address strategyImpl = address(new SuperVaultStrategy());
+            address escrowImpl = address(new SuperVaultEscrow());
+
+            A[i].superVaultAggregator =
+                new SuperVaultAggregator(address(A[i].superGovernor), vaultImpl, strategyImpl, escrowImpl);
+            vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
 
             A[i].superGovernor.setActivePPSOracle(address(A[i].ecdsappsOracle));
             A[i].superGovernor.addValidator(VALIDATOR);
@@ -1250,27 +1237,29 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             if (chainIds[i] == ETH) {
                 /// @dev set any new sv addresses here
                 address aggregator = _getContract(ETH, SUPER_VAULT_AGGREGATOR_KEY);
-                address factory = address(SuperVaultAggregator(aggregator).SUPER_VAULT_FACTORY());
-                globalSVStrategy = SuperVaultFactory(factory).STRATEGY_IMPLEMENTATION().predictDeterministicAddress(
+                globalSVStrategy = SuperVaultAggregator(aggregator).STRATEGY_IMPLEMENTATION()
+                    .predictDeterministicAddress(
                     keccak256(
                         abi.encodePacked(existingUnderlyingTokens[ETH][USDC_KEY], "SuperVault", "SV_USDC", uint256(0))
                     ),
-                    factory
+                    aggregator
                 );
-                globalSVGearStrategy = SuperVaultFactory(factory).STRATEGY_IMPLEMENTATION().predictDeterministicAddress(
+                globalSVGearStrategy = SuperVaultAggregator(aggregator).STRATEGY_IMPLEMENTATION()
+                    .predictDeterministicAddress(
                     keccak256(
                         abi.encodePacked(existingUnderlyingTokens[ETH][USDC_KEY], "SuperVault", "svGearbox", uint256(1))
                     ),
-                    factory
+                    aggregator
                 );
 
-                globalRuggableVault = SuperVaultFactory(factory).STRATEGY_IMPLEMENTATION().predictDeterministicAddress(
+                globalRuggableVault = SuperVaultAggregator(aggregator).STRATEGY_IMPLEMENTATION()
+                    .predictDeterministicAddress(
                     keccak256(
                         abi.encodePacked(
                             existingUnderlyingTokens[ETH][USDC_KEY], "SuperVault", "SV_USDC_RUG", uint256(1)
                         )
                     ),
-                    factory
+                    aggregator
                 );
                 _generateMerkleTree(ETH);
             }
