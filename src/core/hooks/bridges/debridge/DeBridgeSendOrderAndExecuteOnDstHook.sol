@@ -137,11 +137,11 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
 
         return abi.encodePacked(
             orderCreation.giveTokenAddress,
-            address(bytes20(orderCreation.takeTokenAddress)),
-            address(bytes20(orderCreation.receiverDst)),
-            address(bytes20(orderCreation.givePatchAuthoritySrc)),
-            address(bytes20(orderCreation.orderAuthorityAddressDst)),
-            address(bytes20(orderCreation.allowedCancelBeneficiarySrc))
+            orderCreation.takeTokenAddress,      // Keep as bytes
+            orderCreation.receiverDst,          // Keep as bytes
+            orderCreation.givePatchAuthoritySrc,
+            orderCreation.orderAuthorityAddressDst,
+            orderCreation.allowedCancelBeneficiarySrc
         );
     }
 
