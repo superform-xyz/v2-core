@@ -23,8 +23,6 @@ import {ISuperExecutor} from "../interfaces/ISuperExecutor.sol";
 import {ISuperDestinationExecutor} from "../interfaces/ISuperDestinationExecutor.sol";
 import {ISuperDestinationValidator} from "../interfaces/ISuperDestinationValidator.sol";
 
-import "forge-std/console2.sol";
-
 /// @title SuperDestinationExecutor
 /// @author Superform Labs
 /// @notice Generic executor for destination chains of Superform, processing bridged executions
@@ -112,9 +110,6 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
 
     /// @inheritdoc ISuperDestinationExecutor
     function isCallerAllowed(address account) public view returns (bool) {
-        console2.log("-- account ", account);
-        console2.log("-- msg.sender ", msg.sender);
-        console2.log("-- _allowedCallers[account][msg.sender] ", _allowedCallers[account][msg.sender]);
         return _allowedCallers[account][msg.sender];
     }
 
@@ -132,7 +127,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         if (getAccountOwner(account_) != msg.sender) revert CALLER_NOT_ALLOWED();
 
         uint256 len = callers_.length;
-        for (uint256 i = 0; i < len; ++i) {
+        for (uint256 i; i < len; ++i) {
             address _caller = callers_[i];
             if (allowed_) {
                 if (_allowedCallers[account_][_caller]) continue;
@@ -153,15 +148,13 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     function onInstall(bytes calldata data) external override(SuperExecutorBase) {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
 
-        if (data.length > 0) {
-            (address owner, address[] memory allowedCallers) = abi.decode(data, (address, address[]));
-            if (owner == address(0)) revert ZERO_ADDRESS();
-            _accountOwners[msg.sender] = owner;
+        (address owner, address[] memory allowedCallers) = abi.decode(data, (address, address[]));
+        if (owner == address(0)) revert ZERO_ADDRESS();
+        _accountOwners[msg.sender] = owner;
 
-            uint256 len = allowedCallers.length;
-            for (uint256 i; i < len; ++i) {
-                _allowedCallers[msg.sender][allowedCallers[i]] = true;
-            }
+        uint256 len = allowedCallers.length;
+        for (uint256 i; i < len; ++i) {
+            _allowedCallers[msg.sender][allowedCallers[i]] = true;
         }
 
         _initialized[msg.sender] = true;
