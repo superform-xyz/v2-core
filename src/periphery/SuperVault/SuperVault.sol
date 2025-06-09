@@ -128,13 +128,6 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         return vaultSymbol;
     }
 
-    function transfer(address to, uint256 value) public override(IERC20, ERC20) returns (bool) {
-        ISuperVaultStrategy.SuperVaultState memory state = strategy.getSuperVaultState(msg.sender);
-        strategy.updateSuperVaultState(to, state);
-        
-        return super.transfer(to, value);
-    }
-
     /*//////////////////////////////////////////////////////////////
                         USER EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -508,5 +501,17 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     function _isValidSignature(address signer, bytes32 digest, bytes memory signature) internal pure returns (bool) {
         address recoveredSigner = ECDSA.recover(digest, signature);
         return recoveredSigner == signer;
+    }
+
+    /// @notice Overrides the ERC20 _update function to update the state of the vault when a transfer occurs
+    /// @param from The address of the sender
+    /// @param to The address of the recipient
+    /// @param value The amount of shares being transferred
+    function _update(address from, address to, uint256 value) internal override {
+        if (from != address(0) && to != address(0)) {
+            ISuperVaultStrategy.SuperVaultState memory state = strategy.getSuperVaultState(from);
+            strategy.updateSuperVaultState(to, state);
+        }
+        super._update(from, to, value);
     }
 }
