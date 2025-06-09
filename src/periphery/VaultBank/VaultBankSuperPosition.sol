@@ -21,14 +21,14 @@ contract VaultBankSuperPosition is ERC20, Ownable2Step {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 VIEW METHODS
+                              VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Get the number of decimals for the token
     function decimals() public view override returns (uint8) {
         return _decimals;
     }
     /*//////////////////////////////////////////////////////////////
-                                 EXTERNAL METHODS
+                            EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Mint tokens to the specified address
     /// @param to_ The address to mint tokens to
