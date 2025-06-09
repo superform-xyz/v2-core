@@ -7,7 +7,7 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 // Superform
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
 import { IHookFactory } from "../interfaces/SuperVault/IHookFactory.sol";
-import { ISuperAssetRegistry } from "../interfaces/SuperVault/ISuperAssetRegistry.sol";
+import { ISuperVaultRegistry } from "../interfaces/SuperVault/ISuperVaultRegistry.sol";
 
 /// @title HookFactory
 /// @author Superform Labs
@@ -18,7 +18,7 @@ contract HookFactory is IHookFactory {
     //////////////////////////////////////////////////////////////*/
     // Governance and registry contracts
     ISuperGovernor public immutable SUPER_GOVERNOR;
-    ISuperAssetRegistry public immutable SUPER_ASSET_REGISTRY;
+    ISuperVaultRegistry public immutable SUPER_VAULT_REGISTRY;
 
     // Timelock for Merkle root updates
     uint256 private _hooksRootUpdateTimelock = 15 minutes;
@@ -41,7 +41,7 @@ contract HookFactory is IHookFactory {
     /// @notice Validates that the strategy exists in the asset registry
     modifier validStrategy(address strategy) {
         // Check that strategy has a main strategist (exists in registry)
-        if (SUPER_ASSET_REGISTRY.getMainStrategist(strategy) == address(0)) revert ZERO_ADDRESS();
+        if (SUPER_VAULT_REGISTRY.getMainStrategist(strategy) == address(0)) revert ZERO_ADDRESS();
         _;
     }
 
@@ -50,12 +50,12 @@ contract HookFactory is IHookFactory {
     //////////////////////////////////////////////////////////////*/
     /// @notice Initializes the HookFactory
     /// @param superGovernor_ Address of the SuperGovernor contract
-    /// @param superAssetRegistry_ Address of the SuperAssetRegistry contract
-    constructor(address superGovernor_, address superAssetRegistry_) {
-        if (superGovernor_ == address(0) || superAssetRegistry_ == address(0)) revert ZERO_ADDRESS();
+    /// @param superVaultRegistry_ Address of the SuperVaultRegistry contract
+    constructor(address superGovernor_, address superVaultRegistry_) {
+        if (superGovernor_ == address(0) || superVaultRegistry_ == address(0)) revert ZERO_ADDRESS();
 
         SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
-        SUPER_ASSET_REGISTRY = ISuperAssetRegistry(superAssetRegistry_);
+        SUPER_VAULT_REGISTRY = ISuperVaultRegistry(superVaultRegistry_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -133,7 +133,7 @@ contract HookFactory is IHookFactory {
     /// @inheritdoc IHookFactory
     function proposeStrategyHooksRoot(address strategy, bytes32 newRoot) external validStrategy(strategy) {
         // Only the main strategist can propose strategy-specific hooks root
-        if (SUPER_ASSET_REGISTRY.getMainStrategist(strategy) != msg.sender) {
+        if (SUPER_VAULT_REGISTRY.getMainStrategist(strategy) != msg.sender) {
             revert UNAUTHORIZED_UPDATE_AUTHORITY();
         }
 

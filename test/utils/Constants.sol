@@ -259,7 +259,7 @@ abstract contract Constants {
 
     // periphery
     string public constant SUPER_VAULT_AGGREGATOR_KEY = "SUPER_VAULT_AGGREGATOR";
-    string public constant SUPER_ASSET_REGISTRY_KEY = "SUPER_ASSET_REGISTRY";
+    string public constant SUPER_VAULT_REGISTRY_KEY = "SUPER_VAULT_REGISTRY";
     string public constant SUPER_VAULT_FACTORY_KEY = "SUPER_VAULT_FACTORY";
     string public constant HOOK_FACTORY_KEY = "HOOK_FACTORY";
     string public constant ECDSAPPS_ORACLE_KEY = "ECDSAPPS_ORACLE";

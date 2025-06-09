@@ -21,7 +21,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     // Factory contracts
     ISuperVaultFactory public immutable SUPER_VAULT_FACTORY;
     IHookFactory public immutable HOOK_FACTORY;
-    ISuperAssetRegistry public immutable SUPER_ASSET_REGISTRY;
+    ISuperVaultRegistry public immutable SUPER_VAULT_REGISTRY;
 
     // Constant for PPS decimals
     uint256 public constant PPS_DECIMALS = 18;
@@ -44,11 +44,11 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     /// @param superGovernor_ Address of the SuperGovernor contract
     /// @param superVaultFactory_ Address of the SuperVaultFactory contract
     /// @param hookFactory_ Address of the HookFactory contract
-    /// @param superAssetRegistry_ Address of the SuperAssetRegistry contract
-    constructor(address superGovernor_, address superVaultFactory_, address hookFactory_, address superAssetRegistry_) {
+    /// @param superVaultRegistry_ Address of the SuperVaultRegistry contract
+    constructor(address superGovernor_, address superVaultFactory_, address hookFactory_, address superVaultRegistry_) {
         if (
             superGovernor_ == address(0) || superVaultFactory_ == address(0) || hookFactory_ == address(0)
-                || superAssetRegistry_ == address(0)
+                || superVaultRegistry_ == address(0)
         ) {
             revert ZERO_ADDRESS();
         }
@@ -56,7 +56,7 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
         SUPER_VAULT_FACTORY = ISuperVaultFactory(superVaultFactory_);
         HOOK_FACTORY = IHookFactory(hookFactory_);
-        SUPER_ASSET_REGISTRY = ISuperAssetRegistry(superAssetRegistry_);
+        SUPER_VAULT_REGISTRY = ISuperVaultRegistry(superVaultRegistry_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -75,12 +75,12 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperVaultAggregator
     function forwardPPS(address updateAuthority, ForwardPPSArgs calldata args) external onlyPPSOracle {
-        SUPER_ASSET_REGISTRY.forwardPPS(updateAuthority, args);
+        SUPER_VAULT_REGISTRY.forwardPPS(updateAuthority, args);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function batchForwardPPS(BatchForwardPPSArgs calldata args) external onlyPPSOracle {
-        SUPER_ASSET_REGISTRY.batchForwardPPS(args);
+        SUPER_VAULT_REGISTRY.batchForwardPPS(args);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -88,12 +88,12 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperVaultAggregator
     function depositUpkeep(address strategist, uint256 amount) external {
-        SUPER_ASSET_REGISTRY.depositUpkeep(strategist, amount);
+        SUPER_VAULT_REGISTRY.depositUpkeep(strategist, amount);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function withdrawUpkeep(uint256 amount) external {
-        SUPER_ASSET_REGISTRY.withdrawUpkeep(amount);
+        SUPER_VAULT_REGISTRY.withdrawUpkeep(amount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -101,12 +101,12 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperVaultAggregator
     function addAuthorizedCaller(address strategy, address caller) external {
-        SUPER_ASSET_REGISTRY.addAuthorizedCaller(strategy, caller);
+        SUPER_VAULT_REGISTRY.addAuthorizedCaller(strategy, caller);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function removeAuthorizedCaller(address strategy, address caller) external {
-        SUPER_ASSET_REGISTRY.removeAuthorizedCaller(strategy, caller);
+        SUPER_VAULT_REGISTRY.removeAuthorizedCaller(strategy, caller);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -114,12 +114,12 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperVaultAggregator
     function addSecondaryStrategist(address strategy, address strategist) external {
-        SUPER_ASSET_REGISTRY.addSecondaryStrategist(strategy, strategist);
+        SUPER_VAULT_REGISTRY.addSecondaryStrategist(strategy, strategist);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function removeSecondaryStrategist(address strategy, address strategist) external {
-        SUPER_ASSET_REGISTRY.removeSecondaryStrategist(strategy, strategist);
+        SUPER_VAULT_REGISTRY.removeSecondaryStrategist(strategy, strategist);
     }
 
     /// @inheritdoc ISuperVaultAggregator
@@ -131,24 +131,24 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     )
         external
     {
-        SUPER_ASSET_REGISTRY.updatePPSVerificationThresholds(
+        SUPER_VAULT_REGISTRY.updatePPSVerificationThresholds(
             strategy, dispersionThreshold_, deviationThreshold_, mnThreshold_
         );
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function changePrimaryStrategist(address strategy, address newStrategist) external {
-        SUPER_ASSET_REGISTRY.changePrimaryStrategist(strategy, newStrategist);
+        SUPER_VAULT_REGISTRY.changePrimaryStrategist(strategy, newStrategist);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function proposeChangePrimaryStrategist(address strategy, address newStrategist) external {
-        SUPER_ASSET_REGISTRY.proposeChangePrimaryStrategist(strategy, newStrategist);
+        SUPER_VAULT_REGISTRY.proposeChangePrimaryStrategist(strategy, newStrategist);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function executeChangePrimaryStrategist(address strategy) external {
-        SUPER_ASSET_REGISTRY.executeChangePrimaryStrategist(strategy);
+        SUPER_VAULT_REGISTRY.executeChangePrimaryStrategist(strategy);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -214,27 +214,27 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
 
     /// @inheritdoc ISuperVaultAggregator
     function getPPS(address strategy) external view returns (uint256 pps) {
-        return SUPER_ASSET_REGISTRY.getPPS(strategy);
+        return SUPER_VAULT_REGISTRY.getPPS(strategy);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function getPPSWithStdDev(address strategy) external view returns (uint256 pps, uint256 ppsStdev) {
-        return SUPER_ASSET_REGISTRY.getPPSWithStdDev(strategy);
+        return SUPER_VAULT_REGISTRY.getPPSWithStdDev(strategy);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function getLastUpdateTimestamp(address strategy) external view returns (uint256 timestamp) {
-        return SUPER_ASSET_REGISTRY.getLastUpdateTimestamp(strategy);
+        return SUPER_VAULT_REGISTRY.getLastUpdateTimestamp(strategy);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function getMinUpdateInterval(address strategy) external view returns (uint256 interval) {
-        return SUPER_ASSET_REGISTRY.getMinUpdateInterval(strategy);
+        return SUPER_VAULT_REGISTRY.getMinUpdateInterval(strategy);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function getMaxStaleness(address strategy) external view returns (uint256 staleness) {
-        return SUPER_ASSET_REGISTRY.getMaxStaleness(strategy);
+        return SUPER_VAULT_REGISTRY.getMaxStaleness(strategy);
     }
 
     /// @inheritdoc ISuperVaultAggregator
@@ -243,47 +243,47 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
         view
         returns (uint256 dispersionThreshold, uint256 deviationThreshold, uint256 mnThreshold)
     {
-        return SUPER_ASSET_REGISTRY.getPPSVerificationThresholds(strategy);
+        return SUPER_VAULT_REGISTRY.getPPSVerificationThresholds(strategy);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function isStrategyPaused(address strategy) external view returns (bool isPaused) {
-        return SUPER_ASSET_REGISTRY.isStrategyPaused(strategy);
+        return SUPER_VAULT_REGISTRY.isStrategyPaused(strategy);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function getUpkeepBalance(address strategist) external view returns (uint256 balance) {
-        return SUPER_ASSET_REGISTRY.getUpkeepBalance(strategist);
+        return SUPER_VAULT_REGISTRY.getUpkeepBalance(strategist);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function getAuthorizedCallers(address strategy) external view returns (address[] memory callers) {
-        return SUPER_ASSET_REGISTRY.getAuthorizedCallers(strategy);
+        return SUPER_VAULT_REGISTRY.getAuthorizedCallers(strategy);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function getMainStrategist(address strategy) external view returns (address strategist) {
-        return SUPER_ASSET_REGISTRY.getMainStrategist(strategy);
+        return SUPER_VAULT_REGISTRY.getMainStrategist(strategy);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function isMainStrategist(address strategist, address strategy) external view returns (bool) {
-        return SUPER_ASSET_REGISTRY.isMainStrategist(strategist, strategy);
+        return SUPER_VAULT_REGISTRY.isMainStrategist(strategist, strategy);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function getSecondaryStrategists(address strategy) external view returns (address[] memory) {
-        return SUPER_ASSET_REGISTRY.getSecondaryStrategists(strategy);
+        return SUPER_VAULT_REGISTRY.getSecondaryStrategists(strategy);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function isSecondaryStrategist(address strategist, address strategy) external view returns (bool) {
-        return SUPER_ASSET_REGISTRY.isSecondaryStrategist(strategist, strategy);
+        return SUPER_VAULT_REGISTRY.isSecondaryStrategist(strategist, strategy);
     }
 
     /// @inheritdoc ISuperVaultAggregator
     function isAnyStrategist(address strategist, address strategy) external view returns (bool) {
-        return SUPER_ASSET_REGISTRY.isAnyStrategist(strategist, strategy);
+        return SUPER_VAULT_REGISTRY.isAnyStrategist(strategist, strategy);
     }
 
     /// @inheritdoc ISuperVaultAggregator

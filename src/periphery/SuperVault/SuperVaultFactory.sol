@@ -34,7 +34,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
 
     // Governance and registry contracts
     ISuperGovernor public immutable SUPER_GOVERNOR;
-    ISuperAssetRegistry public immutable SUPER_ASSET_REGISTRY;
+    ISuperAssetRegistry public immutable SUPER_VAULT_REGISTRY;
 
     // Registry of created vaults
     EnumerableSet.AddressSet private _superVaults;
@@ -69,7 +69,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
         ESCROW_IMPLEMENTATION = address(new SuperVaultEscrow());
 
         SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
-        SUPER_ASSET_REGISTRY = ISuperAssetRegistry(superAssetRegistry_);
+        SUPER_VAULT_REGISTRY = ISuperAssetRegistry(superAssetRegistry_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -122,7 +122,7 @@ contract SuperVaultFactory is ISuperVaultFactory {
         uint8 underlyingDecimals = success ? assetDecimals : 18;
 
         // Initialize strategy data in the asset registry
-        SUPER_ASSET_REGISTRY.initializeStrategyData(
+        SUPER_VAULT_REGISTRY.initializeStrategyData(
             strategy, params.mainStrategist, params.minUpdateInterval, params.maxStaleness, underlyingDecimals
         );
 
