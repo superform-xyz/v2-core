@@ -752,6 +752,71 @@ contract CrosschainTests is BaseTest {
         assertEq(maxDeposit, amountPerVault / 2 - 1, "Max deposit is not as expected");
     }
 
+    function test_Bridge_WithPrevHookAmount() public {
+        uint256 amountPerVault = 1e8;
+
+        // ETH IS DST
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+
+        // PREPARE ETH DATA
+        bytes memory targetExecutorMessage;
+        TargetExecutorMessage memory messageData;
+        address accountToUse;
+        {
+            address[] memory dstHooks = new address[](0);
+            bytes[] memory dstHooksData = new bytes[](0);
+
+            messageData = TargetExecutorMessage({
+                hooksAddresses: dstHooks,
+                hooksData: dstHooksData,
+                validator: address(validatorOnETH),
+                signer: validatorSigners[ETH],
+                signerPrivateKey: validatorSignerPrivateKeys[ETH],
+                targetAdapter: address(acrossV3AdapterOnETH),
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: CHAIN_1_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+                chainId: uint64(ETH),
+                amount: amountPerVault,
+                account: accountETH,
+                tokenSent: underlyingETH_USDC
+            });
+
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+        }
+
+        uint256 initialOutputAmount = amountPerVault/2;
+
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+        uint256 balanceBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingBase_USDC, underlyingETH_USDC, amountPerVault/2, amountPerVault/2, ETH, true, targetExecutorMessage
+        );
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        srcUserOpData.userOp.signature = signatureData;
+
+        // EXECUTE ETH
+        _processAcrossV3Message(
+            BASE, ETH, WARP_START_TIME + 30 days, executeOp(srcUserOpData), RELAYER_TYPE.NO_HOOKS, accountETH
+        );
+        uint256 balanceAfter = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+        uint256 amountSent = balanceBefore - balanceAfter;
+        assertEq(amountSent, initialOutputAmount * 2, "A");
+    }
+
     function test_Bridge_To_ETH_And_Deposit() public {
         uint256 amountPerVault = 1e8 / 2;
 
