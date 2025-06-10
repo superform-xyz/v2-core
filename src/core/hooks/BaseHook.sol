@@ -35,10 +35,6 @@ abstract contract BaseHook is ISuperHook {
     /// @dev Typically the base token or asset being processed
     address public transient asset;
     
-    /// @notice The address that initiated the first execution in the hook chain
-    /// @dev Used for security validation between preExecute and postExecute calls
-    address public transient lastExecutionCaller;
-
     /// @notice The vault bank address (if applicable) for cross-chain operations
     /// @dev Used primarily in bridge hooks to track source/destination vault banks
     address public transient vaultBank;
@@ -123,14 +119,6 @@ abstract contract BaseHook is ISuperHook {
     function setCaller() external  {
         if(caller != address(0)) revert CALLER_ALREADY_SET();
         caller = msg.sender;
-    }
-
-    /// @notice Retrieves the address that initiated the current execution context
-    /// @dev Implemented as an external view function to allow for test mocking
-    ///      Used by the security validation system to enforce caller consistency
-    /// @return The address stored as the lastExecutionCaller
-    function getExecutionCaller() public view returns (address) {
-        return lastExecutionCaller;
     }
 
     /// @dev Standard build pattern - MUST include preExecute first, postExecute last
