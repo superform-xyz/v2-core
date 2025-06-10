@@ -49,9 +49,9 @@ interface ISuperNativePaymaster {
     /// @notice Emitted when a batch of user operations is handled
     /// @param sender The address that handled the operations
     /// @param numOps The number of operations handled
-    /// @param initialBalance The initial balance of the paymaster
-    /// @param withdrawnAmount The amount of tokens withdrawn
-    event UserOperationsHandled(address indexed sender, uint256 numOps, uint256 initialBalance, uint256 withdrawnAmount);
+    /// @param initialAmount The initial amount of native tokens
+    /// @param withdrawnAmount The amount of native tokens withdrawn
+    event UserOperationsHandled(address indexed sender, uint256 numOps, uint256 initialAmount, uint256 withdrawnAmount);
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
