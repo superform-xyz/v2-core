@@ -304,9 +304,6 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
             // Lock assets in the vault bank for cross-chain transfer
             IVaultBank(vaultBank).lockAsset(account, spToken, amount, uint64(dstChainId));
-
-            // Emit event for cross-chain position minting
-            emit SuperPositionMintRequested(account, spToken, amount, dstChainId);
         }
     }
 }
