@@ -13,7 +13,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookResetExecution } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 import { IVaultBank } from "../../periphery/interfaces/VaultBank/IVaultBank.sol";
 
@@ -291,7 +291,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         }
 
         // STEP 2: Build and execute (dual mutexes protect pre/post)
-        ISuperHookResetExecution(address(hook)).setCaller();
+        hook.setCaller();
         _execute(account, executions);
 
         // STEP 3: Update accounting (both mutexes active, preventing reentrancy)
@@ -301,7 +301,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         _checkAndLockForSuperPosition(account, address(hook));
         
         // STEP 5: Reset both mutexes after all processing complete
-        ISuperHookResetExecution(address(hook)).resetExecutionState();
+        hook.resetExecutionState();
     }
 
     /// @notice Handles cross-chain asset locking for SuperPosition minting

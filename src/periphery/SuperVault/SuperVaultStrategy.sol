@@ -17,8 +17,7 @@ import {
     ISuperHookInflowOutflow,
     ISuperHookResultOutflow,
     ISuperHookContextAware,
-    ISuperHookInspector,
-    ISuperHookResetExecution
+    ISuperHookInspector
 } from "../../core/interfaces/ISuperHook.sol";
 import { IYieldSourceOracle } from "../../core/interfaces/accounting/IYieldSourceOracle.sol";
 
@@ -433,14 +432,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
             }
         }
         
-        ISuperHookResetExecution(address(vars.hookContract)).setCaller();
+        ISuperHook(address(vars.hookContract)).setCaller();
         vars.executions = vars.hookContract.build(prevHook, address(this), hookCalldata);
         for (uint256 j; j < vars.executions.length; ++j) {
             (vars.success,) =
                 vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
             if (!vars.success) revert OPERATION_FAILED();
         }
-        ISuperHookResetExecution(address(vars.hookContract)).resetExecutionState();
+        ISuperHook(address(vars.hookContract)).resetExecutionState();
 
         uint256 actualOutput = ISuperHookResult(hook).outAmount();
         if (actualOutput == 0) revert ZERO_OUTPUT_AMOUNT();
@@ -491,7 +490,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
         vars.balanceAssetBefore = _getTokenBalance(vars.svAsset, address(this));
 
-        ISuperHookResetExecution(address(vars.hookContract)).setCaller();
+        ISuperHook(address(vars.hookContract)).setCaller();
 
         vars.executions = vars.hookContract.build(address(0), address(this), hookCalldata);
         for (uint256 j; j < vars.executions.length; ++j) {
@@ -499,7 +498,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
                 vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
             if (!vars.success) revert OPERATION_FAILED();
         }
-        ISuperHookResetExecution(address(vars.hookContract)).resetExecutionState();
+        ISuperHook(address(vars.hookContract)).resetExecutionState();
 
         vars.outAmount = _getTokenBalance(vars.svAsset, address(this)) - vars.balanceAssetBefore;
 

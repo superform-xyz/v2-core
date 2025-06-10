@@ -20,18 +20,6 @@ import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
  *      - OUTFLOW: Hooks that process withdrawals or reductions to positions
  */
 
-/// @title ISuperHookResetExecution
-/// @author Superform Labs
-/// @notice Interface for the ISuperHookResetExecution contract that manages hook context reset
-interface ISuperHookResetExecution {
-    /// @notice Resets hook mutexes
-    function resetExecutionState() external;
-
-    /// @notice Sets the caller address that initiated the execution
-    /// @dev Used for security validation between preExecute and postExecute calls
-    function setCaller() external;
-}
-
 /// @title ISuperHookInspector
 /// @author Superform Labs
 /// @notice Interface for the SuperHookInspector contract that manages hook inspection
@@ -259,4 +247,11 @@ interface ISuperHook {
     ///      For example, a hook might be of type INFLOW but subtype VAULT_DEPOSIT
     /// @return A bytes32 identifier for the specific hook functionality
     function subtype() external view returns (bytes32);
+
+    /// @notice Resets hook mutexes
+    function resetExecutionState() external;
+
+    /// @notice Sets the caller address that initiated the execution
+    /// @dev Used for security validation between preExecute and postExecute calls
+    function setCaller() external;
 }

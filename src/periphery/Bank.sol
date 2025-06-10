@@ -6,7 +6,7 @@ import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerklePr
 
 // Superform
 import {IHookExecutionData} from "./interfaces/IHookExecutionData.sol";
-import {ISuperHook, ISuperHookResetExecution, Execution} from "../core/interfaces/ISuperHook.sol";
+import {ISuperHook, Execution} from "../core/interfaces/ISuperHook.sol";
 
 abstract contract Bank {
     /*//////////////////////////////////////////////////////////////
@@ -61,7 +61,7 @@ abstract contract Bank {
             // 1. Get the Merkle root specific to this hook
             merkleRoot = _getMerkleRootForHook(hookAddress);
 
-            ISuperHookResetExecution(hookAddress).setCaller();
+            ISuperHook(hookAddress).setCaller();
 
             // 2. Build Execution Steps
             executions = hook.build(prevHook, address(this), hookData);
@@ -91,7 +91,7 @@ abstract contract Bank {
             }
 
             // Reset execution state after each hook
-            ISuperHookResetExecution(hookAddress).resetExecutionState();
+            ISuperHook(hookAddress).resetExecutionState();
 
             prevHook = hookAddress;
         }
