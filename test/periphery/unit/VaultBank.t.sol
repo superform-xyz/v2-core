@@ -1114,9 +1114,10 @@ contract VaultBankTest is Helpers {
         vm.startPrank(address(this));
 
         MockHookTarget mockTarget = new MockHookTarget();
+        MockSuperHook mockHook2 = new MockSuperHook(address(mockTarget));
 
         address[] memory hooks = new address[](1);
-        hooks[0] = address(mockHook);
+        hooks[0] = address(mockHook2);
 
         bytes[] memory data = new bytes[](1);
         data[0] = "data1";
@@ -1130,7 +1131,7 @@ contract VaultBankTest is Helpers {
 
         vm.mockCall(
             address(superGovernor),
-            abi.encodeWithSignature("getVaultBankHookMerkleRoot(address)", address(mockHook)),
+            abi.encodeWithSignature("getVaultBankHookMerkleRoot(address)", address(mockHook2)),
             abi.encode(bytes32(uint256(2)))
         );
 
@@ -1144,11 +1145,13 @@ contract VaultBankTest is Helpers {
         mockTarget.setShouldFailExecution(true); // Set to fail during execution
         mockTarget.setShouldFailExecution(true);
 
+        MockSuperHook mockHook1 = new MockSuperHook(address(mockTarget));
+
         bytes32 targetLeaf = keccak256(bytes.concat(keccak256(abi.encodePacked(address(mockTarget)))));
         bytes32 merkleRoot = targetLeaf;
 
         address[] memory hooks = new address[](1);
-        hooks[0] = address(mockHook);
+        hooks[0] = address(mockHook1);
 
         bytes[] memory data = new bytes[](1);
         data[0] = "data1";
@@ -1161,7 +1164,7 @@ contract VaultBankTest is Helpers {
 
         vm.mockCall(
             address(superGovernor),
-            abi.encodeWithSignature("getVaultBankHookMerkleRoot(address)", address(mockHook)),
+            abi.encodeWithSignature("getVaultBankHookMerkleRoot(address)", address(mockHook1)),
             abi.encode(merkleRoot)
         );
 
@@ -1175,12 +1178,13 @@ contract VaultBankTest is Helpers {
         vm.startPrank(address(this));
 
         MockHookTarget mockTarget = new MockHookTarget();
+         MockSuperHook mockHook1 = new MockSuperHook(address(mockTarget));
 
         bytes32 targetLeaf = keccak256(bytes.concat(keccak256(abi.encodePacked(address(mockTarget)))));
         bytes32 merkleRoot = targetLeaf;
 
         address[] memory hooks = new address[](1);
-        hooks[0] = address(mockHook);
+        hooks[0] = address(mockHook1);
 
         bytes[] memory data = new bytes[](1);
         data[0] = "data1";
@@ -1193,17 +1197,17 @@ contract VaultBankTest is Helpers {
 
         vm.mockCall(
             address(superGovernor),
-            abi.encodeWithSignature("getVaultBankHookMerkleRoot(address)", address(mockHook)),
+            abi.encodeWithSignature("getVaultBankHookMerkleRoot(address)", address(mockHook1)),
             abi.encode(merkleRoot)
         );
 
-        vm.expectEmit(true, true, true, true, address(mockHook));
+        vm.expectEmit(true, true, true, true, address(mockHook1));
         emit MockSuperHook.PreExecuteCalled(address(0), address(vaultBank), "data1");
 
         vm.expectEmit(true, true, false, false, address(mockTarget));
         emit MockHookTarget.Executed();
 
-        vm.expectEmit(true, true, true, true, address(mockHook));
+        vm.expectEmit(true, true, true, true, address(mockHook1));
         emit MockSuperHook.PostExecuteCalled(address(0), address(vaultBank), "data1");
 
         vm.expectEmit(true, true, true, true, address(vaultBank));
