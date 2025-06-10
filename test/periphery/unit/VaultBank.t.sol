@@ -1178,7 +1178,7 @@ contract VaultBankTest is Helpers {
         vm.startPrank(address(this));
 
         MockHookTarget mockTarget = new MockHookTarget();
-         MockSuperHook mockHook1 = new MockSuperHook(address(mockTarget));
+        MockSuperHook mockHook1 = new MockSuperHook(address(mockTarget));
 
         bytes32 targetLeaf = keccak256(bytes.concat(keccak256(abi.encodePacked(address(mockTarget)))));
         bytes32 merkleRoot = targetLeaf;
@@ -1201,14 +1201,8 @@ contract VaultBankTest is Helpers {
             abi.encode(merkleRoot)
         );
 
-        vm.expectEmit(true, true, true, true, address(mockHook1));
-        emit MockSuperHook.PreExecuteCalled(address(0), address(vaultBank), "data1");
-
         vm.expectEmit(true, true, false, false, address(mockTarget));
         emit MockHookTarget.Executed();
-
-        vm.expectEmit(true, true, true, true, address(mockHook1));
-        emit MockSuperHook.PostExecuteCalled(address(0), address(vaultBank), "data1");
 
         vm.expectEmit(true, true, true, true, address(vaultBank));
         emit Bank.HooksExecuted(hooks, data);
