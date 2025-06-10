@@ -106,24 +106,25 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         address prevHook,
         address account, 
         bytes memory hookData
-    ) public view returns (bool) {
+    ) public view returns (Execution[] memory) {
+        Execution[] memory empty = new Execution[](0);
         try ISuperHook(hook).build(prevHook, account, hookData) returns (Execution[] memory executions) {
-            if (executions.length < 2) return false;
+            if (executions.length < 2) return empty;
             
             // Check FIRST execution is preExecute
-            if (executions[0].target != hook) return false;
+            if (executions[0].target != hook) return empty;
             bytes4 firstSelector = bytes4(executions[0].callData);
-            if (firstSelector != ISuperHook.preExecute.selector) return false;
+            if (firstSelector != ISuperHook.preExecute.selector) return empty;
             
             // Check LAST execution is postExecute
             uint256 lastIdx = executions.length - 1;
-            if (executions[lastIdx].target != hook) return false;
+            if (executions[lastIdx].target != hook) return empty;
             bytes4 lastSelector = bytes4(executions[lastIdx].callData);
-            if (lastSelector != ISuperHook.postExecute.selector) return false;
+            if (lastSelector != ISuperHook.postExecute.selector) return empty;
             
-            return true;
+            return executions;
         } catch {
-            return false;
+            return empty;
         }
     }
 
@@ -278,16 +279,14 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         internal
         nonReentrant
     {
+        Execution[] memory executions = validateHookCompliance(address(hook), prevHook, account, hookData);
         // STEP 1: Validate hook compliance
-        if (!validateHookCompliance(address(hook), prevHook, account, hookData)) {
+        if (executions.length == 0) {
             revert MALICIOUS_HOOK_DETECTED();
         }
 
         // STEP 2: Build and execute (dual mutexes protect pre/post)
-        Execution[] memory executions = hook.build(prevHook, account, hookData);
-        if (executions.length > 0) {
-            _execute(account, executions);
-        }
+        _execute(account, executions);
 
         // STEP 3: Update accounting (both mutexes active, preventing reentrancy)
         _updateAccounting(account, address(hook), hookData);

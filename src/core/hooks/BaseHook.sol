@@ -155,7 +155,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookResetExecution {
     
     /// @inheritdoc ISuperHook
     function preExecute(address prevHook, address account, bytes calldata data) external  {
-        //_validateCaller();
         if (msg.sender != account) revert UNAUTHORIZED_CALLER();
         if (preExecuteMutex) revert PRE_EXECUTE_ALREADY_CALLED();
 
@@ -165,7 +164,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookResetExecution {
     
     /// @inheritdoc ISuperHook
     function postExecute(address prevHook, address account, bytes calldata data) external  {
-        //_validateCaller();
         if (msg.sender != account) revert UNAUTHORIZED_CALLER();
         if (postExecuteMutex) revert POST_EXECUTE_ALREADY_CALLED();
         
@@ -202,30 +200,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookResetExecution {
     /// @param data Hook-specific parameters and configuration data
     /// @return executions Array of execution objects containing target, value, and callData
     function _buildHookExecutions(address prevHook, address account, bytes calldata data) internal view virtual returns (Execution[] memory executions);
-
-    /// @notice Validates that the caller has permission to execute hook methods
-    /// @dev Implements a security pattern to ensure consistent caller identity throughout execution
-    ///      On first call (when lastExecutionCaller is unset), records the caller identity
-    ///      On subsequent calls, enforces that the same address is calling
-    ///      This prevents unauthorized addresses from interfering with ongoing hook execution
-    function _validateCaller() internal {
-        // Get the current execution context caller (via the external function for test mockability)
-        address caller = this.getExecutionCaller();
-
-        // First call in this transaction - allow it and set the caller
-        if (caller == address(0)) {
-            lastExecutionCaller = msg.sender;
-            return;
-        }
-        
-        // Subsequent calls must be from the same caller that initiated execution
-        if (msg.sender == caller) {
-            return;
-        }
-        
-        // If we already had a different caller and now we're trying to call from another address, reject
-        revert NOT_AUTHORIZED();
-    }
 
     /// @notice Internal implementation of preExecute
     /// @dev Abstract function to be implemented by derived hooks
