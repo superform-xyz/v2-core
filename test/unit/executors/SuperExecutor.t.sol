@@ -1,31 +1,31 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR} from "modulekit/accounts/kernel/types/Constants.sol";
-import {ModuleKitHelpers} from "modulekit/ModuleKit.sol";
-import {ExecutionLib} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
+import { ModuleKitHelpers } from "modulekit/ModuleKit.sol";
+import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import {SuperExecutor} from "../../../src/core/executors/SuperExecutor.sol";
-import {SuperDestinationExecutor} from "../../../src/core/executors/SuperDestinationExecutor.sol";
-import {SuperDestinationValidator} from "../../../src/core/validators/SuperDestinationValidator.sol";
-import {SuperValidatorBase} from "../../../src/core/validators/SuperValidatorBase.sol";
-import {MaliciousToken} from "../../mocks/MaliciousToken.sol";
-import {MockERC20} from "../../mocks/MockERC20.sol";
-import {MockHook} from "../../mocks/MockHook.sol";
-import {MockNexusFactory} from "../../mocks/MockNexusFactory.sol";
-import {MockLedger, MockLedgerConfiguration} from "../../mocks/MockLedger.sol";
+import { SuperExecutor } from "../../../src/core/executors/SuperExecutor.sol";
+import { SuperDestinationExecutor } from "../../../src/core/executors/SuperDestinationExecutor.sol";
+import { SuperDestinationValidator } from "../../../src/core/validators/SuperDestinationValidator.sol";
+import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
+import { MaliciousToken } from "../../mocks/MaliciousToken.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { MockHook } from "../../mocks/MockHook.sol";
+import { MockNexusFactory } from "../../mocks/MockNexusFactory.sol";
+import { MockLedger, MockLedgerConfiguration } from "../../mocks/MockLedger.sol";
 
-import {ISuperExecutor} from "../../../src/core/interfaces/ISuperExecutor.sol";
-import {ISuperHook} from "../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 
-import {Helpers} from "../../utils/Helpers.sol";
+import { Helpers } from "../../utils/Helpers.sol";
 
-import {InternalHelpers} from "../../utils/InternalHelpers.sol";
-import {MerkleTreeHelper} from "../../utils/MerkleTreeHelper.sol";
-import {SignatureHelper} from "../../utils/SignatureHelper.sol";
+import { InternalHelpers } from "../../utils/InternalHelpers.sol";
+import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
+import { SignatureHelper } from "../../utils/SignatureHelper.sol";
 
-import {RhinestoneModuleKit, ModuleKitHelpers, AccountInstance} from "modulekit/ModuleKit.sol";
+import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance } from "modulekit/ModuleKit.sol";
 
 import "forge-std/console2.sol";
 
@@ -70,8 +70,12 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             address(ledgerConfig), address(superDestinationValidator), address(nexusFactory)
         );
 
-        instance.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superSourceExecutor), data: ""});
-        instance.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superDestinationExecutor), data: ""});
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superSourceExecutor), data: "" });
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR,
+            module: address(superDestinationExecutor),
+            data: ""
+        });
         instance.installModule({
             moduleTypeId: MODULE_TYPE_VALIDATOR,
             module: address(superDestinationValidator),
@@ -145,7 +149,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.startPrank(account);
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         superSourceExecutor.execute(abi.encode(entry));
         vm.stopPrank();
@@ -170,7 +174,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.startPrank(account);
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         superSourceExecutor.execute(abi.encode(entry));
         vm.stopPrank();
@@ -196,7 +200,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         vm.startPrank(account);
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         superSourceExecutor.execute(abi.encode(entry));
         vm.stopPrank();
@@ -220,7 +224,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         superSourceExecutor.onInstall("");
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         vm.expectRevert();
         superSourceExecutor.execute(abi.encode(entry));
@@ -241,7 +245,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.startPrank(account);
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         vm.expectRevert(ISuperExecutor.INSUFFICIENT_BALANCE_FOR_FEE.selector);
         superSourceExecutor.execute(abi.encode(entry));
@@ -262,7 +266,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         MockLedgerConfiguration maliciousConfig =
             new MockLedgerConfiguration(address(ledger), feeRecipient, address(maliciousToken), 100, account);
         superSourceExecutor = new SuperExecutor(address(maliciousConfig));
-        instance.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superSourceExecutor), data: ""});
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superSourceExecutor), data: "" });
 
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(maliciousHook);
@@ -279,7 +283,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         vm.startPrank(account);
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         vm.expectRevert(ISuperExecutor.FEE_NOT_TRANSFERRED.selector);
         superSourceExecutor.execute(abi.encode(entry));
@@ -302,14 +306,14 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.mockCall(address(inflowHook), abi.encodeWithSignature("dstChainId()"), abi.encode(1));
         vm.mockCall(
             address(this),
-            abi.encodeWithSignature("lockAsset(address,address,uint256,uint64)"),
-            abi.encode(address(account), address(token), 1000, 1)
+            abi.encodeWithSignature("lockAsset(address,address,address,uint256,uint64)"),
+            abi.encode(address(account), address(token), address(inflowHook), 1000, 1)
         );
 
         vm.startPrank(account);
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         superSourceExecutor.execute(abi.encode(entry));
         vm.stopPrank();
@@ -338,7 +342,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.startPrank(account);
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         vm.expectRevert(ISuperExecutor.INVALID_CHAIN_ID.selector);
         superSourceExecutor.execute(abi.encode(entry));
@@ -534,7 +538,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         address[] memory dstHookAddresses = new address[](0);
         bytes[] memory dstHookData = new bytes[](0);
         ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: dstHookAddresses, hooksData: dstHookData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: dstHookAddresses, hooksData: dstHookData });
         executorCalldata = abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
 
         validUntil = uint48(block.timestamp + 100 days);
