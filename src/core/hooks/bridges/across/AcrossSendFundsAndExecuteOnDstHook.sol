@@ -13,8 +13,6 @@ import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
 import {ISuperSignatureStorage} from "../../../interfaces/ISuperSignatureStorage.sol";
 import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
 
-import "forge-std/console2.sol";
-
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
 /// @dev inputAmount and outputAmount have to be predicted by the SuperBundler
@@ -90,10 +88,6 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
         if (acrossV3DepositAndExecuteData.usePrevHookAmount) {
             uint256 outAmount = ISuperHookResult(prevHook).outAmount();
 
-            console2.log("--------- outAmount", outAmount);
-            console2.log("--------- inputAmount", acrossV3DepositAndExecuteData.inputAmount);
-            console2.log("--------- outputAmount", acrossV3DepositAndExecuteData.outputAmount);
-
             // update `outputAmount` with the % `inputAmount` was updated by
             if ( acrossV3DepositAndExecuteData.inputAmount > 0 && acrossV3DepositAndExecuteData.outputAmount > 0) {
                 // outputAmount *= outAmount / inputAmount
@@ -102,7 +96,6 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
                     outAmount,
                     acrossV3DepositAndExecuteData.inputAmount
                 );
-                console2.log("--------- outputAmount", acrossV3DepositAndExecuteData.outputAmount);
             }
 
             acrossV3DepositAndExecuteData.inputAmount = outAmount;
