@@ -48,7 +48,7 @@ contract GearboxClaimRewardHook is
         override
         returns (Execution[] memory executions)
     {
-        address farmingPool = BytesLib.toAddress(data, 4);
+        address farmingPool = data.extractYieldSource();
         if (farmingPool == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(farmingPool, abi.encodeCall(IGearboxFarmingPool.claim, ()));
@@ -71,7 +71,7 @@ contract GearboxClaimRewardHook is
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
-        return abi.encodePacked(BytesLib.toAddress(data, 4));
+        return abi.encodePacked(data.extractYieldSource());
     }
 
     /*//////////////////////////////////////////////////////////////

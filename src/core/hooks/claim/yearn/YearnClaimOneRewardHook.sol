@@ -24,7 +24,7 @@ import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address faryieldSourcemingPool = BytesLib.toAddress(data, 4);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         address rewardToken = BytesLib.toAddress(data, 24);
 /// @notice         address account = BytesLib.toAddress(data, 44);
 contract YearnClaimOneRewardHook is
