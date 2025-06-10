@@ -146,7 +146,7 @@ contract VaultBankTest is Helpers {
         vaultBankSp = new VaultBankSuperPosition("VaultBankSuperPosition", "VBS", 18);
 
         mockHook = new MockHook(ISuperHook.HookType.NONACCOUNTING, address(token));
-        vm.prank(sGovernor);
+        vm.prank(governor);
         superGovernor.registerHook(address(mockHook), false);
     }
 
