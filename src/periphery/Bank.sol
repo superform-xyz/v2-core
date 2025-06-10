@@ -61,6 +61,8 @@ abstract contract Bank {
             // 1. Get the Merkle root specific to this hook
             merkleRoot = _getMerkleRootForHook(hookAddress);
 
+            ISuperHookResetExecution(hookAddress).setCaller();
+
             // 2. Build Execution Steps
             executions = hook.build(prevHook, address(this), hookData);
 

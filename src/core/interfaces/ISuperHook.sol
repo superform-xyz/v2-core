@@ -26,6 +26,10 @@ import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 interface ISuperHookResetExecution {
     /// @notice Resets hook mutexes
     function resetExecutionState() external;
+
+    /// @notice Sets the caller address that initiated the execution
+    /// @dev Used for security validation between preExecute and postExecute calls
+    function setCaller() external;
 }
 
 /// @title ISuperHookInspector

@@ -433,6 +433,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
             }
         }
         
+        ISuperHookResetExecution(address(vars.hookContract)).setCaller();
         vars.executions = vars.hookContract.build(prevHook, address(this), hookCalldata);
         for (uint256 j; j < vars.executions.length; ++j) {
             (vars.success,) =
@@ -489,6 +490,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
             ISuperHookOutflow(hook).replaceCalldataAmount(hookCalldata, vars.amountConvertedToUnderlyingShares);
 
         vars.balanceAssetBefore = _getTokenBalance(vars.svAsset, address(this));
+
+        ISuperHookResetExecution(address(vars.hookContract)).setCaller();
 
         vars.executions = vars.hookContract.build(address(0), address(this), hookCalldata);
         for (uint256 j; j < vars.executions.length; ++j) {

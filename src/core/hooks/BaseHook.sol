@@ -53,6 +53,10 @@ abstract contract BaseHook is ISuperHook, ISuperHookResetExecution {
     /// @notice PostExecute protection: false=callable, true=already_called  
     bool public transient postExecuteMutex;
 
+    /// @notice The caller address that initiated the execution
+    /// @dev Used for security validation between preExecute and postExecute calls
+    address transient caller;
+
     // forgefmt: disable-end
 
     /// @notice The specific subtype identifier for this hook
@@ -98,6 +102,10 @@ abstract contract BaseHook is ISuperHook, ISuperHookResetExecution {
     /// @dev Used to prevent incomplete hook execution
     error INCOMPLETE_HOOK_EXECUTION();
 
+    /// @notice Thrown when a caller is already set
+    /// @dev Used to prevent reentrancy attacks and ensure proper execution flow
+    error CALLER_ALREADY_SET();
+
     /// @notice Initializes the hook with its type and subtype
     /// @dev Sets immutable parameters that define the hook's behavior
     /// @param hookType_ The type classification for this hook (NONACCOUNTING, INFLOW, OUTFLOW)
@@ -110,6 +118,12 @@ abstract contract BaseHook is ISuperHook, ISuperHookResetExecution {
     /*//////////////////////////////////////////////////////////////
                           EXECUTION SECURITY
     //////////////////////////////////////////////////////////////*/
+    /// @notice Sets the caller address that initiated the execution
+    /// @dev Used for security validation between preExecute and postExecute calls
+    function setCaller() external  {
+        if(caller != address(0)) revert CALLER_ALREADY_SET();
+        caller = msg.sender;
+    }
 
     /// @notice Retrieves the address that initiated the current execution context
     /// @dev Implemented as an external view function to allow for test mocking
@@ -174,11 +188,12 @@ abstract contract BaseHook is ISuperHook, ISuperHookResetExecution {
     /// @inheritdoc ISuperHookResetExecution
     function resetExecutionState() external {
         // Validate both pre and post have been called (prevents premature reset)
-        if (!preExecuteMutex || !postExecuteMutex) revert INCOMPLETE_HOOK_EXECUTION();
+        if (!preExecuteMutex || !postExecuteMutex || caller != msg.sender) revert INCOMPLETE_HOOK_EXECUTION();
         
         // Reset both mutexes
         preExecuteMutex = false;
         postExecuteMutex = false;
+        caller = address(0);
     }
 
     /*//////////////////////////////////////////////////////////////

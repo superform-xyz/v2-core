@@ -15,6 +15,7 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     Execution[] public executions;
     bool public preExecuteMutex;
     bool public postExecuteMutex;
+    address public caller;
 
     error INCOMPLETE_HOOK_EXECUTION();
 
@@ -119,5 +120,9 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         // Reset both mutexes
         preExecuteMutex = false;
         postExecuteMutex = false;
+    }
+
+    function setCaller() external {
+        caller = msg.sender;
     }
 }
