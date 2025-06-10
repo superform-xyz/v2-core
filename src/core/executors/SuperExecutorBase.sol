@@ -121,6 +121,11 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
             if (executions[lastIdx].target != hook) return empty;
             bytes4 lastSelector = bytes4(executions[lastIdx].callData);
             if (lastSelector != ISuperHook.postExecute.selector) return empty;
+
+            // Do not allow any in-between executions to be performed on the same hook
+            for (uint256 i = 1; i < lastIdx; i++) {
+                if (executions[i].target == hook) return empty;
+            }
             
             return executions;
         } catch {
