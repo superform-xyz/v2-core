@@ -232,7 +232,6 @@ struct Addresses {
     ECDSAPPSOracle ecdsappsOracle;
     ISuperExecutor superExecutorWithSPLock;
     MockTargetExecutor mockTargetExecutor;
-    MockBaseHook mockBaseHook; // this is needed for all tests which we need to use executeWithoutHookRestrictions
     SuperBank superBank;
 }
 
@@ -463,8 +462,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     function _deployContracts(Addresses[] memory A) internal returns (Addresses[] memory) {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-            mockBaseHook = address(new MockBaseHook());
-            vm.makePersistent(mockBaseHook);
             address acrossV3Helper = address(new AcrossV3Helper());
             vm.allowCheatcodes(acrossV3Helper);
             vm.makePersistent(acrossV3Helper);
@@ -1541,16 +1538,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     // Hook mocking helpers
 
     /**
-     * @notice Setup hook mocks to clear execution context
-     * @param hooks_ Array of hook addresses to mock
-     */
-    function _setupHookMocks(address[] memory hooks_) internal {
-        for (uint256 i = 0; i < hooks_.length; i++) {
-            vm.mockCall(hooks_[i], abi.encodeWithSignature("getExecutionCaller()"), abi.encode(address(0)));
-        }
-    }
-
-    /**
      * @notice Helper to get all hooks for all chains
      * @return hooks Array of all hooks across all chains
      */
@@ -1576,29 +1563,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         }
 
         return allHooks;
-    }
-
-    /**
-     * @notice Modifier to mock hook execution context, allowing the same hook to be used multiple times in a test
-     */
-    modifier executeWithoutHookRestrictions() {
-        // Get all hooks for current chain
-        address[] memory hooks_ = _getAllHooksForTest();
-
-        // Setup mocks for all hooks
-        for (uint256 i = 0; i < hooks_.length; i++) {
-            if (hooks_[i] != address(0)) {
-                vm.mockFunction(
-                    hooks_[i], address(mockBaseHook), abi.encodeWithSelector(BaseHook.getExecutionCaller.selector)
-                );
-            }
-        }
-
-        // Run the test
-        _;
-
-        // Clear all mocks
-        vm.clearMockedCalls();
     }
 
     function _initializeAccounts(uint256 count) internal {

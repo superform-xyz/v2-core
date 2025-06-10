@@ -303,10 +303,6 @@ contract BridgeHooks is Helpers {
         deBridgehook.build(address(0), mockAccount, data);
     }
 
-    function test_ExecutionCaller() public view {
-        assertEq(BaseHook(address(deBridgehook)).getExecutionCaller(), address(0));
-    }
-
     function test_subtype() public view {
         assertNotEq(BaseHook(address(deBridgehook)).subtype(), bytes32(0));
     }
