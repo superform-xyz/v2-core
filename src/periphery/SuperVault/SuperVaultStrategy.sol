@@ -106,7 +106,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperVaultStrategy
-    function handleOperation(address controller, uint256 assets, uint256 shares, Operation operation) external {
+    function handleOperation(
+        address controller,
+        address receiver,
+        uint256 assets,
+        uint256 shares,
+        Operation operation
+    )
+        external
+    {
         _requireVault();
 
         if (operation == Operation.Deposit) {
@@ -116,7 +124,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         } else if (operation == Operation.CancelRedeem) {
             _handleCancelRedeem(controller);
         } else if (operation == Operation.ClaimRedeem) {
-            _handleClaimRedeem(controller, assets);
+            _handleClaimRedeem(controller, receiver, assets);
         } else {
             revert ACTION_TYPE_DISALLOWED();
         }
@@ -267,6 +275,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        ACCOUNTING MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperVaultStrategy
+    function updateSuperVaultState(address controller, SuperVaultState memory state) external {
+        _requireVault();
+        superVaultState[controller] = state;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -290,6 +307,11 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     // @inheritdoc ISuperVaultStrategy
     function getStoredPPS() public view returns (uint256) {
         return _getSuperVaultAggregator().getPPS(address(this));
+    }
+
+    // @inheritdoc ISuperVaultStrategy
+    function getSuperVaultState(address controller) external view returns (SuperVaultState memory state) {
+        return superVaultState[controller];
     }
 
     // @inheritdoc ISuperVaultStrategy
@@ -396,9 +418,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         returns (address)
     {
         ExecutionVars memory vars;
-
         vars.hookContract = ISuperHook(hook);
+
         vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
+        if (!yieldSources[vars.targetedYieldSource].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
 
         bool usePrevHookAmount = _decodeHookUsePrevHookAmount(hook, hookCalldata);
         if (usePrevHookAmount && prevHook != address(0)) {
@@ -417,6 +440,14 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
             if (!vars.success) revert OPERATION_FAILED();
         }
         ISuperHookResetExecution(address(vars.hookContract)).resetExecutionState();
+
+        uint256 actualOutput = ISuperHookResult(hook).outAmount();
+        if (actualOutput == 0) revert ZERO_OUTPUT_AMOUNT();
+
+        uint256 minExpectedOut = expectedAssetsOrSharesOut * (BPS_PRECISION - _getSlippageTolerance()) / BPS_PRECISION;
+        if (actualOutput < minExpectedOut) {
+            revert MINIMUM_OUTPUT_AMOUNT_ASSETS_NOT_MET();
+        }
 
         emit HookExecuted(hook, prevHook, vars.targetedYieldSource, usePrevHookAmount, hookCalldata);
 
@@ -442,7 +473,10 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         vars.hookContract = ISuperHook(hook);
         vars.hookType = ISuperHookResult(hook).hookType();
         if (vars.hookType != ISuperHook.HookType.OUTFLOW) revert INVALID_HOOK_TYPE();
+
         vars.targetedYieldSource = HookDataDecoder.extractYieldSource(hookCalldata);
+        if (!yieldSources[vars.targetedYieldSource].isActive) revert YIELD_SOURCE_NOT_ACTIVE();
+
         // we must always encode supervault shares when fulfilling redemptions
         vars.superVaultShares = ISuperHookInflowOutflow(hook).decodeAmount(hookCalldata);
 
@@ -918,8 +952,9 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
     /// @notice Internal function to handle a redeem claim
     /// @param controller Address of the controller
+    /// @param receiver Address of the receiver
     /// @param assetsToClaim Amount of assets to claim
-    function _handleClaimRedeem(address controller, uint256 assetsToClaim) private {
+    function _handleClaimRedeem(address controller, address receiver, uint256 assetsToClaim) private {
         if (assetsToClaim == 0) revert INVALID_AMOUNT();
         if (controller == address(0)) revert ZERO_ADDRESS();
         SuperVaultState storage state = superVaultState[controller];
@@ -936,8 +971,8 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
         if (state.maxWithdraw < actualAmountToClaim) revert INVALID_REDEEM_CLAIM();
         state.maxWithdraw -= actualAmountToClaim;
-        _asset.safeTransfer(controller, actualAmountToClaim);
-        emit RedeemRequestFulfilled(controller, controller, actualAmountToClaim, 0);
+        _asset.safeTransfer(receiver, actualAmountToClaim);
+        emit RedeemRequestFulfilled(receiver, controller, actualAmountToClaim, 0);
     }
 
     /// @notice Internal function to safely transfer tokens

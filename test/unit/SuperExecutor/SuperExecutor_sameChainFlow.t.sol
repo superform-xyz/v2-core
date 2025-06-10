@@ -175,6 +175,7 @@ contract SuperExecutor_sameChainFlow is
         superGovernor.addExecutor(address(superExecutor));
         superGovernor.addExecutor(address(newSuperExecutor));
         vaultBank = new VaultBank(address(superGovernor));
+        superGovernor.addVaultBank(uint64(block.chainid), address(vaultBank));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -320,6 +321,8 @@ contract SuperExecutor_sameChainFlow is
         });
 
         amount = _bound(amount);
+
+        superGovernor.addVaultBank(8453, address(vaultBank));
 
         _getTokens(underlying, testAccount, amount);
 

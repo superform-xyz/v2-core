@@ -16,7 +16,7 @@ import { MockHookTarget } from "../../mocks/MockHookTarget.sol";
 import { IHookExecutionData } from "../../../src/periphery/interfaces/IHookExecutionData.sol";
 import { SuperGovernor } from "../../../src/periphery/SuperGovernor.sol";
 import { MockCrossL2ProverV2 } from "../../mocks/MockCrossL2ProverV2.sol";
-
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "forge-std/console.sol";
 
 contract TestVaultBank is VaultBank {
@@ -118,6 +118,8 @@ contract VaultBankTest is Helpers {
 
         vm.startPrank(governor);
         superGovernor.addExecutor(address(this));
+        superGovernor.addVaultBank(uint64(block.chainid), address(vaultBank));
+        superGovernor.addVaultBank(uint64(DST_CHAIN_ID), address(vaultBank));
         vm.stopPrank();
 
         bytes32 bankManagerRole = superGovernor.BANK_MANAGER_ROLE();
@@ -179,7 +181,7 @@ contract VaultBankTest is Helpers {
         uint64 destinationChainId = 10;
         uint256 lockAmount = 50 ether;
 
-        uint256 expectedNonce = vaultBank.nonces(user, destinationChainId);
+        uint256 expectedNonce = vaultBank.nonces(destinationChainId);
 
         vm.expectEmit(true, true, false, true);
         emit IVaultBankSource.SharesLocked(
@@ -188,14 +190,11 @@ contract VaultBankTest is Helpers {
 
         vaultBank.lockAsset(user, address(token), lockAmount, destinationChainId);
 
-        assertEq(vaultBank.nonces(user, destinationChainId), expectedNonce + 1, "Nonce not incremented");
+        assertEq(vaultBank.nonces(destinationChainId), expectedNonce + 1, "Nonce not incremented");
+        assertEq(vaultBank.viewTotalLockedAsset(address(token)), lockAmount, "Total locked amount incorrect");
+        assertEq(vaultBank.viewAllLockedAssets().length, 1, "Locked assets length incorrect");
         assertEq(
-            vaultBank.viewLockedAmount(user, address(token), destinationChainId), lockAmount, "Locked amount incorrect"
-        );
-        assertEq(vaultBank.viewTotalLockedAsset(user, address(token)), lockAmount, "Total locked amount incorrect");
-        assertEq(vaultBank.viewAllLockedAssets(user, destinationChainId).length, 1, "Locked assets length incorrect");
-        assertEq(
-            vaultBank.viewAllLockedAssets(user, destinationChainId)[0], address(token), "Token not in locked assets"
+            vaultBank.viewAllLockedAssets()[0], address(token), "Token not in locked assets"
         );
         assertEq(token.balanceOf(address(vaultBank)), lockAmount, "VaultBank balance incorrect");
         assertEq(token.balanceOf(user), 50 ether, "User balance incorrect");
@@ -263,32 +262,6 @@ contract VaultBankTest is Helpers {
         bytes memory mockProof = new bytes(0);
 
         vm.expectRevert(IVaultBank.INVALID_PROOF_EVENT.selector);
-        vaultBank.unlockAsset(user, address(token), lockAmount, DST_CHAIN_ID, mockProof);
-    }
-
-    function test_unlockAsset_InvalidProofAccount() public {
-        uint256 lockAmount = 100 ether;
-        token.mint(user, lockAmount);
-
-        vm.startPrank(user);
-        token.approve(address(vaultBank), lockAmount);
-        vm.stopPrank();
-
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
-
-        mockProver.setEmittingContract(address(vaultBank));
-        mockProver.mockSuperpositionsBurnedEvent(
-            address(0xdead), // different account
-            address(token),
-            lockAmount,
-            CURRENT_CHAIN_ID,
-            0,
-            uint32(DST_CHAIN_ID)
-        );
-
-        bytes memory mockProof = new bytes(0);
-
-        vm.expectRevert(IVaultBank.INVALID_PROOF_ACCOUNT.selector);
         vaultBank.unlockAsset(user, address(token), lockAmount, DST_CHAIN_ID, mockProof);
     }
 
@@ -474,11 +447,6 @@ contract VaultBankTest is Helpers {
 
         assertEq(token.balanceOf(user), 0, "Initial user balance incorrect");
         assertEq(token.balanceOf(address(vaultBank)), lockAmount, "Initial vault balance incorrect");
-        assertEq(
-            vaultBank.viewLockedAmount(user, address(token), DST_CHAIN_ID),
-            lockAmount,
-            "Initial locked amount incorrect"
-        );
 
         uint256 unlockAmount = lockAmount / 2;
         mockProver.setEmittingContract(address(vaultBank));
@@ -488,7 +456,7 @@ contract VaultBankTest is Helpers {
 
         bytes memory mockProof = new bytes(0);
 
-        uint256 expectedNonce = vaultBank.nonces(user, CURRENT_CHAIN_ID);
+        uint256 expectedNonce = vaultBank.nonces(CURRENT_CHAIN_ID);
 
         vm.expectEmit(true, true, false, true);
         emit IVaultBankSource.SharesUnlocked(
@@ -497,19 +465,115 @@ contract VaultBankTest is Helpers {
 
         vaultBank.unlockAsset(user, address(token), unlockAmount, DST_CHAIN_ID, mockProof);
 
-        assertEq(vaultBank.nonces(user, CURRENT_CHAIN_ID), expectedNonce + 1, "Nonce not incremented");
+        assertEq(vaultBank.nonces(CURRENT_CHAIN_ID), expectedNonce + 1, "Nonce not incremented");
         assertEq(token.balanceOf(user), unlockAmount, "User balance after unlock incorrect");
         assertEq(token.balanceOf(address(vaultBank)), lockAmount - unlockAmount, "Vault balance after unlock incorrect");
         assertEq(
-            vaultBank.viewLockedAmount(user, address(token), DST_CHAIN_ID),
-            lockAmount - unlockAmount,
-            "Locked amount after unlock incorrect"
-        );
-        assertEq(
-            vaultBank.viewTotalLockedAsset(user, address(token)),
+            vaultBank.viewTotalLockedAsset(address(token)),
             lockAmount - unlockAmount,
             "Total locked amount after unlock incorrect"
         );
+    }
+
+    function test_unlockAsset_Success_WithSP_Transfer() public {
+        address account = address(0xAcc3);
+        uint256 amount = 75 ether;
+        IVaultBank.SourceAssetInfo memory sourceAsset = IVaultBank.SourceAssetInfo({
+            asset: address(token),
+            name: "Test Token",
+            symbol: "TT",
+            decimals: 18,
+            chainId: DST_CHAIN_ID
+        });
+
+        bytes memory mockTopics = abi.encodePacked(
+            IVaultBankSource.SharesLocked.selector,
+            keccak256(abi.encodePacked(account)),
+            bytes32(0),
+            keccak256(abi.encodePacked(address(token)))
+        );
+
+        bytes memory mockUnindexedData = abi.encode(amount, DST_CHAIN_ID, uint64(block.chainid), uint256(0));
+
+        bytes memory mockProof = abi.encode("mock proof data");
+
+        mockProver.setValidateEventReturn(uint32(DST_CHAIN_ID), address(vaultBank), mockTopics, mockUnindexedData);
+
+        address existingSPAddress = address(0xe5000000000000000000000000000000000000e5);
+
+        vm.mockCall(
+            address(vaultBank),
+            abi.encodeWithSignature(
+                "_retrieveSuperPosition(uint64,address,string,string,uint8)",
+                DST_CHAIN_ID,
+                address(token),
+                "Test Token",
+                "TT",
+                18
+            ),
+            abi.encode(existingSPAddress)
+        );
+
+        vm.mockCall(
+            address(vaultBank),
+            abi.encodeWithSignature("_mintSP(address,address,uint256)", account, existingSPAddress, amount),
+            abi.encode()
+        );
+
+        vm.startPrank(governor);
+        superGovernor.addRelayer(address(this));
+        vm.stopPrank();
+
+        vaultBank.distributeSuperPosition(account, amount, sourceAsset, mockProof);
+
+        assertEq(vaultBank.nonces(uint64(block.chainid)), 1, "Nonce should be incremented");
+        assertTrue(vaultBank.noncesUsed(DST_CHAIN_ID, 0), "Proof nonce should be marked as used");
+
+        address user2 = vm.addr(0x100);
+
+        vm.startPrank(account);
+        IERC20(0x4f81992FCe2E1846dD528eC0102e6eE1f61ed3e2).transfer(user2, amount);
+        vm.stopPrank();
+
+        vm.startPrank(user2);
+        token.approve(address(vaultBank), amount);
+        vm.stopPrank();
+
+        uint256 lockAmount = 75 ether;
+        token.mint(user2, lockAmount);
+
+        vm.startPrank(user2);
+        token.approve(address(vaultBank), lockAmount);
+        vm.stopPrank();
+
+        vaultBank.lockAsset(user2, address(token), lockAmount, DST_CHAIN_ID);
+
+        assertEq(token.balanceOf(user2), 0, "Initial user balance incorrect");
+        assertEq(token.balanceOf(address(vaultBank)), lockAmount, "Initial vault balance incorrect");
+
+        uint256 unlockAmount = lockAmount / 2;
+        mockProver.setEmittingContract(address(vaultBank));
+        mockProver.mockSuperpositionsBurnedEvent(
+            user2, address(token), unlockAmount, CURRENT_CHAIN_ID, 2, uint32(DST_CHAIN_ID)
+        );
+
+        vm.expectEmit(true, true, false, true);
+        emit IVaultBankSource.SharesUnlocked(
+            user2, address(token), unlockAmount, CURRENT_CHAIN_ID, DST_CHAIN_ID, 1
+        );
+
+        vaultBank.unlockAsset(user2, address(token), unlockAmount, DST_CHAIN_ID, mockProof);
+
+        assertEq(vaultBank.nonces(CURRENT_CHAIN_ID), 2, "Nonce not incremented");
+        assertEq(token.balanceOf(user2), unlockAmount, "User balance after unlock incorrect");
+        assertEq(token.balanceOf(address(vaultBank)), lockAmount - unlockAmount, "Vault balance after unlock incorrect");
+        assertEq(
+            vaultBank.viewTotalLockedAsset(address(token)),
+            lockAmount - unlockAmount,
+            "Total locked amount after unlock incorrect"
+        );
+
+        
     }
 
     function test_distributeSuperPosition_InvalidProofEmitter() public {
@@ -575,39 +639,6 @@ contract VaultBankTest is Helpers {
         vm.stopPrank();
 
         vm.expectRevert(IVaultBank.INVALID_PROOF_EVENT.selector);
-        vaultBank.distributeSuperPosition(account, amount, sourceAsset, mockProof);
-    }
-
-    function test_distributeSuperPosition_InvalidProofAccount() public {
-        address account = address(0xaCC1000000000000000000000000000000000001);
-        address wrongAccount = address(0xaCc2000000000000000000000000000000000002);
-        uint256 amount = 100 ether;
-        IVaultBank.SourceAssetInfo memory sourceAsset = IVaultBank.SourceAssetInfo({
-            asset: address(token),
-            name: "Test Token",
-            symbol: "TT",
-            decimals: 18,
-            chainId: DST_CHAIN_ID
-        });
-
-        bytes memory mockTopics = abi.encodePacked(
-            IVaultBankSource.SharesLocked.selector,
-            keccak256(abi.encodePacked(wrongAccount)),
-            bytes32(0),
-            keccak256(abi.encodePacked(address(token)))
-        );
-
-        bytes memory mockUnindexedData = abi.encode(amount, DST_CHAIN_ID, uint64(block.chainid), uint256(0));
-
-        bytes memory mockProof = abi.encode("mock proof data");
-
-        mockProver.setValidateEventReturn(uint32(DST_CHAIN_ID), address(vaultBank), mockTopics, mockUnindexedData);
-
-        vm.startPrank(governor);
-        superGovernor.addRelayer(address(this));
-        vm.stopPrank();
-
-        vm.expectRevert(IVaultBank.INVALID_PROOF_ACCOUNT.selector);
         vaultBank.distributeSuperPosition(account, amount, sourceAsset, mockProof);
     }
 
@@ -727,8 +758,8 @@ contract VaultBankTest is Helpers {
 
         vaultBank.distributeSuperPosition(account, amount, sourceAsset, mockProof);
 
-        assertEq(vaultBank.nonces(account, uint64(block.chainid)), 1, "Nonce should be incremented");
-        assertTrue(vaultBank.noncesUsed(account, DST_CHAIN_ID, 0), "Proof nonce should be marked as used");
+        assertEq(vaultBank.nonces(uint64(block.chainid)), 1, "Nonce should be incremented");
+        assertTrue(vaultBank.noncesUsed(DST_CHAIN_ID, 0), "Proof nonce should be marked as used");
     }
 
     function test_distributeSuperPosition_InvalidProofSourceChain() public {
@@ -848,7 +879,7 @@ contract VaultBankTest is Helpers {
 
         vaultBank.distributeSuperPosition(account, amount, sourceAsset, mockProof);
 
-        assertTrue(vaultBank.noncesUsed(account, DST_CHAIN_ID, 0), "Proof nonce should be marked as used");
+        assertTrue(vaultBank.noncesUsed(DST_CHAIN_ID, 0), "Proof nonce should be marked as used");
 
         vm.expectRevert(IVaultBank.NONCE_ALREADY_USED.selector);
         vaultBank.distributeSuperPosition(account, amount, sourceAsset, mockProof);
@@ -904,8 +935,8 @@ contract VaultBankTest is Helpers {
 
         vaultBank.distributeSuperPosition(account, amount, sourceAsset, mockProof);
 
-        assertEq(vaultBank.nonces(account, uint64(block.chainid)), 1, "Nonce should be incremented");
-        assertTrue(vaultBank.noncesUsed(account, DST_CHAIN_ID, 0), "Proof nonce should be marked as used");
+        assertEq(vaultBank.nonces(uint64(block.chainid)), 1, "Nonce should be incremented");
+        assertTrue(vaultBank.noncesUsed(DST_CHAIN_ID, 0), "Proof nonce should be marked as used");
     }
 
     function test_distributeSuperPosition_Success_ExistingTokenToSuperposition() public {
@@ -959,8 +990,8 @@ contract VaultBankTest is Helpers {
 
         vaultBank.distributeSuperPosition(account, amount, sourceAsset, mockProof);
 
-        assertEq(vaultBank.nonces(account, uint64(block.chainid)), 1, "Nonce should be incremented");
-        assertTrue(vaultBank.noncesUsed(account, DST_CHAIN_ID, 0), "Proof nonce should be marked as used");
+        assertEq(vaultBank.nonces(uint64(block.chainid)), 1, "Nonce should be incremented");
+        assertTrue(vaultBank.noncesUsed(DST_CHAIN_ID, 0), "Proof nonce should be marked as used");
     }
 
     function test_burnSuperPositions_SuperPositionNotFound() public {
@@ -1027,7 +1058,7 @@ contract VaultBankTest is Helpers {
 
         vaultBank.burnSuperPosition(burnAmount, validSP, forChainId);
 
-        assertEq(vaultBank.nonces(address(this), forChainId), 1, "Nonce should be incremented");
+        assertEq(vaultBank.nonces(forChainId), 1, "Nonce should be incremented");
     }
 
     function test_executeHooks_ZeroLengthArray() public {
@@ -1232,25 +1263,6 @@ contract VaultBankTest is Helpers {
         new VaultBank(address(0));
     }
 
-    function test_viewLockedAmount() public {
-        uint256 lockAmount = 100 ether;
-        token.mint(user, lockAmount);
-
-        vm.startPrank(user);
-        token.approve(address(vaultBank), lockAmount);
-        vm.stopPrank();
-
-        assertEq(vaultBank.viewLockedAmount(user, address(token), DST_CHAIN_ID), 0, "Initial locked amount should be 0");
-
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
-
-        assertEq(
-            vaultBank.viewLockedAmount(user, address(token), DST_CHAIN_ID),
-            lockAmount,
-            "Locked amount should match the locked amount"
-        );
-    }
-
     function test_viewTotalLockedAsset() public {
         uint256 lockAmount1 = 100 ether;
         uint256 lockAmount2 = 50 ether;
@@ -1260,14 +1272,13 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount1 + lockAmount2);
         vm.stopPrank();
 
-        assertEq(vaultBank.viewTotalLockedAsset(user, address(token)), 0, "Initial total locked amount should be 0");
+        assertEq(vaultBank.viewTotalLockedAsset(address(token)), 0, "Initial total locked amount should be 0");
 
         vaultBank.lockAsset(user, address(token), lockAmount1, DST_CHAIN_ID);
-        vaultBank.lockAsset(user, address(token), lockAmount2, DST_CHAIN_ID + 1);
 
         assertEq(
-            vaultBank.viewTotalLockedAsset(user, address(token)),
-            lockAmount1 + lockAmount2,
+            vaultBank.viewTotalLockedAsset(address(token)),
+            lockAmount1, 
             "Total locked amount should match sum of all locks"
         );
     }
@@ -1280,12 +1291,12 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        address[] memory initialAssets = vaultBank.viewAllLockedAssets(user, DST_CHAIN_ID);
+        address[] memory initialAssets = vaultBank.viewAllLockedAssets();
         assertEq(initialAssets.length, 0, "Initial locked assets array should be empty");
 
         vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
 
-        address[] memory assets = vaultBank.viewAllLockedAssets(user, DST_CHAIN_ID);
+        address[] memory assets = vaultBank.viewAllLockedAssets();
         assertEq(assets.length, 1, "Locked assets array should have one entry");
         assertEq(assets[0], address(token), "Locked asset should match the token address");
 
@@ -1298,7 +1309,7 @@ contract VaultBankTest is Helpers {
 
         vaultBank.lockAsset(user, address(token2), lockAmount, DST_CHAIN_ID);
 
-        address[] memory assetsAfterSecondLock = vaultBank.viewAllLockedAssets(user, DST_CHAIN_ID);
+        address[] memory assetsAfterSecondLock = vaultBank.viewAllLockedAssets();
         assertEq(assetsAfterSecondLock.length, 2, "Locked assets array should have two entries");
 
         bool foundToken1 = false;
@@ -1520,5 +1531,63 @@ contract VaultBankTest is Helpers {
         vaultBankSp.mint(address(this), 100 ether);
         vaultBankSp.burn(address(this), 100 ether);
         assertEq(vaultBankSp.balanceOf(address(this)), 0);
+    }
+
+    function test_transferSuperPositionOwnership_OnlyBankManager() public {
+        // Test that only bank manager can call this function
+        VaultBankSuperPosition testSP = new VaultBankSuperPosition("TestSP", "TSP", 18);
+        address newOwner = address(0x9999);
+
+        // Verify current owner
+        assertEq(testSP.owner(), address(this), "Initial owner should be test contract");
+
+        // Try calling from non-bank manager (should fail)
+        vm.startPrank(user);
+        vm.expectRevert(IVaultBank.INVALID_BANK_MANAGER.selector);
+        vaultBank.transferSuperPositionOwnership(address(testSP), newOwner);
+        vm.stopPrank();
+
+        // Verify ownership hasn't changed
+        assertEq(testSP.owner(), address(this), "Owner should not have changed");
+    }
+
+    function test_transferSuperPositionOwnership_Success() public {
+        // Test successful ownership transfer by bank manager
+        address mockToken = address(0x9ABC);
+        uint64 mockChainId = 6;
+        string memory name = "New Token";
+        string memory symbol = "NTKN";
+        uint8 decimals = 18;
+
+        address testSP = vaultBank.exposed_retrieveSuperPosition(mockChainId, mockToken, name, symbol, decimals);
+        address newOwner = address(0x9999);
+
+        // Call from bank manager (address(this) has BANK_MANAGER_ROLE)
+        vaultBank.transferSuperPositionOwnership(address(testSP), newOwner);
+
+        vm.prank(newOwner);
+        VaultBankSuperPosition(testSP).acceptOwnership();
+
+        // Verify ownership has changed
+        assertEq(VaultBankSuperPosition(testSP).owner(), newOwner, "Owner should have changed to new owner");
+    }
+
+    function test_transferSuperPositionOwnership_ZeroAddress() public {
+        // Test with zero address as new owner
+        VaultBankSuperPosition testSP = new VaultBankSuperPosition("TestSP", "TSP", 18);
+
+        // This should revert due to OpenZeppelin's Ownable constraints
+        vm.expectRevert();
+        vaultBank.transferSuperPositionOwnership(address(testSP), address(0));
+    }
+
+    function test_transferSuperPositionOwnership_InvalidSuperPosition() public {
+        // Test with invalid super position address
+        address invalidSP = address(0x1111);
+        address newOwner = address(0x9999);
+
+        // This should revert when trying to call transferOwnership on a non-contract
+        vm.expectRevert();
+        vaultBank.transferSuperPositionOwnership(invalidSP, newOwner);
     }
 }
