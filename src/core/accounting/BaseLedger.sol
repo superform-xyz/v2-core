@@ -76,7 +76,7 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user][yieldSource];
 
         if (usedShares > accumulatorShares) {
-            emit UsedSharedCapped(usedShares, accumulatorShares);
+            emit UsedSharesCapped(usedShares, accumulatorShares);
             // take fees only for used shares
             usedShares = accumulatorShares;
         }

@@ -71,7 +71,7 @@ interface ISuperLedgerData {
     /// @notice Emitted when the amount of shares used is capped due to insufficient shares
     /// @param originalVal The original amount of shares used
     /// @param cappedVal The capped amount of shares used
-    event UsedSharedCapped(uint256 originalVal, uint256 cappedVal);
+    event UsedSharesCapped(uint256 originalVal, uint256 cappedVal);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
