@@ -94,6 +94,9 @@ import { SuperOracle } from "../src/periphery/oracles/SuperOracle.sol";
 
 // SuperVault
 import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { SuperVault } from "../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultStrategy } from "../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../src/periphery/SuperVault/SuperVaultEscrow.sol";
 import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
@@ -374,13 +377,41 @@ contract DeployV2 is Script, Configuration {
             )
         );
 
-        // Deploy SuperVaultAggregator
+        // Deploy SuperVault implementations first
+        address vaultImpl = __deployContract(
+            deployer,
+            "SuperVaultImplementation",
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, "SuperVaultImplementation"),
+            type(SuperVault).creationCode
+        );
+
+        address strategyImpl = __deployContract(
+            deployer,
+            "SuperVaultStrategyImplementation",
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, "SuperVaultStrategyImplementation"),
+            type(SuperVaultStrategy).creationCode
+        );
+
+        address escrowImpl = __deployContract(
+            deployer,
+            "SuperVaultEscrowImplementation",
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, "SuperVaultEscrowImplementation"),
+            type(SuperVaultEscrow).creationCode
+        );
+
+        // Deploy SuperVaultAggregator (takes all four addresses)
         deployedContracts.superVaultAggregator = __deployContract(
             deployer,
             SUPER_VAULT_AGGREGATOR_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_VAULT_AGGREGATOR_KEY),
-            abi.encodePacked(type(SuperVaultAggregator).creationCode, abi.encode(deployedContracts.superGovernor))
+            abi.encodePacked(
+                type(SuperVaultAggregator).creationCode,
+                abi.encode(deployedContracts.superGovernor, vaultImpl, strategyImpl, escrowImpl)
+            )
         );
 
         deployedContracts.ecdsappsOracle = __deployContract(

@@ -38,19 +38,12 @@ interface IVaultBankSource {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Get the locked amount of an account for a token
-    /// @param account The account to get the locked amount for
-    /// @param token The token to get the locked amount for
-    /// @param dstChainId The destination chain ID
-    function viewLockedAmount(address account, address token, uint64 dstChainId) external view returns (uint256);
-    /// @notice Get the total locked amount of an account for a token
-    /// @param account The account to get the total locked amount for
+    /// @notice Get the total locked amount of a token
     /// @param token The token to get the total locked amount for
-    function viewTotalLockedAsset(address account, address token) external view returns (uint256);
-    /// @notice Get all the locked assets of an account
-    /// @param account The account to get the locked assets for
-    /// @param dstChainId The destination chain ID
-    function viewAllLockedAssets(address account, uint64 dstChainId) external view returns (address[] memory);
+    function viewTotalLockedAsset(address token) external view returns (uint256);
+
+    /// @notice Get all the locked assets of a destination chain
+    function viewAllLockedAssets() external view returns (address[] memory);
 }
 
 interface IVaultBankDestination {
@@ -111,6 +104,7 @@ interface IVaultBank is IHookExecutionData {
     error INVALID_PROOF_ACCOUNT();
     error INVALID_PROOF_EMITTER();
     error INVALID_PROOF_SOURCE_CHAIN();
+    error INVALID_VAULT_BANK_ADDRESS();
     error INVALID_PROOF_TARGETED_CHAIN();
 
     /*//////////////////////////////////////////////////////////////

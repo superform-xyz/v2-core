@@ -183,6 +183,9 @@ abstract contract Constants {
     string internal constant CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "ClaimCancelRedeemRequest7540Hook";
     string internal constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
     string internal constant SUPER_VAULT_AGGREGATOR_KEY = "SuperVaultAggregator";
+    string internal constant SUPER_VAULT_REGISTRY_KEY = "SuperAssetRegistry";
+    string internal constant SUPER_VAULT_FACTORY_KEY = "SuperVaultFactory";
+    string internal constant HOOK_FACTORY_KEY = "HookRegistry";
     string internal constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
     string internal constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";
     string internal constant ECDSAPPS_ORACLE_KEY = "ECDSAPPSOracle";

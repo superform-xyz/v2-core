@@ -2,11 +2,11 @@
 pragma solidity 0.8.30;
 
 // external
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
-import {IHookExecutionData} from "./interfaces/IHookExecutionData.sol";
-import {ISuperHook, Execution} from "../core/interfaces/ISuperHook.sol";
+import { IHookExecutionData } from "./interfaces/IHookExecutionData.sol";
+import { ISuperHook, Execution } from "../core/interfaces/ISuperHook.sol";
 
 abstract contract Bank {
     /*//////////////////////////////////////////////////////////////
@@ -39,31 +39,41 @@ abstract contract Bank {
         if (hooksLength != executionData.data.length || hooksLength != executionData.merkleProofs.length) {
             revert INVALID_ARRAY_LENGTH();
         }
+
         address prevHook;
+        address hookAddress;
+        bytes memory hookData;
+        bytes32[] memory merkleProof;
+        ISuperHook hook;
+        bytes32 merkleRoot;
+        Execution[] memory executions;
+        Execution memory executionStep;
+        bytes32 targetLeaf;
+        bool success;
 
         for (uint256 i; i < hooksLength; i++) {
-            address hookAddress = executionData.hooks[i];
-            bytes memory hookData = executionData.data[i];
-            bytes32[] memory merkleProof = executionData.merkleProofs[i];
+            hookAddress = executionData.hooks[i];
+            hookData = executionData.data[i];
+            merkleProof = executionData.merkleProofs[i];
 
-            ISuperHook hook = ISuperHook(hookAddress);
+            hook = ISuperHook(hookAddress);
 
             // 1. Get the Merkle root specific to this hook
-            bytes32 merkleRoot = _getMerkleRootForHook(hookAddress);
+            merkleRoot = _getMerkleRootForHook(hookAddress);
 
             // 2. Pre-Execute Hook
             hook.preExecute(prevHook, address(this), hookData);
 
             // 3. Build Execution Steps
-            Execution[] memory executions = hook.build(prevHook, address(this), hookData);
+            executions = hook.build(prevHook, address(this), hookData);
 
             // 4. Execute Target Calls and verify each target
             for (uint256 j; j < executions.length; ++j) {
-                Execution memory executionStep = executions[j];
+                executionStep = executions[j];
 
                 // Verify that this target is allowed for this hook using the Merkle proof
                 // The leaf is the hash of the target address
-                bytes32 targetLeaf = keccak256(bytes.concat(keccak256(abi.encodePacked(executionStep.target))));
+                targetLeaf = keccak256(bytes.concat(keccak256(abi.encodePacked(executionStep.target))));
 
                 // Verify this target is allowed using the corresponding Merkle proof
                 if (!MerkleProof.verify(merkleProof, merkleRoot, targetLeaf)) {
@@ -71,7 +81,7 @@ abstract contract Bank {
                 }
 
                 // Execute the call after verification
-                (bool success,) = executionStep.target.call{value: executionStep.value}(executionStep.callData);
+                (success,) = executionStep.target.call{ value: executionStep.value }(executionStep.callData);
                 if (!success) {
                     revert HOOK_EXECUTION_FAILED();
                 }
