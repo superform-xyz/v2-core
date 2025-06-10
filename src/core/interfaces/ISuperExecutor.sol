@@ -74,20 +74,7 @@ interface ISuperExecutor {
     /// @notice Thrown when an account has insufficient balance to pay required fees
     /// @dev Ensures operations only proceed when proper compensation can be provided
     error INSUFFICIENT_BALANCE_FOR_FEE();
-
-    /*//////////////////////////////////////////////////////////////
-                                 EVENTS
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Emitted when a cross-chain SuperPosition mint is requested
-    /// @dev This event signals that a position should be minted on another chain
-    /// @param account The account that will receive the minted SuperPosition
-    /// @param spToken The SuperPosition token address to be minted
-    /// @param amount The amount of tokens to mint, in the token's native units
-    /// @param dstChainId The destination chain ID where the mint will occur
-    event SuperPositionMintRequested(
-        address indexed account, address indexed spToken, uint256 amount, uint256 indexed dstChainId
-    );
-
+    
     /*//////////////////////////////////////////////////////////////
                                   VIEW METHODS
     //////////////////////////////////////////////////////////////*/

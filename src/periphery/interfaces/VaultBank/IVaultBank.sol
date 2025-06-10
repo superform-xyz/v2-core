@@ -140,9 +140,18 @@ interface IVaultBank is IHookExecutionData {
     /// @notice Lock an asset for an account
     /// @param account The account to lock the asset for
     /// @param token The asset to lock
+    /// @param hookAddress The hook address to lock the asset through
     /// @param amount The amount of the asset to lock
     /// @param toChainId The destination chain ID
-    function lockAsset(address account, address token, uint256 amount, uint64 toChainId) external;
+    function lockAsset(
+        address account,
+        address token,
+        address hookAddress,
+        uint256 amount,
+        uint64 toChainId
+    )
+        external;
+
     /// @notice Creates or retrieves synthethic asset and distributes it to the account
     /// @param account_ The account to lock the asset for
     /// @param amount_ The amount of the asset to lock
@@ -155,6 +164,7 @@ interface IVaultBank is IHookExecutionData {
         bytes calldata proof_
     )
         external;
+
     /// @notice Burns a synthetic asset
     /// @dev Should be requested by the account owning the SP assets
     /// @param amount_ The amount of the asset to burn
