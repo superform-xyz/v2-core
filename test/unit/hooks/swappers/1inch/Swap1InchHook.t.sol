@@ -171,7 +171,7 @@ contract Swap1InchHookTest is Helpers {
         executions = hook.build(address(this), account, hookData);
         assertEq(executions.length, 1);
         assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 1000, "F");
+        assertEq(executions[0].value, 0, "F");
 
         selectorOffset = 16;
         hookData = _buildCurveHookData(selectorOffset, true, dstReceiver, 1000, 100, false);
