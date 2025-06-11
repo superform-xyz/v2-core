@@ -12,7 +12,6 @@ import { ISuperLedger, ISuperLedgerData } from "../../src/core/interfaces/accoun
 import { AcrossV3Adapter } from "../../src/core/adapters/AcrossV3Adapter.sol";
 import { DebridgeAdapter } from "../../src/core/adapters/DebridgeAdapter.sol";
 import { MockTargetExecutor } from "../mocks/MockTargetExecutor.sol";
-import { MockAcrossV3Helper } from "../mocks/MockAcrossV3Helper.sol";
 import { MockAcrossHook } from "../mocks/MockAcrossHook.sol";
 import { MockRegistry } from "../mocks/MockRegistry.sol";
 
@@ -74,7 +73,6 @@ contract CrosschainTests is BaseTest {
     AcrossV3Adapter public acrossV3AdapterOnBase;
     AcrossV3Adapter public acrossV3AdapterOnETH;
     AcrossV3Adapter public acrossV3AdapterOnOP;
-    AcrossV3Adapter public mockAcrossV3Adapter;
 
     DebridgeAdapter public debridgeAdapterOnBase;
     DebridgeAdapter public debridgeAdapterOnETH;
@@ -95,7 +93,6 @@ contract CrosschainTests is BaseTest {
     INexusBootstrap nexusBootstrap;
 
     MockAcrossHook public mockAcrossHook;
-    MockAcrossV3Helper public mockAcrossV3Helper;
 
     address public yieldSourceMorphoUsdcAddressEth;
     IERC4626 public vaultInstanceMorphoEth;
@@ -230,12 +227,6 @@ contract CrosschainTests is BaseTest {
 
         mockTargetExecutorOnETH = MockTargetExecutor(_getContract(ETH, MOCK_TARGET_EXECUTOR_KEY));
         vm.label(address(mockTargetExecutorOnETH), "MockTargetExecutorOnETH");
-
-        mockAcrossV3Helper = new MockAcrossV3Helper();
-        vm.label(address(mockAcrossV3Helper), "MockAcrossV3Helper");
-
-        mockAcrossV3Adapter = new AcrossV3Adapter(address(mockAcrossV3Helper), address(superTargetExecutorOnETH));
-        vm.label(address(mockAcrossV3Adapter), "MockAcrossV3Adapter");
 
         nexusBootstrap = INexusBootstrap(CHAIN_1_NEXUS_BOOTSTRAP);
         vm.label(address(nexusBootstrap), "NexusBootstrap");
