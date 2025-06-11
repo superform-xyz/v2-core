@@ -12,6 +12,7 @@ import { ISuperLedger, ISuperLedgerData } from "../../src/core/interfaces/accoun
 import { AcrossV3Adapter } from "../../src/core/adapters/AcrossV3Adapter.sol";
 import { DebridgeAdapter } from "../../src/core/adapters/DebridgeAdapter.sol";
 import { MockTargetExecutor } from "../mocks/MockTargetExecutor.sol";
+import { MockAcrossV3Helper } from "../mocks/MockAcrossV3Helper.sol";
 import { MockAcrossHook } from "../mocks/MockAcrossHook.sol";
 import { MockRegistry } from "../mocks/MockRegistry.sol";
 
@@ -31,6 +32,7 @@ import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
 import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import { BootstrapConfig, INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
@@ -91,6 +93,7 @@ contract CrosschainTests is BaseTest {
     INexusBootstrap nexusBootstrap;
 
     MockAcrossHook public mockAcrossHook;
+    MockAcrossV3Helper public mockAcrossV3Helper;
 
     address public yieldSourceMorphoUsdcAddressEth;
     IERC4626 public vaultInstanceMorphoEth;
@@ -225,6 +228,9 @@ contract CrosschainTests is BaseTest {
 
         mockTargetExecutorOnETH = MockTargetExecutor(_getContract(ETH, MOCK_TARGET_EXECUTOR_KEY));
         vm.label(address(mockTargetExecutorOnETH), "MockTargetExecutorOnETH");
+
+        mockAcrossV3Helper = new MockAcrossV3Helper();
+        vm.label(address(mockAcrossV3Helper), "MockAcrossV3Helper");
 
         nexusBootstrap = INexusBootstrap(CHAIN_1_NEXUS_BOOTSTRAP);
         vm.label(address(nexusBootstrap), "NexusBootstrap");
@@ -1986,5 +1992,193 @@ contract CrosschainTests is BaseTest {
             uint256 sharesWETH = IERC4626(yieldSource4626AddressBase_WETH).balanceOf(accountBase);
             assertGt(sharesWETH, 0);
         }
+    }
+
+    function test_MaliciousRelayer_DoS_CrosschainExecution() public {
+        uint256 amountPerVault = 1e8 / 2;
+
+        vm.selectFork(ETH);
+
+        // 1. Prepare data for ETH (destination chain). On destination, we'll:
+        // - Approve an ERC20
+        // - Request a deposit in a 7540 vault
+        bytes memory targetExecutorMessage;
+        address accountToUse;
+        TargetExecutorMessage memory messageData;
+        {
+            // Create hook addresses
+            address[] memory eth7540HooksAddresses = new address[](2);
+            eth7540HooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+            eth7540HooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+
+            // Create hook data
+            bytes[] memory eth7540HooksData = new bytes[](2);
+            eth7540HooksData[0] =
+                _createApproveHookData(CHAIN_1_USDC, yieldSource7540AddressETH_USDC, amountPerVault / 2, false);
+            eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
+                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault / 2, true
+            );
+
+            // Build the target executor message
+            messageData = TargetExecutorMessage({
+                hooksAddresses: eth7540HooksAddresses,
+                hooksData: eth7540HooksData,
+                validator: address(validatorOnETH),
+                signer: validatorSigner,
+                signerPrivateKey: validatorSignerPrivateKey,
+                targetAdapter: address(acrossV3AdapterOnBase),
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: CHAIN_1_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+                chainId: uint64(ETH),
+                amount: amountPerVault / 2,
+                account: address(0),
+                tokenSent: CHAIN_1_USDC
+            });
+
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+        }
+
+        // 2. Update account in restriction manager
+        {
+            address share = IERC7540(yieldSource7540AddressETH_USDC).share();
+
+            ITranche(share).hook();
+
+            address mngr = ITranche(share).hook();
+
+            restrictionManager = RestrictionManagerLike(mngr);
+
+            vm.startPrank(RestrictionManagerLike(mngr).root());
+
+            restrictionManager.updateMember(share, accountToUse, type(uint64).max);
+
+            vm.stopPrank();
+        }
+
+        // 3. Prepare data for Base (source chain). On source, we'll:
+        // - Approve an ERC20 to the accross bridge
+        // - Send funds via across
+        vm.selectFork(BASE);
+        vm.warp(CHAIN_1_TIMESTAMP+ 30 days);
+
+        // Prepare hooks addresses
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        // Prepare hooks data
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] = _createApproveHookData(
+            underlyingBase_USDC,
+            address(mockAcrossV3Helper), // SPOKE_POOL_V3_ADDRESSES[BASE],
+            amountPerVault / 2,
+            false
+        );
+        srcHooksData[1] = abi.encodePacked(
+            uint256(0),
+            address(mockAcrossV3Helper),
+            underlyingETH_USDC,
+            underlyingBase_USDC,
+            amountPerVault / 2,
+            amountPerVault / 2,
+            uint256(BASE),
+            address(0),
+            uint32(10 minutes), // this can be a max of 360 minutes
+            uint32(0),
+            false,
+            targetExecutorMessage
+        );
+
+        _createAcrossV3MockExecuteHookData(
+            underlyingBase_USDC, CHAIN_1_USDC, amountPerVault / 2, amountPerVault / 2, ETH, true, targetExecutorMessage
+        );
+
+        // Build userOp
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        srcUserOpData.userOp.signature = signatureData;
+
+        // 4. Trigger execution with low gas.
+        // `executeOp` will execute the source transaction, sending the message to destination via
+        // across. It returns the userOp execution logs, which are later dissected the accross helper contract.
+        _processAcrossV3MessageViaMock(
+            BASE, // srcChainId
+            ETH, // dstChainId
+            CHAIN_1_TIMESTAMP+ 30 days, // warpTimestamp
+            executeOp(srcUserOpData), // executionData
+            RELAYER_TYPE.LOW_LEVEL_FAILED, // relayerType
+            accountToUse // account
+        );
+    }
+
+    function _processAcrossV3MessageViaMock(
+        uint64 srcChainId,
+        uint64 dstChainId,
+        uint256 warpTimestamp,
+        ExecutionReturnData memory executionData,
+        RELAYER_TYPE relayerType,
+        address account
+    )
+        internal
+    {
+        if (relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
+            vm.expectEmit(true, false, false, false);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNotEnoughBalance(
+                account, address(0), 0, 0
+            );
+        } else if (relayerType == RELAYER_TYPE.ENOUGH_BALANCE) {
+            vm.expectEmit(true, true, true, true);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorExecuted(account);
+        } else if (relayerType == RELAYER_TYPE.NO_HOOKS) {
+            vm.expectEmit(true, true, true, true);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNoHooks(account);
+        } else if (relayerType == RELAYER_TYPE.LOW_LEVEL_FAILED) {
+            vm.expectEmit(true, false, false, false);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorFailedLowLevel(account, "");
+        } else if (relayerType == RELAYER_TYPE.FAILED) {
+            vm.expectEmit(true, false, false, false);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorFailed(account, "");
+        }
+        MockAcrossV3Helper(address(mockAcrossV3Helper)).help(
+            address(mockAcrossV3Helper), // SPOKE_POOL_V3_ADDRESSES[srcChainId],
+            address(mockAcrossV3Helper), // SPOKE_POOL_V3_ADDRESSES[dstChainId],
+            ACROSS_RELAYER,
+            warpTimestamp,
+            FORKS[dstChainId],
+            dstChainId,
+            srcChainId,
+            executionData.logs
+        );
+    }
+
+    function _createAcrossV3MockExecuteHookData(
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint64 destinationChainId,
+        bool usePrevHookAmount,
+        bytes memory data
+    )
+        internal
+        view
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(
+            uint256(0),
+            address(acrossV3AdapterOnBase),
+            inputToken,
+            outputToken,
+            inputAmount,
+            outputAmount,
+            uint256(destinationChainId),
+            address(0),
+            uint32(10 minutes), // this can be a max of 360 minutes
+            uint32(0),
+            usePrevHookAmount,
+            data
+        );
     }
 }
