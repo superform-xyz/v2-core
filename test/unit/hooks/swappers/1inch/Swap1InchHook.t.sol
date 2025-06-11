@@ -96,6 +96,55 @@ contract Swap1InchHookTest is Helpers {
         new Swap1InchHook(address(0));
     }
 
+    function test_Build_GenericSwap_MsgValueZeroWhenUsePrevHookAmount() public view {
+        address account = address(this);
+
+        // 1.  Craft a SwapDescription that *expects* native ETH in .amount
+        //     (we set amount = 0 because the hook will overwrite it with prevHook.outAmount())
+        address NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
+        I1InchAggregationRouterV6.SwapDescription memory desc = I1InchAggregationRouterV6.SwapDescription({
+            srcToken:        IERC20(NATIVE),    // swapping native coin
+            dstToken:        IERC20(dstToken),  // receive some ERC-20
+            srcReceiver:     payable(account),
+            dstReceiver:     payable(account),
+            amount:          0,                 // will be overridden
+            minReturnAmount: 1,
+            flags:           0                  // no partial fill
+        });
+
+        // 2.  Pack the 1inch `swap()` calldata
+        bytes memory swapCalldata = abi.encode(
+            address(0),   // executor (ignored)
+            desc,
+            bytes(""),    // permit
+            bytes("")     // extra data
+        );
+        bytes memory callData = abi.encodePacked(
+            I1InchAggregationRouterV6.swap.selector,
+            swapCalldata
+        );
+
+        // 3.  Full hook payload: [dstToken][dstReceiver][value=0][usePrev=1][callData]
+        bytes memory hookData = abi.encodePacked(
+            bytes20(dstToken),          // dstToken (an ERC-20)
+            bytes20(account),           // dstReceiver
+            uint256(1),                 //  static “value” field is ZERO (the bug)
+            bytes1(0x01),               // usePrevHookAmount = true
+            callData
+        );
+
+        // 4.  Call build(); this contract itself acts as the previous hook and returns 1_000
+        Execution[] memory execs = hook.build(address(this), account, hookData);
+
+        // 5.  Assertions – test passes and demonstrates the bug
+        assertEq(execs.length, 1, "should emit exactly one Execution");
+        assertEq(
+            execs[0].value,
+            1000,
+            "value is zero even though usePrevHookAmount == true (should be 1_000)"
+        );
+    }
+
     function test_decodeUsePrevHookAmount() public view {
         bytes memory hookData = _buildCurveHookData(0, false, dstReceiver, 1000, 100, false);
         assertEq(hook.decodeUsePrevHookAmount(hookData), false);
