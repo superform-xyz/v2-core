@@ -1,16 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {BundlerFeesHook} from "../../../../../src/core/hooks/tokens/erc20/BundlerFeesHook.sol";
-import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
-import {MockERC20} from "../../../../mocks/MockERC20.sol";
-import {MockHook} from "../../../../mocks/MockHook.sol";
-import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
-import {Helpers} from "../../../../utils/Helpers.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-contract BundlerFeesHookTest is Helpers {
-    BundlerFeesHook public hook;
+import { BatchTransferHook } from "../../../../src/core/hooks/tokens/BatchTransferHook.sol";
+import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { MockERC20 } from "../../../mocks/MockERC20.sol";
+import { MockHook } from "../../../mocks/MockHook.sol";
+import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
+
+contract BatchTransferHookTest is Helpers {
+    BatchTransferHook public hook;
 
     address token1;
     address token2;
@@ -29,14 +30,11 @@ contract BundlerFeesHookTest is Helpers {
 
         // Set up recipient and hook
         to = address(this);
-        hook = new BundlerFeesHook();
+        hook = new BatchTransferHook();
     }
 
     function test_Constructor() public view {
-        assertEq(
-            uint256(hook.hookType()),
-            uint256(ISuperHook.HookType.NONACCOUNTING)
-        );
+        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
     function test_Build_ERC20Transfers() public view {
@@ -52,11 +50,7 @@ contract BundlerFeesHookTest is Helpers {
         bytes memory data = _encodeData(tokens, amounts);
 
         // Test build function
-        Execution[] memory executions = hook.build(
-            address(0),
-            address(0),
-            data
-        );
+        Execution[] memory executions = hook.build(address(0), address(0), data);
 
         // Verify results - should be 4 executions: 2 for the actual transfers and 2 for the hook callbacks
         assertEq(executions.length, 4);
@@ -83,11 +77,7 @@ contract BundlerFeesHookTest is Helpers {
         bytes memory data = _encodeData(tokens, amounts);
 
         // Test build function
-        Execution[] memory executions = hook.build(
-            address(0),
-            address(0),
-            data
-        );
+        Execution[] memory executions = hook.build(address(0), address(0), data);
 
         // Verify results - should be 3 executions: 1 for the native transfer and 2 for the hook callbacks
         assertEq(executions.length, 3);
@@ -112,11 +102,7 @@ contract BundlerFeesHookTest is Helpers {
         bytes memory data = _encodeData(tokens, amounts);
 
         // Test build function
-        Execution[] memory executions = hook.build(
-            address(0),
-            address(0),
-            data
-        );
+        Execution[] memory executions = hook.build(address(0), address(0), data);
 
         // Verify results - should be 5 executions: 3 for the transfers and 2 for the hook callbacks
         assertEq(executions.length, 5);
@@ -168,8 +154,8 @@ contract BundlerFeesHookTest is Helpers {
         // Then abi encoded (address[] tokens, uint256[] amounts)
         bytes memory tokensData = abi.encode(tokens, amounts);
         bytes memory data = abi.encodePacked(
-            abi.encodePacked(to),  // First 20 bytes: to address
-            tokensData             // Then the encoded tokens and amounts
+            abi.encodePacked(to), // First 20 bytes: to address
+            tokensData // Then the encoded tokens and amounts
         );
 
         // Test inspect function
@@ -186,10 +172,7 @@ contract BundlerFeesHookTest is Helpers {
         assertEq(recipient, to);
     }
 
-    function _encodeData(
-        address[] memory tokens,
-        uint256[] memory amounts
-    ) internal view returns (bytes memory) {
+    function _encodeData(address[] memory tokens, uint256[] memory amounts) internal view returns (bytes memory) {
         // The hook expects the data to be in the format:
         // 1. First 20 bytes: recipient address
         // 2. Remaining bytes: abi encoded (address[] tokens, uint256[] amounts)
