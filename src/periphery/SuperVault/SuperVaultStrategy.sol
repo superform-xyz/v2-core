@@ -431,16 +431,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
                 revert MINIMUM_PREVIOUS_HOOK_OUT_AMOUNT_NOT_MET();
             }
         }
-
-        vars.hookContract.preExecute(prevHook, address(this), hookCalldata);
-
+        
+        ISuperHook(address(vars.hookContract)).setCaller();
         vars.executions = vars.hookContract.build(prevHook, address(this), hookCalldata);
         for (uint256 j; j < vars.executions.length; ++j) {
             (vars.success,) =
                 vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
             if (!vars.success) revert OPERATION_FAILED();
         }
-        vars.hookContract.postExecute(prevHook, address(this), hookCalldata);
+        ISuperHook(address(vars.hookContract)).resetExecutionState();
 
         uint256 actualOutput = ISuperHookResult(hook).outAmount();
         if (actualOutput == 0) revert ZERO_OUTPUT_AMOUNT();
@@ -491,12 +490,15 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
         vars.balanceAssetBefore = _getTokenBalance(vars.svAsset, address(this));
 
+        ISuperHook(address(vars.hookContract)).setCaller();
+
         vars.executions = vars.hookContract.build(address(0), address(this), hookCalldata);
         for (uint256 j; j < vars.executions.length; ++j) {
             (vars.success,) =
                 vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
             if (!vars.success) revert OPERATION_FAILED();
         }
+        ISuperHook(address(vars.hookContract)).resetExecutionState();
 
         vars.outAmount = _getTokenBalance(vars.svAsset, address(this)) - vars.balanceAssetBefore;
 

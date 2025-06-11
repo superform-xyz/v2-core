@@ -5,8 +5,8 @@ pragma solidity 0.8.30;
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
-import { IHookExecutionData } from "./interfaces/IHookExecutionData.sol";
-import { ISuperHook, Execution } from "../core/interfaces/ISuperHook.sol";
+import {IHookExecutionData} from "./interfaces/IHookExecutionData.sol";
+import {ISuperHook, Execution} from "../core/interfaces/ISuperHook.sol";
 
 abstract contract Bank {
     /*//////////////////////////////////////////////////////////////
@@ -61,23 +61,26 @@ abstract contract Bank {
             // 1. Get the Merkle root specific to this hook
             merkleRoot = _getMerkleRootForHook(hookAddress);
 
-            // 2. Pre-Execute Hook
-            hook.preExecute(prevHook, address(this), hookData);
+            ISuperHook(hookAddress).setCaller();
 
-            // 3. Build Execution Steps
+            // 2. Build Execution Steps
             executions = hook.build(prevHook, address(this), hookData);
 
-            // 4. Execute Target Calls and verify each target
+            // 3. Execute Target Calls and verify each target
             for (uint256 j; j < executions.length; ++j) {
                 executionStep = executions[j];
 
-                // Verify that this target is allowed for this hook using the Merkle proof
-                // The leaf is the hash of the target address
-                targetLeaf = keccak256(bytes.concat(keccak256(abi.encodePacked(executionStep.target))));
-
-                // Verify this target is allowed using the corresponding Merkle proof
-                if (!MerkleProof.verify(merkleProof, merkleRoot, targetLeaf)) {
-                    revert INVALID_MERKLE_PROOF();
+                // valid hooks encapsulate execution between a `.preExecute` and ` .postExecute` 
+                // target for preExecute and postExecute is the hook address
+                // keep the original behavior for validating the tree against the actual execution steps
+                if (executionStep.target != hookAddress) {
+                    // Verify that this target is allowed for this hook using the Merkle proof
+                    // The leaf is the hash of the target address
+                    targetLeaf = keccak256(bytes.concat(keccak256(abi.encodePacked(executionStep.target))));
+                    // Verify this target is allowed using the corresponding Merkle proof
+                    if (!MerkleProof.verify(merkleProof, merkleRoot, targetLeaf)) {
+                        revert INVALID_MERKLE_PROOF();
+                    }
                 }
 
                 // Execute the call after verification
@@ -87,8 +90,8 @@ abstract contract Bank {
                 }
             }
 
-            // 5. Post-Execute Hook
-            hook.postExecute(prevHook, address(this), hookData);
+            // Reset execution state after each hook
+            ISuperHook(hookAddress).resetExecutionState();
 
             prevHook = hookAddress;
         }

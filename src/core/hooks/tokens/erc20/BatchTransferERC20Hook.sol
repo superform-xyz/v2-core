@@ -27,8 +27,8 @@ contract BatchTransferERC20Hook is BaseHook, ISuperHookInspector {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
 
-    function build(address, address, bytes memory data)
-        external
+    function _buildHookExecutions(address, address, bytes calldata data)
+        internal
         pure
         override
         returns (Execution[] memory executions)

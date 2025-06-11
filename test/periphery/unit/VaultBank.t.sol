@@ -9,13 +9,16 @@ import {
     IVaultBankSource,
     IVaultBankDestination
 } from "../../../src/periphery/interfaces/VaultBank/IVaultBank.sol";
+
 import { Helpers } from "../../utils/Helpers.sol";
+import { MockHook } from "../../mocks/MockHook.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockSuperHook } from "../../mocks/MockSuperHook.sol";
 import { MockHookTarget } from "../../mocks/MockHookTarget.sol";
 import { IHookExecutionData } from "../../../src/periphery/interfaces/IHookExecutionData.sol";
 import { SuperGovernor } from "../../../src/periphery/SuperGovernor.sol";
 import { MockCrossL2ProverV2 } from "../../mocks/MockCrossL2ProverV2.sol";
+import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "forge-std/console.sol";
 
@@ -70,6 +73,7 @@ contract VaultBankTest is Helpers {
     SuperGovernor internal superGovernor;
     MockERC20 internal token;
     MockERC20 internal otherToken;
+    MockHook internal mockHook;
     MockCrossL2ProverV2 internal mockProver;
     VaultBankSuperPosition internal vaultBankSp;
 
@@ -140,6 +144,10 @@ contract VaultBankTest is Helpers {
         otherToken = new MockERC20("OtherToken", "OTH", 18);
 
         vaultBankSp = new VaultBankSuperPosition("VaultBankSuperPosition", "VBS", 18);
+
+        mockHook = new MockHook(ISuperHook.HookType.NONACCOUNTING, address(token));
+        vm.prank(governor);
+        superGovernor.registerHook(address(mockHook), false);
     }
 
     function test_lockAsset_Amount0() public {
@@ -150,17 +158,22 @@ contract VaultBankTest is Helpers {
         vm.stopPrank();
 
         vm.expectRevert(IVaultBankSource.INVALID_AMOUNT.selector);
-        vaultBank.lockAsset(user, address(token), 0, 1);
+        vaultBank.lockAsset(user, address(token), address(mockHook), 0, 1);
     }
 
     function test_lockAsset_TokenAddress0() public {
         vm.expectRevert(IVaultBankSource.INVALID_TOKEN.selector);
-        vaultBank.lockAsset(user, address(0), 100 ether, 1);
+        vaultBank.lockAsset(user, address(0), address(mockHook), 100 ether, 1);
     }
 
     function test_lockAsset_AccountAddress0() public {
         vm.expectRevert(IVaultBankSource.INVALID_ACCOUNT.selector);
-        vaultBank.lockAsset(address(0), address(token), 100 ether, 1);
+        vaultBank.lockAsset(address(0), address(token), address(mockHook), 100 ether, 1);
+    }
+
+    function test_lockAsset_InvalidHook() public {
+        vm.expectRevert();
+        vaultBank.lockAsset(user, address(token), address(0), 100 ether, 1);
     }
 
     function test_lockAsset_TokensNotAvailable() public {
@@ -168,7 +181,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), 50 ether);
 
         vm.expectRevert();
-        vaultBank.lockAsset(address(this), address(token), 100 ether, 1);
+        vaultBank.lockAsset(address(this), address(token), address(mockHook), 100 ether, 1);
     }
 
     function test_lockAsset_Success() public {
@@ -188,14 +201,12 @@ contract VaultBankTest is Helpers {
             user, address(token), lockAmount, uint64(block.chainid), destinationChainId, expectedNonce
         );
 
-        vaultBank.lockAsset(user, address(token), lockAmount, destinationChainId);
+        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, destinationChainId);
 
         assertEq(vaultBank.nonces(destinationChainId), expectedNonce + 1, "Nonce not incremented");
         assertEq(vaultBank.viewTotalLockedAsset(address(token)), lockAmount, "Total locked amount incorrect");
         assertEq(vaultBank.viewAllLockedAssets().length, 1, "Locked assets length incorrect");
-        assertEq(
-            vaultBank.viewAllLockedAssets()[0], address(token), "Token not in locked assets"
-        );
+        assertEq(vaultBank.viewAllLockedAssets()[0], address(token), "Token not in locked assets");
         assertEq(token.balanceOf(address(vaultBank)), lockAmount, "VaultBank balance incorrect");
         assertEq(token.balanceOf(user), 50 ether, "User balance incorrect");
     }
@@ -208,7 +219,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setValidateEventReturn(
             uint32(DST_CHAIN_ID + 1), // Invalid chain ID
@@ -231,7 +242,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setValidateEventReturn(uint32(DST_CHAIN_ID), address(0xdead), new bytes(0), new bytes(0));
 
@@ -249,7 +260,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         bytes memory invalidTopics = new bytes(128);
         bytes32 invalidEventSelector = bytes32(uint256(0x12345678));
@@ -273,7 +284,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         MockERC20 token2 = new MockERC20("Token2", "TKN2", 18);
 
@@ -301,7 +312,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setValidateEventReturn(
             uint32(DST_CHAIN_ID), address(vaultBank), new bytes(128), abi.encode(lockAmount - 1, CURRENT_CHAIN_ID, 0)
@@ -326,7 +337,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setValidateEventReturn(
             uint32(DST_CHAIN_ID), address(vaultBank), new bytes(128), abi.encode(lockAmount, CURRENT_CHAIN_ID + 1, 0)
@@ -351,7 +362,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setEmittingContract(address(vaultBank));
         mockProver.mockSuperpositionsBurnedEvent(
@@ -374,7 +385,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setEmittingContract(address(vaultBank));
         mockProver.mockSuperpositionsBurnedEvent(
@@ -395,7 +406,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setEmittingContract(address(vaultBank));
         mockProver.mockSuperpositionsBurnedEvent(
@@ -416,7 +427,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setEmittingContract(address(vaultBank));
         mockProver.mockSuperpositionsBurnedEvent(user, address(token), 0, CURRENT_CHAIN_ID, 0, uint32(DST_CHAIN_ID));
@@ -443,7 +454,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         assertEq(token.balanceOf(user), 0, "Initial user balance incorrect");
         assertEq(token.balanceOf(address(vaultBank)), lockAmount, "Initial vault balance incorrect");
@@ -546,7 +557,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user2, address(token), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(user2, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         assertEq(token.balanceOf(user2), 0, "Initial user balance incorrect");
         assertEq(token.balanceOf(address(vaultBank)), lockAmount, "Initial vault balance incorrect");
@@ -558,9 +569,7 @@ contract VaultBankTest is Helpers {
         );
 
         vm.expectEmit(true, true, false, true);
-        emit IVaultBankSource.SharesUnlocked(
-            user2, address(token), unlockAmount, CURRENT_CHAIN_ID, DST_CHAIN_ID, 1
-        );
+        emit IVaultBankSource.SharesUnlocked(user2, address(token), unlockAmount, CURRENT_CHAIN_ID, DST_CHAIN_ID, 1);
 
         vaultBank.unlockAsset(user2, address(token), unlockAmount, DST_CHAIN_ID, mockProof);
 
@@ -572,8 +581,6 @@ contract VaultBankTest is Helpers {
             lockAmount - unlockAmount,
             "Total locked amount after unlock incorrect"
         );
-
-        
     }
 
     function test_distributeSuperPosition_InvalidProofEmitter() public {
@@ -1107,10 +1114,10 @@ contract VaultBankTest is Helpers {
         vm.startPrank(address(this));
 
         MockHookTarget mockTarget = new MockHookTarget();
-        MockSuperHook mockHook = new MockSuperHook(address(mockTarget));
+        MockSuperHook mockHook2 = new MockSuperHook(address(mockTarget));
 
         address[] memory hooks = new address[](1);
-        hooks[0] = address(mockHook);
+        hooks[0] = address(mockHook2);
 
         bytes[] memory data = new bytes[](1);
         data[0] = "data1";
@@ -1124,7 +1131,7 @@ contract VaultBankTest is Helpers {
 
         vm.mockCall(
             address(superGovernor),
-            abi.encodeWithSignature("getVaultBankHookMerkleRoot(address)", address(mockHook)),
+            abi.encodeWithSignature("getVaultBankHookMerkleRoot(address)", address(mockHook2)),
             abi.encode(bytes32(uint256(2)))
         );
 
@@ -1138,13 +1145,13 @@ contract VaultBankTest is Helpers {
         mockTarget.setShouldFailExecution(true); // Set to fail during execution
         mockTarget.setShouldFailExecution(true);
 
-        MockSuperHook mockHook = new MockSuperHook(address(mockTarget));
+        MockSuperHook mockHook1 = new MockSuperHook(address(mockTarget));
 
         bytes32 targetLeaf = keccak256(bytes.concat(keccak256(abi.encodePacked(address(mockTarget)))));
         bytes32 merkleRoot = targetLeaf;
 
         address[] memory hooks = new address[](1);
-        hooks[0] = address(mockHook);
+        hooks[0] = address(mockHook1);
 
         bytes[] memory data = new bytes[](1);
         data[0] = "data1";
@@ -1157,7 +1164,7 @@ contract VaultBankTest is Helpers {
 
         vm.mockCall(
             address(superGovernor),
-            abi.encodeWithSignature("getVaultBankHookMerkleRoot(address)", address(mockHook)),
+            abi.encodeWithSignature("getVaultBankHookMerkleRoot(address)", address(mockHook1)),
             abi.encode(merkleRoot)
         );
 
@@ -1171,13 +1178,13 @@ contract VaultBankTest is Helpers {
         vm.startPrank(address(this));
 
         MockHookTarget mockTarget = new MockHookTarget();
-        MockSuperHook mockHook = new MockSuperHook(address(mockTarget));
+        MockSuperHook mockHook1 = new MockSuperHook(address(mockTarget));
 
         bytes32 targetLeaf = keccak256(bytes.concat(keccak256(abi.encodePacked(address(mockTarget)))));
         bytes32 merkleRoot = targetLeaf;
 
         address[] memory hooks = new address[](1);
-        hooks[0] = address(mockHook);
+        hooks[0] = address(mockHook1);
 
         bytes[] memory data = new bytes[](1);
         data[0] = "data1";
@@ -1190,18 +1197,12 @@ contract VaultBankTest is Helpers {
 
         vm.mockCall(
             address(superGovernor),
-            abi.encodeWithSignature("getVaultBankHookMerkleRoot(address)", address(mockHook)),
+            abi.encodeWithSignature("getVaultBankHookMerkleRoot(address)", address(mockHook1)),
             abi.encode(merkleRoot)
         );
 
-        vm.expectEmit(true, true, true, true, address(mockHook));
-        emit MockSuperHook.PreExecuteCalled(address(0), address(vaultBank), "data1");
-
         vm.expectEmit(true, true, false, false, address(mockTarget));
         emit MockHookTarget.Executed();
-
-        vm.expectEmit(true, true, true, true, address(mockHook));
-        emit MockSuperHook.PostExecuteCalled(address(0), address(vaultBank), "data1");
 
         vm.expectEmit(true, true, true, true, address(vaultBank));
         emit Bank.HooksExecuted(hooks, data);
@@ -1281,11 +1282,11 @@ contract VaultBankTest is Helpers {
 
         assertEq(vaultBank.viewTotalLockedAsset(address(token)), 0, "Initial total locked amount should be 0");
 
-        vaultBank.lockAsset(user, address(token), lockAmount1, DST_CHAIN_ID);
+        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount1, DST_CHAIN_ID);
 
         assertEq(
             vaultBank.viewTotalLockedAsset(address(token)),
-            lockAmount1, 
+            lockAmount1,
             "Total locked amount should match sum of all locks"
         );
     }
@@ -1301,7 +1302,7 @@ contract VaultBankTest is Helpers {
         address[] memory initialAssets = vaultBank.viewAllLockedAssets();
         assertEq(initialAssets.length, 0, "Initial locked assets array should be empty");
 
-        vaultBank.lockAsset(user, address(token), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         address[] memory assets = vaultBank.viewAllLockedAssets();
         assertEq(assets.length, 1, "Locked assets array should have one entry");
@@ -1314,7 +1315,7 @@ contract VaultBankTest is Helpers {
         token2.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token2), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(user, address(token2), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         address[] memory assetsAfterSecondLock = vaultBank.viewAllLockedAssets();
         assertEq(assetsAfterSecondLock.length, 2, "Locked assets array should have two entries");
