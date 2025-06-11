@@ -85,7 +85,8 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
         }
 
         if (vars.amount == 0) revert AMOUNT_NOT_VALID();
-        if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
+        if (vars.loanToken == address(0) || vars.collateralToken == address(0) || vars.oracle == address(0) || vars.irm == address(0))
+            revert ADDRESS_NOT_VALID();
 
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
