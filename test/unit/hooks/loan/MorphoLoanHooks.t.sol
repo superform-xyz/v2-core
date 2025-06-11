@@ -85,11 +85,10 @@ contract MorphoLoanHooksTest is Helpers {
     MockIRM public mockIRM;
     MockOracle public mockOracle;
     MockMorpho public mockMorpho;
+    MockERC20 public mockLoanToken;
     MockERC20 public mockCollateralToken;
 
     function setUp() public {
-        loanToken = 0x4200000000000000000000000000000000000006;
-
         mockMorpho = new MockMorpho();
         mockIRM = new MockIRM();
         borrowHook = new MorphoSupplyAndBorrowHook(address(mockMorpho));
@@ -104,6 +103,8 @@ contract MorphoLoanHooksTest is Helpers {
         mockOracle = new MockOracle();
         mockCollateralToken = new MockERC20("Collateral Token", "COLL", 18);
         collateralToken = address(mockCollateralToken);
+        mockLoanToken = new MockERC20("Loan Token", "LOAN", 18);
+        loanToken = address(mockLoanToken);
     }
 
     function test_Constructors() public view {
@@ -249,8 +250,9 @@ contract MorphoLoanHooksTest is Helpers {
 
     function test_BorrowHookB_PrePostExecute() public {
         bytes memory data = _encodeBorrowOnlyData(false);
+        deal(loanToken, address(this), amount);
         borrowHookB.preExecute(address(0), address(this), data);
-        assertEq(borrowHookB.outAmount(), 0);
+        assertEq(borrowHookB.outAmount(), amount);
 
         borrowHookB.postExecute(address(0), address(this), data);
         assertEq(borrowHookB.outAmount(), 0);
