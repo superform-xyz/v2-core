@@ -292,35 +292,30 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
         if (order.maker == address(0) || order.receiver == address(0)) revert ADDRESS_NOT_VALID();
     }
 
-    function _decodeTokenOut(bytes calldata data) internal view returns (address tokenOut) {
+    function _decodeTokenOutAndReceiver(bytes calldata data) internal view returns (address tokenOut, address receiver) {
         bytes4 selector = bytes4(data[0:4]);
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
-            // 0-4 selector
-            // 4-36 receiver
-            // 36-68 market
-
-            address market = abi.decode(data[36:68], (address));
+            (
+                address _receiver,
+                address market,
+                ,
+                ,
+                ,
+            ) = abi.decode(data[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
             (, tokenOut,) = IPendleMarket(market).readTokens();
+            receiver = _receiver;
         } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
-            // 0-4 selector
-            // 4-36 receiver
-            // 36-68 market
-            // 68-100 exactPtIn
-            // 100-250 output
-            tokenOut = abi.decode(data[100:132], (address));
+            (address _receiver,,, TokenOutput memory output, ) =
+                abi.decode(data[4:], (address, address, uint256, TokenOutput, LimitOrderData));
+            tokenOut = output.tokenOut;
+            receiver = _receiver;
         } else {
             revert INVALID_SWAP_TYPE();
         }
     }
 
-    function _decodeReceiver(bytes calldata data) internal pure returns (address receiver) {
-        // same offset for both selectors
-        receiver = abi.decode(data[4:36], (address));
-    }
-
     function _getBalance(bytes calldata data) private view returns (uint256) {
-        address tokenOut = _decodeTokenOut(data[57:]);
-        address receiver = _decodeReceiver(data[57:]);
+        (address tokenOut, address receiver) = _decodeTokenOutAndReceiver(data[57:]);
 
         if (tokenOut == address(0)) {
             return receiver.balance;
