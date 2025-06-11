@@ -178,6 +178,6 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = outAmount - getLoanTokenBalance(account, data);
+        outAmount = getLoanTokenBalance(account, data) - outAmount;
     }
 }
