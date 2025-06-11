@@ -30,6 +30,15 @@ contract Deposit5115VaultHookTest is Helpers {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.INFLOW));
     }
 
+    function test_NativePOC() public {
+        token = address(0);
+
+        bytes memory data = _encodeData(false);
+        // this shouldn't revert anymore after the fix
+        //vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        hook.build(address(0), address(this), data);
+    }
+
     function test_UsePrevHookAmount() public view {
         bytes memory data = _encodeData(true);
         assertTrue(hook.decodeUsePrevHookAmount(data));
