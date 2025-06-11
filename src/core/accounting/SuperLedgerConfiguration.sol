@@ -225,7 +225,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         });
 
         emit YieldSourceOracleConfigSet(
-            yieldSourceOracleId, yieldSourceOracle, feePercent, msg.sender, feeRecipient, ledgerContract
+            yieldSourceOracleId, yieldSourceOracle, feePercent, feeRecipient, msg.sender, ledgerContract
         );
     }
 
