@@ -79,7 +79,7 @@ import { EthenaCooldownSharesHook } from "../src/core/hooks/vaults/ethena/Ethena
 import { EthenaUnstakeHook } from "../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
 import { SpectraExchangeHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
 import { PendleRouterSwapHook } from "../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
-import { MorphoBorrowHook } from "../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoSupplyAndBorrowHook } from "../src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
 import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
 import { MorphoRepayAndWithdrawHook } from "../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
 import { PendleRouterRedeemHook } from "../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
@@ -181,7 +181,7 @@ contract DeployV2 is Script, Configuration {
         address spectraExchangeHook;
         address pendleRouterSwapHook;
         address pendleRouterRedeemHook;
-        address morphoBorrowHook;
+        address MorphoSupplyAndBorrowHook;
         address morphoRepayHook;
         address morphoRepayAndWithdrawHook;
     }
@@ -617,7 +617,7 @@ contract DeployV2 is Script, Configuration {
         hooks[42] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, type(CancelRedeemHook).creationCode);
 
         hooks[43] = HookDeployment(
-            MORPHO_BORROW_HOOK_KEY, abi.encodePacked(type(MorphoBorrowHook).creationCode, abi.encode(MORPHO))
+            MORPHO_BORROW_HOOK_KEY, abi.encodePacked(type(MorphoSupplyAndBorrowHook).creationCode, abi.encode(MORPHO))
         );
         hooks[44] = HookDeployment(
             MORPHO_REPAY_HOOK_KEY, abi.encodePacked(type(MorphoRepayHook).creationCode, abi.encode(MORPHO))
@@ -721,7 +721,7 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[41].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[41] : address(0);
         hookAddresses.cancelRedeemHook =
             Strings.equal(hooks[42].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[42] : address(0);
-        hookAddresses.morphoBorrowHook =
+        hookAddresses.MorphoSupplyAndBorrowHook =
             Strings.equal(hooks[43].name, MORPHO_BORROW_HOOK_KEY) ? addresses[43] : address(0);
         hookAddresses.morphoRepayHook =
             Strings.equal(hooks[44].name, MORPHO_REPAY_HOOK_KEY) ? addresses[44] : address(0);
@@ -788,7 +788,7 @@ contract DeployV2 is Script, Configuration {
             "claimCancelRedeemRequest7540Hook not assigned"
         );
         require(hookAddresses.cancelRedeemHook != address(0), "cancelRedeemHook not assigned");
-        require(hookAddresses.morphoBorrowHook != address(0), "morphoBorrowHook not assigned");
+        require(hookAddresses.MorphoSupplyAndBorrowHook != address(0), "MorphoSupplyAndBorrowHook not assigned");
         require(hookAddresses.morphoRepayHook != address(0), "morphoRepayHook not assigned");
         require(hookAddresses.morphoRepayAndWithdrawHook != address(0), "morphoRepayAndWithdrawHook not assigned");
     }
@@ -835,7 +835,7 @@ contract DeployV2 is Script, Configuration {
         superGovernor.registerHook(address(hookAddresses.claimCancelDepositRequest7540Hook), false);
         superGovernor.registerHook(address(hookAddresses.claimCancelRedeemRequest7540Hook), false);
         superGovernor.registerHook(address(hookAddresses.cancelRedeemHook), false);
-        superGovernor.registerHook(address(hookAddresses.morphoBorrowHook), false);
+        superGovernor.registerHook(address(hookAddresses.MorphoSupplyAndBorrowHook), false);
         superGovernor.registerHook(address(hookAddresses.morphoRepayHook), false);
         superGovernor.registerHook(address(hookAddresses.morphoRepayAndWithdrawHook), false);
         superGovernor.registerHook(address(hookAddresses.ethenaCooldownSharesHook), false);

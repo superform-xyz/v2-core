@@ -101,7 +101,7 @@ abstract contract Constants {
     string public constant SPECTRA_EXCHANGE_HOOK_KEY = "SpectraExchangeHook";
     string public constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
     string public constant PENDLE_ROUTER_REDEEM_HOOK_KEY = "PendleRouterRedeemHook";
-    string public constant MORPHO_BORROW_HOOK_KEY = "MorphoBorrowHook";
+    string public constant MORPHO_BORROW_HOOK_KEY = "MorphoSupplyAndBorrowHook";
     string public constant MORPHO_REPAY_HOOK_KEY = "MorphoRepayHook";
     string public constant MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY = "MorphoRepayAndWithdrawHook";
 

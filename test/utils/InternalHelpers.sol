@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {UserOpData} from "modulekit/ModuleKit.sol";
+import { UserOpData } from "modulekit/ModuleKit.sol";
 import "../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
-import {SpectraCommands} from "../../src/vendor/spectra/SpectraCommands.sol";
-import {console2} from "forge-std/console2.sol";
-import {ISuperExecutor} from "../../src/core/interfaces/ISuperExecutor.sol";
-import {UserOpData, AccountInstance, ModuleKitHelpers} from "modulekit/ModuleKit.sol";
-import {ISuperExecutor} from "../../src/core/interfaces/ISuperExecutor.sol";
-import {ExecutionReturnData} from "modulekit/test/RhinestoneModuleKit.sol";
+import { SpectraCommands } from "../../src/vendor/spectra/SpectraCommands.sol";
+import { console2 } from "forge-std/console2.sol";
+import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { UserOpData, AccountInstance, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
+import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 
 abstract contract InternalHelpers {
     using ModuleKitHelpers for *;
@@ -24,11 +24,18 @@ abstract contract InternalHelpers {
         ISuperExecutor superExecutor,
         bytes memory data,
         address validator
-    ) internal returns (UserOpData memory userOpData) {
+    )
+        internal
+        returns (UserOpData memory userOpData)
+    {
         return instance.getExecOps(address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), validator);
     }
 
-    function _getExecOps(AccountInstance memory instance, ISuperExecutor superExecutor, bytes memory data)
+    function _getExecOps(
+        AccountInstance memory instance,
+        ISuperExecutor superExecutor,
+        bytes memory data
+    )
         internal
         returns (UserOpData memory userOpData)
     {
@@ -42,7 +49,10 @@ abstract contract InternalHelpers {
         ISuperExecutor superExecutor,
         bytes memory data,
         address paymaster
-    ) internal returns (UserOpData memory userOpData) {
+    )
+        internal
+        returns (UserOpData memory userOpData)
+    {
         if (paymaster == address(0)) revert("NO_PAYMASTER_SUPPLIED");
         userOpData = instance.getExecOps(
             address(superExecutor), 0, abi.encodeCall(superExecutor.execute, (data)), address(instance.defaultValidator)
@@ -67,7 +77,11 @@ abstract contract InternalHelpers {
         I1InchAggregationRouterV6.SwapDescription memory desc,
         bytes memory data,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         bytes memory _calldata =
             abi.encodeWithSelector(I1InchAggregationRouterV6.swap.selector, IAggregationExecutor(executor), desc, data);
 
@@ -83,7 +97,11 @@ abstract contract InternalHelpers {
         uint256 minReturn,
         Address dex,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         bytes memory _calldata = abi.encodeWithSelector(
             I1InchAggregationRouterV6.unoswapTo.selector,
             receiverUint256,
@@ -103,7 +121,11 @@ abstract contract InternalHelpers {
         Address srcToken,
         uint256 amount,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         bytes memory _calldata = abi.encodeWithSelector(
             I1InchAggregationRouterV6.clipperSwapTo.selector,
             exchange,
@@ -131,7 +153,11 @@ abstract contract InternalHelpers {
         address executor,
         uint32 referralCode,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory hookData) {
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
         hookData = abi.encodePacked(
             inputToken,
             inputAmount,
@@ -154,7 +180,11 @@ abstract contract InternalHelpers {
         address tokenIn,
         uint256 amount,
         address account
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         bytes memory txData = _createSpectraExchangeSimpleCommandTxData(ptToken, tokenIn, amount, account);
         return abi.encodePacked(
             /**
@@ -176,7 +206,11 @@ abstract contract InternalHelpers {
         address tokenIn_,
         uint256 amount_,
         address account_
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         bytes memory commandsData = new bytes(2);
         commandsData[0] = bytes1(uint8(SpectraCommands.TRANSFER_FROM));
         commandsData[1] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
@@ -205,7 +239,11 @@ abstract contract InternalHelpers {
         address executor,
         uint32 referralCode,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(
             inputToken,
             inputAmount,
@@ -225,7 +263,12 @@ abstract contract InternalHelpers {
                                  HOOK DATA CREATORS
     //////////////////////////////////////////////////////////////*/
 
-    function _createApproveHookData(address token, address spender, uint256 amount, bool usePrevHookAmount)
+    function _createApproveHookData(
+        address token,
+        address spender,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
         internal
         pure
         returns (bytes memory hookData)
@@ -240,7 +283,11 @@ abstract contract InternalHelpers {
         bool usePrevHookAmount,
         address vaultBank,
         uint256 dstChainId
-    ) internal pure returns (bytes memory hookData) {
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
         hookData = abi.encodePacked(yieldSourceOracleId, vault, amount, usePrevHookAmount, vaultBank, dstChainId);
     }
 
@@ -252,7 +299,11 @@ abstract contract InternalHelpers {
         bool usePrevHookAmount,
         address vaultBank,
         uint256 dstChainId
-    ) internal pure returns (bytes memory hookData) {
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
         hookData = abi.encodePacked(yieldSourceOracleId, vault, token, amount, usePrevHookAmount, vaultBank, dstChainId);
     }
 
@@ -265,7 +316,11 @@ abstract contract InternalHelpers {
         bool usePrevHookAmount,
         address vaultBank,
         uint256 dstChainId
-    ) internal pure returns (bytes memory hookData) {
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
         hookData = abi.encodePacked(
             yieldSourceOracleId, vault, tokenIn, amount, minSharesOut, usePrevHookAmount, vaultBank, dstChainId
         );
@@ -277,7 +332,11 @@ abstract contract InternalHelpers {
         address owner,
         uint256 shares,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory hookData) {
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
         hookData = abi.encodePacked(yieldSourceOracleId, vault, owner, shares, usePrevHookAmount);
     }
 
@@ -288,7 +347,11 @@ abstract contract InternalHelpers {
         address owner,
         uint256 amount,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory hookData) {
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
         hookData = abi.encodePacked(yieldSourceOracleId, vault, token, owner, amount, usePrevHookAmount);
     }
 
@@ -299,7 +362,11 @@ abstract contract InternalHelpers {
         uint256 shares,
         uint256 minTokenOut,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory hookData) {
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
         hookData = abi.encodePacked(yieldSourceOracleId, vault, tokenOut, shares, minTokenOut, false, usePrevHookAmount);
     }
 
@@ -312,7 +379,11 @@ abstract contract InternalHelpers {
         uint256 minTokenOut,
         bool burnFromInternalBalance,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory hookData) {
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
         hookData = abi.encodePacked(
             yieldSourceOracleId,
             vault,
@@ -330,7 +401,11 @@ abstract contract InternalHelpers {
         address yieldSource,
         uint256 amount,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
@@ -341,7 +416,11 @@ abstract contract InternalHelpers {
         bool usePrevHookAmount,
         address vaultBank,
         uint256 dstChainId
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount, vaultBank, dstChainId);
     }
 
@@ -350,7 +429,11 @@ abstract contract InternalHelpers {
         address yieldSource,
         uint256 amount,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
@@ -359,7 +442,11 @@ abstract contract InternalHelpers {
         address yieldSource,
         uint256 amount,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
@@ -369,7 +456,11 @@ abstract contract InternalHelpers {
         address token,
         uint256 amount,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount);
     }
 
@@ -379,7 +470,11 @@ abstract contract InternalHelpers {
         address token,
         uint256 shares,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, token, shares, usePrevHookAmount);
     }
 
@@ -392,7 +487,11 @@ abstract contract InternalHelpers {
         bool usePrevHookAmount,
         address vaultBank,
         uint256 dstChainId
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(
             yieldSourceOracleId, yieldSource, tokenIn, amount, minSharesOut, usePrevHookAmount, vaultBank, dstChainId
         );
@@ -404,7 +503,11 @@ abstract contract InternalHelpers {
         address token,
         uint256 amount,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount);
     }
 
@@ -413,7 +516,11 @@ abstract contract InternalHelpers {
         address yieldSource,
         uint256 amount,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
@@ -422,7 +529,11 @@ abstract contract InternalHelpers {
         address yieldSource,
         uint256 amount,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
@@ -435,7 +546,11 @@ abstract contract InternalHelpers {
         bool usePrevHookAmount,
         address vaultBank,
         uint256 dstChainId
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(
             yieldSourceOracleId, yieldSource, tokenIn, amount, minSharesOut, usePrevHookAmount, vaultBank, dstChainId
         );
@@ -446,7 +561,11 @@ abstract contract InternalHelpers {
         address token,
         uint256 amount,
         bool usePrevHookAmount
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(bytes4(bytes("")), yieldSource, token, amount, usePrevHookAmount);
     }
 
@@ -458,7 +577,7 @@ abstract contract InternalHelpers {
         return abi.encodePacked(bytes4(bytes("")), yieldSource, receiver);
     }
 
-    function _createMorphoBorrowHookData(
+    function _createMorphoSupplyAndBorrowHookData(
         address loanToken,
         address collateralToken,
         address oracle,
@@ -467,7 +586,11 @@ abstract contract InternalHelpers {
         uint256 ltvRatio,
         bool usePrevHookAmount,
         uint256 lltv
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return
             abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, ltvRatio, usePrevHookAmount, lltv, false);
     }
@@ -481,7 +604,11 @@ abstract contract InternalHelpers {
         uint256 lltv,
         bool usePrevHookAmount,
         bool isFullRepayment
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return
             abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment);
     }
@@ -495,7 +622,11 @@ abstract contract InternalHelpers {
         uint256 lltv,
         bool usePrevHookAmount,
         bool isFullRepayment
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return
             abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, lltv, usePrevHookAmount, isFullRepayment);
     }
@@ -506,7 +637,11 @@ abstract contract InternalHelpers {
         address[] memory tokens,
         uint256[] memory amounts,
         bytes memory sig
-    ) internal view returns (bytes memory data) {
+    )
+        internal
+        view
+        returns (bytes memory data)
+    {
         return _createBatchTransferFromHookData(from, arrayLength, block.timestamp + 2 weeks, tokens, amounts, sig);
     }
 
@@ -517,7 +652,11 @@ abstract contract InternalHelpers {
         address[] memory tokens,
         uint256[] memory amounts,
         bytes memory sig
-    ) internal pure returns (bytes memory data) {
+    )
+        internal
+        pure
+        returns (bytes memory data)
+    {
         data = abi.encodePacked(from, arrayLength, sigDeadline);
 
         // Directly encode the token addresses as bytes
@@ -533,7 +672,12 @@ abstract contract InternalHelpers {
         data = bytes.concat(data, sig);
     }
 
-    function _createTransferERC20HookData(address token, address to, uint256 amount, bool usePrevHookAmount)
+    function _createTransferERC20HookData(
+        address token,
+        address to,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
         internal
         pure
         returns (bytes memory data)

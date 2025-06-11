@@ -2,22 +2,22 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {IOracle} from "../../../../vendor/morpho/IOracle.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IMorphoBase, MarketParams} from "../../../../vendor/morpho/IMorpho.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IMorphoBase, MarketParams } from "../../../../vendor/morpho/IMorpho.sol";
 
 // Superform
-import {BaseMorphoLoanHook} from "./BaseMorphoLoanHook.sol";
-import {ISuperHook, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {ISuperHookLoans} from "../../../interfaces/ISuperHook.sol";
-import {ISuperHookResult} from "../../../interfaces/ISuperHook.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
+import { ISuperHook, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title MorphoBorrowHook
+/// @title MorphoSupplyAndBorrowHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address loanToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
@@ -29,7 +29,7 @@ import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 145, 32), 0);
 /// @notice         bool placeholder = _decodeBool(data, 177);
-contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
+contract MorphoSupplyAndBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -68,7 +68,11 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function _buildHookExecutions(address prevHook, address account, bytes calldata data)
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
         internal
         view
         override
@@ -90,7 +94,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
 
         executions = new Execution[](4);
         executions[0] =
-            Execution({target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0))});
+            Execution({ target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
         executions[1] = Execution({
             target: vars.collateralToken,
             value: 0,
@@ -132,7 +136,12 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
     /// @dev It corresponds to the price of 10**(collateral token decimals) assets of collateral token quoted in
     /// 10**(loan token decimals) assets of loan token with `36 + loan token decimals - collateral token decimals`
     /// decimals of precision.
-    function deriveLoanAmount(uint256 collateralAmount, uint256 ltvRatio, uint256 lltv, address oracle)
+    function deriveLoanAmount(
+        uint256 collateralAmount,
+        uint256 ltvRatio,
+        uint256 lltv,
+        address oracle
+    )
         public
         view
         returns (uint256 loanAmount)

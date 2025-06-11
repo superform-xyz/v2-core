@@ -112,7 +112,7 @@
 │   │   │   │   ├── BaseLoanHook.sol
 │   │   │   │   └── morpho
 │   │   │   │       ├── BaseMorphoLoanHook.sol
-│   │   │   │       ├── MorphoBorrowHook.sol
+│   │   │   │       ├── MorphoSupplyAndBorrowHook.sol
 │   │   │   │       ├── MorphoRepayAndWithdrawHook.sol
 │   │   │   │       └── MorphoRepayHook.sol
 │   │   │   ├── stake
@@ -426,7 +426,7 @@
     │   │   │   └── yearn
     │   │   │       └── YearnClaimRewardHook.t.sol
     │   │   ├── loan
-    │   │   │   ├── MorphoBorrowHook.t.sol
+    │   │   │   ├── MorphoSupplyAndBorrowHook.t.sol
     │   │   │   ├── MorphoRepayAndWithdrawHook.t.sol
     │   │   │   └── MorphoRepayHook.t.sol
     │   │   ├── pendle
