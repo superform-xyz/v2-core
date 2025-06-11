@@ -2,15 +2,15 @@
 pragma solidity 0.8.30;
 
 import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {BatchTransferERC20Hook} from "../../../../../src/core/hooks/tokens/erc20/BatchTransferERC20Hook.sol";
+import {BundlerFeesHook} from "../../../../../src/core/hooks/tokens/erc20/BundlerFeesHook.sol";
 import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
 import {MockERC20} from "../../../../mocks/MockERC20.sol";
 import {MockHook} from "../../../../mocks/MockHook.sol";
 import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
 import {Helpers} from "../../../../utils/Helpers.sol";
 
-contract BatchTransferERC20HookTest is Helpers {
-    BatchTransferERC20Hook public hook;
+contract BundlerFeesHookTest is Helpers {
+    BundlerFeesHook public hook;
 
     address token1;
     address token2;
@@ -29,7 +29,7 @@ contract BatchTransferERC20HookTest is Helpers {
 
         // Set up recipient and hook
         to = address(this);
-        hook = new BatchTransferERC20Hook();
+        hook = new BundlerFeesHook();
     }
 
     function test_Constructor() public view {

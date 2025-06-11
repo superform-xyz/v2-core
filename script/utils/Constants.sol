@@ -141,7 +141,7 @@ abstract contract Constants {
     string internal constant YEARN_CLAIM_ONE_REWARD_HOOK_KEY = "YearnClaimOneRewardHook";
     string internal constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
     string internal constant TRANSFER_ERC20_HOOK_KEY = "TransferERC20Hook";
-    string internal constant BATCH_TRANSFER_ERC20_HOOK_KEY = "BatchTransferERC20Hook";
+    string internal constant BUNDLER_FEES_HOOK_KEY = "BundlerFeesHook";
     string internal constant BATCH_TRANSFER_FROM_HOOK_KEY = "BatchTransferFromHook";
     string internal constant DEPOSIT_4626_VAULT_HOOK_KEY = "Deposit4626VaultHook";
     string internal constant REDEEM_4626_VAULT_HOOK_KEY = "Redeem4626VaultHook";

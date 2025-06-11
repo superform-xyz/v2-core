@@ -13,12 +13,12 @@ import {ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
 
 address constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
-/// @title BatchTransferERC20Hook
+/// @title BundlerFeesHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address to = BytesLib.toAddress(data, 0);
 /// @notice         bytes tokensArr = BytesLib.slice(data, 20, data.length - 20);
-contract BatchTransferERC20Hook is BaseHook, ISuperHookInspector {
+contract BundlerFeesHook is BaseHook, ISuperHookInspector {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
 
     error LENGTH_MISMATCH();

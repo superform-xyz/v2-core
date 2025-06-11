@@ -34,7 +34,7 @@ import { ApproveAndSwapOdosHook } from "../src/core/hooks/swappers/odos/ApproveA
 // ---- | tokens
 import { ApproveERC20Hook } from "../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
-import { BatchTransferERC20Hook } from "../src/core/hooks/tokens/erc20/BatchTransferERC20Hook.sol";
+import { BundlerFeesHook } from "../src/core/hooks/tokens/erc20/BundlerFeesHook.sol";
 import { BatchTransferFromHook } from "../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
 // ---- | claim
 import { FluidClaimRewardHook } from "../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
@@ -140,7 +140,7 @@ contract DeployV2 is Script, Configuration {
     struct HookAddresses {
         address approveErc20Hook;
         address transferErc20Hook;
-        address batchTransferErc20Hook;
+        address bundlerFeesHook;
         address batchTransferFromHook;
         address deposit4626VaultHook;
         address approveAndDeposit4626VaultHook;
@@ -523,7 +523,7 @@ contract DeployV2 is Script, Configuration {
 
         hooks[0] = HookDeployment(APPROVE_ERC20_HOOK_KEY, type(ApproveERC20Hook).creationCode);
         hooks[1] = HookDeployment(TRANSFER_ERC20_HOOK_KEY, type(TransferERC20Hook).creationCode);
-        hooks[2] = HookDeployment(BATCH_TRANSFER_ERC20_HOOK_KEY, type(BatchTransferERC20Hook).creationCode);
+        hooks[2] = HookDeployment(BUNDLER_FEES_HOOK_KEY, type(BundlerFeesHook).creationCode);
         hooks[3] = HookDeployment(
             BATCH_TRANSFER_FROM_HOOK_KEY,
             abi.encodePacked(type(BatchTransferFromHook).creationCode, abi.encode(configuration.permit2s[chainId]))
@@ -642,8 +642,8 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[0].name, APPROVE_ERC20_HOOK_KEY) ? addresses[0] : address(0);
         hookAddresses.transferErc20Hook =
             Strings.equal(hooks[1].name, TRANSFER_ERC20_HOOK_KEY) ? addresses[1] : address(0);
-        hookAddresses.batchTransferErc20Hook =
-            Strings.equal(hooks[2].name, BATCH_TRANSFER_ERC20_HOOK_KEY) ? addresses[2] : address(0);
+        hookAddresses.bundlerFeesHook =
+            Strings.equal(hooks[2].name, BUNDLER_FEES_HOOK_KEY) ? addresses[2] : address(0);
         hookAddresses.batchTransferFromHook =
             Strings.equal(hooks[3].name, BATCH_TRANSFER_FROM_HOOK_KEY) ? addresses[3] : address(0);
         hookAddresses.deposit4626VaultHook =
@@ -731,7 +731,7 @@ contract DeployV2 is Script, Configuration {
         // Verify no hooks were assigned address(0) (excluding experimental placeholders)
         require(hookAddresses.approveErc20Hook != address(0), "approveErc20Hook not assigned");
         require(hookAddresses.transferErc20Hook != address(0), "transferErc20Hook not assigned");
-        require(hookAddresses.batchTransferErc20Hook != address(0), "batchTransferErc20Hook not assigned");
+        require(hookAddresses.bundlerFeesHook != address(0), "bundlerFeesHook not assigned");
         require(hookAddresses.batchTransferFromHook != address(0), "batchTransferFromHook not assigned");
         require(hookAddresses.deposit4626VaultHook != address(0), "deposit4626VaultHook not assigned");
         require(
@@ -810,7 +810,7 @@ contract DeployV2 is Script, Configuration {
         // Register remaining hooks
         superGovernor.registerHook(address(hookAddresses.approveErc20Hook), false);
         superGovernor.registerHook(address(hookAddresses.transferErc20Hook), false);
-        superGovernor.registerHook(address(hookAddresses.batchTransferErc20Hook), false);
+        superGovernor.registerHook(address(hookAddresses.bundlerFeesHook), false);
         superGovernor.registerHook(address(hookAddresses.batchTransferFromHook), false);
         superGovernor.registerHook(address(hookAddresses.requestDeposit7540VaultHook), false);
         superGovernor.registerHook(address(hookAddresses.approveAndRequestDeposit7540VaultHook), false);
