@@ -732,7 +732,7 @@ contract DeployV2 is Script, Configuration {
         // Verify no hooks were assigned address(0) (excluding experimental placeholders)
         require(hookAddresses.approveErc20Hook != address(0), "approveErc20Hook not assigned");
         require(hookAddresses.transferErc20Hook != address(0), "transferErc20Hook not assigned");
-        require(hookAddresses.bundlerFeesHook != address(0), "bundlerFeesHook not assigned");
+        require(hookAddresses.batchTransferHook != address(0), "batchTransferHook not assigned");
         require(hookAddresses.batchTransferFromHook != address(0), "batchTransferFromHook not assigned");
         require(hookAddresses.deposit4626VaultHook != address(0), "deposit4626VaultHook not assigned");
         require(
@@ -811,7 +811,7 @@ contract DeployV2 is Script, Configuration {
         // Register remaining hooks
         superGovernor.registerHook(address(hookAddresses.approveErc20Hook), false);
         superGovernor.registerHook(address(hookAddresses.transferErc20Hook), false);
-        superGovernor.registerHook(address(hookAddresses.bundlerFeesHook), false);
+        superGovernor.registerHook(address(hookAddresses.batchTransferHook), false);
         superGovernor.registerHook(address(hookAddresses.batchTransferFromHook), false);
         superGovernor.registerHook(address(hookAddresses.requestDeposit7540VaultHook), false);
         superGovernor.registerHook(address(hookAddresses.approveAndRequestDeposit7540VaultHook), false);
