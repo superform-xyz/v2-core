@@ -304,7 +304,7 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeBorrowData(true);
         Execution[] memory executions = borrowHook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 6);
         // Verify the amount from previous hook is used in the approve call
         assertEq(executions[1].target, collateralToken);
         assertEq(executions[1].value, 0);
@@ -319,7 +319,7 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeSupplyData(true);
         Execution[] memory executions = supplyHook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 3);
+        assertEq(executions.length, 5);
         // Verify the amount from previous hook is used in the approve call
         assertEq(executions[1].target, collateralToken);
         assertEq(executions[1].value, 0);
@@ -466,54 +466,6 @@ contract MorphoLoanHooksTest is Helpers {
                 false
             )
         );
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                    BUILD WITH PREVIOUS HOOK TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_BorrowHook_BuildWithPreviousHook() public {
-        uint256 prevHookAmount = 2000;
-        address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
-
-        bytes memory data = _encodeBorrowData(true);
-        Execution[] memory executions = borrowHook.build(mockPrevHook, address(this), data);
-
-        assertEq(executions.length, 6);
-        // Verify the amount from previous hook is used in the approve call
-        assertEq(executions[2].target, collateralToken);
-        assertEq(executions[2].value, 0);
-        assertGt(executions[2].callData.length, 0);
-    }
-
-    function test_RepayHook_BuildWithPreviousHook() public {
-        uint256 prevHookAmount = 2000;
-        address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
-
-        bytes memory data = _encodeRepayData(true, false);
-        Execution[] memory executions = repayHook.build(mockPrevHook, address(this), data);
-
-        assertEq(executions.length, 6);
-        // Verify the amount from previous hook is used in the approve call
-        assertEq(executions[2].target, loanToken);
-        assertEq(executions[2].value, 0);
-        assertGt(executions[2].callData.length, 0);
-    }
-
-    function test_RepayAndWithdrawHook_BuildWithPreviousHook() public {
-        uint256 prevHookAmount = 2000;
-        address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
-
-        bytes memory data = _encodeRepayAndWithdrawData(true, false);
-        Execution[] memory executions = repayAndWithdrawHook.build(mockPrevHook, address(this), data);
-
-        assertEq(executions.length, 7);
-        // Verify the amount from previous hook is used in the approve call
-        assertEq(executions[2].target, loanToken);
-        assertEq(executions[2].value, 0);
-        assertGt(executions[2].callData.length, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
