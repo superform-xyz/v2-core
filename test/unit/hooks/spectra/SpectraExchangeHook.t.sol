@@ -236,7 +236,7 @@ contract SpectraExchangeHookTest is Helpers {
 
         assertEq(executions.length, 3);
         assertEq(executions[1].target, address(router));
-        assertEq(executions[1].value, 0);
+        assertEq(executions[1].value, 2e18);
     }
 
     function test_Build_RevertIf_InvalidPT() public {
