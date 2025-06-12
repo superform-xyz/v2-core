@@ -25,13 +25,13 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
-/// @notice         uint256 value = BytesLib.toUint256(data, 57);
+/// @notice         uint256 value = BytesLib.toUint256(data, 25);
 /// @notice         bytes txData_ = BytesLib.slice(data, 57, data.length - 57);
 contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
-    uint256 private constant AMOUNT_POSITION = 57;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 24;
+    uint256 private constant AMOUNT_POSITION = 25;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
