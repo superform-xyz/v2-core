@@ -284,6 +284,122 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.stopPrank();
     }
 
+    function test_SourceExecutor_UpdateAccounting_Outflow_WithFee_NativeToken() public {
+        // Create a new native token hook
+        MockHook nativeHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(0));
+        nativeHook.setOutAmount(1000);
+        nativeHook.setUsedShares(500);
+        ledger.setFeeAmount(100);
+
+        // Configure hook addresses and data
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(nativeHook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
+            address(0), // Native token as address(0)
+            account, 
+            1, 
+            false
+        );
+
+        // Fund the account with ETH
+        vm.deal(account, 1000);
+        
+        // Execute the hook
+        vm.startPrank(account);
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+
+        // Check initial balances
+        uint256 initialFeeRecipientBalance = feeRecipient.balance;
+        uint256 initialAccountBalance = account.balance;
+
+        // Execute and process the hook
+        superSourceExecutor.execute(abi.encode(entry));
+        
+        // Verify fee was transferred correctly
+        assertEq(account.balance, initialAccountBalance - 100, "Native fee should be deducted from account");
+        assertEq(feeRecipient.balance, initialFeeRecipientBalance + 100, "Fee recipient should receive native token fee");
+        vm.stopPrank();
+    }
+
+    function test_SourceExecutor_UpdateAccounting_Outflow_WithFee_NativeTokenSentinel() public {
+        // Create a hook that uses NATIVE_TOKEN_SENTINEL
+        MockHook nativeSentinelHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE));
+        nativeSentinelHook.setOutAmount(1000);
+        nativeSentinelHook.setUsedShares(500);
+        ledger.setFeeAmount(100);
+
+        // Configure hook addresses and data
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(nativeSentinelHook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), 
+            account, 
+            1, 
+            false
+        );
+
+        // Fund the account with ETH
+        vm.deal(account, 1000);
+        
+        // Execute the hook
+        vm.startPrank(account);
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+
+        // Check initial balances
+        uint256 initialFeeRecipientBalance = feeRecipient.balance;
+        uint256 initialAccountBalance = account.balance;
+
+        // Execute and process the hook
+        superSourceExecutor.execute(abi.encode(entry));
+        
+        // Verify fee was transferred correctly
+        assertEq(account.balance, initialAccountBalance - 100, "Native fee should be deducted from account");
+        assertEq(feeRecipient.balance, initialFeeRecipientBalance + 100, "Fee recipient should receive native token fee");
+        vm.stopPrank();
+    }
+
+    function test_SourceExecutor_UpdateAccounting_Outflow_WithFee_NativeToken_InsufficientBalance() public {
+        // Create a hook for native token
+        MockHook nativeHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(0));
+        nativeHook.setOutAmount(1000);
+        nativeHook.setUsedShares(500);
+        ledger.setFeeAmount(100);
+
+        // Configure hook addresses and data
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(nativeHook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
+            address(0), 
+            account, 
+            1, 
+            false
+        );
+
+        // Don't fund the account - should have 0 ETH
+        vm.deal(account, 0);
+        
+        // Try to execute the hook
+        vm.startPrank(account);
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+
+        // Should revert due to insufficient balance
+        vm.expectRevert(ISuperExecutor.INSUFFICIENT_BALANCE_FOR_FEE.selector);
+        superSourceExecutor.execute(abi.encode(entry));
+        vm.stopPrank();
+    }
+
     function test_SourceExecutor_VaultBank() public {
         inflowHook.setOutAmount(1000);
 
