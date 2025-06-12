@@ -100,6 +100,39 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         _execute(msg.sender, abi.decode(data, (ExecutorEntry)));
     }
 
+    /// @notice Validates that hook follows secure execution pattern
+    function validateHookCompliance(
+        address hook,
+        address prevHook,
+        address account, 
+        bytes memory hookData
+    ) public view returns (Execution[] memory) {
+        Execution[] memory empty = new Execution[](0);
+        try ISuperHook(hook).build(prevHook, account, hookData) returns (Execution[] memory executions) {
+            if (executions.length < 2) return empty;
+            
+            // Check FIRST execution is preExecute
+            if (executions[0].target != hook) return empty;
+            bytes4 firstSelector = bytes4(executions[0].callData);
+            if (firstSelector != ISuperHook.preExecute.selector) return empty;
+            
+            // Check LAST execution is postExecute
+            uint256 lastIdx = executions.length - 1;
+            if (executions[lastIdx].target != hook) return empty;
+            bytes4 lastSelector = bytes4(executions[lastIdx].callData);
+            if (lastSelector != ISuperHook.postExecute.selector) return empty;
+
+            // Do not allow any in-between executions to be performed on the same hook
+            for (uint256 i = 1; i < lastIdx; i++) {
+                if (executions[i].target == hook) return empty;
+            }
+            
+            return executions;
+        } catch {
+            return empty;
+        }
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
@@ -251,25 +284,24 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         internal
         nonReentrant
     {
-        // Stage 1: Initialize the hook execution context
-        hook.preExecute(prevHook, account, hookData);
-
-        // Stage 2: Build execution instructions
-        Execution[] memory executions = hook.build(prevHook, account, hookData);
-
-        // Stage 3: Execute the operations defined by the hook
-        if (executions.length > 0) {
-            _execute(account, executions);
+        Execution[] memory executions = validateHookCompliance(address(hook), prevHook, account, hookData);
+        // STEP 1: Validate hook compliance
+        if (executions.length == 0) {
+            revert MALICIOUS_HOOK_DETECTED();
         }
 
-        // Stage 4: Finalize and set hook outputs
-        hook.postExecute(prevHook, account, hookData);
+        // STEP 2: Build and execute (dual mutexes protect pre/post)
+        hook.setCaller();
+        _execute(account, executions);
 
-        // Stage 5: Update accounting records based on hook type
+        // STEP 3: Update accounting (both mutexes active, preventing reentrancy)
         _updateAccounting(account, address(hook), hookData);
-
-        // Stage 6: Handle cross-chain operations if needed
+        
+        // STEP 4: Handle cross-chain operations
         _checkAndLockForSuperPosition(account, address(hook));
+        
+        // STEP 5: Reset both mutexes after all processing complete
+        hook.resetExecutionState();
     }
 
     /// @notice Handles cross-chain asset locking for SuperPosition minting
@@ -303,10 +335,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
             if (dstChainId == block.chainid) revert INVALID_CHAIN_ID();
 
             // Lock assets in the vault bank for cross-chain transfer
-            IVaultBank(vaultBank).lockAsset(account, spToken, amount, uint64(dstChainId));
-
-            // Emit event for cross-chain position minting
-            emit SuperPositionMintRequested(account, spToken, amount, dstChainId);
+            IVaultBank(vaultBank).lockAsset(account, spToken, hook, amount, uint64(dstChainId));
         }
     }
 }

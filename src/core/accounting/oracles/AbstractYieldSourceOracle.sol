@@ -26,7 +26,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         returns (uint256);
 
     /// @inheritdoc IYieldSourceOracle
-    function getAssetOutput(address yieldSourceAddress, address assetIn, uint256 sharesIn)
+    function getAssetOutput(address yieldSourceAddress, address assetOut, uint256 sharesIn)
         external
         view
         virtual
