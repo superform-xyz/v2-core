@@ -44,30 +44,15 @@ abstract contract MerkleReader is StdCheats, Helpers {
      * @return root The Merkle root
      */
     function _getMerkleRoot() internal view returns (bytes32 root) {
-        console2.log("\n[DEBUG] Starting _getMerkleRoot()");
-
-        // Read owner_list.json for debugging
-        string memory ownerListPath = string.concat(vm.projectRoot(), "/test/utils/merkle/target/owner_list.json");
-        try vm.readFile(ownerListPath) returns (string memory content) {
-            console2.log("[DEBUG] Current owner_list.json in _getMerkleRoot:", content);
-        } catch {
-            console2.log("[DEBUG] Could not read owner_list.json in _getMerkleRoot");
-        }
-
         LocalVars memory v;
         string memory rootFilePath = string.concat(vm.projectRoot(), basePathForRoot, ".json");
-        console2.log("[DEBUG] Reading Merkle root from file:", rootFilePath);
 
         v.rootJson = vm.readFile(rootFilePath);
-        console2.log("[DEBUG] Root JSON content:", v.rootJson);
 
         v.encodedRoot = vm.parseJson(v.rootJson, ".root");
         root = abi.decode(v.encodedRoot, (bytes32));
 
-        console2.log("\n");
-        console2.log("----------ROoot   ----------");
         console2.logBytes32(root);
-        console2.log("[DEBUG] _getMerkleRoot completed");
     }
 
     /**

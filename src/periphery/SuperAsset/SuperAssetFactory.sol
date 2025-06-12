@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity 0.8.30;
 
-import "@openzeppelin/contracts/proxy/Clones.sol";
-import "../interfaces/SuperAsset/ISuperAssetFactory.sol";
-import "./SuperAsset.sol";
-import "./IncentiveFundContract.sol";
-import "./IncentiveCalculationContract.sol";
-import "../SuperGovernor.sol";
+import { Clones } from "@openzeppelin/contracts/proxy/Clones.sol";
+import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
+import { SuperAsset } from "./SuperAsset.sol";
+import { IncentiveFundContract } from "./IncentiveFundContract.sol";
+import { IncentiveCalculationContract } from "./IncentiveCalculationContract.sol";
 
 /**
  * @title SuperAssetFactory
@@ -40,13 +39,13 @@ contract SuperAssetFactory is ISuperAssetFactory {
 
     /// @inheritdoc ISuperAssetFactory
     function addICCToWhitelist(address icc) external {
-        if(msg.sender != superGovernor) revert UNAUTHORIZED();
+        if (msg.sender != superGovernor) revert UNAUTHORIZED();
         incentiveCalculationContractsWhitelist[icc] = true;
     }
 
     /// @inheritdoc ISuperAssetFactory
     function removeICCFromWhitelist(address icc) external {
-        if(msg.sender != superGovernor) revert UNAUTHORIZED();
+        if (msg.sender != superGovernor) revert UNAUTHORIZED();
         incentiveCalculationContractsWhitelist[icc] = false;
     }
 
@@ -58,9 +57,9 @@ contract SuperAssetFactory is ISuperAssetFactory {
     /// @inheritdoc ISuperAssetFactory
     function setSuperAssetManager(address superAsset, address _superAssetManager) external {
         if (_superAssetManager == address(0)) revert ZERO_ADDRESS();
-        if(
-            (msg.sender != data[superAsset].superAssetManager) &&
-            (msg.sender != superGovernor) // NOTE: This role can take over
+        if (
+            (msg.sender != data[superAsset].superAssetManager) && (msg.sender != superGovernor) // NOTE: This role can
+                // take over
         ) revert UNAUTHORIZED();
         data[superAsset].superAssetManager = _superAssetManager;
     }
@@ -68,22 +67,22 @@ contract SuperAssetFactory is ISuperAssetFactory {
     /// @inheritdoc ISuperAssetFactory
     function setSuperAssetStrategist(address superAsset, address _superAssetStrategist) external {
         if (_superAssetStrategist == address(0)) revert ZERO_ADDRESS();
-        if(msg.sender != data[superAsset].superAssetManager) revert UNAUTHORIZED();
+        if (msg.sender != data[superAsset].superAssetManager) revert UNAUTHORIZED();
         data[superAsset].superAssetStrategist = _superAssetStrategist;
     }
 
     /// @inheritdoc ISuperAssetFactory
     function setIncentiveFundManager(address superAsset, address _incentiveFundManager) external {
         if (_incentiveFundManager == address(0)) revert ZERO_ADDRESS();
-        if(msg.sender != data[superAsset].superAssetManager) revert UNAUTHORIZED();
+        if (msg.sender != data[superAsset].superAssetManager) revert UNAUTHORIZED();
         data[superAsset].incentiveFundManager = _incentiveFundManager;
     }
 
     /// @inheritdoc ISuperAssetFactory
     function setIncentiveCalculationContract(address superAsset, address _incentiveCalculationContract) external {
         if (_incentiveCalculationContract == address(0)) revert ZERO_ADDRESS();
-        if(!incentiveCalculationContractsWhitelist[_incentiveCalculationContract]) revert ICC_NOT_WHITELISTED();
-        if(msg.sender != data[superAsset].superAssetManager) revert UNAUTHORIZED();
+        if (!incentiveCalculationContractsWhitelist[_incentiveCalculationContract]) revert ICC_NOT_WHITELISTED();
+        if (msg.sender != data[superAsset].superAssetManager) revert UNAUTHORIZED();
         data[superAsset].incentiveCalculationContract = _incentiveCalculationContract;
     }
 
@@ -115,16 +114,15 @@ contract SuperAssetFactory is ISuperAssetFactory {
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc ISuperAssetFactory
     function createSuperAsset(AssetCreationParams calldata params)
         external
         returns (address superAsset, address incentiveFundContract)
     {
-        // TODO: Decide whether to make this method permissionless or permissioned 
+        // TODO: Decide whether to make this method permissionless or permissioned
 
-        if(params.incentiveCalculationContract == address(0)) revert ZERO_ADDRESS();
-        if(!incentiveCalculationContractsWhitelist[params.incentiveCalculationContract]) revert ICC_NOT_WHITELISTED();
+        if (params.incentiveCalculationContract == address(0)) revert ZERO_ADDRESS();
+        if (!incentiveCalculationContractsWhitelist[params.incentiveCalculationContract]) revert ICC_NOT_WHITELISTED();
 
         // Deploy IncentiveFund (this one needs to be unique per SuperAsset)
         incentiveFundContract = incentiveFundImplementation.clone();
@@ -134,6 +132,7 @@ contract SuperAssetFactory is ISuperAssetFactory {
         SuperAsset(superAsset).initialize(
             params.name,
             params.symbol,
+            params.asset,
             superGovernor,
             params.swapFeeInPercentage,
             params.swapFeeOutPercentage
@@ -141,10 +140,7 @@ contract SuperAssetFactory is ISuperAssetFactory {
 
         // Initialize IncentiveFund
         IncentiveFundContract(incentiveFundContract).initialize(
-            superGovernor, 
-            superAsset,
-            params.tokenInIncentive,
-            params.tokenOutIncentive
+            superGovernor, superAsset, params.tokenInIncentive, params.tokenOutIncentive
         );
 
         data[superAsset] = SuperAssetData({

@@ -4,24 +4,20 @@ pragma solidity ^0.8.30;
 // External
 import { ECDSA } from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
 import { MessageHashUtils } from "openzeppelin-contracts/contracts/utils/cryptography/MessageHashUtils.sol";
-import { Test } from "forge-std/Test.sol";
 
 // Superform
-import { ISuperGovernor } from "../../../src/periphery/interfaces/ISuperGovernor.sol";
 import { SuperGovernor } from "../../../src/periphery/SuperGovernor.sol";
 import { SuperVaultAggregator } from "../../../src/periphery/SuperVault/SuperVaultAggregator.sol";
-import { ISuperVaultAggregator } from "../../../src/periphery/interfaces/ISuperVaultAggregator.sol";
-import { ECDSAPPSOracle } from "../../../src/periphery/oracles/ECDSAPPSOracle.sol";
-import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
-import { IECDSAPPSOracle } from "../../../src/periphery/interfaces/IECDSAPPSOracle.sol";
 import { SuperVault } from "../../../src/periphery/SuperVault/SuperVault.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
+import { ISuperVaultAggregator } from "../../../src/periphery/interfaces/SuperVault/ISuperVaultAggregator.sol";
+import { ECDSAPPSOracle } from "../../../src/periphery/oracles/ECDSAPPSOracle.sol";
+import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/SuperVault/ISuperVaultStrategy.sol";
+import { IECDSAPPSOracle } from "../../../src/periphery/interfaces/oracles/IECDSAPPSOracle.sol";
 
 // Test
-import { Helpers } from "../../utils/Helpers.sol";
 import { BaseSuperVaultTest } from "../integration/SuperVault/BaseSuperVaultTest.t.sol";
-import { TotalAssetHelper } from "../integration/SuperVault/TotalAssetHelper.sol";
-import { console } from "forge-std/console.sol";
 
 contract ECDSAPPSOracleTest is BaseSuperVaultTest {
     using ECDSA for bytes32;
@@ -69,7 +65,13 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         governor =
             new SuperGovernor(governorAddress, governorAddress, governorAddress, TREASURY, CHAIN_1_POLYMER_PROVER);
 
-        aggregatorSuperVault = new SuperVaultAggregator(address(governor));
+        // Deploy implementation contracts first
+        address vaultImpl = address(new SuperVault());
+        address strategyImpl = address(new SuperVaultStrategy());
+        address escrowImpl = address(new SuperVaultEscrow());
+
+        // Deploy SuperVaultAggregator
+        aggregatorSuperVault = new SuperVaultAggregator(address(governor), vaultImpl, strategyImpl, escrowImpl);
 
         (sv, svStrategy,) = aggregatorSuperVault.createVault(
             ISuperVaultAggregator.VaultCreationParams({
@@ -88,6 +90,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
 
         vm.startPrank(governorAddress);
         governor.grantRole(governor.GOVERNOR_ROLE(), governorAddress);
+        governor.grantRole(governor.SUPER_GOVERNOR_ROLE(), governorAddress);
         vm.stopPrank();
 
         // Add validators (requires GOVERNOR_ROLE)
@@ -102,8 +105,7 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
 
         // Set the active PPS Oracle
         governor.proposeActivePPSOracle(address(oracleECDSA));
-
-        vm.warp(block.timestamp + 8 days);
+        vm.warp(block.timestamp + 7 days);
         governor.executeActivePPSOracleChange();
 
         governor.proposeUpkeepPaymentsChange(false);
@@ -545,6 +547,11 @@ contract ECDSAPPSOracleTest is BaseSuperVaultTest {
         vm.startPrank(governorAddress);
         governor.addValidator(vm.addr(VALIDATOR_KEY));
         governor.setPPSOracleQuorum(1); // Only need one validator
+
+        governor.proposeActivePPSOracle(address(oracleECDSA));
+        vm.warp(block.timestamp + 7 days);
+        governor.executeActivePPSOracleChange();
+
         vm.stopPrank();
 
         // Update the PPS using the helper function

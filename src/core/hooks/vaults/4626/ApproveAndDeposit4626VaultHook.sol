@@ -2,15 +2,15 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
@@ -40,13 +40,18 @@ contract ApproveAndDeposit4626VaultHook is
     uint256 private constant AMOUNT_POSITION = 44;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 76;
 
-    constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC4626) {}
+    constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC4626) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address account, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -64,12 +69,14 @@ contract ApproveAndDeposit4626VaultHook is
         if (yieldSource == address(0) || token == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](4);
-        executions[0] = Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0))});
+        executions[0] =
+            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
         executions[1] =
-            Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, amount))});
+            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, amount)) });
         executions[2] =
-            Execution({target: yieldSource, value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, account))});
-        executions[3] = Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0))});
+            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, account)) });
+        executions[3] =
+            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -58,22 +58,22 @@ contract ApproveAndRedeem5115VaultHookTest is Helpers {
     function test_Build_ApproveAndRedeem_5115_Hook() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = hook.build(address(0), address(this), data);
-        assertEq(executions.length, 4);
-        assertEq(executions[0].target, tokenIn);
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
-
+        assertEq(executions.length, 6);
         assertEq(executions[1].target, tokenIn);
         assertEq(executions[1].value, 0);
         assertGt(executions[1].callData.length, 0);
 
-        assertEq(executions[2].target, yieldSource);
+        assertEq(executions[2].target, tokenIn);
         assertEq(executions[2].value, 0);
         assertGt(executions[2].callData.length, 0);
 
-        assertEq(executions[3].target, tokenIn);
+        assertEq(executions[3].target, yieldSource);
         assertEq(executions[3].value, 0);
         assertGt(executions[3].callData.length, 0);
+
+        assertEq(executions[4].target, tokenIn);
+        assertEq(executions[4].value, 0);
+        assertGt(executions[4].callData.length, 0);
     }
 
     function test_Build_ApproveAndRedeem_WithPrevHook() public {
@@ -84,22 +84,22 @@ contract ApproveAndRedeem5115VaultHookTest is Helpers {
         bytes memory data = _encodeData(true);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 4);
-        assertEq(executions[0].target, tokenIn);
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
-
+        assertEq(executions.length, 6);
         assertEq(executions[1].target, tokenIn);
         assertEq(executions[1].value, 0);
         assertGt(executions[1].callData.length, 0);
 
-        assertEq(executions[2].target, yieldSource);
+        assertEq(executions[2].target, tokenIn);
         assertEq(executions[2].value, 0);
         assertGt(executions[2].callData.length, 0);
 
-        assertEq(executions[3].target, tokenIn);
+        assertEq(executions[3].target, yieldSource);
         assertEq(executions[3].value, 0);
         assertGt(executions[3].callData.length, 0);
+
+        assertEq(executions[4].target, tokenIn);
+        assertEq(executions[4].value, 0);
+        assertGt(executions[4].callData.length, 0);
     }
 
     function test_Build_ApproveAndRedeem_RevertIf_AddressZero() public {

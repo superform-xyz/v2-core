@@ -2,23 +2,25 @@
 pragma solidity 0.8.30;
 
 // external
-import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import { IOracle } from "../../vendor/awesome-oracles/IOracle.sol";
 import { AggregatorV3Interface } from "../../vendor/chainlink/AggregatorV3Interface.sol";
 import { IERC20 } from "forge-std/interfaces/IERC20.sol";
 import { BoringERC20 } from "../../vendor/BoringSolidity/BoringERC20.sol";
 
 // Superform
-import { ISuperOracle } from "../interfaces/ISuperOracle.sol";
+import { ISuperOracle } from "../interfaces/oracles/ISuperOracle.sol";
 
 /// @title SuperOracle
 /// @author Superform Labs
 /// @notice Oracle for Superform
-abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
+abstract contract SuperOracleBase is ISuperOracle, IOracle {
     using BoringERC20 for IERC20;
 
     /// @notice Mapping of feed to max staleness period
     mapping(address feed => uint256 maxStaleness) public feedMaxStaleness;
+
+    /// @notice Mapping of token to emergency price when oracle is down
+    mapping(address token => uint256 emergencyPrice) public emergencyPrices;
 
     uint256 public maxDefaultStaleness;
 
@@ -39,15 +41,18 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
     uint256 internal constant TIMELOCK_PERIOD = 1 weeks;
     bytes32 internal constant AVERAGE_PROVIDER = keccak256("AVERAGE_PROVIDER");
 
+    // SuperGovernor address
+    address public immutable SUPER_GOVERNOR;
+
     constructor(
-        address owner_,
+        address superGovernor_,
         address[] memory bases,
         address[] memory quotes,
         bytes32[] memory providers,
         address[] memory feeds
-    )
-        Ownable(owner_)
-    {
+    ) {
+        if (superGovernor_ == address(0)) revert ZERO_ADDRESS();
+        SUPER_GOVERNOR = superGovernor_;
         maxDefaultStaleness = 1 days;
 
         // validate oracle inputs
@@ -67,24 +72,39 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperOracle
-    function setMaxStaleness(uint256 newMaxStaleness) external onlyOwner {
+    function setMaxStaleness(uint256 newMaxStaleness) external {
+        if (msg.sender != SUPER_GOVERNOR) revert UNAUTHORIZED_UPDATE_AUTHORITY();
         maxDefaultStaleness = newMaxStaleness;
         emit MaxStalenessUpdated(newMaxStaleness);
     }
 
     /// @inheritdoc ISuperOracle
-    function setFeedMaxStaleness(address feed, uint256 newMaxStaleness) external onlyOwner {
+    function setFeedMaxStaleness(address feed, uint256 newMaxStaleness) external {
+        if (msg.sender != SUPER_GOVERNOR) revert UNAUTHORIZED_UPDATE_AUTHORITY();
         _setFeedMaxStaleness(feed, newMaxStaleness);
     }
 
     /// @inheritdoc ISuperOracle
-    function setFeedMaxStalenessBatch(
-        address[] calldata feeds,
-        uint256[] calldata newMaxStalenessList
-    )
-        external
-        onlyOwner
-    {
+    function setEmergencyPrice(address token_, uint256 price_) external {
+        if (msg.sender != SUPER_GOVERNOR) revert UNAUTHORIZED_UPDATE_AUTHORITY();
+        _setEmergencyPrice(token_, price_);
+    }
+
+    /// @inheritdoc ISuperOracle
+    function batchSetEmergencyPrice(address[] calldata tokens_, uint256[] calldata prices_) external {
+        if (msg.sender != SUPER_GOVERNOR) revert UNAUTHORIZED_UPDATE_AUTHORITY();
+        uint256 length = tokens_.length;
+        if (length == 0) revert ZERO_ARRAY_LENGTH();
+        if (length != prices_.length) revert ARRAY_LENGTH_MISMATCH();
+
+        for (uint256 i; i < length; ++i) {
+            _setEmergencyPrice(tokens_[i], prices_[i]);
+        }
+    }
+
+    /// @inheritdoc ISuperOracle
+    function setFeedMaxStalenessBatch(address[] calldata feeds, uint256[] calldata newMaxStalenessList) external {
+        if (msg.sender != SUPER_GOVERNOR) revert UNAUTHORIZED_UPDATE_AUTHORITY();
         uint256 length = feeds.length;
         if (length == 0) revert ZERO_ARRAY_LENGTH();
         if (length != newMaxStalenessList.length) {
@@ -104,8 +124,8 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
         address[] calldata feeds
     )
         external
-        onlyOwner
     {
+        if (msg.sender != SUPER_GOVERNOR) revert UNAUTHORIZED_UPDATE_AUTHORITY();
         uint256 length = bases.length;
         if (length != quotes.length || length != providers.length || length != feeds.length) {
             revert ARRAY_LENGTH_MISMATCH();
@@ -146,7 +166,8 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
     }
 
     /// @inheritdoc ISuperOracle
-    function queueProviderRemoval(bytes32[] calldata providers) external onlyOwner {
+    function queueProviderRemoval(bytes32[] calldata providers) external {
+        if (msg.sender != SUPER_GOVERNOR) revert UNAUTHORIZED_UPDATE_AUTHORITY();
         if (pendingRemoval.timestamp != 0) revert PENDING_UPDATE_EXISTS();
 
         uint256 length = providers.length;
@@ -223,6 +244,11 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
             totalProviders = 1;
             availableProviders = 1;
         }
+    }
+
+    /// @inheritdoc ISuperOracle
+    function getEmergencyPrice(address token) external view returns (uint256) {
+        return emergencyPrices[token];
     }
 
     /// @inheritdoc IOracle
@@ -439,5 +465,13 @@ abstract contract SuperOracleBase is Ownable2Step, ISuperOracle, IOracle {
                 isProviderSet[provider] = true;
             }
         }
+    }
+
+    /// @notice Internal logic to set an emergency price for a token.
+    /// @param token_ The address of the token.
+    /// @param price_ The emergency price to set.
+    function _setEmergencyPrice(address token_, uint256 price_) internal {
+        emergencyPrices[token_] = price_;
+        emit EmergencyPriceUpdated(token_, price_);
     }
 }

@@ -2,24 +2,24 @@
 pragma solidity 0.8.30;
 
 // External
-import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
-import {ReentrancyGuard} from "openzeppelin-contracts/contracts/utils/ReentrancyGuard.sol";
-import {IERC20Metadata} from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
-import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import {ERC20, IERC20} from "openzeppelin-contracts/contracts/token/ERC20/ERC20.sol";
-import {IERC165} from "openzeppelin-contracts/contracts/interfaces/IERC165.sol";
-import {ECDSA} from "openzeppelin-contracts/contracts/utils/cryptography/ECDSA.sol";
-import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { ERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { IERC165 } from "@openzeppelin/contracts/interfaces/IERC165.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Interfaces
-import {ISuperVault} from "../interfaces/ISuperVault.sol";
-import {ISuperVaultStrategy} from "../interfaces/ISuperVaultStrategy.sol";
-import {IERC7540Operator, IERC7540Redeem, IERC7741} from "../../vendor/standards/ERC7540/IERC7540Vault.sol";
-import {IERC7575} from "../../vendor/standards/ERC7575/IERC7575.sol";
-import {ISuperVaultEscrow} from "../interfaces/ISuperVaultEscrow.sol";
+import { ISuperVault } from "../interfaces/SuperVault/ISuperVault.sol";
+import { ISuperVaultStrategy } from "../interfaces/SuperVault/ISuperVaultStrategy.sol";
+import { IERC7540Operator, IERC7540Redeem, IERC7741 } from "../../vendor/standards/ERC7540/IERC7540Vault.sol";
+import { IERC7575 } from "../../vendor/standards/ERC7575/IERC7575.sol";
+import { ISuperVaultEscrow } from "../interfaces/SuperVault/ISuperVaultEscrow.sol";
 
 // Libraries
-import {AssetMetadataLib} from "../libraries/AssetMetadataLib.sol";
+import { AssetMetadataLib } from "../libraries/AssetMetadataLib.sol";
 
 /// @title SuperVault
 /// @author Superform Labs
@@ -81,7 +81,13 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     /// @param symbol_ The symbol of the vault token
     /// @param strategy_ The strategy contract address
     /// @param escrow_ The escrow contract address
-    function initialize(address asset_, string memory name_, string memory symbol_, address strategy_, address escrow_)
+    function initialize(
+        address asset_,
+        string memory name_,
+        string memory symbol_,
+        address strategy_,
+        address escrow_
+    )
         external
     {
         if (initialized) revert ALREADY_INITIALIZED();
@@ -131,15 +137,14 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         if (receiver == address(0)) revert ZERO_ADDRESS();
         if (assets == 0) revert ZERO_AMOUNT();
 
-        uint256 currentPPS = strategy.getStoredPPS();
-        if (currentPPS == 0) revert INVALID_PPS();
+        uint256 currentPPS = _getStoredPPSWithRevert();
 
         shares = Math.mulDiv(assets, PRECISION, currentPPS, Math.Rounding.Floor);
         if (shares == 0) revert ZERO_AMOUNT();
 
         _asset.safeTransferFrom(msg.sender, address(strategy), assets);
 
-        strategy.handleOperation(receiver, assets, shares, ISuperVaultStrategy.Operation.Deposit);
+        strategy.handleOperation(msg.sender, receiver, assets, shares, ISuperVaultStrategy.Operation.Deposit);
 
         _mint(receiver, shares);
 
@@ -151,15 +156,14 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         if (receiver == address(0)) revert ZERO_ADDRESS();
         if (shares == 0) revert ZERO_AMOUNT();
 
-        uint256 currentPPS = strategy.getStoredPPS();
-        if (currentPPS == 0) revert INVALID_PPS();
+        uint256 currentPPS = _getStoredPPSWithRevert();
 
         assets = Math.mulDiv(shares, currentPPS, PRECISION, Math.Rounding.Ceil);
         if (assets == 0) revert ZERO_AMOUNT();
 
         _asset.safeTransferFrom(msg.sender, address(strategy), assets);
 
-        strategy.handleOperation(receiver, assets, shares, ISuperVaultStrategy.Operation.Deposit);
+        strategy.handleOperation(msg.sender, receiver, assets, shares, ISuperVaultStrategy.Operation.Deposit);
 
         _mint(receiver, shares);
 
@@ -167,22 +171,19 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     }
 
     /// @inheritdoc IERC7540Redeem
+    /// @notice Once owner has authorized an operator, the operator can request a redeem with any controller address
     function requestRedeem(uint256 shares, address controller, address owner) external returns (uint256) {
         if (shares == 0) revert ZERO_AMOUNT();
         if (owner == address(0) || controller == address(0)) revert ZERO_ADDRESS();
         if (owner != msg.sender && !isOperator[owner][msg.sender]) revert INVALID_OWNER_OR_OPERATOR();
         if (balanceOf(owner) < shares) revert INVALID_AMOUNT();
 
-        // If msg.sender is operator of owner, the transfer is executed as if
-        // the sender is the owner, to bypass the allowance check
-        address sender = isOperator[owner][msg.sender] ? owner : msg.sender;
-
         // Transfer shares to escrow for temporary locking
-        _approve(sender, escrow, shares);
-        ISuperVaultEscrow(escrow).escrowShares(sender, shares);
+        _approve(owner, escrow, shares);
+        ISuperVaultEscrow(escrow).escrowShares(owner, shares);
 
         // Forward to strategy
-        strategy.handleOperation(controller, 0, shares, ISuperVaultStrategy.Operation.RedeemRequest);
+        strategy.handleOperation(controller, address(0), 0, shares, ISuperVaultStrategy.Operation.RedeemRequest);
 
         emit RedeemRequest(controller, owner, REQUEST_ID, msg.sender, shares);
         return REQUEST_ID;
@@ -196,7 +197,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         if (shares == 0) revert REQUEST_NOT_FOUND();
 
         // Forward to strategy
-        strategy.handleOperation(controller, 0, 0, ISuperVaultStrategy.Operation.CancelRedeem);
+        strategy.handleOperation(controller, address(0), 0, 0, ISuperVaultStrategy.Operation.CancelRedeem);
 
         // Return shares to controller
         ISuperVaultEscrow(escrow).returnShares(controller, shares);
@@ -205,7 +206,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     }
 
     /// @inheritdoc IERC7540Operator
-    function setOperator(address operator, bool approved) public returns (bool success) {
+    function setOperator(address operator, bool approved) external returns (bool success) {
         if (msg.sender == operator) revert UNAUTHORIZED();
         isOperator[msg.sender][operator] = approved;
         emit OperatorSet(msg.sender, operator, approved);
@@ -220,7 +221,10 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         bytes32 nonce,
         uint256 deadline,
         bytes memory signature
-    ) external returns (bool) {
+    )
+        external
+        returns (bool)
+    {
         if (controller == operator) revert UNAUTHORIZED();
         if (block.timestamp > deadline) revert TIMELOCK_NOT_EXPIRED();
         if (_authorizations[controller][nonce]) revert UNAUTHORIZED();
@@ -249,7 +253,11 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
 
     //--ERC7540--
 
-    function pendingRedeemRequest(uint256, /*requestId*/ address controller)
+    /// @inheritdoc IERC7540Redeem
+    function pendingRedeemRequest(
+        uint256, /*requestId*/
+        address controller
+    )
         external
         view
         returns (uint256 pendingShares)
@@ -257,7 +265,11 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         return strategy.pendingRedeemRequest(controller);
     }
 
-    function claimableRedeemRequest(uint256, /*requestId*/ address controller)
+    /// @inheritdoc IERC7540Redeem
+    function claimableRedeemRequest(
+        uint256, /*requestId*/
+        address controller
+    )
         external
         view
         returns (uint256 claimableShares)
@@ -283,6 +295,8 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     function invalidateNonce(bytes32 nonce) external {
         if (nonce == bytes32(0) || _authorizations[msg.sender][nonce]) revert INVALID_NONCE();
         _authorizations[msg.sender][nonce] = true;
+
+        emit NonceInvalidated(msg.sender, nonce);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -297,25 +311,25 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     }
 
     /// @inheritdoc IERC4626
-    function totalAssets() public view override returns (uint256) {
+    function totalAssets() external view override returns (uint256) {
         uint256 supply = totalSupply();
         if (supply == 0) return 0;
-        uint256 currentPPS = strategy.getStoredPPS();
+        uint256 currentPPS = _getStoredPPS();
         return Math.mulDiv(supply, currentPPS, PRECISION, Math.Rounding.Floor);
     }
 
     /// @inheritdoc IERC4626
     function convertToShares(uint256 assets) public view override returns (uint256) {
-        uint256 currentPPS = strategy.getStoredPPS();
+        uint256 currentPPS = _getStoredPPS();
         if (currentPPS == 0) return assets;
         return Math.mulDiv(assets, PRECISION, currentPPS, Math.Rounding.Floor);
     }
 
     /// @inheritdoc IERC4626
     function convertToAssets(uint256 shares) public view override returns (uint256) {
-        uint256 currentPPS = strategy.getStoredPPS();
+        uint256 currentPPS = _getStoredPPS();
         if (currentPPS == 0) return shares;
-        return Math.mulDiv(shares, currentPPS, PRECISION, Math.Rounding.Floor);
+        return Math.mulDiv(shares, currentPPS, PRECISION, Math.Rounding.Ceil);
     }
 
     /// @inheritdoc IERC4626
@@ -324,7 +338,7 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     }
 
     /// @inheritdoc IERC4626
-    function maxMint(address owner) public view override returns (uint256) {
+    function maxMint(address owner) external view override returns (uint256) {
         uint256 maxAssets = maxDeposit(owner);
         return convertToShares(maxAssets);
     }
@@ -362,53 +376,61 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     }
 
     /// @inheritdoc IERC4626
-    function withdraw(uint256 assets, address receiver, address owner)
+    function withdraw(
+        uint256 assets,
+        address receiver,
+        address controller
+    )
         public
         override
         nonReentrant
         returns (uint256 shares)
     {
         if (receiver == address(0)) revert ZERO_ADDRESS();
-        _validateController(owner);
+        _validateController(controller);
 
-        uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(owner);
+        uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(controller);
         if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
-        uint256 maxWithdrawAmount = maxWithdraw(owner);
+        uint256 maxWithdrawAmount = maxWithdraw(controller);
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Calculate shares based on assets and average withdraw price
         shares = assets.mulDiv(PRECISION, averageWithdrawPrice, Math.Rounding.Floor);
 
         // Take assets from strategy
-        strategy.handleOperation(owner, assets, shares, ISuperVaultStrategy.Operation.ClaimRedeem);
+        strategy.handleOperation(controller, receiver, assets, shares, ISuperVaultStrategy.Operation.ClaimRedeem);
 
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+        emit Withdraw(msg.sender, receiver, controller, assets, shares);
     }
 
     /// @inheritdoc IERC4626
-    function redeem(uint256 shares, address receiver, address owner)
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address controller
+    )
         public
         override
         nonReentrant
         returns (uint256 assets)
     {
         if (receiver == address(0)) revert ZERO_ADDRESS();
-        _validateController(owner);
+        _validateController(controller);
 
-        uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(owner);
+        uint256 averageWithdrawPrice = strategy.getAverageWithdrawPrice(controller);
         if (averageWithdrawPrice == 0) revert INVALID_WITHDRAW_PRICE();
 
         // Calculate assets based on shares and average withdraw price
         assets = shares.mulDiv(averageWithdrawPrice, PRECISION, Math.Rounding.Floor);
 
-        uint256 maxWithdrawAmount = maxWithdraw(owner);
+        uint256 maxWithdrawAmount = maxWithdraw(controller);
         if (assets > maxWithdrawAmount) revert INVALID_AMOUNT();
 
         // Take assets from strategy
-        strategy.handleOperation(owner, assets, shares, ISuperVaultStrategy.Operation.ClaimRedeem);
+        strategy.handleOperation(controller, receiver, assets, shares, ISuperVaultStrategy.Operation.ClaimRedeem);
 
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
+        emit Withdraw(msg.sender, receiver, controller, assets, shares);
     }
 
     // @inheritdoc ISuperVault
@@ -431,7 +453,9 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
         uint256 averageWithdrawPrice,
         uint256 accumulatorShares,
         uint256 accumulatorCostBasis
-    ) external {
+    )
+        external
+    {
         if (msg.sender != address(strategy)) revert UNAUTHORIZED();
         emit RedeemClaimable(
             user, REQUEST_ID, assets, shares, averageWithdrawPrice, accumulatorShares, accumulatorCostBasis
@@ -450,11 +474,13 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     /*//////////////////////////////////////////////////////////////
                         INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
+    /// @notice Validates that the controller is the msg.sender or has been authorized by the controller
+    /// @param controller The controller to validate
     function _validateController(address controller) internal view {
         if (controller != msg.sender && !isOperator[controller][msg.sender]) revert INVALID_CONTROLLER();
     }
 
+    /// @notice Calculates the EIP712 domain separator
     function _calculateDomainSeparator() internal view returns (bytes32) {
         return keccak256(
             abi.encode(
@@ -468,8 +494,33 @@ contract SuperVault is ERC20, IERC7540Redeem, IERC7741, IERC4626, ISuperVault, R
     }
 
     /// @notice Verify an EIP712 signature using OpenZeppelin's ECDSA library
+    /// @param signer The signer to verify
+    /// @param digest The digest to verify
+    /// @param signature The signature to verify
     function _isValidSignature(address signer, bytes32 digest, bytes memory signature) internal pure returns (bool) {
         address recoveredSigner = ECDSA.recover(digest, signature);
         return recoveredSigner == signer;
+    }
+
+    /// @notice Overrides the ERC20 _update function to update the state of the vault when a transfer occurs
+    /// @param from The address of the sender
+    /// @param to The address of the recipient
+    /// @param value The amount of shares being transferred
+    function _update(address from, address to, uint256 value) internal override {
+        if (from != address(0) && to != address(0)) {
+            ISuperVaultStrategy.SuperVaultState memory state = strategy.getSuperVaultState(from);
+            strategy.updateSuperVaultState(to, state);
+        }
+        super._update(from, to, value);
+    }
+
+    function _getStoredPPS() internal view returns (uint256) {
+        return strategy.getStoredPPS();
+    }
+
+    function _getStoredPPSWithRevert() internal view returns (uint256) {
+        uint256 currentPPS = _getStoredPPS();
+        if (currentPPS == 0) revert INVALID_PPS();
+        return currentPPS;
     }
 }

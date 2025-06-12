@@ -2,15 +2,15 @@
 pragma solidity 0.8.30;
 
 // external
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import {IPendleRouterV4, TokenOutput} from "../../../../vendor/pendle/IPendleRouterV4.sol";
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { IPendleRouterV4, TokenOutput } from "../../../../vendor/pendle/IPendleRouterV4.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import {
     ISuperHook,
     ISuperHookResult,
@@ -73,9 +73,13 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function build(address prevHook, address account, bytes calldata data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -162,7 +166,11 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
     }
 
     /// @dev Determines the final amount to use based on the flag and previous hook.
-    function _determineFinalAmount(uint256 amountFromData, bool usePrevHookAmount, address prevHook)
+    function _determineFinalAmount(
+        uint256 amountFromData,
+        bool usePrevHookAmount,
+        address prevHook
+    )
         private
         view
         returns (uint256 finalAmount)

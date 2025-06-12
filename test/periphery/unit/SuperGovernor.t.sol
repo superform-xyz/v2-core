@@ -1,13 +1,17 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {SuperGovernor} from "src/periphery/SuperGovernor.sol";
-import {ISuperGovernor, FeeType} from "src/periphery/interfaces/ISuperGovernor.sol";
-import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
-import {ISuperVaultAggregator} from "src/periphery/interfaces/ISuperVaultAggregator.sol";
-import {SuperVaultAggregator} from "src/periphery/SuperVault/SuperVaultAggregator.sol";
-import {ISuperVaultStrategy} from "src/periphery/interfaces/ISuperVaultStrategy.sol";
-import {Helpers} from "../../utils/Helpers.sol";
+import { SuperGovernor } from "src/periphery/SuperGovernor.sol";
+import { ISuperGovernor, FeeType } from "src/periphery/interfaces/ISuperGovernor.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
+import { ISuperVaultAggregator } from "src/periphery/interfaces/SuperVault/ISuperVaultAggregator.sol";
+import { SuperVaultAggregator } from "src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { SuperVault } from "../../../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultStrategy } from "../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
+import { ISuperVaultStrategy } from "src/periphery/interfaces/SuperVault/ISuperVaultStrategy.sol";
+import { Helpers } from "../../utils/Helpers.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
 
 contract SuperGovernorTest is Helpers {
     SuperGovernor internal superGovernor;
@@ -41,6 +45,8 @@ contract SuperGovernorTest is Helpers {
     uint256 internal constant TIMELOCK = 7 days;
     uint256 internal constant BPS_MAX = 10_000;
 
+    MockERC20 internal asset;
+
     /// @notice Sets up the test environment before each test case.
     function setUp() public {
         sGovernor = _deployAccount(0x1, "SuperGovernor");
@@ -57,17 +63,26 @@ contract SuperGovernorTest is Helpers {
         ppsOracle2 = _deployAccount(0xC, "PPSOracle2");
         newStrategist = _deployAccount(0xF, "NewStrategist");
 
+        asset = new MockERC20("Asset", "ASSET", 18);
+
         superGovernor = new SuperGovernor(sGovernor, governor, governor, treasury, address(this));
-        superVaultAggregator = address(new SuperVaultAggregator(address(superGovernor)));
+
+        // Deploy implementation contracts first
+        address vaultImpl = address(new SuperVault());
+        address strategyImpl = address(new SuperVaultStrategy());
+        address escrowImpl = address(new SuperVaultEscrow());
+
+        superVaultAggregator =
+            address(new SuperVaultAggregator(address(superGovernor), vaultImpl, strategyImpl, escrowImpl));
         (, address strategy,) = ISuperVaultAggregator(superVaultAggregator).createVault(
             ISuperVaultAggregator.VaultCreationParams({
-                asset: 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48,
+                asset: address(asset),
                 mainStrategist: address(this),
                 name: "SUP",
                 symbol: "SUP",
                 minUpdateInterval: 5,
                 maxStaleness: 300,
-                feeConfig: ISuperVaultStrategy.FeeConfig({performanceFeeBps: 1000, recipient: address(this)})
+                feeConfig: ISuperVaultStrategy.FeeConfig({ performanceFeeBps: 1000, recipient: address(this) })
             })
         );
         strategy1 = strategy;
@@ -604,6 +619,140 @@ contract SuperGovernorTest is Helpers {
     }
 
     // =============================================================
+    // Superform Strategist Management Tests
+    // =============================================================
+
+    /// @notice Tests adding a superform strategist
+    function test_SuperformStrategist_AddStrategist() public {
+        vm.prank(governor);
+        vm.expectEmit(true, false, false, false);
+        emit ISuperGovernor.SuperformStrategistAdded(newStrategist);
+        superGovernor.addSuperformStrategist(newStrategist);
+
+        assertTrue(superGovernor.isSuperformStrategist(newStrategist), "Strategist should be added");
+
+        address[] memory strategists = superGovernor.getAllSuperformStrategists();
+        assertEq(strategists.length, 1, "Should have 1 strategist");
+        assertEq(strategists[0], newStrategist, "Strategist in list should match");
+    }
+
+    /// @notice Tests reverting when adding a strategist with zero address
+    function test_SuperformStrategist_Revert_ZeroAddress() public {
+        vm.prank(governor);
+        vm.expectRevert(ISuperGovernor.INVALID_ADDRESS.selector);
+        superGovernor.addSuperformStrategist(address(0));
+    }
+
+    /// @notice Tests reverting when adding an already registered strategist
+    function test_SuperformStrategist_Revert_AlreadyRegistered() public {
+        // Add strategist first
+        vm.prank(governor);
+        superGovernor.addSuperformStrategist(newStrategist);
+
+        // Try to add again
+        vm.prank(governor);
+        vm.expectRevert(ISuperGovernor.STRATEGIST_ALREADY_REGISTERED.selector);
+        superGovernor.addSuperformStrategist(newStrategist);
+    }
+
+    /// @notice Tests removing a superform strategist
+    function test_SuperformStrategist_RemoveStrategist() public {
+        // Add strategist first
+        vm.prank(governor);
+        superGovernor.addSuperformStrategist(newStrategist);
+
+        // Remove strategist
+        vm.prank(governor);
+        vm.expectEmit(true, false, false, false);
+        emit ISuperGovernor.SuperformStrategistRemoved(newStrategist);
+        superGovernor.removeSuperformStrategist(newStrategist);
+
+        assertFalse(superGovernor.isSuperformStrategist(newStrategist), "Strategist should be removed");
+
+        address[] memory strategists = superGovernor.getAllSuperformStrategists();
+        assertEq(strategists.length, 0, "Should have 0 strategists");
+    }
+
+    /// @notice Tests reverting when removing a non-existent strategist
+    function test_SuperformStrategist_Revert_NotRegistered() public {
+        vm.prank(governor);
+        vm.expectRevert(ISuperGovernor.STRATEGIST_NOT_REGISTERED.selector);
+        superGovernor.removeSuperformStrategist(newStrategist);
+    }
+
+    /// @notice Tests paginated retrieval of strategists with various scenarios
+    function test_SuperformStrategist_GetStrategistsPaginated() public {
+        // Create additional strategist addresses for testing
+        address strategist1 = _deployAccount(0x10, "Strategist1");
+        address strategist2 = _deployAccount(0x11, "Strategist2");
+        address strategist3 = _deployAccount(0x12, "Strategist3");
+        address strategist4 = _deployAccount(0x13, "Strategist4");
+        address strategist5 = _deployAccount(0x14, "Strategist5");
+
+        // Test with no strategists
+        (address[] memory chunk, uint256 next) = superGovernor.getStrategistsPaginated(0, 10);
+        assertEq(chunk.length, 0, "Should return empty array when no strategists");
+        assertEq(next, 0, "Next cursor should be 0 when no strategists");
+
+        // Add 5 strategists
+        vm.startPrank(governor);
+        superGovernor.addSuperformStrategist(strategist1);
+        superGovernor.addSuperformStrategist(strategist2);
+        superGovernor.addSuperformStrategist(strategist3);
+        superGovernor.addSuperformStrategist(strategist4);
+        superGovernor.addSuperformStrategist(strategist5);
+        vm.stopPrank();
+
+        // Test getting first 3 strategists
+        (chunk, next) = superGovernor.getStrategistsPaginated(0, 3);
+        assertEq(chunk.length, 3, "Should return 3 strategists");
+        assertEq(next, 3, "Next cursor should be 3");
+
+        // Verify the strategists are in the expected order (note: EnumerableSet doesn't guarantee order)
+        assertTrue(_addressInArray(chunk, strategist1), "strategist1 should be in chunk");
+        assertTrue(_addressInArray(chunk, strategist2), "strategist2 should be in chunk");
+        assertTrue(_addressInArray(chunk, strategist3), "strategist3 should be in chunk");
+
+        // Test getting next 2 strategists
+        (chunk, next) = superGovernor.getStrategistsPaginated(3, 3);
+        assertEq(chunk.length, 2, "Should return 2 remaining strategists");
+        assertEq(next, 0, "Next cursor should be 0 when reached end");
+
+        assertTrue(_addressInArray(chunk, strategist4), "strategist4 should be in chunk");
+        assertTrue(_addressInArray(chunk, strategist5), "strategist5 should be in chunk");
+
+        // Test limit larger than remaining items
+        (chunk, next) = superGovernor.getStrategistsPaginated(0, 10);
+        assertEq(chunk.length, 5, "Should return all 5 strategists when limit > total");
+        assertEq(next, 0, "Next cursor should be 0 when all items returned");
+
+        // Test cursor at the end
+        (chunk, next) = superGovernor.getStrategistsPaginated(5, 3);
+        assertEq(chunk.length, 0, "Should return empty array when cursor at end");
+        assertEq(next, 0, "Next cursor should be 0 when cursor at end");
+
+        // Test getting single strategist
+        (chunk, next) = superGovernor.getStrategistsPaginated(1, 1);
+        assertEq(chunk.length, 1, "Should return 1 strategist");
+        assertEq(next, 2, "Next cursor should be 2");
+
+        // Test edge case: cursor beyond end
+        (chunk, next) = superGovernor.getStrategistsPaginated(10, 3);
+        assertEq(chunk.length, 0, "Should return empty array when cursor beyond end");
+        assertEq(next, 0, "Next cursor should be 0 when cursor beyond end");
+    }
+
+    /// @notice Helper function to check if an address is in an array
+    function _addressInArray(address[] memory array, address target) internal pure returns (bool) {
+        for (uint256 i = 0; i < array.length; i++) {
+            if (array[i] == target) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // =============================================================
     // SuperBank Hook Merkle Root Tests
     // =============================================================
 
@@ -690,4 +839,126 @@ contract SuperGovernorTest is Helpers {
         vm.expectRevert(ISuperGovernor.TIMELOCK_NOT_EXPIRED.selector);
         superGovernor.executeSuperBankHookMerkleRootUpdate(hook1);
     }
+
+    // =============================================================
+    // Vault Bank Management Tests
+    // =============================================================
+
+    /// @notice Tests adding a vault bank successfully
+    function test_VaultBankManagement_AddVaultBank() public {
+        uint64 chainId = 1;
+        address vaultBank = _deployAccount(0x20, "VaultBank1");
+
+        vm.prank(governor);
+        vm.expectEmit(true, true, false, false);
+        emit ISuperGovernor.VaultBankAddressAdded(chainId, vaultBank);
+        superGovernor.addVaultBank(chainId, vaultBank);
+
+        assertEq(superGovernor.getVaultBank(chainId), vaultBank, "Vault bank address mismatch");
+    }
+
+    /// @notice Tests adding multiple vault banks for different chains
+    function test_VaultBankManagement_AddMultipleVaultBanks() public {
+        uint64 chainId1 = 1;
+        uint64 chainId2 = 137;
+        address vaultBank1 = _deployAccount(0x20, "VaultBank1");
+        address vaultBank2 = _deployAccount(0x21, "VaultBank2");
+
+        vm.startPrank(governor);
+        superGovernor.addVaultBank(chainId1, vaultBank1);
+        superGovernor.addVaultBank(chainId2, vaultBank2);
+        vm.stopPrank();
+
+        assertEq(superGovernor.getVaultBank(chainId1), vaultBank1, "Chain 1 vault bank mismatch");
+        assertEq(superGovernor.getVaultBank(chainId2), vaultBank2, "Chain 2 vault bank mismatch");
+    }
+
+    /// @notice Tests replacing an existing vault bank for the same chain
+    function test_VaultBankManagement_ReplaceVaultBank() public {
+        uint64 chainId = 1;
+        address oldVaultBank = _deployAccount(0x20, "OldVaultBank");
+        address newVaultBank = _deployAccount(0x21, "NewVaultBank");
+
+        // Add initial vault bank
+        vm.prank(governor);
+        superGovernor.addVaultBank(chainId, oldVaultBank);
+        assertEq(superGovernor.getVaultBank(chainId), oldVaultBank, "Initial vault bank not set");
+
+        // Replace with new vault bank
+        vm.prank(governor);
+        vm.expectEmit(true, true, false, false);
+        emit ISuperGovernor.VaultBankAddressAdded(chainId, newVaultBank);
+        superGovernor.addVaultBank(chainId, newVaultBank);
+
+        assertEq(superGovernor.getVaultBank(chainId), newVaultBank, "Vault bank not replaced");
+    }
+
+    /// @notice Tests access control - only GOVERNOR_ROLE can add vault banks
+    function test_VaultBankManagement_AccessControl() public {
+        uint64 chainId = 1;
+        address vaultBank = _deployAccount(0x20, "VaultBank");
+
+        // Test with user (should fail)
+        vm.prank(user);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, user, GOVERNOR_ROLE)
+        );
+        superGovernor.addVaultBank(chainId, vaultBank);
+
+        // Test with sGovernor (should fail - needs GOVERNOR_ROLE specifically)
+        vm.prank(sGovernor);
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, sGovernor, GOVERNOR_ROLE)
+        );
+        superGovernor.addVaultBank(chainId, vaultBank);
+
+        // Test with governor (should succeed)
+        vm.prank(governor);
+        superGovernor.addVaultBank(chainId, vaultBank);
+        assertEq(superGovernor.getVaultBank(chainId), vaultBank, "Governor should be able to add vault bank");
+    }
+
+    /// @notice Tests reverting when adding vault bank with zero chain ID
+    function test_VaultBankManagement_Revert_ZeroChainId() public {
+        address vaultBank = _deployAccount(0x20, "VaultBank");
+
+        vm.prank(governor);
+        vm.expectRevert(ISuperGovernor.INVALID_CHAIN_ID.selector);
+        superGovernor.addVaultBank(0, vaultBank);
+    }
+
+    /// @notice Tests reverting when adding vault bank with zero address
+    function test_VaultBankManagement_Revert_ZeroVaultBankAddress() public {
+        uint64 chainId = 1;
+
+        vm.prank(governor);
+        vm.expectRevert(ISuperGovernor.INVALID_ADDRESS.selector);
+        superGovernor.addVaultBank(chainId, address(0));
+    }
+
+    /// @notice Tests getting vault bank for non-existent chain returns zero address
+    function test_VaultBankManagement_GetNonExistentVaultBank() public view {
+        uint64 nonExistentChainId = 999;
+        address result = superGovernor.getVaultBank(nonExistentChainId);
+        assertEq(result, address(0), "Non-existent vault bank should return zero address");
+    }
+
+    /// @notice Tests edge case with maximum chain ID
+    function test_VaultBankManagement_MaxChainId() public {
+        uint64 maxChainId = type(uint64).max;
+        address vaultBank = _deployAccount(0x20, "MaxChainVaultBank");
+
+        vm.prank(governor);
+        vm.expectEmit(true, true, false, false);
+        emit ISuperGovernor.VaultBankAddressAdded(maxChainId, vaultBank);
+        superGovernor.addVaultBank(maxChainId, vaultBank);
+
+        assertEq(superGovernor.getVaultBank(maxChainId), vaultBank, "Max chain ID vault bank mismatch");
+    }
+
+    // =============================================================
+    // Incentive Token Management Tests
+    // =============================================================
+
+    // ... (Rest of the existing tests remain unchanged)
 }

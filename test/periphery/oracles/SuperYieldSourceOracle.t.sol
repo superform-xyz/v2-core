@@ -6,7 +6,7 @@ import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 import { MockSuperOracle } from "../../mocks/MockSuperOracle.sol";
 import { MockYieldSourceOracle } from "../../mocks/MockYieldSourceOracle.sol";
-import { ISuperYieldSourceOracle } from "../../../src/periphery/interfaces/ISuperYieldSourceOracle.sol";
+import { ISuperYieldSourceOracle } from "../../../src/periphery/interfaces/oracles/ISuperYieldSourceOracle.sol";
 import { SuperYieldSourceOracle } from "../../../src/periphery/oracles/SuperYieldSourceOracle.sol";
 
 contract SuperYieldSourceOracleTest is Helpers {
