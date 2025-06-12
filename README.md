@@ -276,9 +276,7 @@ Key Points for Auditors:
       where the funds land.
   - Slippage loss due to bridging:
     - The user accepts the conditions the solver providers to execute the operations. All subsequent operations on
-      destination are dependent on the actual value provided by the relayer. It is accepted that if the valued filled is
-      substantially lower, execution continues anyway with the chained hooks (using the context awareness) and the users
-      acknowledges this risk.
+      destination are dependent on the actual value provided by the relayer. 
 - Things to watch for:
   - Cancellation Scenarios:
     - User cancellations during pending bridge operations
