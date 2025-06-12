@@ -127,14 +127,14 @@ contract Swap1InchHookTest is Helpers {
         vm.mockCall(mockPair, abi.encodeWithSignature("token1()"), abi.encode(dstToken));
 
         Execution[] memory executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
 
         vm.mockCall(mockPair, abi.encodeWithSignature("token0()"), abi.encode(dstToken));
         vm.mockCall(mockPair, abi.encodeWithSignature("token1()"), abi.encode(srcToken));
         hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
     }
 
     function test_Build_Unoswap_Curve() public {
@@ -143,44 +143,44 @@ contract Swap1InchHookTest is Helpers {
 
         bytes memory hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
         Execution[] memory executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
+        assertEq(executions[1].value, 0);
 
         selectorOffset = 4;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
         executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
+        assertEq(executions[1].value, 0);
 
         selectorOffset = 8;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
         executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
+        assertEq(executions[1].value, 0);
 
         selectorOffset = 12;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
         executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
+        assertEq(executions[1].value, 0);
 
         selectorOffset = 16;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
         executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
+        assertEq(executions[1].value, 0);
 
         selectorOffset = 16;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, true);
         executions = hook.build(address(this), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
+        assertEq(executions[1].value, 0);
 
         selectorOffset = 16;
         hookData = _buildCurveHookData(selectorOffset, true, dstReceiver, 1000, 100, false);
@@ -215,7 +215,7 @@ contract Swap1InchHookTest is Helpers {
 
         bytes memory data = abi.encodePacked(address(token), dstReceiver, uint256(0));
 
-        hook.preExecute(address(0), address(0), data);
+        hook.preExecute(address(0), address(this), data);
 
         assertEq(hook.outAmount(), 500);
     }
@@ -226,11 +226,11 @@ contract Swap1InchHookTest is Helpers {
 
         bytes memory data = abi.encodePacked(address(token), dstReceiver, uint256(0));
 
-        hook.preExecute(address(0), address(0), data);
+        hook.preExecute(address(0), address(this), data);
 
         token.mint(dstReceiver, 300);
 
-        hook.postExecute(address(0), address(0), data);
+        hook.postExecute(address(0), address(this), data);
 
         assertEq(hook.outAmount(), 300);
     }
@@ -239,8 +239,8 @@ contract Swap1InchHookTest is Helpers {
         address account = address(this);
         bytes memory hookData = _buildGenericSwapData(0, dstToken, dstReceiver, 1000, 100, false);
         Execution[] memory executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
 
         hookData = _buildGenericSwapData(0, dstToken, dstReceiver, 0, 100, false);
         vm.expectRevert(Swap1InchHook.INVALID_INPUT_AMOUNT.selector);
@@ -277,8 +277,8 @@ contract Swap1InchHookTest is Helpers {
 
         bytes memory hookData = _buildClipperData(1000, 100, dstReceiver, dstToken, false);
         Execution[] memory executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
 
         hookData = _buildClipperData(0, 100, dstReceiver, dstToken, false);
         vm.expectRevert(Swap1InchHook.INVALID_INPUT_AMOUNT.selector);
@@ -294,8 +294,8 @@ contract Swap1InchHookTest is Helpers {
 
         hookData = _buildClipperData(1000, 100, dstReceiver, dstToken, true);
         executions = hook.build(address(this), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
     }
 
     function test_ClipperSwap_inspect() public view {
