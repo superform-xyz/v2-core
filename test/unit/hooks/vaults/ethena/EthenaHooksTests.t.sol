@@ -60,20 +60,20 @@ contract EthenaHooksTests is Helpers {
         bytes memory data = _encodeCooldownData(false);
         Execution[] memory executions = cooldownSharesHook.build(address(0), address(this), data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(yieldSource));
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(yieldSource));
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
     }
 
     function test_EthenaUnstakeHook_build() public view {
         bytes memory data = _encodeUnstakeData();
         Execution[] memory executions = unstakeHook.build(address(0), address(this), data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(yieldSource));
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(yieldSource));
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -113,10 +113,10 @@ contract EthenaHooksTests is Helpers {
         bytes memory data = _encodeCooldownData(true);
         Execution[] memory executions = cooldownSharesHook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(yieldSource));
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(yieldSource));
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
     }
 
     function test_EthenaUnstakeHook_BuildWithPrevHook() public {
@@ -126,10 +126,10 @@ contract EthenaHooksTests is Helpers {
         bytes memory data = _encodeUnstakeData();
         Execution[] memory executions = unstakeHook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(yieldSource));
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(yieldSource));
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -170,10 +170,10 @@ contract EthenaHooksTests is Helpers {
 
         bytes memory data = _encodeCooldownData(false);
         cooldownSharesHook.preExecute(address(0), address(this), data);
-        assertEq(cooldownSharesHook.outAmount(), amount);
+        assertEq(cooldownSharesHook.usedShares(), amount, "A");
 
         cooldownSharesHook.postExecute(address(0), address(this), data);
-        assertEq(cooldownSharesHook.outAmount(), 0);
+        assertEq(cooldownSharesHook.usedShares(), 0, "B");
     }
 
     function test_EthenaUnstakeHook_PrePostExecute() public {

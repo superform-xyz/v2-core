@@ -33,12 +33,13 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address, /* prevHook */
         address account,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         pure
         override
         returns (Execution[] memory executions)
