@@ -41,6 +41,9 @@ interface ISuperVault {
         uint256 accumulatorShares,
         uint256 accumulatorCostBasis
     );
+
+    event NonceInvalidated(address indexed sender, bytes32 indexed nonce);
+
     event RedeemRequestCancelled(address indexed controller, address indexed sender);
 
     /*//////////////////////////////////////////////////////////////

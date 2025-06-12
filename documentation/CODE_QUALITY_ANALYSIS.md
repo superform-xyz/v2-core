@@ -40,7 +40,6 @@ This document contains analysis of the current state of documentation and code q
 
 **Current State:**
 - Has basic documentation structure
-- Functions like `_validateCaller` need better explanations
 - State variables lack detailed comments
 - Error messages could be more descriptive
 - Missing comprehensive NatSpec for some functions
