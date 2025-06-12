@@ -41,6 +41,10 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     // SuperBank Hook Target validation
     mapping(address hook => ISuperGovernor.HookMerkleRootData merkleData) private superBankHooksMerkleRoots;
 
+    // VaultBank registry
+    EnumerableSet.AddressSet private _vaultBanks;
+    mapping(uint64 chainId => address vaultBank) private _vaultBanksByChainId;
+
     // VaultBank Hook Target validation
     mapping(address hook => ISuperGovernor.HookMerkleRootData merkleData) private vaultBankHooksMerkleRoots;
 
@@ -66,7 +70,8 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     mapping(address token => bool isWhitelisted) private _isWhitelistedIncentiveToken;
     EnumerableSet.AddressSet private _proposedWhitelistedIncentiveTokens;
     EnumerableSet.AddressSet private _proposedRemoveWhitelistedIncentiveTokens;
-    uint256 private _proposedWhitelistedIncentiveTokensEffectiveTime;
+    uint256 private _proposedAddWhitelistedIncentiveTokensEffectiveTime;
+    uint256 private _proposedRemoveWhitelistedIncentiveTokensEffectiveTime;
 
     // Fee management
     // Current fee values
@@ -100,12 +105,13 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     bytes32 private constant _GOVERNOR_ROLE = keccak256("GOVERNOR_ROLE");
     bytes32 private constant _BANK_MANAGER_ROLE = keccak256("BANK_MANAGER_ROLE");
     bytes32 private constant _GUARDIAN_ROLE = keccak256("GUARDIAN_ROLE");
-    bytes32 public constant _SUPER_ASSET_FACTORY = keccak256("SUPER_ASSET_FACTORY");
+    bytes32 private constant _SUPER_ASSET_FACTORY = keccak256("SUPER_ASSET_FACTORY");
 
     // Common contract keys
     bytes32 public constant UP = keccak256("UP");
     bytes32 public constant SUP = keccak256("SUP");
     bytes32 public constant TREASURY = keccak256("TREASURY");
+    bytes32 public constant VAULT_BANK = keccak256("VAULT_BANK");
     bytes32 public constant SUPER_BANK = keccak256("SUPER_BANK");
     bytes32 public constant SUPER_ORACLE = keccak256("SUPER_ORACLE");
     bytes32 public constant BANK_MANAGER = keccak256("BANK_MANAGER");
@@ -351,6 +357,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function setEmergencyPrice(address token_, uint256 price_) external onlyRole(_GOVERNOR_ROLE) {
         address oracle = _addressRegistry[SUPER_ORACLE];
+        if (oracle == address(0)) revert CONTRACT_NOT_FOUND();
 
         ISuperOracle(oracle).setEmergencyPrice(token_, price_);
     }
@@ -364,6 +371,8 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         onlyRole(_GOVERNOR_ROLE)
     {
         address oracle = _addressRegistry[SUPER_ORACLE];
+        if (oracle == address(0)) revert CONTRACT_NOT_FOUND();
+
         ISuperOracle(oracle).batchSetEmergencyPrice(tokens_, prices_);
     }
 
@@ -579,7 +588,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                      UPKEEP COST MANAGEMENT
+                        UPKEEP COST MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
     function proposeUpkeepCostPerUpdate(uint256 newCost_) external onlyRole(_SUPER_GOVERNOR_ROLE) {
@@ -625,7 +634,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        SUPERFORM STRATEGIST MANAGEMENT
+                      SUPERFORM STRATEGIST MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
     function addSuperformStrategist(address strategist) external onlyRole(_GOVERNOR_ROLE) {
@@ -720,6 +729,29 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        VAULT BANK MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperGovernor
+    function addVaultBank(uint64 chainId, address vaultBank) external onlyRole(_GOVERNOR_ROLE) {
+        if (chainId == 0) revert INVALID_CHAIN_ID();
+        if (vaultBank == address(0)) revert INVALID_ADDRESS();
+
+        if (_vaultBanksByChainId[chainId] != address(0)) {
+            _vaultBanks.remove(_vaultBanksByChainId[chainId]);
+        }
+
+        _vaultBanks.add(vaultBank);
+        _vaultBanksByChainId[chainId] = vaultBank;
+
+        emit VaultBankAddressAdded(chainId, vaultBank);
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getVaultBank(uint64 chainId) external view returns (address) {
+        return _vaultBanksByChainId[chainId];
+    }
+
+    /*//////////////////////////////////////////////////////////////
                       INCENTIVE TOKEN MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperGovernor
@@ -729,23 +761,25 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
             _proposedWhitelistedIncentiveTokens.add(tokens[i]);
         }
 
-        _proposedWhitelistedIncentiveTokensEffectiveTime = block.timestamp + TIMELOCK;
+        _proposedAddWhitelistedIncentiveTokensEffectiveTime = block.timestamp + TIMELOCK;
 
         emit WhitelistedIncentiveTokensProposed(
-            _proposedWhitelistedIncentiveTokens.values(), _proposedWhitelistedIncentiveTokensEffectiveTime
+            _proposedWhitelistedIncentiveTokens.values(), _proposedAddWhitelistedIncentiveTokensEffectiveTime
         );
     }
 
     /// @inheritdoc ISuperGovernor
     function executeAddIncentiveTokens() external {
-        if (block.timestamp < _proposedWhitelistedIncentiveTokensEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+        if (
+            _proposedAddWhitelistedIncentiveTokensEffectiveTime != 0
+                && block.timestamp < _proposedAddWhitelistedIncentiveTokensEffectiveTime
+        ) revert TIMELOCK_NOT_EXPIRED();
 
+        address token;
         for (uint256 i; i < _proposedWhitelistedIncentiveTokens.length(); i++) {
-            address token = _proposedWhitelistedIncentiveTokens.at(i);
-            if (!_proposedWhitelistedIncentiveTokens.contains(token)) revert NOT_PROPOSED_INCENTIVE_TOKEN();
+            token = _proposedWhitelistedIncentiveTokens.at(i);
 
             _isWhitelistedIncentiveToken[token] = true;
-
             emit WhitelistedIncentiveTokensAdded(_proposedWhitelistedIncentiveTokens.values());
 
             // Remove from proposed whitelisted tokens
@@ -753,7 +787,7 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
         }
 
         // Reset proposal timestamp
-        _proposedWhitelistedIncentiveTokensEffectiveTime = 0;
+        _proposedAddWhitelistedIncentiveTokensEffectiveTime = 0;
     }
 
     /// @inheritdoc ISuperGovernor
@@ -765,31 +799,34 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
             _proposedRemoveWhitelistedIncentiveTokens.add(tokens[i]);
         }
 
-        _proposedWhitelistedIncentiveTokensEffectiveTime = block.timestamp + TIMELOCK;
+        _proposedRemoveWhitelistedIncentiveTokensEffectiveTime = block.timestamp + TIMELOCK;
 
         emit WhitelistedIncentiveTokensProposed(
-            _proposedRemoveWhitelistedIncentiveTokens.values(), _proposedWhitelistedIncentiveTokensEffectiveTime
+            _proposedRemoveWhitelistedIncentiveTokens.values(), _proposedRemoveWhitelistedIncentiveTokensEffectiveTime
         );
     }
 
     /// @inheritdoc ISuperGovernor
     function executeRemoveIncentiveTokens() external {
-        if (block.timestamp < _proposedWhitelistedIncentiveTokensEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
+        if (
+            _proposedRemoveWhitelistedIncentiveTokensEffectiveTime != 0
+                && block.timestamp < _proposedRemoveWhitelistedIncentiveTokensEffectiveTime
+        ) revert TIMELOCK_NOT_EXPIRED();
 
+        address token;
         for (uint256 i; i < _proposedRemoveWhitelistedIncentiveTokens.length(); i++) {
-            address token = _proposedRemoveWhitelistedIncentiveTokens.at(i);
+            token = _proposedRemoveWhitelistedIncentiveTokens.at(i);
             if (_isWhitelistedIncentiveToken[token]) {
                 _isWhitelistedIncentiveToken[token] = false;
 
                 emit WhitelistedIncentiveTokensRemoved(_proposedWhitelistedIncentiveTokens.values());
-
-                // Remove from proposed whitelisted tokens to be removed
-                _proposedRemoveWhitelistedIncentiveTokens.remove(token);
             }
+            // Remove from proposed whitelisted tokens to be removed
+            _proposedRemoveWhitelistedIncentiveTokens.remove(token);
         }
 
         // Reset proposal timestamp
-        _proposedWhitelistedIncentiveTokensEffectiveTime = 0;
+        _proposedRemoveWhitelistedIncentiveTokensEffectiveTime = 0;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -970,6 +1007,40 @@ contract SuperGovernor is ISuperGovernor, AccessControl {
     /// @inheritdoc ISuperGovernor
     function getAllSuperformStrategists() external view returns (address[] memory strategists) {
         return _superformStrategists.values();
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getStrategistsPaginated(
+        uint256 cursor,
+        uint256 limit
+    )
+        external
+        view
+        returns (address[] memory chunkOfStrategists, uint256 next)
+    {
+        uint256 len = _superformStrategists.length();
+
+        // clamp limit so we don’t read past end
+        uint256 realLimit = limit;
+        // If cursor is beyond the end, return empty array
+        if (cursor >= len) {
+            return (new address[](0), 0);
+        }
+
+        uint256 remaining = len - cursor;
+        if (realLimit > remaining) realLimit = remaining;
+
+        chunkOfStrategists = new address[](realLimit);
+        for (uint256 i; i < realLimit; ++i) {
+            chunkOfStrategists[i] = _superformStrategists.at(cursor + i);
+        }
+
+        next = (cursor + realLimit < len) ? cursor + realLimit : 0;
+    }
+
+    /// @inheritdoc ISuperGovernor
+    function getSuperformStrategistsCount() external view returns (uint256) {
+        return _superformStrategists.length();
     }
 
     /// @inheritdoc ISuperGovernor

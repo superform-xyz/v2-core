@@ -40,12 +40,13 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address account,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -116,6 +117,6 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        return IERC4626(data.extractYieldSource()).balanceOf(account);
+        return IStandardizedYield(data.extractYieldSource()).balanceOf(account);
     }
 }
