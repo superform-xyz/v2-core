@@ -130,8 +130,17 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         for (uint256 i; i < length; ++i) {
             bytes4 yieldSourceOracleId = yieldSourceOracleIds[i];
             YieldSourceOracleConfig memory proposal = yieldSourceOracleConfigProposals[yieldSourceOracleId];
+            YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[yieldSourceOracleId];
 
-            if (proposal.manager != msg.sender) revert NOT_MANAGER();
+            // Cannot check on `proposal.manager` because:
+            // if the manager role is transferred after the proposal is created, the new manager cannot accept the proposal
+            // and the outdated manager is reinstated upon acceptance
+            // also as long as an existing proposal remains pending, the current manager is blocked from submitting a new one
+            // So, we check against `existingConfig.manager` instead and rewrite `proposal.manager`
+            if (existingConfig.manager != msg.sender) revert NOT_MANAGER();
+            proposal.manager = existingConfig.manager;
+
+            // If the proposal has not expired, the manager cannot accept it
             if (yieldSourceOracleConfigProposalExpirationTime[yieldSourceOracleId] > block.timestamp) {
                 revert CANNOT_ACCEPT_YET();
             }

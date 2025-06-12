@@ -134,6 +134,54 @@ contract LedgerTests is Helpers {
     /*//////////////////////////////////////////////////////////////
                         CONFIGURATION TESTS
     //////////////////////////////////////////////////////////////*/
+    function test_AcceptManagerRole_PendingProposal() public {
+        bytes4 oracleId = bytes4(keccak256("test"));
+        address oracle = address(0x123);
+        uint256 feePercent = 1000;
+        address feeRecipient = address(0x456);
+        address ledger = address(superLedger);
+        address newManager = address(0x999);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+        config.setYieldSourceOracles(configs);
+
+        // Propose new config
+        config.proposeYieldSourceOracleConfig(configs);
+
+        // Fast forward past proposal expiration
+        vm.warp(block.timestamp + 1 weeks + 1);
+
+        bytes4[] memory oracleIds = new bytes4[](1);
+        oracleIds[0] = oracleId;
+
+        config.transferManagerRole(oracleId, newManager);
+
+        vm.prank(newManager);
+        vm.expectEmit(true, true, false, false);
+        emit ISuperLedgerConfiguration.ManagerRoleTransferAccepted(oracleId, newManager);
+        // manager acceptance before proposal acceptance
+        config.acceptManagerRole(oracleId);
+
+        vm.prank(newManager);
+        // manager not updated in proposal config
+        //vm.expectRevert(ISuperLedgerConfiguration.NOT_MANAGER.selector);
+        //^ fixed 
+        config.acceptYieldSourceOracleConfigProposal(oracleIds);
+
+        // manager updated in oracle config
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory storedConfig =
+            config.getYieldSourceOracleConfig(oracleId);
+        assertEq(storedConfig.manager, newManager);
+    }
+
     function test_SetYieldSourceOracles() public {
         bytes4 oracleId = bytes4(keccak256("test"));
         address oracle = address(0x123);
