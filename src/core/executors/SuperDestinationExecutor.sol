@@ -124,9 +124,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         bytes32 merkleRoot = _decodeMerkleRoot(userSignatureData);
 
         // --- Signature Validation ---
-        // DestinationData encodes both the adapter (msg.sender) and the executor (address(this))
-        //  this is useful to avoid replay attacks on a different group of executor <> sender (adapter)
-        // Note: the msgs.sender doesn't necessarily match an adapter address
+        // DestinationData encodes executor calldata, current chain id, account, current executor, destination tokens and intent amounts
         bytes memory destinationData =
             abi.encode(executorCalldata, uint64(block.chainid), account, address(this), dstTokens, intentAmounts);
 

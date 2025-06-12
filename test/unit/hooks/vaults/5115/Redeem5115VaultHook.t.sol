@@ -41,10 +41,10 @@ contract Redeem5115VaultHookTest is Helpers {
     function test_Build() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = hook.build(address(0), address(this), data);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, yieldSource);
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, yieldSource);
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
     }
 
     function test_Build_WithPrevHook() public {
@@ -55,10 +55,10 @@ contract Redeem5115VaultHookTest is Helpers {
         bytes memory data = _encodeData(true);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, yieldSource);
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, yieldSource);
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
     }
 
     function test_Build_RevertIf_AddressZero() public {
@@ -123,7 +123,7 @@ contract Redeem5115VaultHookTest is Helpers {
 
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(
-            yieldSourceOracleId, yieldSource, token, amount, amount, false, usePrevHook, address(0), uint256(0)
+            yieldSourceOracleId, yieldSource, token, amount, amount, usePrevHook, address(0), uint256(0)
         );
     }
 }
