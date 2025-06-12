@@ -33,7 +33,7 @@ abstract contract VaultBankDestination is IVaultBankDestination {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
+                            PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _retrieveSuperPosition(
         uint64 srcChainId,
