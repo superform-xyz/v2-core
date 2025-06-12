@@ -27,7 +27,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
 /// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
-/// @notice         bool isFullRepayment = _decodeBool(data, 145);
 contract MorphoSupplyHook is BaseMorphoLoanHook, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
@@ -48,7 +47,6 @@ contract MorphoSupplyHook is BaseMorphoLoanHook, ISuperHookInspector {
         uint256 amount;
         uint256 lltv;
         bool usePrevHookAmount;
-        bool isFullRepayment;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -133,7 +131,6 @@ contract MorphoSupplyHook is BaseMorphoLoanHook, ISuperHookInspector {
         uint256 amount = _decodeAmount(data);
         uint256 lltv = BytesLib.toUint256(data, 112);
         bool usePrevHookAmount = _decodeBool(data, 144);
-        bool isFullRepayment = _decodeBool(data, 145);
 
         return SupplyHookLocalVars({
             loanToken: loanToken,
@@ -142,8 +139,7 @@ contract MorphoSupplyHook is BaseMorphoLoanHook, ISuperHookInspector {
             irm: irm,
             amount: amount,
             lltv: lltv,
-            usePrevHookAmount: usePrevHookAmount,
-            isFullRepayment: isFullRepayment
+            usePrevHookAmount: usePrevHookAmount
         });
     }
 
