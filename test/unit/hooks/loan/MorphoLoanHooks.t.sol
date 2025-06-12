@@ -366,6 +366,13 @@ contract MorphoLoanHooksTest is Helpers {
         );
     }
 
+    function test_RepayHook_Build_NoRevertIf_PartialRepay() public {
+        bytes memory data = _encodeRepayData(false, false);
+        vm.warp(block.timestamp + 10000);
+        Execution[] memory executions = repayHook.build(address(0), address(this), data);
+        assertEq(executions.length, 4);
+    }
+
     function test_RepayHook_Build_RevertIf_InvalidCollateralToken() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         repayHook.build(
@@ -715,7 +722,6 @@ contract MorphoLoanHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                         BASE LOAN HOOK
     //////////////////////////////////////////////////////////////*/
-
     function test_DecodeUsePrevHookAmount() public view {
         bytes memory data = _encodeRepayData(false, false);
         assertEq(repayHook.decodeUsePrevHookAmount(data), false);

@@ -162,10 +162,10 @@ contract EthenaHooksTests is Helpers {
 
         bytes memory data = _encodeCooldownData(false);
         cooldownSharesHook.preExecute(address(0), address(this), data);
-        assertEq(cooldownSharesHook.outAmount(), amount);
+        assertEq(cooldownSharesHook.usedShares(), amount, "A");
 
         cooldownSharesHook.postExecute(address(0), address(this), data);
-        assertEq(cooldownSharesHook.outAmount(), 0);
+        assertEq(cooldownSharesHook.usedShares(), 0, "B");
     }
 
     function test_EthenaUnstakeHook_PrePostExecute() public {
