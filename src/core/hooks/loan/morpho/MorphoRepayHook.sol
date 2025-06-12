@@ -109,7 +109,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
             if (vars.usePrevHookAmount) {
                 vars.amount = ISuperHookResult(prevHook).outAmount();
             }
-            _verifyAmount(vars.amount, marketParams);
+            if (vars.amount == 0) revert AMOUNT_NOT_VALID();
 
             executions[1] = Execution({
                 target: vars.loanToken,
@@ -195,13 +195,5 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
 
     function _postExecute(address, address, bytes calldata) internal override {
         outAmount = 0;
-    }
-
-    function _verifyAmount(uint256 amount, MarketParams memory marketParams) internal view {
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        uint256 fee = deriveFeeAmount(marketParams);
-        uint256 interest = deriveInterest(marketParams);
-        uint256 totalAmount = amount + fee + interest;
-        if (amount < totalAmount) revert AMOUNT_NOT_VALID();
     }
 }
