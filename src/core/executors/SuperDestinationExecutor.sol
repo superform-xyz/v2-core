@@ -66,6 +66,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     error INVALID_SIGNATURE();
     error ADDRESS_NOT_ACCOUNT();
     error ACCOUNT_NOT_CREATED();
+    error ARRAY_LENGTH_MISMATCH();
     error MERKLE_ROOT_ALREADY_USED();
 
     /*//////////////////////////////////////////////////////////////
@@ -119,8 +120,11 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         bytes memory executorCalldata,
         bytes memory userSignatureData
     ) external override {
-        account = _validateOrCreateAccount(account, initData);
+        uint256 dstTokensLen = dstTokens.length;
+        if (dstTokensLen != intentAmounts.length) revert ARRAY_LENGTH_MISMATCH();
 
+        account = _validateOrCreateAccount(account, initData);
+        
         bytes32 merkleRoot = _decodeMerkleRoot(userSignatureData);
 
         // --- Signature Validation ---
