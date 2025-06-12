@@ -14,6 +14,7 @@ contract MockSuperHook {
     bool public shouldReturnEmptyExecutions;
     address public targetToReturn;
     bytes public callDataToReturn;
+    address public caller;
 
     constructor(address _targetToReturn) {
         targetToReturn = _targetToReturn;
@@ -57,5 +58,12 @@ contract MockSuperHook {
 
     function postExecute(address prevHook, address sender, bytes calldata data) external {
         emit PostExecuteCalled(prevHook, sender, data);
+    }
+
+    /// @notice Resets execution state - ONLY callable by executor after accounting
+    function resetExecutionState() external { }
+
+    function setCaller() external {
+        caller = msg.sender;
     }
 }

@@ -27,12 +27,12 @@ contract CancelRedeemHook is BaseHook, ISuperHookAsyncCancelations, ISuperHookIn
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
+    function _buildHookExecutions(
         address,
         address account,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         pure
         override
         returns (Execution[] memory executions)

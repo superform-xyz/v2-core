@@ -28,8 +28,9 @@ contract ApproveERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspect
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(address prevHook, address, bytes calldata data)
+        internal
         view
         override
         returns (Execution[] memory executions)
