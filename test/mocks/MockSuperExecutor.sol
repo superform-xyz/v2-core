@@ -138,9 +138,7 @@ contract MockSuperExecutor is ERC7579ExecutorBase, ISuperExecutor {
                 });
                 _execute(account, execs);
 
-                vault.lock(account, spToken, amount);
-
-                emit SuperPositionMintRequested(account, spToken, amount, 0);
+                vault.lock(account, spToken, address(hook), amount);
             }
         }
     }

@@ -30,12 +30,13 @@ contract GearboxUnstakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspe
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.UNSTAKE) { }
 
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)

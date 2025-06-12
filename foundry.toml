@@ -30,6 +30,7 @@ remappings = [
   "@pendle/=lib/pendle-core-v2-public/contracts/",
 ]
 dynamic_test_linking = true
+gas_limit = "18446744073709551615"
 
 [profile.ci-sizes]
 script = "src"
@@ -40,7 +41,7 @@ test = "src"
 script = "src"
 src = "src"
 test = "test"
-gas_limit = "18446744073709551615" # u64::MAX
+gas_limit = "18446744073709551615"
 
 
 [profile.ci]
@@ -57,10 +58,7 @@ quote_style = "double"
 tab_width = 4
 wrap_comments = true
 
-[fmt.exclude]
-path = "test/mocks/TransientStorageExecutor.sol"
-
 [etherscan]
-11155111 = {key = "${ETHERSCANV2_API_KEY_TEST}"}
-11155420 = {key = "${ETHERSCANV2_API_KEY_TEST}"}
-84532 = {key = "${ETHERSCANV2_API_KEY_TEST}"}
+11155111 = { key = "${ETHERSCANV2_API_KEY_TEST}" }
+11155420 = { key = "${ETHERSCANV2_API_KEY_TEST}" }
+84532 = { key = "${ETHERSCANV2_API_KEY_TEST}" }
