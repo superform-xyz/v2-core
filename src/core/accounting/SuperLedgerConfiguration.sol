@@ -213,7 +213,6 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
             yieldSourceOracleId, yieldSourceOracle, feePercent, feeRecipient, ledgerContract
         );
 
-        // Only allow updates if no config exists or if caller is the manager
         YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[yieldSourceOracleId];
         if (existingConfig.manager != address(0) && existingConfig.ledger != address(0)) revert CONFIG_EXISTS();
 
