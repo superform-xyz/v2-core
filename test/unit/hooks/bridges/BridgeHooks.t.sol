@@ -12,6 +12,8 @@ import {MockHook} from "../../../mocks/MockHook.sol";
 import {BaseHook} from "../../../../src/core/hooks/BaseHook.sol";
 import {Helpers} from "../../../utils/Helpers.sol";
 import {DlnExternalCallLib} from "../../../../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
+import {BytesLib} from "../../../../src/vendor/BytesLib.sol";
+
 
 contract MockSignatureStorage {
     function retrieveSignatureData(address) external view returns (bytes memory) {
@@ -317,6 +319,18 @@ contract BridgeHooks is Helpers {
 
     function test_Debridge_PostExecute() public {
         deBridgehook.postExecute(address(0), address(0), "");
+    }
+
+    function test_InspectTruncatesLongAddresses() public view {
+        address longAddr = address(uint160(uint256((0x1234567890123456789012345678901234567890123456789012345678901234))));
+        bytes memory data = _encodeDebridgeData(false, 100, longAddr);
+        
+        // Call inspect
+        bytes memory result = deBridgehook.inspect(data);
+        
+        // Decode result - will only contain first 20 bytes
+        address truncated = address(bytes20(BytesLib.slice(result, 0, 20)));
+        assertEq(longAddr, truncated);
     }
 
     /*//////////////////////////////////////////////////////////////
