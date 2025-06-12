@@ -45,6 +45,8 @@ contract FlatFeeLedger is BaseLedger {
     ) internal virtual override returns (uint256 feeAmount) {
         // Apply fee to the entire amount by using zero cost basis
         // This treats the entire amount as profit subject to the fee percentage
-        feeAmount = _calculateFees(0, amountAssets, config.feePercent);
+        if (config.feePercent > 0) {
+            feeAmount = _calculateFees(0, amountAssets, config.feePercent);
+        }
     }
 }
