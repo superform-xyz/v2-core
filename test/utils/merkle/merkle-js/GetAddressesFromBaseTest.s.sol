@@ -11,8 +11,8 @@ contract GetAddressesFromBaseTest is BaseTest {
     }
 
     /**
-     * @notice Legacy test function for forge test compatibility
-     * @dev This logs addresses for the old parsing approach
+     * @notice Get addresses for deterministic merkle tree generation
+     * @dev This logs addresses for the merkle tree pre-generation system
      */
     function test_getAddresses() external view {
         // Simply log each address individually to avoid stack too deep
@@ -24,6 +24,5 @@ contract GetAddressesFromBaseTest is BaseTest {
         console.log("HOOK_REDEEM_4626_VAULT_HOOK:", globalMerkleHooks[2]);
         console.log("HOOK_APPROVE_AND_GEARBOX_STAKE_HOOK:", globalMerkleHooks[3]);
         console.log("HOOK_GEARBOX_UNSTAKE_HOOK:", globalMerkleHooks[4]);
-        console.log("BASETEST:", address(this));
     }
 }

@@ -175,7 +175,7 @@ abstract contract MerkleReader is StdCheats, Helpers {
 
         // Build command to call JS script
         string[] memory cmd = new string[](5);
-        cmd[0] = "bun";
+        cmd[0] = "node";
         cmd[1] = string.concat(vm.projectRoot(), "/test/utils/merkle/merkle-js/efficient-proof-lookup.js");
         cmd[2] = "batch";
         cmd[3] = addressesArg;

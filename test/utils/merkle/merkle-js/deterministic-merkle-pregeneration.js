@@ -39,7 +39,6 @@ class DeterministicMerkleGen {
     parseConsoleOutput(output) {
         const lines = output.split('\n');
         const addresses = {
-            baseTest: '',
             vaults: {},
             hooks: {}
         };
@@ -62,8 +61,6 @@ class DeterministicMerkleGen {
                 addresses.hooks.APPROVE_AND_GEARBOX_STAKE_HOOK = this.extractAddress(line);
             } else if (line.includes('HOOK_GEARBOX_UNSTAKE_HOOK:')) {
                 addresses.hooks.GEARBOX_UNSTAKE_HOOK = this.extractAddress(line);
-            } else if (line.includes('BASETEST:')) {
-                addresses.baseTest = this.extractAddress(line);
             }
         }
 
@@ -118,7 +115,6 @@ class DeterministicMerkleGen {
      * Validate calculated addresses
      */
     validateAddresses(addresses) {
-        const requiredFields = ['baseTest'];
         const requiredVaults = ['globalSVStrategy', 'globalSVGearStrategy', 'globalRuggableVault'];
         const requiredHooks = [
             'APPROVE_AND_REDEEM_4626_VAULT_HOOK',
@@ -127,13 +123,6 @@ class DeterministicMerkleGen {
             'APPROVE_AND_GEARBOX_STAKE_HOOK',
             'GEARBOX_UNSTAKE_HOOK'
         ];
-
-        // Check top-level fields
-        for (const field of requiredFields) {
-            if (!addresses[field] || addresses[field] === '0x0000000000000000000000000000000000000000') {
-                throw new Error(`Invalid or missing address for ${field}: ${addresses[field]}`);
-            }
-        }
 
         // Check vaults
         if (!addresses.vaults) {
@@ -177,7 +166,6 @@ class DeterministicMerkleGen {
                     // Map back to the expected structure based on the original order
                     // The order typically is: strategies first, then hooks
                     return {
-                        baseTest: '0x5615dEB798BB3E4dFa0139dFa1b3D433Cc23b72f', // Foundry constant
                         vaults: {
                             globalSVStrategy: originalOwnerList[0], // First three are strategies
                             globalSVGearStrategy: originalOwnerList[1],

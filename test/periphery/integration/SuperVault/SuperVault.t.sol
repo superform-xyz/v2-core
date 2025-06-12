@@ -3203,7 +3203,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vars.depositAmount = 100e6;
 
         Mock4626Vault newVault = new Mock4626Vault(address(asset), "New Vault", "NV");
-        // _updateAndRegenerateMerkleTree("test_1Mock4626Vault", address(newVault), ETH);
 
         _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);
         asset.approve(address(newVault), type(uint256).max);
@@ -3603,7 +3602,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
             )
         );
 
-        //_updateAndRegenerateMerkleTree("RuggableVault", vars.ruggableVault, ETH);
 
         vm.label(vars.ruggableVault, "Ruggable Vault");
         vm.label(address(fluidVault), "Fluid Vault");
@@ -3970,7 +3968,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vaultAddresses[1] = address(vars.vault2);
         vaultAddresses[2] = address(vars.vault3);
 
-        // _updateAndRegenerateMerkleTreeBatch(vaultNames, vaultAddresses, ETH);
         vars.vault1.setYield(3000); // 3%
         vars.vault2.setYield(5000); // 5%
         vars.vault3.setYield(10_000); // 10%
@@ -4124,7 +4121,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vaultAddresses[1] = address(vars.vault2);
         vaultAddresses[2] = address(vars.vault3);
 
-        //_updateAndRegenerateMerkleTreeBatch(vaultNames, vaultAddresses, ETH);
         vars.vault1.setYield(3000); // 3%
         vars.vault2.setYield(5000); // 5%
         vars.vault3.setYield(10_000); // 10%
@@ -4766,7 +4762,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
             false, // don't rug on withdraw
             vars.rugPercentage
         );
-        //_updateAndRegenerateMerkleTree("test_10RuggableVaultOnDeposit", address(vars.ruggableVault), ETH);
 
         // Add funds to the ruggable vault to respect LARGE_DEPOSIT
         _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);
@@ -4838,7 +4833,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
             true, // rug on withdraw
             vars.rugPercentage
         );
-        //_updateAndRegenerateMerkleTree("test_10RuggableVault", address(ruggableVault), ETH);
 
         vars.ruggableVault = address(ruggableVault);
         vars.convertVault = false;
@@ -4877,7 +4871,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
             vars.rugPercentage,
             true // rug enabled
         );
-        //_updateAndRegenerateMerkleTree("test_10RuggableConvertVault", address(ruggableConvertVault), ETH);
 
         vars.ruggableVault = address(ruggableConvertVault);
         vars.convertVault = true;
@@ -4911,7 +4904,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         // add new vault as yield source
         Mock4626Vault newVault = new Mock4626Vault(address(asset), "New Vault", "NV");
-        // _updateAndRegenerateMerkleTree("New Vault", address(newVault), ETH);
 
         //  -- add funds to the newVault to respect LARGE_DEPOSIT
         _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);

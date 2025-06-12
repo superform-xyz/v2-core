@@ -1274,102 +1274,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     }
 
     /*
-    function _generateMerkleTree(uint64 chainid) internal {
-        console2.log("\n[DEBUG] Starting _generateMerkleTree for chainid:", chainid);
-
-        // Read current owner_list.json content
-        string memory ownerListPath = string.concat(vm.projectRoot(), "/test/utils/merkle/target/owner_list.json");
-        string memory currentOwnerList = "";
-        try vm.readFile(ownerListPath) returns (string memory content) {
-            currentOwnerList = content;
-            console2.log("[DEBUG] Current owner_list.json content:", currentOwnerList);
-        } catch {
-            console2.log("[DEBUG] Could not read owner_list.json or file is empty");
-        }
-
-        console2.log("[DEBUG] Predicted strategy addresses:");
-        console2.log("  - globalSVStrategy:", globalSVStrategy);
-        console2.log("  - globalSVGearStrategy:", globalSVGearStrategy);
-        console2.log("  - globalRuggableVault:", globalRuggableVault);
-
-        address[] memory globalTreeOwnerAddresses = new address[](3);
-        globalTreeOwnerAddresses[0] = globalSVStrategy;
-        globalTreeOwnerAddresses[1] = globalSVGearStrategy;
-        globalTreeOwnerAddresses[2] = globalRuggableVault;
-
-        string[] memory cmd = new string[](globalTreeOwnerAddresses.length > 0 ? 4 : 3);
-        cmd[0] = "node";
-        cmd[1] = "test/utils/merkle/merkle-js/build-hook-merkle-trees.js";
-
-        // Build comma-separated list of hook addresses from globalMerkleHooks
-        string memory hooksString = "";
-        for (uint256 i = 0; i < globalMerkleHooks.length; i++) {
-            if (i > 0) hooksString = string.concat(hooksString, ",");
-            hooksString = string.concat(hooksString, vm.toString(globalMerkleHooks[i]));
-        }
-        cmd[2] = hooksString;
-
-        string memory strategiesString = "";
-        for (uint256 i = 0; i < globalTreeOwnerAddresses.length; i++) {
-            if (i > 0) strategiesString = string.concat(strategiesString, ",");
-            strategiesString = string.concat(strategiesString, vm.toString(globalTreeOwnerAddresses[i]));
-        }
-        cmd[3] = strategiesString;
-
-        console2.log("[DEBUG] Running FFI command with parameters:");
-        console2.log("  - cmd[0]:", cmd[0]);
-        console2.log("  - cmd[1]:", cmd[1]);
-        console2.log("  - cmd[2]:", cmd[2]);
-        console2.log("  - cmd[3]:", cmd[3]);
-
-        console2.log("[DEBUG] Executing FFI command...");
-        vm.ffi(cmd);
-        console2.log("[DEBUG] FFI command completed");
-
-        // Check if owner_list.json was updated
-        try vm.readFile(ownerListPath) returns (string memory content) {
-            console2.log("[DEBUG] Updated owner_list.json content:", content);
-            if (keccak256(bytes(content)) == keccak256(bytes(currentOwnerList))) {
-                console2.log("[DEBUG] WARNING: owner_list.json content did not change!");
-            }
-        } catch {
-            console2.log("[DEBUG] ERROR: Could not read owner_list.json after update");
-        }
-    }
-
-    function _executeVaultListUpdateScript(string[] memory cmd_, uint64 chainId_) internal {
-        bytes memory output = vm.ffi(cmd_);
-        string memory outputStr = string(output);
-        // Note: _trim was removed. JS script now outputs "true\n" or "false\n".
-
-        bool wasSuccessful = false;
-        if (bytes(outputStr).length > 0) {
-            // Check if the script output starts with 't', indicating "true\n"
-            if (bytes(outputStr)[0] == "t") {
-                wasSuccessful = true;
-            }
-        }
-
-        if (wasSuccessful) {
-            console2.log(
-                "[DEBUG] update-lists.js executed successfully. Regenerating Merkle tree for chainId:", chainId_
-            );
-            _generateMerkleTree(chainId_);
-        } else {
-            // Log details to stderr from the script will provide more context on failure.
-            console2.log(
-    "[WARN] update-lists.js indicated failure or no changes made. Merkle tree not regenerated. Check stderr for details
-    from script."
-            );
-            if (bytes(outputStr).length == 0) {
-                console2.log(
-    "[WARN] update-lists.js produced empty output (FFI call might have failed before script execution)."
-                );
-            }
-            // revert("Failed to update token/yield lists.");
-        }
-    }
-
+    
+    
     function _updateAndRegenerateMerkleTree(
         string memory vaultName_,
         address vaultAddress_,
@@ -1416,6 +1322,39 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         cmd[3 + numVaults * 2] = chainIdStr;
 
         _executeVaultListUpdateScript(cmd, chainId_);
+    }
+
+       function _executeVaultListUpdateScript(string[] memory cmd_, uint64 chainId_) internal {
+        bytes memory output = vm.ffi(cmd_);
+        string memory outputStr = string(output);
+        // Note: _trim was removed. JS script now outputs "true\n" or "false\n".
+
+        bool wasSuccessful = false;
+        if (bytes(outputStr).length > 0) {
+            // Check if the script output starts with 't', indicating "true\n"
+            if (bytes(outputStr)[0] == "t") {
+                wasSuccessful = true;
+            }
+        }
+
+        if (wasSuccessful) {
+            console2.log(
+                "[DEBUG] update-lists.js executed successfully. Regenerating Merkle tree for chainId:", chainId_
+            );
+            _generateMerkleTree(chainId_);
+        } else {
+            // Log details to stderr from the script will provide more context on failure.
+            console2.log(
+    "[WARN] update-lists.js indicated failure or no changes made. Merkle tree not regenerated. Check stderr for details
+    from script."
+            );
+            if (bytes(outputStr).length == 0) {
+                console2.log(
+    "[WARN] update-lists.js produced empty output (FFI call might have failed before script execution)."
+                );
+            }
+            // revert("Failed to update token/yield lists.");
+        }
     }
 
     */

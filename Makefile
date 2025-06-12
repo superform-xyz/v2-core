@@ -37,21 +37,27 @@ regenerate-merkle-cache:
 merkle-status:
 	@cd test/utils/merkle/merkle-js && node deterministic-merkle-pregeneration.js --status
 
-ftest :; forge test
+ftest :; $(MAKE) ensure-merkle-cache && forge test
 
-ftest-vvv :; forge test -v --jobs 2
+ftest-vvv :; $(MAKE) ensure-merkle-cache && forge test -v --jobs 2
 
-coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
+ftest-ci :; $(MAKE) regenerate-merkle-cache && forge test -v --jobs 2
 
-test-vvv :; forge test --match-contract ECDSAPPSOracleTest -vvv --jobs 10
+ftest-quick :; forge test
 
-test-integration :; forge test --match-test test_ShouldExecuteAll_AndLockAssetsInVaultBank -vvv --jobs 10
+coverage :; $(MAKE) ensure-merkle-cache && FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-test-gas-report-user :; forge test --match-test test_gasReport --gas-report --jobs 10
-test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10
-test-gas-report-3vaults :; forge test --match-test test_gasReport_ThreeVaults --gas-report --jobs 10
+test-vvv :; $(MAKE) ensure-merkle-cache && forge test --match-test test_2_MultipleOperations_RandomAmounts -vvv --jobs 10
 
-test-cache :; forge test --cache-tests
+test-integration :; $(MAKE) ensure-merkle-cache && forge test --match-test test_ShouldExecuteAll_AndLockAssetsInVaultBank -vvv --jobs 10
+
+test-vvv-quick :; forge test --match-test test_2_MultipleOperations_RandomAmounts -vvv --jobs 10
+
+test-gas-report-user :; $(MAKE) ensure-merkle-cache && forge test --match-test test_gasReport --gas-report --jobs 10
+test-gas-report-2vaults :; $(MAKE) ensure-merkle-cache && forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10
+test-gas-report-3vaults :; $(MAKE) ensure-merkle-cache && forge test --match-test test_gasReport_ThreeVaults --gas-report --jobs 10
+
+test-cache :; $(MAKE) ensure-merkle-cache && forge test --cache-tests
 
 .PHONY: generate
 generate:
