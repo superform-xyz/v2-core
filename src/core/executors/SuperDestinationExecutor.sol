@@ -49,7 +49,9 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /// @notice Magic value returned by ERC-1271 contracts when a signature is valid
     /// @dev From EIP-1271 standard:
     /// https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
-    bytes4 internal constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
+    /// @dev From `SuperDestinationValidator`:
+    /// `bytes4(keccak256("isValidDestinationSignature(address,bytes)")) = 0x5c2ec0f3`
+    bytes4 internal constant SIGNATURE_MAGIC_VALUE = bytes4(0x5c2ec0f3);
 
     /// @notice Length of an empty execution data structure
     /// @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays
@@ -126,9 +128,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         bytes32 merkleRoot = _decodeMerkleRoot(userSignatureData);
 
         // --- Signature Validation ---
-        // DestinationData encodes both the adapter (msg.sender) and the executor (address(this))
-        //  this is useful to avoid replay attacks on a different group of executor <> sender (adapter)
-        // Note: the msgs.sender doesn't necessarily match an adapter address
+        // DestinationData encodes executor calldata, current chain id, account, current executor, destination tokens and intent amounts
         bytes memory destinationData =
             abi.encode(executorCalldata, uint64(block.chainid), account, address(this), dstTokens, intentAmounts);
 
