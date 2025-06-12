@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {Ownable2Step, Ownable} from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 
-import {IBundlerRegistry} from "./interfaces/IBundlerRegistry.sol";
+import { IBundlerRegistry } from "./interfaces/IBundlerRegistry.sol";
 
 contract BundlerRegistry is IBundlerRegistry, Ownable2Step {
     /*//////////////////////////////////////////////////////////////
@@ -12,7 +12,7 @@ contract BundlerRegistry is IBundlerRegistry, Ownable2Step {
     mapping(address bundlerAddress => Bundler bundlerData) public bundlers;
     mapping(uint256 bundlerId => address bundlerAddress) public bundlerIds;
 
-    constructor(address owner_) Ownable(owner_) {}
+    constructor(address owner_) Ownable(owner_) { }
 
     /*//////////////////////////////////////////////////////////////
                                 VIEW FUNCTIONS
@@ -41,19 +41,24 @@ contract BundlerRegistry is IBundlerRegistry, Ownable2Step {
                                 OWNER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @notice Register a new bundler
+    /// @param bundlerAddress The address of the bundler
     /// @param _extraData Extra data for off-chain use
-    function registerBundler(bytes calldata _extraData) external onlyOwner {
+    function registerBundler(address bundlerAddress, bytes calldata _extraData) external onlyOwner {
+        // Input validation
+        if (bundlerAddress == address(0)) revert INVALID_BUNDLER_ADDRESS();
+        if (bundlers[bundlerAddress].bundlerAddress != address(0)) revert BUNDLER_ALREADY_REGISTERED();
+
         IBundlerRegistry.Bundler memory bundler = IBundlerRegistry.Bundler({
-            id: uint256(keccak256(abi.encodePacked(_extraData, block.timestamp, block.chainid))),
-            bundlerAddress: msg.sender,
+            id: uint256(keccak256(abi.encodePacked(bundlerAddress, _extraData, block.timestamp, block.chainid))),
+            bundlerAddress: bundlerAddress,
             isActive: true,
             extraData: _extraData
         });
 
-        bundlers[msg.sender] = bundler;
-        bundlerIds[bundler.id] = msg.sender;
+        bundlers[bundlerAddress] = bundler;
+        bundlerIds[bundler.id] = bundlerAddress;
 
-        emit BundlerRegistered(bundler.id, msg.sender);
+        emit BundlerRegistered(bundler.id, bundlerAddress);
     }
 
     /// @notice Update a bundler's address

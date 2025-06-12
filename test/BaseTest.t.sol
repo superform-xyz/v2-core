@@ -148,6 +148,9 @@ import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "./mocks/MockRegistry.sol";
 
 import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { SuperVault } from "../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultStrategy } from "../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../src/periphery/SuperVault/SuperVaultEscrow.sol";
 import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 
 import { BaseHook } from "../src/core/hooks/BaseHook.sol";
@@ -229,8 +232,6 @@ struct Addresses {
     ECDSAPPSOracle ecdsappsOracle;
     ISuperExecutor superExecutorWithSPLock;
     MockTargetExecutor mockTargetExecutor;
-    MockBaseHook mockBaseHook; // this is needed for all tests which we need to use executeWithoutHookRestrictions
-
     SuperBank superBank;
 }
 
@@ -328,8 +329,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     bool public useLatestFork = false;
     bool public useRealOdosRouter = false;
     address[] public globalMerkleHooks;
-    address globalSVStrategy;
-    address globalSVGearStrategy;
+    address public globalSVStrategy;
+    address public globalSVGearStrategy;
+    address public globalRuggableVault;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -460,8 +462,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     function _deployContracts(Addresses[] memory A) internal returns (Addresses[] memory) {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-            mockBaseHook = address(new MockBaseHook());
-            vm.makePersistent(mockBaseHook);
             address acrossV3Helper = address(new AcrossV3Helper());
             vm.allowCheatcodes(acrossV3Helper);
             vm.makePersistent(acrossV3Helper);
@@ -587,13 +587,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.label(address(A[i].stakingYieldSourceOracle), STAKING_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][STAKING_YIELD_SOURCE_ORACLE_KEY] = address(A[i].stakingYieldSourceOracle);
 
-            A[i].superVaultAggregator = new SuperVaultAggregator(address(A[i].superGovernor));
-            vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
-            contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
-
             A[i].ecdsappsOracle = new ECDSAPPSOracle(address(A[i].superGovernor));
             vm.label(address(A[i].ecdsappsOracle), ECDSAPPS_ORACLE_KEY);
             contractAddresses[chainIds[i]][ECDSAPPS_ORACLE_KEY] = address(A[i].ecdsappsOracle);
+
+            // Deploy implementation contracts first
+            address vaultImpl = address(new SuperVault());
+            address strategyImpl = address(new SuperVaultStrategy());
+            address escrowImpl = address(new SuperVaultEscrow());
+
+            A[i].superVaultAggregator =
+                new SuperVaultAggregator(address(A[i].superGovernor), vaultImpl, strategyImpl, escrowImpl);
+            vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
 
             A[i].superGovernor.setActivePPSOracle(address(A[i].ecdsappsOracle));
             A[i].superGovernor.addValidator(VALIDATOR);
@@ -1242,6 +1248,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                     ),
                     aggregator
                 );
+
+                globalRuggableVault = SuperVaultAggregator(aggregator).STRATEGY_IMPLEMENTATION()
+                    .predictDeterministicAddress(
+                    keccak256(
+                        abi.encodePacked(
+                            existingUnderlyingTokens[ETH][USDC_KEY], "SuperVault", "SV_USDC_RUG", uint256(1)
+                        )
+                    ),
+                    aggregator
+                );
                 _generateMerkleTree(ETH);
             }
         }
@@ -1268,10 +1284,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         console2.log("[DEBUG] Predicted strategy addresses:");
         console2.log("  - globalSVStrategy:", globalSVStrategy);
         console2.log("  - globalSVGearStrategy:", globalSVGearStrategy);
+        console2.log("  - globalRuggableVault:", globalRuggableVault);
 
-        address[] memory globalTreeOwnerAddresses = new address[](2);
+        address[] memory globalTreeOwnerAddresses = new address[](3);
         globalTreeOwnerAddresses[0] = globalSVStrategy;
         globalTreeOwnerAddresses[1] = globalSVGearStrategy;
+        globalTreeOwnerAddresses[2] = globalRuggableVault;
 
         string[] memory cmd = new string[](globalTreeOwnerAddresses.length > 0 ? 4 : 3);
         cmd[0] = "node";
@@ -1311,6 +1329,93 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         } catch {
             console2.log("[DEBUG] ERROR: Could not read owner_list.json after update");
         }
+    }
+
+    function _executeVaultListUpdateScript(string[] memory cmd_, uint64 chainId_) internal {
+        bytes memory output = vm.ffi(cmd_);
+        string memory outputStr = string(output);
+        // Note: _trim was removed. JS script now outputs "true\n" or "false\n".
+
+        bool wasSuccessful = false;
+        if (bytes(outputStr).length > 0) {
+            // Check if the script output starts with 't', indicating "true\n"
+            if (bytes(outputStr)[0] == "t") {
+                wasSuccessful = true;
+            }
+        }
+
+        if (wasSuccessful) {
+            console2.log(
+                "[DEBUG] update-lists.js executed successfully. Regenerating Merkle tree for chainId:", chainId_
+            );
+            _generateMerkleTree(chainId_);
+        } else {
+            // Log details to stderr from the script will provide more context on failure.
+            console2.log(
+                "[WARN] update-lists.js indicated failure or no changes made. Merkle tree not regenerated. Check stderr for details from script."
+            );
+            if (bytes(outputStr).length == 0) {
+                console2.log(
+                    "[WARN] update-lists.js produced empty output (FFI call might have failed before script execution)."
+                );
+            }
+            // revert("Failed to update token/yield lists.");
+        }
+    }
+
+    function _updateAndRegenerateMerkleTree(
+        string memory vaultName_,
+        address vaultAddress_,
+        uint64 chainId_
+    )
+        internal
+    {
+        string memory vaultAddressStr = vm.toString(vaultAddress_);
+        string memory chainIdStr = vm.toString(chainId_);
+
+        string[] memory cmd = new string[](5);
+        cmd[0] = "node";
+        cmd[1] = "test/utils/merkle/merkle-js/update-lists.js";
+        cmd[2] = vaultName_; // Single vault name (not a number, signals single mode to script)
+        cmd[3] = vaultAddressStr;
+        cmd[4] = chainIdStr;
+
+        _executeVaultListUpdateScript(cmd, chainId_);
+    }
+
+    /**
+     * @notice Updates vault information in JSON files for multiple vaults and regenerates the Merkle tree if
+     * successful.
+     * @dev Calls the `update-lists.js` script via FFI to perform the update.
+     * @param vaultNames_ An array of names (symbols) of the vaults to add.
+     * @param vaultAddresses_ An array of addresses of the vaults to add.
+     * @param chainId_ The chain ID for which to add the vaults and regenerate the tree.
+     */
+    function _updateAndRegenerateMerkleTreeBatch(
+        string[] memory vaultNames_,
+        address[] memory vaultAddresses_,
+        uint64 chainId_
+    )
+        internal
+    {
+        require(vaultNames_.length == vaultAddresses_.length, "Vault names and addresses array lengths must match.");
+
+        uint256 numVaults = vaultNames_.length;
+        string memory chainIdStr = vm.toString(chainId_);
+
+        // cmd: node <script_path> <numVaults> <name1> <name2> ... <addr1_str> <addr2_str> ... <chainId_str>
+        string[] memory cmd = new string[](3 + numVaults * 2 + 1);
+        cmd[0] = "node";
+        cmd[1] = "test/utils/merkle/merkle-js/update-lists.js";
+        cmd[2] = vm.toString(numVaults); // This signals batch mode to the script
+
+        for (uint256 i = 0; i < numVaults; i++) {
+            cmd[3 + i] = vaultNames_[i];
+            cmd[3 + numVaults + i] = vm.toString(vaultAddresses_[i]);
+        }
+        cmd[3 + numVaults * 2] = chainIdStr;
+
+        _executeVaultListUpdateScript(cmd, chainId_);
     }
 
     function _configureGovernor() internal {
@@ -1433,16 +1538,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     // Hook mocking helpers
 
     /**
-     * @notice Setup hook mocks to clear execution context
-     * @param hooks_ Array of hook addresses to mock
-     */
-    function _setupHookMocks(address[] memory hooks_) internal {
-        for (uint256 i = 0; i < hooks_.length; i++) {
-            vm.mockCall(hooks_[i], abi.encodeWithSignature("getExecutionCaller()"), abi.encode(address(0)));
-        }
-    }
-
-    /**
      * @notice Helper to get all hooks for all chains
      * @return hooks Array of all hooks across all chains
      */
@@ -1468,29 +1563,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         }
 
         return allHooks;
-    }
-
-    /**
-     * @notice Modifier to mock hook execution context, allowing the same hook to be used multiple times in a test
-     */
-    modifier executeWithoutHookRestrictions() {
-        // Get all hooks for current chain
-        address[] memory hooks_ = _getAllHooksForTest();
-
-        // Setup mocks for all hooks
-        for (uint256 i = 0; i < hooks_.length; i++) {
-            if (hooks_[i] != address(0)) {
-                vm.mockFunction(
-                    hooks_[i], address(mockBaseHook), abi.encodeWithSelector(BaseHook.getExecutionCaller.selector)
-                );
-            }
-        }
-
-        // Run the test
-        _;
-
-        // Clear all mocks
-        vm.clearMockedCalls();
     }
 
     function _initializeAccounts(uint256 count) internal {

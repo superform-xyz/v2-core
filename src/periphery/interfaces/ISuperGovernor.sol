@@ -40,6 +40,8 @@ interface ISuperGovernor is IAccessControl {
     error CONTRACT_NOT_FOUND();
     /// @notice Thrown when providing an invalid address (typically zero address)
     error INVALID_ADDRESS();
+    /// @notice Thrown when providing an invalid chain ID
+    error INVALID_CHAIN_ID();
     /// @notice Thrown when a hook is already approved
     error HOOK_ALREADY_APPROVED();
     /// @notice Thrown when a hook is not approved but expected to be
@@ -212,6 +214,11 @@ interface ISuperGovernor is IAccessControl {
     /// @param relayer The address of the removed relayer
     event RelayerRemoved(address indexed relayer);
 
+    /// @notice Emitted when a vault bank is added
+    /// @param chainId The chain ID of the added vault bank
+    /// @param vaultBank The address of the added vault bank
+    event VaultBankAddressAdded(uint64 indexed chainId, address indexed vaultBank);
+
     /// @notice Emitted when an executor is added
     /// @param executor The address of the added executor
     event ExecutorAdded(address indexed executor);
@@ -368,7 +375,7 @@ interface ISuperGovernor is IAccessControl {
     function batchSetEmergencyPrices(address[] calldata tokens_, uint256[] calldata prices_) external;
 
     /*//////////////////////////////////////////////////////////////
-                                  HOOK MANAGEMENT
+                          HOOK MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @notice Registers a hook for use in SuperVaults
     /// @param hook The address of the hook to register
@@ -392,7 +399,7 @@ interface ISuperGovernor is IAccessControl {
     function removeExecutor(address executor) external;
 
     /*//////////////////////////////////////////////////////////////
-                      RELAYER MANAGEMENT
+                        RELAYER MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @notice Adds a relayer to the approved list
     /// @param relayer The address of the relayer to add
@@ -497,6 +504,14 @@ interface ISuperGovernor is IAccessControl {
     function executeSuperBankHookMerkleRootUpdate(address hook) external;
 
     /*//////////////////////////////////////////////////////////////
+                        VAULT BANK MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Adds a vault bank address for a specific chain ID
+    /// @param chainId The chain ID to add the vault bank for
+    /// @param vaultBank The address of the vault bank to add
+    function addVaultBank(uint64 chainId, address vaultBank) external;
+
+    /*//////////////////////////////////////////////////////////////
                         INCENTIVE TOKEN MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @notice Proposes whitelisted incentive tokens
@@ -516,7 +531,6 @@ interface ISuperGovernor is IAccessControl {
     /*//////////////////////////////////////////////////////////////
                         EXTERNAL VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice The identifier of the role that grants access to critical governance functions
     function SUPER_GOVERNOR_ROLE() external view returns (bytes32);
 
@@ -540,6 +554,11 @@ interface ISuperGovernor is IAccessControl {
     /// @notice Checks if strategist takeovers are frozen
     /// @return True if strategist takeovers are frozen, false otherwise
     function isStrategistTakeoverFrozen() external view returns (bool);
+
+    /// @notice Gets the vault bank address for a specific chain ID
+    /// @param chainId The chain ID to get the vault bank for
+    /// @return The vault bank address
+    function getVaultBank(uint64 chainId) external view returns (address);
 
     /// @notice Checks if a hook is registered
     /// @param hook The address of the hook to check
@@ -669,6 +688,23 @@ interface ISuperGovernor is IAccessControl {
     /// @notice Gets the list of all superform strategists
     /// @return strategists The list of all superform strategist addresses
     function getAllSuperformStrategists() external view returns (address[] memory);
+
+    /// @notice Returns up to `limit` superform strategists starting from `cursor`
+    /// @param cursor The index to start reading from (0 … len-1)
+    /// @param limit The maximum number of records to return
+    /// @return chunkOfStrategists The array slice [cursor … cursor+limit-1]
+    /// @return next The next cursor value the caller should use, or 0 to indicate done
+    function getStrategistsPaginated(
+        uint256 cursor,
+        uint256 limit
+    )
+        external
+        view
+        returns (address[] memory chunkOfStrategists, uint256 next);
+
+    /// @notice Gets the number of superform strategists
+    /// @return The number of superform strategists
+    function getSuperformStrategistsCount() external view returns (uint256);
 
     /// @notice Gets the SUP ID
     /// @return The ID of the SUP token
