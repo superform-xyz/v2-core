@@ -44,7 +44,7 @@ interface ISuperBank is IHookExecutionData {
     /// @dev Each hook is verified against a Merkle root from SuperGovernor.
     /// @dev Hooks must implement the ISuperHook interface (preExecute, build, postExecute).
     /// @param executionData HookExecutionData struct containing arrays of hooks, data, and Merkle proofs.
-    function executeHooks(HookExecutionData calldata executionData) external;
+    function executeHooks(HookExecutionData calldata executionData) external payable;
 
     /// @notice Distributes UP tokens based on governance-agreed revenue share.
     /// @dev Transfers X% (REVENUE_SHARE) of UP tokens to sUP, and the remainder to Superform Treasury.
