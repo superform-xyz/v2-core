@@ -8,6 +8,7 @@ import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
 import {MockHook} from "../../../../mocks/MockHook.sol";
 import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import {IStakedUSDeCooldown} from "../../../../../src/vendor/ethena/IStakedUSDeCooldown.sol";
+import {HookSubTypes} from "../../../../../src/core/libraries/HookSubTypes.sol";
 
 // Hooks
 import {EthenaCooldownSharesHook} from "../../../../../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
@@ -43,6 +44,13 @@ contract EthenaHooksTests is Helpers {
 
     function test_EthenaUnstakeHook_Constructor() public view {
         assertEq(uint256(unstakeHook.hookType()), uint256(ISuperHook.HookType.OUTFLOW));
+    }
+
+    function test_EthenaCooldownSharesSubHookType_Constructor() public view {
+        assertEq(
+            cooldownSharesHook.subType(),
+            HookSubTypes.getHookSubType("Cooldown")
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
