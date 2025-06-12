@@ -36,8 +36,8 @@ contract ApproveWithPermit2Hook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address, bytes memory data)
-        external
+    function _buildHookExecutions(address prevHook, address, bytes calldata data)
+        internal
         view
         override
         returns (Execution[] memory executions)

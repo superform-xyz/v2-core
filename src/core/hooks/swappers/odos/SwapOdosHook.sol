@@ -39,8 +39,9 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address account, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(address prevHook, address account, bytes calldata data)
+        internal
         view
         override
         returns (Execution[] memory executions)
