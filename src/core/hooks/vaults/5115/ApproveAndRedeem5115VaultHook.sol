@@ -49,12 +49,13 @@ contract ApproveAndRedeem5115VaultHook is
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address account,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -124,7 +125,7 @@ contract ApproveAndRedeem5115VaultHook is
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        asset = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
+        asset = BytesLib.toAddress(BytesLib.slice(data, 44, 20), 0);
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
         spToken = data.extractYieldSource();

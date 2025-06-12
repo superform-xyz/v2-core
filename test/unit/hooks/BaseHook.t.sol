@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import {Helpers} from "../../utils/Helpers.sol";
 import {BaseHook} from "../../../src/core/hooks/BaseHook.sol";
 import {ISuperHook} from "../../../src/core/interfaces/ISuperHook.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 contract TestHook is BaseHook {
     constructor(ISuperHook.HookType hookType_, bytes32 subType_) BaseHook(hookType_, subType_) {}
@@ -11,6 +12,8 @@ contract TestHook is BaseHook {
     function _preExecute(address prevHook, address account, bytes calldata data) internal override {}
 
     function _postExecute(address prevHook, address account, bytes calldata data) internal override {}
+
+    function _buildHookExecutions(address prevHook, address account, bytes calldata data) internal pure override returns (Execution[] memory executions) {}
 
     // Expose internal functions for testing
     function testDecodeBool(bytes memory data, uint256 offset) external pure returns (bool) {
@@ -46,41 +49,16 @@ contract BaseHookTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                          EXECUTION SECURITY TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_GetExecutionCaller() public {
-        // First call should set the caller
-        hook.preExecute(address(0), address(this), "");
-        assertEq(hook.getExecutionCaller(), address(this));
-
-        // Subsequent calls from same caller should succeed
-        hook.preExecute(address(0), address(this), "");
-        assertEq(hook.getExecutionCaller(), address(this));
-    }
-
-    function test_GetExecutionCaller_NotAuthorized() public {
-        // First call sets the caller
-        hook.preExecute(address(0), address(this), "");
-
-        // Call from different address should revert
-        vm.prank(address(1));
-        vm.expectRevert(BaseHook.NOT_AUTHORIZED.selector);
-        hook.preExecute(address(0), address(this), "");
-    }
-
-    /*//////////////////////////////////////////////////////////////
                           PRE/POST EXECUTE TESTS
     //////////////////////////////////////////////////////////////*/
     function test_PreExecute() public {
         bytes memory data = abi.encodePacked(uint256(100));
         hook.preExecute(address(0), address(this), data);
-        assertEq(hook.getExecutionCaller(), address(this));
     }
 
     function test_PostExecute() public {
         bytes memory data = abi.encodePacked(uint256(100));
         hook.postExecute(address(0), address(this), data);
-        assertEq(hook.getExecutionCaller(), address(this));
     }
 
     /*//////////////////////////////////////////////////////////////

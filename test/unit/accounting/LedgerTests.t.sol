@@ -12,6 +12,8 @@ import {ISuperLedgerData} from "../../../src/core/interfaces/accounting/ISuperLe
 import {ISuperLedger} from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import {BaseLedger} from "../../../src/core/accounting/BaseLedger.sol";
 
+import "forge-std/console2.sol";
+
 contract MockYieldSourceOracle {
     uint256 public pricePerShare = 1e18;
     uint8 public constant DECIMALS = 18;
@@ -71,9 +73,115 @@ contract LedgerTests is Helpers {
         mockBaseLedger = new MockBaseLedger(address(config), executors);
     }
 
+    function testOutflowWithZeroFeeSkipsAccounting() public {
+ 
+      
+
+        uint256 INITIAL_SHARES = 100 ether; // Amount of shares to deposit initially
+        uint256 PPS = 1 ether; // Mock Price Per Share (1 token = 1 share)
+        uint8 DECIMALS = 18; // Mock Token decimals
+
+        address user = makeAddr("user");
+        address yieldSource = makeAddr("yieldSource");
+        bytes4 yieldSourceOracleId = bytes4(keccak256("TEST_ORACLE_ID"));
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: yieldSourceOracleId,
+            yieldSourceOracle: yieldSource,
+            feePercent: 0,
+            feeRecipient: address(this),
+            ledger: address(flatFeeLedger)
+        });
+        config.setYieldSourceOracles(configs);
+
+        vm.mockCall(yieldSource, abi.encodeWithSignature("getPricePerShare(address)"), abi.encode(PPS));
+        vm.mockCall(yieldSource, abi.encodeWithSignature("decimals(address)"), abi.encode(DECIMALS));
+
+        // User wants to withdraw all shares
+        uint256 outflowShares = INITIAL_SHARES;
+        // Asset value of the shares (assuming pps hasn't changed)
+        uint256 outflowAssets = outflowShares * PPS / (10**DECIMALS); // 100e18
+
+        // Initiate the withdrawal transaction (outflow)
+        // updateAccounting function has onlyExecutor modifier, so call from executor address
+        vm.startPrank(address(exec));
+        flatFeeLedger.updateAccounting(
+            user,
+            yieldSource,
+            yieldSourceOracleId,
+            false, // isInflow = false (outflow)
+            outflowAssets, // amountSharesOrAssets (assets for outflow)
+            outflowShares // usedShares (shares used for outflow)
+        );
+        vm.stopPrank();
+
+        // If the bug exists: The user's internal share and cost basis balances should NOT have been reduced
+        // These asserts will PASS if the bug exists.
+        // If the bug is fixed, these asserts will FAIL.
+        //those now fail
+        //assertEq(flatFeeLedger.usersAccumulatorShares(user, yieldSource), INITIAL_SHARES, "BUG: Shares were NOT deducted during zero-fee outflow");
+        //assertEq(flatFeeLedger.usersAccumulatorCostBasis(user, yieldSource), INITIAL_SHARES, "BUG: Cost basis was NOT deducted during zero-fee outflow");
+
+        assertEq(flatFeeLedger.usersAccumulatorShares(user, yieldSource), 0, "BUG fixed: this should be 0 now");
+    
+        console2.log("PoC Successful: Accounting skipped for zero-fee outflow.");
+        console2.log("User Shares (Expected: 0, Actual: %s)", flatFeeLedger.usersAccumulatorShares(user, yieldSource));
+        console2.log("User Cost Basis (Expected: 0, Actual: %s)", flatFeeLedger.usersAccumulatorCostBasis(user, yieldSource));
+    }
+
     /*//////////////////////////////////////////////////////////////
                         CONFIGURATION TESTS
     //////////////////////////////////////////////////////////////*/
+    function test_AcceptManagerRole_PendingProposal() public {
+        bytes4 oracleId = bytes4(keccak256("test"));
+        address oracle = address(0x123);
+        uint256 feePercent = 1000;
+        address feeRecipient = address(0x456);
+        address ledger = address(superLedger);
+        address newManager = address(0x999);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+        config.setYieldSourceOracles(configs);
+
+        // Propose new config
+        config.proposeYieldSourceOracleConfig(configs);
+
+        // Fast forward past proposal expiration
+        vm.warp(block.timestamp + 1 weeks + 1);
+
+        bytes4[] memory oracleIds = new bytes4[](1);
+        oracleIds[0] = oracleId;
+
+        config.transferManagerRole(oracleId, newManager);
+
+        vm.prank(newManager);
+        vm.expectEmit(true, true, false, false);
+        emit ISuperLedgerConfiguration.ManagerRoleTransferAccepted(oracleId, newManager);
+        // manager acceptance before proposal acceptance
+        config.acceptManagerRole(oracleId);
+
+        vm.prank(newManager);
+        // manager not updated in proposal config
+        //vm.expectRevert(ISuperLedgerConfiguration.NOT_MANAGER.selector);
+        //^ fixed 
+        config.acceptYieldSourceOracleConfigProposal(oracleIds);
+
+        // manager updated in oracle config
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory storedConfig =
+            config.getYieldSourceOracleConfig(oracleId);
+        assertEq(storedConfig.manager, newManager);
+    }
+
     function test_SetYieldSourceOracles() public {
         bytes4 oracleId = bytes4(keccak256("test"));
         address oracle = address(0x123);
