@@ -28,10 +28,20 @@ ensure-merkle-cache:
 	@echo "🌲 Checking merkle cache..."
 	@cd test/utils/merkle/merkle-js && node deterministic-merkle-pregeneration.js
 
+# Ensure merkle cache is up to date for CI environments
+ensure-merkle-cache-ci:
+	@echo "🌲 Checking merkle cache (CI mode)..."
+	@cd test/utils/merkle/merkle-js && ENVIRONMENT=ci node deterministic-merkle-pregeneration.js
+
 # Force regenerate merkle cache
 regenerate-merkle-cache:
 	@echo "🌲 Force regenerating merkle cache..."
 	@cd test/utils/merkle/merkle-js && node deterministic-merkle-pregeneration.js --force
+
+# Force regenerate merkle cache for CI environments
+regenerate-merkle-cache-ci:
+	@echo "🌲 Force regenerating merkle cache (CI mode)..."
+	@cd test/utils/merkle/merkle-js && ENVIRONMENT=ci node deterministic-merkle-pregeneration.js --force
 
 # Check merkle cache status
 merkle-status:
@@ -41,7 +51,7 @@ ftest :; $(MAKE) ensure-merkle-cache && forge test
 
 ftest-vvv :; $(MAKE) ensure-merkle-cache && forge test -v --jobs 2
 
-ftest-ci :; $(MAKE) regenerate-merkle-cache && forge test -v --jobs 2
+ftest-ci :; $(MAKE) regenerate-merkle-cache-ci && forge test -v --jobs 2
 
 ftest-quick :; forge test
 
