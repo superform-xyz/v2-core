@@ -62,10 +62,10 @@ contract Deposit5115VaultHookTest is Helpers {
             yieldSourceOracleId, yieldSource, address(0), amount, amount, false, address(0), uint256(0)
         );
         Execution[] memory executions = hook.build(address(0), address(this), data);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, yieldSource);
-        assertEq(executions[0].value, amount);
-        assertGt(executions[0].callData.length, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, yieldSource);
+        assertEq(executions[1].value, amount);
+        assertGt(executions[1].callData.length, 0);
     }
 
     function test_Build_WithPrevHook() public {
