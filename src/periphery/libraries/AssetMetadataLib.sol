@@ -1,12 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {IERC20Metadata} from "openzeppelin-contracts/contracts/interfaces/IERC20Metadata.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/interfaces/IERC20Metadata.sol";
 
 /// @title AssetMetadataLib
 /// @author Superform Labs
 /// @notice Library for handling ERC20 metadata operations
 library AssetMetadataLib {
+    error INVALID_ASSET();
+
     /**
      * @notice Attempts to fetch an asset's decimals
      * @dev A return value of false indicates that the attempt failed in some way
@@ -15,6 +17,8 @@ library AssetMetadataLib {
      * @return assetDecimals The token's decimals if successful, 0 otherwise
      */
     function tryGetAssetDecimals(address asset_) internal view returns (bool ok, uint8 assetDecimals) {
+        if(asset_.code.length == 0) revert INVALID_ASSET();
+        
         (bool success, bytes memory encodedDecimals) =
             address(asset_).staticcall(abi.encodeCall(IERC20Metadata.decimals, ()));
         if (success && encodedDecimals.length >= 32) {

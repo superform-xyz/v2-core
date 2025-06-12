@@ -62,10 +62,10 @@ abstract contract Constants {
     address internal constant AGGREGATION_ROUTER_MAINNET = 0x111111125434b319222CdBf8C261674aDB56F3ae;
     address internal constant AGGREGATION_ROUTER_BASE = 0x111111125434b319222CdBf8C261674aDB56F3ae; //TODO: not the real
     address internal constant AGGREGATION_ROUTER_OPTIMISM = 0x111111125434b319222CdBf8C261674aDB56F3ae; //TODO: not the
-    address internal constant AGGREGATION_ROUTER_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65; 
-    address internal constant AGGREGATION_ROUTER_ARB_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65; 
-    address internal constant AGGREGATION_ROUTER_BASE_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65; 
-    address internal constant AGGREGATION_ROUTER_OP_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65; 
+    address internal constant AGGREGATION_ROUTER_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65;
+    address internal constant AGGREGATION_ROUTER_ARB_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65;
+    address internal constant AGGREGATION_ROUTER_BASE_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65;
+    address internal constant AGGREGATION_ROUTER_OP_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65;
 
     address internal constant OKX_ROUTER_MAINNET = 0x1Ef032a3c471a99CC31578c8007F256D95E89896;
     address internal constant OKX_ROUTER_BASE = 0x6b2C0c7be2048Daa9b5527982C29f48062B34D58;
@@ -141,6 +141,7 @@ abstract contract Constants {
     string internal constant YEARN_CLAIM_ONE_REWARD_HOOK_KEY = "YearnClaimOneRewardHook";
     string internal constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
     string internal constant TRANSFER_ERC20_HOOK_KEY = "TransferERC20Hook";
+    string internal constant BATCH_TRANSFER_ERC20_HOOK_KEY = "BatchTransferERC20Hook";
     string internal constant BATCH_TRANSFER_FROM_HOOK_KEY = "BatchTransferFromHook";
     string internal constant DEPOSIT_4626_VAULT_HOOK_KEY = "Deposit4626VaultHook";
     string internal constant REDEEM_4626_VAULT_HOOK_KEY = "Redeem4626VaultHook";
@@ -182,11 +183,16 @@ abstract contract Constants {
     string internal constant CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "ClaimCancelRedeemRequest7540Hook";
     string internal constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
     string internal constant SUPER_VAULT_AGGREGATOR_KEY = "SuperVaultAggregator";
+    string internal constant SUPER_VAULT_REGISTRY_KEY = "SuperAssetRegistry";
+    string internal constant SUPER_VAULT_FACTORY_KEY = "SuperVaultFactory";
+    string internal constant HOOK_FACTORY_KEY = "HookRegistry";
     string internal constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
     string internal constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";
     string internal constant ECDSAPPS_ORACLE_KEY = "ECDSAPPSOracle";
-    // oracle keys
+    string internal constant SUPER_YIELD_SOURCE_ORACLE_KEY = "SuperYieldSourceOracle";
     string internal constant SUPER_ORACLE_KEY = "SuperOracle";
+
+    // oracle keys
     string internal constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
     string internal constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
     string internal constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";

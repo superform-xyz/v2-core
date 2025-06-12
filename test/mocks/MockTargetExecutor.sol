@@ -2,22 +2,22 @@
 pragma solidity 0.8.30;
 
 // external
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
-import {ERC7579ExecutorBase} from "modulekit/Modules.sol";
-import {IModule} from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
+import { IModule } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import {ISuperExecutor} from "../../src/core/interfaces/ISuperExecutor.sol";
-import {ISuperLedger} from "../../src/core/interfaces/accounting/ISuperLedger.sol";
-import {ISuperLedgerConfiguration} from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import {ISuperHook, ISuperHookResult} from "../../src/core/interfaces/ISuperHook.sol";
-import {ISuperCollectiveVault} from "./ISuperCollectiveVault.sol";
+import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperHook, ISuperHookResult } from "../../src/core/interfaces/ISuperHook.sol";
+import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
 
-import {INexusFactory} from "../../src/vendor/nexus/INexusFactory.sol";
+import { INexusFactory } from "../../src/vendor/nexus/INexusFactory.sol";
 
-import {HookDataDecoder} from "../../src/core/libraries/HookDataDecoder.sol";
+import { HookDataDecoder } from "../../src/core/libraries/HookDataDecoder.sol";
 
 contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
     using HookDataDecoder for bytes;
@@ -85,7 +85,9 @@ contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
         uint256 amount,
         address, //relayer; not used
         bytes memory message
-    ) external {
+    )
+        external
+    {
         // @dev this should exist on the real TargetExecutor
         //if (msg.sender != acrossSpokePool) revert INVALID_SENDER();
 
@@ -182,9 +184,7 @@ contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
                 });
                 _execute(account, execs);
 
-                vault.lock(account, spToken, amount);
-
-                emit SuperPositionMintRequested(account, spToken, amount, 0);
+                vault.lock(account, spToken, hook, amount);
             }
         }
     }

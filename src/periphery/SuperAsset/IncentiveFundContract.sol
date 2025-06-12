@@ -1,44 +1,52 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity 0.8.30;
 
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import "@openzeppelin/contracts/utils/math/Math.sol";
-import "../interfaces/SuperAsset/IIncentiveFundContract.sol";
-import "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
-import "../interfaces/SuperAsset/ISuperAsset.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { IIncentiveFundContract } from "../interfaces/SuperAsset/IIncentiveFundContract.sol";
 import { ISuperGovernor } from "../interfaces/ISuperGovernor.sol";
+import { ISuperAsset } from "../interfaces/SuperAsset/ISuperAsset.sol";
 import { ISuperAssetFactory } from "../interfaces/SuperAsset/ISuperAssetFactory.sol";
 
-/**
- * @author Superform Labs
- * @title Incentive Fund Contract
- * @notice Manages incentive tokens in the SuperAsset system
- * @dev This contract is responsible for handling the incentive fund, including paying and taking incentives.
- * @dev For now it is OK to keep Access Control but it will be managed by SuperGovernor when ready, see
- * https://github.com/superform-xyz/v2-contracts/pull/377#discussion_r2058893391
- */
+/// @title Incentive Fund Contract
+/// @author Superform Labs
+/// @notice Manages incentive tokens in the SuperAsset system
+/// @dev This contract is responsible for handling the incentive fund, including paying and taking incentives.
+/// @dev For now it is OK to keep Access Control but it will be managed by SuperGovernor when ready, see
+/// https://github.com/superform-xyz/v2-contracts/pull/377#discussion_r2058893391
 contract IncentiveFundContract is IIncentiveFundContract {
     using SafeERC20 for IERC20;
 
     // --- State Variables ---
     address public tokenInIncentive;
     address public tokenOutIncentive;
-    ISuperAsset public superAsset;
-    ISuperGovernor public _SUPER_GOVERNOR;
-    ISuperAssetFactory public _SUPER_ASSET_FACTORY;
 
-    // Timelock
-    uint256 public constant setTokenTimelock = 7 days;
-    address public proposedTokenIn;
-    uint256 public newTokenInEffectiveTime;
-    address public proposedTokenOut;
-    uint256 public newTokenOutEffectiveTime;
+    ISuperAsset public superAsset;
+    ISuperGovernor public superGovernor;
+
+    bool public incentivesActive;
+
+    // --- Modifiers ---
+    modifier onlyManager() {
+        ISuperAssetFactory factory = ISuperAssetFactory(superGovernor.getAddress(superGovernor.SUPER_ASSET_FACTORY()));
+        address manager = factory.getIncentiveFundManager(address(superAsset));
+        if (msg.sender != manager) revert UNAUTHORIZED();
+        _;
+    }
 
     /// @inheritdoc IIncentiveFundContract
-    function initialize(address _superGovernor, address superAsset_, address tokenInIncentive_, address tokenOutIncentive_) external {
+    function initialize(
+        address _superGovernor,
+        address superAsset_,
+        address tokenInIncentive_,
+        address tokenOutIncentive_
+    )
+        external
+    {
         if (_superGovernor == address(0)) revert ZERO_ADDRESS();
-        _SUPER_GOVERNOR = ISuperGovernor(_superGovernor);
+        superGovernor = ISuperGovernor(_superGovernor);
 
         // Ensure this can only be called once
         if (address(superAsset) != address(0)) revert ALREADY_INITIALIZED();
@@ -51,112 +59,108 @@ contract IncentiveFundContract is IIncentiveFundContract {
         tokenInIncentive = tokenInIncentive_;
         tokenOutIncentive = tokenOutIncentive_;
     }
-    
 
     /*//////////////////////////////////////////////////////////////
-                EXTERNAL FUNCTIONS
+                          EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
-
     /// @inheritdoc IIncentiveFundContract
-    function proposeSetTokenInIncentive(address token) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        address manager = factory.getIncentiveFundManager(address(superAsset));
-        if (manager != msg.sender) revert UNAUTHORIZED();
-        // Allowing to deselect token
-        // if (token == address(0)) revert ZERO_ADDRESS();
-        proposedTokenIn = token;
-        newTokenInEffectiveTime = block.timestamp + setTokenTimelock;
+    function setTokenInIncentive(address token) external onlyManager {
+        if (token == address(0)) revert ZERO_ADDRESS();
+
+        bool isWhitelisted = superGovernor.isWhitelistedIncentiveToken(token);
+
+        if (isWhitelisted) {
+            tokenInIncentive = token;
+        } else {
+            revert TOKEN_NOT_WHITELISTED();
+        }
+
+        emit SettlementTokenInSet(token);
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function executeSetTokenInIncentive() external {
-        if (block.timestamp < newTokenInEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
-        tokenInIncentive = proposedTokenIn;
-        emit SettlementTokenInSet(tokenInIncentive);
+    function setTokenOutIncentive(address token) external onlyManager {
+        if (token == address(0)) revert ZERO_ADDRESS();
+
+        bool isWhitelisted = superGovernor.isWhitelistedIncentiveToken(token);
+
+        if (isWhitelisted) {
+            tokenOutIncentive = token;
+        } else {
+            revert TOKEN_NOT_WHITELISTED();
+        }
+
+        emit SettlementTokenInSet(token);
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function proposeSetTokenOutIncentive(address token) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        address manager = factory.getIncentiveFundManager(address(superAsset));
-        if (manager != msg.sender) revert UNAUTHORIZED();
-        // Allowing to deselect token
-        // if (token == address(0)) revert ZERO_ADDRESS();
-        proposedTokenOut = token;
-        newTokenOutEffectiveTime = block.timestamp + setTokenTimelock;
+    function toggleIncentives(bool enabled) external onlyManager {
+        incentivesActive = enabled;
+        emit IncentivesToggled(enabled);
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function executeSetTokenOutIncentive() external {
-        if (block.timestamp < newTokenOutEffectiveTime) revert TIMELOCK_NOT_EXPIRED();
-        tokenOutIncentive = proposedTokenOut;
-        emit SettlementTokenOutSet(tokenOutIncentive);
-    }
+    function payIncentive(address receiver, uint256 amountUSD) external onlyManager returns (uint256 amountToken) {
+        if (!incentivesActive) {
+            return 0;
+        }
 
-    /// @inheritdoc IIncentiveFundContract
-    function payIncentive(address receiver, uint256 amountUSD) external returns (uint256 amountToken) {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        address manager = factory.getIncentiveFundManager(address(superAsset));
-        if (manager != msg.sender) revert UNAUTHORIZED();
         _validateInput(receiver, amountUSD);
-        // NOTE: In case the tokenOut is not set, no incentive is paid 
-        if (tokenOutIncentive != address(0)) {
-            // Get token price and check circuit breakers
-            (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) =
-                superAsset.getPriceWithCircuitBreakers(tokenOutIncentive);
+        if (tokenOutIncentive == address(0)) revert TOKEN_OUT_NOT_SET();
 
-            // Revert if any circuit breaker is triggered
-            // Question: do we want to revert if circuit breaker is triggered?
-            if (isDepeg || isDispersion || isOracleOff) revert CIRCUIT_BREAKER_TRIGGERED();
-            if (priceUSD == 0) revert PRICE_USD_ZERO();
+        // Get token price and check circuit breakers
+        (uint256 priceUSD,,,) = superAsset.getPriceAndCircuitBreakers(tokenOutIncentive);
 
+        if (priceUSD > 0) {
             // Convert USD amount to token amount using price
             // amountToken = amountUSD / priceUSD
-            uint256 amountTokenDesired = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
-            // NOTE: Pay incentives as long as there is money available for it
-            amountToken = amountTokenDesired <= IERC20(tokenOutIncentive).balanceOf(address(this)) ? amountTokenDesired : IERC20(tokenOutIncentive).balanceOf(address(this));
+            amountToken = Math.mulDiv(amountUSD, IERC20Metadata(tokenInIncentive).decimals(), priceUSD);
 
-            if(amountToken > 0) IERC20(tokenOutIncentive).safeTransfer(receiver, amountToken);
+            IERC20(tokenOutIncentive).safeTransfer(receiver, amountToken);
+            emit IncentivePaid(receiver, tokenOutIncentive, amountToken);
         }
 
-        emit IncentivePaid(receiver, tokenOutIncentive, amountToken);
+        emit IncentivePaid(receiver, tokenOutIncentive, 0);
+        return 0;
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function takeIncentive(address sender, uint256 amountUSD) external returns (uint256 amountToken) {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        address manager = factory.getIncentiveFundManager(address(superAsset));
-        if (manager != msg.sender) revert UNAUTHORIZED();
+    function takeIncentive(address sender, uint256 amountUSD) external onlyManager returns (uint256 amountToken) {
+        if (!incentivesActive) {
+            return 0;
+        }
+
         _validateInput(sender, amountUSD);
-        if (tokenInIncentive != address(0)) {
-            // Get token price and check circuit breakers
-            (uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff) =
-                superAsset.getPriceWithCircuitBreakers(tokenInIncentive);
+        if (tokenInIncentive == address(0)) revert TOKEN_IN_NOT_SET();
 
-            // Revert if any circuit breaker is triggered
-            // Question: do we want to revert if circuit breaker is triggered?
-            if (isDepeg || isDispersion || isOracleOff) revert CIRCUIT_BREAKER_TRIGGERED();
-            if (priceUSD == 0) revert PRICE_USD_ZERO();
+        // Get token price and check circuit breakers
+        (uint256 priceUSD,,,) = superAsset.getPriceAndCircuitBreakers(tokenInIncentive);
 
+        if (priceUSD > 0) {
             // Convert USD amount to token amount using price
             // amountToken = amountUSD / priceUSD
-            amountToken = Math.mulDiv(amountUSD, superAsset.getPrecision(), priceUSD);
+            amountToken = Math.mulDiv(amountUSD, IERC20Metadata(tokenInIncentive).decimals(), priceUSD);
 
-            if(amountToken > 0) IERC20(tokenInIncentive).safeTransferFrom(sender, address(this), amountToken);
+            IERC20(tokenInIncentive).safeTransferFrom(sender, address(this), amountToken);
+            emit IncentiveTaken(sender, tokenInIncentive, amountToken);
         }
-        emit IncentiveTaken(sender, tokenInIncentive, amountToken);
+
+        emit IncentiveTaken(sender, tokenInIncentive, 0);
+        return 0;
     }
 
     /// @inheritdoc IIncentiveFundContract
-    function withdraw(address receiver, address tokenOut, uint256 amount) external {
-        ISuperAssetFactory factory =  ISuperAssetFactory(_SUPER_GOVERNOR.getAddress(_SUPER_GOVERNOR.SUPER_ASSET_FACTORY()));
-        address manager = factory.getIncentiveFundManager(address(superAsset));
-        if (manager != msg.sender) revert UNAUTHORIZED();
+    function withdraw(address receiver, address tokenOut, uint256 amount) external onlyManager {
         _validateInput(receiver, amount);
         if (tokenOut == address(0)) revert ZERO_ADDRESS();
 
         IERC20(tokenOut).safeTransfer(receiver, amount);
         emit RebalanceWithdrawal(receiver, tokenOut, amount);
+    }
+
+    /// @inheritdoc IIncentiveFundContract
+    function incentivesEnabled() external view returns (bool) {
+        return incentivesActive;
     }
 
     /*//////////////////////////////////////////////////////////////

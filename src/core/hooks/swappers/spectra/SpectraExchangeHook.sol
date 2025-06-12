@@ -3,7 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 
 // Superform
@@ -59,13 +59,13 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address account,
         bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)

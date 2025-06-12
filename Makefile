@@ -16,15 +16,15 @@ deploy-poc:
 
 build :; forge build && $(MAKE) generate
 
-ftest :; forge test --jobs 10
+ftest :; forge test
 
-ftest-vvv :; forge test -vvv --jobs 10
+ftest-vvv :; forge test -v --jobs 2
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_RequestRedeem_VerifyAmounts -vvv --jobs 10
+test-vvv :; forge test --match-test test_executeHooks_Success -vvv --jobs 10
 
-test-integration :; forge test --match-contract ECDSAPPSOracleTest -vv --jobs 10
+test-integration :; forge test --match-test test_ShouldExecuteAll_AndLockAssetsInVaultBank -vvv --jobs 10
 
 test-gas-report-user :; forge test --match-test test_gasReport --gas-report --jobs 10
 test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10
