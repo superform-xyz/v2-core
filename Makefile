@@ -22,7 +22,7 @@ ftest-vvv :; forge test -v --jobs 2
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_executeHooks_Success -vvv --jobs 10
+test-vvv :; forge test --match-test test_Build_Native -vvv --jobs 10
 
 test-integration :; forge test --match-test test_ShouldExecuteAll_AndLockAssetsInVaultBank -vvv --jobs 10
 
