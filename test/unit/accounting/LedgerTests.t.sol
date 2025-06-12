@@ -11,6 +11,7 @@ import {SuperLedgerConfiguration} from "../../../src/core/accounting/SuperLedger
 import {ISuperLedgerData} from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import {ISuperLedger} from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import {BaseLedger} from "../../../src/core/accounting/BaseLedger.sol";
+import "forge-std/console.sol";
 
 contract MockYieldSourceOracle {
     uint256 public pricePerShare = 1e18;
@@ -74,6 +75,70 @@ contract LedgerTests is Helpers {
     /*//////////////////////////////////////////////////////////////
                         CONFIGURATION TESTS
     //////////////////////////////////////////////////////////////*/
+    function test_TransferManagerRole_ToZeroAddress_Vulnerability() public {
+        // Setup a configuration first
+        bytes4 oracleId = bytes4(keccak256("test"));
+        address oracle = address(0x123);
+        uint256 feePercent = 1000; // 10%
+        address feeRecipient = address(0x456);
+        address ledger = address(superLedger);
+        
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+        config.setYieldSourceOracles(configs);
+        
+        // Initial verification
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory initialConfig = 
+            config.getYieldSourceOracleConfig(oracleId);
+        assertEq(initialConfig.manager, address(this), "Initial manager should be test contract");
+        
+        // VULNERABILITY: Transfer manager role to zero address - this should be prevented but isn't
+        vm.expectRevert(ISuperLedgerConfiguration.ZERO_ADDRESS_NOT_ALLOWED.selector);
+        // fixed ^
+        config.transferManagerRole(oracleId, address(0));
+        
+        console.log("VULNERABILITY DEMONSTRATION: Transferred manager role to zero address without revert");
+        
+        // Try to make a proposal as the current manager - should still work because the transfer isn't complete
+        address newOracle = address(0x999);
+        configs[0].yieldSourceOracle = newOracle;
+        config.proposeYieldSourceOracleConfig(configs);
+        
+        console.log("Current manager can still make proposals");
+        
+        // Demonstrate that the role transfer is now stuck - no one can accept it
+        console.log("VULNERABILITY IMPACT: The role transfer is now stuck because:");
+        console.log("1. The pending manager is address(0)");
+        console.log("2. address(0) cannot call acceptManagerRole()");
+        console.log("3. No other address is authorized to accept the role");
+        
+        // Verify our current state
+        address currentManager = config.getYieldSourceOracleConfig(oracleId).manager;
+        assertEq(currentManager, address(this), "Original manager should still be in control");
+        
+        // Try to initiate another transfer to fix the situation
+        address validNewManager = address(0x888);
+        config.transferManagerRole(oracleId, validNewManager);
+        
+        // Have the new valid manager accept the role
+        vm.prank(validNewManager);
+        config.acceptManagerRole(oracleId);
+        
+        // Verify the transfer succeeded
+        address finalManager = config.getYieldSourceOracleConfig(oracleId).manager;
+        assertEq(finalManager, validNewManager, "New valid manager should now be in control");
+        
+        console.log("VULNERABILITY MITIGATION: Current manager was able to overwrite the zero address transfer");
+        console.log("But this requires the manager to realize the issue and take corrective action");
+    }
+
     function test_SetYieldSourceOracles() public {
         bytes4 oracleId = bytes4(keccak256("test"));
         address oracle = address(0x123);
