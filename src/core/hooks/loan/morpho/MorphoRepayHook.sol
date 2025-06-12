@@ -47,19 +47,6 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     IMorphoBase public morphoBase;
     IMorphoStaticTyping public morphoStaticTyping;
 
-    struct BuildContext {
-        BuildHookLocalVars vars;
-        MarketParams marketParams;
-        Id id;
-        uint256 fee;
-        uint128 borrowBalance;
-        uint256 shareBalance;
-        uint256 deriveInterest;
-        Market market;
-        uint256 estimatedTotalBorrowAssets;
-        uint256 assetsToPay;
-    }
-
     uint256 private constant AMOUNT_POSITION = 80;
     uint256 private constant PRICE_SCALING_FACTOR = 1e36;
     uint256 private constant PERCENTAGE_SCALING_FACTOR = 1e18;
@@ -79,81 +66,65 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function build(
+    function _buildHookExecutions(
         address prevHook,
         address account,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)
     {
-        BuildContext memory ctx;
+        BuildHookLocalVars memory vars = _decodeHookData(data);
 
-        ctx.vars = _decodeHookData(data);
+        if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
 
-        if (ctx.vars.loanToken == address(0) || ctx.vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
+        MarketParams memory marketParams =
+            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        ctx.marketParams = _generateMarketParams(ctx.vars.loanToken, ctx.vars.collateralToken, ctx.vars.oracle, ctx.vars.irm, ctx.vars.lltv);
-        ctx.id = ctx.marketParams.id();
+        Id id = marketParams.id();
 
-        ctx.fee = deriveFeeAmount(ctx.marketParams);
-
+        uint256 fee = deriveFeeAmount(marketParams);
         executions = new Execution[](4);
-
-        executions[0] = Execution({
-            target: ctx.vars.loanToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (morpho, 0))
-        });
-
-        if (ctx.vars.isFullRepayment) {
-            ctx.borrowBalance = deriveShareBalance(ctx.id, account);
-            ctx.shareBalance = uint256(ctx.borrowBalance);
-            ctx.deriveInterest = deriveInterest(ctx.marketParams);
-            ctx.market = morphoInterface.market(ctx.id);
-            ctx.estimatedTotalBorrowAssets = ctx.market.totalBorrowAssets + ctx.deriveInterest;
-            ctx.assetsToPay = ctx.shareBalance.toAssetsUp(ctx.estimatedTotalBorrowAssets, ctx.market.totalBorrowShares);
-            // Optionally: ctx.assetsToPay += ctx.fee;
+        executions[0] =
+            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+        if (vars.isFullRepayment) {
+            uint128 borrowBalance = deriveShareBalance(id, account);
+            uint256 shareBalance = uint256(borrowBalance);
+            uint256 assetsToPay = fee + sharesToAssets(marketParams, account);
 
             executions[1] = Execution({
-                target: ctx.vars.loanToken,
+                target: vars.loanToken,
                 value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, ctx.assetsToPay))
+                callData: abi.encodeCall(IERC20.approve, (morpho, assetsToPay))
             });
-
             executions[2] = Execution({
                 target: morpho,
                 value: 0,
-                callData: abi.encodeCall(IMorphoBase.repay, (ctx.marketParams, 0, ctx.shareBalance, account, ""))
-            });
+                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, 0, shareBalance, account, "")) // 0 assets
+                    // shareBalance indicates full repayment
+             });
         } else {
-            if (ctx.vars.usePrevHookAmount) {
-                ctx.vars.amount = ISuperHookResult(prevHook).outAmount();
+            if (vars.usePrevHookAmount) {
+                vars.amount = ISuperHookResult(prevHook).outAmount();
             }
-
-            _verifyAmount(ctx.vars.amount, ctx.marketParams);
+            if (vars.amount == 0) revert AMOUNT_NOT_VALID();
 
             executions[1] = Execution({
-                target: ctx.vars.loanToken,
+                target: vars.loanToken,
                 value: 0,
-                callData: abi.encodeCall(IERC20.approve, (morpho, ctx.vars.amount))
+                callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
             });
-
             executions[2] = Execution({
                 target: morpho,
                 value: 0,
-                callData: abi.encodeCall(IMorphoBase.repay, (ctx.marketParams, ctx.vars.amount, 0, account, ""))
-            });
+                callData: abi.encodeCall(IMorphoBase.repay, (marketParams, vars.amount, 0, account, "")) // 0 shares and
+                    // amount > 0 indicates partial repayment to Morpho
+             });
         }
-
-        executions[3] = Execution({
-            target: ctx.vars.loanToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (morpho, 0))
-        });
+        executions[3] =
+            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
     }
 
     /// @inheritdoc ISuperHookLoans
@@ -180,15 +151,6 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                             PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
-    function deriveInterest(MarketParams memory marketParams) public view returns (uint256 interest) {
-        Id id = marketParams.id();
-        Market memory market = morphoInterface.market(id);
-        uint256 borrowRate = IIrm(marketParams.irm).borrowRateView(marketParams, market);
-        if (block.timestamp < market.lastUpdate) revert INVALID_TIMESTAMP();
-        uint256 elapsed = block.timestamp - market.lastUpdate;
-        interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
-    }
-
     function deriveShareBalance(Id id, address account) public view returns (uint128 borrowShares) {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
     }
@@ -217,20 +179,9 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address account, bytes calldata data) internal override {
-        // store current balance
-        outAmount = getCollateralTokenBalance(account, data);
-    }
+    function _preExecute(address, address, bytes calldata) internal override {}
 
     function _postExecute(address, address, bytes calldata) internal override {
         outAmount = 0;
-    }
-
-    function _verifyAmount(uint256 amount, MarketParams memory marketParams) internal view {
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        uint256 fee = deriveFeeAmount(marketParams);
-        uint256 interest = deriveInterest(marketParams);
-        uint256 totalAmount = amount + fee + interest;
-        if (amount < totalAmount) revert AMOUNT_NOT_VALID();
     }
 }
