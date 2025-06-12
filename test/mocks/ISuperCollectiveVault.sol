@@ -70,8 +70,9 @@ interface ISuperCollectiveVault {
     /// @notice Lock an asset for an account
     /// @param account The account to lock the asset for
     /// @param token The asset to lock
+    /// @param hook The hook to lock the asset through
     /// @param amount The amount of the asset to lock
-    function lock(address account, address token, uint256 amount) external;
+    function lock(address account, address token, address hook, uint256 amount) external;
     /// @notice Unlock an asset for an account
     /// @param account The account to unlock the asset for
     /// @param token The asset to unlock
