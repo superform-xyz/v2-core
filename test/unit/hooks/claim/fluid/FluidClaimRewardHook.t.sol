@@ -50,10 +50,10 @@ contract FluidClaimRewardHookTest is Helpers {
         bytes memory data = _encodeData();
         Execution[] memory executions = hook.build(address(0), account, data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, stakingRewards);
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, stakingRewards);
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
     }
 
     function test_Build_RevertIf_AddressZero() public {
@@ -66,9 +66,11 @@ contract FluidClaimRewardHookTest is Helpers {
     function test_PreAndPostExecute() public {
         _getTokens(rewardToken, account, amount);
 
+        vm.prank(account);
         hook.preExecute(address(0), account, _encodeData());
         assertEq(hook.outAmount(), amount);
 
+        vm.prank(account);
         hook.postExecute(address(0), account, _encodeData());
         assertEq(hook.outAmount(), 0);
     }

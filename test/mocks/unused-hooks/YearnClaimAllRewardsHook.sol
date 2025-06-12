@@ -21,8 +21,8 @@ contract YearnClaimAllRewardsHook is BaseHook, BaseClaimRewardHook {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address, address, bytes memory data)
-        external
+    function _buildHookExecutions(address, address, bytes calldata data)
+        internal
         pure
         override
         returns (Execution[] memory executions)
