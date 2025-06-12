@@ -91,15 +91,19 @@ contract SuperVaultAggregator is ISuperVaultAggregator {
     //////////////////////////////////////////////////////////////*/
     /// @notice Initializes the SuperVaultAggregator
     /// @param superGovernor_ Address of the SuperGovernor contract
-    constructor(address superGovernor_) {
+    /// @param vaultImpl_ Address of the pre-deployed SuperVault implementation
+    /// @param strategyImpl_ Address of the pre-deployed SuperVaultStrategy implementation
+    /// @param escrowImpl_ Address of the pre-deployed SuperVaultEscrow implementation
+    constructor(address superGovernor_, address vaultImpl_, address strategyImpl_, address escrowImpl_) {
         if (superGovernor_ == address(0)) revert ZERO_ADDRESS();
-
-        // Deploy implementation contracts
-        VAULT_IMPLEMENTATION = address(new SuperVault());
-        STRATEGY_IMPLEMENTATION = address(new SuperVaultStrategy());
-        ESCROW_IMPLEMENTATION = address(new SuperVaultEscrow());
+        if (vaultImpl_ == address(0)) revert ZERO_ADDRESS();
+        if (strategyImpl_ == address(0)) revert ZERO_ADDRESS();
+        if (escrowImpl_ == address(0)) revert ZERO_ADDRESS();
 
         SUPER_GOVERNOR = ISuperGovernor(superGovernor_);
+        VAULT_IMPLEMENTATION = vaultImpl_;
+        STRATEGY_IMPLEMENTATION = strategyImpl_;
+        ESCROW_IMPLEMENTATION = escrowImpl_;
     }
 
     /*//////////////////////////////////////////////////////////////
