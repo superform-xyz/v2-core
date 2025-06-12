@@ -329,6 +329,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     bool public useLatestFork = false;
     bool public useRealOdosRouter = false;
     address[] public globalMerkleHooks;
+    string[] public globalMerkleHookNames;
     address public globalSVStrategy;
     address public globalSVGearStrategy;
     address public globalRuggableVault;
@@ -1231,6 +1232,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             globalMerkleHooks[3] = address(A[i].approveAndGearboxStakeHook);
             globalMerkleHooks[4] = address(A[i].gearboxUnstakeHook);
 
+            // Initialize corresponding hook names for scalability
+            globalMerkleHookNames = new string[](5);
+            globalMerkleHookNames[0] = "APPROVE_AND_REDEEM_4626_VAULT_HOOK";
+            globalMerkleHookNames[1] = "APPROVE_AND_DEPOSIT_4626_VAULT_HOOK";
+            globalMerkleHookNames[2] = "REDEEM_4626_VAULT_HOOK";
+            globalMerkleHookNames[3] = "APPROVE_AND_GEARBOX_STAKE_HOOK";
+            globalMerkleHookNames[4] = "GEARBOX_UNSTAKE_HOOK";
+
             if (chainIds[i] == ETH) {
                 /// @dev set any new sv addresses here
                 address aggregator = _getContract(ETH, SUPER_VAULT_AGGREGATOR_KEY);
@@ -1258,16 +1267,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                     ),
                     aggregator
                 );
-                _generateMerkleTree(ETH);
             }
         }
 
         return A;
     }
 
-    /**
-     * @notice Generate Merkle tree with the global hook addresses and optional strategy addresses
-     */
+    /*
     function _generateMerkleTree(uint64 chainid) internal {
         console2.log("\n[DEBUG] Starting _generateMerkleTree for chainid:", chainid);
 
@@ -1352,11 +1358,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         } else {
             // Log details to stderr from the script will provide more context on failure.
             console2.log(
-                "[WARN] update-lists.js indicated failure or no changes made. Merkle tree not regenerated. Check stderr for details from script."
+    "[WARN] update-lists.js indicated failure or no changes made. Merkle tree not regenerated. Check stderr for details
+    from script."
             );
             if (bytes(outputStr).length == 0) {
                 console2.log(
-                    "[WARN] update-lists.js produced empty output (FFI call might have failed before script execution)."
+    "[WARN] update-lists.js produced empty output (FFI call might have failed before script execution)."
                 );
             }
             // revert("Failed to update token/yield lists.");
@@ -1383,14 +1390,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         _executeVaultListUpdateScript(cmd, chainId_);
     }
 
-    /**
-     * @notice Updates vault information in JSON files for multiple vaults and regenerates the Merkle tree if
-     * successful.
-     * @dev Calls the `update-lists.js` script via FFI to perform the update.
-     * @param vaultNames_ An array of names (symbols) of the vaults to add.
-     * @param vaultAddresses_ An array of addresses of the vaults to add.
-     * @param chainId_ The chain ID for which to add the vaults and regenerate the tree.
-     */
+
     function _updateAndRegenerateMerkleTreeBatch(
         string[] memory vaultNames_,
         address[] memory vaultAddresses_,
@@ -1398,7 +1398,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     )
         internal
     {
-        require(vaultNames_.length == vaultAddresses_.length, "Vault names and addresses array lengths must match.");
+    require(vaultNames_.length == vaultAddresses_.length, "Vault names and addresses array lengths must match.");
 
         uint256 numVaults = vaultNames_.length;
         string memory chainIdStr = vm.toString(chainId_);
@@ -1417,6 +1417,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         _executeVaultListUpdateScript(cmd, chainId_);
     }
+
+    */
 
     function _configureGovernor() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {

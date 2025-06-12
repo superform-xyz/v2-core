@@ -14,7 +14,28 @@ endif
 deploy-poc:
 	forge script script/PoC/Deploy.s.sol --broadcast --legacy --multi --verify
 
-build :; forge build && $(MAKE) generate
+build :; $(MAKE) ensure-merkle-cache && forge build && $(MAKE) generate
+
+forge-script :; forge script $(SCRIPT) $(ARGS)
+
+forge-test :; $(MAKE) ensure-merkle-cache && forge test --match-path $(TEST) $(ARGS)
+
+# Internal forge-test without merkle cache check (used by cache generation)
+forge-test-internal :; forge test --match-path $(TEST) $(ARGS)
+
+# Ensure merkle cache is up to date before running tests/builds
+ensure-merkle-cache:
+	@echo "🌲 Checking merkle cache..."
+	@cd test/utils/merkle/merkle-js && node deterministic-merkle-pregeneration.js
+
+# Force regenerate merkle cache
+regenerate-merkle-cache:
+	@echo "🌲 Force regenerating merkle cache..."
+	@cd test/utils/merkle/merkle-js && node deterministic-merkle-pregeneration.js --force
+
+# Check merkle cache status
+merkle-status:
+	@cd test/utils/merkle/merkle-js && node deterministic-merkle-pregeneration.js --status
 
 ftest :; forge test
 
@@ -22,7 +43,7 @@ ftest-vvv :; forge test -v --jobs 2
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_Build_Native -vvv --jobs 10
+test-vvv :; forge test --match-contract ECDSAPPSOracleTest -vvv --jobs 10
 
 test-integration :; forge test --match-test test_ShouldExecuteAll_AndLockAssetsInVaultBank -vvv --jobs 10
 

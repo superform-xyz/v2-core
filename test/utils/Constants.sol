@@ -37,7 +37,7 @@ abstract contract Constants {
     uint256 public constant OP_BLOCK = 132_481_010;
     uint256 public constant BASE_BLOCK = 26_885_730;
 
-    uint256 public constant ACCOUNT_COUNT = 30; //should be divisible by 2
+    uint256 public constant ACCOUNT_COUNT = 4; //should be divisible by 2
 
     address public constant ENTRYPOINT_ADDR = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
 
