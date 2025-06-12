@@ -75,6 +75,10 @@ interface ISuperExecutor {
     /// @dev Ensures operations only proceed when proper compensation can be provided
     error INSUFFICIENT_BALANCE_FOR_FEE();
 
+    /// @notice Thrown when a malicious hook is detected
+    /// @dev Used to prevent unauthorized or malicious hooks from compromising the system
+    error MALICIOUS_HOOK_DETECTED();
+
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
