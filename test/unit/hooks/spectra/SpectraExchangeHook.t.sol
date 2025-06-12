@@ -100,9 +100,9 @@ contract SpectraExchangeHookTest is Helpers {
 
         Execution[] memory executions = hook.build(address(0), account, data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(router));
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(router));
+        assertEq(executions[1].value, 0);
     }
 
     function test_DepositAssetInPT_Inspector() public view {
@@ -145,9 +145,9 @@ contract SpectraExchangeHookTest is Helpers {
 
         Execution[] memory executions = hook.build(address(0), account, data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(router));
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(router));
+        assertEq(executions[1].value, 0);
     }
 
     function test_DepositAssetInIBT_Inspector() public view {
@@ -214,9 +214,9 @@ contract SpectraExchangeHookTest is Helpers {
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(router));
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(router));
+        assertEq(executions[1].value, 0);
     }
 
     function test_Build_RevertIf_InvalidPT() public {
@@ -373,9 +373,9 @@ contract SpectraExchangeHookTest is Helpers {
 
         Execution[] memory executions = hook.build(address(0), account, data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(router));
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(router));
+        assertEq(executions[1].value, 0);
     }
 
     function test_Build_RevertIf_InvalidDeadline() public {

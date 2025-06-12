@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 // Superform
+
 import { SuperOracleBase } from "./SuperOracleBase.sol";
 import { ISuperOracleL2 } from "../interfaces/oracles/ISuperOracleL2.sol";
 
