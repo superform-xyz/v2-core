@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {ISuperExecutor} from "../../src/core/interfaces/ISuperExecutor.sol";
-import {IStandardizedYield} from "../../src/vendor/pendle/IStandardizedYield.sol";
-import {IERC7540} from "../../src/vendor/vaults/7540/IERC7540.sol";
-import {UserOpData} from "modulekit/ModuleKit.sol";
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {MinimalBaseIntegrationTest} from "./MinimalBaseIntegrationTest.t.sol";
-import {Deposit5115VaultHook} from "../../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
-import {RequestDeposit7540VaultHook} from "../../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
-import {Redeem5115VaultHook} from "../../../../src/core/hooks/vaults/5115/Redeem5115VaultHook.sol";
+import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { IStandardizedYield } from "../../src/vendor/pendle/IStandardizedYield.sol";
+import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
+import { UserOpData } from "modulekit/ModuleKit.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
+import { Deposit5115VaultHook } from "../../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
+import { RequestDeposit7540VaultHook } from "../../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
+import { Redeem5115VaultHook } from "../../src/core/hooks/vaults/5115/Redeem5115VaultHook.sol";
 import "forge-std/console2.sol";
 
 interface IRoot {
@@ -70,7 +70,7 @@ contract Redeem5115VaultBugTest is MinimalBaseIntegrationTest {
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
         vm.expectEmit(true, true, true, false);
@@ -87,10 +87,16 @@ contract Redeem5115VaultBugTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksDataRedeem = new bytes[](1);
         hooksAddressesRedeem[0] = address(new Redeem5115VaultHook());
         hooksDataRedeem[0] = _create5115RedeemHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(vaultInstance5115ETH), underlyingETH_sUSDe, amountPerVault, 0, false
+            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            address(vaultInstance5115ETH),
+            underlyingETH_sUSDe,
+            amountPerVault,
+            0,
+            false
         );
 
-        ISuperExecutor.ExecutorEntry memory entryRedeem = ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddressesRedeem, hooksData: hooksDataRedeem});
+        ISuperExecutor.ExecutorEntry memory entryRedeem =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddressesRedeem, hooksData: hooksDataRedeem });
         UserOpData memory userOpDataRedeem = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryRedeem));
         executeOp(userOpDataRedeem);
 
