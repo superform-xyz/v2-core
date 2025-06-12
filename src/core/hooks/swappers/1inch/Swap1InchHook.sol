@@ -54,12 +54,13 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address,
         bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)

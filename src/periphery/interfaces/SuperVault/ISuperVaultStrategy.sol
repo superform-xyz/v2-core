@@ -196,10 +196,18 @@ interface ISuperVaultStrategy {
 
     /// @notice Handles asynchronous redeem operations initiated by the Vault.
     /// @param controller Controller address for the redeem operation.
+    /// @param receiver Receiver address for the redeem operation.
     /// @param assets For Redeem Request: Ignored. For Claim Redeem: assets amount. For Cancel: Ignored.
     /// @param shares For Redeem Request: shares amount. For Claim Redeem: Ignored. For Cancel: Ignored.
     /// @param operation The type of redeem operation (RedeemRequest, CancelRedeem, ClaimRedeem).
-    function handleOperation(address controller, uint256 assets, uint256 shares, Operation operation) external;
+    function handleOperation(
+        address controller,
+        address receiver,
+        uint256 assets,
+        uint256 shares,
+        Operation operation
+    )
+        external;
 
     /*//////////////////////////////////////////////////////////////
                 STRATEGIST EXTERNAL ACCESS FUNCTIONS
@@ -257,6 +265,14 @@ interface ISuperVaultStrategy {
     function manageEmergencyWithdraw(uint8 action, address recipient, uint256 amount) external;
 
     /*//////////////////////////////////////////////////////////////
+                        ACCOUNTING MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Update the controller for the given state
+    /// @param controller The new controller address
+    /// @param state The super vault state
+    function updateSuperVaultState(address controller, SuperVaultState memory state) external;
+
+    /*//////////////////////////////////////////////////////////////
                             VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -283,6 +299,11 @@ interface ISuperVaultStrategy {
     /// @param controller The controller address
     /// @return averageWithdrawPrice The average withdraw price
     function getAverageWithdrawPrice(address controller) external view returns (uint256 averageWithdrawPrice);
+
+    /// @notice Get the super vault state for a controller
+    /// @param controller The controller address
+    /// @return state The super vault state
+    function getSuperVaultState(address controller) external view returns (SuperVaultState memory state);
 
     /// @notice Previews the fee that would be taken for redeeming a specific amount of shares
     /// @param controller The address of the controller requesting the redemption
