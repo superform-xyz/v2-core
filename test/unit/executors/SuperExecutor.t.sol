@@ -10,8 +10,10 @@ import {SuperExecutor} from "../../../src/core/executors/SuperExecutor.sol";
 import {SuperDestinationExecutor} from "../../../src/core/executors/SuperDestinationExecutor.sol";
 import {SuperDestinationValidator} from "../../../src/core/validators/SuperDestinationValidator.sol";
 import {SuperValidatorBase} from "../../../src/core/validators/SuperValidatorBase.sol";
+import {FluidClaimRewardHook} from "../../../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
 import {MaliciousToken} from "../../mocks/MaliciousToken.sol";
 import {MockERC20} from "../../mocks/MockERC20.sol";
+import {MockStakingRewards} from "../../mocks/MockStakingRewards.sol";
 import {MockHook} from "../../mocks/MockHook.sol";
 import {MockNexusFactory} from "../../mocks/MockNexusFactory.sol";
 import {MockLedger, MockLedgerConfiguration} from "../../mocks/MockLedger.sol";
@@ -341,6 +343,40 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.expectRevert(ISuperExecutor.INVALID_CHAIN_ID.selector);
         superSourceExecutor.execute(abi.encode(entry));
         vm.stopPrank();
+    }
+
+    function test_claimTokenAvoidFee() public {
+        address[] memory hooksAddresses = new address[](1);
+        bytes[] memory hooksData = new bytes[](1);
+
+        MockERC20 _mockToken = new MockERC20("Mock Token", "MTK", 18);
+        address rewardToken = address(_mockToken);
+        FluidClaimRewardHook hook = new FluidClaimRewardHook();
+        hook = new FluidClaimRewardHook();
+        address stakingRewards = address(new MockStakingRewards(rewardToken));
+
+        MockERC20(rewardToken).mint(stakingRewards, 1e18);
+
+        address wrong_RewardToken = address(
+            new MockERC20("Wrong Token", "FRT", 18)
+        );
+
+        hooksAddresses[0] = address(hook);
+        hooksData[0] = abi.encodePacked(stakingRewards, wrong_RewardToken, account);
+
+        vm.startPrank(account);
+        uint initBal = MockERC20(rewardToken).balanceOf(account);
+        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor
+            .ExecutorEntry({
+                hooksAddresses: hooksAddresses,
+                hooksData: hooksData
+            });
+
+        superDestinationExecutor.execute(abi.encode(entry));
+
+        uint amountReceived = MockERC20(rewardToken).balanceOf(account) - initBal;
+        vm.assertEq(amountReceived, 1e18);
+        vm.assertEq(FluidClaimRewardHook(hook).outAmount(), 0);
     }
 
     // ---------------- DESTINATION EXECUTOR ------------------
