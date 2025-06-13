@@ -373,7 +373,7 @@ contract CrosschainTests is BaseTest {
     /*//////////////////////////////////////////////////////////////
                           FULL FLOW TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_ETH_Bridge_With_Debridge_And_Deposit() public executeWithoutHookRestrictions {
+    function test_ETH_Bridge_With_Debridge_And_Deposit() public   {
         uint256 amountPerVault = 1e8;
 
         // ETH IS DST
@@ -476,12 +476,12 @@ contract CrosschainTests is BaseTest {
         assertNotEq(pricePerShare, 1);
     }
 
-    function test_ETH_Bridge_Deposit_Redeem_Bridge_Back_Flow() public executeWithoutHookRestrictions {
+    function test_ETH_Bridge_Deposit_Redeem_Bridge_Back_Flow() public   {
         test_Bridge_To_ETH_And_Deposit();
         _redeem_From_ETH_And_Bridge_Back_To_Base(true);
     }
 
-    function test_ETH_Bridge_Deposit_Partial_Redeem_Bridge_Flow() public executeWithoutHookRestrictions {
+    function test_ETH_Bridge_Deposit_Partial_Redeem_Bridge_Flow() public   {
         test_Bridge_To_ETH_And_Deposit();
         _redeem_From_ETH_And_Bridge_Back_To_Base(false);
     }
@@ -491,12 +491,12 @@ contract CrosschainTests is BaseTest {
         _warped_Redeem_From_ETH_And_Bridge_Back_To_Base();
     }
 
-    function test_OP_Bridge_Deposit_Redeem_Flow() public executeWithoutHookRestrictions {
+    function test_OP_Bridge_Deposit_Redeem_Flow() public   {
         test_bridge_To_OP_And_Deposit();
         _redeem_From_OP();
     }
 
-    function test_OP_Bridge_Deposit_Redeem_Bridge_Back_Flow() public executeWithoutHookRestrictions {
+    function test_OP_Bridge_Deposit_Redeem_Bridge_Back_Flow() public   {
         test_bridge_To_OP_And_Deposit();
         _redeem_From_OP_And_Bridge_Back_To_Base();
     }

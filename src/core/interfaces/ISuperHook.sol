@@ -159,13 +159,6 @@ interface ISuperHookLoans is ISuperHookContextAware {
     /// @param data The hook-specific data containing collateral parameters
     /// @return The amount of tokens currently used as collateral
     function getCollateralTokenBalance(address account, bytes memory data) external view returns (uint256);
-
-    /// @notice Gets the amount of assets used in the loan operation
-    /// @dev Used for accounting and tracking of asset usage
-    /// @param account The account to check
-    /// @param data The hook-specific data
-    /// @return The amount of assets used
-    function getUsedAssets(address account, bytes memory data) external view returns (uint256);
 }
 
 /// @title ISuperHookAsyncCancelations
@@ -218,7 +211,7 @@ interface ISuperHook {
     /// @param account The account to perform executions for (usually an ERC7579 account)
     /// @param data The hook-specific parameters and configuration data
     /// @return executions Array of Execution structs defining calls to make
-    function build(address prevHook, address account, bytes memory data)
+    function build(address prevHook, address account, bytes calldata data)
         external
         view
         returns (Execution[] memory executions);
@@ -247,4 +240,11 @@ interface ISuperHook {
     ///      For example, a hook might be of type INFLOW but subtype VAULT_DEPOSIT
     /// @return A bytes32 identifier for the specific hook functionality
     function subtype() external view returns (bytes32);
+
+    /// @notice Resets hook mutexes
+    function resetExecutionState() external;
+
+    /// @notice Sets the caller address that initiated the execution
+    /// @dev Used for security validation between preExecute and postExecute calls
+    function setCaller() external;
 }

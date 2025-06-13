@@ -54,13 +54,13 @@ contract PendleRouterRedeemHookTest is Helpers {
             _createRedeemData(amount, address(ytToken), address(ptToken), address(tokenOut), minTokenOut, false);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 3);
-        assertEq(executions[0].target, address(ptToken));
-        assertEq(executions[0].value, 0);
-        assertEq(executions[1].target, address(ytToken));
+        assertEq(executions.length, 5);
+        assertEq(executions[1].target, address(ptToken));
         assertEq(executions[1].value, 0);
-        assertEq(executions[2].target, address(pendleRouter));
+        assertEq(executions[2].target, address(ytToken));
         assertEq(executions[2].value, 0);
+        assertEq(executions[3].target, address(pendleRouter));
+        assertEq(executions[3].value, 0);
 
         SwapData memory swapData =
             SwapData({swapType: SwapType.ODOS, extRouter: address(0), extCalldata: "", needScale: false});
@@ -79,7 +79,7 @@ contract PendleRouterRedeemHookTest is Helpers {
                 swapData: swapData
             })
         );
-        assertEq(executions[2].callData, expectedCallData);
+        assertEq(executions[3].callData, expectedCallData);
     }
 
     function test_Build_WithPrevHookAmount() public {
@@ -89,7 +89,7 @@ contract PendleRouterRedeemHookTest is Helpers {
         prevHook.setOutAmount(2500); // Set a different amount in the previous hook
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 3);
+        assertEq(executions.length, 5);
 
         SwapData memory swapData =
             SwapData({swapType: SwapType.ODOS, extRouter: address(0), extCalldata: "", needScale: false});
@@ -109,7 +109,7 @@ contract PendleRouterRedeemHookTest is Helpers {
             })
         );
 
-        assertEq(executions[2].callData, expectedCallData);
+        assertEq(executions[3].callData, expectedCallData);
     }
 
     function test_Inspect() public view {
