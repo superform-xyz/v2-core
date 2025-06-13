@@ -220,7 +220,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         uint256 feeReceiverBalanceBefore = IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient);
 
         // prepare data & execute through entry point
-        _executeThroughEntrypoint(nexusAccount, entry);
+        _executeThroughEntrypointWithMaliciousHook(nexusAccount, entry);
 
         // Ensure fee obtained is 0
         assertEq(IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient) - feeReceiverBalanceBefore, 0);
