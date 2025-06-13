@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 import {Helpers} from "../../../../utils/Helpers.sol";
 import {MockERC20} from "../../../../mocks/MockERC20.sol";
+import {Mock4626Vault} from "../../../../mocks/Mock4626Vault.sol";
 import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
 import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
 import {MockHook} from "../../../../mocks/MockHook.sol";
@@ -179,6 +180,24 @@ contract EthenaHooksTests is Helpers {
         assertEq(unstakeHook.outAmount(), 0);
     }
 
+    function test_EthenaUnstakeHook_PreExecute_SpToken() public {
+        // Create a mock yield source token and asset token
+        MockERC20 assetToken = new MockERC20("Asset Token", "AT", 18);
+        
+        // Setup the yield source to return the asset token when asset() is called
+        Mock4626Vault mockYieldSource = new Mock4626Vault(address(assetToken), "Mock Yield Source", "MYS");
+        
+        // Ensure we have the necessary tokens
+        _getTokens(address(mockYieldSource), address(this), amount);
+        
+        // Call preExecute
+        bytes memory data = _encodeUnstakeData(address(mockYieldSource));
+        unstakeHook.preExecute(address(0), address(this), data);
+        
+        // Verify that spToken is correctly set to the asset token
+        assertEq(unstakeHook.spToken(), address(assetToken), "spToken should be set to the asset of the yield source");
+    }
+
     /*//////////////////////////////////////////////////////////////
                      GET USED ASSETS OR SHARES TESTS
     //////////////////////////////////////////////////////////////*/
@@ -222,6 +241,10 @@ contract EthenaHooksTests is Helpers {
 
     function _encodeUnstakeData() internal view returns (bytes memory) {
         return abi.encodePacked(yieldSourceOracleId, address(yieldSource), amount, false, address(0), uint256(1));
+    }
+
+    function _encodeUnstakeData(address customYieldSource) internal view returns (bytes memory) {
+        return abi.encodePacked(yieldSourceOracleId, customYieldSource, amount, false, address(0), uint256(1));
     }
 
     function _encodeUnstakeDataWithZeroYieldSource() internal view returns (bytes memory) {
