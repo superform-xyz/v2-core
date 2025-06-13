@@ -86,7 +86,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         executeOp(userOpData);
     }
 
-    function test_ShareBalanceMiscalculated() public {
+    function test_ShareBalance_NotMiscalculated() public {
         uint256 amount = IERC20(underlyingEth_USDC).balanceOf(accountEth);
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = approveAndDeposit4626Hook;
