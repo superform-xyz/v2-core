@@ -1521,4 +1521,125 @@ contract LedgerTests is Helpers {
             costBasis, (amountAssets1 + amountAssets2) / 2, "Cost basis calculation incorrect for multiple inflows"
         );
     }
+
+    function test_YieldSourceOracleConfigSet_EventFields() public {
+        bytes4 oracleId = bytes4(keccak256("testFieldOrder"));
+        address oracle = address(0xABCD);
+        uint256 feePercent = 1000; // 10%
+        address feeRecipient = address(0xDEF0);
+        address ledger = address(superLedger);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+
+        vm.expectEmit(true, true, true, true);
+        emit ISuperLedgerConfiguration.YieldSourceOracleConfigSet(
+            oracleId,     
+            oracle,       
+            feePercent,   
+            feeRecipient, 
+            address(this),
+            ledger        
+        );
+        config.setYieldSourceOracles(configs);
+    }
+
+    function test_YieldSourceOracleConfigProposalSet_EventFields() public {
+        bytes4 oracleId = bytes4(keccak256("testFieldOrder"));
+        address oracle = address(0xABCD);
+        uint256 feePercent = 1000; 
+        address feeRecipient = address(0xDEF0);
+        address ledger = address(superLedger);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+        config.setYieldSourceOracles(configs);
+
+        address newOracle = address(0x1234);
+        uint256 newFeePercent = 1500; 
+        address newFeeRecipient = address(0x5678);
+        address newLedger = address(flatFeeLedger);
+
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: newOracle,
+            feePercent: newFeePercent,
+            feeRecipient: newFeeRecipient,
+            ledger: newLedger
+        });
+
+        vm.expectEmit(true, true, true, true);
+        emit ISuperLedgerConfiguration.YieldSourceOracleConfigProposalSet(
+            oracleId,       
+            newOracle,      
+            newFeePercent,  
+            newFeeRecipient,
+            address(this),  
+            newLedger       
+        );
+        config.proposeYieldSourceOracleConfig(configs);
+    }
+
+    function test_YieldSourceOracleConfigAccepted_EventFields() public {
+        bytes4 oracleId = bytes4(keccak256("testFieldOrder"));
+        address oracle = address(0xABCD);
+        uint256 feePercent = 1000; // 10%
+        address feeRecipient = address(0xDEF0);
+        address ledger = address(superLedger);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+        config.setYieldSourceOracles(configs);
+
+        address newOracle = address(0x1234);
+        uint256 newFeePercent = 1500; 
+        address newFeeRecipient = address(0x5678);
+        address newLedger = address(flatFeeLedger);
+
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: newOracle,
+            feePercent: newFeePercent,
+            feeRecipient: newFeeRecipient,
+            ledger: newLedger
+        });
+        config.proposeYieldSourceOracleConfig(configs);
+
+        vm.warp(block.timestamp + 1 weeks + 1);
+
+        bytes4[] memory oracleIds = new bytes4[](1);
+        oracleIds[0] = oracleId;
+
+        vm.expectEmit(true, true, true, true);
+        emit ISuperLedgerConfiguration.YieldSourceOracleConfigAccepted(
+            oracleId,       
+            newOracle,      
+            newFeePercent,  
+            newFeeRecipient,
+            address(this),  
+            newLedger       
+        );
+        config.acceptYieldSourceOracleConfigProposal(oracleIds);
+    }
 }
