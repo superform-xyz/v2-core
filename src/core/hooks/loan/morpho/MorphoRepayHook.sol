@@ -127,15 +127,6 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
             Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
     }
 
-    /// @inheritdoc ISuperHookLoans
-    function getUsedAssets(address, bytes memory data) external view returns (uint256) {
-        BuildHookLocalVars memory vars = _decodeHookData(data);
-        uint256 amountInCollateral = deriveCollateralAmountFromLoanAmount(vars.oracle, outAmount);
-        MarketParams memory marketParams =
-            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
-        return amountInCollateral + deriveFeeAmount(marketParams);
-    }
-
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
         BuildHookLocalVars memory vars = _decodeHookData(data);
@@ -153,6 +144,14 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     //////////////////////////////////////////////////////////////*/
     function deriveShareBalance(Id id, address account) public view returns (uint128 borrowShares) {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
+    }
+    
+    function getUsedAssets(address, bytes memory data) external view returns (uint256) {
+        BuildHookLocalVars memory vars = _decodeHookData(data);
+        uint256 amountInCollateral = deriveCollateralAmountFromLoanAmount(vars.oracle, outAmount);
+        MarketParams memory marketParams =
+            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+        return amountInCollateral + deriveFeeAmount(marketParams);
     }
 
     function deriveCollateralAmountFromLoanAmount(
