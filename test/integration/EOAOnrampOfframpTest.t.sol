@@ -117,8 +117,6 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
         executeOp(userOpData);
-        return;
-
 
         assertEq(IERC20(usdc).balanceOf(accountEth), usdcBalanceBefore + 1e18);
         assertEq(IERC20(weth).balanceOf(accountEth), wethBalanceBefore + 1e18);
@@ -155,7 +153,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         address[] memory permitTokens,
         uint256[] memory permitAmounts,
         uint48 expiration,
-        uint48[] memory nonces
+        uint48[] memory _nonces
     ) internal view returns (IAllowanceTransfer.PermitBatch memory) {
         IAllowanceTransfer.PermitDetails[] memory details = new IAllowanceTransfer.PermitDetails[](permitTokens.length);
 
@@ -164,7 +162,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
                 token: permitTokens[i],
                 amount: uint160(permitAmounts[i]),
                 expiration: expiration,
-                nonce: nonces[i]
+                nonce: _nonces[i]
             });
         }
 

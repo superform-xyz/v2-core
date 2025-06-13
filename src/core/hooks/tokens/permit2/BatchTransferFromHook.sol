@@ -19,12 +19,12 @@ import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice     address from = BytesLib.toAddress(data, 0);
-/// @notice     uint256 amountTokens = BytesLib.toUint256(data, 20);
+/// @notice     uint256 tokensLength = BytesLib.toUint256(data, 20);
 /// @notice     uint256 sigDeadline = BytesLib.toUint256(data, 52);
-/// @notice     address[] tokens = BytesLib.slice(data, 84, 20 * amountTokens);
-/// @notice     uint256[] amounts = BytesLib.slice(data, 84 + 20 * amountTokens, 32 * amountTokens);
-/// @notice     uint48[] nonces = BytesLib.slice(data, 84 + 20 * amountTokens + 32 * amountTokens, 48 * amountTokens);
-/// @notice     bytes signature = BytesLib.slice(data, 84 + 20 * amountTokens + 32 * amountTokens + 48 * amountTokens, 65);
+/// @notice     bytes tokens = BytesLib.slice(data, 84, 20 * tokensLength);
+/// @notice     bytes amounts = BytesLib.slice(data, 84 + 20 * tokensLength, 32 * tokensLength);
+/// @notice     bytes nonces = BytesLib.slice(data, 84 + 20 * tokensLength + 32 * tokensLength, 48 * tokensLength);
+/// @notice     bytes signature = BytesLib.slice(data, 84 + 20 * tokensLength + 32 * tokensLength + 48 * tokensLength, 65);
 contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
     using SafeCast for uint256;
 
@@ -62,15 +62,15 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
         address from = BytesLib.toAddress(data, 0);
         if (from == address(0)) revert ADDRESS_NOT_VALID();
 
-        uint256 amountTokens = BytesLib.toUint256(data, 20);
-        if (amountTokens == 0) revert INVALID_ARRAY_LENGTH();
+        uint256 tokensLength = BytesLib.toUint256(data, 20);
+        if (tokensLength == 0) revert INVALID_ARRAY_LENGTH();
 
         uint256 sigDeadline = BytesLib.toUint256(data, 52);
 
         // Extract tokens and amounts as raw bytes
-        bytes memory tokensData = BytesLib.slice(data, 84, 20 * amountTokens);
-        bytes memory amountsData = BytesLib.slice(data, 84 + (20 * amountTokens), 32 * amountTokens);
-        bytes memory noncesData = BytesLib.slice(data, 84 + (20 * amountTokens) + (32 * amountTokens), 6 * amountTokens); 
+        bytes memory tokensData = BytesLib.slice(data, 84, 20 * tokensLength);
+        bytes memory amountsData = BytesLib.slice(data, 84 + (20 * tokensLength), 32 * tokensLength);
+        bytes memory noncesData = BytesLib.slice(data, 84 + (20 * tokensLength) + (32 * tokensLength), 6 * tokensLength); 
 
         bytes memory signature = BytesLib.slice(data, data.length - 65, 65);
 
@@ -79,9 +79,9 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
 
         // First execution: Create a batch permit call
         // Create PermitBatch structure
-        IAllowanceTransfer.PermitDetails[] memory details = new IAllowanceTransfer.PermitDetails[](amountTokens);
+        IAllowanceTransfer.PermitDetails[] memory details = new IAllowanceTransfer.PermitDetails[](tokensLength);
 
-        for (uint256 i; i < amountTokens; i++) {
+        for (uint256 i; i < tokensLength; i++) {
             address token = BytesLib.toAddress(tokensData, i * 20);
             uint256 amount = BytesLib.toUint256(amountsData, i * 32);
             bytes memory nonceSlice = BytesLib.slice(noncesData, i * 6, 6);
@@ -108,7 +108,7 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
 
         // Second execution: Create a batch transferFrom call
         IAllowanceTransfer.AllowanceTransferDetails[] memory transferDetails =
-            _createAllowanceTransferDetails(from, account, tokensData, amountsData, amountTokens);
+            _createAllowanceTransferDetails(from, account, tokensData, amountsData, tokensLength);
 
         // Use IPermit2Batch.transferFrom selector which takes AllowanceTransferDetails[] as parameter
         bytes memory transferCallData = abi.encodeCall(IPermit2Batch.transferFrom, (transferDetails));
@@ -120,14 +120,14 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
-        uint256 amountTokens = BytesLib.toUint256(data, 20);
-        bytes memory tokensData = BytesLib.slice(data, 84, 20 * amountTokens);
-        address[] memory tokens = new address[](amountTokens);
-        for (uint256 i; i < amountTokens; i++) {
+        uint256 tokensLength = BytesLib.toUint256(data, 20);
+        bytes memory tokensData = BytesLib.slice(data, 84, 20 * tokensLength);
+        address[] memory tokens = new address[](tokensLength);
+        for (uint256 i; i < tokensLength; i++) {
             tokens[i] = BytesLib.toAddress(tokensData, i * 20);
         }
         bytes memory packed = abi.encodePacked(BytesLib.toAddress(data, 0)); //from
-        for (uint256 i; i < amountTokens; ++i) {
+        for (uint256 i; i < tokensLength; ++i) {
             packed = abi.encodePacked(packed, tokens[i]);
         }
         return packed;
