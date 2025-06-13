@@ -2,15 +2,15 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IOdosRouterV2} from "../../../../vendor/odos/IOdosRouterV2.sol";
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IOdosRouterV2 } from "../../../../vendor/odos/IOdosRouterV2.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ApproveAndSwapOdosHook
 /// @author Superform Labs
@@ -31,7 +31,7 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookI
     IOdosRouterV2 public immutable odosRouterV2;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
-    
+
     struct HookParams {
         address inputToken;
         uint256 inputAmount;
@@ -49,7 +49,11 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookI
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function _buildHookExecutions(address prevHook, address account, bytes calldata data)
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
         internal
         view
         override
@@ -72,7 +76,7 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookI
 
         params.approveSpender = address(odosRouterV2);
 
-        executions = new Execution[](4) ;
+        executions = new Execution[](4);
         executions[0] = Execution({
             target: params.inputToken,
             value: 0,
@@ -100,7 +104,6 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookI
             callData: abi.encodeCall(IERC20.approve, (params.approveSpender, 0))
         });
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -149,7 +152,11 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookI
         return IERC20(outputToken).balanceOf(account);
     }
 
-    function _getSwapInfo(address account, address prevHook, bytes memory data)
+    function _getSwapInfo(
+        address account,
+        address prevHook,
+        bytes memory data
+    )
         private
         view
         returns (IOdosRouterV2.swapTokenInfo memory)
