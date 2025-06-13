@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
+import { Vm } from "forge-std/Vm.sol";
 // external
 import { Execution } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import "modulekit/accounts/common/lib/ModeLib.sol";
@@ -17,6 +18,7 @@ import { BootstrapConfig, INexusBootstrap } from "../../src/vendor/nexus/INexusB
 import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
 
 // Superform
+
 import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { SuperMerkleValidator } from "../../src/core/validators/SuperMerkleValidator.sol";
@@ -32,6 +34,8 @@ import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.
 import { ApproveERC20Hook } from "../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { Deposit4626VaultHook } from "../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
 import { Redeem4626VaultHook } from "../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
+
+import { ERC4337Helpers } from "modulekit/test/utils/ERC4337Helpers.sol";
 
 abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, InternalHelpers {
     SuperMerkleValidator public superMerkleValidator;
@@ -188,7 +192,15 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = userOp;
+
+        // Record logs before execution for error detection
+        vm.recordLogs();
+
+        // Execute the user operation
         IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(userOps, payable(account));
+
+        // Check logs for failed UserOperations
+        _checkUserOperationResults();
     }
 
     function _prepareExecutionCalldata(Execution[] memory executions)
@@ -255,6 +267,56 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrvKey, ethSignedMessageHash);
         return abi.encodePacked(r, s, v);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                        ERROR DETECTION METHODS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @dev Custom error for UserOperation failures
+    error UserOperationReverted(bytes32 userOpHash, address sender, uint256 nonce, bytes revertReason);
+
+    /// @dev Check logs for failed UserOperations and revert with detailed error info
+    function _checkUserOperationResults() internal {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        for (uint256 i; i < logs.length; i++) {
+            // Check for UserOperationEvent (topic:
+            // keccak256("UserOperationEvent(bytes32,address,address,uint256,bool,uint256,uint256)"))
+            if (logs[i].topics[0] == 0x49628fd1471006c1482da88028e9ce4dbb080b815c9b0344d39e5a8e6ec1419f) {
+                (uint256 nonce, bool userOpSuccess,,) = abi.decode(logs[i].data, (uint256, bool, uint256, uint256));
+
+                if (!userOpSuccess) {
+                    bytes32 userOpHash = logs[i].topics[1];
+                    address account = address(bytes20(logs[i].topics[2]));
+                    bytes memory revertReason = _getUserOpRevertReason(logs, userOpHash);
+
+                    revert UserOperationReverted(userOpHash, account, nonce, revertReason);
+                }
+            }
+        }
+    }
+
+    /// @dev Extract revert reason from logs for a specific UserOperation
+    function _getUserOpRevertReason(
+        Vm.Log[] memory logs,
+        bytes32 userOpHash
+    )
+        internal
+        pure
+        returns (bytes memory revertReason)
+    {
+        for (uint256 i; i < logs.length; i++) {
+            // Check for UserOperationRevertReason event (topic:
+            // keccak256("UserOperationRevertReason(bytes32,address,uint256,bytes)"))
+            if (
+                logs[i].topics[0] == 0x1c4fada7374c0a9ee8841fc38afe82932dc0f8e69012e927f061a8bae611a201
+                    && logs[i].topics[1] == userOpHash
+            ) {
+                (, revertReason) = abi.decode(logs[i].data, (uint256, bytes));
+                break;
+            }
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
