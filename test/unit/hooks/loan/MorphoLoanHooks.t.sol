@@ -664,8 +664,6 @@ contract MorphoLoanHooksTest is Helpers {
 
         // Assert that even for a 1 ETH repay, the hook demands more than 1 ETH
         assertGt(totalHook, userAmount, "hook over-charges beyond user debt");
-        console.log("TotalHook:", totalHook);
-        console.log("UserAmount:"userAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
