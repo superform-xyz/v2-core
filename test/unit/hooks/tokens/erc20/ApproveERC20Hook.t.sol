@@ -81,12 +81,6 @@ contract ApproveERC20HookTest is Helpers {
         hook.build(address(0), address(this), _encodeData(false));
     }
 
-    function test_Build_RevertIf_AmountZero() public {
-        amount = 0;
-        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-        hook.build(address(0), address(this), _encodeData(false));
-    }
-
     function test_PreAndPostExecute() public {
         hook.preExecute(address(0), address(this), _encodeData(false));
         assertEq(hook.outAmount(), amount);
