@@ -70,10 +70,7 @@ contract ApproveAndSwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookI
             params.inputAmount = ISuperHookResult(prevHook).outAmount();
         }
 
-        params.approveSpender = BytesLib.toAddress(data, 157);
-        if (params.approveSpender == address(0)) {
-            params.approveSpender = address(odosRouterV2);
-        }
+        params.approveSpender = address(odosRouterV2);
 
         executions = new Execution[](4) ;
         executions[0] = Execution({
