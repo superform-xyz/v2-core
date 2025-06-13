@@ -2,6 +2,7 @@
 pragma solidity 0.8.30;
 
 // external
+import "forge-std/Test.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ModuleKitHelpers, UserOpData } from "modulekit/ModuleKit.sol";
@@ -123,6 +124,8 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
+        uint256 expectedFee = ledger.previewFees(accountEth, yieldSourceAddressEth, IERC4626(yieldSourceAddressEth).convertToAssets(yieldSourceBal), yieldSourceBal, 100);
+
         executeOp(userOpData);
 
         uint256 outAmount = Redeem4626VaultHook(redeem4626Hook).outAmount();
@@ -130,14 +133,6 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         vm.assertGt(usedShares, 0);
         vm.assertGt(outAmount, 0);
 
-        uint256 costBasis = ledger.calculateCostBasisView(accountEth2, yieldSourceAddressEth, IERC4626(yieldSourceAddressEth).convertToShares(outAmount));
-
-        uint256 sharesAsAssets = IERC4626(yieldSourceAddressEth).convertToAssets(usedShares);
-
-        uint256 profit = sharesAsAssets > costBasis ? sharesAsAssets - costBasis : 0;
-
-        uint256 feeSent = profit * 100 / 10_000; //Fee amount is calculated from the total OutAmount, intead of the profit
-
-        vm.assertEq(feeSent, IERC20(underlyingEth_USDC).balanceOf(makeAddr("feeRecipient")));
+        vm.assertEq(expectedFee, IERC20(underlyingEth_USDC).balanceOf(makeAddr("feeRecipient")));
     }
 }
