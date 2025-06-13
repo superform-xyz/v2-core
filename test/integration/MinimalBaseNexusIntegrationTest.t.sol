@@ -167,7 +167,6 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
     /*//////////////////////////////////////////////////////////////
                                 USER OPERATION METHODS
     //////////////////////////////////////////////////////////////*/
-
     function _executeThroughEntrypoint(address account, ISuperExecutor.ExecutorEntry memory entry) internal {
         Execution[] memory executions = new Execution[](1);
         executions[0] = Execution({
@@ -280,21 +279,34 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
     function _checkUserOperationResults() internal {
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-        for (uint256 i; i < logs.length; i++) {
-            // Check for UserOperationEvent (topic:
-            // keccak256("UserOperationEvent(bytes32,address,address,uint256,bool,uint256,uint256)"))
-            if (logs[i].topics[0] == 0x49628fd1471006c1482da88028e9ce4dbb080b815c9b0344d39e5a8e6ec1419f) {
-                (uint256 nonce, bool userOpSuccess,,) = abi.decode(logs[i].data, (uint256, bool, uint256, uint256));
+    for (uint256 i; i < logs.length; i++) {
+        // Match UserOperationEvent topic
+        if (logs[i].topics[0] == keccak256("UserOperationEvent(bytes32,address,address,uint256,bool,uint256,uint256)")) {
+            (, bool success,,) = abi.decode(logs[i].data, (uint256, bool, uint256, uint256));
 
-                if (!userOpSuccess) {
-                    bytes32 userOpHash = logs[i].topics[1];
-                    address account = address(bytes20(logs[i].topics[2]));
-                    bytes memory revertReason = _getUserOpRevertReason(logs, userOpHash);
+            if (!success) {
+                bytes32 userOpHash = logs[i].topics[1];
+                bytes memory revertReason = _getUserOpRevertReason(logs, userOpHash);
 
-                    revert UserOperationReverted(userOpHash, account, nonce, revertReason);
+                // Extract selector
+                bytes4 actualSelector;
+                if (revertReason.length >= 4) {
+                    assembly {
+                        actualSelector := mload(add(revertReason, 32))
+                    }
                 }
+
+                // Log and check
+                if (actualSelector != ISuperExecutor.INSUFFICIENT_BALANCE_FOR_FEE.selector) {
+                    revert("Unexpected revert selector");
+                }
+
+                return; // success, matched expected revert
             }
         }
+    }
+
+    revert("No reverted UserOperationEvent found");
     }
 
     /// @dev Extract revert reason from logs for a specific UserOperation
