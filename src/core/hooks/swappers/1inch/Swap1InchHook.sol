@@ -10,6 +10,8 @@ import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
+import "forge-std/console2.sol";
+
 /// @title Swap1InchHook
 /// @author Superform Labs
 /// @dev data has the following structure
@@ -27,6 +29,8 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
     //////////////////////////////////////////////////////////////*/
     I1InchAggregationRouterV6 public immutable aggregationRouter;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
+    uint256 private constant SLIPPAGE = 5e2; //0.5%
+    uint256 private constant SLIPPAGE_PRECISION = 1e5;
 
     address constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
@@ -159,6 +163,10 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         } else {
             revert INVALID_SELECTOR();
         }
+
+        if (updatedTxData.length > 0) {
+            updatedTxData = bytes.concat(selector, updatedTxData);
+        }
     }
 
     function _validateUnoswap(
@@ -218,7 +226,12 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         }
 
         if (usePrevHookAmount) {
+            uint256 _prevAmount = amount;
             amount = ISuperHookResult(prevHook).outAmount();
+
+            if (amount != _prevAmount) {
+                minReturn = amount - ((amount * SLIPPAGE) / SLIPPAGE_PRECISION);
+            }
         }
 
         if (amount == 0) {
