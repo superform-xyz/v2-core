@@ -24,13 +24,13 @@ contract MockOracle is IOracle {
 }
 
 contract MockMorpho {
-    function market(Id) external view returns (Market memory) {
+    function market(Id) external pure returns (Market memory) {
         return Market({
             totalSupplyAssets: 100e18,
             totalSupplyShares: 10e18,
             totalBorrowAssets: 10e18,
             totalBorrowShares: 1e18,
-            lastUpdate: uint128(block.timestamp),
+            lastUpdate: 1,
             fee: 100
         });
     }
@@ -639,6 +639,33 @@ contract MorphoLoanHooksTest is Helpers {
         loanToken = address(mockCollateralToken);
         bytes memory data = _encodeRepayData(false, false);
         assertEq(repayHook.getLoanTokenBalance(address(this), data), 0);
+    }
+
+    function test_RepayHook_OverchargesPartialRepayment_ShouldFail() public {
+        // User wants to repay only 1 ETH
+        uint256 userAmount = 1 ether;
+
+        // Manually build the MarketParams the hook would use
+        MarketParams memory mp = MarketParams({
+            loanToken:       loanToken,
+            collateralToken: collateralToken,
+            oracle:          address(mockOracle),
+            irm:             address(mockIRM),
+            lltv:            lltv
+        });
+
+        // Let some interest accrue on the whole market
+        vm.warp(block.timestamp + 1 hours);
+
+        // Compute what the hook will charge
+        uint256 feeHook      = repayHook.deriveFeeAmount(mp);
+        uint256 interestHook = repayHook.deriveInterest(mp);
+        uint256 totalHook    = feeHook + interestHook;
+
+        // Assert that even for a 1 ETH repay, the hook demands more than 1 ETH
+        assertGt(totalHook, userAmount, "hook over-charges beyond user debt");
+        console.log("TotalHook:", totalHook);
+        console.log("UserAmount:"userAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
