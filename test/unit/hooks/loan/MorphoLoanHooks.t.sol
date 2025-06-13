@@ -271,7 +271,7 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeRepayData(false, false);
         vm.warp(block.timestamp + 10000);
         Execution[] memory executions = repayHook.build(address(0), address(this), data);
-        assertEq(executions.length, 4);
+        assertEq(executions.length, 6);
     }
 
     function test_RepayHook_Build_RevertIf_InvalidCollateralToken() public {
