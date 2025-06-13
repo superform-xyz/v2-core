@@ -96,6 +96,12 @@ contract Swap1InchHookTest is Helpers {
         new Swap1InchHook(address(0));
     }
 
+    function test_Build_RevertIf_CalldataInvalid() public {
+        bytes memory data = abi.encodePacked(dstToken);
+        vm.expectRevert(Swap1InchHook.INSUFFICIENT_DATA_LENGTH.selector);
+        hook.build(address(0), address(this), data);
+    }
+
     function test_decodeUsePrevHookAmount() public view {
         bytes memory hookData = _buildCurveHookData(0, false, dstReceiver, 1000, 100, false);
         assertEq(hook.decodeUsePrevHookAmount(hookData), false);
