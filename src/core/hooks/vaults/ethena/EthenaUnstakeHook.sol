@@ -11,6 +11,7 @@ import { IStakedUSDeCooldown } from "../../../../vendor/ethena/IStakedUSDeCooldo
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title EthenaUnstakeHook
@@ -18,23 +19,23 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 25);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 45);
+/// @notice         address vaultBank = BytesLib.toAddress(data, 24);
+/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 44);
 contract EthenaUnstakeHook is BaseHook, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    constructor() BaseHook(HookType.OUTFLOW, "Ethena") { }
+    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ETHENA) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address, /* prevHook */
         address account,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         pure
         override
         returns (Execution[] memory executions)
@@ -71,8 +72,8 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInspector {
         asset = IERC4626(yieldSource).asset();
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
-        vaultBank = BytesLib.toAddress(data, 57);
-        dstChainId = BytesLib.toUint256(data, 77);
+        vaultBank = BytesLib.toAddress(data, 24);
+        dstChainId = BytesLib.toUint256(data, 44);
         spToken = yieldSource;
     }
 

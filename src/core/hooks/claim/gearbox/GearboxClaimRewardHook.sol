@@ -35,9 +35,9 @@ contract GearboxClaimRewardHook is
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-
-    function build(address, address, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(address, address, bytes calldata data)
+        internal
         pure
         override
         returns (Execution[] memory executions)

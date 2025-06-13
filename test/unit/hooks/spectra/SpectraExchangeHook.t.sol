@@ -35,6 +35,30 @@ contract SpectraExchangeHookTest is Helpers {
         new SpectraExchangeHook(address(0));
     }
 
+    function test_UsePrevHookAmount_Is_Wrong() public view {
+        bytes memory commandsData = new bytes(1);
+        commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
+
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
+
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
+
+        bytes memory data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // yieldSource
+            uint8(1), // usePrevHookAmount = true
+            uint256(0), // value
+            txData
+        );
+
+        // even the bytes data usePrevHookAmount is set to true but the actual boolean is not set to true
+        //assertFalse(hook.decodeUsePrevHookAmount(data));
+
+        // ^ this was fixed
+        assertTrue(hook.decodeUsePrevHookAmount(data));
+    }
+
     function test_UsePrevHookAmount() public view {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
@@ -54,6 +78,7 @@ contract SpectraExchangeHookTest is Helpers {
 
         assertFalse(hook.decodeUsePrevHookAmount(data));
     }
+    
 
     function test_Build_DepositAssetInPT() public view {
         bytes memory commandsData = new bytes(1);
@@ -75,9 +100,9 @@ contract SpectraExchangeHookTest is Helpers {
 
         Execution[] memory executions = hook.build(address(0), account, data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(router));
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(router));
+        assertEq(executions[1].value, 0);
     }
 
     function test_DepositAssetInPT_Inspector() public view {
@@ -120,9 +145,9 @@ contract SpectraExchangeHookTest is Helpers {
 
         Execution[] memory executions = hook.build(address(0), account, data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(router));
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(router));
+        assertEq(executions[1].value, 0);
     }
 
     function test_DepositAssetInIBT_Inspector() public view {
@@ -189,9 +214,9 @@ contract SpectraExchangeHookTest is Helpers {
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(router));
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(router));
+        assertEq(executions[1].value, 0);
     }
 
     function test_Build_RevertIf_InvalidPT() public {
@@ -348,9 +373,9 @@ contract SpectraExchangeHookTest is Helpers {
 
         Execution[] memory executions = hook.build(address(0), account, data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(router));
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(router));
+        assertEq(executions[1].value, 0);
     }
 
     function test_Build_RevertIf_InvalidDeadline() public {
