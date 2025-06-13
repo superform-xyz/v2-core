@@ -61,7 +61,7 @@ test-vvv :; $(MAKE) ensure-merkle-cache && forge test --match-test test_2_Multip
 
 test-integration :; $(MAKE) ensure-merkle-cache && forge test --match-test test_ShouldExecuteAll_AndLockAssetsInVaultBank -vvv --jobs 10
 
-test-vvv-quick :; forge test --match-contract MorphoLoanHooksTest -vvv --jobs 10
+test-vvv-quick :; forge test --match-test test_RepayHook_No_Overcharges_On_PartialRepayment -vvv --jobs 10
 
 test-gas-report-user :; $(MAKE) ensure-merkle-cache && forge test --match-test test_gasReport --gas-report --jobs 10
 test-gas-report-2vaults :; $(MAKE) ensure-merkle-cache && forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10
