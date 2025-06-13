@@ -12,6 +12,7 @@ import { SuperDestinationValidator } from "../../../src/core/validators/SuperDes
 import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
 import { MaliciousToken } from "../../mocks/MaliciousToken.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { TokenWithTransferControl } from "../../mocks/TokenWithTransferControl.sol";
 import { MockHook } from "../../mocks/MockHook.sol";
 import { MockNexusFactory } from "../../mocks/MockNexusFactory.sol";
 import { MockLedger, MockLedgerConfiguration } from "../../mocks/MockLedger.sol";
@@ -592,5 +593,98 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             );
         }
         signatureData = abi.encode(validUntil, merkleRoot, merkleProof[0], merkleProof[0], signature);
+    }
+
+    function test_FeeToleranceIsOnePercent() public {
+        // Create a test token with precise control over transfer amounts
+        TokenWithTransferControl feeToken = new TokenWithTransferControl("Fee Token", "FEE", 18);
+        feeToken.setFeeRecipient(feeRecipient);
+        
+        // Create a mock hook for outflow operations
+        MockHook outflowTestHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(feeToken));
+        outflowTestHook.setOutAmount(1000 * 10**18);
+        outflowTestHook.setUsedShares(500);
+        
+        // Set up executor with new ledger configuration
+        MockLedgerConfiguration testConfig = new MockLedgerConfiguration(
+            address(ledger),
+            feeRecipient,
+            address(feeToken),
+            1000, // 10% fee rate
+            account
+        );
+        
+        SuperExecutor testExecutor = new SuperExecutor(address(testConfig));
+        
+        // Initialize executor in the account
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR,
+            module: address(testExecutor),
+            data: ""
+        });
+        
+        // Make sure account has sufficient balance
+        uint256 initialBalance = 100_000 * 10**18;
+        feeToken.mint(account, initialBalance);
+        
+        // Calculate the expected fee (10% of 1000 tokens)
+        uint256 feeAmount = 100 * 10**18; // 10% of 1000 tokens
+        
+        // Calculate 1% tolerance
+        uint256 onePercent = feeAmount / 100; // Exactly 1%
+        
+        console2.log("Testing fee tolerance with:");
+        console2.log(" - Fee amount:", feeAmount);
+        console2.log(" - 1% tolerance:", onePercent);
+        console2.log(" - Min allowed:", feeAmount - onePercent);
+        console2.log(" - Max allowed:", feeAmount + onePercent);
+        
+        // Create execution entry with our test hook
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(outflowTestHook);
+        
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(feeToken),
+            account,
+            1000, // Amount
+            false // Use amount from previous hook
+        );
+        
+        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: hooksAddresses,
+            hooksData: hooksData
+        });
+        
+        // Test case 1: Exact transfer amount (should pass)
+        vm.prank(account);
+        testExecutor.execute(abi.encode(entry));
+        
+        // Test case 2: Exactly 1% less than expected (at lower boundary, should pass)
+        uint256 exactlyOnePercentLess = feeAmount - onePercent;
+        feeToken.setTransferOverride(true);
+        feeToken.setCustomTransferAmount(exactlyOnePercentLess);
+        
+        vm.prank(account);
+        testExecutor.execute(abi.encode(entry));
+        
+        // Test case 3: Exactly 1% more than expected (at upper boundary, should pass)
+        uint256 exactlyOnePercentMore = feeAmount + onePercent;
+        feeToken.setCustomTransferAmount(exactlyOnePercentMore);
+        
+        vm.prank(account);
+        testExecutor.execute(abi.encode(entry));
+        
+        // Test case 4: Just under 1% less (within tolerance, should pass)
+        uint256 slightlyLessThanOnePercent = feeAmount - onePercent + 1;
+        feeToken.setCustomTransferAmount(slightlyLessThanOnePercent);
+        
+        vm.prank(account);
+        testExecutor.execute(abi.encode(entry));
+        
+        // Test case 5: Just over 1% less (exceeds tolerance, should fail)
+        uint256 slightlyMoreThanOnePercent = feeAmount - onePercent - 1;
+        feeToken.setCustomTransferAmount(slightlyMoreThanOnePercent);
     }
 }

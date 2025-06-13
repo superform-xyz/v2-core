@@ -43,7 +43,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
     /// @notice Tolerance for fee transfer verification (numerator)
     /// @dev Used to account for tokens with transfer fees or rounding errors
-    uint256 internal constant FEE_TOLERANCE = 10_000;
+    uint256 internal constant FEE_TOLERANCE = 1_000; //1%
 
     /// @notice Denominator for fee tolerance calculation
     /// @dev FEE_TOLERANCE/FEE_TOLERANCE_DENOMINATOR represents the maximum allowed deviation
