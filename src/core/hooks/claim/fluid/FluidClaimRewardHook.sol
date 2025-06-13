@@ -75,6 +75,9 @@ contract FluidClaimRewardHook is
         asset = BytesLib.toAddress(data, 20);
         if (asset == address(0)) revert ASSET_ZERO_ADDRESS();
 
+        address rewardsToken = IFluidLendingStakingRewards(stakingRewards).rewardsToken();
+        if (asset != rewardsToken) revert INVALID_REWARD_TOKEN();
+
         outAmount = _getBalance(data);
     }
 

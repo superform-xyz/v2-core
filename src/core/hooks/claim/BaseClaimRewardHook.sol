@@ -10,6 +10,7 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 /// @author Superform Labs
 abstract contract BaseClaimRewardHook {
     error ASSET_ZERO_ADDRESS();
+    error INVALID_REWARD_TOKEN();
     error REWARD_TOKEN_ZERO_ADDRESS();
 
     /*//////////////////////////////////////////////////////////////
