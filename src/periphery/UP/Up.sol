@@ -10,7 +10,7 @@ import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
  * @title Up
  * @author Superform Foundation
  */
-contract Up is ERC20Permit, Ownable2Step {
+contract Up is ERC20, ERC20Permit, Ownable2Step {
     uint256 public constant INITIAL_SUPPLY = 1_000_000_000 * 10 ** 18;
     uint256 public constant MINT_CAP_BPS = 200; // 2%
     uint256 public constant DAYS_PER_YEAR = 365 days;
