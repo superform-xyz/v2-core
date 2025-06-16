@@ -87,7 +87,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(pendleRouterV4),
-            value: value,
+            value: usePrevHookAmount ? ISuperHookResult(prevHook).outAmount() : value,
             callData: usePrevHookAmount ? updatedTxData : txData_
         });
     }
