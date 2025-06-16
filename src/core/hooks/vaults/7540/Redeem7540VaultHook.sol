@@ -69,7 +69,7 @@ contract Redeem7540VaultHook is
         if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
-        executions[2] = Execution({
+        executions[0] = Execution({
             target: yieldSource,
             value: 0,
             callData: abi.encodeCall(IERC7540.redeem, (shares, account, account))
