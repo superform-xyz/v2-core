@@ -3,19 +3,17 @@ pragma solidity 0.8.30;
 
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
-import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IMorphoBase, MarketParams } from "../../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
-import { ISuperHook, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperHook, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoSupplyHook
 /// @author Superform Labs
@@ -103,7 +101,6 @@ contract MorphoSupplyHook is BaseMorphoLoanHook, ISuperHookInspector {
         });
     }
 
-    /// @inheritdoc ISuperHookLoans
     function getUsedAssets(address, bytes memory) external view returns (uint256) {
         return outAmount;
     }
