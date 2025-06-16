@@ -201,6 +201,11 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
             address _token = dstTokens[i];
             uint256 _intentAmount = intentAmounts[i];
 
+            if (_intentAmount == 0) {
+                emit SuperDestinationExecutorInvalidIntentAmount(account, _token,_intentAmount);
+                return false;
+            }
+
             if (_token == address(0)) {
                 if (_intentAmount != 0 && account.balance < _intentAmount) {
                     emit SuperDestinationExecutorReceivedButNotEnoughBalance(

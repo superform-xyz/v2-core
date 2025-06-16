@@ -848,7 +848,7 @@ contract CrosschainTests is BaseTest {
             nexusFactory: CHAIN_8453_NEXUS_FACTORY,
             nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
             chainId: uint64(BASE),
-            amount: 0,
+            amount: amountPerVault,
             account: accountBase,
             tokenSent: underlyingBase_USDC
         });
