@@ -14,7 +14,8 @@ import {
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookInspector,
+    ISuperHookAsync
 } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -32,7 +33,8 @@ contract ApproveAndRequestRedeem7540VaultHook is
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookInspector,
+    ISuperHookAsync
 {
     using HookDataDecoder for bytes;
 
@@ -84,6 +86,11 @@ contract ApproveAndRequestRedeem7540VaultHook is
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperHookAsync
+    function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
+        return (outAmount, true);
+    }
+
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
