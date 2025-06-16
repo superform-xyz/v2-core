@@ -368,7 +368,7 @@ contract MorphoLoanHooksTest is Helpers {
 
     function test_RepayHook_Build_NoRevertIf_PartialRepay() public {
         bytes memory data = _encodeRepayData(false, false);
-        vm.warp(block.timestamp + 10000);
+        vm.warp(block.timestamp + 10_000);
         Execution[] memory executions = repayHook.build(address(0), address(this), data);
         assertEq(executions.length, 6);
     }
@@ -476,27 +476,51 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        GET USED ASSETS TESTS
+                    BUILD WITH PREVIOUS HOOK TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_GetUsedAssets() public view {
-        bytes memory data = _encodeRepayData(false, false);
-        uint256 usedAssets = repayHook.getUsedAssets(address(this), data);
+    function test_BorrowHook_BuildWithPreviousHook() public {
+        uint256 prevHookAmount = 2000;
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
-        assertEq(usedAssets, 0);
+        bytes memory data = _encodeBorrowData(true);
+        Execution[] memory executions = borrowHook.build(mockPrevHook, address(this), data);
+
+        assertEq(executions.length, 6);
+        // Verify the amount from previous hook is used in the approve call
+        assertEq(executions[2].target, collateralToken);
+        assertEq(executions[2].value, 0);
+        assertGt(executions[2].callData.length, 0);
     }
 
-    function test_SupplyHook_GetUsedAssets() public view {
-        bytes memory data = _encodeSupplyData(false);
-        uint256 usedAssets = supplyHook.getUsedAssets(address(this), data);
+    function test_RepayHook_BuildWithPreviousHook() public {
+        uint256 prevHookAmount = 2000;
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
-        assertEq(usedAssets, 0);
+        bytes memory data = _encodeRepayData(true, false);
+        Execution[] memory executions = repayHook.build(mockPrevHook, address(this), data);
+
+        assertEq(executions.length, 6);
+        // Verify the amount from previous hook is used in the approve call
+        assertEq(executions[2].target, loanToken);
+        assertEq(executions[2].value, 0);
+        assertGt(executions[2].callData.length, 0);
     }
 
-    function test_RepayAndWithdrawHook_GetUsedAssets() public view {
-        bytes memory data = _encodeRepayAndWithdrawData(false, false);
-        uint256 usedAssets = repayAndWithdrawHook.getUsedAssets(address(this), data);
+    function test_RepayAndWithdrawHook_BuildWithPreviousHook() public {
+        uint256 prevHookAmount = 2000;
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
 
-        assertEq(usedAssets, 0);
+        bytes memory data = _encodeRepayAndWithdrawData(true, false);
+        Execution[] memory executions = repayAndWithdrawHook.build(mockPrevHook, address(this), data);
+
+        assertEq(executions.length, 7);
+        // Verify the amount from previous hook is used in the approve call
+        assertEq(executions[2].target, loanToken);
+        assertEq(executions[2].value, 0);
+        assertGt(executions[2].callData.length, 0);
     }
 
     /*//////////////////////////////////////////////////////////////

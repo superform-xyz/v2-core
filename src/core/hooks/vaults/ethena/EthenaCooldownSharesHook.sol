@@ -15,6 +15,7 @@ import {
     ISuperHookAsync,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title EthenaCooldownSharesHook
@@ -29,7 +30,7 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
 
     uint256 private constant AMOUNT_POSITION = 24;
 
-    constructor() BaseHook(HookType.NONACCOUNTING, "Cooldown") { }
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.COOLDOWN) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
