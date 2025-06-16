@@ -89,8 +89,8 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
 
             details[i] = IAllowanceTransfer.PermitDetails({
                 token: token,
-                amount: uint160(amount),
-                expiration: uint48(sigDeadline),
+                amount: amount.toUint160(),
+                expiration: sigDeadline.toUint48(),
                 nonce: uint48(0)
             });
         }
