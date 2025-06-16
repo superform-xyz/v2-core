@@ -141,7 +141,7 @@ contract ApproveAndRedeem4626VaultHook is
 
     function _getSharesBalance(address account, bytes memory data) private view returns (uint256) {
         address yieldSource = data.extractYieldSource();
-        address owner = BytesLib.toAddress(data, 24);
+        address owner = BytesLib.toAddress(data, 44);
         if (owner == address(0)) {
             owner = account;
         }
