@@ -325,7 +325,10 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
 
         bytes memory signature = _getSignature(root);
 
-        bytes memory sigDataRaw = abi.encode(validUntil, root, proof[0], proof[0], signature);
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: proof[0], dstChainId: uint64(block.chainid)});
+
+        bytes memory sigDataRaw = abi.encode(validUntil, root, proof, proofDst, signature);
 
         bytes memory destinationDataRaw = abi.encode(
             approveDestinationData.callData,
@@ -367,7 +370,10 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
         bytes memory signature,
         DestinationData memory destinationData
     ) private view {
-        bytes memory sigDataRaw = abi.encode(validUntil, root, proof, proof, signature);
+
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: proof, dstChainId: uint64(block.chainid)});
+        bytes memory sigDataRaw = abi.encode(validUntil, root, proof, proofDst, signature);
 
         bytes memory destinationDataRaw = abi.encode(
             destinationData.callData,

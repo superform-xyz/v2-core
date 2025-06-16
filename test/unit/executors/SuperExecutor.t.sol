@@ -591,6 +591,9 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
                 signerPrvKeyInvalid
             );
         }
-        signatureData = abi.encode(validUntil, merkleRoot, merkleProof[0], merkleProof[0], signature);
+
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: merkleProof[0], dstChainId: uint64(block.chainid)});
+        signatureData = abi.encode(validUntil, merkleRoot, merkleProof[0], proofDst, signature);
     }
 }

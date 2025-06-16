@@ -12,6 +12,12 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+    /// @notice Structure holding proof data for destination chain operations
+    /// @dev Contains merkle proof and destination chain ID
+    struct DstProof {
+        bytes32[] proof;
+        uint64 dstChainId;
+    }
     /// @notice Structure holding signature data used across validator implementations
     /// @dev Contains all components needed for merkle proof verification and signature validation
     struct SignatureData {
@@ -21,8 +27,8 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
         bytes32 merkleRoot;
         /// @notice Merkle proof for the source chain operation
         bytes32[] proofSrc;
-        /// @notice Merkle proof for the destination chain operation
-        bytes32[] proofDst;
+        /// @notice Merkle proof for the destination chains operation
+        DstProof[] proofDst;
         /// @notice Raw ECDSA signature bytes
         bytes signature;
     }
@@ -99,9 +105,9 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
             uint48 validUntil,
             bytes32 merkleRoot,
             bytes32[] memory proofSrc,
-            bytes32[] memory proofDst,
+            DstProof[] memory proofDst,
             bytes memory signature
-        ) = abi.decode(sigDataRaw, (uint48, bytes32, bytes32[], bytes32[], bytes));
+        ) = abi.decode(sigDataRaw, (uint48, bytes32, bytes32[], DstProof[], bytes));
         return SignatureData(validUntil, merkleRoot, proofSrc, proofDst, signature);
     }
 

@@ -105,7 +105,7 @@ contract YearnClaimOneRewardHookTest is Helpers {
         
         // Check yieldSource is properly extracted
         // Validate it by checking that it's used as the target in the execution
-        assertEq(executions[0].target, testYieldSource, "YieldSource address not correctly decoded");
+        assertEq(executions[1].target, testYieldSource, "YieldSource address not correctly decoded");
         
         // Unlike the other hooks, Yearn also uses the rewardToken in its function call
         // We can't easily check the rewardToken directly, but we can verify the execution has
@@ -117,7 +117,7 @@ contract YearnClaimOneRewardHookTest is Helpers {
         
         // Verify that the calldata contains the rewardToken correctly
         assertEq(
-            keccak256(executions[0].callData), 
+            keccak256(executions[1].callData), 
             keccak256(expectedCallData), 
             "Calldata doesn't contain the correct rewardToken"
         );

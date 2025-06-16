@@ -44,6 +44,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
     error INVALID_SENDER();
     error NOT_IMPLEMENTED();
     error INVALID_CHAIN_ID();
+    error PROOF_NOT_FOUND();
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -141,17 +142,30 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /// @return leaf The computed leaf hash used in merkle verification
     function _processSignatureAndVerifyLeaf(SignatureData memory sigData, DestinationData memory destinationData)
         private
-        pure
+        view
         returns (address signer, bytes32 leaf)
     {
         // Create leaf from destination data and verify against merkle root using the proof
         leaf = _createLeaf(abi.encode(destinationData), sigData.validUntil);
-        if (!MerkleProof.verify(sigData.proofDst, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
+        if (!MerkleProof.verify(_extractProof(sigData), sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
         // Recover signer from signature using standard Ethereum signature recovery
         bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
         signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
+    }
+
+    /// @notice Extracts the proof for the current chain from the signature data
+    /// @dev Iterates over the proofDst array to find a match for the current chain ID
+    /// @param sigData Signature data containing proofs for different chains
+    /// @return The proof array corresponding to the current chain ID
+    /// @dev Reverts with PROOF_NOT_FOUND if no matching proof is found
+    function _extractProof(SignatureData memory sigData) private view returns (bytes32[] memory) {
+        uint256 len = sigData.proofDst.length;
+        for (uint256 i; i < len; ++i) {
+            if (sigData.proofDst[i].dstChainId == block.chainid) return sigData.proofDst[i].proof;
+        }
+        revert PROOF_NOT_FOUND();
     }
 
     /// @notice Decodes and validates raw destination data

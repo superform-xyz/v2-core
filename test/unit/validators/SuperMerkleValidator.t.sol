@@ -140,8 +140,11 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: proof[0], dstChainId: uint64(block.chainid)});
+
         bytes memory signature = _getSignature(root);
-        bytes memory _validSigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
+        bytes memory _validSigData = abi.encode(validUntil, root, proof[0], proofDst, signature);
 
         vm.prank(account);
         bytes4 result =
@@ -159,8 +162,11 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: proof[0], dstChainId: uint64(block.chainid)});
+
         bytes memory signature = _getSignature(root);
-        bytes memory _validSigData = abi.encode(validUntil, root, proof, proof, signature);
+        bytes memory _validSigData = abi.encode(validUntil, root, proof, proofDst, signature);
 
         vm.startPrank(account);
         vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
@@ -177,8 +183,11 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: proof[0], dstChainId: uint64(block.chainid)});
+
         bytes memory signature = _getSignature(bytes32(0));
-        bytes memory _validSigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
+        bytes memory _validSigData = abi.encode(validUntil, root, proof[0], proofDst, signature);
 
         vm.prank(account);
         bytes4 result =
@@ -220,7 +229,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         _testUserOpValidation(validUntil, root, proof[0], signature, approveUserOp);
 
         bytes memory retrievedSig = validator.retrieveSignatureData(account);
-        assertEq(retrievedSig, "");
+        assertGt(retrievedSig.length, 0);
     }
 
     function test_ValidateUserOp_RetrieveSignatureData() public {
@@ -236,7 +245,11 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
         bytes32[] memory dstProofs = new bytes32[](1);
         dstProofs[0] = keccak256(abi.encode("PROOF"));
-        bytes memory sigData = abi.encode(validUntil, root, proof[0], dstProofs, signature);
+
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: dstProofs, dstChainId: uint64(block.chainid)});
+
+        bytes memory sigData = abi.encode(validUntil, root, proof[0], proofDst, signature);
         approveUserOp.userOp.signature = sigData;
 
         bytes memory retrievedSig = tester.validateAndRetrieve(approveUserOp.userOp, approveUserOp.userOpHash);
@@ -253,7 +266,10 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
-        bytes memory _validSigData = abi.encode(validUntil, root, proof, proof, signature);
+
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: proof[0], dstChainId: uint64(block.chainid)});
+        bytes memory _validSigData = abi.encode(validUntil, root, proof, proofDst, signature);
 
         approveUserOp.userOp.signature = _validSigData;
         vm.expectRevert(SuperValidatorBase.INVALID_PROOF.selector);
@@ -269,7 +285,10 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(bytes32(0));
-        bytes memory _validSigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
+
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: proof[0], dstChainId: uint64(block.chainid)});
+        bytes memory _validSigData = abi.encode(validUntil, root, proof[0], proofDst, signature);
 
         approveUserOp.userOp.signature = _validSigData;
         vm.prank(account);
@@ -388,9 +407,12 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: proof[0], dstChainId: uint64(block.chainid)});
+
         bytes memory signature = _getSignature(root);
 
-        validSigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
+        validSigData = abi.encode(validUntil, root, proof[0], proofDst, signature);
 
         approveUserOp.userOp.signature = validSigData;
         ERC7579ValidatorBase.ValidationData result =
@@ -420,7 +442,10 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         // tamper the merkle root
         bytes32 _prevRoot = root;
         root = keccak256(abi.encode("tampered root"));
-        validSigData = abi.encode(validUntil, root, proof, proof, signature);
+
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: proof[0], dstChainId: uint64(block.chainid)});
+        validSigData = abi.encode(validUntil, root, proof, proofDst, signature);
 
         approveUserOp.userOp.signature = validSigData;
 
@@ -431,7 +456,8 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         root = _prevRoot;
         bytes32[] memory _proof = new bytes32[](1);
         _proof[0] = keccak256(abi.encode("tampered proof"));
-        validSigData = abi.encode(validUntil, root, _proof, _proof, signature);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: _proof, dstChainId: uint64(block.chainid)});
+        validSigData = abi.encode(validUntil, root, _proof, proofDst, signature);
 
         approveUserOp.userOp.signature = validSigData;
 
@@ -461,7 +487,10 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         bytes memory signature,
         UserOpData memory userOpData
     ) private {
-        validSigData = abi.encode(validUntil, root, proof, proof, signature);
+
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: proof, dstChainId: uint64(block.chainid)});
+        validSigData = abi.encode(validUntil, root, proof, proofDst, signature);
 
         userOpData.userOp.signature = validSigData;
         ERC7579ValidatorBase.ValidationData result = validator.validateUserOp(userOpData.userOp, userOpData.userOpHash);

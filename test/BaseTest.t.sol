@@ -1965,50 +1965,78 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
     }
 
+    struct MerkleContext {
+        uint48 validUntil;
+        bytes executionData;
+        bytes32[] leaves;
+        address[] dstTokens;
+        uint256[] intentAmounts;
+        bytes32[][] merkleProof;
+        bytes32 merkleRoot;
+        bytes signature;
+    }
+
     function _createMerkleRootAndSignature(
         TargetExecutorMessage memory messageData,
         bytes32 userOpHash,
-        address accountToUse
+        address accountToUse,
+        uint64 dstChainId
     )
         internal
         view
         returns (bytes memory sig)
     {
-        uint48 validUntil = uint48(block.timestamp + 100 days);
-        bytes memory executionData =
-            _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
+        MerkleContext memory ctx;
 
-        bytes32[] memory leaves = new bytes32[](2);
-        address[] memory dstTokens = new address[](1);
-        dstTokens[0] = messageData.tokenSent;
-        uint256[] memory intentAmounts = new uint256[](1);
-        intentAmounts[0] = messageData.amount;
-        leaves[0] = _createDestinationValidatorLeaf(
-            executionData,
+        ctx.validUntil = uint48(block.timestamp + 100 days);
+        ctx.executionData = _createCrosschainExecutionData_DestinationExecutor(
+            messageData.hooksAddresses,
+            messageData.hooksData
+        );
+
+        ctx.leaves = new bytes32[](2);
+        ctx.dstTokens = new address[](1);
+        ctx.dstTokens[0] = messageData.tokenSent;
+        ctx.intentAmounts = new uint256[](1);
+        ctx.intentAmounts[0] = messageData.amount;
+
+        ctx.leaves[0] = _createDestinationValidatorLeaf(
+            ctx.executionData,
             messageData.chainId,
             accountToUse,
             messageData.targetExecutor,
-            dstTokens,
-            intentAmounts,
-            validUntil
+            ctx.dstTokens,
+            ctx.intentAmounts,
+            ctx.validUntil
         );
-        leaves[1] = _createSourceValidatorLeaf(userOpHash, validUntil);
-        (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
-        bytes memory signature = _createSignature(
+        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil);
+
+        (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
+
+        ctx.signature = _createSignature(
             SuperValidatorBase(address(messageData.validator)).namespace(),
-            merkleRoot,
+            ctx.merkleRoot,
             messageData.signer,
             messageData.signerPrivateKey
         );
-        sig =
-            _createSignatureData_DestinationExecutor(validUntil, merkleRoot, merkleProof[1], merkleProof[0], signature);
+
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: ctx.merkleProof[0], dstChainId: dstChainId});
+
+        sig = _createSignatureData_DestinationExecutor(
+            ctx.validUntil,
+            ctx.merkleRoot,
+            ctx.merkleProof[1],
+            proofDst,
+            ctx.signature
+        );
     }
 
     function _createSignatureData_DestinationExecutor(
         uint48 validUntil,
         bytes32 merkleRoot,
         bytes32[] memory merkleProofSrc,
-        bytes32[] memory merkleProofDst,
+        SuperValidatorBase.DstProof[] memory merkleProofDst,
         bytes memory signature
     )
         internal
