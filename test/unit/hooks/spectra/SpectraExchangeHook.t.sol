@@ -490,7 +490,7 @@ contract SpectraExchangeHookTest is Helpers {
         vars.executions = hook.build(vars.mockPrevHook, account, vars.data);
         
         // Extract the updated callData from the execution
-        vars.updatedTxData = vars.executions[0].callData;
+        vars.updatedTxData = vars.executions[1].callData;
         
         // Verify the updated transaction data has the same length as the original
         assertEq(
