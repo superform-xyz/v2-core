@@ -10,14 +10,14 @@ import {Ownable2Step} from "@openzeppelin/contracts/access/Ownable2Step.sol";
  * @title Up
  * @author Superform Foundation
  */
-contract Up is ERC20, ERC20Permit, Ownable2Step {
+contract Up is ERC20Permit, Ownable2Step {
     uint256 public constant INITIAL_SUPPLY = 1_000_000_000 * 10 ** 18;
     uint256 public constant MINT_CAP_BPS = 200; // 2%
     uint256 public constant DAYS_PER_YEAR = 365 days;
     uint256 public constant INITIAL_MINT_LOCK = 3 * 365 days; // 3 years
 
     uint256 public lastMintTimestamp;
-    uint256 public immutable initialMintTimestamp;
+    uint256 public immutable INITIAL_MINT_TIMESTAMP;
 
     event TokensMinted(address indexed to, uint256 amount);
 
@@ -28,7 +28,7 @@ contract Up is ERC20, ERC20Permit, Ownable2Step {
     constructor(address initialOwner) ERC20("Superform", "UP") ERC20Permit("Superform") Ownable(initialOwner) {
         _mint(initialOwner, INITIAL_SUPPLY);
         lastMintTimestamp = block.timestamp;
-        initialMintTimestamp = block.timestamp;
+        INITIAL_MINT_TIMESTAMP = block.timestamp;
     }
 
     /**
@@ -38,7 +38,7 @@ contract Up is ERC20, ERC20Permit, Ownable2Step {
      */
     function mint(address to, uint256 amount) external onlyOwner {
         // Check if 3 years have passed since initial mint
-        if (block.timestamp < initialMintTimestamp + INITIAL_MINT_LOCK) {
+        if (block.timestamp < INITIAL_MINT_TIMESTAMP + INITIAL_MINT_LOCK) {
             revert InitialLockPeriodNotOver();
         }
 
