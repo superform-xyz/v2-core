@@ -2,16 +2,16 @@
 pragma solidity 0.8.30;
 
 // External
-import {SafeERC20} from "openzeppelin-contracts/contracts/token/ERC20/utils/SafeERC20.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {IAccessControl} from "@openzeppelin/contracts/access/IAccessControl.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 
-import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
-import {ISuperBank} from "./interfaces/ISuperBank.sol";
-import {ISuperGovernor, FeeType} from "./interfaces/ISuperGovernor.sol";
-import {Bank} from "./Bank.sol";
+import { ISuperBank } from "./interfaces/ISuperBank.sol";
+import { ISuperGovernor, FeeType } from "./interfaces/ISuperGovernor.sol";
+import { Bank } from "./Bank.sol";
 
 /// @title SuperBank
 /// @notice Compounds protocol revenue into UP and distributes it to sUP and treasury.
@@ -39,7 +39,7 @@ contract SuperBank is ISuperBank, Bank {
     //////////////////////////////////////////////////////////////*/
 
     // Receive function to accept direct ETH transfers if needed for hooks/executions
-    receive() external payable {}
+    receive() external payable { }
 
     /// @inheritdoc ISuperBank
     function distribute(uint256 upAmount_) external onlyBankManager {
@@ -77,7 +77,7 @@ contract SuperBank is ISuperBank, Bank {
     }
 
     /// @inheritdoc ISuperBank
-    function executeHooks(ISuperBank.HookExecutionData calldata executionData) external onlyBankManager {
+    function executeHooks(ISuperBank.HookExecutionData calldata executionData) external payable onlyBankManager {
         _executeHooks(executionData);
     }
 

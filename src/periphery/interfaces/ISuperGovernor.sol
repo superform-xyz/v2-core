@@ -40,6 +40,8 @@ interface ISuperGovernor is IAccessControl {
     error CONTRACT_NOT_FOUND();
     /// @notice Thrown when providing an invalid address (typically zero address)
     error INVALID_ADDRESS();
+    /// @notice Thrown when providing an invalid chain ID
+    error INVALID_CHAIN_ID();
     /// @notice Thrown when a hook is already approved
     error HOOK_ALREADY_APPROVED();
     /// @notice Thrown when a hook is not approved but expected to be
@@ -90,6 +92,12 @@ interface ISuperGovernor is IAccessControl {
     error STRATEGIST_NOT_REGISTERED();
     /// @notice Thrown when a strategist is already registered
     error STRATEGIST_ALREADY_REGISTERED();
+    /// @notice Thrown when a token is already whitelisted
+    error TOKEN_ALREADY_WHITELISTED();
+    /// @notice Thrown when a token is not proposed for whitelisting but expected to be
+    error NOT_PROPOSED_INCENTIVE_TOKEN();
+    /// @notice Thrown when a token is not whitelisted but expected to be
+    error NOT_WHITELISTED_INCENTIVE_TOKEN();
 
     /*//////////////////////////////////////////////////////////////
                                   EVENTS
@@ -206,6 +214,11 @@ interface ISuperGovernor is IAccessControl {
     /// @param relayer The address of the removed relayer
     event RelayerRemoved(address indexed relayer);
 
+    /// @notice Emitted when a vault bank is added
+    /// @param chainId The chain ID of the added vault bank
+    /// @param vaultBank The address of the added vault bank
+    event VaultBankAddressAdded(uint64 indexed chainId, address indexed vaultBank);
+
     /// @notice Emitted when an executor is added
     /// @param executor The address of the added executor
     event ExecutorAdded(address indexed executor);
@@ -235,23 +248,18 @@ interface ISuperGovernor is IAccessControl {
     /// @param strategist The address of the removed strategist
     event SuperformStrategistRemoved(address indexed strategist);
 
-    /*//////////////////////////////////////////////////////////////
-                                   ROLES
-    //////////////////////////////////////////////////////////////*/
-    /// @notice The identifier of the role that grants access to critical governance functions
-    function SUPER_GOVERNOR_ROLE() external view returns (bytes32);
+    /// @notice Emitted when incentive tokens are proposed for whitelisting
+    /// @param tokens The addresses of the proposed tokens
+    /// @param effectiveTime The timestamp when the proposal will be effective
+    event WhitelistedIncentiveTokensProposed(address[] tokens, uint256 effectiveTime);
 
-    /// @notice The identifier of the role that grants access to daily operations like hooks and validators
-    function GOVERNOR_ROLE() external view returns (bytes32);
+    /// @notice Emitted when whitelisted incentive tokens are added
+    /// @param tokens The addresses of the added tokens
+    event WhitelistedIncentiveTokensAdded(address[] tokens);
 
-    /// @notice The identifier of the role that grants access to bank management functions
-    function BANK_MANAGER_ROLE() external view returns (bytes32);
-
-    /// @notice The identifier of the role that grants access to guardian functions
-    function GUARDIAN_ROLE() external view returns (bytes32);
-
-    /// @notice The identifier of the role that grants access to superasset factory
-    function SUPER_ASSET_FACTORY() external view returns (bytes32);
+    /// @notice Emitted when whitelisted incentive tokens are removed
+    /// @param tokens The addresses of the removed tokens
+    event WhitelistedIncentiveTokensRemoved(address[] tokens);
 
     /*//////////////////////////////////////////////////////////////
                        CONTRACT REGISTRY FUNCTIONS
@@ -262,35 +270,112 @@ interface ISuperGovernor is IAccessControl {
     function setAddress(bytes32 key, address value) external;
 
     /*//////////////////////////////////////////////////////////////
-                        PROVER
+                        PERIPHERY CONFIGURATIONS
     //////////////////////////////////////////////////////////////*/
     /// @notice Sets the prover address
     /// @param prover_ The address of the prover
     function setProver(address prover_) external;
 
-    /*//////////////////////////////////////////////////////////////
-                        SUPER VAULT AGGREGATOR MANAGEMENT
-    //////////////////////////////////////////////////////////////*/
     /// @notice Change the primary strategist for a strategy
     /// @dev Only SuperGovernor can call this function directly
     /// @param strategy_ The strategy address
     /// @param newStrategist_ The new primary strategist address
     function changePrimaryStrategist(address strategy_, address newStrategist_) external;
 
+    /// @notice Permanently freezes all strategist takeovers globally
+    function freezeStrategistTakeover() external;
+
     /// @notice Changes the hooks root update timelock duration
     /// @param newTimelock_ New timelock duration in seconds
     function changeHooksRootUpdateTimelock(uint256 newTimelock_) external;
+
+    /// @notice Proposes a new global hooks Merkle root
+    /// @dev Only GOVERNOR_ROLE can call this function
+    /// @param newRoot New Merkle root for global hooks validation
+    function proposeGlobalHooksRoot(bytes32 newRoot) external;
+
+    /// @notice Sets veto status for global hooks Merkle root
+    /// @dev Only GUARDIAN_ROLE can call this function
+    /// @param vetoed Whether to veto (true) or unveto (false) the global hooks root
+    function setGlobalHooksRootVetoStatus(bool vetoed) external;
+
+    /// @notice Sets veto status for a strategy-specific hooks Merkle root
+    /// @dev Only GUARDIAN_ROLE can call this function
+    /// @param strategy Address of the strategy to affect
+    /// @param vetoed Whether to veto (true) or unveto (false) the strategy hooks root
+    function setStrategyHooksRootVetoStatus(address strategy, bool vetoed) external;
 
     /// @notice Sets the superasset manager for a superasset
     /// @param superAsset The superasset address
     /// @param _superAssetManager The new superasset manager address
     function setSuperAssetManager(address superAsset, address _superAssetManager) external;
 
-    /// @notice Permanently freezes all strategist takeovers globally
-    function freezeStrategistTakeover() external;
+    /// @notice Adds an ICC to the whitelist
+    /// @param icc The ICC address to add
+    function addICCToWhitelist(address icc) external;
+
+    /// @notice Removes an ICC from the whitelist
+    /// @param icc The ICC address to remove
+    function removeICCFromWhitelist(address icc) external;
+
+    /// @notice Sets the maximum staleness period for all oracle feeds
+    /// @param newMaxStaleness_ The new maximum staleness period in seconds
+    function setOracleMaxStaleness(uint256 newMaxStaleness_) external;
+
+    /// @notice Sets the maximum staleness period for a specific oracle feed
+    /// @param feed_ The address of the feed to set staleness for
+    /// @param newMaxStaleness_ The new maximum staleness period in seconds
+    function setOracleFeedMaxStaleness(address feed_, uint256 newMaxStaleness_) external;
+
+    /// @notice Sets the maximum staleness periods for multiple oracle feeds in batch
+    /// @param feeds_ The addresses of the feeds to set staleness for
+    /// @param newMaxStalenessList_ The new maximum staleness periods in seconds
+    function setOracleFeedMaxStalenessBatch(
+        address[] calldata feeds_,
+        uint256[] calldata newMaxStalenessList_
+    )
+        external;
+
+    /// @notice Queues an oracle update for execution after timelock period
+    /// @param bases_ Base asset addresses
+    /// @param quotes_ Quote asset addresses
+    /// @param providers_ Provider identifiers
+    /// @param feeds_ Feed addresses
+    function queueOracleUpdate(
+        address[] calldata bases_,
+        address[] calldata quotes_,
+        bytes32[] calldata providers_,
+        address[] calldata feeds_
+    )
+        external;
+
+    /// @notice Queues a provider removal for execution after timelock period
+    /// @param providers_ The providers to remove
+    function queueOracleProviderRemoval(bytes32[] calldata providers_) external;
+
+    /// @notice Sets uptime feeds for multiple data oracles in batch (Layer 2 only)
+    /// @param dataOracles_ Array of data oracle addresses to set uptime feeds for
+    /// @param uptimeOracles_ Array of uptime feed addresses to set
+    /// @param gracePeriods_ Array of grace periods in seconds after sequencer restart
+    function batchSetOracleUptimeFeed(
+        address[] calldata dataOracles_,
+        address[] calldata uptimeOracles_,
+        uint256[] calldata gracePeriods_
+    )
+        external;
+
+    /// @notice Sets the emergency price for a token
+    /// @param token_ The address of the token
+    /// @param price_ The emergency price to set
+    function setEmergencyPrice(address token_, uint256 price_) external;
+
+    /// @notice Sets the emergency price for multiple tokens o
+    /// @param tokens_ Array of token addresses
+    /// @param prices_ Array of emergency prices
+    function batchSetEmergencyPrices(address[] calldata tokens_, uint256[] calldata prices_) external;
 
     /*//////////////////////////////////////////////////////////////
-                         HOOK MANAGEMENT
+                          HOOK MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @notice Registers a hook for use in SuperVaults
     /// @param hook The address of the hook to register
@@ -314,7 +399,7 @@ interface ISuperGovernor is IAccessControl {
     function removeExecutor(address executor) external;
 
     /*//////////////////////////////////////////////////////////////
-                      RELAYER MANAGEMENT
+                        RELAYER MANAGEMENT
     //////////////////////////////////////////////////////////////*/
     /// @notice Adds a relayer to the approved list
     /// @param relayer The address of the relayer to add
@@ -383,6 +468,18 @@ interface ISuperGovernor is IAccessControl {
     function executeUpkeepPaymentsChange() external;
 
     /*//////////////////////////////////////////////////////////////
+                        SUPERFORM STRATEGIST MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Adds a strategist to the superform strategists list
+    /// @param strategist Address of the strategist to add
+    function addSuperformStrategist(address strategist) external;
+
+    /// @notice Removes a strategist from the superform strategists list
+    /// @param strategist Address of the strategist to remove
+    function removeSuperformStrategist(address strategist) external;
+
+    /*//////////////////////////////////////////////////////////////
                            VAULT HOOKS MGMT
     //////////////////////////////////////////////////////////////*/
     /// @notice Proposes a new Merkle root for a specific hook's allowed targets.
@@ -406,25 +503,49 @@ interface ISuperGovernor is IAccessControl {
     /// @param hook The address of the hook to execute the update for.
     function executeSuperBankHookMerkleRootUpdate(address hook) external;
 
-    /// @notice Proposes a new global hooks Merkle root
-    /// @dev Only GOVERNOR_ROLE can call this function
-    /// @param newRoot New Merkle root for global hooks validation
-    function proposeGlobalHooksRoot(bytes32 newRoot) external;
-
-    /// @notice Sets veto status for global hooks Merkle root
-    /// @dev Only GUARDIAN_ROLE can call this function
-    /// @param vetoed Whether to veto (true) or unveto (false) the global hooks root
-    function setGlobalHooksRootVetoStatus(bool vetoed) external;
-
-    /// @notice Sets veto status for a strategy-specific hooks Merkle root
-    /// @dev Only GUARDIAN_ROLE can call this function
-    /// @param strategy Address of the strategy to affect
-    /// @param vetoed Whether to veto (true) or unveto (false) the strategy hooks root
-    function setStrategyHooksRootVetoStatus(address strategy, bool vetoed) external;
+    /*//////////////////////////////////////////////////////////////
+                        VAULT BANK MANAGEMENT
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Adds a vault bank address for a specific chain ID
+    /// @param chainId The chain ID to add the vault bank for
+    /// @param vaultBank The address of the vault bank to add
+    function addVaultBank(uint64 chainId, address vaultBank) external;
 
     /*//////////////////////////////////////////////////////////////
-                         EXTERNAL VIEW FUNCTIONS
+                        INCENTIVE TOKEN MANAGEMENT
     //////////////////////////////////////////////////////////////*/
+    /// @notice Proposes whitelisted incentive tokens
+    /// @param tokens The addresses of the tokens to add
+    function proposeAddIncentiveTokens(address[] memory tokens) external;
+
+    /// @notice Executes a previously proposed whitelisted incentive token update after timelock has expired
+    function executeAddIncentiveTokens() external;
+
+    /// @notice Proposes a new whitelisted incentive token
+    /// @param tokens The addresses of the tokens to add
+    function proposeRemoveIncentiveTokens(address[] memory tokens) external;
+
+    /// @notice Executes a previously proposed whitelisted incentive tokens removal after timelock has expired
+    function executeRemoveIncentiveTokens() external;
+
+    /*//////////////////////////////////////////////////////////////
+                        EXTERNAL VIEW FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice The identifier of the role that grants access to critical governance functions
+    function SUPER_GOVERNOR_ROLE() external view returns (bytes32);
+
+    /// @notice The identifier of the role that grants access to daily operations like hooks and validators
+    function GOVERNOR_ROLE() external view returns (bytes32);
+
+    /// @notice The identifier of the role that grants access to bank management functions
+    function BANK_MANAGER_ROLE() external view returns (bytes32);
+
+    /// @notice The identifier of the role that grants access to guardian functions
+    function GUARDIAN_ROLE() external view returns (bytes32);
+
+    /// @notice The identifier of the role that grants access to superasset factory
+    function SUPER_ASSET_FACTORY() external view returns (bytes32);
+
     /// @notice Gets an address from the registry
     /// @param key The key of the address to get
     /// @return The address value
@@ -433,6 +554,11 @@ interface ISuperGovernor is IAccessControl {
     /// @notice Checks if strategist takeovers are frozen
     /// @return True if strategist takeovers are frozen, false otherwise
     function isStrategistTakeoverFrozen() external view returns (bool);
+
+    /// @notice Gets the vault bank address for a specific chain ID
+    /// @param chainId The chain ID to get the vault bank for
+    /// @return The vault bank address
+    function getVaultBank(uint64 chainId) external view returns (address);
 
     /// @notice Checks if a hook is registered
     /// @param hook The address of the hook to check
@@ -536,6 +662,11 @@ interface ISuperGovernor is IAccessControl {
         view
         returns (bytes32 proposedRoot, uint256 effectiveTime);
 
+    /// @notice Checks if a token is whitelisted as an incentive token
+    /// @param token The address of the token to check
+    /// @return True if the token is whitelisted as an incentive token, false otherwise
+    function isWhitelistedIncentiveToken(address token) external view returns (bool);
+
     /// @notice Gets the prover address
     /// @return The address of the prover
     function getProver() external view returns (address);
@@ -558,6 +689,23 @@ interface ISuperGovernor is IAccessControl {
     /// @return strategists The list of all superform strategist addresses
     function getAllSuperformStrategists() external view returns (address[] memory);
 
+    /// @notice Returns up to `limit` superform strategists starting from `cursor`
+    /// @param cursor The index to start reading from (0 … len-1)
+    /// @param limit The maximum number of records to return
+    /// @return chunkOfStrategists The array slice [cursor … cursor+limit-1]
+    /// @return next The next cursor value the caller should use, or 0 to indicate done
+    function getStrategistsPaginated(
+        uint256 cursor,
+        uint256 limit
+    )
+        external
+        view
+        returns (address[] memory chunkOfStrategists, uint256 next);
+
+    /// @notice Gets the number of superform strategists
+    /// @return The number of superform strategists
+    function getSuperformStrategistsCount() external view returns (uint256);
+
     /// @notice Gets the SUP ID
     /// @return The ID of the SUP token
     function SUP() external view returns (bytes32);
@@ -574,10 +722,6 @@ interface ISuperGovernor is IAccessControl {
     /// @return The ID for the SuperOracle in the registry
     function SUPER_ORACLE() external view returns (bytes32);
 
-    /// @notice Gets the BLS PPS Oracle ID
-    /// @return The ID for the BLS PPS Oracle in the registry
-    function BLSPPSORACLE() external view returns (bytes32);
-
     /// @notice Gets the ECDSA PPS Oracle ID
     /// @return The ID for the ECDSA PPS Oracle in the registry
     function ECDSAPPSORACLE() external view returns (bytes32);
@@ -589,20 +733,4 @@ interface ISuperGovernor is IAccessControl {
     /// @notice Gets the SuperBank ID
     /// @return The ID for the SuperBank in the registry
     function SUPER_BANK() external view returns (bytes32);
-
-    /// @notice Adds a strategist to the superform strategists list
-    /// @param strategist Address of the strategist to add
-    function addSuperformStrategist(address strategist) external;
-
-    /// @notice Removes a strategist from the superform strategists list
-    /// @param strategist Address of the strategist to remove
-    function removeSuperformStrategist(address strategist) external;
-
-    /// @notice Adds a new ICC to the whitelist
-    /// @param icc Address of the ICC to add
-    function addICCToWhitelist(address icc) external;
-
-    /// @notice Removes an ICC from the whitelist
-    /// @param icc Address of the ICC to remove
-    function removeICCFromWhitelist(address icc) external;
 }

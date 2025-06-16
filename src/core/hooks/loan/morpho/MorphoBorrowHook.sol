@@ -68,9 +68,8 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function build(address prevHook, address account, bytes memory data)
-        external
+    function _buildHookExecutions(address prevHook, address account, bytes calldata data)
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -107,11 +106,6 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
             value: 0,
             callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, loanAmount, 0, account, account))
         });
-    }
-
-    /// @inheritdoc ISuperHookLoans
-    function getUsedAssets(address, bytes memory) external view returns (uint256) {
-        return outAmount;
     }
 
     /// @inheritdoc ISuperHookInspector

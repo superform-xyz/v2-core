@@ -55,10 +55,13 @@ interface ISuperOracle {
 
     /// @notice Error when provider is zero
     error ZERO_PROVIDER();
+
+    /// @notice Error when caller is not authorized to update
+    error UNAUTHORIZED_UPDATE_AUTHORITY();
+
     /*//////////////////////////////////////////////////////////////
                                 EVENTS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Emitted when oracles are configured
     /// @param bases Array of base assets
     /// @param providers Array of provider indexes
@@ -98,10 +101,14 @@ interface ISuperOracle {
     /// @param providers Array of provider ids that were removed
     event ProviderRemovalExecuted(bytes32[] providers);
 
+    /// @notice Emitted when emergency price is updated
+    /// @param token Token address
+    /// @param price Emergency price
+    event EmergencyPriceUpdated(address token, uint256 price);
+
     /*//////////////////////////////////////////////////////////////
                                 STRUCTS
     //////////////////////////////////////////////////////////////*/
-
     /// @notice Struct for pending oracle update
     struct PendingUpdate {
         address[] bases;
@@ -134,7 +141,12 @@ interface ISuperOracle {
     /// @param quote Quote asset address
     /// @param oracleProvider Id of oracle provider to use
     /// @return quoteAmount The quote amount
-    function getQuoteFromProvider(uint256 baseAmount, address base, address quote, bytes32 oracleProvider)
+    function getQuoteFromProvider(
+        uint256 baseAmount,
+        address base,
+        address quote,
+        bytes32 oracleProvider
+    )
         external
         view
         returns (uint256 quoteAmount, uint256 deviation, uint256 totalProviders, uint256 availableProviders);
@@ -149,7 +161,8 @@ interface ISuperOracle {
         address[] calldata quotes,
         bytes32[] calldata providers,
         address[] calldata feeds
-    ) external;
+    )
+        external;
 
     /// @notice Execute queued oracle update after timelock period
     function executeOracleUpdate() external;
@@ -178,4 +191,19 @@ interface ISuperOracle {
     /// @notice Get all active provider ids
     /// @return Array of active provider ids
     function getActiveProviders() external view returns (bytes32[] memory);
+
+    /// @notice Get the emergency price for a token
+    /// @param token Token address
+    /// @return Emergency price
+    function getEmergencyPrice(address token) external view returns (uint256);
+
+    /// @notice Set the emergency price for a token
+    /// @param token Token address
+    /// @param price Emergency price
+    function setEmergencyPrice(address token, uint256 price) external;
+
+    /// @notice Set the emergency price for multiple tokens in a batch
+    /// @param tokens_ Array of token addresses
+    /// @param prices_ Array of emergency prices
+    function batchSetEmergencyPrice(address[] calldata tokens_, uint256[] calldata prices_) external;
 }

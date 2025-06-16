@@ -2,14 +2,14 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
-import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
-import {IStandardizedYield} from "../../../../vendor/pendle/IStandardizedYield.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { IStandardizedYield } from "../../../../vendor/pendle/IStandardizedYield.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
@@ -17,8 +17,8 @@ import {
     ISuperHookContextAware,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title ApproveAndRedeem5115VaultHook
 /// @author Superform Labs
@@ -30,8 +30,7 @@ import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address tokenOut = BytesLib.toAddress(data, 44);
 /// @notice         uint256 shares = BytesLib.toUint256(data, 64);
 /// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 96);
-/// @notice         bool burnFromInternalBalance = _decodeBool(data, 128);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 129);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 128);
 contract ApproveAndRedeem5115VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
@@ -42,15 +41,20 @@ contract ApproveAndRedeem5115VaultHook is
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 64;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 129;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 128;
 
-    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC5115) {}
+    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC5115) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address account, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -60,7 +64,6 @@ contract ApproveAndRedeem5115VaultHook is
         address tokenOut = BytesLib.toAddress(data, 44);
         uint256 shares = BytesLib.toUint256(data, 64);
         uint256 minTokenOut = BytesLib.toUint256(data, 96);
-        bool burnFromInternalBalance = _decodeBool(data, 128);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
@@ -74,18 +77,18 @@ contract ApproveAndRedeem5115VaultHook is
 
         executions = new Execution[](4);
         executions[0] =
-            Execution({target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0))});
+            Execution({ target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
         executions[1] =
-            Execution({target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, shares))});
+            Execution({ target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, shares)) });
         executions[2] = Execution({
             target: yieldSource,
             value: 0,
             callData: abi.encodeCall(
-                IStandardizedYield.redeem, (account, shares, tokenOut, minTokenOut, burnFromInternalBalance)
+                IStandardizedYield.redeem, (account, shares, tokenOut, minTokenOut, false)
             )
         });
         executions[3] =
-            Execution({target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0))});
+            Execution({ target: tokenIn, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -120,7 +123,7 @@ contract ApproveAndRedeem5115VaultHook is
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        asset = BytesLib.toAddress(BytesLib.slice(data, 24, 20), 0);
+        asset = BytesLib.toAddress(BytesLib.slice(data, 44, 20), 0);
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
         spToken = data.extractYieldSource();

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 contract MockERC20 is ERC20 {
     /*//////////////////////////////////////////////////////////////
@@ -26,6 +26,10 @@ contract MockERC20 is ERC20 {
     function claimableRedeemRequest(uint256, address) external pure returns (uint256) {
         return 0;
     }
+
+    function previewWithdraw(uint256 amount) external pure returns (uint256) {
+        return amount;
+    }   
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

@@ -2,14 +2,14 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IERC4626} from "openzeppelin-contracts/contracts/interfaces/IERC4626.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
@@ -32,13 +32,17 @@ contract Deposit4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     uint256 private constant AMOUNT_POSITION = 24;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
-    constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC4626) {}
+    constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC4626) { }
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-
-    function build(address prevHook, address account, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -56,7 +60,7 @@ contract Deposit4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
 
         executions = new Execution[](1);
         executions[0] =
-            Execution({target: yieldSource, value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, account))});
+            Execution({ target: yieldSource, value: 0, callData: abi.encodeCall(IERC4626.deposit, (amount, account)) });
     }
 
     /*//////////////////////////////////////////////////////////////

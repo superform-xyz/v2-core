@@ -1,14 +1,12 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.30;
+pragma solidity 0.8.30;
 
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IIncentiveCalculationContract } from "../interfaces/SuperAsset/IIncentiveCalculationContract.sol";
 
-/**
- * @author Superform Labs
- * @title IncentiveCalculationContract
- * @notice A stateless contract for calculating incentives.
- */
+/// @title IncentiveCalculationContract
+/// @author Superform Labs
+/// @notice A stateless contract for calculating incentives.
 contract IncentiveCalculationContract is IIncentiveCalculationContract {
     using Math for uint256;
 

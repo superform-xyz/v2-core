@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {IHookExecutionData} from "./IHookExecutionData.sol";
+import { IHookExecutionData } from "../IHookExecutionData.sol";
 
 interface IVaultBankSource {
     /*//////////////////////////////////////////////////////////////
@@ -38,27 +38,20 @@ interface IVaultBankSource {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Get the locked amount of an account for a token
-    /// @param account The account to get the locked amount for
-    /// @param token The token to get the locked amount for
-    /// @param dstChainId The destination chain ID
-    function viewLockedAmount(address account, address token, uint64 dstChainId) external view returns (uint256);
-    /// @notice Get the total locked amount of an account for a token
-    /// @param account The account to get the total locked amount for
+    /// @notice Get the total locked amount of a token
     /// @param token The token to get the total locked amount for
-    function viewTotalLockedAsset(address account, address token) external view returns (uint256);
-    /// @notice Get all the locked assets of an account
-    /// @param account The account to get the locked assets for
-    /// @param dstChainId The destination chain ID
-    function viewAllLockedAssets(address account, uint64 dstChainId) external view returns (address[] memory);
+    function viewTotalLockedAsset(address token) external view returns (uint256);
+
+    /// @notice Get all the locked assets of a destination chain
+    function viewAllLockedAssets() external view returns (address[] memory);
 }
 
 interface IVaultBankDestination {
     struct SpAsset {
         bool wasCreated;
-        mapping (uint64 srcChainId => address srcTokenAddress) spToToken;
+        mapping(uint64 srcChainId => address srcTokenAddress) spToToken;
     }
-    
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -111,6 +104,7 @@ interface IVaultBank is IHookExecutionData {
     error INVALID_PROOF_ACCOUNT();
     error INVALID_PROOF_EMITTER();
     error INVALID_PROOF_SOURCE_CHAIN();
+    error INVALID_VAULT_BANK_ADDRESS();
     error INVALID_PROOF_TARGETED_CHAIN();
 
     /*//////////////////////////////////////////////////////////////
@@ -146,9 +140,18 @@ interface IVaultBank is IHookExecutionData {
     /// @notice Lock an asset for an account
     /// @param account The account to lock the asset for
     /// @param token The asset to lock
+    /// @param hookAddress The hook address to lock the asset through
     /// @param amount The amount of the asset to lock
     /// @param toChainId The destination chain ID
-    function lockAsset(address account, address token, uint256 amount, uint64 toChainId) external;
+    function lockAsset(
+        address account,
+        address token,
+        address hookAddress,
+        uint256 amount,
+        uint64 toChainId
+    )
+        external;
+
     /// @notice Creates or retrieves synthethic asset and distributes it to the account
     /// @param account_ The account to lock the asset for
     /// @param amount_ The amount of the asset to lock
@@ -159,7 +162,9 @@ interface IVaultBank is IHookExecutionData {
         uint256 amount_,
         SourceAssetInfo calldata sourceAssetInfo_,
         bytes calldata proof_
-    ) external;
+    )
+        external;
+
     /// @notice Burns a synthetic asset
     /// @dev Should be requested by the account owning the SP assets
     /// @param amount_ The amount of the asset to burn
@@ -174,7 +179,13 @@ interface IVaultBank is IHookExecutionData {
     /// @param amount The amount of the asset to unlock
     /// @param fromChainId The `from` (destination) chain
     /// @param proof_ The proof of the `burnSuperPosition` event
-    function unlockAsset(address account, address token, uint256 amount, uint64 fromChainId, bytes calldata proof_)
+    function unlockAsset(
+        address account,
+        address token,
+        uint256 amount,
+        uint64 fromChainId,
+        bytes calldata proof_
+    )
         external;
 
     // ------------------ MANAGE REWARDS ------------------

@@ -2,20 +2,21 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {IERC20} from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import {IStakedUSDeCooldown} from "../../../../vendor/ethena/IStakedUSDeCooldown.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IStakedUSDeCooldown } from "../../../../vendor/ethena/IStakedUSDeCooldown.sol";
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
     ISuperHookAsync,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title EthenaCooldownSharesHook
 /// @author Superform Labs
@@ -29,13 +30,18 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
 
     uint256 private constant AMOUNT_POSITION = 24;
 
-    constructor() BaseHook(HookType.NONACCOUNTING, "Cooldown") {}
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.COOLDOWN) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address account, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -61,7 +67,7 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
 
     /// @inheritdoc ISuperHookAsync
     function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
-        return (outAmount, true);
+        return (usedShares, true);
     }
 
     /// @inheritdoc ISuperHookInspector
@@ -82,11 +88,11 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getSharesBalance(account, data);
+        usedShares = _getSharesBalance(account, data);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = outAmount - _getSharesBalance(account, data);
+        usedShares = usedShares - _getSharesBalance(account, data);
     }
 
     /*//////////////////////////////////////////////////////////////

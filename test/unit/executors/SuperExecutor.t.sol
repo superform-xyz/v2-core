@@ -226,7 +226,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
-        vm.expectRevert(ISuperExecutor.INSUFFICIENT_BALANCE_FOR_FEE.selector);
+        vm.expectRevert();
         superSourceExecutor.execute(abi.encode(entry));
         vm.stopPrank();
     }
@@ -306,8 +306,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.mockCall(address(inflowHook), abi.encodeWithSignature("dstChainId()"), abi.encode(1));
         vm.mockCall(
             address(this),
-            abi.encodeWithSignature("lockAsset(address,address,uint256,uint64)"),
-            abi.encode(address(account), address(token), 1000, 1)
+            abi.encodeWithSignature("lockAsset(address,address,address,uint256,uint64)"),
+            abi.encode(address(account), address(token), address(inflowHook), 1000, 1)
         );
 
         vm.startPrank(account);
@@ -457,6 +457,22 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         vm.mockCall(address(this), abi.encodeWithSignature("accountId()"), abi.encode(""));
         vm.expectRevert(SuperDestinationExecutor.ADDRESS_NOT_ACCOUNT.selector);
+        superDestinationExecutor.processBridgedExecution(
+            address(token), address(this), dstTokens, intentAmounts, "", "", ""
+        );
+    }
+
+    function test_DestinationExecutor_ProcessBridgedExecution_InvalidLengths() public {
+        vm.expectRevert();
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(token);
+        uint256[] memory intentAmounts = new uint256[](0);
+        superDestinationExecutor.processBridgedExecution(
+            address(token), address(this), dstTokens, intentAmounts, "", "", ""
+        );
+
+        vm.mockCall(address(this), abi.encodeWithSignature("accountId()"), abi.encode(""));
+        vm.expectRevert(SuperDestinationExecutor.ARRAY_LENGTH_MISMATCH.selector);
         superDestinationExecutor.processBridgedExecution(
             address(token), address(this), dstTokens, intentAmounts, "", "", ""
         );

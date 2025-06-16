@@ -2,20 +2,20 @@
 pragma solidity 0.8.30;
 
 // external
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {ERC7579ExecutorBase} from "modulekit/Modules.sol";
-import {IModule} from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {ReentrancyGuard} from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import {Math} from "openzeppelin-contracts/contracts/utils/math/Math.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { ERC7579ExecutorBase } from "modulekit/Modules.sol";
+import { IModule } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { ReentrancyGuard } from "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
-import {ISuperExecutor} from "../interfaces/ISuperExecutor.sol";
-import {ISuperLedger} from "../interfaces/accounting/ISuperLedger.sol";
-import {ISuperLedgerConfiguration} from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-import {ISuperHook, ISuperHookResult, ISuperHookResultOutflow} from "../interfaces/ISuperHook.sol";
-import {HookDataDecoder} from "../libraries/HookDataDecoder.sol";
-import {IVaultBank} from "../../periphery/interfaces/IVaultBank.sol";
+import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
+import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
+import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
+import { IVaultBank } from "../../periphery/interfaces/VaultBank/IVaultBank.sol";
 
 /// @title SuperExecutorBase
 /// @author Superform Labs
@@ -98,6 +98,39 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     function execute(bytes calldata data) external virtual {
         if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _execute(msg.sender, abi.decode(data, (ExecutorEntry)));
+    }
+
+    /// @notice Validates that hook follows secure execution pattern
+    function validateHookCompliance(
+        address hook,
+        address prevHook,
+        address account, 
+        bytes memory hookData
+    ) public view returns (Execution[] memory) {
+        Execution[] memory empty = new Execution[](0);
+        try ISuperHook(hook).build(prevHook, account, hookData) returns (Execution[] memory executions) {
+            if (executions.length < 2) return empty;
+            
+            // Check FIRST execution is preExecute
+            if (executions[0].target != hook) return empty;
+            bytes4 firstSelector = bytes4(executions[0].callData);
+            if (firstSelector != ISuperHook.preExecute.selector) return empty;
+            
+            // Check LAST execution is postExecute
+            uint256 lastIdx = executions.length - 1;
+            if (executions[lastIdx].target != hook) return empty;
+            bytes4 lastSelector = bytes4(executions[lastIdx].callData);
+            if (lastSelector != ISuperHook.postExecute.selector) return empty;
+
+            // Do not allow any in-between executions to be performed on the same hook
+            for (uint256 i = 1; i < lastIdx; i++) {
+                if (executions[i].target == hook) return empty;
+            }
+            
+            return executions;
+        } catch {
+            return empty;
+        }
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -186,7 +219,12 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     /// @param assetToken The ERC20 token to transfer
     /// @param feeRecipient The address to receive the fee
     /// @param feeAmount The amount of tokens to transfer as a fee
-    function _performErc20FeeTransfer(address account, address assetToken, address feeRecipient, uint256 feeAmount)
+    function _performErc20FeeTransfer(
+        address account,
+        address assetToken,
+        address feeRecipient,
+        uint256 feeAmount
+    )
         internal
         virtual
     {
@@ -237,29 +275,33 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     /// @param hook The hook to process
     /// @param prevHook The previous hook in the sequence (or address(0) if first)
     /// @param hookData The data provided to the hook for execution
-    function _processHook(address account, ISuperHook hook, address prevHook, bytes memory hookData)
+    function _processHook(
+        address account,
+        ISuperHook hook,
+        address prevHook,
+        bytes memory hookData
+    )
         internal
         nonReentrant
     {
-        // Stage 1: Initialize the hook execution context
-        hook.preExecute(prevHook, account, hookData);
-
-        // Stage 2: Build execution instructions
-        Execution[] memory executions = hook.build(prevHook, account, hookData);
-
-        // Stage 3: Execute the operations defined by the hook
-        if (executions.length > 0) {
-            _execute(account, executions);
+        Execution[] memory executions = validateHookCompliance(address(hook), prevHook, account, hookData);
+        // STEP 1: Validate hook compliance
+        if (executions.length == 0) {
+            revert MALICIOUS_HOOK_DETECTED();
         }
 
-        // Stage 4: Finalize and set hook outputs
-        hook.postExecute(prevHook, account, hookData);
+        // STEP 2: Build and execute (dual mutexes protect pre/post)
+        hook.setCaller();
+        _execute(account, executions);
 
-        // Stage 5: Update accounting records based on hook type
+        // STEP 3: Update accounting (both mutexes active, preventing reentrancy)
         _updateAccounting(account, address(hook), hookData);
-
-        // Stage 6: Handle cross-chain operations if needed
+        
+        // STEP 4: Handle cross-chain operations
         _checkAndLockForSuperPosition(account, address(hook));
+        
+        // STEP 5: Reset both mutexes after all processing complete
+        hook.resetExecutionState();
     }
 
     /// @notice Handles cross-chain asset locking for SuperPosition minting
@@ -293,10 +335,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
             if (dstChainId == block.chainid) revert INVALID_CHAIN_ID();
 
             // Lock assets in the vault bank for cross-chain transfer
-            IVaultBank(vaultBank).lockAsset(account, spToken, amount, uint64(dstChainId));
-
-            // Emit event for cross-chain position minting
-            emit SuperPositionMintRequested(account, spToken, amount, dstChainId);
+            IVaultBank(vaultBank).lockAsset(account, spToken, hook, amount, uint64(dstChainId));
         }
     }
 }
