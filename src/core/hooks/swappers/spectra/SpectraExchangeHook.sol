@@ -80,7 +80,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
 
         executions = new Execution[](1);
         executions[0] =
-            Execution({ target: address(router), value: value, callData: usePrevHookAmount ? updatedTxData : txData_ });
+            Execution({ target: address(router), value: usePrevHookAmount ? ISuperHookResult(prevHook).outAmount() : value, callData: usePrevHookAmount ? updatedTxData : txData_ });
     }
 
     /*//////////////////////////////////////////////////////////////
