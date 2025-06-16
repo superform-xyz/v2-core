@@ -778,7 +778,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         _getTokens(token, address(this), amount);
 
         bytes memory data =
-            abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false, address(this), uint256(1));
+            abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), amount, false, address(this), uint256(1));
 
         claimCancelRedeemRequestHook.preExecute(address(0), address(this), data);
         assertEq(claimCancelRedeemRequestHook.outAmount(), 1_000_000_000);
@@ -792,7 +792,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         _getTokens(token, address(this), amount);
 
         bytes memory data =
-            abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false, address(this), uint256(1));
+            abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), amount, false, address(this), uint256(1));
 
         claimCancelDepositRequestHook.preExecute(address(0), address(this), data);
         assertEq(claimCancelDepositRequestHook.outAmount(), 1_000_000_000);
