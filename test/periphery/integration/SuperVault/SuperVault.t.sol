@@ -2503,11 +2503,11 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
     function _claimWithdraw_Gearbox_SV(uint256 assets) internal {
         address[] memory claimHooksAddresses = new address[](1);
-        claimHooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY);
+        claimHooksAddresses[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), vault.share(), assets, false
+            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), assets, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
