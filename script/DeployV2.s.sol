@@ -151,6 +151,7 @@ contract DeployV2 is Script, Configuration {
         address deposit7540VaultHook;
         address requestDeposit7540VaultHook;
         address approveAndRequestDeposit7540VaultHook;
+        address approveAndRequestRedeem7540VaultHook;
         address requestRedeem7540VaultHook;
         address withdraw7540VaultHook;
         address acrossSendFundsAndExecuteOnDstHook;
@@ -542,11 +543,10 @@ contract DeployV2 is Script, Configuration {
         hooks[13] = HookDeployment(
             APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, type(ApproveAndRequestDeposit7540VaultHook).creationCode
         );
-        hooks[14] = HookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(RequestRedeem7540VaultHook).creationCode);
-        hooks[15] = HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, type(Deposit7540VaultHook).creationCode);
-        hooks[16] = HookDeployment(WITHDRAW_7540_VAULT_HOOK_KEY, type(Withdraw7540VaultHook).creationCode);
-        hooks[17] =
-            HookDeployment(APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY, type(ApproveAndRedeem7540VaultHook).creationCode);
+        hooks[14] = HookDeployment(APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(ApproveAndRequestRedeem7540VaultHook).creationCode);
+        hooks[15] = HookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(RequestRedeem7540VaultHook).creationCode);
+        hooks[16] = HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, type(Deposit7540VaultHook).creationCode);
+        hooks[17] = HookDeployment(WITHDRAW_7540_VAULT_HOOK_KEY, type(Withdraw7540VaultHook).creationCode);
 
         hooks[18] = HookDeployment(
             SWAP_1INCH_HOOK_KEY,
@@ -662,14 +662,14 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[12].name, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[12] : address(0);
         hookAddresses.approveAndRequestDeposit7540VaultHook =
             Strings.equal(hooks[13].name, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[13] : address(0);
+        hookAddresses.approveAndRequestRedeem7540VaultHook =
+            Strings.equal(hooks[14].name, APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[14] : address(0);
         hookAddresses.requestRedeem7540VaultHook =
-            Strings.equal(hooks[14].name, REQUEST_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[14] : address(0);
+            Strings.equal(hooks[15].name, REQUEST_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[15] : address(0);
         hookAddresses.deposit7540VaultHook =
-            Strings.equal(hooks[15].name, DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[15] : address(0);
+            Strings.equal(hooks[16].name, DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[16] : address(0);
         hookAddresses.withdraw7540VaultHook =
-            Strings.equal(hooks[16].name, WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[16] : address(0);
-        hookAddresses.approveAndRedeem7540VaultHook =
-            Strings.equal(hooks[17].name, APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[17] : address(0);
+            Strings.equal(hooks[17].name, WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[17] : address(0);
         hookAddresses.swap1InchHook = Strings.equal(hooks[18].name, SWAP_1INCH_HOOK_KEY) ? addresses[18] : address(0);
         hookAddresses.swapOdosHook = Strings.equal(hooks[19].name, SWAP_ODOS_HOOK_KEY) ? addresses[19] : address(0);
         hookAddresses.approveAndSwapOdosHook =
@@ -747,7 +747,7 @@ contract DeployV2 is Script, Configuration {
         require(hookAddresses.requestRedeem7540VaultHook != address(0), "requestRedeem7540VaultHook not assigned");
         require(hookAddresses.deposit7540VaultHook != address(0), "deposit7540VaultHook not assigned");
         require(hookAddresses.withdraw7540VaultHook != address(0), "withdraw7540VaultHook not assigned");
-        require(hookAddresses.approveAndRedeem7540VaultHook != address(0), "approveAndRedeem7540VaultHook not assigned");
+        require(hookAddresses.approveAndRequestRedeem7540VaultHook != address(0), "approveAndRequestRedeem7540VaultHook not assigned");
         require(hookAddresses.swap1InchHook != address(0), "swap1InchHook not assigned");
         require(hookAddresses.swapOdosHook != address(0), "swapOdosHook not assigned");
         require(hookAddresses.approveAndSwapOdosHook != address(0), "approveAndSwapOdosHook not assigned");
@@ -795,7 +795,7 @@ contract DeployV2 is Script, Configuration {
         superGovernor.registerHook(address(hookAddresses.redeem5115VaultHook), true);
         superGovernor.registerHook(address(hookAddresses.approveAndRedeem5115VaultHook), true);
         superGovernor.registerHook(address(hookAddresses.deposit7540VaultHook), true);
-        superGovernor.registerHook(address(hookAddresses.approveAndRedeem7540VaultHook), true);
+        superGovernor.registerHook(address(hookAddresses.approveAndRequestRedeem7540VaultHook), true);
 
         // Register remaining hooks
         superGovernor.registerHook(address(hookAddresses.approveErc20Hook), false);
