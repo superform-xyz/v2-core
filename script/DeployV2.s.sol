@@ -71,7 +71,6 @@ import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { ApproveAndRedeem4626VaultHook } from "../src/core/hooks/vaults/4626/ApproveAndRedeem4626VaultHook.sol";
 import { ApproveAndRedeem5115VaultHook } from "../src/core/hooks/vaults/5115/ApproveAndRedeem5115VaultHook.sol";
-import { ApproveAndWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndWithdraw7540VaultHook.sol";
 import { ApproveAndRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndRedeem7540VaultHook.sol";
 import { DeBridgeSendOrderAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
@@ -173,7 +172,6 @@ contract DeployV2 is Script, Configuration {
         address cancelRedeemHook;
         address approveAndRedeem4626VaultHook;
         address approveAndRedeem5115VaultHook;
-        address approveAndWithdraw7540VaultHook;
         address approveAndRedeem7540VaultHook;
         address deBridgeSendOrderAndExecuteOnDstHook;
         address ethenaCooldownSharesHook;
@@ -517,7 +515,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (HookAddresses memory hookAddresses)
     {
-        uint256 len = 46; // Updated length including Pendle & batchTransferFrom hooks
+        uint256 len = 45; // Updated length including Pendle & batchTransferFrom hooks
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -548,31 +546,29 @@ contract DeployV2 is Script, Configuration {
         hooks[15] = HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, type(Deposit7540VaultHook).creationCode);
         hooks[16] = HookDeployment(WITHDRAW_7540_VAULT_HOOK_KEY, type(Withdraw7540VaultHook).creationCode);
         hooks[17] =
-            HookDeployment(APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY, type(ApproveAndWithdraw7540VaultHook).creationCode);
-        hooks[18] =
             HookDeployment(APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY, type(ApproveAndRedeem7540VaultHook).creationCode);
 
-        hooks[19] = HookDeployment(
+        hooks[18] = HookDeployment(
             SWAP_1INCH_HOOK_KEY,
             abi.encodePacked(type(Swap1InchHook).creationCode, abi.encode(configuration.aggregationRouters[chainId]))
         );
-        hooks[20] = HookDeployment(
+        hooks[19] = HookDeployment(
             SWAP_ODOS_HOOK_KEY,
             abi.encodePacked(type(SwapOdosHook).creationCode, abi.encode(configuration.odosRouters[chainId]))
         );
-        hooks[21] = HookDeployment(
+        hooks[20] = HookDeployment(
             APPROVE_AND_SWAP_ODOS_HOOK_KEY,
             abi.encodePacked(type(ApproveAndSwapOdosHook).creationCode, abi.encode(configuration.odosRouters[chainId]))
         );
 
-        hooks[22] = HookDeployment(
+        hooks[21] = HookDeployment(
             ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
                 type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
                 abi.encode(configuration.acrossSpokePoolV3s[chainId], _getContract(chainId, SUPER_MERKLE_VALIDATOR_KEY))
             )
         );
-        hooks[23] = HookDeployment(
+        hooks[22] = HookDeployment(
             DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
                 type(DeBridgeSendOrderAndExecuteOnDstHook).creationCode,
@@ -580,49 +576,49 @@ contract DeployV2 is Script, Configuration {
             )
         );
 
-        hooks[24] = HookDeployment(FLUID_CLAIM_REWARD_HOOK_KEY, type(FluidClaimRewardHook).creationCode);
-        hooks[25] = HookDeployment(FLUID_STAKE_HOOK_KEY, type(FluidStakeHook).creationCode);
-        hooks[26] = HookDeployment(APPROVE_AND_FLUID_STAKE_HOOK_KEY, type(ApproveAndFluidStakeHook).creationCode);
-        hooks[27] = HookDeployment(FLUID_UNSTAKE_HOOK_KEY, type(FluidUnstakeHook).creationCode);
-        hooks[28] = HookDeployment(GEARBOX_CLAIM_REWARD_HOOK_KEY, type(GearboxClaimRewardHook).creationCode);
-        hooks[29] = HookDeployment(GEARBOX_STAKE_HOOK_KEY, type(GearboxStakeHook).creationCode);
-        hooks[30] = HookDeployment(GEARBOX_APPROVE_AND_STAKE_HOOK_KEY, type(ApproveAndGearboxStakeHook).creationCode);
-        hooks[31] = HookDeployment(GEARBOX_UNSTAKE_HOOK_KEY, type(GearboxUnstakeHook).creationCode);
-        hooks[32] = HookDeployment(YEARN_CLAIM_ONE_REWARD_HOOK_KEY, type(YearnClaimOneRewardHook).creationCode);
-        hooks[33] = HookDeployment(ETHENA_COOLDOWN_SHARES_HOOK_KEY, type(EthenaCooldownSharesHook).creationCode);
-        hooks[34] = HookDeployment(ETHENA_UNSTAKE_HOOK_KEY, type(EthenaUnstakeHook).creationCode);
-        hooks[35] = HookDeployment(
+        hooks[23] = HookDeployment(FLUID_CLAIM_REWARD_HOOK_KEY, type(FluidClaimRewardHook).creationCode);
+        hooks[24] = HookDeployment(FLUID_STAKE_HOOK_KEY, type(FluidStakeHook).creationCode);
+        hooks[25] = HookDeployment(APPROVE_AND_FLUID_STAKE_HOOK_KEY, type(ApproveAndFluidStakeHook).creationCode);
+        hooks[26] = HookDeployment(FLUID_UNSTAKE_HOOK_KEY, type(FluidUnstakeHook).creationCode);
+        hooks[27] = HookDeployment(GEARBOX_CLAIM_REWARD_HOOK_KEY, type(GearboxClaimRewardHook).creationCode);
+        hooks[28] = HookDeployment(GEARBOX_STAKE_HOOK_KEY, type(GearboxStakeHook).creationCode);
+        hooks[29] = HookDeployment(GEARBOX_APPROVE_AND_STAKE_HOOK_KEY, type(ApproveAndGearboxStakeHook).creationCode);
+        hooks[30] = HookDeployment(GEARBOX_UNSTAKE_HOOK_KEY, type(GearboxUnstakeHook).creationCode);
+        hooks[31] = HookDeployment(YEARN_CLAIM_ONE_REWARD_HOOK_KEY, type(YearnClaimOneRewardHook).creationCode);
+        hooks[32] = HookDeployment(ETHENA_COOLDOWN_SHARES_HOOK_KEY, type(EthenaCooldownSharesHook).creationCode);
+        hooks[33] = HookDeployment(ETHENA_UNSTAKE_HOOK_KEY, type(EthenaUnstakeHook).creationCode);
+        hooks[34] = HookDeployment(
             SPECTRA_EXCHANGE_HOOK_KEY,
             abi.encodePacked(type(SpectraExchangeHook).creationCode, abi.encode(configuration.spectraRouters[chainId]))
         );
-        hooks[36] = HookDeployment(
+        hooks[35] = HookDeployment(
             PENDLE_ROUTER_SWAP_HOOK_KEY,
             abi.encodePacked(type(PendleRouterSwapHook).creationCode, abi.encode(configuration.pendleRouters[chainId]))
         );
-        hooks[37] = HookDeployment(
+        hooks[36] = HookDeployment(
             PENDLE_ROUTER_REDEEM_HOOK_KEY,
             abi.encodePacked(
                 type(PendleRouterRedeemHook).creationCode, abi.encode(configuration.pendleRouters[chainId])
             )
         );
-        hooks[38] =
+        hooks[37] =
             HookDeployment(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(CancelDepositRequest7540Hook).creationCode);
-        hooks[39] = HookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(CancelRedeemRequest7540Hook).creationCode);
-        hooks[40] = HookDeployment(
+        hooks[38] = HookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(CancelRedeemRequest7540Hook).creationCode);
+        hooks[39] = HookDeployment(
             CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(ClaimCancelDepositRequest7540Hook).creationCode
         );
-        hooks[41] = HookDeployment(
+        hooks[40] = HookDeployment(
             CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(ClaimCancelRedeemRequest7540Hook).creationCode
         );
-        hooks[42] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, type(CancelRedeemHook).creationCode);
+        hooks[41] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, type(CancelRedeemHook).creationCode);
 
-        hooks[43] = HookDeployment(
+        hooks[42] = HookDeployment(
             MORPHO_BORROW_HOOK_KEY, abi.encodePacked(type(MorphoBorrowHook).creationCode, abi.encode(MORPHO))
         );
-        hooks[44] = HookDeployment(
+        hooks[43] = HookDeployment(
             MORPHO_REPAY_HOOK_KEY, abi.encodePacked(type(MorphoRepayHook).creationCode, abi.encode(MORPHO))
         );
-        hooks[45] = HookDeployment(
+        hooks[44] = HookDeployment(
             MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
             abi.encodePacked(type(MorphoRepayAndWithdrawHook).creationCode, abi.encode(MORPHO))
         );
@@ -672,61 +668,59 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[15].name, DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[15] : address(0);
         hookAddresses.withdraw7540VaultHook =
             Strings.equal(hooks[16].name, WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[16] : address(0);
-        hookAddresses.approveAndWithdraw7540VaultHook =
-            Strings.equal(hooks[17].name, APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[17] : address(0);
         hookAddresses.approveAndRedeem7540VaultHook =
-            Strings.equal(hooks[18].name, APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[18] : address(0);
-        hookAddresses.swap1InchHook = Strings.equal(hooks[19].name, SWAP_1INCH_HOOK_KEY) ? addresses[19] : address(0);
-        hookAddresses.swapOdosHook = Strings.equal(hooks[20].name, SWAP_ODOS_HOOK_KEY) ? addresses[20] : address(0);
+            Strings.equal(hooks[17].name, APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[17] : address(0);
+        hookAddresses.swap1InchHook = Strings.equal(hooks[18].name, SWAP_1INCH_HOOK_KEY) ? addresses[18] : address(0);
+        hookAddresses.swapOdosHook = Strings.equal(hooks[19].name, SWAP_ODOS_HOOK_KEY) ? addresses[19] : address(0);
         hookAddresses.approveAndSwapOdosHook =
-            Strings.equal(hooks[21].name, APPROVE_AND_SWAP_ODOS_HOOK_KEY) ? addresses[21] : address(0);
+            Strings.equal(hooks[20].name, APPROVE_AND_SWAP_ODOS_HOOK_KEY) ? addresses[20] : address(0);
         hookAddresses.acrossSendFundsAndExecuteOnDstHook =
-            Strings.equal(hooks[22].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[22] : address(0);
+            Strings.equal(hooks[21].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[21] : address(0);
         hookAddresses.deBridgeSendOrderAndExecuteOnDstHook =
-            Strings.equal(hooks[23].name, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[23] : address(0);
+            Strings.equal(hooks[22].name, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[22] : address(0);
         hookAddresses.fluidClaimRewardHook =
-            Strings.equal(hooks[24].name, FLUID_CLAIM_REWARD_HOOK_KEY) ? addresses[24] : address(0);
-        hookAddresses.fluidStakeHook = Strings.equal(hooks[25].name, FLUID_STAKE_HOOK_KEY) ? addresses[25] : address(0);
+            Strings.equal(hooks[23].name, FLUID_CLAIM_REWARD_HOOK_KEY) ? addresses[23] : address(0);
+        hookAddresses.fluidStakeHook = Strings.equal(hooks[24].name, FLUID_STAKE_HOOK_KEY) ? addresses[24] : address(0);
         hookAddresses.approveAndFluidStakeHook =
-            Strings.equal(hooks[26].name, APPROVE_AND_FLUID_STAKE_HOOK_KEY) ? addresses[26] : address(0);
+            Strings.equal(hooks[25].name, APPROVE_AND_FLUID_STAKE_HOOK_KEY) ? addresses[25] : address(0);
         hookAddresses.fluidUnstakeHook =
-            Strings.equal(hooks[27].name, FLUID_UNSTAKE_HOOK_KEY) ? addresses[27] : address(0);
+            Strings.equal(hooks[26].name, FLUID_UNSTAKE_HOOK_KEY) ? addresses[26] : address(0);
         hookAddresses.gearboxClaimRewardHook =
-            Strings.equal(hooks[28].name, GEARBOX_CLAIM_REWARD_HOOK_KEY) ? addresses[28] : address(0);
+            Strings.equal(hooks[27].name, GEARBOX_CLAIM_REWARD_HOOK_KEY) ? addresses[27] : address(0);
         hookAddresses.gearboxStakeHook =
-            Strings.equal(hooks[29].name, GEARBOX_STAKE_HOOK_KEY) ? addresses[29] : address(0);
+            Strings.equal(hooks[28].name, GEARBOX_STAKE_HOOK_KEY) ? addresses[28] : address(0);
         hookAddresses.approveAndGearboxStakeHook =
-            Strings.equal(hooks[30].name, GEARBOX_APPROVE_AND_STAKE_HOOK_KEY) ? addresses[30] : address(0);
+            Strings.equal(hooks[29].name, GEARBOX_APPROVE_AND_STAKE_HOOK_KEY) ? addresses[29] : address(0);
         hookAddresses.gearboxUnstakeHook =
-            Strings.equal(hooks[31].name, GEARBOX_UNSTAKE_HOOK_KEY) ? addresses[31] : address(0);
+            Strings.equal(hooks[30].name, GEARBOX_UNSTAKE_HOOK_KEY) ? addresses[30] : address(0);
         hookAddresses.yearnClaimOneRewardHook =
-            Strings.equal(hooks[32].name, YEARN_CLAIM_ONE_REWARD_HOOK_KEY) ? addresses[32] : address(0);
+            Strings.equal(hooks[31].name, YEARN_CLAIM_ONE_REWARD_HOOK_KEY) ? addresses[31] : address(0);
         hookAddresses.ethenaCooldownSharesHook =
-            Strings.equal(hooks[33].name, ETHENA_COOLDOWN_SHARES_HOOK_KEY) ? addresses[33] : address(0);
+            Strings.equal(hooks[32].name, ETHENA_COOLDOWN_SHARES_HOOK_KEY) ? addresses[32] : address(0);
         hookAddresses.ethenaUnstakeHook =
-            Strings.equal(hooks[34].name, ETHENA_UNSTAKE_HOOK_KEY) ? addresses[34] : address(0);
+            Strings.equal(hooks[33].name, ETHENA_UNSTAKE_HOOK_KEY) ? addresses[33] : address(0);
         hookAddresses.spectraExchangeHook =
-            Strings.equal(hooks[35].name, SPECTRA_EXCHANGE_HOOK_KEY) ? addresses[35] : address(0);
+            Strings.equal(hooks[34].name, SPECTRA_EXCHANGE_HOOK_KEY) ? addresses[34] : address(0);
         hookAddresses.pendleRouterSwapHook =
-            Strings.equal(hooks[36].name, PENDLE_ROUTER_SWAP_HOOK_KEY) ? addresses[36] : address(0);
+            Strings.equal(hooks[35].name, PENDLE_ROUTER_SWAP_HOOK_KEY) ? addresses[35] : address(0);
         hookAddresses.pendleRouterRedeemHook =
-            Strings.equal(hooks[37].name, PENDLE_ROUTER_REDEEM_HOOK_KEY) ? addresses[37] : address(0);
+            Strings.equal(hooks[36].name, PENDLE_ROUTER_REDEEM_HOOK_KEY) ? addresses[36] : address(0);
         hookAddresses.cancelDepositRequest7540Hook =
-            Strings.equal(hooks[38].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[38] : address(0);
+            Strings.equal(hooks[37].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[37] : address(0);
         hookAddresses.cancelRedeemRequest7540Hook =
-            Strings.equal(hooks[39].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[39] : address(0);
+            Strings.equal(hooks[38].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[38] : address(0);
         hookAddresses.claimCancelDepositRequest7540Hook =
-            Strings.equal(hooks[40].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[40] : address(0);
+            Strings.equal(hooks[39].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[39] : address(0);
         hookAddresses.claimCancelRedeemRequest7540Hook =
-            Strings.equal(hooks[41].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[41] : address(0);
+            Strings.equal(hooks[40].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[40] : address(0);
         hookAddresses.cancelRedeemHook =
-            Strings.equal(hooks[42].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[42] : address(0);
+            Strings.equal(hooks[41].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[41] : address(0);
         hookAddresses.morphoBorrowHook =
-            Strings.equal(hooks[43].name, MORPHO_BORROW_HOOK_KEY) ? addresses[43] : address(0);
+            Strings.equal(hooks[42].name, MORPHO_BORROW_HOOK_KEY) ? addresses[42] : address(0);
         hookAddresses.morphoRepayHook =
-            Strings.equal(hooks[44].name, MORPHO_REPAY_HOOK_KEY) ? addresses[44] : address(0);
+            Strings.equal(hooks[43].name, MORPHO_REPAY_HOOK_KEY) ? addresses[43] : address(0);
         hookAddresses.morphoRepayAndWithdrawHook =
-            Strings.equal(hooks[45].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[45] : address(0);
+            Strings.equal(hooks[44].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[44] : address(0);
 
         // Verify no hooks were assigned address(0) (excluding experimental placeholders)
         require(hookAddresses.approveErc20Hook != address(0), "approveErc20Hook not assigned");
@@ -753,9 +747,6 @@ contract DeployV2 is Script, Configuration {
         require(hookAddresses.requestRedeem7540VaultHook != address(0), "requestRedeem7540VaultHook not assigned");
         require(hookAddresses.deposit7540VaultHook != address(0), "deposit7540VaultHook not assigned");
         require(hookAddresses.withdraw7540VaultHook != address(0), "withdraw7540VaultHook not assigned");
-        require(
-            hookAddresses.approveAndWithdraw7540VaultHook != address(0), "approveAndWithdraw7540VaultHook not assigned"
-        );
         require(hookAddresses.approveAndRedeem7540VaultHook != address(0), "approveAndRedeem7540VaultHook not assigned");
         require(hookAddresses.swap1InchHook != address(0), "swap1InchHook not assigned");
         require(hookAddresses.swapOdosHook != address(0), "swapOdosHook not assigned");
@@ -804,7 +795,6 @@ contract DeployV2 is Script, Configuration {
         superGovernor.registerHook(address(hookAddresses.redeem5115VaultHook), true);
         superGovernor.registerHook(address(hookAddresses.approveAndRedeem5115VaultHook), true);
         superGovernor.registerHook(address(hookAddresses.deposit7540VaultHook), true);
-        superGovernor.registerHook(address(hookAddresses.approveAndWithdraw7540VaultHook), true);
         superGovernor.registerHook(address(hookAddresses.approveAndRedeem7540VaultHook), true);
 
         // Register remaining hooks

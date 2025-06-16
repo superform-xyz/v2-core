@@ -2506,7 +2506,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         claimHooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY);
 
         bytes[] memory claimHooksData = new bytes[](1);
-        claimHooksData[0] = _createApproveAndWithdraw7540VaultHookData(
+        claimHooksData[0] = _createWithdraw7540VaultHookData(
             bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), vault.share(), assets, false
         );
 

@@ -166,7 +166,6 @@ abstract contract Constants {
     string internal constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
     string internal constant APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY = "ApproveAndRedeem4626VaultHook";
     string internal constant APPROVE_AND_REDEEM_5115_VAULT_HOOK_KEY = "ApproveAndRedeem5115VaultHook";
-    string internal constant APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY = "ApproveAndWithdraw7540VaultHook";
     string internal constant APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY = "ApproveAndRedeem7540VaultHook";
     string internal constant DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendOrderAndExecuteOnDstHook";
     string internal constant ETHENA_COOLDOWN_SHARES_HOOK_KEY = "EthenaCooldownSharesHook";
