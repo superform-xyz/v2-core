@@ -50,6 +50,8 @@ import { Redeem5115VaultHook } from "../src/core/hooks/vaults/5115/Redeem5115Vau
 import { RequestDeposit7540VaultHook } from "../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
 import { ApproveAndRequestDeposit7540VaultHook } from
     "../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
+import { ApproveAndRequestRedeem7540VaultHook } from
+    "../src/core/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
 import { Deposit7540VaultHook } from "../src/core/hooks/vaults/7540/Deposit7540VaultHook.sol";
 import { RequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
@@ -72,7 +74,6 @@ import { AcrossSendFundsAndExecuteOnDstHook } from
 import { ApproveAndRedeem4626VaultHook } from "../src/core/hooks/vaults/4626/ApproveAndRedeem4626VaultHook.sol";
 import { ApproveAndRedeem5115VaultHook } from "../src/core/hooks/vaults/5115/ApproveAndRedeem5115VaultHook.sol";
 import { ApproveAndWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndWithdraw7540VaultHook.sol";
-import { ApproveAndRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndRedeem7540VaultHook.sol";
 import { DeBridgeSendOrderAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
 import { EthenaCooldownSharesHook } from "../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
@@ -174,7 +175,6 @@ contract DeployV2 is Script, Configuration {
         address approveAndRedeem4626VaultHook;
         address approveAndRedeem5115VaultHook;
         address approveAndWithdraw7540VaultHook;
-        address approveAndRedeem7540VaultHook;
         address deBridgeSendOrderAndExecuteOnDstHook;
         address ethenaCooldownSharesHook;
         address ethenaUnstakeHook;
@@ -547,10 +547,6 @@ contract DeployV2 is Script, Configuration {
         hooks[14] = HookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(RequestRedeem7540VaultHook).creationCode);
         hooks[15] = HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, type(Deposit7540VaultHook).creationCode);
         hooks[16] = HookDeployment(WITHDRAW_7540_VAULT_HOOK_KEY, type(Withdraw7540VaultHook).creationCode);
-        hooks[17] =
-            HookDeployment(APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY, type(ApproveAndWithdraw7540VaultHook).creationCode);
-        hooks[18] =
-            HookDeployment(APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY, type(ApproveAndRedeem7540VaultHook).creationCode);
 
         hooks[19] = HookDeployment(
             SWAP_1INCH_HOOK_KEY,

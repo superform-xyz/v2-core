@@ -1,3 +1,8 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
 # Project Structure
 
 ```
@@ -151,7 +156,6 @@
 │   │   │       │   ├── Deposit5115VaultHook.sol
 │   │   │       │   └── Redeem5115VaultHook.sol
 │   │   │       ├── 7540
-│   │   │       │   ├── ApproveAndRedeem7540VaultHook.sol
 │   │   │       │   ├── ApproveAndRequestDeposit7540VaultHook.sol
 │   │   │       │   ├── ApproveAndWithdraw7540VaultHook.sol
 │   │   │       │   ├── CancelDepositRequest7540Hook.sol
