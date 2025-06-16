@@ -25,13 +25,13 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
-/// @notice         uint256 value = BytesLib.toUint256(data, 57);
+/// @notice         uint256 value = BytesLib.toUint256(data, 25);
 /// @notice         bytes txData_ = BytesLib.slice(data, 57, data.length - 57);
 contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
-    uint256 private constant AMOUNT_POSITION = 57;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 24;
+    uint256 private constant TX_DATA_POSITION = 57;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -49,6 +49,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
     error INVALID_DEADLINE();
     error INVALID_RECIPIENT();
     error INVALID_MIN_SHARES();
+    error INVALID_LAST_COMMAND();
     error INVALID_TRANSFER_TOKEN();
 
     constructor(address router_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
@@ -59,27 +60,27 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address account,
         bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)
     {
         address pt = data.extractYieldSource();
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 value = abi.decode(data[25:AMOUNT_POSITION], (uint256));
-        bytes memory txData_ = data[AMOUNT_POSITION:];
+        uint256 value = abi.decode(data[25:TX_DATA_POSITION], (uint256));
+        bytes memory txData_ = data[TX_DATA_POSITION:];
 
-        bytes memory updatedTxData = _validateTxData(data[AMOUNT_POSITION:], account, usePrevHookAmount, prevHook, pt);
+        bytes memory updatedTxData = _validateTxData(data[TX_DATA_POSITION:], account, usePrevHookAmount, prevHook, pt);
 
         executions = new Execution[](1);
         executions[0] =
-            Execution({ target: address(router), value: value, callData: usePrevHookAmount ? updatedTxData : txData_ });
+            Execution({ target: address(router), value: usePrevHookAmount ? ISuperHookResult(prevHook).outAmount() : value, callData: usePrevHookAmount ? updatedTxData : txData_ });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -92,7 +93,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
-        bytes calldata txData_ = data[AMOUNT_POSITION:];
+        bytes calldata txData_ = data[TX_DATA_POSITION:];
         ValidateTxDataParams memory params;
         params.selector = bytes4(txData_[0:4]);
 
@@ -193,6 +194,11 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
 
         params.commands = _validateCommands(params.commandsData, params.inputsLength);
         params.commandsLength = params.commands.length;
+
+        // last command cannot be TRANSFER_FROM
+        if (params.commands[params.commandsLength - 1] == SpectraCommands.TRANSFER_FROM) {
+            revert INVALID_LAST_COMMAND();
+        }
 
         for (uint256 i; i < params.commandsLength; ++i) {
             uint256 command = params.commands[i];
@@ -310,7 +316,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
 
     function _getBalance(bytes calldata data, address account) private view returns (uint256) {
         // TODO: check if this is correct; Get's the latest token out from the commands list
-        address tokenOut = _decodeTokenOut(data[AMOUNT_POSITION:]);
+        address tokenOut = _decodeTokenOut(data[TX_DATA_POSITION:]);
 
         if (tokenOut == address(0)) {
             return account.balance;
@@ -320,6 +326,6 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
     }
 
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(data, AMOUNT_POSITION);
+        return BytesLib.toUint256(data, TX_DATA_POSITION);
     }
 }

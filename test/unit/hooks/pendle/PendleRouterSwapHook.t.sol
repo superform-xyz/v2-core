@@ -103,9 +103,9 @@ contract PendleRouterSwapHookTest is Helpers {
         bytes memory data = abi.encodePacked(bytes4(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(pendleRouter));
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(pendleRouter));
+        assertEq(executions[1].value, 0);
     }
 
     function test_SwapExactTokenForPt_Inspector() public view {
@@ -211,9 +211,9 @@ contract PendleRouterSwapHookTest is Helpers {
         bytes memory data = abi.encodePacked(bytes4(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(pendleRouter));
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(pendleRouter));
+        assertEq(executions[1].value, 0);
     }
 
     function test_SwapExactPtForToken_Inspector() public view {
@@ -271,9 +271,11 @@ contract PendleRouterSwapHookTest is Helpers {
         prevHook.setOutAmount(2500);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(pendleRouter));
-        assertEq(executions[0].value, 2500);
+
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(pendleRouter));
+        assertEq(executions[1].value, 2500);
+
     }
 
     function test_PreExecute() public {
@@ -303,6 +305,7 @@ contract PendleRouterSwapHookTest is Helpers {
         bytes memory data = abi.encodePacked(bytes4(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
 
         ptToken.mint(receiver, 500);
+        vm.prank(receiver);
         hook.preExecute(address(0), receiver, data);
         assertEq(hook.outAmount(), 500);
     }
@@ -603,9 +606,9 @@ contract PendleRouterSwapHookTest is Helpers {
         bytes memory data = abi.encodePacked(bytes4(bytes("")), market, bytes1(uint8(0)), uint256(0), txData);
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(pendleRouter));
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(pendleRouter));
+        assertEq(executions[1].value, 0);
     }
 
     function test_Build_RevertIf_InvalidLimitOrder() public {

@@ -160,7 +160,9 @@ abstract contract BaseLedger is ISuperLedger {
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
     ) internal virtual returns (uint256 feeAmount) {
         uint256 costBasis = _calculateCostBasis(user, yieldSource, usedShares);
-        feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
+        if (config.feePercent > 0) {
+            feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
+        } 
     }
 
     /// @notice Calculates performance fees based on realized profit
@@ -227,23 +229,17 @@ abstract contract BaseLedger is ISuperLedger {
             emit AccountingInflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, pps);
             return 0;
         } else {
-            // Only process outflow if feePercent is not set to 0
-            if (config.feePercent != 0) {
-                uint256 amountAssets = _getOutflowProcessVolume(
-                    amountSharesOrAssets,
-                    usedShares,
-                    pps,
-                    IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
-                );
+            uint256 amountAssets = _getOutflowProcessVolume(
+                amountSharesOrAssets,
+                usedShares,
+                pps,
+                IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
+            );
 
-                feeAmount = _processOutflow(user, yieldSource, amountAssets, usedShares, config);
+            feeAmount = _processOutflow(user, yieldSource, amountAssets, usedShares, config);
 
-                emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
-                return feeAmount;
-            } else {
-                emit AccountingOutflowSkipped(user, yieldSource, yieldSourceOracleId, amountSharesOrAssets);
-                return 0;
-            }
+            emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
+            return feeAmount;
         }
     }
 

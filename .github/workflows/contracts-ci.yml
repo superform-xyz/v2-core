@@ -131,7 +131,7 @@ jobs:
           )" >> $GITHUB_ENV
 
       - name: "Run the tests"
-        run: "make ftest-vvv"
+        run: "make ftest-ci"
 
       - name: "Add test summary"
         run: |

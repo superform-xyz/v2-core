@@ -11,6 +11,7 @@ import { IStakedUSDeCooldown } from "../../../../vendor/ethena/IStakedUSDeCooldo
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title EthenaUnstakeHook
@@ -27,17 +28,18 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
 
     uint256 private constant AMOUNT_POSITION = 24;
 
-    constructor() BaseHook(HookType.OUTFLOW, "Ethena") { }
+    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ETHENA) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address, /* prevHook */
         address account,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         pure
         override
         returns (Execution[] memory executions)
