@@ -14,12 +14,13 @@ import {
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookInspector,
+    ISuperHookAsync
 } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title ApproveAndRequestRedeem7540VaultHook
+/// @title Redeem7540VaultHook
 /// @author Superform Labs
 /// @notice This hook does not support tokens reverting on 0 approval
 /// @dev data has the following structure
@@ -27,12 +28,13 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
 /// @notice         uint256 shares = BytesLib.toUint256(data, 24);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-contract ApproveAndRequestRedeem7540VaultHook is
+contract Redeem7540VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookInspector,
+    ISuperHookAsync
 {
     using HookDataDecoder for bytes;
 
@@ -56,7 +58,6 @@ contract ApproveAndRequestRedeem7540VaultHook is
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address token = IERC7540(yieldSource).share();
         uint256 shares = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
@@ -67,23 +68,22 @@ contract ApproveAndRequestRedeem7540VaultHook is
         if (shares == 0) revert AMOUNT_NOT_VALID();
         if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
-        executions = new Execution[](4);
-        executions[0] =
-            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
-        executions[1] =
-            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, shares)) });
+        executions = new Execution[](1);
         executions[2] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC7540.requestRedeem, (shares, account, account))
+            callData: abi.encodeCall(IERC7540.redeem, (shares, account, account))
         });
-        executions[3] =
-            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperHookAsync
+    function getUsedAssetsOrShares() external view returns (uint256 amount, bool isShares) {
+        return (usedShares, true);
+    }
+
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);

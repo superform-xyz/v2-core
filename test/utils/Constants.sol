@@ -67,7 +67,8 @@ abstract contract Constants {
     string public constant REQUEST_REDEEM_7540_VAULT_HOOK_KEY = "RequestRedeem7540VaultHook";
     string public constant DEPOSIT_7540_VAULT_HOOK_KEY = "Deposit7540VaultHook";
     string public constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
-    string public constant APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY = "ApproveAndRedeem7540VaultHook";
+    string public constant REDEEM_7540_VAULT_HOOK_KEY = "Redeem7540VaultHook";
+    string public constant APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY = "ApproveAndRequestRedeem7540VaultHook";
     string public constant CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "CancelDepositRequest7540Hook";
     string public constant CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "CancelRedeemRequest7540Hook";
     string public constant CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "ClaimCancelDepositRequest7540Hook";

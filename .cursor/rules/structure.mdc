@@ -157,11 +157,13 @@ alwaysApply: false
 │   │   │       │   └── Redeem5115VaultHook.sol
 │   │   │       ├── 7540
 │   │   │       │   ├── ApproveAndRequestDeposit7540VaultHook.sol
+|   |   |       |   ├── ApproveAndRequestRedeem7540VaultHook.sol
 │   │   │       │   ├── CancelDepositRequest7540Hook.sol
 │   │   │       │   ├── CancelRedeemRequest7540Hook.sol
 │   │   │       │   ├── ClaimCancelDepositRequest7540Hook.sol
 │   │   │       │   ├── ClaimCancelRedeemRequest7540Hook.sol
 │   │   │       │   ├── Deposit7540VaultHook.sol
+│   │   │       │   ├── Redeem7540VaultHook.sol
 │   │   │       │   ├── RequestDeposit7540VaultHook.sol
 │   │   │       │   ├── RequestRedeem7540VaultHook.sol
 │   │   │       │   └── Withdraw7540VaultHook.sol
