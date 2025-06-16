@@ -89,9 +89,9 @@ contract BridgeHooks is Helpers {
 
         Execution[] memory executions = acrossV3hook.build(address(0), mockAccount, data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockSpokePool);
-        assertEq(executions[0].value, mockValue);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockSpokePool);
+        assertEq(executions[1].value, mockValue);
 
         bytes memory sigData = mockSignatureStorage.retrieveSignatureData(address(0));
 
@@ -118,7 +118,7 @@ contract BridgeHooks is Helpers {
             )
         );
 
-        assertEq(executions[0].callData, expectedCallData);
+        assertEq(executions[1].callData, expectedCallData);
     }
 
     function test_AcrossV3_Inspector() public view {
@@ -159,7 +159,7 @@ contract BridgeHooks is Helpers {
 
         Execution[] memory executions = acrossV3hook.build(mockPrevHook, mockAccount, data);
 
-        assertEq(executions.length, 1);
+        assertEq(executions.length, 3);
 
         address[] memory dstTokens = new address[](1);
         dstTokens[0] = address(mockOutputToken);
@@ -185,7 +185,7 @@ contract BridgeHooks is Helpers {
             )
         );
 
-        assertEq(executions[0].callData, expectedCallData);
+        assertEq(executions[1].callData, expectedCallData);
     }
 
     function test_AcrossV3_Build_WithPrevHookAmount_AndRevertIfAmountZero() public {
@@ -239,11 +239,11 @@ contract BridgeHooks is Helpers {
     }
 
     function test_AcrossV3_PreExecute() public {
-        acrossV3hook.preExecute(address(0), address(0), "");
+        acrossV3hook.preExecute(address(0), address(this), "");
     }
 
     function test_AcrossV3_PostExecute() public {
-        acrossV3hook.postExecute(address(0), address(0), "");
+        acrossV3hook.postExecute(address(0), address(this), "");
     }
 
     function test_AcrossV3_DecodePrevHookAmount() public view {
@@ -275,7 +275,7 @@ contract BridgeHooks is Helpers {
     function test_Debrigdge_Build() public view {
         bytes memory data = _encodeDebridgeData(false, 100, address(mockInputToken));
         Execution[] memory executions = deBridgehook.build(address(0), mockAccount, data);
-        assertEq(executions.length, 1);
+        assertEq(executions.length, 3);
     }
 
     function test_Debrigdge_Build_UsePrevAmount() public {
@@ -284,7 +284,7 @@ contract BridgeHooks is Helpers {
 
         bytes memory data = _encodeDebridgeData(true, 100, address(mockInputToken));
         Execution[] memory executions = deBridgehook.build(mockPrevHook, mockAccount, data);
-        assertEq(executions.length, 1);
+        assertEq(executions.length, 3);
     }
 
     function test_Debrigdge_Build_UsePrevAmount_ETH() public {
@@ -293,7 +293,7 @@ contract BridgeHooks is Helpers {
 
         bytes memory data = _encodeDebridgeData(true, 100, address(0));
         Execution[] memory executions = deBridgehook.build(mockPrevHook, mockAccount, data);
-        assertEq(executions.length, 1);
+        assertEq(executions.length, 3);
     }
 
     function test_Debridge_RevertAmountZero() public {
@@ -303,20 +303,16 @@ contract BridgeHooks is Helpers {
         deBridgehook.build(address(0), mockAccount, data);
     }
 
-    function test_ExecutionCaller() public view {
-        assertEq(BaseHook(address(deBridgehook)).getExecutionCaller(), address(0));
-    }
-
     function test_subtype() public view {
         assertNotEq(BaseHook(address(deBridgehook)).subtype(), bytes32(0));
     }
 
     function test_Debridge_PreExecute() public {
-        deBridgehook.preExecute(address(0), address(0), "");
+        deBridgehook.preExecute(address(0), address(this), "");
     }
 
     function test_Debridge_PostExecute() public {
-        deBridgehook.postExecute(address(0), address(0), "");
+        deBridgehook.postExecute(address(0), address(this), "");
     }
 
     /*//////////////////////////////////////////////////////////////
