@@ -108,11 +108,6 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
         });
     }
 
-    /// @inheritdoc ISuperHookLoans
-    function getUsedAssets(address, bytes memory) external view returns (uint256) {
-        return outAmount;
-    }
-
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
         BorrowHookLocalVars memory vars = _decodeBorrowHookData(data);
