@@ -2,36 +2,30 @@
 pragma solidity 0.8.30;
 
 import "forge-std/Test.sol";
-import {BatchTransferFromHook} from "../../../../../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IPermit2Batch, IAllowanceTransfer} from "../../../../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { BatchTransferFromHook } from "../../../../../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IPermit2Batch, IAllowanceTransfer } from "../../../../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 /// @notice Mock Permit2Batch that only bumps nonce for the first detail.
 contract MockLeakyPermit2 is IPermit2Batch {
     mapping(address => mapping(address => mapping(address => uint256))) public nonces;
     mapping(address => mapping(address => mapping(address => uint256))) public allowance;
 
-    function permit(
-        address owner,
-        IAllowanceTransfer.PermitBatch calldata batch,
-        bytes calldata
-    ) external override {
+    function permit(address owner, IAllowanceTransfer.PermitBatch calldata batch, bytes calldata) external override {
         // validate and bump only the first token’s nonce
         IAllowanceTransfer.PermitDetails calldata d0 = batch.details[0];
         require(nonces[owner][batch.spender][d0.token] == d0.nonce, "Bad nonce for token 0");
         nonces[owner][batch.spender][d0.token]++;
 
         // reset allowance for all tokens
-        for (uint i; i < batch.details.length; i++) {
+        for (uint256 i; i < batch.details.length; i++) {
             allowance[owner][batch.spender][batch.details[i].token] = batch.details[i].amount;
         }
     }
 
-    function transferFrom(
-        IAllowanceTransfer.AllowanceTransferDetails[] calldata details
-    ) external override {
-        for (uint i; i < details.length; i++) {
+    function transferFrom(IAllowanceTransfer.AllowanceTransferDetails[] calldata details) external override {
+        for (uint256 i; i < details.length; i++) {
             IAllowanceTransfer.AllowanceTransferDetails calldata dt = details[i];
             uint256 allowed = allowance[dt.from][dt.to][dt.token];
             require(allowed >= dt.amount, "Insufficient allowance");
@@ -46,16 +40,31 @@ contract MockToken is IERC20 {
     mapping(address => uint256) public override balanceOf;
     mapping(address => mapping(address => uint256)) public override allowance;
     uint256 public totalSupply;
-    function mint(address to, uint256 amt) external { balanceOf[to]+=amt; totalSupply+=amt; }
-    function transfer(address to,uint256 amt) external override returns(bool){
-        require(balanceOf[msg.sender]>=amt,"balance"); balanceOf[msg.sender]-=amt; balanceOf[to]+=amt; return true;
+
+    function mint(address to, uint256 amt) external {
+        balanceOf[to] += amt;
+        totalSupply += amt;
     }
-    function approve(address sp,uint256 amt) external override returns(bool){ allowance[msg.sender][sp]=amt; return true; }
-    function transferFrom(address f,address t,uint256 a) external override returns(bool){
-        require(allowance[f][msg.sender]>=a,"allowance");
-        allowance[f][msg.sender]-=a;
-        require(balanceOf[f]>=a,"balance");
-        balanceOf[f]-=a; balanceOf[t]+=a; return true;
+
+    function transfer(address to, uint256 amt) external override returns (bool) {
+        require(balanceOf[msg.sender] >= amt, "balance");
+        balanceOf[msg.sender] -= amt;
+        balanceOf[to] += amt;
+        return true;
+    }
+
+    function approve(address sp, uint256 amt) external override returns (bool) {
+        allowance[msg.sender][sp] = amt;
+        return true;
+    }
+
+    function transferFrom(address f, address t, uint256 a) external override returns (bool) {
+        require(allowance[f][msg.sender] >= a, "allowance");
+        allowance[f][msg.sender] -= a;
+        require(balanceOf[f] >= a, "balance");
+        balanceOf[f] -= a;
+        balanceOf[t] += a;
+        return true;
     }
 }
 
@@ -66,9 +75,9 @@ contract BatchTransferFromReplayTest is Test {
     BatchTransferFromHook hook;
 
     function setUp() public {
-        tokenA  = new MockToken();
+        tokenA = new MockToken();
         permit2 = new MockLeakyPermit2();
-        hook    = new BatchTransferFromHook(address(permit2));
+        hook = new BatchTransferFromHook(address(permit2));
         tokenA.mint(address(this), 500);
         tokenA.mint(address(permit2), 500);
     }
@@ -76,7 +85,7 @@ contract BatchTransferFromReplayTest is Test {
     function testReplayOnSingleTokenBatch() public {
         // Build hook data for 1 token
         bytes memory data = abi.encodePacked(
-            address(this), 
+            address(this),
             uint256(1),
             block.timestamp + 1 days,
             abi.encodePacked(address(tokenA)),
@@ -86,11 +95,11 @@ contract BatchTransferFromReplayTest is Test {
         Execution[] memory execs = hook.build(address(0), address(this), data);
 
         // First permit should pass
-        (bool ok,) = address(permit2).call(execs[0].callData);
+        (bool ok,) = address(permit2).call(execs[1].callData);
         assertTrue(ok, "first permit must pass");
 
         // Second permit MUST revert on reused nonce
         vm.expectRevert("Bad nonce for token 0");
-        address(permit2).call(execs[0].callData);
+        (ok,) = address(permit2).call(execs[1].callData);
     }
 }
