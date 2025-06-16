@@ -35,7 +35,7 @@ contract SpectraExchangeHookTest is Helpers {
         new SpectraExchangeHook(address(0));
     }
 
-    function test_UsePrevHookAmount_Is_Wrong() public {
+    function test_UsePrevHookAmount_Is_Wrong() public view {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
