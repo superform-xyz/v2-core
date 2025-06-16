@@ -18,11 +18,15 @@ import {
 import {BaseHook} from "../../BaseHook.sol";
 import {BaseClaimRewardHook} from "../BaseClaimRewardHook.sol";
 import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
+import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
 
 /// @title GearboxClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address farmingPool = BytesLib.toAddress(data, 0);
+/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         address farmingPool = BytesLib.toAddress(data, 4);
+/// @notice         address rewardToken = BytesLib.toAddress(data, 24);
+/// @notice         address account = BytesLib.toAddress(data, 44);
 contract GearboxClaimRewardHook is
     BaseHook,
     BaseClaimRewardHook,
@@ -31,18 +35,20 @@ contract GearboxClaimRewardHook is
     ISuperHookContextAware,
     ISuperHookInspector
 {
+    using HookDataDecoder for bytes;
+
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) {}
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-
-    function build(address, address, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(address, address, bytes calldata data)
+        internal
         pure
         override
         returns (Execution[] memory executions)
     {
-        address farmingPool = BytesLib.toAddress(data, 0);
+        address farmingPool = data.extractYieldSource();
         if (farmingPool == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(farmingPool, abi.encodeCall(IGearboxFarmingPool.claim, ()));
@@ -65,14 +71,14 @@ contract GearboxClaimRewardHook is
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
-        return abi.encodePacked(BytesLib.toAddress(data, 0));
+        return abi.encodePacked(data.extractYieldSource());
     }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address, bytes calldata data) internal override {
-        asset = BytesLib.toAddress(data, 20);
+        asset = BytesLib.toAddress(data, 24);
         if (asset == address(0)) revert ASSET_ZERO_ADDRESS();
 
         outAmount = _getBalance(data);

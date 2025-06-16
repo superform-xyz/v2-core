@@ -28,8 +28,9 @@ contract ClaimCancelDepositRequest7540Hook is BaseHook, ISuperHookAsyncCancelati
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address, address account, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(address, address account, bytes calldata data)
+        internal
         pure
         override
         returns (Execution[] memory executions)

@@ -14,6 +14,7 @@ library HookSubTypes {
     bytes32 constant CLAIM_CANCEL_DEPOSIT_REQUEST = keccak256(bytes("ClaimCancelDepositRequest"));
     bytes32 constant CLAIM_CANCEL_REDEEM_REQUEST = keccak256(bytes("ClaimCancelRedeemRequest"));
     bytes32 constant COOLDOWN = keccak256(bytes("Cooldown"));
+    bytes32 constant ETHENA = keccak256(bytes("Ethena"));
     bytes32 constant ERC4626 = keccak256(bytes("ERC4626"));
     bytes32 constant ERC5115 = keccak256(bytes("ERC5115"));
     bytes32 constant ERC7540 = keccak256(bytes("ERC7540"));

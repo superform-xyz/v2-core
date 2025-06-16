@@ -21,8 +21,8 @@ abstract contract BaseClaimRewardHook {
     }
 
     function _getBalance(bytes memory data) internal view returns (uint256) {
-        address rewardToken = BytesLib.toAddress(data, 20);
-        address account = BytesLib.toAddress(data, 40);
+        address rewardToken = BytesLib.toAddress(data, 24);
+        address account = BytesLib.toAddress(data, 44);
 
         if (rewardToken == address(0)) revert REWARD_TOKEN_ZERO_ADDRESS();
 
