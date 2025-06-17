@@ -231,10 +231,86 @@ class DeterministicMerkleGen {
                 return true;
             }
 
+            // CRITICAL: Validate lookup cache contents against current addresses
+            if (!this.validateLookupCacheContents(currentAddresses)) {
+                this.log('Lookup cache contents invalid - regeneration needed');
+                return true;
+            }
+
             return false;
         } catch (error) {
             this.log('Error reading cache:', error.message);
             return true;
+        }
+    }
+
+    /**
+     * Validate that lookup cache contains entries for all expected hook addresses
+     */
+    validateLookupCacheContents(expectedAddresses) {
+        const lookupCachePath = '../output/lookup_cache_1.json';
+
+        try {
+            if (!fs.existsSync(lookupCachePath)) {
+                this.log('Lookup cache file does not exist');
+                return false;
+            }
+
+            this.log('Validating lookup cache contents...');
+
+            const lookupCache = JSON.parse(fs.readFileSync(lookupCachePath, 'utf8'));
+            const lookupMap = lookupCache.lookupMap || {};
+
+            // Extract hook addresses from expected addresses and normalize
+            const expectedHookAddresses = Object.values(expectedAddresses.hooks).map(addr => addr.toLowerCase());
+
+            this.log('Expected hook addresses:', expectedHookAddresses);
+
+            // Check if lookup cache contains entries for each expected hook address
+            const foundAddresses = new Set();
+
+            for (const [key, entry] of Object.entries(lookupMap)) {
+                if (entry.hookAddress) {
+                    foundAddresses.add(entry.hookAddress.toLowerCase());
+                }
+            }
+
+            const foundAddressesArray = Array.from(foundAddresses);
+            this.log('Found addresses in lookup cache:', foundAddressesArray);
+
+            // Check if all expected addresses are present
+            const missingAddresses = [];
+            for (const expectedAddr of expectedHookAddresses) {
+                if (!foundAddresses.has(expectedAddr)) {
+                    missingAddresses.push(expectedAddr);
+                }
+            }
+
+            if (missingAddresses.length > 0) {
+                this.log('Missing hook addresses in lookup cache:', missingAddresses);
+                return false;
+            }
+
+            // Check for unexpected addresses (addresses in cache but not expected)
+            const unexpectedAddresses = [];
+            for (const foundAddr of foundAddresses) {
+                if (!expectedHookAddresses.includes(foundAddr)) {
+                    unexpectedAddresses.push(foundAddr);
+                }
+            }
+
+            if (unexpectedAddresses.length > 0) {
+                this.log('Unexpected hook addresses in lookup cache:', unexpectedAddresses);
+                this.log('This indicates the cache contains stale data');
+                return false;
+            }
+
+            this.log('Lookup cache validation passed - all expected addresses found');
+            return true;
+
+        } catch (error) {
+            this.log('Error validating lookup cache:', error.message);
+            return false;
         }
     }
 
