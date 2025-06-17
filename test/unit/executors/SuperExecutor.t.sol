@@ -363,7 +363,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         address wrong_RewardToken = address(new MockERC20("Wrong Token", "FRT", 18));
 
         hooksAddresses[0] = address(hook);
-        hooksData[0] = abi.encodePacked(stakingRewards, wrong_RewardToken, account);
+        hooksData[0] = abi.encodePacked(bytes4(0), stakingRewards, wrong_RewardToken, account);
 
         vm.startPrank(account);
         uint256 initBal = MockERC20(rewardToken).balanceOf(account);
