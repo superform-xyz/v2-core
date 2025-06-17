@@ -81,7 +81,6 @@ contract SpectraExchangeHookTest is Helpers {
 
         assertFalse(hook.decodeUsePrevHookAmount(data));
     }
-    
 
     function test_UsePrevHookAmount_SetToTrue() public view {
         bytes memory commandsData = new bytes(1);
