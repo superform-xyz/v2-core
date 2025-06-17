@@ -360,6 +360,7 @@ graph TD
    - Bridge adapters call the SuperDestinationExecutor with bridged assets and execution data
    - The SuperDestinationValidator verifies the signature and merkle proof for destination operations
    - Upon validation, the SuperDestinationExecutor executes the intended operations
+   - Multiple executions for same destination chain using 1 merkle root is not supported
 
 4. **Replay Protection**:
    - Each merkle root is tracked per user to prevent replay attacks
