@@ -249,7 +249,7 @@ DESCRIPTION:
 
         // Check if cache file exists
         if (!fs.existsSync(this.cacheFile)) {
-            console.log(`${logPrefix} No cache file found - regeneration needed`);
+            console.log(`${logPrefix} No cache file found - automatic regeneration will be triggered`);
             return true;
         }
 
@@ -263,27 +263,27 @@ DESCRIPTION:
             // 1. Compare addresses using robust comparison
             const addressesMatch = this.compareAddresses(currentAddresses, cached.addresses);
             if (!addressesMatch) {
-                console.log(`${logPrefix} Address mismatch detected - regeneration needed`);
+                console.log(`${logPrefix} Address mismatch detected - automatic regeneration will be triggered`);
                 return true;
             }
 
             // 2. Check if merkle tree files exist
             if (!fs.existsSync('../output/jsGeneratedRoot_1.json')) {
-                console.log(`${logPrefix} Merkle tree files missing - regeneration needed`);
+                console.log(`${logPrefix} Merkle tree files missing - automatic regeneration will be triggered`);
                 return true;
             }
 
             // 3. Check if lookup cache exists
             const lookupCachePath = '../output/lookup_cache_1.json';
             if (!fs.existsSync(lookupCachePath)) {
-                console.log(`${logPrefix} Lookup cache missing - regeneration needed`);
+                console.log(`${logPrefix} Lookup cache missing - automatic regeneration will be triggered`);
                 return true;
             }
 
             // 4. CRITICAL: Validate lookup cache contents against expected addresses
             const lookupCacheValid = this.validateLookupCacheContents(currentAddresses, lookupCachePath);
             if (!lookupCacheValid) {
-                console.log(`${logPrefix} Lookup cache contents invalid - regeneration needed`);
+                console.log(`${logPrefix} Lookup cache contents invalid - automatic regeneration will be triggered`);
                 return true;
             }
 
@@ -293,7 +293,7 @@ DESCRIPTION:
             return false;
 
         } catch (error) {
-            console.log(`${logPrefix} Error reading cache: ${error.message} - regeneration needed`);
+            console.log(`${logPrefix} Error reading cache: ${error.message} - automatic regeneration will be triggered`);
             return true;
         }
     }
@@ -463,9 +463,44 @@ DESCRIPTION:
     }
 
     /**
+     * Clean up all existing cache and output files before regeneration
+     */
+    cleanupCacheFiles() {
+        const filesToCleanup = [
+            '../output/lookup_cache_1.json',
+            '../output/jsGeneratedRoot_1.json',
+            '../output/jsTreeDump_1.json',
+            '../output/globalMerkleTree_1.json'
+        ];
+
+        let cleanedCount = 0;
+        for (const filePath of filesToCleanup) {
+            try {
+                if (fs.existsSync(filePath)) {
+                    fs.unlinkSync(filePath);
+                    cleanedCount++;
+                    if (this.verbose) {
+                        this.log(`🧹 Cleaned up: ${filePath}`);
+                    }
+                }
+            } catch (error) {
+                // Don't fail the entire process if cleanup fails
+                this.log(`⚠️  Warning: Could not clean up ${filePath}: ${error.message}`);
+            }
+        }
+
+        if (cleanedCount > 0) {
+            this.log(`🧹 Cleaned up ${cleanedCount} cache files before regeneration`);
+        }
+    }
+
+    /**
      * Generate merkle tree using existing script
      */
     async generateMerkleTree(addresses) {
+        // Ensure clean state before generation
+        this.cleanupCacheFiles();
+
         const hookAddresses = Object.values(addresses.hooks);
         const vaultAddresses = Object.values(addresses.vaults);
 
@@ -478,7 +513,23 @@ DESCRIPTION:
             throw new Error(`Merkle generation script not found: ${localScriptPath}`);
         }
 
-        const hooksString = hookAddresses.join(',');
+        // Order the hook addresses according to the expected order in build-hook-merkle-trees.js
+        const orderedHookAddresses = [
+            addresses.hooks.APPROVE_AND_REDEEM_4626_VAULT_HOOK,
+            addresses.hooks.APPROVE_AND_DEPOSIT_4626_VAULT_HOOK,
+            addresses.hooks.REDEEM_4626_VAULT_HOOK,
+            addresses.hooks.APPROVE_AND_GEARBOX_STAKE_HOOK,
+            addresses.hooks.GEARBOX_UNSTAKE_HOOK
+        ];
+
+        this.log(`Hook addresses being passed:`);
+        this.log(`  ApproveAndRedeem4626VaultHook: ${orderedHookAddresses[0]}`);
+        this.log(`  ApproveAndDeposit4626VaultHook: ${orderedHookAddresses[1]}`);
+        this.log(`  Redeem4626VaultHook: ${orderedHookAddresses[2]}`);
+        this.log(`  ApproveAndGearboxStakeHook: ${orderedHookAddresses[3]}`);
+        this.log(`  GearboxUnstakeHook: ${orderedHookAddresses[4]}`);
+
+        const hooksString = orderedHookAddresses.join(',');
         const vaultsString = vaultAddresses.join(',');
 
         try {
@@ -573,6 +624,15 @@ DESCRIPTION:
             if (!this.force && !needsRegen) {
                 console.log('✅ Merkle tree already generated for current addresses');
                 return true;
+            }
+
+            // Provide clear messaging about why regeneration is happening
+            if (this.force && needsRegen) {
+                console.log('🔄 Force regeneration requested AND cache validation failed - regenerating...');
+            } else if (this.force) {
+                console.log('🔄 Force regeneration requested - regenerating...');
+            } else if (needsRegen) {
+                console.log('🔄 Cache validation failed (address differences detected) - automatically regenerating...');
             }
 
             // Generate merkle tree
