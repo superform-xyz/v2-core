@@ -17,7 +17,7 @@ import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperHook, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
-/// @title MorphoSupplyAndBorrowHook
+/// @title MorphoBorrowHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address loanToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
