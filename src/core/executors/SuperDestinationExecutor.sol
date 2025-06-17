@@ -63,6 +63,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error INVALID_ACCOUNT();
+    error INVALID_GASLEFT();
     error INVALID_SIGNATURE();
     error ADDRESS_NOT_ACCOUNT();
     error ACCOUNT_NOT_CREATED();
@@ -159,7 +160,10 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
             payload: ModePayload.wrap(bytes22(0))
         });
 
+        uint256 gasBefore = gasleft();
         try IERC7579Account(account).executeFromExecutor(modeCode, ERC7579ExecutionLib.encodeBatch(execs)) {
+            uint256 gasAfter = gasleft();
+            require(gasAfter * 64 > gasBefore, INVALID_GASLEFT());
             emit SuperDestinationExecutorExecuted(account);
         } catch Panic(uint256 errorCode) {
             emit SuperDestinationExecutorPanicFailed(account, errorCode);
