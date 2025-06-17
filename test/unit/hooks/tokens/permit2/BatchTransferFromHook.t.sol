@@ -100,19 +100,19 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
 
         Execution[] memory executions = hook.build(address(0), account, hookData);
 
-        assertEq(executions.length, 2);
+        assertEq(executions.length, 4);
         // First execution should be a dummy call to the first token
-        assertEq(executions[0].target, PERMIT2);
-        assertEq(executions[0].value, 0);
-
-        // Second execution should be the transferFrom call
         assertEq(executions[1].target, PERMIT2);
         assertEq(executions[1].value, 0);
+
+        // Second execution should be the transferFrom call
+        assertEq(executions[2].target, PERMIT2);
+        assertEq(executions[2].value, 0);
 
         // Verify the transfer call data
         bytes memory expectedTransferCallData =
             abi.encodeCall(IPermit2Batch.transferFrom, (_buildExpectedTransferDetails(eoa, account, tokens, amounts)));
-        assertEq(executions[1].callData, expectedTransferCallData);
+        assertEq(executions[2].callData, expectedTransferCallData);
     }
 
     function _buildExpectedPermitBatch(address spender, address[] memory tokens_, uint256[] memory amountPerToken)
@@ -215,7 +215,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
 
         // The hook doesn't actually check signature length, so this should succeed
         Execution[] memory executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 2);
+        assertEq(executions.length, 4);
     }
 
     function test_Build_RevertIf_InvalidTokenAddress() public {

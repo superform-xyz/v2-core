@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import "../../../../vendor/1inch/I1InchAggregationRouterV6.sol";
 
 // Superform
@@ -27,6 +28,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
     //////////////////////////////////////////////////////////////*/
     I1InchAggregationRouterV6 public immutable aggregationRouter;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
+    uint256 private constant PRECISION = 1e5;
 
     address constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
@@ -54,12 +56,13 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address,
         bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -115,6 +118,8 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
                 txData_[4:], (IClipperExchange, address, Address, IERC20, uint256, uint256, uint256, bytes32, bytes32)
             );
             packed = abi.encodePacked(address(clipperExchange), recipient, srcToken.get(), address(dstToken));
+        } else {
+            revert INVALID_SELECTOR();
         }
 
         return packed;
@@ -123,12 +128,12 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data);
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(data, account);
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data) - outAmount;
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = _getBalance(data, account) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -157,6 +162,10 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
             updatedTxData = _validateClipperSwap(txData_[4:], dstReceiver, dstToken, prevHook, usePrevHookAmount);
         } else {
             revert INVALID_SELECTOR();
+        }
+
+        if (updatedTxData.length > 0) {
+            updatedTxData = bytes.concat(selector, updatedTxData);
         }
     }
 
@@ -217,7 +226,23 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         }
 
         if (usePrevHookAmount) {
+            uint256 _prevAmount = amount;
             amount = ISuperHookResult(prevHook).outAmount();
+
+            if (amount != _prevAmount) {
+                if (amount > _prevAmount) {
+                    uint256 percentIncrease = Math.mulDiv(amount - _prevAmount, PRECISION, _prevAmount);
+                    minReturn = minReturn + Math.mulDiv(minReturn, percentIncrease, PRECISION);
+                } else {
+                    uint256 percentDecrease = Math.mulDiv(_prevAmount - amount, PRECISION, _prevAmount);
+                    uint256 decreaseAmount = Math.mulDiv(minReturn, percentDecrease, PRECISION);
+                    if (decreaseAmount > minReturn) {
+                        minReturn = 0;
+                    } else {
+                        minReturn = minReturn - decreaseAmount;
+                    }
+                }
+            }
         }
 
         if (amount == 0) {
@@ -336,9 +361,12 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         }
     }
 
-    function _getBalance(bytes calldata data) private view returns (uint256) {
+    function _getBalance(bytes calldata data, address account) private view returns (uint256) {
         address dstToken = address(bytes20(data[:20]));
         address dstReceiver = address(bytes20(data[20:40]));
+        if (dstReceiver == address(0)) {
+            dstReceiver = account;
+        }
 
         if (dstToken == NATIVE || dstToken == address(0)) {
             return dstReceiver.balance;

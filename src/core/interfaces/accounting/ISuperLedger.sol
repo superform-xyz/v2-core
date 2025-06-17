@@ -59,15 +59,6 @@ interface ISuperLedgerData {
         uint256 feeAmount
     );
 
-    /// @notice Emitted when an outflow is skipped due to zero fee percentage
-    /// @param user The user whose outflow was skipped
-    /// @param yieldSource The yield-bearing asset being accounted for
-    /// @param yieldSourceOracleId The ID of the oracle for this yield source
-    /// @param amount The amount of shares/assets in the skipped operation
-    event AccountingOutflowSkipped(
-        address indexed user, address indexed yieldSource, bytes4 indexed yieldSourceOracleId, uint256 amount
-    );
-
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
