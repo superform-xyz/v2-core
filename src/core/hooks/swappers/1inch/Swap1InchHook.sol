@@ -230,7 +230,18 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
             amount = ISuperHookResult(prevHook).outAmount();
 
             if (amount != _prevAmount) {
-                minReturn = amount - ((amount * SLIPPAGE) / SLIPPAGE_PRECISION);
+                if (amount > _prevAmount) {
+                    uint256 percentIncrease = ((amount - _prevAmount) * SLIPPAGE_PRECISION) / _prevAmount;
+                    minReturn = minReturn + ((minReturn * percentIncrease) / SLIPPAGE_PRECISION);
+                } else {
+                    uint256 percentDecrease = ((_prevAmount - amount) * SLIPPAGE_PRECISION) / _prevAmount;
+                    uint256 decreaseAmount = (minReturn * percentDecrease) / SLIPPAGE_PRECISION;
+                    if (decreaseAmount > minReturn) {
+                        minReturn = 0;
+                    } else {
+                        minReturn = minReturn - decreaseAmount;
+                    }
+                }
             }
         }
 

@@ -90,6 +90,7 @@ contract Swap1InchHookBugTest is Test {
         console.log("bugExecutions[0].callData:", bugExecutions[1].callData.length);
         
         ExecData memory bugDecodeData = decodeUnoswapData(bytes(bugExecutions[1].callData));
+
         
         console.log("\nWith usePrevHookAmount = true:");
         console.log("receiver:", bugDecodeData.receiver);
@@ -98,9 +99,8 @@ contract Swap1InchHookBugTest is Test {
         console.log("minReturn:", bugDecodeData.minReturn);
         
         // Get the expected minReturn based on the code's SLIPPAGE calculation
-        uint256 slippage = 5e2; // 0.5%
-        uint256 slippagePrecision = 1e5;
-        uint256 expectedMinReturn = prevHookAmount - ((prevHookAmount * slippage) / slippagePrecision);
+        uint256 percentageDecrease = 5250; // 5.25% (2000 => 950)
+        uint256 expectedMinReturn =  swap2MinReturn - ((swap2MinReturn * percentageDecrease) / 10_000);
         console.log("Expected minReturn:", expectedMinReturn);
         
         // Verify amount changed to prevHookAmount
