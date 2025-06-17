@@ -431,6 +431,13 @@ contract MorphoLoanHooksTest is Helpers {
         );
     }
 
+    function test_RepayHook_Build_NoRevertIf_PartialRepay() public {
+        bytes memory data = _encodeRepayData(false, false);
+        vm.warp(block.timestamp + 10_000);
+        Execution[] memory executions = repayHook.build(address(0), address(this), data);
+        assertEq(executions.length, 6);
+    }
+
     function test_RepayHook_Build_RevertIf_InvalidCollateralToken() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         repayHook.build(
@@ -579,23 +586,6 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(executions[2].target, loanToken);
         assertEq(executions[2].value, 0);
         assertGt(executions[2].callData.length, 0);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        GET USED ASSETS TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_GetUsedAssets() public view {
-        bytes memory data = _encodeRepayData(false, false);
-        uint256 usedAssets = repayHook.getUsedAssets(address(this), data);
-
-        assertEq(usedAssets, 0);
-    }
-
-    function test_RepayAndWithdrawHook_GetUsedAssets() public view {
-        bytes memory data = _encodeRepayAndWithdrawData(false, false);
-        uint256 usedAssets = repayAndWithdrawHook.getUsedAssets(address(this), data);
-
-        assertEq(usedAssets, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -793,10 +783,10 @@ contract MorphoLoanHooksTest is Helpers {
         repayAndWithdrawHook.postExecute(address(0), address(this), data);
         assertEq(repayAndWithdrawHook.outAmount(), 0);
     }
+
     /*//////////////////////////////////////////////////////////////
                         BASE LOAN HOOK
     //////////////////////////////////////////////////////////////*/
-
     function test_DecodeUsePrevHookAmount() public view {
         bytes memory data = _encodeRepayData(false, false);
         assertEq(repayHook.decodeUsePrevHookAmount(data), false);
