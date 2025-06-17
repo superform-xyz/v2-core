@@ -267,13 +267,13 @@ contract BridgeHooks is Helpers {
     }
 
     function test_DeBridge_Inspector() public view {
-        bytes memory data = _encodeDebridgeData(false, 100, address(mockInputToken));
+        bytes memory data = _encodeDebridgeData(false, 100, 100, address(mockInputToken));
         bytes memory argsEncoded = deBridgehook.inspect(data);
         assertGt(argsEncoded.length, 0);
     }
 
     function test_Debrigdge_Build() public view {
-        bytes memory data = _encodeDebridgeData(false, 100, address(mockInputToken));
+        bytes memory data = _encodeDebridgeData(false, 100, 100, address(mockInputToken));
         Execution[] memory executions = deBridgehook.build(address(0), mockAccount, data);
         assertEq(executions.length, 3);
     }
@@ -282,7 +282,7 @@ contract BridgeHooks is Helpers {
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
         MockHook(mockPrevHook).setOutAmount(100);
 
-        bytes memory data = _encodeDebridgeData(true, 100, address(mockInputToken));
+        bytes memory data = _encodeDebridgeData(true, 100, 100, address(mockInputToken));
         Execution[] memory executions = deBridgehook.build(mockPrevHook, mockAccount, data);
         assertEq(executions.length, 3);
     }
@@ -291,17 +291,27 @@ contract BridgeHooks is Helpers {
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
         MockHook(mockPrevHook).setOutAmount(100);
 
-        bytes memory data = _encodeDebridgeData(true, 100, address(0));
+        bytes memory data = _encodeDebridgeData(true, 100, 100, address(0));
         Execution[] memory executions = deBridgehook.build(mockPrevHook, mockAccount, data);
         assertEq(executions.length, 3);
     }
 
     function test_Debridge_RevertAmountZero() public {
-        bytes memory data = _encodeDebridgeData(false, 0, address(mockInputToken));
+        bytes memory data = _encodeDebridgeData(false, 0, 0, address(mockInputToken));
 
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         deBridgehook.build(address(0), mockAccount, data);
     }
+
+    function test_Debrigdge_Build_UsePrevAmount_ETH_Underflow() public {
+        mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
+        MockHook(mockPrevHook).setOutAmount(100);
+
+        bytes memory data = _encodeDebridgeData(true, 100, 0, address(0));
+        vm.expectRevert(DeBridgeSendOrderAndExecuteOnDstHook.AMOUNT_UNDERFLOW.selector);
+        deBridgehook.build(mockPrevHook, mockAccount, data);
+    }
+
 
     function test_subtype() public view {
         assertNotEq(BaseHook(address(deBridgehook)).subtype(), bytes32(0));
@@ -359,14 +369,14 @@ contract BridgeHooks is Helpers {
         uint32 referralCode;
     }
 
-    function _encodeDebridgeData(bool usePrevHookAmount, uint256 amount, address tokenIn)
+    function _encodeDebridgeData(bool usePrevHookAmount, uint256 amount, uint256 value, address tokenIn)
         internal
         view
         returns (bytes memory hookData)
     {
         DebridgeOrderData memory data = DebridgeOrderData({
             usePrevHookAmount: usePrevHookAmount,
-            value: amount,
+            value: value,
             giveTokenAddress: tokenIn,
             giveAmount: amount,
             version: 0,
