@@ -31,15 +31,22 @@ var (
 
 // ISuperAssetFactoryAssetCreationParams is an auto generated low-level Go binding around an user-defined struct.
 type ISuperAssetFactoryAssetCreationParams struct {
-	Name                 string
-	Symbol               string
-	SwapFeeInPercentage  *big.Int
-	SwapFeeOutPercentage *big.Int
+	Name                         string
+	Symbol                       string
+	SwapFeeInPercentage          *big.Int
+	SwapFeeOutPercentage         *big.Int
+	Asset                        common.Address
+	SuperAssetManager            common.Address
+	SuperAssetStrategist         common.Address
+	IncentiveFundManager         common.Address
+	IncentiveCalculationContract common.Address
+	TokenInIncentive             common.Address
+	TokenOutIncentive            common.Address
 }
 
 // SuperAssetFactoryMetaData contains all meta data concerning the SuperAssetFactory contract.
 var SuperAssetFactoryMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"admin\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"DEFAULT_ADMIN_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"DEPLOYER_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"assetBank\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"createSuperAsset\",\"inputs\":[{\"name\":\"params\",\"type\":\"tuple\",\"internalType\":\"structISuperAssetFactory.AssetCreationParams\",\"components\":[{\"name\":\"name\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"symbol\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"swapFeeInPercentage\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFeeOutPercentage\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]}],\"outputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assetBank_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"incentiveFund\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"incentiveCalc\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getRoleAdmin\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"grantRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"hasRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"incentiveCalculationContract\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"incentiveFundImplementation\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"renounceRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"callerConfirmation\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"revokeRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"superAssetImplementation\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"supportsInterface\",\"inputs\":[{\"name\":\"interfaceId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"event\",\"name\":\"RoleAdminChanged\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"previousAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"newAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleGranted\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleRevoked\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperAssetCreated\",\"inputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"assetBank\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"incentiveFund\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"incentiveCalc\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"name\",\"type\":\"string\",\"indexed\":false,\"internalType\":\"string\"},{\"name\":\"symbol\",\"type\":\"string\",\"indexed\":false,\"internalType\":\"string\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"AccessControlBadConfirmation\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AccessControlUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"neededRole\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"FailedDeployment\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InsufficientBalance\",\"inputs\":[{\"name\":\"balance\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"needed\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"_superGovernor\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addICCToWhitelist\",\"inputs\":[{\"name\":\"icc\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"createSuperAsset\",\"inputs\":[{\"name\":\"params\",\"type\":\"tuple\",\"internalType\":\"structISuperAssetFactory.AssetCreationParams\",\"components\":[{\"name\":\"name\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"symbol\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"swapFeeInPercentage\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFeeOutPercentage\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"asset\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"superAssetManager\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"superAssetStrategist\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"incentiveFundManager\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"incentiveCalculationContract\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"tokenInIncentive\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"tokenOutIncentive\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"outputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"incentiveFundContract\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"data\",\"inputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"superAssetStrategist\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"superAssetManager\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"incentiveFundManager\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"incentiveCalculationContract\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"incentiveFundContract\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getIncentiveCalculationContract\",\"inputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getIncentiveFundContract\",\"inputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getIncentiveFundManager\",\"inputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getSuperAssetManager\",\"inputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getSuperAssetStrategist\",\"inputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"incentiveCalculationContractsWhitelist\",\"inputs\":[{\"name\":\"icc\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isValid\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"incentiveFundImplementation\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isICCWhitelisted\",\"inputs\":[{\"name\":\"icc\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"removeICCFromWhitelist\",\"inputs\":[{\"name\":\"icc\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setIncentiveCalculationContract\",\"inputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_incentiveCalculationContract\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setIncentiveFundManager\",\"inputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_incentiveFundManager\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setSuperAssetManager\",\"inputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_superAssetManager\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setSuperAssetStrategist\",\"inputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_superAssetStrategist\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"superAssetImplementation\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"superGovernor\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"event\",\"name\":\"SuperAssetCreated\",\"inputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"incentiveFund\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"incentiveCalc\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"name\",\"type\":\"string\",\"indexed\":false,\"internalType\":\"string\"},{\"name\":\"symbol\",\"type\":\"string\",\"indexed\":false,\"internalType\":\"string\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"FailedDeployment\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ICC_NOT_WHITELISTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"InsufficientBalance\",\"inputs\":[{\"name\":\"balance\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"needed\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"UNAUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]}]",
 }
 
 // SuperAssetFactoryABI is the input ABI used to generate the binding from.
@@ -188,74 +195,72 @@ func (_SuperAssetFactory *SuperAssetFactoryTransactorRaw) Transact(opts *bind.Tr
 	return _SuperAssetFactory.Contract.contract.Transact(opts, method, params...)
 }
 
-// DEFAULTADMINROLE is a free data retrieval call binding the contract method 0xa217fddf.
+// Data is a free data retrieval call binding the contract method 0xb90d3d0c.
 //
-// Solidity: function DEFAULT_ADMIN_ROLE() view returns(bytes32)
-func (_SuperAssetFactory *SuperAssetFactoryCaller) DEFAULTADMINROLE(opts *bind.CallOpts) ([32]byte, error) {
+// Solidity: function data(address superAsset) view returns(address superAssetStrategist, address superAssetManager, address incentiveFundManager, address incentiveCalculationContract, address incentiveFundContract)
+func (_SuperAssetFactory *SuperAssetFactoryCaller) Data(opts *bind.CallOpts, superAsset common.Address) (struct {
+	SuperAssetStrategist         common.Address
+	SuperAssetManager            common.Address
+	IncentiveFundManager         common.Address
+	IncentiveCalculationContract common.Address
+	IncentiveFundContract        common.Address
+}, error) {
 	var out []interface{}
-	err := _SuperAssetFactory.contract.Call(opts, &out, "DEFAULT_ADMIN_ROLE")
+	err := _SuperAssetFactory.contract.Call(opts, &out, "data", superAsset)
 
+	outstruct := new(struct {
+		SuperAssetStrategist         common.Address
+		SuperAssetManager            common.Address
+		IncentiveFundManager         common.Address
+		IncentiveCalculationContract common.Address
+		IncentiveFundContract        common.Address
+	})
 	if err != nil {
-		return *new([32]byte), err
+		return *outstruct, err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
+	outstruct.SuperAssetStrategist = *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+	outstruct.SuperAssetManager = *abi.ConvertType(out[1], new(common.Address)).(*common.Address)
+	outstruct.IncentiveFundManager = *abi.ConvertType(out[2], new(common.Address)).(*common.Address)
+	outstruct.IncentiveCalculationContract = *abi.ConvertType(out[3], new(common.Address)).(*common.Address)
+	outstruct.IncentiveFundContract = *abi.ConvertType(out[4], new(common.Address)).(*common.Address)
 
-	return out0, err
+	return *outstruct, err
 
 }
 
-// DEFAULTADMINROLE is a free data retrieval call binding the contract method 0xa217fddf.
+// Data is a free data retrieval call binding the contract method 0xb90d3d0c.
 //
-// Solidity: function DEFAULT_ADMIN_ROLE() view returns(bytes32)
-func (_SuperAssetFactory *SuperAssetFactorySession) DEFAULTADMINROLE() ([32]byte, error) {
-	return _SuperAssetFactory.Contract.DEFAULTADMINROLE(&_SuperAssetFactory.CallOpts)
+// Solidity: function data(address superAsset) view returns(address superAssetStrategist, address superAssetManager, address incentiveFundManager, address incentiveCalculationContract, address incentiveFundContract)
+func (_SuperAssetFactory *SuperAssetFactorySession) Data(superAsset common.Address) (struct {
+	SuperAssetStrategist         common.Address
+	SuperAssetManager            common.Address
+	IncentiveFundManager         common.Address
+	IncentiveCalculationContract common.Address
+	IncentiveFundContract        common.Address
+}, error) {
+	return _SuperAssetFactory.Contract.Data(&_SuperAssetFactory.CallOpts, superAsset)
 }
 
-// DEFAULTADMINROLE is a free data retrieval call binding the contract method 0xa217fddf.
+// Data is a free data retrieval call binding the contract method 0xb90d3d0c.
 //
-// Solidity: function DEFAULT_ADMIN_ROLE() view returns(bytes32)
-func (_SuperAssetFactory *SuperAssetFactoryCallerSession) DEFAULTADMINROLE() ([32]byte, error) {
-	return _SuperAssetFactory.Contract.DEFAULTADMINROLE(&_SuperAssetFactory.CallOpts)
+// Solidity: function data(address superAsset) view returns(address superAssetStrategist, address superAssetManager, address incentiveFundManager, address incentiveCalculationContract, address incentiveFundContract)
+func (_SuperAssetFactory *SuperAssetFactoryCallerSession) Data(superAsset common.Address) (struct {
+	SuperAssetStrategist         common.Address
+	SuperAssetManager            common.Address
+	IncentiveFundManager         common.Address
+	IncentiveCalculationContract common.Address
+	IncentiveFundContract        common.Address
+}, error) {
+	return _SuperAssetFactory.Contract.Data(&_SuperAssetFactory.CallOpts, superAsset)
 }
 
-// DEPLOYERROLE is a free data retrieval call binding the contract method 0xecd00261.
+// GetIncentiveCalculationContract is a free data retrieval call binding the contract method 0x49252552.
 //
-// Solidity: function DEPLOYER_ROLE() view returns(bytes32)
-func (_SuperAssetFactory *SuperAssetFactoryCaller) DEPLOYERROLE(opts *bind.CallOpts) ([32]byte, error) {
+// Solidity: function getIncentiveCalculationContract(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactoryCaller) GetIncentiveCalculationContract(opts *bind.CallOpts, superAsset common.Address) (common.Address, error) {
 	var out []interface{}
-	err := _SuperAssetFactory.contract.Call(opts, &out, "DEPLOYER_ROLE")
-
-	if err != nil {
-		return *new([32]byte), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
-
-	return out0, err
-
-}
-
-// DEPLOYERROLE is a free data retrieval call binding the contract method 0xecd00261.
-//
-// Solidity: function DEPLOYER_ROLE() view returns(bytes32)
-func (_SuperAssetFactory *SuperAssetFactorySession) DEPLOYERROLE() ([32]byte, error) {
-	return _SuperAssetFactory.Contract.DEPLOYERROLE(&_SuperAssetFactory.CallOpts)
-}
-
-// DEPLOYERROLE is a free data retrieval call binding the contract method 0xecd00261.
-//
-// Solidity: function DEPLOYER_ROLE() view returns(bytes32)
-func (_SuperAssetFactory *SuperAssetFactoryCallerSession) DEPLOYERROLE() ([32]byte, error) {
-	return _SuperAssetFactory.Contract.DEPLOYERROLE(&_SuperAssetFactory.CallOpts)
-}
-
-// AssetBank is a free data retrieval call binding the contract method 0x4d75f51c.
-//
-// Solidity: function assetBank() view returns(address)
-func (_SuperAssetFactory *SuperAssetFactoryCaller) AssetBank(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _SuperAssetFactory.contract.Call(opts, &out, "assetBank")
+	err := _SuperAssetFactory.contract.Call(opts, &out, "getIncentiveCalculationContract", superAsset)
 
 	if err != nil {
 		return *new(common.Address), err
@@ -267,57 +272,150 @@ func (_SuperAssetFactory *SuperAssetFactoryCaller) AssetBank(opts *bind.CallOpts
 
 }
 
-// AssetBank is a free data retrieval call binding the contract method 0x4d75f51c.
+// GetIncentiveCalculationContract is a free data retrieval call binding the contract method 0x49252552.
 //
-// Solidity: function assetBank() view returns(address)
-func (_SuperAssetFactory *SuperAssetFactorySession) AssetBank() (common.Address, error) {
-	return _SuperAssetFactory.Contract.AssetBank(&_SuperAssetFactory.CallOpts)
+// Solidity: function getIncentiveCalculationContract(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactorySession) GetIncentiveCalculationContract(superAsset common.Address) (common.Address, error) {
+	return _SuperAssetFactory.Contract.GetIncentiveCalculationContract(&_SuperAssetFactory.CallOpts, superAsset)
 }
 
-// AssetBank is a free data retrieval call binding the contract method 0x4d75f51c.
+// GetIncentiveCalculationContract is a free data retrieval call binding the contract method 0x49252552.
 //
-// Solidity: function assetBank() view returns(address)
-func (_SuperAssetFactory *SuperAssetFactoryCallerSession) AssetBank() (common.Address, error) {
-	return _SuperAssetFactory.Contract.AssetBank(&_SuperAssetFactory.CallOpts)
+// Solidity: function getIncentiveCalculationContract(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactoryCallerSession) GetIncentiveCalculationContract(superAsset common.Address) (common.Address, error) {
+	return _SuperAssetFactory.Contract.GetIncentiveCalculationContract(&_SuperAssetFactory.CallOpts, superAsset)
 }
 
-// GetRoleAdmin is a free data retrieval call binding the contract method 0x248a9ca3.
+// GetIncentiveFundContract is a free data retrieval call binding the contract method 0xcaaf7e54.
 //
-// Solidity: function getRoleAdmin(bytes32 role) view returns(bytes32)
-func (_SuperAssetFactory *SuperAssetFactoryCaller) GetRoleAdmin(opts *bind.CallOpts, role [32]byte) ([32]byte, error) {
+// Solidity: function getIncentiveFundContract(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactoryCaller) GetIncentiveFundContract(opts *bind.CallOpts, superAsset common.Address) (common.Address, error) {
 	var out []interface{}
-	err := _SuperAssetFactory.contract.Call(opts, &out, "getRoleAdmin", role)
+	err := _SuperAssetFactory.contract.Call(opts, &out, "getIncentiveFundContract", superAsset)
 
 	if err != nil {
-		return *new([32]byte), err
+		return *new(common.Address), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
 
 	return out0, err
 
 }
 
-// GetRoleAdmin is a free data retrieval call binding the contract method 0x248a9ca3.
+// GetIncentiveFundContract is a free data retrieval call binding the contract method 0xcaaf7e54.
 //
-// Solidity: function getRoleAdmin(bytes32 role) view returns(bytes32)
-func (_SuperAssetFactory *SuperAssetFactorySession) GetRoleAdmin(role [32]byte) ([32]byte, error) {
-	return _SuperAssetFactory.Contract.GetRoleAdmin(&_SuperAssetFactory.CallOpts, role)
+// Solidity: function getIncentiveFundContract(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactorySession) GetIncentiveFundContract(superAsset common.Address) (common.Address, error) {
+	return _SuperAssetFactory.Contract.GetIncentiveFundContract(&_SuperAssetFactory.CallOpts, superAsset)
 }
 
-// GetRoleAdmin is a free data retrieval call binding the contract method 0x248a9ca3.
+// GetIncentiveFundContract is a free data retrieval call binding the contract method 0xcaaf7e54.
 //
-// Solidity: function getRoleAdmin(bytes32 role) view returns(bytes32)
-func (_SuperAssetFactory *SuperAssetFactoryCallerSession) GetRoleAdmin(role [32]byte) ([32]byte, error) {
-	return _SuperAssetFactory.Contract.GetRoleAdmin(&_SuperAssetFactory.CallOpts, role)
+// Solidity: function getIncentiveFundContract(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactoryCallerSession) GetIncentiveFundContract(superAsset common.Address) (common.Address, error) {
+	return _SuperAssetFactory.Contract.GetIncentiveFundContract(&_SuperAssetFactory.CallOpts, superAsset)
 }
 
-// HasRole is a free data retrieval call binding the contract method 0x91d14854.
+// GetIncentiveFundManager is a free data retrieval call binding the contract method 0x3adcaeb9.
 //
-// Solidity: function hasRole(bytes32 role, address account) view returns(bool)
-func (_SuperAssetFactory *SuperAssetFactoryCaller) HasRole(opts *bind.CallOpts, role [32]byte, account common.Address) (bool, error) {
+// Solidity: function getIncentiveFundManager(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactoryCaller) GetIncentiveFundManager(opts *bind.CallOpts, superAsset common.Address) (common.Address, error) {
 	var out []interface{}
-	err := _SuperAssetFactory.contract.Call(opts, &out, "hasRole", role, account)
+	err := _SuperAssetFactory.contract.Call(opts, &out, "getIncentiveFundManager", superAsset)
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// GetIncentiveFundManager is a free data retrieval call binding the contract method 0x3adcaeb9.
+//
+// Solidity: function getIncentiveFundManager(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactorySession) GetIncentiveFundManager(superAsset common.Address) (common.Address, error) {
+	return _SuperAssetFactory.Contract.GetIncentiveFundManager(&_SuperAssetFactory.CallOpts, superAsset)
+}
+
+// GetIncentiveFundManager is a free data retrieval call binding the contract method 0x3adcaeb9.
+//
+// Solidity: function getIncentiveFundManager(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactoryCallerSession) GetIncentiveFundManager(superAsset common.Address) (common.Address, error) {
+	return _SuperAssetFactory.Contract.GetIncentiveFundManager(&_SuperAssetFactory.CallOpts, superAsset)
+}
+
+// GetSuperAssetManager is a free data retrieval call binding the contract method 0xa774b2e0.
+//
+// Solidity: function getSuperAssetManager(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactoryCaller) GetSuperAssetManager(opts *bind.CallOpts, superAsset common.Address) (common.Address, error) {
+	var out []interface{}
+	err := _SuperAssetFactory.contract.Call(opts, &out, "getSuperAssetManager", superAsset)
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// GetSuperAssetManager is a free data retrieval call binding the contract method 0xa774b2e0.
+//
+// Solidity: function getSuperAssetManager(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactorySession) GetSuperAssetManager(superAsset common.Address) (common.Address, error) {
+	return _SuperAssetFactory.Contract.GetSuperAssetManager(&_SuperAssetFactory.CallOpts, superAsset)
+}
+
+// GetSuperAssetManager is a free data retrieval call binding the contract method 0xa774b2e0.
+//
+// Solidity: function getSuperAssetManager(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactoryCallerSession) GetSuperAssetManager(superAsset common.Address) (common.Address, error) {
+	return _SuperAssetFactory.Contract.GetSuperAssetManager(&_SuperAssetFactory.CallOpts, superAsset)
+}
+
+// GetSuperAssetStrategist is a free data retrieval call binding the contract method 0xd18026c1.
+//
+// Solidity: function getSuperAssetStrategist(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactoryCaller) GetSuperAssetStrategist(opts *bind.CallOpts, superAsset common.Address) (common.Address, error) {
+	var out []interface{}
+	err := _SuperAssetFactory.contract.Call(opts, &out, "getSuperAssetStrategist", superAsset)
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// GetSuperAssetStrategist is a free data retrieval call binding the contract method 0xd18026c1.
+//
+// Solidity: function getSuperAssetStrategist(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactorySession) GetSuperAssetStrategist(superAsset common.Address) (common.Address, error) {
+	return _SuperAssetFactory.Contract.GetSuperAssetStrategist(&_SuperAssetFactory.CallOpts, superAsset)
+}
+
+// GetSuperAssetStrategist is a free data retrieval call binding the contract method 0xd18026c1.
+//
+// Solidity: function getSuperAssetStrategist(address superAsset) view returns(address)
+func (_SuperAssetFactory *SuperAssetFactoryCallerSession) GetSuperAssetStrategist(superAsset common.Address) (common.Address, error) {
+	return _SuperAssetFactory.Contract.GetSuperAssetStrategist(&_SuperAssetFactory.CallOpts, superAsset)
+}
+
+// IncentiveCalculationContractsWhitelist is a free data retrieval call binding the contract method 0x3ac171fe.
+//
+// Solidity: function incentiveCalculationContractsWhitelist(address icc) view returns(bool isValid)
+func (_SuperAssetFactory *SuperAssetFactoryCaller) IncentiveCalculationContractsWhitelist(opts *bind.CallOpts, icc common.Address) (bool, error) {
+	var out []interface{}
+	err := _SuperAssetFactory.contract.Call(opts, &out, "incentiveCalculationContractsWhitelist", icc)
 
 	if err != nil {
 		return *new(bool), err
@@ -329,49 +427,18 @@ func (_SuperAssetFactory *SuperAssetFactoryCaller) HasRole(opts *bind.CallOpts, 
 
 }
 
-// HasRole is a free data retrieval call binding the contract method 0x91d14854.
+// IncentiveCalculationContractsWhitelist is a free data retrieval call binding the contract method 0x3ac171fe.
 //
-// Solidity: function hasRole(bytes32 role, address account) view returns(bool)
-func (_SuperAssetFactory *SuperAssetFactorySession) HasRole(role [32]byte, account common.Address) (bool, error) {
-	return _SuperAssetFactory.Contract.HasRole(&_SuperAssetFactory.CallOpts, role, account)
+// Solidity: function incentiveCalculationContractsWhitelist(address icc) view returns(bool isValid)
+func (_SuperAssetFactory *SuperAssetFactorySession) IncentiveCalculationContractsWhitelist(icc common.Address) (bool, error) {
+	return _SuperAssetFactory.Contract.IncentiveCalculationContractsWhitelist(&_SuperAssetFactory.CallOpts, icc)
 }
 
-// HasRole is a free data retrieval call binding the contract method 0x91d14854.
+// IncentiveCalculationContractsWhitelist is a free data retrieval call binding the contract method 0x3ac171fe.
 //
-// Solidity: function hasRole(bytes32 role, address account) view returns(bool)
-func (_SuperAssetFactory *SuperAssetFactoryCallerSession) HasRole(role [32]byte, account common.Address) (bool, error) {
-	return _SuperAssetFactory.Contract.HasRole(&_SuperAssetFactory.CallOpts, role, account)
-}
-
-// IncentiveCalculationContract is a free data retrieval call binding the contract method 0xd3b472c5.
-//
-// Solidity: function incentiveCalculationContract() view returns(address)
-func (_SuperAssetFactory *SuperAssetFactoryCaller) IncentiveCalculationContract(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _SuperAssetFactory.contract.Call(opts, &out, "incentiveCalculationContract")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// IncentiveCalculationContract is a free data retrieval call binding the contract method 0xd3b472c5.
-//
-// Solidity: function incentiveCalculationContract() view returns(address)
-func (_SuperAssetFactory *SuperAssetFactorySession) IncentiveCalculationContract() (common.Address, error) {
-	return _SuperAssetFactory.Contract.IncentiveCalculationContract(&_SuperAssetFactory.CallOpts)
-}
-
-// IncentiveCalculationContract is a free data retrieval call binding the contract method 0xd3b472c5.
-//
-// Solidity: function incentiveCalculationContract() view returns(address)
-func (_SuperAssetFactory *SuperAssetFactoryCallerSession) IncentiveCalculationContract() (common.Address, error) {
-	return _SuperAssetFactory.Contract.IncentiveCalculationContract(&_SuperAssetFactory.CallOpts)
+// Solidity: function incentiveCalculationContractsWhitelist(address icc) view returns(bool isValid)
+func (_SuperAssetFactory *SuperAssetFactoryCallerSession) IncentiveCalculationContractsWhitelist(icc common.Address) (bool, error) {
+	return _SuperAssetFactory.Contract.IncentiveCalculationContractsWhitelist(&_SuperAssetFactory.CallOpts, icc)
 }
 
 // IncentiveFundImplementation is a free data retrieval call binding the contract method 0x0d309e73.
@@ -405,6 +472,37 @@ func (_SuperAssetFactory *SuperAssetFactoryCallerSession) IncentiveFundImplement
 	return _SuperAssetFactory.Contract.IncentiveFundImplementation(&_SuperAssetFactory.CallOpts)
 }
 
+// IsICCWhitelisted is a free data retrieval call binding the contract method 0xa3e7a82c.
+//
+// Solidity: function isICCWhitelisted(address icc) view returns(bool)
+func (_SuperAssetFactory *SuperAssetFactoryCaller) IsICCWhitelisted(opts *bind.CallOpts, icc common.Address) (bool, error) {
+	var out []interface{}
+	err := _SuperAssetFactory.contract.Call(opts, &out, "isICCWhitelisted", icc)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
+}
+
+// IsICCWhitelisted is a free data retrieval call binding the contract method 0xa3e7a82c.
+//
+// Solidity: function isICCWhitelisted(address icc) view returns(bool)
+func (_SuperAssetFactory *SuperAssetFactorySession) IsICCWhitelisted(icc common.Address) (bool, error) {
+	return _SuperAssetFactory.Contract.IsICCWhitelisted(&_SuperAssetFactory.CallOpts, icc)
+}
+
+// IsICCWhitelisted is a free data retrieval call binding the contract method 0xa3e7a82c.
+//
+// Solidity: function isICCWhitelisted(address icc) view returns(bool)
+func (_SuperAssetFactory *SuperAssetFactoryCallerSession) IsICCWhitelisted(icc common.Address) (bool, error) {
+	return _SuperAssetFactory.Contract.IsICCWhitelisted(&_SuperAssetFactory.CallOpts, icc)
+}
+
 // SuperAssetImplementation is a free data retrieval call binding the contract method 0xf2cc6ed6.
 //
 // Solidity: function superAssetImplementation() view returns(address)
@@ -436,605 +534,182 @@ func (_SuperAssetFactory *SuperAssetFactoryCallerSession) SuperAssetImplementati
 	return _SuperAssetFactory.Contract.SuperAssetImplementation(&_SuperAssetFactory.CallOpts)
 }
 
-// SupportsInterface is a free data retrieval call binding the contract method 0x01ffc9a7.
+// SuperGovernor is a free data retrieval call binding the contract method 0x3289cbfb.
 //
-// Solidity: function supportsInterface(bytes4 interfaceId) view returns(bool)
-func (_SuperAssetFactory *SuperAssetFactoryCaller) SupportsInterface(opts *bind.CallOpts, interfaceId [4]byte) (bool, error) {
+// Solidity: function superGovernor() view returns(address)
+func (_SuperAssetFactory *SuperAssetFactoryCaller) SuperGovernor(opts *bind.CallOpts) (common.Address, error) {
 	var out []interface{}
-	err := _SuperAssetFactory.contract.Call(opts, &out, "supportsInterface", interfaceId)
+	err := _SuperAssetFactory.contract.Call(opts, &out, "superGovernor")
 
 	if err != nil {
-		return *new(bool), err
+		return *new(common.Address), err
 	}
 
-	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
 
 	return out0, err
 
 }
 
-// SupportsInterface is a free data retrieval call binding the contract method 0x01ffc9a7.
+// SuperGovernor is a free data retrieval call binding the contract method 0x3289cbfb.
 //
-// Solidity: function supportsInterface(bytes4 interfaceId) view returns(bool)
-func (_SuperAssetFactory *SuperAssetFactorySession) SupportsInterface(interfaceId [4]byte) (bool, error) {
-	return _SuperAssetFactory.Contract.SupportsInterface(&_SuperAssetFactory.CallOpts, interfaceId)
+// Solidity: function superGovernor() view returns(address)
+func (_SuperAssetFactory *SuperAssetFactorySession) SuperGovernor() (common.Address, error) {
+	return _SuperAssetFactory.Contract.SuperGovernor(&_SuperAssetFactory.CallOpts)
 }
 
-// SupportsInterface is a free data retrieval call binding the contract method 0x01ffc9a7.
+// SuperGovernor is a free data retrieval call binding the contract method 0x3289cbfb.
 //
-// Solidity: function supportsInterface(bytes4 interfaceId) view returns(bool)
-func (_SuperAssetFactory *SuperAssetFactoryCallerSession) SupportsInterface(interfaceId [4]byte) (bool, error) {
-	return _SuperAssetFactory.Contract.SupportsInterface(&_SuperAssetFactory.CallOpts, interfaceId)
+// Solidity: function superGovernor() view returns(address)
+func (_SuperAssetFactory *SuperAssetFactoryCallerSession) SuperGovernor() (common.Address, error) {
+	return _SuperAssetFactory.Contract.SuperGovernor(&_SuperAssetFactory.CallOpts)
 }
 
-// CreateSuperAsset is a paid mutator transaction binding the contract method 0xec5f41e2.
+// AddICCToWhitelist is a paid mutator transaction binding the contract method 0xd070909e.
 //
-// Solidity: function createSuperAsset((string,string,uint256,uint256) params) returns(address superAsset, address assetBank_, address incentiveFund, address incentiveCalc)
+// Solidity: function addICCToWhitelist(address icc) returns()
+func (_SuperAssetFactory *SuperAssetFactoryTransactor) AddICCToWhitelist(opts *bind.TransactOpts, icc common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.contract.Transact(opts, "addICCToWhitelist", icc)
+}
+
+// AddICCToWhitelist is a paid mutator transaction binding the contract method 0xd070909e.
+//
+// Solidity: function addICCToWhitelist(address icc) returns()
+func (_SuperAssetFactory *SuperAssetFactorySession) AddICCToWhitelist(icc common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.Contract.AddICCToWhitelist(&_SuperAssetFactory.TransactOpts, icc)
+}
+
+// AddICCToWhitelist is a paid mutator transaction binding the contract method 0xd070909e.
+//
+// Solidity: function addICCToWhitelist(address icc) returns()
+func (_SuperAssetFactory *SuperAssetFactoryTransactorSession) AddICCToWhitelist(icc common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.Contract.AddICCToWhitelist(&_SuperAssetFactory.TransactOpts, icc)
+}
+
+// CreateSuperAsset is a paid mutator transaction binding the contract method 0x8b91bea7.
+//
+// Solidity: function createSuperAsset((string,string,uint256,uint256,address,address,address,address,address,address,address) params) returns(address superAsset, address incentiveFundContract)
 func (_SuperAssetFactory *SuperAssetFactoryTransactor) CreateSuperAsset(opts *bind.TransactOpts, params ISuperAssetFactoryAssetCreationParams) (*types.Transaction, error) {
 	return _SuperAssetFactory.contract.Transact(opts, "createSuperAsset", params)
 }
 
-// CreateSuperAsset is a paid mutator transaction binding the contract method 0xec5f41e2.
+// CreateSuperAsset is a paid mutator transaction binding the contract method 0x8b91bea7.
 //
-// Solidity: function createSuperAsset((string,string,uint256,uint256) params) returns(address superAsset, address assetBank_, address incentiveFund, address incentiveCalc)
+// Solidity: function createSuperAsset((string,string,uint256,uint256,address,address,address,address,address,address,address) params) returns(address superAsset, address incentiveFundContract)
 func (_SuperAssetFactory *SuperAssetFactorySession) CreateSuperAsset(params ISuperAssetFactoryAssetCreationParams) (*types.Transaction, error) {
 	return _SuperAssetFactory.Contract.CreateSuperAsset(&_SuperAssetFactory.TransactOpts, params)
 }
 
-// CreateSuperAsset is a paid mutator transaction binding the contract method 0xec5f41e2.
+// CreateSuperAsset is a paid mutator transaction binding the contract method 0x8b91bea7.
 //
-// Solidity: function createSuperAsset((string,string,uint256,uint256) params) returns(address superAsset, address assetBank_, address incentiveFund, address incentiveCalc)
+// Solidity: function createSuperAsset((string,string,uint256,uint256,address,address,address,address,address,address,address) params) returns(address superAsset, address incentiveFundContract)
 func (_SuperAssetFactory *SuperAssetFactoryTransactorSession) CreateSuperAsset(params ISuperAssetFactoryAssetCreationParams) (*types.Transaction, error) {
 	return _SuperAssetFactory.Contract.CreateSuperAsset(&_SuperAssetFactory.TransactOpts, params)
 }
 
-// GrantRole is a paid mutator transaction binding the contract method 0x2f2ff15d.
+// RemoveICCFromWhitelist is a paid mutator transaction binding the contract method 0x256b71a0.
 //
-// Solidity: function grantRole(bytes32 role, address account) returns()
-func (_SuperAssetFactory *SuperAssetFactoryTransactor) GrantRole(opts *bind.TransactOpts, role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperAssetFactory.contract.Transact(opts, "grantRole", role, account)
+// Solidity: function removeICCFromWhitelist(address icc) returns()
+func (_SuperAssetFactory *SuperAssetFactoryTransactor) RemoveICCFromWhitelist(opts *bind.TransactOpts, icc common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.contract.Transact(opts, "removeICCFromWhitelist", icc)
 }
 
-// GrantRole is a paid mutator transaction binding the contract method 0x2f2ff15d.
+// RemoveICCFromWhitelist is a paid mutator transaction binding the contract method 0x256b71a0.
 //
-// Solidity: function grantRole(bytes32 role, address account) returns()
-func (_SuperAssetFactory *SuperAssetFactorySession) GrantRole(role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperAssetFactory.Contract.GrantRole(&_SuperAssetFactory.TransactOpts, role, account)
+// Solidity: function removeICCFromWhitelist(address icc) returns()
+func (_SuperAssetFactory *SuperAssetFactorySession) RemoveICCFromWhitelist(icc common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.Contract.RemoveICCFromWhitelist(&_SuperAssetFactory.TransactOpts, icc)
 }
 
-// GrantRole is a paid mutator transaction binding the contract method 0x2f2ff15d.
+// RemoveICCFromWhitelist is a paid mutator transaction binding the contract method 0x256b71a0.
 //
-// Solidity: function grantRole(bytes32 role, address account) returns()
-func (_SuperAssetFactory *SuperAssetFactoryTransactorSession) GrantRole(role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperAssetFactory.Contract.GrantRole(&_SuperAssetFactory.TransactOpts, role, account)
+// Solidity: function removeICCFromWhitelist(address icc) returns()
+func (_SuperAssetFactory *SuperAssetFactoryTransactorSession) RemoveICCFromWhitelist(icc common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.Contract.RemoveICCFromWhitelist(&_SuperAssetFactory.TransactOpts, icc)
 }
 
-// RenounceRole is a paid mutator transaction binding the contract method 0x36568abe.
+// SetIncentiveCalculationContract is a paid mutator transaction binding the contract method 0x9d1f9cc2.
 //
-// Solidity: function renounceRole(bytes32 role, address callerConfirmation) returns()
-func (_SuperAssetFactory *SuperAssetFactoryTransactor) RenounceRole(opts *bind.TransactOpts, role [32]byte, callerConfirmation common.Address) (*types.Transaction, error) {
-	return _SuperAssetFactory.contract.Transact(opts, "renounceRole", role, callerConfirmation)
+// Solidity: function setIncentiveCalculationContract(address superAsset, address _incentiveCalculationContract) returns()
+func (_SuperAssetFactory *SuperAssetFactoryTransactor) SetIncentiveCalculationContract(opts *bind.TransactOpts, superAsset common.Address, _incentiveCalculationContract common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.contract.Transact(opts, "setIncentiveCalculationContract", superAsset, _incentiveCalculationContract)
 }
 
-// RenounceRole is a paid mutator transaction binding the contract method 0x36568abe.
+// SetIncentiveCalculationContract is a paid mutator transaction binding the contract method 0x9d1f9cc2.
 //
-// Solidity: function renounceRole(bytes32 role, address callerConfirmation) returns()
-func (_SuperAssetFactory *SuperAssetFactorySession) RenounceRole(role [32]byte, callerConfirmation common.Address) (*types.Transaction, error) {
-	return _SuperAssetFactory.Contract.RenounceRole(&_SuperAssetFactory.TransactOpts, role, callerConfirmation)
+// Solidity: function setIncentiveCalculationContract(address superAsset, address _incentiveCalculationContract) returns()
+func (_SuperAssetFactory *SuperAssetFactorySession) SetIncentiveCalculationContract(superAsset common.Address, _incentiveCalculationContract common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.Contract.SetIncentiveCalculationContract(&_SuperAssetFactory.TransactOpts, superAsset, _incentiveCalculationContract)
 }
 
-// RenounceRole is a paid mutator transaction binding the contract method 0x36568abe.
+// SetIncentiveCalculationContract is a paid mutator transaction binding the contract method 0x9d1f9cc2.
 //
-// Solidity: function renounceRole(bytes32 role, address callerConfirmation) returns()
-func (_SuperAssetFactory *SuperAssetFactoryTransactorSession) RenounceRole(role [32]byte, callerConfirmation common.Address) (*types.Transaction, error) {
-	return _SuperAssetFactory.Contract.RenounceRole(&_SuperAssetFactory.TransactOpts, role, callerConfirmation)
+// Solidity: function setIncentiveCalculationContract(address superAsset, address _incentiveCalculationContract) returns()
+func (_SuperAssetFactory *SuperAssetFactoryTransactorSession) SetIncentiveCalculationContract(superAsset common.Address, _incentiveCalculationContract common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.Contract.SetIncentiveCalculationContract(&_SuperAssetFactory.TransactOpts, superAsset, _incentiveCalculationContract)
 }
 
-// RevokeRole is a paid mutator transaction binding the contract method 0xd547741f.
+// SetIncentiveFundManager is a paid mutator transaction binding the contract method 0x6b8db4d5.
 //
-// Solidity: function revokeRole(bytes32 role, address account) returns()
-func (_SuperAssetFactory *SuperAssetFactoryTransactor) RevokeRole(opts *bind.TransactOpts, role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperAssetFactory.contract.Transact(opts, "revokeRole", role, account)
+// Solidity: function setIncentiveFundManager(address superAsset, address _incentiveFundManager) returns()
+func (_SuperAssetFactory *SuperAssetFactoryTransactor) SetIncentiveFundManager(opts *bind.TransactOpts, superAsset common.Address, _incentiveFundManager common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.contract.Transact(opts, "setIncentiveFundManager", superAsset, _incentiveFundManager)
 }
 
-// RevokeRole is a paid mutator transaction binding the contract method 0xd547741f.
+// SetIncentiveFundManager is a paid mutator transaction binding the contract method 0x6b8db4d5.
 //
-// Solidity: function revokeRole(bytes32 role, address account) returns()
-func (_SuperAssetFactory *SuperAssetFactorySession) RevokeRole(role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperAssetFactory.Contract.RevokeRole(&_SuperAssetFactory.TransactOpts, role, account)
+// Solidity: function setIncentiveFundManager(address superAsset, address _incentiveFundManager) returns()
+func (_SuperAssetFactory *SuperAssetFactorySession) SetIncentiveFundManager(superAsset common.Address, _incentiveFundManager common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.Contract.SetIncentiveFundManager(&_SuperAssetFactory.TransactOpts, superAsset, _incentiveFundManager)
 }
 
-// RevokeRole is a paid mutator transaction binding the contract method 0xd547741f.
+// SetIncentiveFundManager is a paid mutator transaction binding the contract method 0x6b8db4d5.
 //
-// Solidity: function revokeRole(bytes32 role, address account) returns()
-func (_SuperAssetFactory *SuperAssetFactoryTransactorSession) RevokeRole(role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperAssetFactory.Contract.RevokeRole(&_SuperAssetFactory.TransactOpts, role, account)
+// Solidity: function setIncentiveFundManager(address superAsset, address _incentiveFundManager) returns()
+func (_SuperAssetFactory *SuperAssetFactoryTransactorSession) SetIncentiveFundManager(superAsset common.Address, _incentiveFundManager common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.Contract.SetIncentiveFundManager(&_SuperAssetFactory.TransactOpts, superAsset, _incentiveFundManager)
 }
 
-// SuperAssetFactoryRoleAdminChangedIterator is returned from FilterRoleAdminChanged and is used to iterate over the raw logs and unpacked data for RoleAdminChanged events raised by the SuperAssetFactory contract.
-type SuperAssetFactoryRoleAdminChangedIterator struct {
-	Event *SuperAssetFactoryRoleAdminChanged // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperAssetFactoryRoleAdminChangedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperAssetFactoryRoleAdminChanged)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperAssetFactoryRoleAdminChanged)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperAssetFactoryRoleAdminChangedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperAssetFactoryRoleAdminChangedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperAssetFactoryRoleAdminChanged represents a RoleAdminChanged event raised by the SuperAssetFactory contract.
-type SuperAssetFactoryRoleAdminChanged struct {
-	Role              [32]byte
-	PreviousAdminRole [32]byte
-	NewAdminRole      [32]byte
-	Raw               types.Log // Blockchain specific contextual infos
-}
-
-// FilterRoleAdminChanged is a free log retrieval operation binding the contract event 0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff.
+// SetSuperAssetManager is a paid mutator transaction binding the contract method 0xe778f632.
 //
-// Solidity: event RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole)
-func (_SuperAssetFactory *SuperAssetFactoryFilterer) FilterRoleAdminChanged(opts *bind.FilterOpts, role [][32]byte, previousAdminRole [][32]byte, newAdminRole [][32]byte) (*SuperAssetFactoryRoleAdminChangedIterator, error) {
-
-	var roleRule []interface{}
-	for _, roleItem := range role {
-		roleRule = append(roleRule, roleItem)
-	}
-	var previousAdminRoleRule []interface{}
-	for _, previousAdminRoleItem := range previousAdminRole {
-		previousAdminRoleRule = append(previousAdminRoleRule, previousAdminRoleItem)
-	}
-	var newAdminRoleRule []interface{}
-	for _, newAdminRoleItem := range newAdminRole {
-		newAdminRoleRule = append(newAdminRoleRule, newAdminRoleItem)
-	}
-
-	logs, sub, err := _SuperAssetFactory.contract.FilterLogs(opts, "RoleAdminChanged", roleRule, previousAdminRoleRule, newAdminRoleRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperAssetFactoryRoleAdminChangedIterator{contract: _SuperAssetFactory.contract, event: "RoleAdminChanged", logs: logs, sub: sub}, nil
+// Solidity: function setSuperAssetManager(address superAsset, address _superAssetManager) returns()
+func (_SuperAssetFactory *SuperAssetFactoryTransactor) SetSuperAssetManager(opts *bind.TransactOpts, superAsset common.Address, _superAssetManager common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.contract.Transact(opts, "setSuperAssetManager", superAsset, _superAssetManager)
 }
 
-// WatchRoleAdminChanged is a free log subscription operation binding the contract event 0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff.
+// SetSuperAssetManager is a paid mutator transaction binding the contract method 0xe778f632.
 //
-// Solidity: event RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole)
-func (_SuperAssetFactory *SuperAssetFactoryFilterer) WatchRoleAdminChanged(opts *bind.WatchOpts, sink chan<- *SuperAssetFactoryRoleAdminChanged, role [][32]byte, previousAdminRole [][32]byte, newAdminRole [][32]byte) (event.Subscription, error) {
-
-	var roleRule []interface{}
-	for _, roleItem := range role {
-		roleRule = append(roleRule, roleItem)
-	}
-	var previousAdminRoleRule []interface{}
-	for _, previousAdminRoleItem := range previousAdminRole {
-		previousAdminRoleRule = append(previousAdminRoleRule, previousAdminRoleItem)
-	}
-	var newAdminRoleRule []interface{}
-	for _, newAdminRoleItem := range newAdminRole {
-		newAdminRoleRule = append(newAdminRoleRule, newAdminRoleItem)
-	}
-
-	logs, sub, err := _SuperAssetFactory.contract.WatchLogs(opts, "RoleAdminChanged", roleRule, previousAdminRoleRule, newAdminRoleRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperAssetFactoryRoleAdminChanged)
-				if err := _SuperAssetFactory.contract.UnpackLog(event, "RoleAdminChanged", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
+// Solidity: function setSuperAssetManager(address superAsset, address _superAssetManager) returns()
+func (_SuperAssetFactory *SuperAssetFactorySession) SetSuperAssetManager(superAsset common.Address, _superAssetManager common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.Contract.SetSuperAssetManager(&_SuperAssetFactory.TransactOpts, superAsset, _superAssetManager)
 }
 
-// ParseRoleAdminChanged is a log parse operation binding the contract event 0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff.
+// SetSuperAssetManager is a paid mutator transaction binding the contract method 0xe778f632.
 //
-// Solidity: event RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole)
-func (_SuperAssetFactory *SuperAssetFactoryFilterer) ParseRoleAdminChanged(log types.Log) (*SuperAssetFactoryRoleAdminChanged, error) {
-	event := new(SuperAssetFactoryRoleAdminChanged)
-	if err := _SuperAssetFactory.contract.UnpackLog(event, "RoleAdminChanged", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
+// Solidity: function setSuperAssetManager(address superAsset, address _superAssetManager) returns()
+func (_SuperAssetFactory *SuperAssetFactoryTransactorSession) SetSuperAssetManager(superAsset common.Address, _superAssetManager common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.Contract.SetSuperAssetManager(&_SuperAssetFactory.TransactOpts, superAsset, _superAssetManager)
 }
 
-// SuperAssetFactoryRoleGrantedIterator is returned from FilterRoleGranted and is used to iterate over the raw logs and unpacked data for RoleGranted events raised by the SuperAssetFactory contract.
-type SuperAssetFactoryRoleGrantedIterator struct {
-	Event *SuperAssetFactoryRoleGranted // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperAssetFactoryRoleGrantedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperAssetFactoryRoleGranted)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperAssetFactoryRoleGranted)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperAssetFactoryRoleGrantedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperAssetFactoryRoleGrantedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperAssetFactoryRoleGranted represents a RoleGranted event raised by the SuperAssetFactory contract.
-type SuperAssetFactoryRoleGranted struct {
-	Role    [32]byte
-	Account common.Address
-	Sender  common.Address
-	Raw     types.Log // Blockchain specific contextual infos
-}
-
-// FilterRoleGranted is a free log retrieval operation binding the contract event 0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d.
+// SetSuperAssetStrategist is a paid mutator transaction binding the contract method 0x8aaff57a.
 //
-// Solidity: event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)
-func (_SuperAssetFactory *SuperAssetFactoryFilterer) FilterRoleGranted(opts *bind.FilterOpts, role [][32]byte, account []common.Address, sender []common.Address) (*SuperAssetFactoryRoleGrantedIterator, error) {
-
-	var roleRule []interface{}
-	for _, roleItem := range role {
-		roleRule = append(roleRule, roleItem)
-	}
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-	var senderRule []interface{}
-	for _, senderItem := range sender {
-		senderRule = append(senderRule, senderItem)
-	}
-
-	logs, sub, err := _SuperAssetFactory.contract.FilterLogs(opts, "RoleGranted", roleRule, accountRule, senderRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperAssetFactoryRoleGrantedIterator{contract: _SuperAssetFactory.contract, event: "RoleGranted", logs: logs, sub: sub}, nil
+// Solidity: function setSuperAssetStrategist(address superAsset, address _superAssetStrategist) returns()
+func (_SuperAssetFactory *SuperAssetFactoryTransactor) SetSuperAssetStrategist(opts *bind.TransactOpts, superAsset common.Address, _superAssetStrategist common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.contract.Transact(opts, "setSuperAssetStrategist", superAsset, _superAssetStrategist)
 }
 
-// WatchRoleGranted is a free log subscription operation binding the contract event 0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d.
+// SetSuperAssetStrategist is a paid mutator transaction binding the contract method 0x8aaff57a.
 //
-// Solidity: event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)
-func (_SuperAssetFactory *SuperAssetFactoryFilterer) WatchRoleGranted(opts *bind.WatchOpts, sink chan<- *SuperAssetFactoryRoleGranted, role [][32]byte, account []common.Address, sender []common.Address) (event.Subscription, error) {
-
-	var roleRule []interface{}
-	for _, roleItem := range role {
-		roleRule = append(roleRule, roleItem)
-	}
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-	var senderRule []interface{}
-	for _, senderItem := range sender {
-		senderRule = append(senderRule, senderItem)
-	}
-
-	logs, sub, err := _SuperAssetFactory.contract.WatchLogs(opts, "RoleGranted", roleRule, accountRule, senderRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperAssetFactoryRoleGranted)
-				if err := _SuperAssetFactory.contract.UnpackLog(event, "RoleGranted", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
+// Solidity: function setSuperAssetStrategist(address superAsset, address _superAssetStrategist) returns()
+func (_SuperAssetFactory *SuperAssetFactorySession) SetSuperAssetStrategist(superAsset common.Address, _superAssetStrategist common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.Contract.SetSuperAssetStrategist(&_SuperAssetFactory.TransactOpts, superAsset, _superAssetStrategist)
 }
 
-// ParseRoleGranted is a log parse operation binding the contract event 0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d.
+// SetSuperAssetStrategist is a paid mutator transaction binding the contract method 0x8aaff57a.
 //
-// Solidity: event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)
-func (_SuperAssetFactory *SuperAssetFactoryFilterer) ParseRoleGranted(log types.Log) (*SuperAssetFactoryRoleGranted, error) {
-	event := new(SuperAssetFactoryRoleGranted)
-	if err := _SuperAssetFactory.contract.UnpackLog(event, "RoleGranted", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperAssetFactoryRoleRevokedIterator is returned from FilterRoleRevoked and is used to iterate over the raw logs and unpacked data for RoleRevoked events raised by the SuperAssetFactory contract.
-type SuperAssetFactoryRoleRevokedIterator struct {
-	Event *SuperAssetFactoryRoleRevoked // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperAssetFactoryRoleRevokedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperAssetFactoryRoleRevoked)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperAssetFactoryRoleRevoked)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperAssetFactoryRoleRevokedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperAssetFactoryRoleRevokedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperAssetFactoryRoleRevoked represents a RoleRevoked event raised by the SuperAssetFactory contract.
-type SuperAssetFactoryRoleRevoked struct {
-	Role    [32]byte
-	Account common.Address
-	Sender  common.Address
-	Raw     types.Log // Blockchain specific contextual infos
-}
-
-// FilterRoleRevoked is a free log retrieval operation binding the contract event 0xf6391f5c32d9c69d2a47ea670b442974b53935d1edc7fd64eb21e047a839171b.
-//
-// Solidity: event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender)
-func (_SuperAssetFactory *SuperAssetFactoryFilterer) FilterRoleRevoked(opts *bind.FilterOpts, role [][32]byte, account []common.Address, sender []common.Address) (*SuperAssetFactoryRoleRevokedIterator, error) {
-
-	var roleRule []interface{}
-	for _, roleItem := range role {
-		roleRule = append(roleRule, roleItem)
-	}
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-	var senderRule []interface{}
-	for _, senderItem := range sender {
-		senderRule = append(senderRule, senderItem)
-	}
-
-	logs, sub, err := _SuperAssetFactory.contract.FilterLogs(opts, "RoleRevoked", roleRule, accountRule, senderRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperAssetFactoryRoleRevokedIterator{contract: _SuperAssetFactory.contract, event: "RoleRevoked", logs: logs, sub: sub}, nil
-}
-
-// WatchRoleRevoked is a free log subscription operation binding the contract event 0xf6391f5c32d9c69d2a47ea670b442974b53935d1edc7fd64eb21e047a839171b.
-//
-// Solidity: event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender)
-func (_SuperAssetFactory *SuperAssetFactoryFilterer) WatchRoleRevoked(opts *bind.WatchOpts, sink chan<- *SuperAssetFactoryRoleRevoked, role [][32]byte, account []common.Address, sender []common.Address) (event.Subscription, error) {
-
-	var roleRule []interface{}
-	for _, roleItem := range role {
-		roleRule = append(roleRule, roleItem)
-	}
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-	var senderRule []interface{}
-	for _, senderItem := range sender {
-		senderRule = append(senderRule, senderItem)
-	}
-
-	logs, sub, err := _SuperAssetFactory.contract.WatchLogs(opts, "RoleRevoked", roleRule, accountRule, senderRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperAssetFactoryRoleRevoked)
-				if err := _SuperAssetFactory.contract.UnpackLog(event, "RoleRevoked", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseRoleRevoked is a log parse operation binding the contract event 0xf6391f5c32d9c69d2a47ea670b442974b53935d1edc7fd64eb21e047a839171b.
-//
-// Solidity: event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender)
-func (_SuperAssetFactory *SuperAssetFactoryFilterer) ParseRoleRevoked(log types.Log) (*SuperAssetFactoryRoleRevoked, error) {
-	event := new(SuperAssetFactoryRoleRevoked)
-	if err := _SuperAssetFactory.contract.UnpackLog(event, "RoleRevoked", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
+// Solidity: function setSuperAssetStrategist(address superAsset, address _superAssetStrategist) returns()
+func (_SuperAssetFactory *SuperAssetFactoryTransactorSession) SetSuperAssetStrategist(superAsset common.Address, _superAssetStrategist common.Address) (*types.Transaction, error) {
+	return _SuperAssetFactory.Contract.SetSuperAssetStrategist(&_SuperAssetFactory.TransactOpts, superAsset, _superAssetStrategist)
 }
 
 // SuperAssetFactorySuperAssetCreatedIterator is returned from FilterSuperAssetCreated and is used to iterate over the raw logs and unpacked data for SuperAssetCreated events raised by the SuperAssetFactory contract.
@@ -1107,7 +782,6 @@ func (it *SuperAssetFactorySuperAssetCreatedIterator) Close() error {
 // SuperAssetFactorySuperAssetCreated represents a SuperAssetCreated event raised by the SuperAssetFactory contract.
 type SuperAssetFactorySuperAssetCreated struct {
 	SuperAsset    common.Address
-	AssetBank     common.Address
 	IncentiveFund common.Address
 	IncentiveCalc common.Address
 	Name          string
@@ -1115,42 +789,42 @@ type SuperAssetFactorySuperAssetCreated struct {
 	Raw           types.Log // Blockchain specific contextual infos
 }
 
-// FilterSuperAssetCreated is a free log retrieval operation binding the contract event 0x930f63c42f0e288e124b8444d6b548962ed3f7818cd72a56d53de4d3cc4c152e.
+// FilterSuperAssetCreated is a free log retrieval operation binding the contract event 0xc6cd233131908f0fb5895136f109dea0e14a9479c099a9041249ad3455cb0afa.
 //
-// Solidity: event SuperAssetCreated(address indexed superAsset, address indexed assetBank, address incentiveFund, address incentiveCalc, string name, string symbol)
-func (_SuperAssetFactory *SuperAssetFactoryFilterer) FilterSuperAssetCreated(opts *bind.FilterOpts, superAsset []common.Address, assetBank []common.Address) (*SuperAssetFactorySuperAssetCreatedIterator, error) {
+// Solidity: event SuperAssetCreated(address indexed superAsset, address indexed incentiveFund, address incentiveCalc, string name, string symbol)
+func (_SuperAssetFactory *SuperAssetFactoryFilterer) FilterSuperAssetCreated(opts *bind.FilterOpts, superAsset []common.Address, incentiveFund []common.Address) (*SuperAssetFactorySuperAssetCreatedIterator, error) {
 
 	var superAssetRule []interface{}
 	for _, superAssetItem := range superAsset {
 		superAssetRule = append(superAssetRule, superAssetItem)
 	}
-	var assetBankRule []interface{}
-	for _, assetBankItem := range assetBank {
-		assetBankRule = append(assetBankRule, assetBankItem)
+	var incentiveFundRule []interface{}
+	for _, incentiveFundItem := range incentiveFund {
+		incentiveFundRule = append(incentiveFundRule, incentiveFundItem)
 	}
 
-	logs, sub, err := _SuperAssetFactory.contract.FilterLogs(opts, "SuperAssetCreated", superAssetRule, assetBankRule)
+	logs, sub, err := _SuperAssetFactory.contract.FilterLogs(opts, "SuperAssetCreated", superAssetRule, incentiveFundRule)
 	if err != nil {
 		return nil, err
 	}
 	return &SuperAssetFactorySuperAssetCreatedIterator{contract: _SuperAssetFactory.contract, event: "SuperAssetCreated", logs: logs, sub: sub}, nil
 }
 
-// WatchSuperAssetCreated is a free log subscription operation binding the contract event 0x930f63c42f0e288e124b8444d6b548962ed3f7818cd72a56d53de4d3cc4c152e.
+// WatchSuperAssetCreated is a free log subscription operation binding the contract event 0xc6cd233131908f0fb5895136f109dea0e14a9479c099a9041249ad3455cb0afa.
 //
-// Solidity: event SuperAssetCreated(address indexed superAsset, address indexed assetBank, address incentiveFund, address incentiveCalc, string name, string symbol)
-func (_SuperAssetFactory *SuperAssetFactoryFilterer) WatchSuperAssetCreated(opts *bind.WatchOpts, sink chan<- *SuperAssetFactorySuperAssetCreated, superAsset []common.Address, assetBank []common.Address) (event.Subscription, error) {
+// Solidity: event SuperAssetCreated(address indexed superAsset, address indexed incentiveFund, address incentiveCalc, string name, string symbol)
+func (_SuperAssetFactory *SuperAssetFactoryFilterer) WatchSuperAssetCreated(opts *bind.WatchOpts, sink chan<- *SuperAssetFactorySuperAssetCreated, superAsset []common.Address, incentiveFund []common.Address) (event.Subscription, error) {
 
 	var superAssetRule []interface{}
 	for _, superAssetItem := range superAsset {
 		superAssetRule = append(superAssetRule, superAssetItem)
 	}
-	var assetBankRule []interface{}
-	for _, assetBankItem := range assetBank {
-		assetBankRule = append(assetBankRule, assetBankItem)
+	var incentiveFundRule []interface{}
+	for _, incentiveFundItem := range incentiveFund {
+		incentiveFundRule = append(incentiveFundRule, incentiveFundItem)
 	}
 
-	logs, sub, err := _SuperAssetFactory.contract.WatchLogs(opts, "SuperAssetCreated", superAssetRule, assetBankRule)
+	logs, sub, err := _SuperAssetFactory.contract.WatchLogs(opts, "SuperAssetCreated", superAssetRule, incentiveFundRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1182,9 +856,9 @@ func (_SuperAssetFactory *SuperAssetFactoryFilterer) WatchSuperAssetCreated(opts
 	}), nil
 }
 
-// ParseSuperAssetCreated is a log parse operation binding the contract event 0x930f63c42f0e288e124b8444d6b548962ed3f7818cd72a56d53de4d3cc4c152e.
+// ParseSuperAssetCreated is a log parse operation binding the contract event 0xc6cd233131908f0fb5895136f109dea0e14a9479c099a9041249ad3455cb0afa.
 //
-// Solidity: event SuperAssetCreated(address indexed superAsset, address indexed assetBank, address incentiveFund, address incentiveCalc, string name, string symbol)
+// Solidity: event SuperAssetCreated(address indexed superAsset, address indexed incentiveFund, address incentiveCalc, string name, string symbol)
 func (_SuperAssetFactory *SuperAssetFactoryFilterer) ParseSuperAssetCreated(log types.Log) (*SuperAssetFactorySuperAssetCreated, error) {
 	event := new(SuperAssetFactorySuperAssetCreated)
 	if err := _SuperAssetFactory.contract.UnpackLog(event, "SuperAssetCreated", log); err != nil {

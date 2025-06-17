@@ -189,20 +189,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         collateralAmount = uint256(collateral);
     }
 
-    function deriveCollateralAmountFromLoanAmount(
-        address oracle,
-        uint256 loanAmount
-    )
-        public
-        view
-        returns (uint256 collateralAmount)
-    {
-        IOracle oracleInstance = IOracle(oracle);
-        uint256 price = oracleInstance.price();
-
-        collateralAmount = Math.mulDiv(loanAmount, PRICE_SCALING_FACTOR, price);
-    }
-
     function deriveCollateralForPartialRepayment(
         Id id,
         address account,
