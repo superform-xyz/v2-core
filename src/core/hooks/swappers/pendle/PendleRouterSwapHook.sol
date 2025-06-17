@@ -66,13 +66,13 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address account,
         bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -87,7 +87,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(pendleRouterV4),
-            value: value,
+            value: usePrevHookAmount ? ISuperHookResult(prevHook).outAmount() : value,
             callData: usePrevHookAmount ? updatedTxData : txData_
         });
     }

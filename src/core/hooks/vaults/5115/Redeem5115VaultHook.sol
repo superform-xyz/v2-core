@@ -27,8 +27,7 @@ import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address tokenOut = BytesLib.toAddress(data, 24);
 /// @notice         uint256 shares = BytesLib.toUint256(data, 44);
 /// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 76);
-/// @notice         bool burnFromInternalBalance = _decodeBool(data, 108);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 109);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 108);
 contract Redeem5115VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
@@ -39,16 +38,20 @@ contract Redeem5115VaultHook is
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 44;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 109;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 108;
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC5115) {}
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-
-    function build(address prevHook, address account, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -57,7 +60,6 @@ contract Redeem5115VaultHook is
         address tokenOut = BytesLib.toAddress(data, 24);
         uint256 shares = _decodeAmount(data);
         uint256 minTokenOut = BytesLib.toUint256(data, 76);
-        bool burnFromInternalBalance = _decodeBool(data, 108);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
@@ -72,7 +74,7 @@ contract Redeem5115VaultHook is
             target: yieldSource,
             value: 0,
             callData: abi.encodeCall(
-                IStandardizedYield.redeem, (account, shares, tokenOut, minTokenOut, burnFromInternalBalance)
+                IStandardizedYield.redeem, (account, shares, tokenOut, minTokenOut, false)
             )
         });
     }
