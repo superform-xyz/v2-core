@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import "../../../../vendor/1inch/I1InchAggregationRouterV6.sol";
 
 // Superform
@@ -230,11 +231,11 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
 
             if (amount != _prevAmount) {
                 if (amount > _prevAmount) {
-                    uint256 percentIncrease = ((amount - _prevAmount) * PRECISION) / _prevAmount;
-                    minReturn = minReturn + ((minReturn * percentIncrease) / PRECISION);
+                    uint256 percentIncrease = Math.mulDiv(amount - _prevAmount, PRECISION, _prevAmount);
+                    minReturn = minReturn + Math.mulDiv(minReturn, percentIncrease, PRECISION);
                 } else {
-                    uint256 percentDecrease = ((_prevAmount - amount) * PRECISION) / _prevAmount;
-                    uint256 decreaseAmount = (minReturn * percentDecrease) / PRECISION;
+                    uint256 percentDecrease = Math.mulDiv(_prevAmount - amount, PRECISION, _prevAmount);
+                    uint256 decreaseAmount = Math.mulDiv(minReturn, percentDecrease, PRECISION);
                     if (decreaseAmount > minReturn) {
                         minReturn = 0;
                     } else {
