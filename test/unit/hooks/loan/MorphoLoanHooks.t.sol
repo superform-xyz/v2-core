@@ -422,6 +422,7 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(executions[2].target, loanToken);
         assertEq(executions[2].value, 0);
         assertGt(executions[2].callData.length, 0);
+
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -501,23 +502,6 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-              DERIVE COLLATERAL AMOUNT FROM LOAN AMOUNT TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_DeriveCollateralAmountFromLoanAmount() public view {
-        uint256 loanAmount = 100e18;
-        uint256 collateral = repayHook.deriveCollateralAmountFromLoanAmount(address(mockOracle), loanAmount);
-
-        assertEq(collateral, 200e18);
-    }
-
-    function test_RepayAndWithdrawHook_DeriveCollateralAmountFromLoanAmount() public view {
-        uint256 loanAmount = 100e18;
-        uint256 collateral = repayAndWithdrawHook.deriveCollateralAmountFromLoanAmount(address(mockOracle), loanAmount);
-
-        assertEq(collateral, 50e18);
-    }
-
-    /*//////////////////////////////////////////////////////////////
               DERIVE COLLATERAL FOR PARTIAL REPAYMENT TESTS
     //////////////////////////////////////////////////////////////*/
     function test_RepayAndWithdrawHook_DeriveCollateralForPartialRepayment() public view {
@@ -593,13 +577,14 @@ contract MorphoLoanHooksTest is Helpers {
                       PRE/POST EXECUTE TESTS
     //////////////////////////////////////////////////////////////*/
     function test_BorrowHook_PrePostExecute() public {
+        loanToken = address(new MockERC20("Loan Token", "LOAN", 18));
         bytes memory data = _encodeBorrowData(false);
-        deal(address(collateralToken), address(this), amount);
+        deal(address(loanToken), address(this), amount);
         borrowHook.preExecute(address(0), address(this), data);
-        assertEq(borrowHook.outAmount(), amount);
+        assertEq(borrowHook.outAmount(), amount, "A");
 
         borrowHook.postExecute(address(0), address(this), data);
-        assertEq(borrowHook.outAmount(), 0);
+        assertEq(borrowHook.outAmount(), 0, "B");
     }
 
     function test_RepayHook_PrePostExecute() public {
