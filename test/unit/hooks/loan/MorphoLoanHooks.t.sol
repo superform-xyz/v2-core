@@ -603,7 +603,7 @@ contract MorphoLoanHooksTest is Helpers {
                       PRE/POST EXECUTE TESTS
     //////////////////////////////////////////////////////////////*/
     function test_BorrowHook_PrePostExecute() public {
-        loanToken = collateralToken;
+        loanToken = address(new MockERC20("Loan Token", "LOAN", 18));
         bytes memory data = _encodeBorrowData(false);
         deal(address(loanToken), address(this), amount);
         borrowHook.preExecute(address(0), address(this), data);
