@@ -8,16 +8,11 @@ import { BytesLib } from "../../../../vendor/BytesLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import {
-    ISuperHook,
-    ISuperHookResult,
-    ISuperHookContextAware,
-    ISuperHookInspector
-} from "../../../interfaces/ISuperHook.sol";
-import { SpectraCommands } from "../../../../vendor/spectra/SpectraCommands.sol";
-import { ISpectraRouter } from "../../../../vendor/spectra/ISpectraRouter.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISpectraRouter } from "../../../../vendor/spectra/ISpectraRouter.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { SpectraCommands } from "../../../../vendor/spectra/SpectraCommands.sol";
 
 /// @title SpectraExchangeHook
 /// @author Superform Labs
@@ -79,8 +74,11 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
         bytes memory updatedTxData = _validateTxData(data[TX_DATA_POSITION:], account, usePrevHookAmount, prevHook, pt);
 
         executions = new Execution[](1);
-        executions[0] =
-            Execution({ target: address(router), value: usePrevHookAmount ? ISuperHookResult(prevHook).outAmount() : value, callData: usePrevHookAmount ? updatedTxData : txData_ });
+        executions[0] = Execution({
+            target: address(router),
+            value: usePrevHookAmount ? ISuperHookResult(prevHook).outAmount() : value,
+            callData: usePrevHookAmount ? updatedTxData : txData_
+        });
     }
 
     /*//////////////////////////////////////////////////////////////
