@@ -14,7 +14,7 @@ import { ISpectraRouter } from "../../../../vendor/spectra/ISpectraRouter.sol";
 import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { SpectraCommands } from "../../../../vendor/spectra/SpectraCommands.sol";
 
-/// @title SpectraExchangeHook
+/// @title SpectraExchangeDepositHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
@@ -22,7 +22,7 @@ import { SpectraCommands } from "../../../../vendor/spectra/SpectraCommands.sol"
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
 /// @notice         uint256 value = BytesLib.toUint256(data, 25);
 /// @notice         bytes txData_ = BytesLib.slice(data, 57, data.length - 57);
-contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 24;
