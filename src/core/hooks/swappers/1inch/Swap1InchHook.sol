@@ -116,6 +116,8 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
                 txData_[4:], (IClipperExchange, address, Address, IERC20, uint256, uint256, uint256, bytes32, bytes32)
             );
             packed = abi.encodePacked(address(clipperExchange), recipient, srcToken.get(), address(dstToken));
+        } else {
+            revert INVALID_SELECTOR();
         }
 
         return packed;
@@ -158,6 +160,10 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
             updatedTxData = _validateClipperSwap(txData_[4:], dstReceiver, dstToken, prevHook, usePrevHookAmount);
         } else {
             revert INVALID_SELECTOR();
+        }
+
+        if (updatedTxData.length > 0) {
+            updatedTxData = bytes.concat(selector, updatedTxData);
         }
     }
 
