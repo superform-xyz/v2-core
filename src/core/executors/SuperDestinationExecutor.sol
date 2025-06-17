@@ -162,16 +162,22 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
 
         uint256 gasBefore = gasleft();
         try IERC7579Account(account).executeFromExecutor(modeCode, ERC7579ExecutionLib.encodeBatch(execs)) {
-            uint256 gasAfter = gasleft();
-            require(gasAfter * 64 > gasBefore, INVALID_GASLEFT());
             emit SuperDestinationExecutorExecuted(account);
         } catch Panic(uint256 errorCode) {
+            _checkGas(gasBefore);
             emit SuperDestinationExecutorPanicFailed(account, errorCode);
         } catch Error(string memory reason) {
+            _checkGas(gasBefore);
             emit SuperDestinationExecutorFailed(account, reason);
         } catch (bytes memory lowLevelData) {
+            _checkGas(gasBefore);
             emit SuperDestinationExecutorFailedLowLevel(account, lowLevelData);
         }
+    }
+
+    function _checkGas(uint256 gasBefore) internal {
+        uint256 gasAfter = gasleft();
+        if (gasAfter * 64 <= gasBefore) revert INVALID_GASLEFT();
     }
 
     function _validateOrCreateAccount(address account, bytes memory initData) internal returns (address) {
