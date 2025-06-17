@@ -27,8 +27,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
     //////////////////////////////////////////////////////////////*/
     I1InchAggregationRouterV6 public immutable aggregationRouter;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
-    uint256 private constant SLIPPAGE = 5e2; //0.5%
-    uint256 private constant SLIPPAGE_PRECISION = 1e5;
+    uint256 private constant PRECISION = 1e5;
 
     address constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
@@ -231,11 +230,11 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
 
             if (amount != _prevAmount) {
                 if (amount > _prevAmount) {
-                    uint256 percentIncrease = ((amount - _prevAmount) * SLIPPAGE_PRECISION) / _prevAmount;
-                    minReturn = minReturn + ((minReturn * percentIncrease) / SLIPPAGE_PRECISION);
+                    uint256 percentIncrease = ((amount - _prevAmount) * PRECISION) / _prevAmount;
+                    minReturn = minReturn + ((minReturn * percentIncrease) / PRECISION);
                 } else {
-                    uint256 percentDecrease = ((_prevAmount - amount) * SLIPPAGE_PRECISION) / _prevAmount;
-                    uint256 decreaseAmount = (minReturn * percentDecrease) / SLIPPAGE_PRECISION;
+                    uint256 percentDecrease = ((_prevAmount - amount) * PRECISION) / _prevAmount;
+                    uint256 decreaseAmount = (minReturn * percentDecrease) / PRECISION;
                     if (decreaseAmount > minReturn) {
                         minReturn = 0;
                     } else {
