@@ -12,8 +12,10 @@ const { execSync } = require('child_process');
 
 class DeterministicMerkleGen {
     constructor() {
-        this.verbose = process.argv.includes('--verbose') || process.argv.includes('-v');
+        this.verbose = process.argv.includes('--verbose') || process.argv.includes('-v') || process.argv.includes('--status');
         this.force = process.argv.includes('--force') || process.argv.includes('-f');
+        this.statusOnly = process.argv.includes('--status');
+        this.showHelp = process.argv.includes('--help') || process.argv.includes('-h');
         this.cacheFile = '../target/deterministic_addresses.json';
     }
 
@@ -24,14 +26,48 @@ class DeterministicMerkleGen {
     }
 
     /**
+     * Show help message
+     */
+    displayHelp() {
+        console.log(`
+Deterministic Merkle Tree Pre-Generation
+
+USAGE:
+    node deterministic-merkle-pregeneration.js [OPTIONS]
+
+OPTIONS:
+    --help, -h          Show this help message
+    --verbose, -v       Enable verbose logging
+    --force, -f         Force regeneration even if cache appears valid
+    --status            Check cache status without regenerating
+
+EXAMPLES:
+    node deterministic-merkle-pregeneration.js
+        → Generate cache if needed (normal mode)
+    
+    node deterministic-merkle-pregeneration.js --status
+        → Check if cache is valid without regenerating
+    
+    node deterministic-merkle-pregeneration.js --force
+        → Force regenerate cache even if it appears valid
+    
+    node deterministic-merkle-pregeneration.js --verbose --status
+        → Check cache status with detailed logging
+
+DESCRIPTION:
+    This script ensures the merkle tree cache is up to date with current hook addresses.
+    It automatically detects when hook addresses change and regenerates the cache.
+    The cache includes both the merkle tree data and optimized lookup indices.
+`);
+    }
+
+    /**
      * Get addresses using the BaseTest forge test method
      */
     calculateAllAddresses() {
         this.log('Getting addresses using BaseTest forge test...');
         return this.getAddressesViaTest();
     }
-
-
 
     /**
      * Parse console output from either script or test
@@ -201,62 +237,132 @@ class DeterministicMerkleGen {
     }
 
     /**
-     * Check if regeneration is needed
+     * Check if regeneration is needed with comprehensive validation
      */
     needsRegeneration(currentAddresses) {
+        const logPrefix = this.verbose ? '🔍 [CACHE-CHECK]' : '';
+
+        if (this.verbose) {
+            console.log(`${logPrefix} Checking cache validity...`);
+            console.log(`${logPrefix} Current addresses:`, JSON.stringify(currentAddresses, null, 2));
+        }
+
+        // Check if cache file exists
         if (!fs.existsSync(this.cacheFile)) {
-            this.log('No cache file found - regeneration needed');
+            console.log(`${logPrefix} No cache file found - regeneration needed`);
             return true;
         }
 
         try {
             const cached = JSON.parse(fs.readFileSync(this.cacheFile, 'utf8'));
 
-            // Compare calculated addresses with cached ones
-            const currentHash = this.hashAddresses(currentAddresses);
-            if (cached.addressHash !== currentHash) {
-                this.log('Addresses changed - regeneration needed');
+            if (this.verbose) {
+                console.log(`${logPrefix} Cached addresses:`, JSON.stringify(cached.addresses, null, 2));
+            }
+
+            // 1. Compare addresses using robust comparison
+            const addressesMatch = this.compareAddresses(currentAddresses, cached.addresses);
+            if (!addressesMatch) {
+                console.log(`${logPrefix} Address mismatch detected - regeneration needed`);
                 return true;
             }
 
-            // Check if merkle tree files exist
+            // 2. Check if merkle tree files exist
             if (!fs.existsSync('../output/jsGeneratedRoot_1.json')) {
-                this.log('Merkle tree files missing - regeneration needed');
+                console.log(`${logPrefix} Merkle tree files missing - regeneration needed`);
                 return true;
             }
 
-            // Check if lookup cache exists
-            if (!fs.existsSync('../output/lookup_cache_1.json')) {
-                this.log('Lookup cache missing - regeneration needed');
+            // 3. Check if lookup cache exists
+            const lookupCachePath = '../output/lookup_cache_1.json';
+            if (!fs.existsSync(lookupCachePath)) {
+                console.log(`${logPrefix} Lookup cache missing - regeneration needed`);
                 return true;
             }
 
-            // CRITICAL: Validate lookup cache contents against current addresses
-            if (!this.validateLookupCacheContents(currentAddresses)) {
-                this.log('Lookup cache contents invalid - regeneration needed');
+            // 4. CRITICAL: Validate lookup cache contents against expected addresses
+            const lookupCacheValid = this.validateLookupCacheContents(currentAddresses, lookupCachePath);
+            if (!lookupCacheValid) {
+                console.log(`${logPrefix} Lookup cache contents invalid - regeneration needed`);
                 return true;
             }
 
+            if (this.verbose) {
+                console.log(`${logPrefix} All cache validation checks passed`);
+            }
             return false;
+
         } catch (error) {
-            this.log('Error reading cache:', error.message);
+            console.log(`${logPrefix} Error reading cache: ${error.message} - regeneration needed`);
             return true;
+        }
+    }
+
+    /**
+     * Robust address comparison (case-insensitive, normalized)
+     */
+    compareAddresses(current, cached) {
+        const logPrefix = this.verbose ? '🔍 [ADDR-COMPARE]' : '';
+
+        try {
+            // Normalize addresses to lowercase for comparison
+            const normalizeAddresses = (addresses) => {
+                const normalized = { vaults: {}, hooks: {} };
+                for (const [key, value] of Object.entries(addresses.vaults || {})) {
+                    normalized.vaults[key] = value.toLowerCase();
+                }
+                for (const [key, value] of Object.entries(addresses.hooks || {})) {
+                    normalized.hooks[key] = value.toLowerCase();
+                }
+                return normalized;
+            };
+
+            const currentNorm = normalizeAddresses(current);
+            const cachedNorm = normalizeAddresses(cached);
+
+            // Compare vaults
+            for (const [key, currentAddr] of Object.entries(currentNorm.vaults)) {
+                const cachedAddr = cachedNorm.vaults[key];
+                if (currentAddr !== cachedAddr) {
+                    console.log(`${logPrefix} Vault address mismatch for ${key}:`);
+                    console.log(`${logPrefix}   Current: ${currentAddr}`);
+                    console.log(`${logPrefix}   Cached:  ${cachedAddr}`);
+                    return false;
+                }
+            }
+
+            // Compare hooks  
+            for (const [key, currentAddr] of Object.entries(currentNorm.hooks)) {
+                const cachedAddr = cachedNorm.hooks[key];
+                if (currentAddr !== cachedAddr) {
+                    console.log(`${logPrefix} Hook address mismatch for ${key}:`);
+                    console.log(`${logPrefix}   Current: ${currentAddr}`);
+                    console.log(`${logPrefix}   Cached:  ${cachedAddr}`);
+                    return false;
+                }
+            }
+
+            if (this.verbose) {
+                console.log(`${logPrefix} Address comparison passed`);
+            }
+            return true;
+
+        } catch (error) {
+            console.log(`${logPrefix} Error comparing addresses: ${error.message}`);
+            return false;
         }
     }
 
     /**
      * Validate that lookup cache contains entries for all expected hook addresses
      */
-    validateLookupCacheContents(expectedAddresses) {
-        const lookupCachePath = '../output/lookup_cache_1.json';
+    validateLookupCacheContents(expectedAddresses, lookupCachePath) {
+        const logPrefix = this.verbose ? '🔍 [LOOKUP-VALIDATE]' : '';
 
         try {
-            if (!fs.existsSync(lookupCachePath)) {
-                this.log('Lookup cache file does not exist');
-                return false;
+            if (this.verbose) {
+                console.log(`${logPrefix} Validating lookup cache contents...`);
             }
-
-            this.log('Validating lookup cache contents...');
 
             const lookupCache = JSON.parse(fs.readFileSync(lookupCachePath, 'utf8'));
             const lookupMap = lookupCache.lookupMap || {};
@@ -264,7 +370,9 @@ class DeterministicMerkleGen {
             // Extract hook addresses from expected addresses and normalize
             const expectedHookAddresses = Object.values(expectedAddresses.hooks).map(addr => addr.toLowerCase());
 
-            this.log('Expected hook addresses:', expectedHookAddresses);
+            if (this.verbose) {
+                console.log(`${logPrefix} Expected hook addresses:`, expectedHookAddresses);
+            }
 
             // Check if lookup cache contains entries for each expected hook address
             const foundAddresses = new Set();
@@ -276,7 +384,9 @@ class DeterministicMerkleGen {
             }
 
             const foundAddressesArray = Array.from(foundAddresses);
-            this.log('Found addresses in lookup cache:', foundAddressesArray);
+            if (this.verbose) {
+                console.log(`${logPrefix} Found addresses in lookup cache:`, foundAddressesArray);
+            }
 
             // Check if all expected addresses are present
             const missingAddresses = [];
@@ -287,7 +397,7 @@ class DeterministicMerkleGen {
             }
 
             if (missingAddresses.length > 0) {
-                this.log('Missing hook addresses in lookup cache:', missingAddresses);
+                console.log(`${logPrefix} Missing hook addresses in lookup cache:`, missingAddresses);
                 return false;
             }
 
@@ -300,30 +410,32 @@ class DeterministicMerkleGen {
             }
 
             if (unexpectedAddresses.length > 0) {
-                this.log('Unexpected hook addresses in lookup cache:', unexpectedAddresses);
-                this.log('This indicates the cache contains stale data');
+                console.log(`${logPrefix} Unexpected hook addresses in lookup cache:`, unexpectedAddresses);
+                console.log(`${logPrefix} This indicates the cache contains stale data`);
                 return false;
             }
 
-            this.log('Lookup cache validation passed - all expected addresses found');
+            if (this.verbose) {
+                console.log(`${logPrefix} Lookup cache validation passed - all expected addresses found`);
+            }
             return true;
 
         } catch (error) {
-            this.log('Error validating lookup cache:', error.message);
+            console.log(`${logPrefix} Error validating lookup cache: ${error.message}`);
             return false;
         }
     }
 
     /**
-     * Hash addresses for comparison (simple string hash)
+     * Generate hash for addresses (kept for backwards compatibility)
      */
     hashAddresses(addresses) {
-        const allAddresses = [
-            ...Object.values(addresses.vaults),
-            ...Object.values(addresses.hooks)
+        // Normalize addresses to lowercase for consistent hashing
+        const normalizedAddresses = [
+            ...Object.values(addresses.vaults).map(addr => addr.toLowerCase()),
+            ...Object.values(addresses.hooks).map(addr => addr.toLowerCase())
         ];
-        // Simple string hash for comparison
-        return JSON.stringify(allAddresses.sort());
+        return JSON.stringify(normalizedAddresses.sort());
     }
 
     /**
@@ -429,13 +541,36 @@ class DeterministicMerkleGen {
 
     async run() {
         try {
-            console.log('🌲 Pre-generating merkle tree using BaseTest...');
+            if (this.showHelp) {
+                this.displayHelp();
+                return true;
+            }
+
+            if (this.statusOnly) {
+                console.log('🔍 Checking merkle cache status...');
+            } else {
+                console.log('🌲 Pre-generating merkle tree using BaseTest...');
+            }
 
             // Get addresses from BaseTest
             const addresses = this.calculateAllAddresses();
 
             // Check if regeneration needed
-            if (!this.force && !this.needsRegeneration(addresses)) {
+            const needsRegen = this.needsRegeneration(addresses);
+
+            if (this.statusOnly) {
+                // Status-only mode - just report and exit
+                if (needsRegen) {
+                    console.log('❌ Cache is invalid or outdated - regeneration needed');
+                    console.log('💡 Run with --force to regenerate cache');
+                    return false;
+                } else {
+                    console.log('✅ Cache is valid and up to date');
+                    return true;
+                }
+            }
+
+            if (!this.force && !needsRegen) {
                 console.log('✅ Merkle tree already generated for current addresses');
                 return true;
             }

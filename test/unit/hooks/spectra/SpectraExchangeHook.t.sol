@@ -35,7 +35,7 @@ contract SpectraExchangeHookTest is Helpers {
         new SpectraExchangeHook(address(0));
     }
 
-    function test_UsePrevHookAmount_Is_Wrong() public {
+    function test_UsePrevHookAmount_Is_Wrong() public view {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
@@ -79,6 +79,26 @@ contract SpectraExchangeHookTest is Helpers {
         assertFalse(hook.decodeUsePrevHookAmount(data));
     }
     
+
+    function test_UsePrevHookAmount_SetToTrue() public view {
+        bytes memory commandsData = new bytes(1);
+        commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
+
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(address(token), 1e18, account, account, 1);
+
+        bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
+
+        bytes memory data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // yieldSource
+            uint8(1), // usePrevHookAmount = true
+            uint256(0), // value
+            txData
+        );
+
+        assertTrue(hook.decodeUsePrevHookAmount(data));
+    }
 
     function test_Build_DepositAssetInPT() public view {
         bytes memory commandsData = new bytes(1);
@@ -216,7 +236,7 @@ contract SpectraExchangeHookTest is Helpers {
 
         assertEq(executions.length, 3);
         assertEq(executions[1].target, address(router));
-        assertEq(executions[1].value, 0);
+        assertEq(executions[1].value, 2e18);
     }
 
     function test_Build_RevertIf_InvalidPT() public {
