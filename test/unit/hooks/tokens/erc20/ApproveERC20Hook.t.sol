@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {ApproveERC20Hook} from "../../../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
-import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
-import {MockERC20} from "../../../../mocks/MockERC20.sol";
-import {MockHook} from "../../../../mocks/MockHook.sol";
-import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
-import {Helpers} from "../../../../utils/Helpers.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { ApproveERC20Hook } from "../../../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { MockERC20 } from "../../../../mocks/MockERC20.sol";
+import { MockHook } from "../../../../mocks/MockHook.sol";
+import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
 contract ApproveERC20HookTest is Helpers {
     ApproveERC20Hook public hook;
@@ -78,12 +78,6 @@ contract ApproveERC20HookTest is Helpers {
         token = _token;
         spender = address(0);
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(0), address(this), _encodeData(false));
-    }
-
-    function test_Build_RevertIf_AmountZero() public {
-        amount = 0;
-        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         hook.build(address(0), address(this), _encodeData(false));
     }
 

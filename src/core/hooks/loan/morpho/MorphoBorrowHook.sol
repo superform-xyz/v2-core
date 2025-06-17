@@ -108,11 +108,6 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
         });
     }
 
-    /// @inheritdoc ISuperHookLoans
-    function getUsedAssets(address, bytes memory) external view returns (uint256) {
-        return outAmount;
-    }
-
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
         BorrowHookLocalVars memory vars = _decodeBorrowHookData(data);
@@ -173,10 +168,10 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
 
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
-        outAmount = getCollateralTokenBalance(account, data);
+        outAmount = getLoanTokenBalance(account, data);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = outAmount - getCollateralTokenBalance(account, data);
+        outAmount = getLoanTokenBalance(account, data) - outAmount;
     }
 }

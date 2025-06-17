@@ -46,6 +46,13 @@ interface ISuperNativePaymaster {
     /// @param refund The amount of native tokens refunded
     event SuperNativePaymsterRefund(address indexed sender, uint256 refund);
 
+    /// @notice Emitted when a batch of user operations is handled
+    /// @param sender The address that handled the operations
+    /// @param numOps The number of operations handled
+    /// @param initialAmount The initial amount of native tokens
+    /// @param withdrawnAmount The amount of native tokens withdrawn
+    event UserOperationsHandled(address indexed sender, uint256 numOps, uint256 initialAmount, uint256 withdrawnAmount);
+
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/

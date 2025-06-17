@@ -91,10 +91,6 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         (address vaultAddr, address strategyAddr, address escrowAddr) = _deployVault("SV_USDC");
         assertEq(strategyAddr, globalSVStrategy, "SV STRATEGY NOT EQUAL TO PREDICTED");
 
-        // Explicitly regenerate the Merkle tree with the confirmed strategy address
-        console2.log("[DEBUG] Explicitly generating Merkle tree with strategy address", strategyAddr);
-        _generateMerkleTree(ETH);
-
         // Now propose and execute the global hooks root update
         bytes32 root = _getMerkleRoot();
         console2.log("[DEBUG] Proposing global hooks root from explicitly generated tree");
@@ -1653,58 +1649,5 @@ contract BaseSuperVaultTest is MerkleReader, BaseTest {
         return newArray;
     }
 
-    /**
-     * @notice Creates valid proofs for the ECDSAPPSOracle
-     * @param strategy_ The address of the strategy
-     * @param pps The price per share
-     * @param ppsStdev The standard deviation of the price per share
-     * @param validatorSet The number of validators in the validator set
-     * @param totalValidators The total number of validators
-     * @param timestamp The timestamp of the PPS update
-     * @param specificSignerKeys An optional array of specific signer keys to use
-     * @return proofs An array of valid proofs
-     */
-    function _createValidProofs(
-        address strategy_,
-        uint256 pps,
-        uint256 ppsStdev,
-        uint256 validatorSet,
-        uint256 totalValidators,
-        uint256 timestamp,
-        uint256[] memory specificSignerKeys
-    )
-        internal
-        view
-        returns (bytes[] memory)
-    {
-        // Create message hash with all parameters
-        bytes32 messageHash =
-            keccak256(abi.encodePacked(strategy_, pps, ppsStdev, validatorSet, totalValidators, timestamp));
-        bytes32 ethSignedMessageHash = messageHash.toEthSignedMessageHash();
-
-        // If specific signer keys are provided, use them; otherwise, use default validators
-        uint256[] memory signerKeys;
-        if (specificSignerKeys.length > 0) {
-            signerKeys = specificSignerKeys;
-        } else {
-            // Use as many validators as needed based on validatorSet
-            signerKeys = new uint256[](validatorSet);
-
-            // Assign default validator keys based on the validatorSet count
-            for (uint256 i = 0; i < validatorSet; i++) {
-                if (i == 0) signerKeys[i] = validator1PrivateKey;
-                else if (i == 1) signerKeys[i] = validator2PrivateKey;
-                else if (i == 2) signerKeys[i] = validator3PrivateKey;
-            }
-        }
-
-        // Create proofs array
-        bytes[] memory proofs = new bytes[](signerKeys.length);
-        for (uint256 i = 0; i < signerKeys.length; i++) {
-            (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKeys[i], ethSignedMessageHash);
-            proofs[i] = abi.encodePacked(r, s, v);
-        }
-
-        return proofs;
-    }
+    
 }

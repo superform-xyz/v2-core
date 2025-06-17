@@ -62,12 +62,12 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
-        if (yieldSource == address(0) || account == address(0) || tokenIn == address(0)) revert ADDRESS_NOT_VALID();
+        if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: yieldSource,
-            value: 0,
+            value: tokenIn == address(0) ? amount: 0,
             callData: abi.encodeCall(IStandardizedYield.deposit, (account, tokenIn, amount, minSharesOut))
         });
     }
@@ -117,6 +117,6 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        return IERC4626(data.extractYieldSource()).balanceOf(account);
+        return IStandardizedYield(data.extractYieldSource()).balanceOf(account);
     }
 }
