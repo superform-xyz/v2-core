@@ -42,9 +42,8 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc IYieldSourceOracle
-    function decimals(address market) external view override returns (uint8) {
-        IERC20Metadata pt = IERC20Metadata(_pt(market));
-        return pt.decimals();
+    function decimals(address market) external pure override returns (uint8) {
+        return 18;
     }
 
     /// @inheritdoc IYieldSourceOracle

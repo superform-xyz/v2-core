@@ -19,6 +19,16 @@ contract FlatFeeLedger is BaseLedger {
         BaseLedger(ledgerConfiguration_, allowedExecutors_)
     {}
 
+    function _takeSnapshot(
+        address,
+        uint256,
+        address,
+        uint256,
+        uint256
+    ) internal pure override {
+        // no-op: cost basis not tracked
+    }
+
     /// @notice Processes outflow operations with a flat fee calculation
     /// @dev Overrides the base implementation to apply fees to the entire amount
     ///      Sets the cost basis to zero, treating the entire amount as profit
@@ -35,6 +45,8 @@ contract FlatFeeLedger is BaseLedger {
     ) internal virtual override returns (uint256 feeAmount) {
         // Apply fee to the entire amount by using zero cost basis
         // This treats the entire amount as profit subject to the fee percentage
-        feeAmount = _calculateFees(0, amountAssets, config.feePercent);
+        if (config.feePercent > 0) {
+            feeAmount = _calculateFees(0, amountAssets, config.feePercent);
+        }
     }
 }
