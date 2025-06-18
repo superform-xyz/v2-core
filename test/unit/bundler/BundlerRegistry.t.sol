@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {BundlerRegistry} from "../../../src/periphery/BundlerRegistry.sol";
-import {IBundlerRegistry} from "../../../src/periphery/interfaces/IBundlerRegistry.sol";
-import {Helpers} from "../../utils/Helpers.sol";
+import { BundlerRegistry } from "../../../src/periphery/BundlerRegistry.sol";
+import { IBundlerRegistry } from "../../../src/periphery/interfaces/IBundlerRegistry.sol";
+import { Helpers } from "../../utils/Helpers.sol";
 
 contract BundlerRegistryTest is Helpers {
     BundlerRegistry public bundlerRegistry;
@@ -24,7 +24,7 @@ contract BundlerRegistryTest is Helpers {
     }
 
     function test_RegisterBundler() public {
-        bundlerRegistry.registerBundler(EXTRA_DATA);
+        bundlerRegistry.registerBundler(BUNDLER, EXTRA_DATA);
 
         // Get the bundler data
         IBundlerRegistry.Bundler memory bundler = bundlerRegistry.getBundlerByAddress(BUNDLER);
@@ -41,7 +41,7 @@ contract BundlerRegistryTest is Helpers {
 
     function test_UpdateBundlerAddress() public {
         // First register a bundler
-        bundlerRegistry.registerBundler(EXTRA_DATA);
+        bundlerRegistry.registerBundler(BUNDLER, EXTRA_DATA);
         IBundlerRegistry.Bundler memory bundler = bundlerRegistry.getBundlerByAddress(BUNDLER);
         uint256 bundlerId = bundler.id;
 
@@ -63,7 +63,7 @@ contract BundlerRegistryTest is Helpers {
 
     function test_UpdateBundlerExtraData() public {
         // First register a bundler
-        bundlerRegistry.registerBundler(EXTRA_DATA);
+        bundlerRegistry.registerBundler(BUNDLER, EXTRA_DATA);
         IBundlerRegistry.Bundler memory bundler = bundlerRegistry.getBundlerByAddress(BUNDLER);
         uint256 bundlerId = bundler.id;
 
@@ -80,7 +80,7 @@ contract BundlerRegistryTest is Helpers {
 
     function test_UpdateBundlerStatus() public {
         // First register a bundler
-        bundlerRegistry.registerBundler(EXTRA_DATA);
+        bundlerRegistry.registerBundler(BUNDLER, EXTRA_DATA);
         IBundlerRegistry.Bundler memory bundler = bundlerRegistry.getBundlerByAddress(BUNDLER);
         uint256 bundlerId = bundler.id;
 
@@ -101,12 +101,12 @@ contract BundlerRegistryTest is Helpers {
         address nonOwner = address(0x789);
         vm.prank(nonOwner);
         vm.expectRevert();
-        bundlerRegistry.registerBundler(EXTRA_DATA);
+        bundlerRegistry.registerBundler(BUNDLER, EXTRA_DATA);
     }
 
     function test_RevertWhen_UnauthorizedUpdate() public {
         // First register a bundler
-        bundlerRegistry.registerBundler(EXTRA_DATA);
+        bundlerRegistry.registerBundler(BUNDLER, EXTRA_DATA);
         IBundlerRegistry.Bundler memory bundler = bundlerRegistry.getBundlerByAddress(BUNDLER);
         uint256 bundlerId = bundler.id;
 

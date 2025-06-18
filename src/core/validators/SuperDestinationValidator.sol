@@ -36,7 +36,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
         uint256[] intentAmounts;
     }
 
-    bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
+    bytes4 constant VALID_SIGNATURE = bytes4(0x5c2ec0f3);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS

@@ -85,6 +85,7 @@ if (process.argv.length > 3) {
 }
 
 
+// Create hookDefinitions after command line arguments have been processed
 const hookDefinitions = {
   ApproveAndRedeem4626VaultHook: {
     // Contract address of the deployed hook
