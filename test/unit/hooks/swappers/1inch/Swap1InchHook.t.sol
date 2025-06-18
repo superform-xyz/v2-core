@@ -50,6 +50,15 @@ contract MockCurvePair {
     }
 }
 
+
+contract Executor {
+    function execute(address) external payable returns(int256) {
+        address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+        IERC20(DAI).transfer(msg.sender, 100e18);
+        return 100e18;
+    }
+}
+
 contract Swap1InchHookTest is Helpers {
     Swap1InchHook public hook;
 
@@ -118,14 +127,14 @@ contract Swap1InchHookTest is Helpers {
         vm.mockCall(mockPair, abi.encodeWithSignature("token1()"), abi.encode(dstToken));
 
         Execution[] memory executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
 
         vm.mockCall(mockPair, abi.encodeWithSignature("token0()"), abi.encode(dstToken));
         vm.mockCall(mockPair, abi.encodeWithSignature("token1()"), abi.encode(srcToken));
         hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
     }
 
     function test_Build_Unoswap_Curve() public {
@@ -134,44 +143,44 @@ contract Swap1InchHookTest is Helpers {
 
         bytes memory hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
         Execution[] memory executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
+        assertEq(executions[1].value, 0);
 
         selectorOffset = 4;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
         executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
+        assertEq(executions[1].value, 0);
 
         selectorOffset = 8;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
         executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
+        assertEq(executions[1].value, 0);
 
         selectorOffset = 12;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
         executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
+        assertEq(executions[1].value, 0);
 
         selectorOffset = 16;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, false);
         executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
+        assertEq(executions[1].value, 0);
 
         selectorOffset = 16;
         hookData = _buildCurveHookData(selectorOffset, false, dstReceiver, 1000, 100, true);
         executions = hook.build(address(this), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
-        assertEq(executions[0].value, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
+        assertEq(executions[1].value, 0);
 
         selectorOffset = 16;
         hookData = _buildCurveHookData(selectorOffset, true, dstReceiver, 1000, 100, false);
@@ -206,7 +215,7 @@ contract Swap1InchHookTest is Helpers {
 
         bytes memory data = abi.encodePacked(address(token), dstReceiver, uint256(0));
 
-        hook.preExecute(address(0), address(0), data);
+        hook.preExecute(address(0), address(this), data);
 
         assertEq(hook.outAmount(), 500);
     }
@@ -217,11 +226,11 @@ contract Swap1InchHookTest is Helpers {
 
         bytes memory data = abi.encodePacked(address(token), dstReceiver, uint256(0));
 
-        hook.preExecute(address(0), address(0), data);
+        hook.preExecute(address(0), address(this), data);
 
         token.mint(dstReceiver, 300);
 
-        hook.postExecute(address(0), address(0), data);
+        hook.postExecute(address(0), address(this), data);
 
         assertEq(hook.outAmount(), 300);
     }
@@ -230,8 +239,8 @@ contract Swap1InchHookTest is Helpers {
         address account = address(this);
         bytes memory hookData = _buildGenericSwapData(0, dstToken, dstReceiver, 1000, 100, false);
         Execution[] memory executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
 
         hookData = _buildGenericSwapData(0, dstToken, dstReceiver, 0, 100, false);
         vm.expectRevert(Swap1InchHook.INVALID_INPUT_AMOUNT.selector);
@@ -268,8 +277,8 @@ contract Swap1InchHookTest is Helpers {
 
         bytes memory hookData = _buildClipperData(1000, 100, dstReceiver, dstToken, false);
         Execution[] memory executions = hook.build(address(0), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
 
         hookData = _buildClipperData(0, 100, dstReceiver, dstToken, false);
         vm.expectRevert(Swap1InchHook.INVALID_INPUT_AMOUNT.selector);
@@ -285,8 +294,8 @@ contract Swap1InchHookTest is Helpers {
 
         hookData = _buildClipperData(1000, 100, dstReceiver, dstToken, true);
         executions = hook.build(address(this), account, hookData);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, mockRouter);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, mockRouter);
     }
 
     function test_ClipperSwap_inspect() public view {
@@ -295,6 +304,35 @@ contract Swap1InchHookTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
+     function test_inspect_invalidSelector() public {
+        bytes memory data = _buildInvalidData(1000, 100, dstReceiver, dstToken, false);
+        vm.expectRevert(Swap1InchHook.INVALID_SELECTOR.selector);
+        hook.inspect(data);
+    }
+
+    function _buildInvalidData(
+        uint256 _amount,
+        uint256 _minAmount,
+        address _dstReceiver,
+        address _dstToken,
+        bool usePrev
+    ) private view returns (bytes memory) {
+        bytes memory clipperData = abi.encode(
+            address(0), // exchange
+            _dstReceiver, // receiver
+            bytes32(0), // srcToken
+            IERC20(_dstToken), // dstToken
+            _amount, // amount
+            _minAmount, // minReturnAmount
+            0, // goodUntil
+            bytes32(0), // bytes32 r,
+            bytes32(0) // bytes32 vs
+        );
+        bytes4 selector = bytes4(0);
+        bytes memory callData = abi.encodePacked(selector, clipperData);
+        return abi.encodePacked(dstToken, dstReceiver, value, usePrev, callData);
+    }
+    
     function _buildClipperData(
         uint256 _amount,
         uint256 _minAmount,
@@ -318,9 +356,89 @@ contract Swap1InchHookTest is Helpers {
         return abi.encodePacked(dstToken, dstReceiver, value, usePrev, callData);
     }
 
+    function _buildInvalidSelectorData() private view returns (bytes memory) {
+        bytes memory clipperData = abi.encode(
+            address(0), // exchange
+            dstReceiver, // receiver
+            bytes32(0), // srcToken
+            IERC20(dstToken), // dstToken
+            1000, // amount
+            100, // minReturnAmount
+            0, // goodUntil
+            bytes32(0), // bytes32 r,
+            bytes32(0) // bytes32 vs
+        );
+        bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
+        bytes memory callData = abi.encodePacked(selector, clipperData);
+        return abi.encodePacked(dstToken, dstReceiver, value, false, callData);
+    }
+
     function outAmount() external pure returns (uint256) {
         return 1000;
     }
+
+    // Swap1InchHook.t.sol
+function testOrion_IncorrectOutAmountForGenericSwaps() public {
+        vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
+
+        // Deploy hook
+        Swap1InchHook testHook = new Swap1InchHook(mockRouter);
+
+        address payable destinationReceiver = payable(address(0)); 
+        Executor executor = new Executor();
+        // We configure destination receiver to be address(0), signaling 1inch that swap receiver should 
+        // be msg.sender.
+        address AGGREGATION_ROUTER = 0x111111125421cA6dc452d289314280a0f8842A65;
+        address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+        address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+
+        deal(USDC, address(this), 100e6); // deal USDC tokens to this contract
+        deal(DAI, address(executor), 100e18); // deal DAI tokens to executor
+
+        IERC20(USDC).approve(AGGREGATION_ROUTER, type(uint256).max);
+
+        I1InchAggregationRouterV6.SwapDescription memory desc = I1InchAggregationRouterV6.SwapDescription({
+            srcToken: IERC20(USDC), // USDC
+            dstToken: IERC20(DAI), // DAI
+            srcReceiver: payable(this),
+            dstReceiver: destinationReceiver, 
+            amount: 10e6,
+            minReturnAmount: 1, // avoid revert due to 0 amount
+            flags: 0
+        });
+        bytes memory swapData = abi.encode(
+            address(executor), // executor
+            desc,
+            bytes(""), // permit
+            bytes("") // data
+        );
+        
+        bytes4 selector = I1InchAggregationRouterV6.swap.selector;
+        bytes memory callData = abi.encodePacked(selector, swapData);
+        bytes memory hookData = abi.encodePacked(IERC20(DAI), destinationReceiver, uint256(0), false, callData);
+
+        // Trigger preexecute
+        testHook.preExecute(address(0), address(this), hookData);
+
+        uint256 accountBalanceBeforeExecution = IERC20(DAI).balanceOf(address(this));
+        
+        // Mimic hook execution by performing a swap. This swap will transfer 100e18 dai to the receiver.
+        // Note that we set the dstReceiver to address(0) in the `desc` data. However, 1inch will detect
+        // this and transfer tokens to the caller, in this case this contract (which acts as the account).
+        bytes memory data;
+        I1InchAggregationRouterV6(AGGREGATION_ROUTER).swap(IAggregationExecutor(address(executor)), desc, data);
+
+        // Trigger postexecute to see outAmount
+        testHook.postExecute(address(0), address(this), hookData);
+
+        // Outcome: Although the account actually obtained the tokens, the `outAmount` does not reflect that, as it queried
+        // the balance of address(0). 
+        // not anymore after the fix ->
+        assertEq(testHook.outAmount(), 100e18);
+        assertEq(IERC20(DAI).balanceOf(address(this)) - accountBalanceBeforeExecution, 100e18);
+
+    }
+
 
     //----------- PRIVATE ------------
     function _encodeAddressWithProtocol(
