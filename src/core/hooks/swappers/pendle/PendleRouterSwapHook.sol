@@ -288,6 +288,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
     }
 
     function _validateOrder(Order memory order) internal view {
+        //an order can execute until the block timestamp strictly exceeds the expiry time
         if (order.expiry < block.timestamp) revert ORDER_EXPIRED();
         if (order.maker == address(0) || order.receiver == address(0)) revert ADDRESS_NOT_VALID();
     }

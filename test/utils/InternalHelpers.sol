@@ -505,9 +505,10 @@ abstract contract InternalHelpers {
         uint256 arrayLength,
         address[] memory tokens,
         uint256[] memory amounts,
+        uint48[] memory nonces,
         bytes memory sig
     ) internal view returns (bytes memory data) {
-        return _createBatchTransferFromHookData(from, arrayLength, block.timestamp + 2 weeks, tokens, amounts, sig);
+        return _createBatchTransferFromHookData(from, arrayLength, block.timestamp + 2 weeks, tokens, amounts, nonces, sig);
     }
 
     function _createBatchTransferFromHookData(
@@ -516,6 +517,7 @@ abstract contract InternalHelpers {
         uint256 sigDeadline,
         address[] memory tokens,
         uint256[] memory amounts,
+        uint48[] memory nonces,
         bytes memory sig
     ) internal pure returns (bytes memory data) {
         data = abi.encodePacked(from, arrayLength, sigDeadline);
@@ -528,6 +530,11 @@ abstract contract InternalHelpers {
         // Directly encode the amounts as bytes
         for (uint256 i = 0; i < arrayLength; i++) {
             data = bytes.concat(data, abi.encodePacked(amounts[i]));
+        }
+
+        // Directly encode the nonces as bytes
+        for (uint256 i = 0; i < arrayLength; i++) {
+            data = bytes.concat(data, abi.encodePacked(nonces[i]));
         }
 
         data = bytes.concat(data, sig);

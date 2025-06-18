@@ -68,15 +68,17 @@ contract ClaimCancelDepositRequest7540Hook is BaseHook, ISuperHookAsyncCancelati
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address account, bytes calldata data) internal override {
+    function _preExecute(address, address, bytes calldata data) internal override {
         address yieldSource = data.extractYieldSource();
+        address receiver = BytesLib.toAddress(data, 24);
         asset = IERC7540(yieldSource).asset();
         // store current balance
-        outAmount = _getBalance(account, data);
+        outAmount = _getBalance(receiver, data);
     }
 
-    function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+    function _postExecute(address, address, bytes calldata data) internal override {
+        address receiver = BytesLib.toAddress(data, 24);
+        outAmount = _getBalance(receiver, data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
