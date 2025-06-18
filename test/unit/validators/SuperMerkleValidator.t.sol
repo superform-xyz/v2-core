@@ -34,7 +34,7 @@ contract SignatureTransientTester {
         returns (bytes memory)
     {
         validator.validateUserOp(userOp, userOpHash);
-        return validator.retrieveSignatureData(userOp.sender);
+        return validator.retrieveSignatureData(userOpHash);
     }
 }
 
@@ -219,7 +219,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         // validate first user op
         _testUserOpValidation(validUntil, root, proof[0], signature, approveUserOp);
 
-        bytes memory retrievedSig = validator.retrieveSignatureData(account);
+        bytes memory retrievedSig = validator.retrieveSignatureData(approveUserOp.userOpHash);
         assertEq(retrievedSig, "");
     }
 

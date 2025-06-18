@@ -20,6 +20,11 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+    /// @notice The user operation hash that has been validated
+    /// @dev This is used to store the user operation hash that has been validated
+    ///      This is used to retrieve the signature data for the user operation
+    bytes32 public transient storedUserOpHash;
+
     /// @notice Magic value returned when a signature is valid according to EIP-1271
     /// @dev The value 0x1626ba7e is specified by the EIP-1271 standard
     bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
@@ -29,12 +34,13 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     ///      This is more gas efficient than regular storage for temporary data
     bytes32 internal constant SIGNATURE_KEY_STORAGE = keccak256("transient.signature.bytes.mapping");
 
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperSignatureStorage
-    function retrieveSignatureData(address account) external view returns (bytes memory) {
-        return _loadSignature(uint256(uint160(account)));
+    function retrieveSignatureData(bytes32 userOpHash) external view returns (bytes memory) {
+        return _loadSignature(uint256(userOpHash));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -62,7 +68,8 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         if (isValid && sigData.proofDst.length > 0) {
             // we check only the signature validity here
             //    merkle tree was checked already in `_processSignatureAndVerifyLeaf` and reverts if invalid
-            _storeSignature(uint256(uint160(_userOp.sender)), _userOp.signature);
+            _storeSignature(uint256(_userOpHash), _userOp.signature);
+            storedUserOpHash = _userOpHash;
         }
 
         return _packValidationData(!isValid, sigData.validUntil, 0);
@@ -152,8 +159,6 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         assembly {
             stored := tload(storageKey)
         }
-
-        if(stored != 0) revert INVALID_USER_OP();
 
         uint256 len = data.length;
 

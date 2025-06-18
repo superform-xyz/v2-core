@@ -12,16 +12,16 @@ interface ISuperSignatureStorage {
     /// @notice Thrown when attempting to retrieve signature data for an uninitialized account
     error NOT_INITIALIZED();
 
-    /// @notice Thrown when more than one user op is detected for signature storage
-    error INVALID_USER_OP();
-
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Retrieve signature data for a specific smart account
     /// @dev Returns the stored signature data that can be used for validation
     ///      This data typically includes merkle roots or public keys authorized by the account
-    /// @param account The smart account address to retrieve signature data for
+    /// @param userOpHash The user operation hash to retrieve signature data for
     /// @return The signature data associated with the account (e.g., merkle roots)
-    function retrieveSignatureData(address account) external view returns (bytes memory);
+    function retrieveSignatureData(bytes32 userOpHash) external view returns (bytes memory);
+
+    /// @notice Retrieves the stored user operation hash
+    function storedUserOpHash() external view returns (bytes32);
 }

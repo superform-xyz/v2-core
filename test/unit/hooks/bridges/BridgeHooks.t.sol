@@ -14,7 +14,7 @@ import {Helpers} from "../../../utils/Helpers.sol";
 import {DlnExternalCallLib} from "../../../../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
 
 contract MockSignatureStorage {
-    function retrieveSignatureData(address) external view returns (bytes memory) {
+    function retrieveSignatureData(bytes32) external view returns (bytes memory) {
         uint48 validUntil = uint48(block.timestamp + 3600);
         bytes32 merkleRoot = keccak256("test_merkle_root");
         bytes32[] memory proofSrc = new bytes32[](1);
@@ -26,6 +26,8 @@ contract MockSignatureStorage {
         bytes memory signature = hex"abcdef";
         return abi.encode(validUntil, merkleRoot, proofSrc, proofDst, signature);
     }
+
+    function storedUserOpHash() external view returns (bytes32) { return bytes32(0); }
 }
 
 contract BridgeHooks is Helpers {
@@ -84,7 +86,7 @@ contract BridgeHooks is Helpers {
         new AcrossSendFundsAndExecuteOnDstHook(address(this), address(0));
     }
 
-    function test_AcrossV3_Build() public {
+    function test_AcrossV3_BuildA() public {
         bytes memory data = _encodeAcrossData(false);
 
         Execution[] memory executions = acrossV3hook.build(address(0), mockAccount, data);
@@ -93,7 +95,7 @@ contract BridgeHooks is Helpers {
         assertEq(executions[1].target, mockSpokePool);
         assertEq(executions[1].value, mockValue);
 
-        bytes memory sigData = mockSignatureStorage.retrieveSignatureData(address(0));
+        bytes memory sigData = mockSignatureStorage.retrieveSignatureData(bytes32(0));
 
         address[] memory dstTokens = new address[](1);
         dstTokens[0] = address(mockOutputToken);
@@ -165,7 +167,7 @@ contract BridgeHooks is Helpers {
         dstTokens[0] = address(mockOutputToken);
         uint256[] memory intentAmounts = new uint256[](1);
         intentAmounts[0] = 1;
-        bytes memory sigData = mockSignatureStorage.retrieveSignatureData(address(0));
+        bytes memory sigData = mockSignatureStorage.retrieveSignatureData(bytes32(0));
         mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), dstTokens, intentAmounts, sigData);
 
         bytes memory expectedCallData = abi.encodeCall(

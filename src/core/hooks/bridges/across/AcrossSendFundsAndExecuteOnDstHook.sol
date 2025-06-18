@@ -104,8 +104,9 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
         }
 
         // append signature to `destinationMessage`
-        {
-            bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
+        {   
+            bytes32 userOpHash = ISuperSignatureStorage(_validator).storedUserOpHash();
+            bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(userOpHash);
             (
                 bytes memory initData,
                 bytes memory executorCalldata,

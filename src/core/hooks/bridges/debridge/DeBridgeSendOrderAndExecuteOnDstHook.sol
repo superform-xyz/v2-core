@@ -95,7 +95,8 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         override
         returns (Execution[] memory executions)
     {
-        bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
+        bytes32 userOpHash = ISuperSignatureStorage(_validator).storedUserOpHash();
+        bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(userOpHash);
         (IDlnSource.OrderCreation memory orderCreation, uint256 value, bytes memory affiliateFee, uint32 referralCode) =
             _createOrder(data, signature);
 

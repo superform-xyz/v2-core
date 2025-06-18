@@ -623,7 +623,9 @@ contract SuperBankTest is Helpers, InternalHelpers, OdosAPIParser {
 
     }
 
-    function retrieveSignatureData(address) external pure returns (bytes memory) {
+    function retrieveSignatureData(bytes32) external pure returns (bytes memory) {
         return  "";
     }
+
+    function storedUserOpHash() external view returns (bytes32) { return bytes32(0); }
 }
