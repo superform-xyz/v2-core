@@ -20,10 +20,8 @@ abstract contract BaseClaimRewardHook {
         executions[0] = Execution({target: yieldSource, value: 0, callData: encoded});
     }
 
-    function _getBalance(bytes memory data) internal view returns (uint256) {
-        address rewardToken = BytesLib.toAddress(data, 20);
-        address account = BytesLib.toAddress(data, 40);
-
+    function _getBalance(bytes memory data, address account) internal view returns (uint256) {
+        address rewardToken = BytesLib.toAddress(data, 24);
         if (rewardToken == address(0)) revert REWARD_TOKEN_ZERO_ADDRESS();
 
         return IERC20(rewardToken).balanceOf(account);

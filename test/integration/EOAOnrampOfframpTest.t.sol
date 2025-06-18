@@ -25,6 +25,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
     address[] public tokens;
 
     uint256[] public amounts;
+    uint48[] public nonces;
     uint256 public sigDeadline;
 
     bytes32 public DOMAIN_SEPARATOR;
@@ -54,6 +55,11 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         amounts[0] = 1e18;
         amounts[1] = 1e18;
         amounts[2] = 1e18;
+
+        nonces = new uint48[](3);
+        nonces[0] = 0;
+        nonces[1] = 0;
+        nonces[2] = 0;
 
         sigDeadline = block.timestamp + 2 weeks;
 
@@ -90,18 +96,19 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         IERC20(weth).approve(PERMIT2, 10e18);
         IERC20(dai).approve(PERMIT2, 10e18);
         vm.stopPrank();
+        
 
         IAllowanceTransfer.PermitBatch memory permitBatch =
-            defaultERC20PermitBatchAllowance(tokens, amounts, uint48(block.timestamp + 2 weeks), uint48(0));
+            defaultERC20PermitBatchAllowance(tokens, amounts, uint48(block.timestamp + 2 weeks), nonces);
 
         bytes memory sig = getPermitBatchSignature(permitBatch, 0x12341234, DOMAIN_SEPARATOR);
 
-        bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, sigDeadline, tokens, amounts, sig);
+        bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, sigDeadline, tokens, amounts, nonces, sig);
 
         bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;
 
-        uint256 expectedLength = 20 + 32 + 32 + (20 * 3) + (32 * 3) + 65;
+        uint256 expectedLength = 20 + 32 + 32 + (20 * 3) + (32 * 3) + (6 * 3) + 65;
         assertEq(hookData.length, expectedLength);
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -146,7 +153,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         address[] memory permitTokens,
         uint256[] memory permitAmounts,
         uint48 expiration,
-        uint48 nonce
+        uint48[] memory _nonces
     ) internal view returns (IAllowanceTransfer.PermitBatch memory) {
         IAllowanceTransfer.PermitDetails[] memory details = new IAllowanceTransfer.PermitDetails[](permitTokens.length);
 
@@ -155,7 +162,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
                 token: permitTokens[i],
                 amount: uint160(permitAmounts[i]),
                 expiration: expiration,
-                nonce: nonce
+                nonce: _nonces[i]
             });
         }
 

@@ -33,11 +33,6 @@ contract SuperVaultEscrow {
         _;
     }
 
-    modifier onlyStrategy() {
-        if (msg.sender != strategy) revert UNAUTHORIZED();
-        _;
-    }
-
     /*//////////////////////////////////////////////////////////////
                             INITIALIZATION
     //////////////////////////////////////////////////////////////*/
