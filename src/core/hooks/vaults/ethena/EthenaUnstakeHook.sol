@@ -10,7 +10,7 @@ import { IStakedUSDeCooldown } from "../../../../vendor/ethena/IStakedUSDeCooldo
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -19,14 +19,10 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 24);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 57);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 77);
-contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookInspector {
+/// @notice         address vaultBank = BytesLib.toAddress(data, 24);
+/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 44);
+contract EthenaUnstakeHook is BaseHook, ISuperHookInspector {
     using HookDataDecoder for bytes;
-
-    uint256 private constant AMOUNT_POSITION = 24;
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ETHENA) { }
 
@@ -62,15 +58,6 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-    /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory data) external pure returns (uint256) {
-        return _decodeAmount(data);
-    }
-
-    /// @inheritdoc ISuperHookOutflow
-    function replaceCalldataAmount(bytes memory data, uint256 amount) external pure returns (bytes memory) {
-        return _replaceCalldataAmount(data, amount, AMOUNT_POSITION);
-    }
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
@@ -85,23 +72,23 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutfl
         asset = IERC4626(yieldSource).asset();
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
-        vaultBank = BytesLib.toAddress(data, 57);
-        dstChainId = BytesLib.toUint256(data, 77);
+        vaultBank = BytesLib.toAddress(data, 24);
+        dstChainId = BytesLib.toUint256(data, 44);
         spToken = yieldSource;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
+        address yieldSource = data.extractYieldSource(); // sUSDE
         outAmount = _getBalance(account, data) - outAmount;
-        usedShares = usedShares - _getSharesBalance(account, data);
+        // this is how cooldownShares converts the shares to underlying.
+        // might not match the exact pps when cooldownShares was called.
+        // will likely underestimate the actual shares burned
+        usedShares = IERC4626(yieldSource).previewWithdraw(outAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
-    function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(data, AMOUNT_POSITION);
-    }
-
     function _getBalance(address account, bytes memory) private view returns (uint256) {
         return IERC20(asset).balanceOf(account);
     }

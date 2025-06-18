@@ -304,6 +304,35 @@ contract Swap1InchHookTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
+     function test_inspect_invalidSelector() public {
+        bytes memory data = _buildInvalidData(1000, 100, dstReceiver, dstToken, false);
+        vm.expectRevert(Swap1InchHook.INVALID_SELECTOR.selector);
+        hook.inspect(data);
+    }
+
+    function _buildInvalidData(
+        uint256 _amount,
+        uint256 _minAmount,
+        address _dstReceiver,
+        address _dstToken,
+        bool usePrev
+    ) private view returns (bytes memory) {
+        bytes memory clipperData = abi.encode(
+            address(0), // exchange
+            _dstReceiver, // receiver
+            bytes32(0), // srcToken
+            IERC20(_dstToken), // dstToken
+            _amount, // amount
+            _minAmount, // minReturnAmount
+            0, // goodUntil
+            bytes32(0), // bytes32 r,
+            bytes32(0) // bytes32 vs
+        );
+        bytes4 selector = bytes4(0);
+        bytes memory callData = abi.encodePacked(selector, clipperData);
+        return abi.encodePacked(dstToken, dstReceiver, value, usePrev, callData);
+    }
+    
     function _buildClipperData(
         uint256 _amount,
         uint256 _minAmount,
@@ -325,6 +354,23 @@ contract Swap1InchHookTest is Helpers {
         bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
         bytes memory callData = abi.encodePacked(selector, clipperData);
         return abi.encodePacked(dstToken, dstReceiver, value, usePrev, callData);
+    }
+
+    function _buildInvalidSelectorData() private view returns (bytes memory) {
+        bytes memory clipperData = abi.encode(
+            address(0), // exchange
+            dstReceiver, // receiver
+            bytes32(0), // srcToken
+            IERC20(dstToken), // dstToken
+            1000, // amount
+            100, // minReturnAmount
+            0, // goodUntil
+            bytes32(0), // bytes32 r,
+            bytes32(0) // bytes32 vs
+        );
+        bytes4 selector = I1InchAggregationRouterV6.clipperSwapTo.selector;
+        bytes memory callData = abi.encodePacked(selector, clipperData);
+        return abi.encodePacked(dstToken, dstReceiver, value, false, callData);
     }
 
     function outAmount() external pure returns (uint256) {
