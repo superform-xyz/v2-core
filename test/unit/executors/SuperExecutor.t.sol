@@ -11,6 +11,7 @@ import { SuperDestinationExecutor } from "../../../src/core/executors/SuperDesti
 import { SuperDestinationValidator } from "../../../src/core/validators/SuperDestinationValidator.sol";
 import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
 import { FluidClaimRewardHook } from "../../../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
+import { BaseClaimRewardHook } from "../../../src/core/hooks/claim/BaseClaimRewardHook.sol";
 import { MaliciousToken } from "../../mocks/MaliciousToken.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockStakingRewards } from "../../mocks/MockStakingRewards.sol";
@@ -473,7 +474,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         address rewardToken = address(_mockToken);
         FluidClaimRewardHook hook = new FluidClaimRewardHook();
         address stakingRewards = address(new MockStakingRewards(rewardToken));
-
+        
+        vm.mockCall(address(stakingRewards), abi.encodeWithSignature("rewardsToken()"), abi.encode(rewardToken));
         MockERC20(rewardToken).mint(stakingRewards, 1e18);
 
         address wrong_RewardToken = address(new MockERC20("Wrong Token", "FRT", 18));
@@ -481,16 +483,15 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         hooksAddresses[0] = address(hook);
         hooksData[0] = abi.encodePacked(bytes4(0), stakingRewards, wrong_RewardToken, account);
 
+        vm.mockCall(address(stakingRewards), abi.encodeWithSignature("rewardsToken()"), abi.encode(rewardToken));
         vm.startPrank(account);
         uint256 initBal = MockERC20(rewardToken).balanceOf(account);
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
+        vm.expectRevert(BaseClaimRewardHook.INVALID_REWARD_TOKEN.selector);
         superDestinationExecutor.execute(abi.encode(entry));
-
-        uint256 amountReceived = MockERC20(rewardToken).balanceOf(account) - initBal;
-        vm.assertEq(amountReceived, 1e18);
-        vm.assertEq(FluidClaimRewardHook(hook).outAmount(), 0);
+        vm.stopPrank();
     }
 
     // ---------------- DESTINATION EXECUTOR ------------------
