@@ -29,9 +29,152 @@ var (
 	_ = abi.ConvertType
 )
 
+// ISuperAssetAllocationOperationReturnVars is an auto generated low-level Go binding around an user-defined struct.
+type ISuperAssetAllocationOperationReturnVars struct {
+	AbsoluteAllocationPreOperation  []*big.Int
+	TotalAllocationPreOperation     *big.Int
+	AbsoluteAllocationPostOperation []*big.Int
+	TotalAllocationPostOperation    *big.Int
+	AbsoluteTargetAllocation        []*big.Int
+	TotalTargetAllocation           *big.Int
+	VaultWeights                    []*big.Int
+	AmountAssets                    *big.Int
+	AssetWithBreakerTriggered       common.Address
+	OraclePriceUSD                  *big.Int
+	IsDepeg                         bool
+	IsDispersion                    bool
+	IsOracleOff                     bool
+	TokenFound                      bool
+}
+
+// ISuperAssetDepositArgs is an auto generated low-level Go binding around an user-defined struct.
+type ISuperAssetDepositArgs struct {
+	Receiver             common.Address
+	TokenIn              common.Address
+	AmountTokenToDeposit *big.Int
+	MinSharesOut         *big.Int
+}
+
+// ISuperAssetDepositReturnVars is an auto generated low-level Go binding around an user-defined struct.
+type ISuperAssetDepositReturnVars struct {
+	AmountSharesMinted        *big.Int
+	SwapFee                   *big.Int
+	AmountIncentiveUSDDeposit *big.Int
+}
+
+// ISuperAssetPreviewDepositArgs is an auto generated low-level Go binding around an user-defined struct.
+type ISuperAssetPreviewDepositArgs struct {
+	TokenIn              common.Address
+	AmountTokenToDeposit *big.Int
+	IsSoft               bool
+}
+
+// ISuperAssetPreviewDepositReturnVars is an auto generated low-level Go binding around an user-defined struct.
+type ISuperAssetPreviewDepositReturnVars struct {
+	AmountSharesMinted          *big.Int
+	SwapFee                     *big.Int
+	AmountIncentiveUSDDeposit   *big.Int
+	AssetWithBreakerTriggered   common.Address
+	OraclePriceUSD              *big.Int
+	IsDepeg                     bool
+	IsDispersion                bool
+	IsOracleOff                 bool
+	TokenInFound                bool
+	IncentiveCalculationSuccess bool
+}
+
+// ISuperAssetPreviewRedeemArgs is an auto generated low-level Go binding around an user-defined struct.
+type ISuperAssetPreviewRedeemArgs struct {
+	TokenOut             common.Address
+	AmountSharesToRedeem *big.Int
+	IsSoft               bool
+}
+
+// ISuperAssetPreviewRedeemReturnVars is an auto generated low-level Go binding around an user-defined struct.
+type ISuperAssetPreviewRedeemReturnVars struct {
+	AmountTokenOutAfterFees     *big.Int
+	SwapFee                     *big.Int
+	AmountIncentiveUSDRedeem    *big.Int
+	AssetWithBreakerTriggered   common.Address
+	OraclePriceUSD              *big.Int
+	IsDepeg                     bool
+	IsDispersion                bool
+	IsOracleOff                 bool
+	TokenOutFound               bool
+	IncentiveCalculationSuccess bool
+}
+
+// ISuperAssetPreviewSwapArgs is an auto generated low-level Go binding around an user-defined struct.
+type ISuperAssetPreviewSwapArgs struct {
+	TokenIn              common.Address
+	AmountTokenToDeposit *big.Int
+	TokenOut             common.Address
+	IsSoft               bool
+}
+
+// ISuperAssetPreviewSwapReturnVars is an auto generated low-level Go binding around an user-defined struct.
+type ISuperAssetPreviewSwapReturnVars struct {
+	AmountTokenOutAfterFees     *big.Int
+	SwapFeeIn                   *big.Int
+	SwapFeeOut                  *big.Int
+	AmountIncentiveUSDDeposit   *big.Int
+	AmountIncentiveUSDRedeem    *big.Int
+	AssetWithBreakerTriggered   common.Address
+	OraclePriceUSD              *big.Int
+	IsDepeg                     bool
+	IsDispersion                bool
+	IsOracleOff                 bool
+	TokenInFound                bool
+	IncentiveCalculationSuccess bool
+}
+
+// ISuperAssetRedeemArgs is an auto generated low-level Go binding around an user-defined struct.
+type ISuperAssetRedeemArgs struct {
+	Receiver             common.Address
+	AmountSharesToRedeem *big.Int
+	TokenOut             common.Address
+	MinTokenOut          *big.Int
+}
+
+// ISuperAssetRedeemReturnVars is an auto generated low-level Go binding around an user-defined struct.
+type ISuperAssetRedeemReturnVars struct {
+	AmountTokenOutAfterFees  *big.Int
+	SwapFee                  *big.Int
+	AmountIncentiveUSDRedeem *big.Int
+}
+
+// ISuperAssetSwapArgs is an auto generated low-level Go binding around an user-defined struct.
+type ISuperAssetSwapArgs struct {
+	Receiver             common.Address
+	TokenIn              common.Address
+	AmountTokenToDeposit *big.Int
+	TokenOut             common.Address
+	MinTokenOut          *big.Int
+}
+
+// ISuperAssetSwapReturnVars is an auto generated low-level Go binding around an user-defined struct.
+type ISuperAssetSwapReturnVars struct {
+	AmountSharesIntermediateStep *big.Int
+	AmountTokenOutAfterFees      *big.Int
+	SwapFeeIn                    *big.Int
+	SwapFeeOut                   *big.Int
+	AmountIncentivesIn           *big.Int
+	AmountIncentivesOut          *big.Int
+}
+
+// ISuperAssetTokenData is an auto generated low-level Go binding around an user-defined struct.
+type ISuperAssetTokenData struct {
+	IsSupportedUnderlyingVault bool
+	IsSupportedERC20           bool
+	IsActive                   bool
+	Oracle                     common.Address
+	TargetAllocations          *big.Int
+	Weights                    *big.Int
+}
+
 // SuperAssetMetaData contains all meta data concerning the SuperAsset contract.
 var SuperAssetMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"AVERAGE_PROVIDER\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"BURNER_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"DEFAULT_ADMIN_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"DEPEG_LOWER_THRESHOLD\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"DEPEG_UPPER_THRESHOLD\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"DISPERSION_THRESHOLD\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"INCENTIVE_FUND_MANAGER\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"MAX_SWAP_FEE_PERCENTAGE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"MINTER_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"PRECISION\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SWAP_FEE_MANAGER_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SWAP_FEE_PERC\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"USD\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"VAULT_MANAGER_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"allowance\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"approve\",\"inputs\":[{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"assetBank\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"balanceOf\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"burn\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"decimals\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"uint8\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"deposit\",\"inputs\":[{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceShare\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountTokenToDeposit\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"minSharesOut\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"amountSharesMinted\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFee\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountIncentiveUSDDeposit\",\"type\":\"int256\",\"internalType\":\"int256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"emergencyPrices\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"priceUSD\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"energyToUSDExchangeRatio\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAllocations\",\"inputs\":[],\"outputs\":[{\"name\":\"absoluteCurrentAllocation\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"totalCurrentAllocation\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"absoluteTargetAllocation\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"totalTargetAllocation\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAllocationsPrePostOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"deltaToken\",\"type\":\"int256\",\"internalType\":\"int256\"},{\"name\":\"isSoft\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[{\"name\":\"absoluteAllocationPreOperation\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"totalAllocationPreOperation\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"absoluteAllocationPostOperation\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"totalAllocationPostOperation\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"absoluteTargetAllocation\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"totalTargetAllocation\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"vaultWeights\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"isSuccess\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPrecision\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"getPriceWithCircuitBreakers\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"priceUSD\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isDepeg\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isDispersion\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isOracleOff\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRoleAdmin\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"grantRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"hasRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"incentiveCalculationContract\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"incentiveFundContract\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"name_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"symbol_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"icc_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ifc_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assetBank_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"swapFeeInPercentage_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFeeOutPercentage_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isSupportedERC20\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isSupported\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isSupportedUnderlyingVault\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isSupported\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"mint\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"name\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewDeposit\",\"inputs\":[{\"name\":\"tokenIn\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountTokenToDeposit\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isSoft\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[{\"name\":\"amountSharesMinted\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFee\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountIncentiveUSD\",\"type\":\"int256\",\"internalType\":\"int256\"},{\"name\":\"isSuccess\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewRedeem\",\"inputs\":[{\"name\":\"tokenOut\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountSharesToRedeem\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isSoft\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[{\"name\":\"amountTokenOutAfterFees\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFee\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountIncentiveUSD\",\"type\":\"int256\",\"internalType\":\"int256\"},{\"name\":\"isSuccess\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewSwap\",\"inputs\":[{\"name\":\"tokenIn\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountTokenToDeposit\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"tokenOut\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"isSoft\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[{\"name\":\"amountTokenOutAfterFees\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFeeIn\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFeeOut\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountIncentiveUSDDeposit\",\"type\":\"int256\",\"internalType\":\"int256\"},{\"name\":\"amountIncentiveUSDRedeem\",\"type\":\"int256\",\"internalType\":\"int256\"},{\"name\":\"isSuccess\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"redeem\",\"inputs\":[{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountSharesToRedeem\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"tokenOut\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"minTokenOut\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"amountTokenOutAfterFees\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFee\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountIncentiveUSDRedeem\",\"type\":\"int256\",\"internalType\":\"int256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"removeERC20\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"removeVault\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"renounceRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"callerConfirmation\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"revokeRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setEnergyToUSDExchangeRatio\",\"inputs\":[{\"name\":\"newRatio\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setSuperOracle\",\"inputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setSwapFeeInPercentage\",\"inputs\":[{\"name\":\"_feePercentage\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setSwapFeeOutPercentage\",\"inputs\":[{\"name\":\"_feePercentage\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setTargetAllocation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"allocation\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setTargetAllocations\",\"inputs\":[{\"name\":\"tokens\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"allocations\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setWeight\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"weight\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"superOracle\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperOracle\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"supportsInterface\",\"inputs\":[{\"name\":\"interfaceId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"swap\",\"inputs\":[{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"tokenIn\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountTokenToDeposit\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"tokenOut\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"minTokenOut\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"amountSharesIntermediateStep\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountTokenOutAfterFees\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFeeIn\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFeeOut\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountIncentivesIn\",\"type\":\"int256\",\"internalType\":\"int256\"},{\"name\":\"amountIncentivesOut\",\"type\":\"int256\",\"internalType\":\"int256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"swapFeeInPercentage\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"swapFeeOutPercentage\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"symbol\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"targetAllocations\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"allocation\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"totalSupply\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"transfer\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferFrom\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"weights\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"allocation\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"whitelistERC20\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"whitelistVault\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"Approval\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"spender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Deposit\",\"inputs\":[{\"name\":\"receiver\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"tokenIn\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amountTokenToDeposit\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"amountSharesOut\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"swapFee\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"amountIncentives\",\"type\":\"int256\",\"indexed\":false,\"internalType\":\"int256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ERC20Removed\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ERC20Whitelisted\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EnergyToUSDExchangeRatioSet\",\"inputs\":[{\"name\":\"newRatio\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Redeem\",\"inputs\":[{\"name\":\"receiver\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"tokenOut\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amountSharesToRedeem\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"amountTokenOut\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"swapFee\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"amountIncentives\",\"type\":\"int256\",\"indexed\":false,\"internalType\":\"int256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleAdminChanged\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"previousAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"newAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleGranted\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleRevoked\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SettlementTokenInSet\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SettlementTokenOutSet\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperOracleSet\",\"inputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Swap\",\"inputs\":[{\"name\":\"receiver\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"tokenIn\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amountTokenToDeposit\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"tokenOut\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amountSharesIntermediateStep\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"amountTokenOutAfterFees\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"swapFeeIn\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"swapFeeOut\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"amountIncentivesIn\",\"type\":\"int256\",\"indexed\":false,\"internalType\":\"int256\"},{\"name\":\"amountIncentivesOut\",\"type\":\"int256\",\"indexed\":false,\"internalType\":\"int256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"TargetAllocationSet\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"allocation\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Transfer\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"to\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"VaultRemoved\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"VaultWhitelisted\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"WeightSet\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"weight\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ALREADY_WHITELISTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AccessControlBadConfirmation\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AccessControlUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"neededRole\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"CONTRACT_PAUSED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EMERGENCY_PRICE_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ERC20InsufficientAllowance\",\"inputs\":[{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"allowance\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"needed\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ERC20InsufficientBalance\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"balance\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"needed\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidApprover\",\"inputs\":[{\"name\":\"approver\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidReceiver\",\"inputs\":[{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidSender\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidSpender\",\"inputs\":[{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"INCENTIVE_CALCULATION_FAILED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_ALLOWANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ALLOCATION\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_INPUT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_OPERATION\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ORACLE_PRICE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_SWAP_FEE_PERCENTAGE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_TOTAL_ALLOCATION\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_ERC20_TOKEN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_SUPPORTED_TOKEN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_VAULT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_WHITELISTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"PRICE_USD_ZERO\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SLIPPAGE_PROTECTION\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SafeERC20FailedOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"UNAUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UNDERLYING_SV_ASSET_PRICE_DEPEG\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UNDERLYING_SV_ASSET_PRICE_DISPERSION\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UNDERLYING_SV_ASSET_PRICE_ORACLE_OFF\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UNDERLYING_SV_ASSET_PRICE_ZERO\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_AMOUNT\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"MAX_SWAP_FEE_PERC\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SWAP_FEE_PERC\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"activateERC20\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"activateVault\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"allowance\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"approve\",\"inputs\":[{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"balanceOf\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"burn\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"decimals\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"uint8\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"deposit\",\"inputs\":[{\"name\":\"args\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.DepositArgs\",\"components\":[{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"tokenIn\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountTokenToDeposit\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"minSharesOut\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]}],\"outputs\":[{\"name\":\"ret\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.DepositReturnVars\",\"components\":[{\"name\":\"amountSharesMinted\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFee\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountIncentiveUSDDeposit\",\"type\":\"int256\",\"internalType\":\"int256\"}]}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"energyToUSDExchangeRatio\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAllocations\",\"inputs\":[],\"outputs\":[{\"name\":\"absoluteCurrentAllocation\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"totalCurrentAllocation\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"absoluteTargetAllocation\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"totalTargetAllocation\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAllocationsPrePostOperationDeposit\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"deltaToken\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountToken\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isSoft\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[{\"name\":\"ret\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.AllocationOperationReturnVars\",\"components\":[{\"name\":\"absoluteAllocationPreOperation\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"totalAllocationPreOperation\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"absoluteAllocationPostOperation\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"totalAllocationPostOperation\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"absoluteTargetAllocation\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"totalTargetAllocation\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"vaultWeights\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"amountAssets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"assetWithBreakerTriggered\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"oraclePriceUSD\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isDepeg\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isDispersion\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isOracleOff\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"tokenFound\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAllocationsPrePostOperationRedeem\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountToken\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isSoft\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[{\"name\":\"ret\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.AllocationOperationReturnVars\",\"components\":[{\"name\":\"absoluteAllocationPreOperation\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"totalAllocationPreOperation\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"absoluteAllocationPostOperation\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"totalAllocationPostOperation\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"absoluteTargetAllocation\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"totalTargetAllocation\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"vaultWeights\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"amountAssets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"assetWithBreakerTriggered\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"oraclePriceUSD\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isDepeg\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isDispersion\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isOracleOff\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"tokenFound\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPrecision\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"getPriceAndCircuitBreakers\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"priceUSD\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isDepeg\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isDispersion\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isOracleOff\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPrimaryAsset\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getSuperAssetPPS\",\"inputs\":[],\"outputs\":[{\"name\":\"activeTokens\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"pricePerTokenUSD\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"isDepeg\",\"type\":\"bool[]\",\"internalType\":\"bool[]\"},{\"name\":\"isDispersion\",\"type\":\"bool[]\",\"internalType\":\"bool[]\"},{\"name\":\"isOracleOff\",\"type\":\"bool[]\",\"internalType\":\"bool[]\"},{\"name\":\"pps\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTokenData\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.TokenData\",\"components\":[{\"name\":\"isSupportedUnderlyingVault\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isSupportedERC20\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isActive\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"targetAllocations\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"weights\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"initialize\",\"inputs\":[{\"name\":\"name_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"symbol_\",\"type\":\"string\",\"internalType\":\"string\"},{\"name\":\"asset\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"superGovernor_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"swapFeeInPercentage_\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFeeOutPercentage_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"mint\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"name\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewDeposit\",\"inputs\":[{\"name\":\"args\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.PreviewDepositArgs\",\"components\":[{\"name\":\"tokenIn\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountTokenToDeposit\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isSoft\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"outputs\":[{\"name\":\"ret\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.PreviewDepositReturnVars\",\"components\":[{\"name\":\"amountSharesMinted\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFee\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountIncentiveUSDDeposit\",\"type\":\"int256\",\"internalType\":\"int256\"},{\"name\":\"assetWithBreakerTriggered\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"oraclePriceUSD\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isDepeg\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isDispersion\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isOracleOff\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"tokenInFound\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"incentiveCalculationSuccess\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewRedeem\",\"inputs\":[{\"name\":\"args\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.PreviewRedeemArgs\",\"components\":[{\"name\":\"tokenOut\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountSharesToRedeem\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isSoft\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"outputs\":[{\"name\":\"ret\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.PreviewRedeemReturnVars\",\"components\":[{\"name\":\"amountTokenOutAfterFees\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFee\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountIncentiveUSDRedeem\",\"type\":\"int256\",\"internalType\":\"int256\"},{\"name\":\"assetWithBreakerTriggered\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"oraclePriceUSD\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isDepeg\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isDispersion\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isOracleOff\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"tokenOutFound\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"incentiveCalculationSuccess\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewSwap\",\"inputs\":[{\"name\":\"args\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.PreviewSwapArgs\",\"components\":[{\"name\":\"tokenIn\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountTokenToDeposit\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"tokenOut\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"isSoft\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"outputs\":[{\"name\":\"ret\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.PreviewSwapReturnVars\",\"components\":[{\"name\":\"amountTokenOutAfterFees\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFeeIn\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFeeOut\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountIncentiveUSDDeposit\",\"type\":\"int256\",\"internalType\":\"int256\"},{\"name\":\"amountIncentiveUSDRedeem\",\"type\":\"int256\",\"internalType\":\"int256\"},{\"name\":\"assetWithBreakerTriggered\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"oraclePriceUSD\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"isDepeg\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isDispersion\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"isOracleOff\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"tokenInFound\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"incentiveCalculationSuccess\",\"type\":\"bool\",\"internalType\":\"bool\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"primaryAsset\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"redeem\",\"inputs\":[{\"name\":\"args\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.RedeemArgs\",\"components\":[{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountSharesToRedeem\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"tokenOut\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"minTokenOut\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]}],\"outputs\":[{\"name\":\"ret\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.RedeemReturnVars\",\"components\":[{\"name\":\"amountTokenOutAfterFees\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFee\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountIncentiveUSDRedeem\",\"type\":\"int256\",\"internalType\":\"int256\"}]}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"removeERC20\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"removeVault\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setEnergyToUSDExchangeRatio\",\"inputs\":[{\"name\":\"newRatio\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setSwapFeeInPercentage\",\"inputs\":[{\"name\":\"_feePercentage\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setSwapFeeOutPercentage\",\"inputs\":[{\"name\":\"_feePercentage\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setTargetAllocation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"allocation\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setTargetAllocations\",\"inputs\":[{\"name\":\"tokens\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"allocations\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setWeight\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"weight\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"swap\",\"inputs\":[{\"name\":\"args\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.SwapArgs\",\"components\":[{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"tokenIn\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountTokenToDeposit\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"tokenOut\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"minTokenOut\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]}],\"outputs\":[{\"name\":\"ret\",\"type\":\"tuple\",\"internalType\":\"structISuperAsset.SwapReturnVars\",\"components\":[{\"name\":\"amountSharesIntermediateStep\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountTokenOutAfterFees\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFeeIn\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"swapFeeOut\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"amountIncentivesIn\",\"type\":\"int256\",\"internalType\":\"int256\"},{\"name\":\"amountIncentivesOut\",\"type\":\"int256\",\"internalType\":\"int256\"}]}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"swapFeeInPercentage\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"swapFeeOutPercentage\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"symbol\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"totalSupply\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"transfer\",\"inputs\":[{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferFrom\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"to\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"whitelistERC20\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"whitelistVault\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"Approval\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"spender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Deposit\",\"inputs\":[{\"name\":\"receiver\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"tokenIn\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amountTokenToDeposit\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"amountSharesOut\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"swapFee\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"amountIncentives\",\"type\":\"int256\",\"indexed\":false,\"internalType\":\"int256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ERC20Activated\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ERC20Removed\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ERC20Whitelisted\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"EnergyToUSDExchangeRatioSet\",\"inputs\":[{\"name\":\"newRatio\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Redeem\",\"inputs\":[{\"name\":\"receiver\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"tokenOut\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amountSharesToRedeem\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"amountTokenOut\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"swapFee\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"amountIncentives\",\"type\":\"int256\",\"indexed\":false,\"internalType\":\"int256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SettlementTokenInSet\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SettlementTokenOutSet\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperOracleSet\",\"inputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Swap\",\"inputs\":[{\"name\":\"receiver\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"tokenIn\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amountTokenToDeposit\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"tokenOut\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amountSharesIntermediateStep\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"amountTokenOutAfterFees\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"swapFeeIn\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"swapFeeOut\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"amountIncentivesIn\",\"type\":\"int256\",\"indexed\":false,\"internalType\":\"int256\"},{\"name\":\"amountIncentivesOut\",\"type\":\"int256\",\"indexed\":false,\"internalType\":\"int256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"TargetAllocationSet\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"allocation\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"Transfer\",\"inputs\":[{\"name\":\"from\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"to\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"VaultActivated\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"VaultRemoved\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"VaultWhitelisted\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"WeightSet\",\"inputs\":[{\"name\":\"vault\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"weight\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ALREADY_WHITELISTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ERC20InsufficientAllowance\",\"inputs\":[{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"allowance\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"needed\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ERC20InsufficientBalance\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"balance\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"needed\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidApprover\",\"inputs\":[{\"name\":\"approver\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidReceiver\",\"inputs\":[{\"name\":\"receiver\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidSender\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ERC20InvalidSpender\",\"inputs\":[{\"name\":\"spender\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"INCENTIVE_CALCULATION_FAILED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_ALLOWANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ALLOCATION\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_INPUT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_OPERATION\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ORACLE_PRICE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_SWAP_FEE_PERCENTAGE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_TOTAL_ALLOCATION\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_ERC20_TOKEN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_SUPPORTED_TOKEN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_VAULT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_WHITELISTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"PRICE_USD_ZERO\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"REDEEM_FAILED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SLIPPAGE_PROTECTION\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SUPPORTED_ASSET_PRICE_DEPEG\",\"inputs\":[{\"name\":\"assetWithBreakerTriggered\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"SUPPORTED_ASSET_PRICE_DISPERSION\",\"inputs\":[{\"name\":\"assetWithBreakerTriggered\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"SUPPORTED_ASSET_PRICE_ORACLE_OFF\",\"inputs\":[{\"name\":\"assetWithBreakerTriggered\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"SUPPORTED_ASSET_PRICE_ZERO\",\"inputs\":[{\"name\":\"assetWithBreakerTriggered\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"SafeERC20FailedOperation\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"TOKEN_ALREADY_ACTIVE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TOKEN_NOT_ACTIVE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TOKEN_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TOKEN_NOT_SUPPORTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UNAUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"VAULT_NOT_SUPPORTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_AMOUNT\",\"inputs\":[]}]",
 }
 
 // SuperAssetABI is the input ABI used to generate the binding from.
@@ -180,105 +323,12 @@ func (_SuperAsset *SuperAssetTransactorRaw) Transact(opts *bind.TransactOpts, me
 	return _SuperAsset.Contract.contract.Transact(opts, method, params...)
 }
 
-// AVERAGEPROVIDER is a free data retrieval call binding the contract method 0x12faab85.
+// MAXSWAPFEEPERC is a free data retrieval call binding the contract method 0xcd1fb431.
 //
-// Solidity: function AVERAGE_PROVIDER() view returns(bytes32)
-func (_SuperAsset *SuperAssetCaller) AVERAGEPROVIDER(opts *bind.CallOpts) ([32]byte, error) {
+// Solidity: function MAX_SWAP_FEE_PERC() view returns(uint256)
+func (_SuperAsset *SuperAssetCaller) MAXSWAPFEEPERC(opts *bind.CallOpts) (*big.Int, error) {
 	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "AVERAGE_PROVIDER")
-
-	if err != nil {
-		return *new([32]byte), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
-
-	return out0, err
-
-}
-
-// AVERAGEPROVIDER is a free data retrieval call binding the contract method 0x12faab85.
-//
-// Solidity: function AVERAGE_PROVIDER() view returns(bytes32)
-func (_SuperAsset *SuperAssetSession) AVERAGEPROVIDER() ([32]byte, error) {
-	return _SuperAsset.Contract.AVERAGEPROVIDER(&_SuperAsset.CallOpts)
-}
-
-// AVERAGEPROVIDER is a free data retrieval call binding the contract method 0x12faab85.
-//
-// Solidity: function AVERAGE_PROVIDER() view returns(bytes32)
-func (_SuperAsset *SuperAssetCallerSession) AVERAGEPROVIDER() ([32]byte, error) {
-	return _SuperAsset.Contract.AVERAGEPROVIDER(&_SuperAsset.CallOpts)
-}
-
-// BURNERROLE is a free data retrieval call binding the contract method 0x282c51f3.
-//
-// Solidity: function BURNER_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetCaller) BURNERROLE(opts *bind.CallOpts) ([32]byte, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "BURNER_ROLE")
-
-	if err != nil {
-		return *new([32]byte), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
-
-	return out0, err
-
-}
-
-// BURNERROLE is a free data retrieval call binding the contract method 0x282c51f3.
-//
-// Solidity: function BURNER_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetSession) BURNERROLE() ([32]byte, error) {
-	return _SuperAsset.Contract.BURNERROLE(&_SuperAsset.CallOpts)
-}
-
-// BURNERROLE is a free data retrieval call binding the contract method 0x282c51f3.
-//
-// Solidity: function BURNER_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetCallerSession) BURNERROLE() ([32]byte, error) {
-	return _SuperAsset.Contract.BURNERROLE(&_SuperAsset.CallOpts)
-}
-
-// DEFAULTADMINROLE is a free data retrieval call binding the contract method 0xa217fddf.
-//
-// Solidity: function DEFAULT_ADMIN_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetCaller) DEFAULTADMINROLE(opts *bind.CallOpts) ([32]byte, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "DEFAULT_ADMIN_ROLE")
-
-	if err != nil {
-		return *new([32]byte), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
-
-	return out0, err
-
-}
-
-// DEFAULTADMINROLE is a free data retrieval call binding the contract method 0xa217fddf.
-//
-// Solidity: function DEFAULT_ADMIN_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetSession) DEFAULTADMINROLE() ([32]byte, error) {
-	return _SuperAsset.Contract.DEFAULTADMINROLE(&_SuperAsset.CallOpts)
-}
-
-// DEFAULTADMINROLE is a free data retrieval call binding the contract method 0xa217fddf.
-//
-// Solidity: function DEFAULT_ADMIN_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetCallerSession) DEFAULTADMINROLE() ([32]byte, error) {
-	return _SuperAsset.Contract.DEFAULTADMINROLE(&_SuperAsset.CallOpts)
-}
-
-// DEPEGLOWERTHRESHOLD is a free data retrieval call binding the contract method 0x5753296f.
-//
-// Solidity: function DEPEG_LOWER_THRESHOLD() view returns(uint256)
-func (_SuperAsset *SuperAssetCaller) DEPEGLOWERTHRESHOLD(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "DEPEG_LOWER_THRESHOLD")
+	err := _SuperAsset.contract.Call(opts, &out, "MAX_SWAP_FEE_PERC")
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -290,235 +340,18 @@ func (_SuperAsset *SuperAssetCaller) DEPEGLOWERTHRESHOLD(opts *bind.CallOpts) (*
 
 }
 
-// DEPEGLOWERTHRESHOLD is a free data retrieval call binding the contract method 0x5753296f.
+// MAXSWAPFEEPERC is a free data retrieval call binding the contract method 0xcd1fb431.
 //
-// Solidity: function DEPEG_LOWER_THRESHOLD() view returns(uint256)
-func (_SuperAsset *SuperAssetSession) DEPEGLOWERTHRESHOLD() (*big.Int, error) {
-	return _SuperAsset.Contract.DEPEGLOWERTHRESHOLD(&_SuperAsset.CallOpts)
+// Solidity: function MAX_SWAP_FEE_PERC() view returns(uint256)
+func (_SuperAsset *SuperAssetSession) MAXSWAPFEEPERC() (*big.Int, error) {
+	return _SuperAsset.Contract.MAXSWAPFEEPERC(&_SuperAsset.CallOpts)
 }
 
-// DEPEGLOWERTHRESHOLD is a free data retrieval call binding the contract method 0x5753296f.
+// MAXSWAPFEEPERC is a free data retrieval call binding the contract method 0xcd1fb431.
 //
-// Solidity: function DEPEG_LOWER_THRESHOLD() view returns(uint256)
-func (_SuperAsset *SuperAssetCallerSession) DEPEGLOWERTHRESHOLD() (*big.Int, error) {
-	return _SuperAsset.Contract.DEPEGLOWERTHRESHOLD(&_SuperAsset.CallOpts)
-}
-
-// DEPEGUPPERTHRESHOLD is a free data retrieval call binding the contract method 0x6b6c46a5.
-//
-// Solidity: function DEPEG_UPPER_THRESHOLD() view returns(uint256)
-func (_SuperAsset *SuperAssetCaller) DEPEGUPPERTHRESHOLD(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "DEPEG_UPPER_THRESHOLD")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// DEPEGUPPERTHRESHOLD is a free data retrieval call binding the contract method 0x6b6c46a5.
-//
-// Solidity: function DEPEG_UPPER_THRESHOLD() view returns(uint256)
-func (_SuperAsset *SuperAssetSession) DEPEGUPPERTHRESHOLD() (*big.Int, error) {
-	return _SuperAsset.Contract.DEPEGUPPERTHRESHOLD(&_SuperAsset.CallOpts)
-}
-
-// DEPEGUPPERTHRESHOLD is a free data retrieval call binding the contract method 0x6b6c46a5.
-//
-// Solidity: function DEPEG_UPPER_THRESHOLD() view returns(uint256)
-func (_SuperAsset *SuperAssetCallerSession) DEPEGUPPERTHRESHOLD() (*big.Int, error) {
-	return _SuperAsset.Contract.DEPEGUPPERTHRESHOLD(&_SuperAsset.CallOpts)
-}
-
-// DISPERSIONTHRESHOLD is a free data retrieval call binding the contract method 0x520b85b0.
-//
-// Solidity: function DISPERSION_THRESHOLD() view returns(uint256)
-func (_SuperAsset *SuperAssetCaller) DISPERSIONTHRESHOLD(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "DISPERSION_THRESHOLD")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// DISPERSIONTHRESHOLD is a free data retrieval call binding the contract method 0x520b85b0.
-//
-// Solidity: function DISPERSION_THRESHOLD() view returns(uint256)
-func (_SuperAsset *SuperAssetSession) DISPERSIONTHRESHOLD() (*big.Int, error) {
-	return _SuperAsset.Contract.DISPERSIONTHRESHOLD(&_SuperAsset.CallOpts)
-}
-
-// DISPERSIONTHRESHOLD is a free data retrieval call binding the contract method 0x520b85b0.
-//
-// Solidity: function DISPERSION_THRESHOLD() view returns(uint256)
-func (_SuperAsset *SuperAssetCallerSession) DISPERSIONTHRESHOLD() (*big.Int, error) {
-	return _SuperAsset.Contract.DISPERSIONTHRESHOLD(&_SuperAsset.CallOpts)
-}
-
-// INCENTIVEFUNDMANAGER is a free data retrieval call binding the contract method 0x209518e0.
-//
-// Solidity: function INCENTIVE_FUND_MANAGER() view returns(bytes32)
-func (_SuperAsset *SuperAssetCaller) INCENTIVEFUNDMANAGER(opts *bind.CallOpts) ([32]byte, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "INCENTIVE_FUND_MANAGER")
-
-	if err != nil {
-		return *new([32]byte), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
-
-	return out0, err
-
-}
-
-// INCENTIVEFUNDMANAGER is a free data retrieval call binding the contract method 0x209518e0.
-//
-// Solidity: function INCENTIVE_FUND_MANAGER() view returns(bytes32)
-func (_SuperAsset *SuperAssetSession) INCENTIVEFUNDMANAGER() ([32]byte, error) {
-	return _SuperAsset.Contract.INCENTIVEFUNDMANAGER(&_SuperAsset.CallOpts)
-}
-
-// INCENTIVEFUNDMANAGER is a free data retrieval call binding the contract method 0x209518e0.
-//
-// Solidity: function INCENTIVE_FUND_MANAGER() view returns(bytes32)
-func (_SuperAsset *SuperAssetCallerSession) INCENTIVEFUNDMANAGER() ([32]byte, error) {
-	return _SuperAsset.Contract.INCENTIVEFUNDMANAGER(&_SuperAsset.CallOpts)
-}
-
-// MAXSWAPFEEPERCENTAGE is a free data retrieval call binding the contract method 0x4730507a.
-//
-// Solidity: function MAX_SWAP_FEE_PERCENTAGE() view returns(uint256)
-func (_SuperAsset *SuperAssetCaller) MAXSWAPFEEPERCENTAGE(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "MAX_SWAP_FEE_PERCENTAGE")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// MAXSWAPFEEPERCENTAGE is a free data retrieval call binding the contract method 0x4730507a.
-//
-// Solidity: function MAX_SWAP_FEE_PERCENTAGE() view returns(uint256)
-func (_SuperAsset *SuperAssetSession) MAXSWAPFEEPERCENTAGE() (*big.Int, error) {
-	return _SuperAsset.Contract.MAXSWAPFEEPERCENTAGE(&_SuperAsset.CallOpts)
-}
-
-// MAXSWAPFEEPERCENTAGE is a free data retrieval call binding the contract method 0x4730507a.
-//
-// Solidity: function MAX_SWAP_FEE_PERCENTAGE() view returns(uint256)
-func (_SuperAsset *SuperAssetCallerSession) MAXSWAPFEEPERCENTAGE() (*big.Int, error) {
-	return _SuperAsset.Contract.MAXSWAPFEEPERCENTAGE(&_SuperAsset.CallOpts)
-}
-
-// MINTERROLE is a free data retrieval call binding the contract method 0xd5391393.
-//
-// Solidity: function MINTER_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetCaller) MINTERROLE(opts *bind.CallOpts) ([32]byte, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "MINTER_ROLE")
-
-	if err != nil {
-		return *new([32]byte), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
-
-	return out0, err
-
-}
-
-// MINTERROLE is a free data retrieval call binding the contract method 0xd5391393.
-//
-// Solidity: function MINTER_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetSession) MINTERROLE() ([32]byte, error) {
-	return _SuperAsset.Contract.MINTERROLE(&_SuperAsset.CallOpts)
-}
-
-// MINTERROLE is a free data retrieval call binding the contract method 0xd5391393.
-//
-// Solidity: function MINTER_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetCallerSession) MINTERROLE() ([32]byte, error) {
-	return _SuperAsset.Contract.MINTERROLE(&_SuperAsset.CallOpts)
-}
-
-// PRECISION is a free data retrieval call binding the contract method 0xaaf5eb68.
-//
-// Solidity: function PRECISION() view returns(uint256)
-func (_SuperAsset *SuperAssetCaller) PRECISION(opts *bind.CallOpts) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "PRECISION")
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// PRECISION is a free data retrieval call binding the contract method 0xaaf5eb68.
-//
-// Solidity: function PRECISION() view returns(uint256)
-func (_SuperAsset *SuperAssetSession) PRECISION() (*big.Int, error) {
-	return _SuperAsset.Contract.PRECISION(&_SuperAsset.CallOpts)
-}
-
-// PRECISION is a free data retrieval call binding the contract method 0xaaf5eb68.
-//
-// Solidity: function PRECISION() view returns(uint256)
-func (_SuperAsset *SuperAssetCallerSession) PRECISION() (*big.Int, error) {
-	return _SuperAsset.Contract.PRECISION(&_SuperAsset.CallOpts)
-}
-
-// SWAPFEEMANAGERROLE is a free data retrieval call binding the contract method 0xa3b47ab5.
-//
-// Solidity: function SWAP_FEE_MANAGER_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetCaller) SWAPFEEMANAGERROLE(opts *bind.CallOpts) ([32]byte, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "SWAP_FEE_MANAGER_ROLE")
-
-	if err != nil {
-		return *new([32]byte), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
-
-	return out0, err
-
-}
-
-// SWAPFEEMANAGERROLE is a free data retrieval call binding the contract method 0xa3b47ab5.
-//
-// Solidity: function SWAP_FEE_MANAGER_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetSession) SWAPFEEMANAGERROLE() ([32]byte, error) {
-	return _SuperAsset.Contract.SWAPFEEMANAGERROLE(&_SuperAsset.CallOpts)
-}
-
-// SWAPFEEMANAGERROLE is a free data retrieval call binding the contract method 0xa3b47ab5.
-//
-// Solidity: function SWAP_FEE_MANAGER_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetCallerSession) SWAPFEEMANAGERROLE() ([32]byte, error) {
-	return _SuperAsset.Contract.SWAPFEEMANAGERROLE(&_SuperAsset.CallOpts)
+// Solidity: function MAX_SWAP_FEE_PERC() view returns(uint256)
+func (_SuperAsset *SuperAssetCallerSession) MAXSWAPFEEPERC() (*big.Int, error) {
+	return _SuperAsset.Contract.MAXSWAPFEEPERC(&_SuperAsset.CallOpts)
 }
 
 // SWAPFEEPERC is a free data retrieval call binding the contract method 0x409cdfb1.
@@ -552,68 +385,6 @@ func (_SuperAsset *SuperAssetCallerSession) SWAPFEEPERC() (*big.Int, error) {
 	return _SuperAsset.Contract.SWAPFEEPERC(&_SuperAsset.CallOpts)
 }
 
-// USD is a free data retrieval call binding the contract method 0x1bf6c21b.
-//
-// Solidity: function USD() view returns(address)
-func (_SuperAsset *SuperAssetCaller) USD(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "USD")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// USD is a free data retrieval call binding the contract method 0x1bf6c21b.
-//
-// Solidity: function USD() view returns(address)
-func (_SuperAsset *SuperAssetSession) USD() (common.Address, error) {
-	return _SuperAsset.Contract.USD(&_SuperAsset.CallOpts)
-}
-
-// USD is a free data retrieval call binding the contract method 0x1bf6c21b.
-//
-// Solidity: function USD() view returns(address)
-func (_SuperAsset *SuperAssetCallerSession) USD() (common.Address, error) {
-	return _SuperAsset.Contract.USD(&_SuperAsset.CallOpts)
-}
-
-// VAULTMANAGERROLE is a free data retrieval call binding the contract method 0x5e5a24a4.
-//
-// Solidity: function VAULT_MANAGER_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetCaller) VAULTMANAGERROLE(opts *bind.CallOpts) ([32]byte, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "VAULT_MANAGER_ROLE")
-
-	if err != nil {
-		return *new([32]byte), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
-
-	return out0, err
-
-}
-
-// VAULTMANAGERROLE is a free data retrieval call binding the contract method 0x5e5a24a4.
-//
-// Solidity: function VAULT_MANAGER_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetSession) VAULTMANAGERROLE() ([32]byte, error) {
-	return _SuperAsset.Contract.VAULTMANAGERROLE(&_SuperAsset.CallOpts)
-}
-
-// VAULTMANAGERROLE is a free data retrieval call binding the contract method 0x5e5a24a4.
-//
-// Solidity: function VAULT_MANAGER_ROLE() view returns(bytes32)
-func (_SuperAsset *SuperAssetCallerSession) VAULTMANAGERROLE() ([32]byte, error) {
-	return _SuperAsset.Contract.VAULTMANAGERROLE(&_SuperAsset.CallOpts)
-}
-
 // Allowance is a free data retrieval call binding the contract method 0xdd62ed3e.
 //
 // Solidity: function allowance(address owner, address spender) view returns(uint256)
@@ -643,37 +414,6 @@ func (_SuperAsset *SuperAssetSession) Allowance(owner common.Address, spender co
 // Solidity: function allowance(address owner, address spender) view returns(uint256)
 func (_SuperAsset *SuperAssetCallerSession) Allowance(owner common.Address, spender common.Address) (*big.Int, error) {
 	return _SuperAsset.Contract.Allowance(&_SuperAsset.CallOpts, owner, spender)
-}
-
-// AssetBank is a free data retrieval call binding the contract method 0x4d75f51c.
-//
-// Solidity: function assetBank() view returns(address)
-func (_SuperAsset *SuperAssetCaller) AssetBank(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "assetBank")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// AssetBank is a free data retrieval call binding the contract method 0x4d75f51c.
-//
-// Solidity: function assetBank() view returns(address)
-func (_SuperAsset *SuperAssetSession) AssetBank() (common.Address, error) {
-	return _SuperAsset.Contract.AssetBank(&_SuperAsset.CallOpts)
-}
-
-// AssetBank is a free data retrieval call binding the contract method 0x4d75f51c.
-//
-// Solidity: function assetBank() view returns(address)
-func (_SuperAsset *SuperAssetCallerSession) AssetBank() (common.Address, error) {
-	return _SuperAsset.Contract.AssetBank(&_SuperAsset.CallOpts)
 }
 
 // BalanceOf is a free data retrieval call binding the contract method 0x70a08231.
@@ -736,37 +476,6 @@ func (_SuperAsset *SuperAssetSession) Decimals() (uint8, error) {
 // Solidity: function decimals() view returns(uint8)
 func (_SuperAsset *SuperAssetCallerSession) Decimals() (uint8, error) {
 	return _SuperAsset.Contract.Decimals(&_SuperAsset.CallOpts)
-}
-
-// EmergencyPrices is a free data retrieval call binding the contract method 0x1a97300d.
-//
-// Solidity: function emergencyPrices(address token) view returns(uint256 priceUSD)
-func (_SuperAsset *SuperAssetCaller) EmergencyPrices(opts *bind.CallOpts, token common.Address) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "emergencyPrices", token)
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// EmergencyPrices is a free data retrieval call binding the contract method 0x1a97300d.
-//
-// Solidity: function emergencyPrices(address token) view returns(uint256 priceUSD)
-func (_SuperAsset *SuperAssetSession) EmergencyPrices(token common.Address) (*big.Int, error) {
-	return _SuperAsset.Contract.EmergencyPrices(&_SuperAsset.CallOpts, token)
-}
-
-// EmergencyPrices is a free data retrieval call binding the contract method 0x1a97300d.
-//
-// Solidity: function emergencyPrices(address token) view returns(uint256 priceUSD)
-func (_SuperAsset *SuperAssetCallerSession) EmergencyPrices(token common.Address) (*big.Int, error) {
-	return _SuperAsset.Contract.EmergencyPrices(&_SuperAsset.CallOpts, token)
 }
 
 // EnergyToUSDExchangeRatio is a free data retrieval call binding the contract method 0x81a605b0.
@@ -855,79 +564,66 @@ func (_SuperAsset *SuperAssetCallerSession) GetAllocations() (struct {
 	return _SuperAsset.Contract.GetAllocations(&_SuperAsset.CallOpts)
 }
 
-// GetAllocationsPrePostOperation is a free data retrieval call binding the contract method 0x9e37b464.
+// GetAllocationsPrePostOperationDeposit is a free data retrieval call binding the contract method 0xc88972d5.
 //
-// Solidity: function getAllocationsPrePostOperation(address token, int256 deltaToken, bool isSoft) view returns(uint256[] absoluteAllocationPreOperation, uint256 totalAllocationPreOperation, uint256[] absoluteAllocationPostOperation, uint256 totalAllocationPostOperation, uint256[] absoluteTargetAllocation, uint256 totalTargetAllocation, uint256[] vaultWeights, bool isSuccess)
-func (_SuperAsset *SuperAssetCaller) GetAllocationsPrePostOperation(opts *bind.CallOpts, token common.Address, deltaToken *big.Int, isSoft bool) (struct {
-	AbsoluteAllocationPreOperation  []*big.Int
-	TotalAllocationPreOperation     *big.Int
-	AbsoluteAllocationPostOperation []*big.Int
-	TotalAllocationPostOperation    *big.Int
-	AbsoluteTargetAllocation        []*big.Int
-	TotalTargetAllocation           *big.Int
-	VaultWeights                    []*big.Int
-	IsSuccess                       bool
-}, error) {
+// Solidity: function getAllocationsPrePostOperationDeposit(address token, uint256 deltaToken, uint256 amountToken, bool isSoft) view returns((uint256[],uint256,uint256[],uint256,uint256[],uint256,uint256[],uint256,address,uint256,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetCaller) GetAllocationsPrePostOperationDeposit(opts *bind.CallOpts, token common.Address, deltaToken *big.Int, amountToken *big.Int, isSoft bool) (ISuperAssetAllocationOperationReturnVars, error) {
 	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "getAllocationsPrePostOperation", token, deltaToken, isSoft)
+	err := _SuperAsset.contract.Call(opts, &out, "getAllocationsPrePostOperationDeposit", token, deltaToken, amountToken, isSoft)
 
-	outstruct := new(struct {
-		AbsoluteAllocationPreOperation  []*big.Int
-		TotalAllocationPreOperation     *big.Int
-		AbsoluteAllocationPostOperation []*big.Int
-		TotalAllocationPostOperation    *big.Int
-		AbsoluteTargetAllocation        []*big.Int
-		TotalTargetAllocation           *big.Int
-		VaultWeights                    []*big.Int
-		IsSuccess                       bool
-	})
 	if err != nil {
-		return *outstruct, err
+		return *new(ISuperAssetAllocationOperationReturnVars), err
 	}
 
-	outstruct.AbsoluteAllocationPreOperation = *abi.ConvertType(out[0], new([]*big.Int)).(*[]*big.Int)
-	outstruct.TotalAllocationPreOperation = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
-	outstruct.AbsoluteAllocationPostOperation = *abi.ConvertType(out[2], new([]*big.Int)).(*[]*big.Int)
-	outstruct.TotalAllocationPostOperation = *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
-	outstruct.AbsoluteTargetAllocation = *abi.ConvertType(out[4], new([]*big.Int)).(*[]*big.Int)
-	outstruct.TotalTargetAllocation = *abi.ConvertType(out[5], new(*big.Int)).(**big.Int)
-	outstruct.VaultWeights = *abi.ConvertType(out[6], new([]*big.Int)).(*[]*big.Int)
-	outstruct.IsSuccess = *abi.ConvertType(out[7], new(bool)).(*bool)
+	out0 := *abi.ConvertType(out[0], new(ISuperAssetAllocationOperationReturnVars)).(*ISuperAssetAllocationOperationReturnVars)
 
-	return *outstruct, err
+	return out0, err
 
 }
 
-// GetAllocationsPrePostOperation is a free data retrieval call binding the contract method 0x9e37b464.
+// GetAllocationsPrePostOperationDeposit is a free data retrieval call binding the contract method 0xc88972d5.
 //
-// Solidity: function getAllocationsPrePostOperation(address token, int256 deltaToken, bool isSoft) view returns(uint256[] absoluteAllocationPreOperation, uint256 totalAllocationPreOperation, uint256[] absoluteAllocationPostOperation, uint256 totalAllocationPostOperation, uint256[] absoluteTargetAllocation, uint256 totalTargetAllocation, uint256[] vaultWeights, bool isSuccess)
-func (_SuperAsset *SuperAssetSession) GetAllocationsPrePostOperation(token common.Address, deltaToken *big.Int, isSoft bool) (struct {
-	AbsoluteAllocationPreOperation  []*big.Int
-	TotalAllocationPreOperation     *big.Int
-	AbsoluteAllocationPostOperation []*big.Int
-	TotalAllocationPostOperation    *big.Int
-	AbsoluteTargetAllocation        []*big.Int
-	TotalTargetAllocation           *big.Int
-	VaultWeights                    []*big.Int
-	IsSuccess                       bool
-}, error) {
-	return _SuperAsset.Contract.GetAllocationsPrePostOperation(&_SuperAsset.CallOpts, token, deltaToken, isSoft)
+// Solidity: function getAllocationsPrePostOperationDeposit(address token, uint256 deltaToken, uint256 amountToken, bool isSoft) view returns((uint256[],uint256,uint256[],uint256,uint256[],uint256,uint256[],uint256,address,uint256,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetSession) GetAllocationsPrePostOperationDeposit(token common.Address, deltaToken *big.Int, amountToken *big.Int, isSoft bool) (ISuperAssetAllocationOperationReturnVars, error) {
+	return _SuperAsset.Contract.GetAllocationsPrePostOperationDeposit(&_SuperAsset.CallOpts, token, deltaToken, amountToken, isSoft)
 }
 
-// GetAllocationsPrePostOperation is a free data retrieval call binding the contract method 0x9e37b464.
+// GetAllocationsPrePostOperationDeposit is a free data retrieval call binding the contract method 0xc88972d5.
 //
-// Solidity: function getAllocationsPrePostOperation(address token, int256 deltaToken, bool isSoft) view returns(uint256[] absoluteAllocationPreOperation, uint256 totalAllocationPreOperation, uint256[] absoluteAllocationPostOperation, uint256 totalAllocationPostOperation, uint256[] absoluteTargetAllocation, uint256 totalTargetAllocation, uint256[] vaultWeights, bool isSuccess)
-func (_SuperAsset *SuperAssetCallerSession) GetAllocationsPrePostOperation(token common.Address, deltaToken *big.Int, isSoft bool) (struct {
-	AbsoluteAllocationPreOperation  []*big.Int
-	TotalAllocationPreOperation     *big.Int
-	AbsoluteAllocationPostOperation []*big.Int
-	TotalAllocationPostOperation    *big.Int
-	AbsoluteTargetAllocation        []*big.Int
-	TotalTargetAllocation           *big.Int
-	VaultWeights                    []*big.Int
-	IsSuccess                       bool
-}, error) {
-	return _SuperAsset.Contract.GetAllocationsPrePostOperation(&_SuperAsset.CallOpts, token, deltaToken, isSoft)
+// Solidity: function getAllocationsPrePostOperationDeposit(address token, uint256 deltaToken, uint256 amountToken, bool isSoft) view returns((uint256[],uint256,uint256[],uint256,uint256[],uint256,uint256[],uint256,address,uint256,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetCallerSession) GetAllocationsPrePostOperationDeposit(token common.Address, deltaToken *big.Int, amountToken *big.Int, isSoft bool) (ISuperAssetAllocationOperationReturnVars, error) {
+	return _SuperAsset.Contract.GetAllocationsPrePostOperationDeposit(&_SuperAsset.CallOpts, token, deltaToken, amountToken, isSoft)
+}
+
+// GetAllocationsPrePostOperationRedeem is a free data retrieval call binding the contract method 0x7de8907a.
+//
+// Solidity: function getAllocationsPrePostOperationRedeem(address token, uint256 amountToken, bool isSoft) view returns((uint256[],uint256,uint256[],uint256,uint256[],uint256,uint256[],uint256,address,uint256,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetCaller) GetAllocationsPrePostOperationRedeem(opts *bind.CallOpts, token common.Address, amountToken *big.Int, isSoft bool) (ISuperAssetAllocationOperationReturnVars, error) {
+	var out []interface{}
+	err := _SuperAsset.contract.Call(opts, &out, "getAllocationsPrePostOperationRedeem", token, amountToken, isSoft)
+
+	if err != nil {
+		return *new(ISuperAssetAllocationOperationReturnVars), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(ISuperAssetAllocationOperationReturnVars)).(*ISuperAssetAllocationOperationReturnVars)
+
+	return out0, err
+
+}
+
+// GetAllocationsPrePostOperationRedeem is a free data retrieval call binding the contract method 0x7de8907a.
+//
+// Solidity: function getAllocationsPrePostOperationRedeem(address token, uint256 amountToken, bool isSoft) view returns((uint256[],uint256,uint256[],uint256,uint256[],uint256,uint256[],uint256,address,uint256,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetSession) GetAllocationsPrePostOperationRedeem(token common.Address, amountToken *big.Int, isSoft bool) (ISuperAssetAllocationOperationReturnVars, error) {
+	return _SuperAsset.Contract.GetAllocationsPrePostOperationRedeem(&_SuperAsset.CallOpts, token, amountToken, isSoft)
+}
+
+// GetAllocationsPrePostOperationRedeem is a free data retrieval call binding the contract method 0x7de8907a.
+//
+// Solidity: function getAllocationsPrePostOperationRedeem(address token, uint256 amountToken, bool isSoft) view returns((uint256[],uint256,uint256[],uint256,uint256[],uint256,uint256[],uint256,address,uint256,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetCallerSession) GetAllocationsPrePostOperationRedeem(token common.Address, amountToken *big.Int, isSoft bool) (ISuperAssetAllocationOperationReturnVars, error) {
+	return _SuperAsset.Contract.GetAllocationsPrePostOperationRedeem(&_SuperAsset.CallOpts, token, amountToken, isSoft)
 }
 
 // GetPrecision is a free data retrieval call binding the contract method 0x9670c0bc.
@@ -961,17 +657,17 @@ func (_SuperAsset *SuperAssetCallerSession) GetPrecision() (*big.Int, error) {
 	return _SuperAsset.Contract.GetPrecision(&_SuperAsset.CallOpts)
 }
 
-// GetPriceWithCircuitBreakers is a free data retrieval call binding the contract method 0xb98cf2cc.
+// GetPriceAndCircuitBreakers is a free data retrieval call binding the contract method 0x84e76799.
 //
-// Solidity: function getPriceWithCircuitBreakers(address token) view returns(uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff)
-func (_SuperAsset *SuperAssetCaller) GetPriceWithCircuitBreakers(opts *bind.CallOpts, token common.Address) (struct {
+// Solidity: function getPriceAndCircuitBreakers(address token) view returns(uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff)
+func (_SuperAsset *SuperAssetCaller) GetPriceAndCircuitBreakers(opts *bind.CallOpts, token common.Address) (struct {
 	PriceUSD     *big.Int
 	IsDepeg      bool
 	IsDispersion bool
 	IsOracleOff  bool
 }, error) {
 	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "getPriceWithCircuitBreakers", token)
+	err := _SuperAsset.contract.Call(opts, &out, "getPriceAndCircuitBreakers", token)
 
 	outstruct := new(struct {
 		PriceUSD     *big.Int
@@ -992,98 +688,36 @@ func (_SuperAsset *SuperAssetCaller) GetPriceWithCircuitBreakers(opts *bind.Call
 
 }
 
-// GetPriceWithCircuitBreakers is a free data retrieval call binding the contract method 0xb98cf2cc.
+// GetPriceAndCircuitBreakers is a free data retrieval call binding the contract method 0x84e76799.
 //
-// Solidity: function getPriceWithCircuitBreakers(address token) view returns(uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff)
-func (_SuperAsset *SuperAssetSession) GetPriceWithCircuitBreakers(token common.Address) (struct {
+// Solidity: function getPriceAndCircuitBreakers(address token) view returns(uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff)
+func (_SuperAsset *SuperAssetSession) GetPriceAndCircuitBreakers(token common.Address) (struct {
 	PriceUSD     *big.Int
 	IsDepeg      bool
 	IsDispersion bool
 	IsOracleOff  bool
 }, error) {
-	return _SuperAsset.Contract.GetPriceWithCircuitBreakers(&_SuperAsset.CallOpts, token)
+	return _SuperAsset.Contract.GetPriceAndCircuitBreakers(&_SuperAsset.CallOpts, token)
 }
 
-// GetPriceWithCircuitBreakers is a free data retrieval call binding the contract method 0xb98cf2cc.
+// GetPriceAndCircuitBreakers is a free data retrieval call binding the contract method 0x84e76799.
 //
-// Solidity: function getPriceWithCircuitBreakers(address token) view returns(uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff)
-func (_SuperAsset *SuperAssetCallerSession) GetPriceWithCircuitBreakers(token common.Address) (struct {
+// Solidity: function getPriceAndCircuitBreakers(address token) view returns(uint256 priceUSD, bool isDepeg, bool isDispersion, bool isOracleOff)
+func (_SuperAsset *SuperAssetCallerSession) GetPriceAndCircuitBreakers(token common.Address) (struct {
 	PriceUSD     *big.Int
 	IsDepeg      bool
 	IsDispersion bool
 	IsOracleOff  bool
 }, error) {
-	return _SuperAsset.Contract.GetPriceWithCircuitBreakers(&_SuperAsset.CallOpts, token)
+	return _SuperAsset.Contract.GetPriceAndCircuitBreakers(&_SuperAsset.CallOpts, token)
 }
 
-// GetRoleAdmin is a free data retrieval call binding the contract method 0x248a9ca3.
+// GetPrimaryAsset is a free data retrieval call binding the contract method 0x7e974700.
 //
-// Solidity: function getRoleAdmin(bytes32 role) view returns(bytes32)
-func (_SuperAsset *SuperAssetCaller) GetRoleAdmin(opts *bind.CallOpts, role [32]byte) ([32]byte, error) {
+// Solidity: function getPrimaryAsset() view returns(address)
+func (_SuperAsset *SuperAssetCaller) GetPrimaryAsset(opts *bind.CallOpts) (common.Address, error) {
 	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "getRoleAdmin", role)
-
-	if err != nil {
-		return *new([32]byte), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
-
-	return out0, err
-
-}
-
-// GetRoleAdmin is a free data retrieval call binding the contract method 0x248a9ca3.
-//
-// Solidity: function getRoleAdmin(bytes32 role) view returns(bytes32)
-func (_SuperAsset *SuperAssetSession) GetRoleAdmin(role [32]byte) ([32]byte, error) {
-	return _SuperAsset.Contract.GetRoleAdmin(&_SuperAsset.CallOpts, role)
-}
-
-// GetRoleAdmin is a free data retrieval call binding the contract method 0x248a9ca3.
-//
-// Solidity: function getRoleAdmin(bytes32 role) view returns(bytes32)
-func (_SuperAsset *SuperAssetCallerSession) GetRoleAdmin(role [32]byte) ([32]byte, error) {
-	return _SuperAsset.Contract.GetRoleAdmin(&_SuperAsset.CallOpts, role)
-}
-
-// HasRole is a free data retrieval call binding the contract method 0x91d14854.
-//
-// Solidity: function hasRole(bytes32 role, address account) view returns(bool)
-func (_SuperAsset *SuperAssetCaller) HasRole(opts *bind.CallOpts, role [32]byte, account common.Address) (bool, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "hasRole", role, account)
-
-	if err != nil {
-		return *new(bool), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
-
-	return out0, err
-
-}
-
-// HasRole is a free data retrieval call binding the contract method 0x91d14854.
-//
-// Solidity: function hasRole(bytes32 role, address account) view returns(bool)
-func (_SuperAsset *SuperAssetSession) HasRole(role [32]byte, account common.Address) (bool, error) {
-	return _SuperAsset.Contract.HasRole(&_SuperAsset.CallOpts, role, account)
-}
-
-// HasRole is a free data retrieval call binding the contract method 0x91d14854.
-//
-// Solidity: function hasRole(bytes32 role, address account) view returns(bool)
-func (_SuperAsset *SuperAssetCallerSession) HasRole(role [32]byte, account common.Address) (bool, error) {
-	return _SuperAsset.Contract.HasRole(&_SuperAsset.CallOpts, role, account)
-}
-
-// IncentiveCalculationContract is a free data retrieval call binding the contract method 0xd3b472c5.
-//
-// Solidity: function incentiveCalculationContract() view returns(address)
-func (_SuperAsset *SuperAssetCaller) IncentiveCalculationContract(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "incentiveCalculationContract")
+	err := _SuperAsset.contract.Call(opts, &out, "getPrimaryAsset")
 
 	if err != nil {
 		return *new(common.Address), err
@@ -1095,111 +729,114 @@ func (_SuperAsset *SuperAssetCaller) IncentiveCalculationContract(opts *bind.Cal
 
 }
 
-// IncentiveCalculationContract is a free data retrieval call binding the contract method 0xd3b472c5.
+// GetPrimaryAsset is a free data retrieval call binding the contract method 0x7e974700.
 //
-// Solidity: function incentiveCalculationContract() view returns(address)
-func (_SuperAsset *SuperAssetSession) IncentiveCalculationContract() (common.Address, error) {
-	return _SuperAsset.Contract.IncentiveCalculationContract(&_SuperAsset.CallOpts)
+// Solidity: function getPrimaryAsset() view returns(address)
+func (_SuperAsset *SuperAssetSession) GetPrimaryAsset() (common.Address, error) {
+	return _SuperAsset.Contract.GetPrimaryAsset(&_SuperAsset.CallOpts)
 }
 
-// IncentiveCalculationContract is a free data retrieval call binding the contract method 0xd3b472c5.
+// GetPrimaryAsset is a free data retrieval call binding the contract method 0x7e974700.
 //
-// Solidity: function incentiveCalculationContract() view returns(address)
-func (_SuperAsset *SuperAssetCallerSession) IncentiveCalculationContract() (common.Address, error) {
-	return _SuperAsset.Contract.IncentiveCalculationContract(&_SuperAsset.CallOpts)
+// Solidity: function getPrimaryAsset() view returns(address)
+func (_SuperAsset *SuperAssetCallerSession) GetPrimaryAsset() (common.Address, error) {
+	return _SuperAsset.Contract.GetPrimaryAsset(&_SuperAsset.CallOpts)
 }
 
-// IncentiveFundContract is a free data retrieval call binding the contract method 0x5a86ee6f.
+// GetSuperAssetPPS is a free data retrieval call binding the contract method 0xd3bffb4d.
 //
-// Solidity: function incentiveFundContract() view returns(address)
-func (_SuperAsset *SuperAssetCaller) IncentiveFundContract(opts *bind.CallOpts) (common.Address, error) {
+// Solidity: function getSuperAssetPPS() view returns(address[] activeTokens, uint256[] pricePerTokenUSD, bool[] isDepeg, bool[] isDispersion, bool[] isOracleOff, uint256 pps)
+func (_SuperAsset *SuperAssetCaller) GetSuperAssetPPS(opts *bind.CallOpts) (struct {
+	ActiveTokens     []common.Address
+	PricePerTokenUSD []*big.Int
+	IsDepeg          []bool
+	IsDispersion     []bool
+	IsOracleOff      []bool
+	Pps              *big.Int
+}, error) {
 	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "incentiveFundContract")
+	err := _SuperAsset.contract.Call(opts, &out, "getSuperAssetPPS")
 
+	outstruct := new(struct {
+		ActiveTokens     []common.Address
+		PricePerTokenUSD []*big.Int
+		IsDepeg          []bool
+		IsDispersion     []bool
+		IsOracleOff      []bool
+		Pps              *big.Int
+	})
 	if err != nil {
-		return *new(common.Address), err
+		return *outstruct, err
 	}
 
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+	outstruct.ActiveTokens = *abi.ConvertType(out[0], new([]common.Address)).(*[]common.Address)
+	outstruct.PricePerTokenUSD = *abi.ConvertType(out[1], new([]*big.Int)).(*[]*big.Int)
+	outstruct.IsDepeg = *abi.ConvertType(out[2], new([]bool)).(*[]bool)
+	outstruct.IsDispersion = *abi.ConvertType(out[3], new([]bool)).(*[]bool)
+	outstruct.IsOracleOff = *abi.ConvertType(out[4], new([]bool)).(*[]bool)
+	outstruct.Pps = *abi.ConvertType(out[5], new(*big.Int)).(**big.Int)
+
+	return *outstruct, err
+
+}
+
+// GetSuperAssetPPS is a free data retrieval call binding the contract method 0xd3bffb4d.
+//
+// Solidity: function getSuperAssetPPS() view returns(address[] activeTokens, uint256[] pricePerTokenUSD, bool[] isDepeg, bool[] isDispersion, bool[] isOracleOff, uint256 pps)
+func (_SuperAsset *SuperAssetSession) GetSuperAssetPPS() (struct {
+	ActiveTokens     []common.Address
+	PricePerTokenUSD []*big.Int
+	IsDepeg          []bool
+	IsDispersion     []bool
+	IsOracleOff      []bool
+	Pps              *big.Int
+}, error) {
+	return _SuperAsset.Contract.GetSuperAssetPPS(&_SuperAsset.CallOpts)
+}
+
+// GetSuperAssetPPS is a free data retrieval call binding the contract method 0xd3bffb4d.
+//
+// Solidity: function getSuperAssetPPS() view returns(address[] activeTokens, uint256[] pricePerTokenUSD, bool[] isDepeg, bool[] isDispersion, bool[] isOracleOff, uint256 pps)
+func (_SuperAsset *SuperAssetCallerSession) GetSuperAssetPPS() (struct {
+	ActiveTokens     []common.Address
+	PricePerTokenUSD []*big.Int
+	IsDepeg          []bool
+	IsDispersion     []bool
+	IsOracleOff      []bool
+	Pps              *big.Int
+}, error) {
+	return _SuperAsset.Contract.GetSuperAssetPPS(&_SuperAsset.CallOpts)
+}
+
+// GetTokenData is a free data retrieval call binding the contract method 0x13ff7e9f.
+//
+// Solidity: function getTokenData(address token) view returns((bool,bool,bool,address,uint256,uint256))
+func (_SuperAsset *SuperAssetCaller) GetTokenData(opts *bind.CallOpts, token common.Address) (ISuperAssetTokenData, error) {
+	var out []interface{}
+	err := _SuperAsset.contract.Call(opts, &out, "getTokenData", token)
+
+	if err != nil {
+		return *new(ISuperAssetTokenData), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(ISuperAssetTokenData)).(*ISuperAssetTokenData)
 
 	return out0, err
 
 }
 
-// IncentiveFundContract is a free data retrieval call binding the contract method 0x5a86ee6f.
+// GetTokenData is a free data retrieval call binding the contract method 0x13ff7e9f.
 //
-// Solidity: function incentiveFundContract() view returns(address)
-func (_SuperAsset *SuperAssetSession) IncentiveFundContract() (common.Address, error) {
-	return _SuperAsset.Contract.IncentiveFundContract(&_SuperAsset.CallOpts)
+// Solidity: function getTokenData(address token) view returns((bool,bool,bool,address,uint256,uint256))
+func (_SuperAsset *SuperAssetSession) GetTokenData(token common.Address) (ISuperAssetTokenData, error) {
+	return _SuperAsset.Contract.GetTokenData(&_SuperAsset.CallOpts, token)
 }
 
-// IncentiveFundContract is a free data retrieval call binding the contract method 0x5a86ee6f.
+// GetTokenData is a free data retrieval call binding the contract method 0x13ff7e9f.
 //
-// Solidity: function incentiveFundContract() view returns(address)
-func (_SuperAsset *SuperAssetCallerSession) IncentiveFundContract() (common.Address, error) {
-	return _SuperAsset.Contract.IncentiveFundContract(&_SuperAsset.CallOpts)
-}
-
-// IsSupportedERC20 is a free data retrieval call binding the contract method 0xa1e0765a.
-//
-// Solidity: function isSupportedERC20(address token) view returns(bool isSupported)
-func (_SuperAsset *SuperAssetCaller) IsSupportedERC20(opts *bind.CallOpts, token common.Address) (bool, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "isSupportedERC20", token)
-
-	if err != nil {
-		return *new(bool), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
-
-	return out0, err
-
-}
-
-// IsSupportedERC20 is a free data retrieval call binding the contract method 0xa1e0765a.
-//
-// Solidity: function isSupportedERC20(address token) view returns(bool isSupported)
-func (_SuperAsset *SuperAssetSession) IsSupportedERC20(token common.Address) (bool, error) {
-	return _SuperAsset.Contract.IsSupportedERC20(&_SuperAsset.CallOpts, token)
-}
-
-// IsSupportedERC20 is a free data retrieval call binding the contract method 0xa1e0765a.
-//
-// Solidity: function isSupportedERC20(address token) view returns(bool isSupported)
-func (_SuperAsset *SuperAssetCallerSession) IsSupportedERC20(token common.Address) (bool, error) {
-	return _SuperAsset.Contract.IsSupportedERC20(&_SuperAsset.CallOpts, token)
-}
-
-// IsSupportedUnderlyingVault is a free data retrieval call binding the contract method 0x3a6b87df.
-//
-// Solidity: function isSupportedUnderlyingVault(address token) view returns(bool isSupported)
-func (_SuperAsset *SuperAssetCaller) IsSupportedUnderlyingVault(opts *bind.CallOpts, token common.Address) (bool, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "isSupportedUnderlyingVault", token)
-
-	if err != nil {
-		return *new(bool), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
-
-	return out0, err
-
-}
-
-// IsSupportedUnderlyingVault is a free data retrieval call binding the contract method 0x3a6b87df.
-//
-// Solidity: function isSupportedUnderlyingVault(address token) view returns(bool isSupported)
-func (_SuperAsset *SuperAssetSession) IsSupportedUnderlyingVault(token common.Address) (bool, error) {
-	return _SuperAsset.Contract.IsSupportedUnderlyingVault(&_SuperAsset.CallOpts, token)
-}
-
-// IsSupportedUnderlyingVault is a free data retrieval call binding the contract method 0x3a6b87df.
-//
-// Solidity: function isSupportedUnderlyingVault(address token) view returns(bool isSupported)
-func (_SuperAsset *SuperAssetCallerSession) IsSupportedUnderlyingVault(token common.Address) (bool, error) {
-	return _SuperAsset.Contract.IsSupportedUnderlyingVault(&_SuperAsset.CallOpts, token)
+// Solidity: function getTokenData(address token) view returns((bool,bool,bool,address,uint256,uint256))
+func (_SuperAsset *SuperAssetCallerSession) GetTokenData(token common.Address) (ISuperAssetTokenData, error) {
+	return _SuperAsset.Contract.GetTokenData(&_SuperAsset.CallOpts, token)
 }
 
 // Name is a free data retrieval call binding the contract method 0x06fdde03.
@@ -1233,187 +870,105 @@ func (_SuperAsset *SuperAssetCallerSession) Name() (string, error) {
 	return _SuperAsset.Contract.Name(&_SuperAsset.CallOpts)
 }
 
-// PreviewDeposit is a free data retrieval call binding the contract method 0x8d8a9911.
+// PreviewDeposit is a free data retrieval call binding the contract method 0xc3e70303.
 //
-// Solidity: function previewDeposit(address tokenIn, uint256 amountTokenToDeposit, bool isSoft) view returns(uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess)
-func (_SuperAsset *SuperAssetCaller) PreviewDeposit(opts *bind.CallOpts, tokenIn common.Address, amountTokenToDeposit *big.Int, isSoft bool) (struct {
-	AmountSharesMinted *big.Int
-	SwapFee            *big.Int
-	AmountIncentiveUSD *big.Int
-	IsSuccess          bool
-}, error) {
+// Solidity: function previewDeposit((address,uint256,bool) args) view returns((uint256,uint256,int256,address,uint256,bool,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetCaller) PreviewDeposit(opts *bind.CallOpts, args ISuperAssetPreviewDepositArgs) (ISuperAssetPreviewDepositReturnVars, error) {
 	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "previewDeposit", tokenIn, amountTokenToDeposit, isSoft)
+	err := _SuperAsset.contract.Call(opts, &out, "previewDeposit", args)
 
-	outstruct := new(struct {
-		AmountSharesMinted *big.Int
-		SwapFee            *big.Int
-		AmountIncentiveUSD *big.Int
-		IsSuccess          bool
-	})
 	if err != nil {
-		return *outstruct, err
+		return *new(ISuperAssetPreviewDepositReturnVars), err
 	}
 
-	outstruct.AmountSharesMinted = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-	outstruct.SwapFee = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
-	outstruct.AmountIncentiveUSD = *abi.ConvertType(out[2], new(*big.Int)).(**big.Int)
-	outstruct.IsSuccess = *abi.ConvertType(out[3], new(bool)).(*bool)
+	out0 := *abi.ConvertType(out[0], new(ISuperAssetPreviewDepositReturnVars)).(*ISuperAssetPreviewDepositReturnVars)
 
-	return *outstruct, err
+	return out0, err
 
 }
 
-// PreviewDeposit is a free data retrieval call binding the contract method 0x8d8a9911.
+// PreviewDeposit is a free data retrieval call binding the contract method 0xc3e70303.
 //
-// Solidity: function previewDeposit(address tokenIn, uint256 amountTokenToDeposit, bool isSoft) view returns(uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess)
-func (_SuperAsset *SuperAssetSession) PreviewDeposit(tokenIn common.Address, amountTokenToDeposit *big.Int, isSoft bool) (struct {
-	AmountSharesMinted *big.Int
-	SwapFee            *big.Int
-	AmountIncentiveUSD *big.Int
-	IsSuccess          bool
-}, error) {
-	return _SuperAsset.Contract.PreviewDeposit(&_SuperAsset.CallOpts, tokenIn, amountTokenToDeposit, isSoft)
+// Solidity: function previewDeposit((address,uint256,bool) args) view returns((uint256,uint256,int256,address,uint256,bool,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetSession) PreviewDeposit(args ISuperAssetPreviewDepositArgs) (ISuperAssetPreviewDepositReturnVars, error) {
+	return _SuperAsset.Contract.PreviewDeposit(&_SuperAsset.CallOpts, args)
 }
 
-// PreviewDeposit is a free data retrieval call binding the contract method 0x8d8a9911.
+// PreviewDeposit is a free data retrieval call binding the contract method 0xc3e70303.
 //
-// Solidity: function previewDeposit(address tokenIn, uint256 amountTokenToDeposit, bool isSoft) view returns(uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess)
-func (_SuperAsset *SuperAssetCallerSession) PreviewDeposit(tokenIn common.Address, amountTokenToDeposit *big.Int, isSoft bool) (struct {
-	AmountSharesMinted *big.Int
-	SwapFee            *big.Int
-	AmountIncentiveUSD *big.Int
-	IsSuccess          bool
-}, error) {
-	return _SuperAsset.Contract.PreviewDeposit(&_SuperAsset.CallOpts, tokenIn, amountTokenToDeposit, isSoft)
+// Solidity: function previewDeposit((address,uint256,bool) args) view returns((uint256,uint256,int256,address,uint256,bool,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetCallerSession) PreviewDeposit(args ISuperAssetPreviewDepositArgs) (ISuperAssetPreviewDepositReturnVars, error) {
+	return _SuperAsset.Contract.PreviewDeposit(&_SuperAsset.CallOpts, args)
 }
 
-// PreviewRedeem is a free data retrieval call binding the contract method 0xfa9a23e5.
+// PreviewRedeem is a free data retrieval call binding the contract method 0x356cefcc.
 //
-// Solidity: function previewRedeem(address tokenOut, uint256 amountSharesToRedeem, bool isSoft) view returns(uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess)
-func (_SuperAsset *SuperAssetCaller) PreviewRedeem(opts *bind.CallOpts, tokenOut common.Address, amountSharesToRedeem *big.Int, isSoft bool) (struct {
-	AmountTokenOutAfterFees *big.Int
-	SwapFee                 *big.Int
-	AmountIncentiveUSD      *big.Int
-	IsSuccess               bool
-}, error) {
+// Solidity: function previewRedeem((address,uint256,bool) args) view returns((uint256,uint256,int256,address,uint256,bool,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetCaller) PreviewRedeem(opts *bind.CallOpts, args ISuperAssetPreviewRedeemArgs) (ISuperAssetPreviewRedeemReturnVars, error) {
 	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "previewRedeem", tokenOut, amountSharesToRedeem, isSoft)
+	err := _SuperAsset.contract.Call(opts, &out, "previewRedeem", args)
 
-	outstruct := new(struct {
-		AmountTokenOutAfterFees *big.Int
-		SwapFee                 *big.Int
-		AmountIncentiveUSD      *big.Int
-		IsSuccess               bool
-	})
 	if err != nil {
-		return *outstruct, err
+		return *new(ISuperAssetPreviewRedeemReturnVars), err
 	}
 
-	outstruct.AmountTokenOutAfterFees = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-	outstruct.SwapFee = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
-	outstruct.AmountIncentiveUSD = *abi.ConvertType(out[2], new(*big.Int)).(**big.Int)
-	outstruct.IsSuccess = *abi.ConvertType(out[3], new(bool)).(*bool)
+	out0 := *abi.ConvertType(out[0], new(ISuperAssetPreviewRedeemReturnVars)).(*ISuperAssetPreviewRedeemReturnVars)
 
-	return *outstruct, err
+	return out0, err
 
 }
 
-// PreviewRedeem is a free data retrieval call binding the contract method 0xfa9a23e5.
+// PreviewRedeem is a free data retrieval call binding the contract method 0x356cefcc.
 //
-// Solidity: function previewRedeem(address tokenOut, uint256 amountSharesToRedeem, bool isSoft) view returns(uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess)
-func (_SuperAsset *SuperAssetSession) PreviewRedeem(tokenOut common.Address, amountSharesToRedeem *big.Int, isSoft bool) (struct {
-	AmountTokenOutAfterFees *big.Int
-	SwapFee                 *big.Int
-	AmountIncentiveUSD      *big.Int
-	IsSuccess               bool
-}, error) {
-	return _SuperAsset.Contract.PreviewRedeem(&_SuperAsset.CallOpts, tokenOut, amountSharesToRedeem, isSoft)
+// Solidity: function previewRedeem((address,uint256,bool) args) view returns((uint256,uint256,int256,address,uint256,bool,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetSession) PreviewRedeem(args ISuperAssetPreviewRedeemArgs) (ISuperAssetPreviewRedeemReturnVars, error) {
+	return _SuperAsset.Contract.PreviewRedeem(&_SuperAsset.CallOpts, args)
 }
 
-// PreviewRedeem is a free data retrieval call binding the contract method 0xfa9a23e5.
+// PreviewRedeem is a free data retrieval call binding the contract method 0x356cefcc.
 //
-// Solidity: function previewRedeem(address tokenOut, uint256 amountSharesToRedeem, bool isSoft) view returns(uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSD, bool isSuccess)
-func (_SuperAsset *SuperAssetCallerSession) PreviewRedeem(tokenOut common.Address, amountSharesToRedeem *big.Int, isSoft bool) (struct {
-	AmountTokenOutAfterFees *big.Int
-	SwapFee                 *big.Int
-	AmountIncentiveUSD      *big.Int
-	IsSuccess               bool
-}, error) {
-	return _SuperAsset.Contract.PreviewRedeem(&_SuperAsset.CallOpts, tokenOut, amountSharesToRedeem, isSoft)
+// Solidity: function previewRedeem((address,uint256,bool) args) view returns((uint256,uint256,int256,address,uint256,bool,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetCallerSession) PreviewRedeem(args ISuperAssetPreviewRedeemArgs) (ISuperAssetPreviewRedeemReturnVars, error) {
+	return _SuperAsset.Contract.PreviewRedeem(&_SuperAsset.CallOpts, args)
 }
 
-// PreviewSwap is a free data retrieval call binding the contract method 0x746651de.
+// PreviewSwap is a free data retrieval call binding the contract method 0x190d56bf.
 //
-// Solidity: function previewSwap(address tokenIn, uint256 amountTokenToDeposit, address tokenOut, bool isSoft) view returns(uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDDeposit, int256 amountIncentiveUSDRedeem, bool isSuccess)
-func (_SuperAsset *SuperAssetCaller) PreviewSwap(opts *bind.CallOpts, tokenIn common.Address, amountTokenToDeposit *big.Int, tokenOut common.Address, isSoft bool) (struct {
-	AmountTokenOutAfterFees   *big.Int
-	SwapFeeIn                 *big.Int
-	SwapFeeOut                *big.Int
-	AmountIncentiveUSDDeposit *big.Int
-	AmountIncentiveUSDRedeem  *big.Int
-	IsSuccess                 bool
-}, error) {
+// Solidity: function previewSwap((address,uint256,address,bool) args) view returns((uint256,uint256,uint256,int256,int256,address,uint256,bool,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetCaller) PreviewSwap(opts *bind.CallOpts, args ISuperAssetPreviewSwapArgs) (ISuperAssetPreviewSwapReturnVars, error) {
 	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "previewSwap", tokenIn, amountTokenToDeposit, tokenOut, isSoft)
+	err := _SuperAsset.contract.Call(opts, &out, "previewSwap", args)
 
-	outstruct := new(struct {
-		AmountTokenOutAfterFees   *big.Int
-		SwapFeeIn                 *big.Int
-		SwapFeeOut                *big.Int
-		AmountIncentiveUSDDeposit *big.Int
-		AmountIncentiveUSDRedeem  *big.Int
-		IsSuccess                 bool
-	})
 	if err != nil {
-		return *outstruct, err
+		return *new(ISuperAssetPreviewSwapReturnVars), err
 	}
 
-	outstruct.AmountTokenOutAfterFees = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-	outstruct.SwapFeeIn = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
-	outstruct.SwapFeeOut = *abi.ConvertType(out[2], new(*big.Int)).(**big.Int)
-	outstruct.AmountIncentiveUSDDeposit = *abi.ConvertType(out[3], new(*big.Int)).(**big.Int)
-	outstruct.AmountIncentiveUSDRedeem = *abi.ConvertType(out[4], new(*big.Int)).(**big.Int)
-	outstruct.IsSuccess = *abi.ConvertType(out[5], new(bool)).(*bool)
+	out0 := *abi.ConvertType(out[0], new(ISuperAssetPreviewSwapReturnVars)).(*ISuperAssetPreviewSwapReturnVars)
 
-	return *outstruct, err
+	return out0, err
 
 }
 
-// PreviewSwap is a free data retrieval call binding the contract method 0x746651de.
+// PreviewSwap is a free data retrieval call binding the contract method 0x190d56bf.
 //
-// Solidity: function previewSwap(address tokenIn, uint256 amountTokenToDeposit, address tokenOut, bool isSoft) view returns(uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDDeposit, int256 amountIncentiveUSDRedeem, bool isSuccess)
-func (_SuperAsset *SuperAssetSession) PreviewSwap(tokenIn common.Address, amountTokenToDeposit *big.Int, tokenOut common.Address, isSoft bool) (struct {
-	AmountTokenOutAfterFees   *big.Int
-	SwapFeeIn                 *big.Int
-	SwapFeeOut                *big.Int
-	AmountIncentiveUSDDeposit *big.Int
-	AmountIncentiveUSDRedeem  *big.Int
-	IsSuccess                 bool
-}, error) {
-	return _SuperAsset.Contract.PreviewSwap(&_SuperAsset.CallOpts, tokenIn, amountTokenToDeposit, tokenOut, isSoft)
+// Solidity: function previewSwap((address,uint256,address,bool) args) view returns((uint256,uint256,uint256,int256,int256,address,uint256,bool,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetSession) PreviewSwap(args ISuperAssetPreviewSwapArgs) (ISuperAssetPreviewSwapReturnVars, error) {
+	return _SuperAsset.Contract.PreviewSwap(&_SuperAsset.CallOpts, args)
 }
 
-// PreviewSwap is a free data retrieval call binding the contract method 0x746651de.
+// PreviewSwap is a free data retrieval call binding the contract method 0x190d56bf.
 //
-// Solidity: function previewSwap(address tokenIn, uint256 amountTokenToDeposit, address tokenOut, bool isSoft) view returns(uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentiveUSDDeposit, int256 amountIncentiveUSDRedeem, bool isSuccess)
-func (_SuperAsset *SuperAssetCallerSession) PreviewSwap(tokenIn common.Address, amountTokenToDeposit *big.Int, tokenOut common.Address, isSoft bool) (struct {
-	AmountTokenOutAfterFees   *big.Int
-	SwapFeeIn                 *big.Int
-	SwapFeeOut                *big.Int
-	AmountIncentiveUSDDeposit *big.Int
-	AmountIncentiveUSDRedeem  *big.Int
-	IsSuccess                 bool
-}, error) {
-	return _SuperAsset.Contract.PreviewSwap(&_SuperAsset.CallOpts, tokenIn, amountTokenToDeposit, tokenOut, isSoft)
+// Solidity: function previewSwap((address,uint256,address,bool) args) view returns((uint256,uint256,uint256,int256,int256,address,uint256,bool,bool,bool,bool,bool) ret)
+func (_SuperAsset *SuperAssetCallerSession) PreviewSwap(args ISuperAssetPreviewSwapArgs) (ISuperAssetPreviewSwapReturnVars, error) {
+	return _SuperAsset.Contract.PreviewSwap(&_SuperAsset.CallOpts, args)
 }
 
-// SuperOracle is a free data retrieval call binding the contract method 0x3fbfddce.
+// PrimaryAsset is a free data retrieval call binding the contract method 0xe58d777a.
 //
-// Solidity: function superOracle() view returns(address)
-func (_SuperAsset *SuperAssetCaller) SuperOracle(opts *bind.CallOpts) (common.Address, error) {
+// Solidity: function primaryAsset() view returns(address)
+func (_SuperAsset *SuperAssetCaller) PrimaryAsset(opts *bind.CallOpts) (common.Address, error) {
 	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "superOracle")
+	err := _SuperAsset.contract.Call(opts, &out, "primaryAsset")
 
 	if err != nil {
 		return *new(common.Address), err
@@ -1425,49 +980,18 @@ func (_SuperAsset *SuperAssetCaller) SuperOracle(opts *bind.CallOpts) (common.Ad
 
 }
 
-// SuperOracle is a free data retrieval call binding the contract method 0x3fbfddce.
+// PrimaryAsset is a free data retrieval call binding the contract method 0xe58d777a.
 //
-// Solidity: function superOracle() view returns(address)
-func (_SuperAsset *SuperAssetSession) SuperOracle() (common.Address, error) {
-	return _SuperAsset.Contract.SuperOracle(&_SuperAsset.CallOpts)
+// Solidity: function primaryAsset() view returns(address)
+func (_SuperAsset *SuperAssetSession) PrimaryAsset() (common.Address, error) {
+	return _SuperAsset.Contract.PrimaryAsset(&_SuperAsset.CallOpts)
 }
 
-// SuperOracle is a free data retrieval call binding the contract method 0x3fbfddce.
+// PrimaryAsset is a free data retrieval call binding the contract method 0xe58d777a.
 //
-// Solidity: function superOracle() view returns(address)
-func (_SuperAsset *SuperAssetCallerSession) SuperOracle() (common.Address, error) {
-	return _SuperAsset.Contract.SuperOracle(&_SuperAsset.CallOpts)
-}
-
-// SupportsInterface is a free data retrieval call binding the contract method 0x01ffc9a7.
-//
-// Solidity: function supportsInterface(bytes4 interfaceId) view returns(bool)
-func (_SuperAsset *SuperAssetCaller) SupportsInterface(opts *bind.CallOpts, interfaceId [4]byte) (bool, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "supportsInterface", interfaceId)
-
-	if err != nil {
-		return *new(bool), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
-
-	return out0, err
-
-}
-
-// SupportsInterface is a free data retrieval call binding the contract method 0x01ffc9a7.
-//
-// Solidity: function supportsInterface(bytes4 interfaceId) view returns(bool)
-func (_SuperAsset *SuperAssetSession) SupportsInterface(interfaceId [4]byte) (bool, error) {
-	return _SuperAsset.Contract.SupportsInterface(&_SuperAsset.CallOpts, interfaceId)
-}
-
-// SupportsInterface is a free data retrieval call binding the contract method 0x01ffc9a7.
-//
-// Solidity: function supportsInterface(bytes4 interfaceId) view returns(bool)
-func (_SuperAsset *SuperAssetCallerSession) SupportsInterface(interfaceId [4]byte) (bool, error) {
-	return _SuperAsset.Contract.SupportsInterface(&_SuperAsset.CallOpts, interfaceId)
+// Solidity: function primaryAsset() view returns(address)
+func (_SuperAsset *SuperAssetCallerSession) PrimaryAsset() (common.Address, error) {
+	return _SuperAsset.Contract.PrimaryAsset(&_SuperAsset.CallOpts)
 }
 
 // SwapFeeInPercentage is a free data retrieval call binding the contract method 0xe606efeb.
@@ -1563,37 +1087,6 @@ func (_SuperAsset *SuperAssetCallerSession) Symbol() (string, error) {
 	return _SuperAsset.Contract.Symbol(&_SuperAsset.CallOpts)
 }
 
-// TargetAllocations is a free data retrieval call binding the contract method 0xe8f8080c.
-//
-// Solidity: function targetAllocations(address token) view returns(uint256 allocation)
-func (_SuperAsset *SuperAssetCaller) TargetAllocations(opts *bind.CallOpts, token common.Address) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "targetAllocations", token)
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
-}
-
-// TargetAllocations is a free data retrieval call binding the contract method 0xe8f8080c.
-//
-// Solidity: function targetAllocations(address token) view returns(uint256 allocation)
-func (_SuperAsset *SuperAssetSession) TargetAllocations(token common.Address) (*big.Int, error) {
-	return _SuperAsset.Contract.TargetAllocations(&_SuperAsset.CallOpts, token)
-}
-
-// TargetAllocations is a free data retrieval call binding the contract method 0xe8f8080c.
-//
-// Solidity: function targetAllocations(address token) view returns(uint256 allocation)
-func (_SuperAsset *SuperAssetCallerSession) TargetAllocations(token common.Address) (*big.Int, error) {
-	return _SuperAsset.Contract.TargetAllocations(&_SuperAsset.CallOpts, token)
-}
-
 // TotalSupply is a free data retrieval call binding the contract method 0x18160ddd.
 //
 // Solidity: function totalSupply() view returns(uint256)
@@ -1625,35 +1118,46 @@ func (_SuperAsset *SuperAssetCallerSession) TotalSupply() (*big.Int, error) {
 	return _SuperAsset.Contract.TotalSupply(&_SuperAsset.CallOpts)
 }
 
-// Weights is a free data retrieval call binding the contract method 0xa7cac846.
+// ActivateERC20 is a paid mutator transaction binding the contract method 0x6481773d.
 //
-// Solidity: function weights(address token) view returns(uint256 allocation)
-func (_SuperAsset *SuperAssetCaller) Weights(opts *bind.CallOpts, token common.Address) (*big.Int, error) {
-	var out []interface{}
-	err := _SuperAsset.contract.Call(opts, &out, "weights", token)
-
-	if err != nil {
-		return *new(*big.Int), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
-
-	return out0, err
-
+// Solidity: function activateERC20(address token) returns()
+func (_SuperAsset *SuperAssetTransactor) ActivateERC20(opts *bind.TransactOpts, token common.Address) (*types.Transaction, error) {
+	return _SuperAsset.contract.Transact(opts, "activateERC20", token)
 }
 
-// Weights is a free data retrieval call binding the contract method 0xa7cac846.
+// ActivateERC20 is a paid mutator transaction binding the contract method 0x6481773d.
 //
-// Solidity: function weights(address token) view returns(uint256 allocation)
-func (_SuperAsset *SuperAssetSession) Weights(token common.Address) (*big.Int, error) {
-	return _SuperAsset.Contract.Weights(&_SuperAsset.CallOpts, token)
+// Solidity: function activateERC20(address token) returns()
+func (_SuperAsset *SuperAssetSession) ActivateERC20(token common.Address) (*types.Transaction, error) {
+	return _SuperAsset.Contract.ActivateERC20(&_SuperAsset.TransactOpts, token)
 }
 
-// Weights is a free data retrieval call binding the contract method 0xa7cac846.
+// ActivateERC20 is a paid mutator transaction binding the contract method 0x6481773d.
 //
-// Solidity: function weights(address token) view returns(uint256 allocation)
-func (_SuperAsset *SuperAssetCallerSession) Weights(token common.Address) (*big.Int, error) {
-	return _SuperAsset.Contract.Weights(&_SuperAsset.CallOpts, token)
+// Solidity: function activateERC20(address token) returns()
+func (_SuperAsset *SuperAssetTransactorSession) ActivateERC20(token common.Address) (*types.Transaction, error) {
+	return _SuperAsset.Contract.ActivateERC20(&_SuperAsset.TransactOpts, token)
+}
+
+// ActivateVault is a paid mutator transaction binding the contract method 0x162fd53f.
+//
+// Solidity: function activateVault(address vault) returns()
+func (_SuperAsset *SuperAssetTransactor) ActivateVault(opts *bind.TransactOpts, vault common.Address) (*types.Transaction, error) {
+	return _SuperAsset.contract.Transact(opts, "activateVault", vault)
+}
+
+// ActivateVault is a paid mutator transaction binding the contract method 0x162fd53f.
+//
+// Solidity: function activateVault(address vault) returns()
+func (_SuperAsset *SuperAssetSession) ActivateVault(vault common.Address) (*types.Transaction, error) {
+	return _SuperAsset.Contract.ActivateVault(&_SuperAsset.TransactOpts, vault)
+}
+
+// ActivateVault is a paid mutator transaction binding the contract method 0x162fd53f.
+//
+// Solidity: function activateVault(address vault) returns()
+func (_SuperAsset *SuperAssetTransactorSession) ActivateVault(vault common.Address) (*types.Transaction, error) {
+	return _SuperAsset.Contract.ActivateVault(&_SuperAsset.TransactOpts, vault)
 }
 
 // Approve is a paid mutator transaction binding the contract method 0x095ea7b3.
@@ -1698,67 +1202,46 @@ func (_SuperAsset *SuperAssetTransactorSession) Burn(from common.Address, amount
 	return _SuperAsset.Contract.Burn(&_SuperAsset.TransactOpts, from, amount)
 }
 
-// Deposit is a paid mutator transaction binding the contract method 0x20e8c565.
+// Deposit is a paid mutator transaction binding the contract method 0xd915d4b5.
 //
-// Solidity: function deposit(address receiver, address yieldSourceShare, uint256 amountTokenToDeposit, uint256 minSharesOut) returns(uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit)
-func (_SuperAsset *SuperAssetTransactor) Deposit(opts *bind.TransactOpts, receiver common.Address, yieldSourceShare common.Address, amountTokenToDeposit *big.Int, minSharesOut *big.Int) (*types.Transaction, error) {
-	return _SuperAsset.contract.Transact(opts, "deposit", receiver, yieldSourceShare, amountTokenToDeposit, minSharesOut)
+// Solidity: function deposit((address,address,uint256,uint256) args) returns((uint256,uint256,int256) ret)
+func (_SuperAsset *SuperAssetTransactor) Deposit(opts *bind.TransactOpts, args ISuperAssetDepositArgs) (*types.Transaction, error) {
+	return _SuperAsset.contract.Transact(opts, "deposit", args)
 }
 
-// Deposit is a paid mutator transaction binding the contract method 0x20e8c565.
+// Deposit is a paid mutator transaction binding the contract method 0xd915d4b5.
 //
-// Solidity: function deposit(address receiver, address yieldSourceShare, uint256 amountTokenToDeposit, uint256 minSharesOut) returns(uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit)
-func (_SuperAsset *SuperAssetSession) Deposit(receiver common.Address, yieldSourceShare common.Address, amountTokenToDeposit *big.Int, minSharesOut *big.Int) (*types.Transaction, error) {
-	return _SuperAsset.Contract.Deposit(&_SuperAsset.TransactOpts, receiver, yieldSourceShare, amountTokenToDeposit, minSharesOut)
+// Solidity: function deposit((address,address,uint256,uint256) args) returns((uint256,uint256,int256) ret)
+func (_SuperAsset *SuperAssetSession) Deposit(args ISuperAssetDepositArgs) (*types.Transaction, error) {
+	return _SuperAsset.Contract.Deposit(&_SuperAsset.TransactOpts, args)
 }
 
-// Deposit is a paid mutator transaction binding the contract method 0x20e8c565.
+// Deposit is a paid mutator transaction binding the contract method 0xd915d4b5.
 //
-// Solidity: function deposit(address receiver, address yieldSourceShare, uint256 amountTokenToDeposit, uint256 minSharesOut) returns(uint256 amountSharesMinted, uint256 swapFee, int256 amountIncentiveUSDDeposit)
-func (_SuperAsset *SuperAssetTransactorSession) Deposit(receiver common.Address, yieldSourceShare common.Address, amountTokenToDeposit *big.Int, minSharesOut *big.Int) (*types.Transaction, error) {
-	return _SuperAsset.Contract.Deposit(&_SuperAsset.TransactOpts, receiver, yieldSourceShare, amountTokenToDeposit, minSharesOut)
+// Solidity: function deposit((address,address,uint256,uint256) args) returns((uint256,uint256,int256) ret)
+func (_SuperAsset *SuperAssetTransactorSession) Deposit(args ISuperAssetDepositArgs) (*types.Transaction, error) {
+	return _SuperAsset.Contract.Deposit(&_SuperAsset.TransactOpts, args)
 }
 
-// GrantRole is a paid mutator transaction binding the contract method 0x2f2ff15d.
+// Initialize is a paid mutator transaction binding the contract method 0x74e87e1e.
 //
-// Solidity: function grantRole(bytes32 role, address account) returns()
-func (_SuperAsset *SuperAssetTransactor) GrantRole(opts *bind.TransactOpts, role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperAsset.contract.Transact(opts, "grantRole", role, account)
+// Solidity: function initialize(string name_, string symbol_, address asset, address superGovernor_, uint256 swapFeeInPercentage_, uint256 swapFeeOutPercentage_) returns()
+func (_SuperAsset *SuperAssetTransactor) Initialize(opts *bind.TransactOpts, name_ string, symbol_ string, asset common.Address, superGovernor_ common.Address, swapFeeInPercentage_ *big.Int, swapFeeOutPercentage_ *big.Int) (*types.Transaction, error) {
+	return _SuperAsset.contract.Transact(opts, "initialize", name_, symbol_, asset, superGovernor_, swapFeeInPercentage_, swapFeeOutPercentage_)
 }
 
-// GrantRole is a paid mutator transaction binding the contract method 0x2f2ff15d.
+// Initialize is a paid mutator transaction binding the contract method 0x74e87e1e.
 //
-// Solidity: function grantRole(bytes32 role, address account) returns()
-func (_SuperAsset *SuperAssetSession) GrantRole(role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperAsset.Contract.GrantRole(&_SuperAsset.TransactOpts, role, account)
+// Solidity: function initialize(string name_, string symbol_, address asset, address superGovernor_, uint256 swapFeeInPercentage_, uint256 swapFeeOutPercentage_) returns()
+func (_SuperAsset *SuperAssetSession) Initialize(name_ string, symbol_ string, asset common.Address, superGovernor_ common.Address, swapFeeInPercentage_ *big.Int, swapFeeOutPercentage_ *big.Int) (*types.Transaction, error) {
+	return _SuperAsset.Contract.Initialize(&_SuperAsset.TransactOpts, name_, symbol_, asset, superGovernor_, swapFeeInPercentage_, swapFeeOutPercentage_)
 }
 
-// GrantRole is a paid mutator transaction binding the contract method 0x2f2ff15d.
+// Initialize is a paid mutator transaction binding the contract method 0x74e87e1e.
 //
-// Solidity: function grantRole(bytes32 role, address account) returns()
-func (_SuperAsset *SuperAssetTransactorSession) GrantRole(role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperAsset.Contract.GrantRole(&_SuperAsset.TransactOpts, role, account)
-}
-
-// Initialize is a paid mutator transaction binding the contract method 0xcd3fa04b.
-//
-// Solidity: function initialize(string name_, string symbol_, address icc_, address ifc_, address assetBank_, uint256 swapFeeInPercentage_, uint256 swapFeeOutPercentage_) returns()
-func (_SuperAsset *SuperAssetTransactor) Initialize(opts *bind.TransactOpts, name_ string, symbol_ string, icc_ common.Address, ifc_ common.Address, assetBank_ common.Address, swapFeeInPercentage_ *big.Int, swapFeeOutPercentage_ *big.Int) (*types.Transaction, error) {
-	return _SuperAsset.contract.Transact(opts, "initialize", name_, symbol_, icc_, ifc_, assetBank_, swapFeeInPercentage_, swapFeeOutPercentage_)
-}
-
-// Initialize is a paid mutator transaction binding the contract method 0xcd3fa04b.
-//
-// Solidity: function initialize(string name_, string symbol_, address icc_, address ifc_, address assetBank_, uint256 swapFeeInPercentage_, uint256 swapFeeOutPercentage_) returns()
-func (_SuperAsset *SuperAssetSession) Initialize(name_ string, symbol_ string, icc_ common.Address, ifc_ common.Address, assetBank_ common.Address, swapFeeInPercentage_ *big.Int, swapFeeOutPercentage_ *big.Int) (*types.Transaction, error) {
-	return _SuperAsset.Contract.Initialize(&_SuperAsset.TransactOpts, name_, symbol_, icc_, ifc_, assetBank_, swapFeeInPercentage_, swapFeeOutPercentage_)
-}
-
-// Initialize is a paid mutator transaction binding the contract method 0xcd3fa04b.
-//
-// Solidity: function initialize(string name_, string symbol_, address icc_, address ifc_, address assetBank_, uint256 swapFeeInPercentage_, uint256 swapFeeOutPercentage_) returns()
-func (_SuperAsset *SuperAssetTransactorSession) Initialize(name_ string, symbol_ string, icc_ common.Address, ifc_ common.Address, assetBank_ common.Address, swapFeeInPercentage_ *big.Int, swapFeeOutPercentage_ *big.Int) (*types.Transaction, error) {
-	return _SuperAsset.Contract.Initialize(&_SuperAsset.TransactOpts, name_, symbol_, icc_, ifc_, assetBank_, swapFeeInPercentage_, swapFeeOutPercentage_)
+// Solidity: function initialize(string name_, string symbol_, address asset, address superGovernor_, uint256 swapFeeInPercentage_, uint256 swapFeeOutPercentage_) returns()
+func (_SuperAsset *SuperAssetTransactorSession) Initialize(name_ string, symbol_ string, asset common.Address, superGovernor_ common.Address, swapFeeInPercentage_ *big.Int, swapFeeOutPercentage_ *big.Int) (*types.Transaction, error) {
+	return _SuperAsset.Contract.Initialize(&_SuperAsset.TransactOpts, name_, symbol_, asset, superGovernor_, swapFeeInPercentage_, swapFeeOutPercentage_)
 }
 
 // Mint is a paid mutator transaction binding the contract method 0x40c10f19.
@@ -1782,25 +1265,25 @@ func (_SuperAsset *SuperAssetTransactorSession) Mint(to common.Address, amount *
 	return _SuperAsset.Contract.Mint(&_SuperAsset.TransactOpts, to, amount)
 }
 
-// Redeem is a paid mutator transaction binding the contract method 0xf3f094a1.
+// Redeem is a paid mutator transaction binding the contract method 0xbd636e15.
 //
-// Solidity: function redeem(address receiver, uint256 amountSharesToRedeem, address tokenOut, uint256 minTokenOut) returns(uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem)
-func (_SuperAsset *SuperAssetTransactor) Redeem(opts *bind.TransactOpts, receiver common.Address, amountSharesToRedeem *big.Int, tokenOut common.Address, minTokenOut *big.Int) (*types.Transaction, error) {
-	return _SuperAsset.contract.Transact(opts, "redeem", receiver, amountSharesToRedeem, tokenOut, minTokenOut)
+// Solidity: function redeem((address,uint256,address,uint256) args) returns((uint256,uint256,int256) ret)
+func (_SuperAsset *SuperAssetTransactor) Redeem(opts *bind.TransactOpts, args ISuperAssetRedeemArgs) (*types.Transaction, error) {
+	return _SuperAsset.contract.Transact(opts, "redeem", args)
 }
 
-// Redeem is a paid mutator transaction binding the contract method 0xf3f094a1.
+// Redeem is a paid mutator transaction binding the contract method 0xbd636e15.
 //
-// Solidity: function redeem(address receiver, uint256 amountSharesToRedeem, address tokenOut, uint256 minTokenOut) returns(uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem)
-func (_SuperAsset *SuperAssetSession) Redeem(receiver common.Address, amountSharesToRedeem *big.Int, tokenOut common.Address, minTokenOut *big.Int) (*types.Transaction, error) {
-	return _SuperAsset.Contract.Redeem(&_SuperAsset.TransactOpts, receiver, amountSharesToRedeem, tokenOut, minTokenOut)
+// Solidity: function redeem((address,uint256,address,uint256) args) returns((uint256,uint256,int256) ret)
+func (_SuperAsset *SuperAssetSession) Redeem(args ISuperAssetRedeemArgs) (*types.Transaction, error) {
+	return _SuperAsset.Contract.Redeem(&_SuperAsset.TransactOpts, args)
 }
 
-// Redeem is a paid mutator transaction binding the contract method 0xf3f094a1.
+// Redeem is a paid mutator transaction binding the contract method 0xbd636e15.
 //
-// Solidity: function redeem(address receiver, uint256 amountSharesToRedeem, address tokenOut, uint256 minTokenOut) returns(uint256 amountTokenOutAfterFees, uint256 swapFee, int256 amountIncentiveUSDRedeem)
-func (_SuperAsset *SuperAssetTransactorSession) Redeem(receiver common.Address, amountSharesToRedeem *big.Int, tokenOut common.Address, minTokenOut *big.Int) (*types.Transaction, error) {
-	return _SuperAsset.Contract.Redeem(&_SuperAsset.TransactOpts, receiver, amountSharesToRedeem, tokenOut, minTokenOut)
+// Solidity: function redeem((address,uint256,address,uint256) args) returns((uint256,uint256,int256) ret)
+func (_SuperAsset *SuperAssetTransactorSession) Redeem(args ISuperAssetRedeemArgs) (*types.Transaction, error) {
+	return _SuperAsset.Contract.Redeem(&_SuperAsset.TransactOpts, args)
 }
 
 // RemoveERC20 is a paid mutator transaction binding the contract method 0xa67755c2.
@@ -1845,48 +1328,6 @@ func (_SuperAsset *SuperAssetTransactorSession) RemoveVault(vault common.Address
 	return _SuperAsset.Contract.RemoveVault(&_SuperAsset.TransactOpts, vault)
 }
 
-// RenounceRole is a paid mutator transaction binding the contract method 0x36568abe.
-//
-// Solidity: function renounceRole(bytes32 role, address callerConfirmation) returns()
-func (_SuperAsset *SuperAssetTransactor) RenounceRole(opts *bind.TransactOpts, role [32]byte, callerConfirmation common.Address) (*types.Transaction, error) {
-	return _SuperAsset.contract.Transact(opts, "renounceRole", role, callerConfirmation)
-}
-
-// RenounceRole is a paid mutator transaction binding the contract method 0x36568abe.
-//
-// Solidity: function renounceRole(bytes32 role, address callerConfirmation) returns()
-func (_SuperAsset *SuperAssetSession) RenounceRole(role [32]byte, callerConfirmation common.Address) (*types.Transaction, error) {
-	return _SuperAsset.Contract.RenounceRole(&_SuperAsset.TransactOpts, role, callerConfirmation)
-}
-
-// RenounceRole is a paid mutator transaction binding the contract method 0x36568abe.
-//
-// Solidity: function renounceRole(bytes32 role, address callerConfirmation) returns()
-func (_SuperAsset *SuperAssetTransactorSession) RenounceRole(role [32]byte, callerConfirmation common.Address) (*types.Transaction, error) {
-	return _SuperAsset.Contract.RenounceRole(&_SuperAsset.TransactOpts, role, callerConfirmation)
-}
-
-// RevokeRole is a paid mutator transaction binding the contract method 0xd547741f.
-//
-// Solidity: function revokeRole(bytes32 role, address account) returns()
-func (_SuperAsset *SuperAssetTransactor) RevokeRole(opts *bind.TransactOpts, role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperAsset.contract.Transact(opts, "revokeRole", role, account)
-}
-
-// RevokeRole is a paid mutator transaction binding the contract method 0xd547741f.
-//
-// Solidity: function revokeRole(bytes32 role, address account) returns()
-func (_SuperAsset *SuperAssetSession) RevokeRole(role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperAsset.Contract.RevokeRole(&_SuperAsset.TransactOpts, role, account)
-}
-
-// RevokeRole is a paid mutator transaction binding the contract method 0xd547741f.
-//
-// Solidity: function revokeRole(bytes32 role, address account) returns()
-func (_SuperAsset *SuperAssetTransactorSession) RevokeRole(role [32]byte, account common.Address) (*types.Transaction, error) {
-	return _SuperAsset.Contract.RevokeRole(&_SuperAsset.TransactOpts, role, account)
-}
-
 // SetEnergyToUSDExchangeRatio is a paid mutator transaction binding the contract method 0xb57ad03a.
 //
 // Solidity: function setEnergyToUSDExchangeRatio(uint256 newRatio) returns()
@@ -1906,27 +1347,6 @@ func (_SuperAsset *SuperAssetSession) SetEnergyToUSDExchangeRatio(newRatio *big.
 // Solidity: function setEnergyToUSDExchangeRatio(uint256 newRatio) returns()
 func (_SuperAsset *SuperAssetTransactorSession) SetEnergyToUSDExchangeRatio(newRatio *big.Int) (*types.Transaction, error) {
 	return _SuperAsset.Contract.SetEnergyToUSDExchangeRatio(&_SuperAsset.TransactOpts, newRatio)
-}
-
-// SetSuperOracle is a paid mutator transaction binding the contract method 0x1e86e46b.
-//
-// Solidity: function setSuperOracle(address oracle) returns()
-func (_SuperAsset *SuperAssetTransactor) SetSuperOracle(opts *bind.TransactOpts, oracle common.Address) (*types.Transaction, error) {
-	return _SuperAsset.contract.Transact(opts, "setSuperOracle", oracle)
-}
-
-// SetSuperOracle is a paid mutator transaction binding the contract method 0x1e86e46b.
-//
-// Solidity: function setSuperOracle(address oracle) returns()
-func (_SuperAsset *SuperAssetSession) SetSuperOracle(oracle common.Address) (*types.Transaction, error) {
-	return _SuperAsset.Contract.SetSuperOracle(&_SuperAsset.TransactOpts, oracle)
-}
-
-// SetSuperOracle is a paid mutator transaction binding the contract method 0x1e86e46b.
-//
-// Solidity: function setSuperOracle(address oracle) returns()
-func (_SuperAsset *SuperAssetTransactorSession) SetSuperOracle(oracle common.Address) (*types.Transaction, error) {
-	return _SuperAsset.Contract.SetSuperOracle(&_SuperAsset.TransactOpts, oracle)
 }
 
 // SetSwapFeeInPercentage is a paid mutator transaction binding the contract method 0x9183ecd9.
@@ -2034,25 +1454,25 @@ func (_SuperAsset *SuperAssetTransactorSession) SetWeight(vault common.Address, 
 	return _SuperAsset.Contract.SetWeight(&_SuperAsset.TransactOpts, vault, weight)
 }
 
-// Swap is a paid mutator transaction binding the contract method 0x17d88f46.
+// Swap is a paid mutator transaction binding the contract method 0x24812505.
 //
-// Solidity: function swap(address receiver, address tokenIn, uint256 amountTokenToDeposit, address tokenOut, uint256 minTokenOut) returns(uint256 amountSharesIntermediateStep, uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentivesIn, int256 amountIncentivesOut)
-func (_SuperAsset *SuperAssetTransactor) Swap(opts *bind.TransactOpts, receiver common.Address, tokenIn common.Address, amountTokenToDeposit *big.Int, tokenOut common.Address, minTokenOut *big.Int) (*types.Transaction, error) {
-	return _SuperAsset.contract.Transact(opts, "swap", receiver, tokenIn, amountTokenToDeposit, tokenOut, minTokenOut)
+// Solidity: function swap((address,address,uint256,address,uint256) args) returns((uint256,uint256,uint256,uint256,int256,int256) ret)
+func (_SuperAsset *SuperAssetTransactor) Swap(opts *bind.TransactOpts, args ISuperAssetSwapArgs) (*types.Transaction, error) {
+	return _SuperAsset.contract.Transact(opts, "swap", args)
 }
 
-// Swap is a paid mutator transaction binding the contract method 0x17d88f46.
+// Swap is a paid mutator transaction binding the contract method 0x24812505.
 //
-// Solidity: function swap(address receiver, address tokenIn, uint256 amountTokenToDeposit, address tokenOut, uint256 minTokenOut) returns(uint256 amountSharesIntermediateStep, uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentivesIn, int256 amountIncentivesOut)
-func (_SuperAsset *SuperAssetSession) Swap(receiver common.Address, tokenIn common.Address, amountTokenToDeposit *big.Int, tokenOut common.Address, minTokenOut *big.Int) (*types.Transaction, error) {
-	return _SuperAsset.Contract.Swap(&_SuperAsset.TransactOpts, receiver, tokenIn, amountTokenToDeposit, tokenOut, minTokenOut)
+// Solidity: function swap((address,address,uint256,address,uint256) args) returns((uint256,uint256,uint256,uint256,int256,int256) ret)
+func (_SuperAsset *SuperAssetSession) Swap(args ISuperAssetSwapArgs) (*types.Transaction, error) {
+	return _SuperAsset.Contract.Swap(&_SuperAsset.TransactOpts, args)
 }
 
-// Swap is a paid mutator transaction binding the contract method 0x17d88f46.
+// Swap is a paid mutator transaction binding the contract method 0x24812505.
 //
-// Solidity: function swap(address receiver, address tokenIn, uint256 amountTokenToDeposit, address tokenOut, uint256 minTokenOut) returns(uint256 amountSharesIntermediateStep, uint256 amountTokenOutAfterFees, uint256 swapFeeIn, uint256 swapFeeOut, int256 amountIncentivesIn, int256 amountIncentivesOut)
-func (_SuperAsset *SuperAssetTransactorSession) Swap(receiver common.Address, tokenIn common.Address, amountTokenToDeposit *big.Int, tokenOut common.Address, minTokenOut *big.Int) (*types.Transaction, error) {
-	return _SuperAsset.Contract.Swap(&_SuperAsset.TransactOpts, receiver, tokenIn, amountTokenToDeposit, tokenOut, minTokenOut)
+// Solidity: function swap((address,address,uint256,address,uint256) args) returns((uint256,uint256,uint256,uint256,int256,int256) ret)
+func (_SuperAsset *SuperAssetTransactorSession) Swap(args ISuperAssetSwapArgs) (*types.Transaction, error) {
+	return _SuperAsset.Contract.Swap(&_SuperAsset.TransactOpts, args)
 }
 
 // Transfer is a paid mutator transaction binding the contract method 0xa9059cbb.
@@ -2118,25 +1538,25 @@ func (_SuperAsset *SuperAssetTransactorSession) WhitelistERC20(token common.Addr
 	return _SuperAsset.Contract.WhitelistERC20(&_SuperAsset.TransactOpts, token)
 }
 
-// WhitelistVault is a paid mutator transaction binding the contract method 0xe9d006ab.
+// WhitelistVault is a paid mutator transaction binding the contract method 0xcdbcef1e.
 //
-// Solidity: function whitelistVault(address vault) returns()
-func (_SuperAsset *SuperAssetTransactor) WhitelistVault(opts *bind.TransactOpts, vault common.Address) (*types.Transaction, error) {
-	return _SuperAsset.contract.Transact(opts, "whitelistVault", vault)
+// Solidity: function whitelistVault(address vault, address yieldSourceOracle) returns()
+func (_SuperAsset *SuperAssetTransactor) WhitelistVault(opts *bind.TransactOpts, vault common.Address, yieldSourceOracle common.Address) (*types.Transaction, error) {
+	return _SuperAsset.contract.Transact(opts, "whitelistVault", vault, yieldSourceOracle)
 }
 
-// WhitelistVault is a paid mutator transaction binding the contract method 0xe9d006ab.
+// WhitelistVault is a paid mutator transaction binding the contract method 0xcdbcef1e.
 //
-// Solidity: function whitelistVault(address vault) returns()
-func (_SuperAsset *SuperAssetSession) WhitelistVault(vault common.Address) (*types.Transaction, error) {
-	return _SuperAsset.Contract.WhitelistVault(&_SuperAsset.TransactOpts, vault)
+// Solidity: function whitelistVault(address vault, address yieldSourceOracle) returns()
+func (_SuperAsset *SuperAssetSession) WhitelistVault(vault common.Address, yieldSourceOracle common.Address) (*types.Transaction, error) {
+	return _SuperAsset.Contract.WhitelistVault(&_SuperAsset.TransactOpts, vault, yieldSourceOracle)
 }
 
-// WhitelistVault is a paid mutator transaction binding the contract method 0xe9d006ab.
+// WhitelistVault is a paid mutator transaction binding the contract method 0xcdbcef1e.
 //
-// Solidity: function whitelistVault(address vault) returns()
-func (_SuperAsset *SuperAssetTransactorSession) WhitelistVault(vault common.Address) (*types.Transaction, error) {
-	return _SuperAsset.Contract.WhitelistVault(&_SuperAsset.TransactOpts, vault)
+// Solidity: function whitelistVault(address vault, address yieldSourceOracle) returns()
+func (_SuperAsset *SuperAssetTransactorSession) WhitelistVault(vault common.Address, yieldSourceOracle common.Address) (*types.Transaction, error) {
+	return _SuperAsset.Contract.WhitelistVault(&_SuperAsset.TransactOpts, vault, yieldSourceOracle)
 }
 
 // SuperAssetApprovalIterator is returned from FilterApproval and is used to iterate over the raw logs and unpacked data for Approval events raised by the SuperAsset contract.
@@ -2444,6 +1864,150 @@ func (_SuperAsset *SuperAssetFilterer) WatchDeposit(opts *bind.WatchOpts, sink c
 func (_SuperAsset *SuperAssetFilterer) ParseDeposit(log types.Log) (*SuperAssetDeposit, error) {
 	event := new(SuperAssetDeposit)
 	if err := _SuperAsset.contract.UnpackLog(event, "Deposit", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// SuperAssetERC20ActivatedIterator is returned from FilterERC20Activated and is used to iterate over the raw logs and unpacked data for ERC20Activated events raised by the SuperAsset contract.
+type SuperAssetERC20ActivatedIterator struct {
+	Event *SuperAssetERC20Activated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperAssetERC20ActivatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperAssetERC20Activated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperAssetERC20Activated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperAssetERC20ActivatedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperAssetERC20ActivatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SuperAssetERC20Activated represents a ERC20Activated event raised by the SuperAsset contract.
+type SuperAssetERC20Activated struct {
+	Token common.Address
+	Raw   types.Log // Blockchain specific contextual infos
+}
+
+// FilterERC20Activated is a free log retrieval operation binding the contract event 0xad023e43fa074b6c76b59d321af11b8cb92f6bc6bd3853a026fdd32fab9e275c.
+//
+// Solidity: event ERC20Activated(address indexed token)
+func (_SuperAsset *SuperAssetFilterer) FilterERC20Activated(opts *bind.FilterOpts, token []common.Address) (*SuperAssetERC20ActivatedIterator, error) {
+
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
+
+	logs, sub, err := _SuperAsset.contract.FilterLogs(opts, "ERC20Activated", tokenRule)
+	if err != nil {
+		return nil, err
+	}
+	return &SuperAssetERC20ActivatedIterator{contract: _SuperAsset.contract, event: "ERC20Activated", logs: logs, sub: sub}, nil
+}
+
+// WatchERC20Activated is a free log subscription operation binding the contract event 0xad023e43fa074b6c76b59d321af11b8cb92f6bc6bd3853a026fdd32fab9e275c.
+//
+// Solidity: event ERC20Activated(address indexed token)
+func (_SuperAsset *SuperAssetFilterer) WatchERC20Activated(opts *bind.WatchOpts, sink chan<- *SuperAssetERC20Activated, token []common.Address) (event.Subscription, error) {
+
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
+
+	logs, sub, err := _SuperAsset.contract.WatchLogs(opts, "ERC20Activated", tokenRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperAssetERC20Activated)
+				if err := _SuperAsset.contract.UnpackLog(event, "ERC20Activated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseERC20Activated is a log parse operation binding the contract event 0xad023e43fa074b6c76b59d321af11b8cb92f6bc6bd3853a026fdd32fab9e275c.
+//
+// Solidity: event ERC20Activated(address indexed token)
+func (_SuperAsset *SuperAssetFilterer) ParseERC20Activated(log types.Log) (*SuperAssetERC20Activated, error) {
+	event := new(SuperAssetERC20Activated)
+	if err := _SuperAsset.contract.UnpackLog(event, "ERC20Activated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
@@ -3023,492 +2587,6 @@ func (_SuperAsset *SuperAssetFilterer) WatchRedeem(opts *bind.WatchOpts, sink ch
 func (_SuperAsset *SuperAssetFilterer) ParseRedeem(log types.Log) (*SuperAssetRedeem, error) {
 	event := new(SuperAssetRedeem)
 	if err := _SuperAsset.contract.UnpackLog(event, "Redeem", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperAssetRoleAdminChangedIterator is returned from FilterRoleAdminChanged and is used to iterate over the raw logs and unpacked data for RoleAdminChanged events raised by the SuperAsset contract.
-type SuperAssetRoleAdminChangedIterator struct {
-	Event *SuperAssetRoleAdminChanged // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperAssetRoleAdminChangedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperAssetRoleAdminChanged)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperAssetRoleAdminChanged)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperAssetRoleAdminChangedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperAssetRoleAdminChangedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperAssetRoleAdminChanged represents a RoleAdminChanged event raised by the SuperAsset contract.
-type SuperAssetRoleAdminChanged struct {
-	Role              [32]byte
-	PreviousAdminRole [32]byte
-	NewAdminRole      [32]byte
-	Raw               types.Log // Blockchain specific contextual infos
-}
-
-// FilterRoleAdminChanged is a free log retrieval operation binding the contract event 0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff.
-//
-// Solidity: event RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole)
-func (_SuperAsset *SuperAssetFilterer) FilterRoleAdminChanged(opts *bind.FilterOpts, role [][32]byte, previousAdminRole [][32]byte, newAdminRole [][32]byte) (*SuperAssetRoleAdminChangedIterator, error) {
-
-	var roleRule []interface{}
-	for _, roleItem := range role {
-		roleRule = append(roleRule, roleItem)
-	}
-	var previousAdminRoleRule []interface{}
-	for _, previousAdminRoleItem := range previousAdminRole {
-		previousAdminRoleRule = append(previousAdminRoleRule, previousAdminRoleItem)
-	}
-	var newAdminRoleRule []interface{}
-	for _, newAdminRoleItem := range newAdminRole {
-		newAdminRoleRule = append(newAdminRoleRule, newAdminRoleItem)
-	}
-
-	logs, sub, err := _SuperAsset.contract.FilterLogs(opts, "RoleAdminChanged", roleRule, previousAdminRoleRule, newAdminRoleRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperAssetRoleAdminChangedIterator{contract: _SuperAsset.contract, event: "RoleAdminChanged", logs: logs, sub: sub}, nil
-}
-
-// WatchRoleAdminChanged is a free log subscription operation binding the contract event 0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff.
-//
-// Solidity: event RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole)
-func (_SuperAsset *SuperAssetFilterer) WatchRoleAdminChanged(opts *bind.WatchOpts, sink chan<- *SuperAssetRoleAdminChanged, role [][32]byte, previousAdminRole [][32]byte, newAdminRole [][32]byte) (event.Subscription, error) {
-
-	var roleRule []interface{}
-	for _, roleItem := range role {
-		roleRule = append(roleRule, roleItem)
-	}
-	var previousAdminRoleRule []interface{}
-	for _, previousAdminRoleItem := range previousAdminRole {
-		previousAdminRoleRule = append(previousAdminRoleRule, previousAdminRoleItem)
-	}
-	var newAdminRoleRule []interface{}
-	for _, newAdminRoleItem := range newAdminRole {
-		newAdminRoleRule = append(newAdminRoleRule, newAdminRoleItem)
-	}
-
-	logs, sub, err := _SuperAsset.contract.WatchLogs(opts, "RoleAdminChanged", roleRule, previousAdminRoleRule, newAdminRoleRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperAssetRoleAdminChanged)
-				if err := _SuperAsset.contract.UnpackLog(event, "RoleAdminChanged", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseRoleAdminChanged is a log parse operation binding the contract event 0xbd79b86ffe0ab8e8776151514217cd7cacd52c909f66475c3af44e129f0b00ff.
-//
-// Solidity: event RoleAdminChanged(bytes32 indexed role, bytes32 indexed previousAdminRole, bytes32 indexed newAdminRole)
-func (_SuperAsset *SuperAssetFilterer) ParseRoleAdminChanged(log types.Log) (*SuperAssetRoleAdminChanged, error) {
-	event := new(SuperAssetRoleAdminChanged)
-	if err := _SuperAsset.contract.UnpackLog(event, "RoleAdminChanged", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperAssetRoleGrantedIterator is returned from FilterRoleGranted and is used to iterate over the raw logs and unpacked data for RoleGranted events raised by the SuperAsset contract.
-type SuperAssetRoleGrantedIterator struct {
-	Event *SuperAssetRoleGranted // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperAssetRoleGrantedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperAssetRoleGranted)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperAssetRoleGranted)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperAssetRoleGrantedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperAssetRoleGrantedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperAssetRoleGranted represents a RoleGranted event raised by the SuperAsset contract.
-type SuperAssetRoleGranted struct {
-	Role    [32]byte
-	Account common.Address
-	Sender  common.Address
-	Raw     types.Log // Blockchain specific contextual infos
-}
-
-// FilterRoleGranted is a free log retrieval operation binding the contract event 0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d.
-//
-// Solidity: event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)
-func (_SuperAsset *SuperAssetFilterer) FilterRoleGranted(opts *bind.FilterOpts, role [][32]byte, account []common.Address, sender []common.Address) (*SuperAssetRoleGrantedIterator, error) {
-
-	var roleRule []interface{}
-	for _, roleItem := range role {
-		roleRule = append(roleRule, roleItem)
-	}
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-	var senderRule []interface{}
-	for _, senderItem := range sender {
-		senderRule = append(senderRule, senderItem)
-	}
-
-	logs, sub, err := _SuperAsset.contract.FilterLogs(opts, "RoleGranted", roleRule, accountRule, senderRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperAssetRoleGrantedIterator{contract: _SuperAsset.contract, event: "RoleGranted", logs: logs, sub: sub}, nil
-}
-
-// WatchRoleGranted is a free log subscription operation binding the contract event 0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d.
-//
-// Solidity: event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)
-func (_SuperAsset *SuperAssetFilterer) WatchRoleGranted(opts *bind.WatchOpts, sink chan<- *SuperAssetRoleGranted, role [][32]byte, account []common.Address, sender []common.Address) (event.Subscription, error) {
-
-	var roleRule []interface{}
-	for _, roleItem := range role {
-		roleRule = append(roleRule, roleItem)
-	}
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-	var senderRule []interface{}
-	for _, senderItem := range sender {
-		senderRule = append(senderRule, senderItem)
-	}
-
-	logs, sub, err := _SuperAsset.contract.WatchLogs(opts, "RoleGranted", roleRule, accountRule, senderRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperAssetRoleGranted)
-				if err := _SuperAsset.contract.UnpackLog(event, "RoleGranted", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseRoleGranted is a log parse operation binding the contract event 0x2f8788117e7eff1d82e926ec794901d17c78024a50270940304540a733656f0d.
-//
-// Solidity: event RoleGranted(bytes32 indexed role, address indexed account, address indexed sender)
-func (_SuperAsset *SuperAssetFilterer) ParseRoleGranted(log types.Log) (*SuperAssetRoleGranted, error) {
-	event := new(SuperAssetRoleGranted)
-	if err := _SuperAsset.contract.UnpackLog(event, "RoleGranted", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperAssetRoleRevokedIterator is returned from FilterRoleRevoked and is used to iterate over the raw logs and unpacked data for RoleRevoked events raised by the SuperAsset contract.
-type SuperAssetRoleRevokedIterator struct {
-	Event *SuperAssetRoleRevoked // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperAssetRoleRevokedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperAssetRoleRevoked)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperAssetRoleRevoked)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperAssetRoleRevokedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperAssetRoleRevokedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperAssetRoleRevoked represents a RoleRevoked event raised by the SuperAsset contract.
-type SuperAssetRoleRevoked struct {
-	Role    [32]byte
-	Account common.Address
-	Sender  common.Address
-	Raw     types.Log // Blockchain specific contextual infos
-}
-
-// FilterRoleRevoked is a free log retrieval operation binding the contract event 0xf6391f5c32d9c69d2a47ea670b442974b53935d1edc7fd64eb21e047a839171b.
-//
-// Solidity: event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender)
-func (_SuperAsset *SuperAssetFilterer) FilterRoleRevoked(opts *bind.FilterOpts, role [][32]byte, account []common.Address, sender []common.Address) (*SuperAssetRoleRevokedIterator, error) {
-
-	var roleRule []interface{}
-	for _, roleItem := range role {
-		roleRule = append(roleRule, roleItem)
-	}
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-	var senderRule []interface{}
-	for _, senderItem := range sender {
-		senderRule = append(senderRule, senderItem)
-	}
-
-	logs, sub, err := _SuperAsset.contract.FilterLogs(opts, "RoleRevoked", roleRule, accountRule, senderRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperAssetRoleRevokedIterator{contract: _SuperAsset.contract, event: "RoleRevoked", logs: logs, sub: sub}, nil
-}
-
-// WatchRoleRevoked is a free log subscription operation binding the contract event 0xf6391f5c32d9c69d2a47ea670b442974b53935d1edc7fd64eb21e047a839171b.
-//
-// Solidity: event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender)
-func (_SuperAsset *SuperAssetFilterer) WatchRoleRevoked(opts *bind.WatchOpts, sink chan<- *SuperAssetRoleRevoked, role [][32]byte, account []common.Address, sender []common.Address) (event.Subscription, error) {
-
-	var roleRule []interface{}
-	for _, roleItem := range role {
-		roleRule = append(roleRule, roleItem)
-	}
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-	var senderRule []interface{}
-	for _, senderItem := range sender {
-		senderRule = append(senderRule, senderItem)
-	}
-
-	logs, sub, err := _SuperAsset.contract.WatchLogs(opts, "RoleRevoked", roleRule, accountRule, senderRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperAssetRoleRevoked)
-				if err := _SuperAsset.contract.UnpackLog(event, "RoleRevoked", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseRoleRevoked is a log parse operation binding the contract event 0xf6391f5c32d9c69d2a47ea670b442974b53935d1edc7fd64eb21e047a839171b.
-//
-// Solidity: event RoleRevoked(bytes32 indexed role, address indexed account, address indexed sender)
-func (_SuperAsset *SuperAssetFilterer) ParseRoleRevoked(log types.Log) (*SuperAssetRoleRevoked, error) {
-	event := new(SuperAssetRoleRevoked)
-	if err := _SuperAsset.contract.UnpackLog(event, "RoleRevoked", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
@@ -4411,6 +3489,150 @@ func (_SuperAsset *SuperAssetFilterer) WatchTransfer(opts *bind.WatchOpts, sink 
 func (_SuperAsset *SuperAssetFilterer) ParseTransfer(log types.Log) (*SuperAssetTransfer, error) {
 	event := new(SuperAssetTransfer)
 	if err := _SuperAsset.contract.UnpackLog(event, "Transfer", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// SuperAssetVaultActivatedIterator is returned from FilterVaultActivated and is used to iterate over the raw logs and unpacked data for VaultActivated events raised by the SuperAsset contract.
+type SuperAssetVaultActivatedIterator struct {
+	Event *SuperAssetVaultActivated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperAssetVaultActivatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperAssetVaultActivated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperAssetVaultActivated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperAssetVaultActivatedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperAssetVaultActivatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SuperAssetVaultActivated represents a VaultActivated event raised by the SuperAsset contract.
+type SuperAssetVaultActivated struct {
+	Vault common.Address
+	Raw   types.Log // Blockchain specific contextual infos
+}
+
+// FilterVaultActivated is a free log retrieval operation binding the contract event 0x1a2575ddc22e8a1098b76f6a94508cd1b5a7a648cc6dfc65fdc930e5ff31213a.
+//
+// Solidity: event VaultActivated(address indexed vault)
+func (_SuperAsset *SuperAssetFilterer) FilterVaultActivated(opts *bind.FilterOpts, vault []common.Address) (*SuperAssetVaultActivatedIterator, error) {
+
+	var vaultRule []interface{}
+	for _, vaultItem := range vault {
+		vaultRule = append(vaultRule, vaultItem)
+	}
+
+	logs, sub, err := _SuperAsset.contract.FilterLogs(opts, "VaultActivated", vaultRule)
+	if err != nil {
+		return nil, err
+	}
+	return &SuperAssetVaultActivatedIterator{contract: _SuperAsset.contract, event: "VaultActivated", logs: logs, sub: sub}, nil
+}
+
+// WatchVaultActivated is a free log subscription operation binding the contract event 0x1a2575ddc22e8a1098b76f6a94508cd1b5a7a648cc6dfc65fdc930e5ff31213a.
+//
+// Solidity: event VaultActivated(address indexed vault)
+func (_SuperAsset *SuperAssetFilterer) WatchVaultActivated(opts *bind.WatchOpts, sink chan<- *SuperAssetVaultActivated, vault []common.Address) (event.Subscription, error) {
+
+	var vaultRule []interface{}
+	for _, vaultItem := range vault {
+		vaultRule = append(vaultRule, vaultItem)
+	}
+
+	logs, sub, err := _SuperAsset.contract.WatchLogs(opts, "VaultActivated", vaultRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperAssetVaultActivated)
+				if err := _SuperAsset.contract.UnpackLog(event, "VaultActivated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseVaultActivated is a log parse operation binding the contract event 0x1a2575ddc22e8a1098b76f6a94508cd1b5a7a648cc6dfc65fdc930e5ff31213a.
+//
+// Solidity: event VaultActivated(address indexed vault)
+func (_SuperAsset *SuperAssetFilterer) ParseVaultActivated(log types.Log) (*SuperAssetVaultActivated, error) {
+	event := new(SuperAssetVaultActivated)
+	if err := _SuperAsset.contract.UnpackLog(event, "VaultActivated", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

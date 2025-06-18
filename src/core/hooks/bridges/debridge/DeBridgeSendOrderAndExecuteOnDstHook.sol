@@ -77,6 +77,8 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     address private immutable _validator;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
 
+    error AMOUNT_UNDERFLOW();
+
     constructor(address dlnSource_, address validator_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (dlnSource_ == address(0) || validator_ == address(0)) revert ADDRESS_NOT_VALID();
         dlnSource = dlnSource_;
@@ -86,8 +88,9 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address account, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(address prevHook, address account, bytes calldata data)
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -102,6 +105,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
             uint256 _oldGiveAmount = orderCreation.giveAmount;
             orderCreation.giveAmount = outAmount;
             if (orderCreation.giveTokenAddress == address(0)) {
+                if (value < _oldGiveAmount) revert AMOUNT_UNDERFLOW();
                 value -= _oldGiveAmount;
                 value += outAmount;
             }

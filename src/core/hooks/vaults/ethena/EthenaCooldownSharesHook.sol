@@ -15,6 +15,7 @@ import {
     ISuperHookAsync,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title EthenaCooldownSharesHook
@@ -29,17 +30,18 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
 
     uint256 private constant AMOUNT_POSITION = 24;
 
-    constructor() BaseHook(HookType.NONACCOUNTING, "Cooldown") { }
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.COOLDOWN) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address account,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -65,7 +67,7 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
 
     /// @inheritdoc ISuperHookAsync
     function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
-        return (outAmount, true);
+        return (usedShares, true);
     }
 
     /// @inheritdoc ISuperHookInspector
@@ -86,11 +88,11 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getSharesBalance(account, data);
+        usedShares = _getSharesBalance(account, data);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = outAmount - _getSharesBalance(account, data);
+        usedShares = usedShares - _getSharesBalance(account, data);
     }
 
     /*//////////////////////////////////////////////////////////////

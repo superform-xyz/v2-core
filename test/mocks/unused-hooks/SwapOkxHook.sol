@@ -47,8 +47,8 @@ contract SwapOkxHook is BaseHook {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
 
-    function build(address, address, bytes calldata data)
-        external
+    function _buildHookExecutions(address, address, bytes calldata data)
+        internal
         view
         override
         returns (Execution[] memory executions)

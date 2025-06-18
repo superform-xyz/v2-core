@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.23;
+pragma solidity 0.8.30;
 
 import "forge-std/StdJson.sol";
 import { StdCheats } from "forge-std/StdCheats.sol";
@@ -44,30 +44,15 @@ abstract contract MerkleReader is StdCheats, Helpers {
      * @return root The Merkle root
      */
     function _getMerkleRoot() internal view returns (bytes32 root) {
-        console2.log("\n[DEBUG] Starting _getMerkleRoot()");
-
-        // Read owner_list.json for debugging
-        string memory ownerListPath = string.concat(vm.projectRoot(), "/test/utils/merkle/target/owner_list.json");
-        try vm.readFile(ownerListPath) returns (string memory content) {
-            console2.log("[DEBUG] Current owner_list.json in _getMerkleRoot:", content);
-        } catch {
-            console2.log("[DEBUG] Could not read owner_list.json in _getMerkleRoot");
-        }
-
         LocalVars memory v;
         string memory rootFilePath = string.concat(vm.projectRoot(), basePathForRoot, ".json");
-        console2.log("[DEBUG] Reading Merkle root from file:", rootFilePath);
 
         v.rootJson = vm.readFile(rootFilePath);
-        console2.log("[DEBUG] Root JSON content:", v.rootJson);
 
         v.encodedRoot = vm.parseJson(v.rootJson, ".root");
         root = abi.decode(v.encodedRoot, (bytes32));
 
-        console2.log("\n");
-        console2.log("----------ROoot   ----------");
         console2.logBytes32(root);
-        console2.log("[DEBUG] _getMerkleRoot completed");
     }
 
     /**
@@ -150,8 +135,16 @@ abstract contract MerkleReader is StdCheats, Helpers {
     }
 
     /**
-     * @notice Get Merkle proofs for multiple hooks with specific arguments
-     * @dev Optimized for batch processing multiple hooks by reading the JSON only once
+     * @notice Get Merkle proofs for multiple hooks with specific arguments (LEGACY - REMOVED)
+     * @dev This implementation was too slow for large trees. Use _getMerkleProofsForHooks() instead.
+     */
+    function _getMerkleProofsForHooksOld(address[] memory, bytes[] memory) internal pure returns (bytes32[][] memory) {
+        revert("DEPRECATED: Use _getMerkleProofsForHooks() which uses efficient JS-based lookup");
+    }
+
+    /**
+     * @notice Get Merkle proofs for multiple hooks with specific arguments (OPTIMIZED)
+     * @dev Uses efficient JS-based lookup to avoid gas-expensive Solidity operations
      * @param hookAddresses Array of hook contract addresses
      * @param encodedHookArgs Array of packed-encoded hook arguments corresponding to each hook
      * @return proofs Array of Merkle proofs for each hook/args combination
@@ -161,74 +154,40 @@ abstract contract MerkleReader is StdCheats, Helpers {
         bytes[] memory encodedHookArgs
     )
         internal
-        view
         returns (bytes32[][] memory proofs)
     {
         // Input validation
         if (hookAddresses.length != encodedHookArgs.length) revert InvalidArrayLengths();
         if (hookAddresses.length == 0) revert EmptyInput();
 
-        LocalVars memory v;
-        v.treeJson = vm.readFile(string.concat(vm.projectRoot(), basePathForTreeDump, ".json"));
+        // Prepare arguments for JS script
+        string memory addressesArg = "";
+        string memory argsArg = "";
 
-        // Get the total number of values in the tree
-        bytes memory encodedValuesLength = vm.parseJson(v.treeJson, ".count");
-        uint256 valuesLength = abi.decode(encodedValuesLength, (uint256));
-
-        // Create a properly sized array for proofs
-        proofs = new bytes32[][](hookAddresses.length);
-
-        // Cache data from JSON to minimize redundant reads
-        address[] memory cachedHookAddresses = new address[](valuesLength);
-        bytes[] memory cachedValueBytes = new bytes[](valuesLength);
-        string[] memory cachedProofQueries = new string[](valuesLength);
-
-        for (uint256 i = 0; i < valuesLength; ++i) {
-            string memory hookAddressQuery = string.concat(prepend, Strings.toString(i), hookAddressQueryAppend);
-            bytes memory encodedHookAddress = vm.parseJson(v.treeJson, hookAddressQuery);
-
-            cachedHookAddresses[i] = abi.decode(encodedHookAddress, (address));
-            string memory valueQuery = string.concat(prepend, Strings.toString(i), valueQueryAppend);
-            bytes memory encodedValue = vm.parseJson(v.treeJson, valueQuery);
-
-            if (encodedValue.length > 32) {
-                cachedValueBytes[i] = abi.decode(encodedValue, (bytes));
-            } else {
-                cachedValueBytes[i] = abi.encodePacked(abi.decode(encodedValue, (address)));
+        for (uint256 i = 0; i < hookAddresses.length; i++) {
+            if (i > 0) {
+                addressesArg = string.concat(addressesArg, ",");
+                argsArg = string.concat(argsArg, ",");
             }
-
-            cachedProofQueries[i] = string.concat(prepend, Strings.toString(i), proofQueryAppend);
+            addressesArg = string.concat(addressesArg, vm.toString(hookAddresses[i]));
+            argsArg = string.concat(argsArg, vm.toString(encodedHookArgs[i]));
         }
 
-        // Process each hook address and find its proof
-        for (uint256 h = 0; h < hookAddresses.length; h++) {
-            address targetHookAddress = hookAddresses[h];
-            bytes memory targetArgs = encodedHookArgs[h];
+        // Build command to call JS script
+        string[] memory cmd = new string[](5);
+        cmd[0] = "node";
+        cmd[1] = string.concat(vm.projectRoot(), "/test/utils/merkle/merkle-js/efficient-proof-lookup.js");
+        cmd[2] = "batch";
+        cmd[3] = addressesArg;
+        cmd[4] = argsArg;
 
-            bool found = false;
+        // Execute JS script and get result
+        bytes memory result = vm.ffi(cmd);
+        string memory resultStr = string(result);
 
-            // Search through cached entries
-            for (uint256 i = 0; i < valuesLength; ++i) {
-                // Check if hook address matches
-                if (cachedHookAddresses[i] == targetHookAddress) {
-                    // Compare the encoded args
-                    if (keccak256(cachedValueBytes[i]) == keccak256(targetArgs)) {
-                        // Get proof for this leaf
-                        bytes memory encodedProof = vm.parseJson(v.treeJson, cachedProofQueries[i]);
-                        proofs[h] = abi.decode(encodedProof, (bytes32[]));
-                        found = true;
-                        break;
-                    }
-                }
-            }
-
-            // If we couldn't find a proof for this hook/args pair
-            if (!found) {
-                // Log debugging information
-                console2.log("No proof found for hook address:", targetHookAddress);
-                revert NoProofFoundForHookAndArgs();
-            }
-        }
+        // Parse the JSON result back to bytes32[][]
+        // The JS script returns an array of arrays: [["0x...", "0x..."], ["0x...", "0x..."]]
+        proofs = abi.decode(vm.parseJson(resultStr), (bytes32[][]));
 
         return proofs;
     }
