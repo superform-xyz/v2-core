@@ -1285,7 +1285,7 @@ contract LedgerTests is Helpers {
         );
 
         // Test cost basis calculation for half the shares
-        uint256 costBasis = mockBaseLedger.calculateCostBasisView(user, yieldSource, usedShares / 2);
+        (uint256 costBasis, ) = mockBaseLedger.calculateCostBasisView(user, yieldSource, usedShares / 2);
 
         // Expected cost basis should be half of the initial amount
         assertEq(costBasis, amountAssets / 2, "Cost basis calculation incorrect");
@@ -1327,7 +1327,7 @@ contract LedgerTests is Helpers {
         );
 
         // Test cost basis calculation with zero shares
-        uint256 costBasis = mockBaseLedger.calculateCostBasisView(user, yieldSource, 0);
+        (uint256 costBasis, ) = mockBaseLedger.calculateCostBasisView(user, yieldSource, 0);
 
         assertEq(costBasis, 0, "Cost basis should be 0 for zero shares");
     }
@@ -1369,7 +1369,7 @@ contract LedgerTests is Helpers {
         );
 
         // Test cost basis calculation for all shares
-        uint256 costBasis = mockBaseLedger.calculateCostBasisView(user, yieldSource, usedShares);
+        (uint256 costBasis, ) = mockBaseLedger.calculateCostBasisView(user, yieldSource, usedShares);
 
         assertEq(costBasis, amountAssets, "Cost basis should equal total amount for all shares");
     }
@@ -1424,7 +1424,7 @@ contract LedgerTests is Helpers {
         );
 
         // Test cost basis calculation for half of total shares
-        uint256 costBasis = mockBaseLedger.calculateCostBasisView(user, yieldSource, (usedShares1 + usedShares2) / 2);
+        (uint256 costBasis, ) = mockBaseLedger.calculateCostBasisView(user, yieldSource, (usedShares1 + usedShares2) / 2);
 
         // Expected cost basis should be half of total amount
         assertEq(

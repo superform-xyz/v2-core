@@ -70,18 +70,18 @@ abstract contract BaseLedger is ISuperLedger {
     function calculateCostBasisView(address user, address yieldSource, uint256 usedShares)
         public
         view
-        returns (uint256 costBasis)
+        returns (uint256 costBasis, uint256 shares)
     {
         uint256 accumulatorShares = usersAccumulatorShares[user][yieldSource];
         uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user][yieldSource];
 
         if (usedShares > accumulatorShares) {
-            emit UsedSharesCapped(usedShares, accumulatorShares);
             // take fees only for used shares
             usedShares = accumulatorShares;
         }
         
         costBasis = Math.mulDiv(accumulatorCostBasis, usedShares, accumulatorShares);
+        shares = usedShares;
     }
 
     /// @inheritdoc ISuperLedger
@@ -92,7 +92,7 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 usedShares,
         uint256 feePercent
     ) public view returns (uint256 feeAmount) {
-        uint256 costBasis = calculateCostBasisView(user, yieldSourceAddress, usedShares);
+        (uint256 costBasis, ) = calculateCostBasisView(user, yieldSourceAddress, usedShares);
         feeAmount = _calculateFees(costBasis, amountAssets, feePercent);
     }
 
@@ -140,10 +140,14 @@ abstract contract BaseLedger is ISuperLedger {
     function _calculateCostBasis(address user, address yieldSource, uint256 usedShares)
         internal
         returns (uint256 costBasis)
-    {
-        costBasis = calculateCostBasisView(user, yieldSource, usedShares);
+    {   
+        uint256 updatedUsedShares;
+        (costBasis, updatedUsedShares) = calculateCostBasisView(user, yieldSource, usedShares);
+        if (updatedUsedShares != usedShares) {
+            emit UsedSharesCapped(usedShares, updatedUsedShares);
+        }
 
-        usersAccumulatorShares[user][yieldSource] -= usedShares;
+        usersAccumulatorShares[user][yieldSource] -= updatedUsedShares;
         usersAccumulatorCostBasis[user][yieldSource] -= costBasis;
     }
 

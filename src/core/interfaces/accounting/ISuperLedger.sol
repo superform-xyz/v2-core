@@ -166,8 +166,9 @@ interface ISuperLedger is ISuperLedgerData {
     /// @param yieldSource The yield source address (e.g. aUSDC, cUSDC, etc.)
     /// @param usedShares The amount of shares to calculate cost basis for
     /// @return costBasis The original asset value of the specified shares
+    /// @return updatedUsedShares The amount of shares that will be consumed
     function calculateCostBasisView(address user, address yieldSource, uint256 usedShares)
         external
         view
-        returns (uint256 costBasis);
+        returns (uint256 costBasis, uint256 updatedUsedShares);
 }
