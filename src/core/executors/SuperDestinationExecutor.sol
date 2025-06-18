@@ -49,7 +49,9 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /// @notice Magic value returned by ERC-1271 contracts when a signature is valid
     /// @dev From EIP-1271 standard:
     /// https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
-    bytes4 internal constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
+    /// @dev From `SuperDestinationValidator`:
+    /// `bytes4(keccak256("isValidDestinationSignature(address,bytes)")) = 0x5c2ec0f3`
+    bytes4 internal constant SIGNATURE_MAGIC_VALUE = bytes4(0x5c2ec0f3);
 
     /// @notice Length of an empty execution data structure
     /// @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays
@@ -64,6 +66,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     error INVALID_SIGNATURE();
     error ADDRESS_NOT_ACCOUNT();
     error ACCOUNT_NOT_CREATED();
+    error ARRAY_LENGTH_MISMATCH();
     error MERKLE_ROOT_ALREADY_USED();
 
     /*//////////////////////////////////////////////////////////////
@@ -117,8 +120,11 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         bytes memory executorCalldata,
         bytes memory userSignatureData
     ) external override {
-        account = _validateOrCreateAccount(account, initData);
+        uint256 dstTokensLen = dstTokens.length;
+        if (dstTokensLen != intentAmounts.length) revert ARRAY_LENGTH_MISMATCH();
 
+        account = _validateOrCreateAccount(account, initData);
+        
         bytes32 merkleRoot = _decodeMerkleRoot(userSignatureData);
 
         // --- Signature Validation ---
@@ -182,7 +188,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     }
 
     function _decodeMerkleRoot(bytes memory userSignatureData) private pure returns (bytes32) {
-        (, bytes32 merkleRoot,,) = abi.decode(userSignatureData, (uint48, bytes32, bytes32[], bytes));
+        (, bytes32 merkleRoot,,,) = abi.decode(userSignatureData, (uint48, bytes32, bytes32[], bytes32[], bytes));
         return merkleRoot;
     }
 

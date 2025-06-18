@@ -31,7 +31,7 @@ var (
 
 // SuperOracleL2MetaData contains all meta data concerning the SuperOracleL2 contract.
 var SuperOracleL2MetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"owner_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"bases\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"quotes\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"providers\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"},{\"name\":\"feeds\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"acceptOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"activeProviders\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"executeOracleUpdate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeProviderRemoval\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"feedMaxStaleness\",\"inputs\":[{\"name\":\"feed\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"maxStaleness\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getActiveProviders\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getOracleAddress\",\"inputs\":[{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"provider\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getQuote\",\"inputs\":[{\"name\":\"baseAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"quoteAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getQuoteFromProvider\",\"inputs\":[{\"name\":\"baseAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"oracleProvider\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"quoteAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deviation\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"totalProviders\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"availableProviders\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"gracePeriods\",\"inputs\":[{\"name\":\"uptimeOracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"gracePeriod\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isProviderSet\",\"inputs\":[{\"name\":\"provider\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"isSet\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxDefaultStaleness\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingOwner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingRemoval\",\"inputs\":[],\"outputs\":[{\"name\":\"timestamp\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingUpdate\",\"inputs\":[],\"outputs\":[{\"name\":\"timestamp\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"queueOracleUpdate\",\"inputs\":[{\"name\":\"bases\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"quotes\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"providers\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"},{\"name\":\"feeds\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"queueProviderRemoval\",\"inputs\":[{\"name\":\"providers\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"renounceOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setFeedMaxStaleness\",\"inputs\":[{\"name\":\"feed\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"newMaxStaleness\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setFeedMaxStalenessBatch\",\"inputs\":[{\"name\":\"feeds\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"newMaxStalenessList\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setMaxStaleness\",\"inputs\":[{\"name\":\"newMaxStaleness\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setUptimeFeed\",\"inputs\":[{\"name\":\"dataOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"uptimeOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"gracePeriod\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferOwnership\",\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"uptimeFeeds\",\"inputs\":[{\"name\":\"dataOracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"uptimeOracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"event\",\"name\":\"FeedMaxStalenessUpdated\",\"inputs\":[{\"name\":\"feed\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"newMaxStaleness\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"GracePeriodSet\",\"inputs\":[{\"name\":\"uptimeOracle\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"gracePeriod\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MaxStalenessUpdated\",\"inputs\":[{\"name\":\"newMaxStaleness\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OracleUpdateExecuted\",\"inputs\":[{\"name\":\"bases\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"quotes\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"providers\",\"type\":\"bytes32[]\",\"indexed\":false,\"internalType\":\"bytes32[]\"},{\"name\":\"feeds\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OracleUpdateQueued\",\"inputs\":[{\"name\":\"bases\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"quotes\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"providers\",\"type\":\"bytes32[]\",\"indexed\":false,\"internalType\":\"bytes32[]\"},{\"name\":\"feeds\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"timestamp\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OraclesConfigured\",\"inputs\":[{\"name\":\"bases\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"quotes\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"providers\",\"type\":\"bytes32[]\",\"indexed\":false,\"internalType\":\"bytes32[]\"},{\"name\":\"feeds\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferStarted\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferred\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ProviderRemovalExecuted\",\"inputs\":[{\"name\":\"providers\",\"type\":\"bytes32[]\",\"indexed\":false,\"internalType\":\"bytes32[]\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ProviderRemovalQueued\",\"inputs\":[{\"name\":\"providers\",\"type\":\"bytes32[]\",\"indexed\":false,\"internalType\":\"bytes32[]\"},{\"name\":\"timestamp\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UptimeFeedSet\",\"inputs\":[{\"name\":\"dataOracle\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"uptimeOracle\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ARRAY_LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AVERAGE_PROVIDER_NOT_ALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"GRACE_PERIOD_NOT_OVER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ORACLE_PROVIDER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MAX_STALENESS_EXCEEDED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_ADMIN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_ORACLES_CONFIGURED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_PENDING_UPDATE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_PRICES\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_UPTIME_FEED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_VALID_REPORTED_PRICES\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ORACLE_UNTRUSTED_DATA\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OracleUnsupportedPair\",\"inputs\":[{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OracleUntrustedData\",\"inputs\":[{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OwnableInvalidOwner\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OwnableUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"PENDING_UPDATE_EXISTS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SEQUENCER_DOWN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TIMELOCK_NOT_ELAPSED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UNSUPPORTED_QUOTE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ARRAY_LENGTH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_PROVIDER\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"superGovernor_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"bases\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"quotes\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"providers\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"},{\"name\":\"feeds\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"SUPER_GOVERNOR\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"activeProviders\",\"inputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"batchSetEmergencyPrice\",\"inputs\":[{\"name\":\"tokens_\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"prices_\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"batchSetUptimeFeed\",\"inputs\":[{\"name\":\"dataOracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"uptimeOracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"gracePeriods_\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"emergencyPrices\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"emergencyPrice\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"executeOracleUpdate\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeProviderRemoval\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"feedMaxStaleness\",\"inputs\":[{\"name\":\"feed\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"maxStaleness\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getActiveProviders\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getEmergencyPrice\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getOracleAddress\",\"inputs\":[{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"provider\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getQuote\",\"inputs\":[{\"name\":\"baseAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"quoteAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getQuoteFromProvider\",\"inputs\":[{\"name\":\"baseAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"oracleProvider\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"quoteAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"deviation\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"totalProviders\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"availableProviders\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"gracePeriods\",\"inputs\":[{\"name\":\"uptimeOracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"gracePeriod\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isProviderSet\",\"inputs\":[{\"name\":\"provider\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"isSet\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"maxDefaultStaleness\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingRemoval\",\"inputs\":[],\"outputs\":[{\"name\":\"timestamp\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingUpdate\",\"inputs\":[],\"outputs\":[{\"name\":\"timestamp\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"queueOracleUpdate\",\"inputs\":[{\"name\":\"bases\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"quotes\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"providers\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"},{\"name\":\"feeds\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"queueProviderRemoval\",\"inputs\":[{\"name\":\"providers\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setEmergencyPrice\",\"inputs\":[{\"name\":\"token_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"price_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setFeedMaxStaleness\",\"inputs\":[{\"name\":\"feed\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"newMaxStaleness\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setFeedMaxStalenessBatch\",\"inputs\":[{\"name\":\"feeds\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"newMaxStalenessList\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setMaxStaleness\",\"inputs\":[{\"name\":\"newMaxStaleness\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"uptimeFeeds\",\"inputs\":[{\"name\":\"dataOracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"uptimeOracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"event\",\"name\":\"EmergencyPriceUpdated\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"price\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FeedMaxStalenessUpdated\",\"inputs\":[{\"name\":\"feed\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"newMaxStaleness\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"GracePeriodSet\",\"inputs\":[{\"name\":\"uptimeOracle\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"gracePeriod\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"MaxStalenessUpdated\",\"inputs\":[{\"name\":\"newMaxStaleness\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OracleUpdateExecuted\",\"inputs\":[{\"name\":\"bases\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"quotes\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"providers\",\"type\":\"bytes32[]\",\"indexed\":false,\"internalType\":\"bytes32[]\"},{\"name\":\"feeds\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OracleUpdateQueued\",\"inputs\":[{\"name\":\"bases\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"quotes\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"providers\",\"type\":\"bytes32[]\",\"indexed\":false,\"internalType\":\"bytes32[]\"},{\"name\":\"feeds\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"timestamp\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OraclesConfigured\",\"inputs\":[{\"name\":\"bases\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"quotes\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"providers\",\"type\":\"bytes32[]\",\"indexed\":false,\"internalType\":\"bytes32[]\"},{\"name\":\"feeds\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ProviderRemovalExecuted\",\"inputs\":[{\"name\":\"providers\",\"type\":\"bytes32[]\",\"indexed\":false,\"internalType\":\"bytes32[]\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ProviderRemovalQueued\",\"inputs\":[{\"name\":\"providers\",\"type\":\"bytes32[]\",\"indexed\":false,\"internalType\":\"bytes32[]\"},{\"name\":\"timestamp\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UptimeFeedSet\",\"inputs\":[{\"name\":\"dataOracle\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"uptimeOracle\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ARRAY_LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AVERAGE_PROVIDER_NOT_ALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"GRACE_PERIOD_NOT_OVER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ORACLE_PROVIDER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MAX_STALENESS_EXCEEDED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_ADMIN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_ORACLES_CONFIGURED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_PENDING_UPDATE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_PRICES\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_UPTIME_FEED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_VALID_REPORTED_PRICES\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ORACLE_UNTRUSTED_DATA\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OracleUnsupportedPair\",\"inputs\":[{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OracleUntrustedData\",\"inputs\":[{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"PENDING_UPDATE_EXISTS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"SEQUENCER_DOWN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TIMELOCK_NOT_ELAPSED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UNAUTHORIZED_UPDATE_AUTHORITY\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"UNSUPPORTED_QUOTE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ARRAY_LENGTH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_PROVIDER\",\"inputs\":[]}]",
 }
 
 // SuperOracleL2ABI is the input ABI used to generate the binding from.
@@ -180,6 +180,37 @@ func (_SuperOracleL2 *SuperOracleL2TransactorRaw) Transact(opts *bind.TransactOp
 	return _SuperOracleL2.Contract.contract.Transact(opts, method, params...)
 }
 
+// SUPERGOVERNOR is a free data retrieval call binding the contract method 0x39c7d246.
+//
+// Solidity: function SUPER_GOVERNOR() view returns(address)
+func (_SuperOracleL2 *SuperOracleL2Caller) SUPERGOVERNOR(opts *bind.CallOpts) (common.Address, error) {
+	var out []interface{}
+	err := _SuperOracleL2.contract.Call(opts, &out, "SUPER_GOVERNOR")
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// SUPERGOVERNOR is a free data retrieval call binding the contract method 0x39c7d246.
+//
+// Solidity: function SUPER_GOVERNOR() view returns(address)
+func (_SuperOracleL2 *SuperOracleL2Session) SUPERGOVERNOR() (common.Address, error) {
+	return _SuperOracleL2.Contract.SUPERGOVERNOR(&_SuperOracleL2.CallOpts)
+}
+
+// SUPERGOVERNOR is a free data retrieval call binding the contract method 0x39c7d246.
+//
+// Solidity: function SUPER_GOVERNOR() view returns(address)
+func (_SuperOracleL2 *SuperOracleL2CallerSession) SUPERGOVERNOR() (common.Address, error) {
+	return _SuperOracleL2.Contract.SUPERGOVERNOR(&_SuperOracleL2.CallOpts)
+}
+
 // ActiveProviders is a free data retrieval call binding the contract method 0x5da471d1.
 //
 // Solidity: function activeProviders(uint256 ) view returns(bytes32)
@@ -209,6 +240,37 @@ func (_SuperOracleL2 *SuperOracleL2Session) ActiveProviders(arg0 *big.Int) ([32]
 // Solidity: function activeProviders(uint256 ) view returns(bytes32)
 func (_SuperOracleL2 *SuperOracleL2CallerSession) ActiveProviders(arg0 *big.Int) ([32]byte, error) {
 	return _SuperOracleL2.Contract.ActiveProviders(&_SuperOracleL2.CallOpts, arg0)
+}
+
+// EmergencyPrices is a free data retrieval call binding the contract method 0x1a97300d.
+//
+// Solidity: function emergencyPrices(address token) view returns(uint256 emergencyPrice)
+func (_SuperOracleL2 *SuperOracleL2Caller) EmergencyPrices(opts *bind.CallOpts, token common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _SuperOracleL2.contract.Call(opts, &out, "emergencyPrices", token)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// EmergencyPrices is a free data retrieval call binding the contract method 0x1a97300d.
+//
+// Solidity: function emergencyPrices(address token) view returns(uint256 emergencyPrice)
+func (_SuperOracleL2 *SuperOracleL2Session) EmergencyPrices(token common.Address) (*big.Int, error) {
+	return _SuperOracleL2.Contract.EmergencyPrices(&_SuperOracleL2.CallOpts, token)
+}
+
+// EmergencyPrices is a free data retrieval call binding the contract method 0x1a97300d.
+//
+// Solidity: function emergencyPrices(address token) view returns(uint256 emergencyPrice)
+func (_SuperOracleL2 *SuperOracleL2CallerSession) EmergencyPrices(token common.Address) (*big.Int, error) {
+	return _SuperOracleL2.Contract.EmergencyPrices(&_SuperOracleL2.CallOpts, token)
 }
 
 // FeedMaxStaleness is a free data retrieval call binding the contract method 0x9aa560d8.
@@ -271,6 +333,37 @@ func (_SuperOracleL2 *SuperOracleL2Session) GetActiveProviders() ([][32]byte, er
 // Solidity: function getActiveProviders() view returns(bytes32[])
 func (_SuperOracleL2 *SuperOracleL2CallerSession) GetActiveProviders() ([][32]byte, error) {
 	return _SuperOracleL2.Contract.GetActiveProviders(&_SuperOracleL2.CallOpts)
+}
+
+// GetEmergencyPrice is a free data retrieval call binding the contract method 0x7dde6aee.
+//
+// Solidity: function getEmergencyPrice(address token) view returns(uint256)
+func (_SuperOracleL2 *SuperOracleL2Caller) GetEmergencyPrice(opts *bind.CallOpts, token common.Address) (*big.Int, error) {
+	var out []interface{}
+	err := _SuperOracleL2.contract.Call(opts, &out, "getEmergencyPrice", token)
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetEmergencyPrice is a free data retrieval call binding the contract method 0x7dde6aee.
+//
+// Solidity: function getEmergencyPrice(address token) view returns(uint256)
+func (_SuperOracleL2 *SuperOracleL2Session) GetEmergencyPrice(token common.Address) (*big.Int, error) {
+	return _SuperOracleL2.Contract.GetEmergencyPrice(&_SuperOracleL2.CallOpts, token)
+}
+
+// GetEmergencyPrice is a free data retrieval call binding the contract method 0x7dde6aee.
+//
+// Solidity: function getEmergencyPrice(address token) view returns(uint256)
+func (_SuperOracleL2 *SuperOracleL2CallerSession) GetEmergencyPrice(token common.Address) (*big.Int, error) {
+	return _SuperOracleL2.Contract.GetEmergencyPrice(&_SuperOracleL2.CallOpts, token)
 }
 
 // GetOracleAddress is a free data retrieval call binding the contract method 0x5008a70d.
@@ -483,68 +576,6 @@ func (_SuperOracleL2 *SuperOracleL2CallerSession) MaxDefaultStaleness() (*big.In
 	return _SuperOracleL2.Contract.MaxDefaultStaleness(&_SuperOracleL2.CallOpts)
 }
 
-// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
-//
-// Solidity: function owner() view returns(address)
-func (_SuperOracleL2 *SuperOracleL2Caller) Owner(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _SuperOracleL2.contract.Call(opts, &out, "owner")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
-//
-// Solidity: function owner() view returns(address)
-func (_SuperOracleL2 *SuperOracleL2Session) Owner() (common.Address, error) {
-	return _SuperOracleL2.Contract.Owner(&_SuperOracleL2.CallOpts)
-}
-
-// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
-//
-// Solidity: function owner() view returns(address)
-func (_SuperOracleL2 *SuperOracleL2CallerSession) Owner() (common.Address, error) {
-	return _SuperOracleL2.Contract.Owner(&_SuperOracleL2.CallOpts)
-}
-
-// PendingOwner is a free data retrieval call binding the contract method 0xe30c3978.
-//
-// Solidity: function pendingOwner() view returns(address)
-func (_SuperOracleL2 *SuperOracleL2Caller) PendingOwner(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _SuperOracleL2.contract.Call(opts, &out, "pendingOwner")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// PendingOwner is a free data retrieval call binding the contract method 0xe30c3978.
-//
-// Solidity: function pendingOwner() view returns(address)
-func (_SuperOracleL2 *SuperOracleL2Session) PendingOwner() (common.Address, error) {
-	return _SuperOracleL2.Contract.PendingOwner(&_SuperOracleL2.CallOpts)
-}
-
-// PendingOwner is a free data retrieval call binding the contract method 0xe30c3978.
-//
-// Solidity: function pendingOwner() view returns(address)
-func (_SuperOracleL2 *SuperOracleL2CallerSession) PendingOwner() (common.Address, error) {
-	return _SuperOracleL2.Contract.PendingOwner(&_SuperOracleL2.CallOpts)
-}
-
 // PendingRemoval is a free data retrieval call binding the contract method 0x2ea72b52.
 //
 // Solidity: function pendingRemoval() view returns(uint256 timestamp)
@@ -638,25 +669,46 @@ func (_SuperOracleL2 *SuperOracleL2CallerSession) UptimeFeeds(dataOracle common.
 	return _SuperOracleL2.Contract.UptimeFeeds(&_SuperOracleL2.CallOpts, dataOracle)
 }
 
-// AcceptOwnership is a paid mutator transaction binding the contract method 0x79ba5097.
+// BatchSetEmergencyPrice is a paid mutator transaction binding the contract method 0x0a8209b7.
 //
-// Solidity: function acceptOwnership() returns()
-func (_SuperOracleL2 *SuperOracleL2Transactor) AcceptOwnership(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _SuperOracleL2.contract.Transact(opts, "acceptOwnership")
+// Solidity: function batchSetEmergencyPrice(address[] tokens_, uint256[] prices_) returns()
+func (_SuperOracleL2 *SuperOracleL2Transactor) BatchSetEmergencyPrice(opts *bind.TransactOpts, tokens_ []common.Address, prices_ []*big.Int) (*types.Transaction, error) {
+	return _SuperOracleL2.contract.Transact(opts, "batchSetEmergencyPrice", tokens_, prices_)
 }
 
-// AcceptOwnership is a paid mutator transaction binding the contract method 0x79ba5097.
+// BatchSetEmergencyPrice is a paid mutator transaction binding the contract method 0x0a8209b7.
 //
-// Solidity: function acceptOwnership() returns()
-func (_SuperOracleL2 *SuperOracleL2Session) AcceptOwnership() (*types.Transaction, error) {
-	return _SuperOracleL2.Contract.AcceptOwnership(&_SuperOracleL2.TransactOpts)
+// Solidity: function batchSetEmergencyPrice(address[] tokens_, uint256[] prices_) returns()
+func (_SuperOracleL2 *SuperOracleL2Session) BatchSetEmergencyPrice(tokens_ []common.Address, prices_ []*big.Int) (*types.Transaction, error) {
+	return _SuperOracleL2.Contract.BatchSetEmergencyPrice(&_SuperOracleL2.TransactOpts, tokens_, prices_)
 }
 
-// AcceptOwnership is a paid mutator transaction binding the contract method 0x79ba5097.
+// BatchSetEmergencyPrice is a paid mutator transaction binding the contract method 0x0a8209b7.
 //
-// Solidity: function acceptOwnership() returns()
-func (_SuperOracleL2 *SuperOracleL2TransactorSession) AcceptOwnership() (*types.Transaction, error) {
-	return _SuperOracleL2.Contract.AcceptOwnership(&_SuperOracleL2.TransactOpts)
+// Solidity: function batchSetEmergencyPrice(address[] tokens_, uint256[] prices_) returns()
+func (_SuperOracleL2 *SuperOracleL2TransactorSession) BatchSetEmergencyPrice(tokens_ []common.Address, prices_ []*big.Int) (*types.Transaction, error) {
+	return _SuperOracleL2.Contract.BatchSetEmergencyPrice(&_SuperOracleL2.TransactOpts, tokens_, prices_)
+}
+
+// BatchSetUptimeFeed is a paid mutator transaction binding the contract method 0xae42457f.
+//
+// Solidity: function batchSetUptimeFeed(address[] dataOracles, address[] uptimeOracles, uint256[] gracePeriods_) returns()
+func (_SuperOracleL2 *SuperOracleL2Transactor) BatchSetUptimeFeed(opts *bind.TransactOpts, dataOracles []common.Address, uptimeOracles []common.Address, gracePeriods_ []*big.Int) (*types.Transaction, error) {
+	return _SuperOracleL2.contract.Transact(opts, "batchSetUptimeFeed", dataOracles, uptimeOracles, gracePeriods_)
+}
+
+// BatchSetUptimeFeed is a paid mutator transaction binding the contract method 0xae42457f.
+//
+// Solidity: function batchSetUptimeFeed(address[] dataOracles, address[] uptimeOracles, uint256[] gracePeriods_) returns()
+func (_SuperOracleL2 *SuperOracleL2Session) BatchSetUptimeFeed(dataOracles []common.Address, uptimeOracles []common.Address, gracePeriods_ []*big.Int) (*types.Transaction, error) {
+	return _SuperOracleL2.Contract.BatchSetUptimeFeed(&_SuperOracleL2.TransactOpts, dataOracles, uptimeOracles, gracePeriods_)
+}
+
+// BatchSetUptimeFeed is a paid mutator transaction binding the contract method 0xae42457f.
+//
+// Solidity: function batchSetUptimeFeed(address[] dataOracles, address[] uptimeOracles, uint256[] gracePeriods_) returns()
+func (_SuperOracleL2 *SuperOracleL2TransactorSession) BatchSetUptimeFeed(dataOracles []common.Address, uptimeOracles []common.Address, gracePeriods_ []*big.Int) (*types.Transaction, error) {
+	return _SuperOracleL2.Contract.BatchSetUptimeFeed(&_SuperOracleL2.TransactOpts, dataOracles, uptimeOracles, gracePeriods_)
 }
 
 // ExecuteOracleUpdate is a paid mutator transaction binding the contract method 0x45e62881.
@@ -743,25 +795,25 @@ func (_SuperOracleL2 *SuperOracleL2TransactorSession) QueueProviderRemoval(provi
 	return _SuperOracleL2.Contract.QueueProviderRemoval(&_SuperOracleL2.TransactOpts, providers)
 }
 
-// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
+// SetEmergencyPrice is a paid mutator transaction binding the contract method 0x7ee185c1.
 //
-// Solidity: function renounceOwnership() returns()
-func (_SuperOracleL2 *SuperOracleL2Transactor) RenounceOwnership(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _SuperOracleL2.contract.Transact(opts, "renounceOwnership")
+// Solidity: function setEmergencyPrice(address token_, uint256 price_) returns()
+func (_SuperOracleL2 *SuperOracleL2Transactor) SetEmergencyPrice(opts *bind.TransactOpts, token_ common.Address, price_ *big.Int) (*types.Transaction, error) {
+	return _SuperOracleL2.contract.Transact(opts, "setEmergencyPrice", token_, price_)
 }
 
-// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
+// SetEmergencyPrice is a paid mutator transaction binding the contract method 0x7ee185c1.
 //
-// Solidity: function renounceOwnership() returns()
-func (_SuperOracleL2 *SuperOracleL2Session) RenounceOwnership() (*types.Transaction, error) {
-	return _SuperOracleL2.Contract.RenounceOwnership(&_SuperOracleL2.TransactOpts)
+// Solidity: function setEmergencyPrice(address token_, uint256 price_) returns()
+func (_SuperOracleL2 *SuperOracleL2Session) SetEmergencyPrice(token_ common.Address, price_ *big.Int) (*types.Transaction, error) {
+	return _SuperOracleL2.Contract.SetEmergencyPrice(&_SuperOracleL2.TransactOpts, token_, price_)
 }
 
-// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
+// SetEmergencyPrice is a paid mutator transaction binding the contract method 0x7ee185c1.
 //
-// Solidity: function renounceOwnership() returns()
-func (_SuperOracleL2 *SuperOracleL2TransactorSession) RenounceOwnership() (*types.Transaction, error) {
-	return _SuperOracleL2.Contract.RenounceOwnership(&_SuperOracleL2.TransactOpts)
+// Solidity: function setEmergencyPrice(address token_, uint256 price_) returns()
+func (_SuperOracleL2 *SuperOracleL2TransactorSession) SetEmergencyPrice(token_ common.Address, price_ *big.Int) (*types.Transaction, error) {
+	return _SuperOracleL2.Contract.SetEmergencyPrice(&_SuperOracleL2.TransactOpts, token_, price_)
 }
 
 // SetFeedMaxStaleness is a paid mutator transaction binding the contract method 0x65c61e09.
@@ -827,46 +879,139 @@ func (_SuperOracleL2 *SuperOracleL2TransactorSession) SetMaxStaleness(newMaxStal
 	return _SuperOracleL2.Contract.SetMaxStaleness(&_SuperOracleL2.TransactOpts, newMaxStaleness)
 }
 
-// SetUptimeFeed is a paid mutator transaction binding the contract method 0xae721df9.
-//
-// Solidity: function setUptimeFeed(address dataOracle, address uptimeOracle, uint256 gracePeriod) returns()
-func (_SuperOracleL2 *SuperOracleL2Transactor) SetUptimeFeed(opts *bind.TransactOpts, dataOracle common.Address, uptimeOracle common.Address, gracePeriod *big.Int) (*types.Transaction, error) {
-	return _SuperOracleL2.contract.Transact(opts, "setUptimeFeed", dataOracle, uptimeOracle, gracePeriod)
+// SuperOracleL2EmergencyPriceUpdatedIterator is returned from FilterEmergencyPriceUpdated and is used to iterate over the raw logs and unpacked data for EmergencyPriceUpdated events raised by the SuperOracleL2 contract.
+type SuperOracleL2EmergencyPriceUpdatedIterator struct {
+	Event *SuperOracleL2EmergencyPriceUpdated // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
 }
 
-// SetUptimeFeed is a paid mutator transaction binding the contract method 0xae721df9.
-//
-// Solidity: function setUptimeFeed(address dataOracle, address uptimeOracle, uint256 gracePeriod) returns()
-func (_SuperOracleL2 *SuperOracleL2Session) SetUptimeFeed(dataOracle common.Address, uptimeOracle common.Address, gracePeriod *big.Int) (*types.Transaction, error) {
-	return _SuperOracleL2.Contract.SetUptimeFeed(&_SuperOracleL2.TransactOpts, dataOracle, uptimeOracle, gracePeriod)
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperOracleL2EmergencyPriceUpdatedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperOracleL2EmergencyPriceUpdated)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperOracleL2EmergencyPriceUpdated)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
 }
 
-// SetUptimeFeed is a paid mutator transaction binding the contract method 0xae721df9.
-//
-// Solidity: function setUptimeFeed(address dataOracle, address uptimeOracle, uint256 gracePeriod) returns()
-func (_SuperOracleL2 *SuperOracleL2TransactorSession) SetUptimeFeed(dataOracle common.Address, uptimeOracle common.Address, gracePeriod *big.Int) (*types.Transaction, error) {
-	return _SuperOracleL2.Contract.SetUptimeFeed(&_SuperOracleL2.TransactOpts, dataOracle, uptimeOracle, gracePeriod)
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperOracleL2EmergencyPriceUpdatedIterator) Error() error {
+	return it.fail
 }
 
-// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
-//
-// Solidity: function transferOwnership(address newOwner) returns()
-func (_SuperOracleL2 *SuperOracleL2Transactor) TransferOwnership(opts *bind.TransactOpts, newOwner common.Address) (*types.Transaction, error) {
-	return _SuperOracleL2.contract.Transact(opts, "transferOwnership", newOwner)
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperOracleL2EmergencyPriceUpdatedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
 }
 
-// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
-//
-// Solidity: function transferOwnership(address newOwner) returns()
-func (_SuperOracleL2 *SuperOracleL2Session) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
-	return _SuperOracleL2.Contract.TransferOwnership(&_SuperOracleL2.TransactOpts, newOwner)
+// SuperOracleL2EmergencyPriceUpdated represents a EmergencyPriceUpdated event raised by the SuperOracleL2 contract.
+type SuperOracleL2EmergencyPriceUpdated struct {
+	Token common.Address
+	Price *big.Int
+	Raw   types.Log // Blockchain specific contextual infos
 }
 
-// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
+// FilterEmergencyPriceUpdated is a free log retrieval operation binding the contract event 0xe370960bcd07b43e7cd9ddad2e5402c8679785673033b06c09edbea916797f34.
 //
-// Solidity: function transferOwnership(address newOwner) returns()
-func (_SuperOracleL2 *SuperOracleL2TransactorSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
-	return _SuperOracleL2.Contract.TransferOwnership(&_SuperOracleL2.TransactOpts, newOwner)
+// Solidity: event EmergencyPriceUpdated(address token, uint256 price)
+func (_SuperOracleL2 *SuperOracleL2Filterer) FilterEmergencyPriceUpdated(opts *bind.FilterOpts) (*SuperOracleL2EmergencyPriceUpdatedIterator, error) {
+
+	logs, sub, err := _SuperOracleL2.contract.FilterLogs(opts, "EmergencyPriceUpdated")
+	if err != nil {
+		return nil, err
+	}
+	return &SuperOracleL2EmergencyPriceUpdatedIterator{contract: _SuperOracleL2.contract, event: "EmergencyPriceUpdated", logs: logs, sub: sub}, nil
+}
+
+// WatchEmergencyPriceUpdated is a free log subscription operation binding the contract event 0xe370960bcd07b43e7cd9ddad2e5402c8679785673033b06c09edbea916797f34.
+//
+// Solidity: event EmergencyPriceUpdated(address token, uint256 price)
+func (_SuperOracleL2 *SuperOracleL2Filterer) WatchEmergencyPriceUpdated(opts *bind.WatchOpts, sink chan<- *SuperOracleL2EmergencyPriceUpdated) (event.Subscription, error) {
+
+	logs, sub, err := _SuperOracleL2.contract.WatchLogs(opts, "EmergencyPriceUpdated")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperOracleL2EmergencyPriceUpdated)
+				if err := _SuperOracleL2.contract.UnpackLog(event, "EmergencyPriceUpdated", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseEmergencyPriceUpdated is a log parse operation binding the contract event 0xe370960bcd07b43e7cd9ddad2e5402c8679785673033b06c09edbea916797f34.
+//
+// Solidity: event EmergencyPriceUpdated(address token, uint256 price)
+func (_SuperOracleL2 *SuperOracleL2Filterer) ParseEmergencyPriceUpdated(log types.Log) (*SuperOracleL2EmergencyPriceUpdated, error) {
+	event := new(SuperOracleL2EmergencyPriceUpdated)
+	if err := _SuperOracleL2.contract.UnpackLog(event, "EmergencyPriceUpdated", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
 }
 
 // SuperOracleL2FeedMaxStalenessUpdatedIterator is returned from FilterFeedMaxStalenessUpdated and is used to iterate over the raw logs and unpacked data for FeedMaxStalenessUpdated events raised by the SuperOracleL2 contract.
@@ -1679,312 +1824,6 @@ func (_SuperOracleL2 *SuperOracleL2Filterer) WatchOraclesConfigured(opts *bind.W
 func (_SuperOracleL2 *SuperOracleL2Filterer) ParseOraclesConfigured(log types.Log) (*SuperOracleL2OraclesConfigured, error) {
 	event := new(SuperOracleL2OraclesConfigured)
 	if err := _SuperOracleL2.contract.UnpackLog(event, "OraclesConfigured", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperOracleL2OwnershipTransferStartedIterator is returned from FilterOwnershipTransferStarted and is used to iterate over the raw logs and unpacked data for OwnershipTransferStarted events raised by the SuperOracleL2 contract.
-type SuperOracleL2OwnershipTransferStartedIterator struct {
-	Event *SuperOracleL2OwnershipTransferStarted // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperOracleL2OwnershipTransferStartedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperOracleL2OwnershipTransferStarted)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperOracleL2OwnershipTransferStarted)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperOracleL2OwnershipTransferStartedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperOracleL2OwnershipTransferStartedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperOracleL2OwnershipTransferStarted represents a OwnershipTransferStarted event raised by the SuperOracleL2 contract.
-type SuperOracleL2OwnershipTransferStarted struct {
-	PreviousOwner common.Address
-	NewOwner      common.Address
-	Raw           types.Log // Blockchain specific contextual infos
-}
-
-// FilterOwnershipTransferStarted is a free log retrieval operation binding the contract event 0x38d16b8cac22d99fc7c124b9cd0de2d3fa1faef420bfe791d8c362d765e22700.
-//
-// Solidity: event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)
-func (_SuperOracleL2 *SuperOracleL2Filterer) FilterOwnershipTransferStarted(opts *bind.FilterOpts, previousOwner []common.Address, newOwner []common.Address) (*SuperOracleL2OwnershipTransferStartedIterator, error) {
-
-	var previousOwnerRule []interface{}
-	for _, previousOwnerItem := range previousOwner {
-		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
-	}
-	var newOwnerRule []interface{}
-	for _, newOwnerItem := range newOwner {
-		newOwnerRule = append(newOwnerRule, newOwnerItem)
-	}
-
-	logs, sub, err := _SuperOracleL2.contract.FilterLogs(opts, "OwnershipTransferStarted", previousOwnerRule, newOwnerRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperOracleL2OwnershipTransferStartedIterator{contract: _SuperOracleL2.contract, event: "OwnershipTransferStarted", logs: logs, sub: sub}, nil
-}
-
-// WatchOwnershipTransferStarted is a free log subscription operation binding the contract event 0x38d16b8cac22d99fc7c124b9cd0de2d3fa1faef420bfe791d8c362d765e22700.
-//
-// Solidity: event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)
-func (_SuperOracleL2 *SuperOracleL2Filterer) WatchOwnershipTransferStarted(opts *bind.WatchOpts, sink chan<- *SuperOracleL2OwnershipTransferStarted, previousOwner []common.Address, newOwner []common.Address) (event.Subscription, error) {
-
-	var previousOwnerRule []interface{}
-	for _, previousOwnerItem := range previousOwner {
-		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
-	}
-	var newOwnerRule []interface{}
-	for _, newOwnerItem := range newOwner {
-		newOwnerRule = append(newOwnerRule, newOwnerItem)
-	}
-
-	logs, sub, err := _SuperOracleL2.contract.WatchLogs(opts, "OwnershipTransferStarted", previousOwnerRule, newOwnerRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperOracleL2OwnershipTransferStarted)
-				if err := _SuperOracleL2.contract.UnpackLog(event, "OwnershipTransferStarted", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseOwnershipTransferStarted is a log parse operation binding the contract event 0x38d16b8cac22d99fc7c124b9cd0de2d3fa1faef420bfe791d8c362d765e22700.
-//
-// Solidity: event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)
-func (_SuperOracleL2 *SuperOracleL2Filterer) ParseOwnershipTransferStarted(log types.Log) (*SuperOracleL2OwnershipTransferStarted, error) {
-	event := new(SuperOracleL2OwnershipTransferStarted)
-	if err := _SuperOracleL2.contract.UnpackLog(event, "OwnershipTransferStarted", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperOracleL2OwnershipTransferredIterator is returned from FilterOwnershipTransferred and is used to iterate over the raw logs and unpacked data for OwnershipTransferred events raised by the SuperOracleL2 contract.
-type SuperOracleL2OwnershipTransferredIterator struct {
-	Event *SuperOracleL2OwnershipTransferred // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperOracleL2OwnershipTransferredIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperOracleL2OwnershipTransferred)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperOracleL2OwnershipTransferred)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperOracleL2OwnershipTransferredIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperOracleL2OwnershipTransferredIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperOracleL2OwnershipTransferred represents a OwnershipTransferred event raised by the SuperOracleL2 contract.
-type SuperOracleL2OwnershipTransferred struct {
-	PreviousOwner common.Address
-	NewOwner      common.Address
-	Raw           types.Log // Blockchain specific contextual infos
-}
-
-// FilterOwnershipTransferred is a free log retrieval operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
-//
-// Solidity: event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
-func (_SuperOracleL2 *SuperOracleL2Filterer) FilterOwnershipTransferred(opts *bind.FilterOpts, previousOwner []common.Address, newOwner []common.Address) (*SuperOracleL2OwnershipTransferredIterator, error) {
-
-	var previousOwnerRule []interface{}
-	for _, previousOwnerItem := range previousOwner {
-		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
-	}
-	var newOwnerRule []interface{}
-	for _, newOwnerItem := range newOwner {
-		newOwnerRule = append(newOwnerRule, newOwnerItem)
-	}
-
-	logs, sub, err := _SuperOracleL2.contract.FilterLogs(opts, "OwnershipTransferred", previousOwnerRule, newOwnerRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperOracleL2OwnershipTransferredIterator{contract: _SuperOracleL2.contract, event: "OwnershipTransferred", logs: logs, sub: sub}, nil
-}
-
-// WatchOwnershipTransferred is a free log subscription operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
-//
-// Solidity: event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
-func (_SuperOracleL2 *SuperOracleL2Filterer) WatchOwnershipTransferred(opts *bind.WatchOpts, sink chan<- *SuperOracleL2OwnershipTransferred, previousOwner []common.Address, newOwner []common.Address) (event.Subscription, error) {
-
-	var previousOwnerRule []interface{}
-	for _, previousOwnerItem := range previousOwner {
-		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
-	}
-	var newOwnerRule []interface{}
-	for _, newOwnerItem := range newOwner {
-		newOwnerRule = append(newOwnerRule, newOwnerItem)
-	}
-
-	logs, sub, err := _SuperOracleL2.contract.WatchLogs(opts, "OwnershipTransferred", previousOwnerRule, newOwnerRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperOracleL2OwnershipTransferred)
-				if err := _SuperOracleL2.contract.UnpackLog(event, "OwnershipTransferred", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseOwnershipTransferred is a log parse operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
-//
-// Solidity: event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
-func (_SuperOracleL2 *SuperOracleL2Filterer) ParseOwnershipTransferred(log types.Log) (*SuperOracleL2OwnershipTransferred, error) {
-	event := new(SuperOracleL2OwnershipTransferred)
-	if err := _SuperOracleL2.contract.UnpackLog(event, "OwnershipTransferred", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

@@ -1,21 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Helpers} from "../../../utils/Helpers.sol";
-import {MockERC20} from "../../../mocks/MockERC20.sol";
-import {BaseHook} from "../../../../src/core/hooks/BaseHook.sol";
-import {IOracle} from "../../../../src/vendor/morpho/IOracle.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {ISuperHook} from "../../../../src/core/interfaces/ISuperHook.sol";
-import {SharesMathLib} from "../../../../src/vendor/morpho/SharesMathLib.sol";
-import {Id, IMorpho, MarketParams, Market} from "../../../../src/vendor/morpho/IMorpho.sol";
-import {MarketParamsLib} from "../../../../src/vendor/morpho/MarketParamsLib.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
+import { MockERC20 } from "../../../mocks/MockERC20.sol";
+import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
+import { IOracle } from "../../../../src/vendor/morpho/IOracle.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { SharesMathLib } from "../../../../src/vendor/morpho/SharesMathLib.sol";
+import { Id, IMorpho, MarketParams, Market } from "../../../../src/vendor/morpho/IMorpho.sol";
+import { MarketParamsLib } from "../../../../src/vendor/morpho/MarketParamsLib.sol";
 
 // Hooks
-import {BaseLoanHook} from "../../../../src/core/hooks/loan/BaseLoanHook.sol";
-import {MorphoRepayAndWithdrawHook} from "../../../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
-import {MorphoRepayHook} from "../../../../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
-import {MorphoBorrowHook} from "../../../../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { BaseLoanHook } from "../../../../src/core/hooks/loan/BaseLoanHook.sol";
+import { MorphoRepayAndWithdrawHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
+import { MorphoRepayHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
+import { MorphoBorrowHook } from "../../../../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
 
 contract MockOracle is IOracle {
     function price() external pure returns (uint256) {
@@ -269,7 +269,7 @@ contract MorphoLoanHooksTest is Helpers {
 
     function test_RepayHook_Build_NoRevertIf_PartialRepay() public {
         bytes memory data = _encodeRepayData(false, false);
-        vm.warp(block.timestamp + 10000);
+        vm.warp(block.timestamp + 10_000);
         Execution[] memory executions = repayHook.build(address(0), address(this), data);
         assertEq(executions.length, 6);
     }
@@ -422,6 +422,7 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(executions[2].target, loanToken);
         assertEq(executions[2].value, 0);
         assertGt(executions[2].callData.length, 0);
+
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -501,23 +502,6 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-              DERIVE COLLATERAL AMOUNT FROM LOAN AMOUNT TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_DeriveCollateralAmountFromLoanAmount() public view {
-        uint256 loanAmount = 100e18;
-        uint256 collateral = repayHook.deriveCollateralAmountFromLoanAmount(address(mockOracle), loanAmount);
-
-        assertEq(collateral, 200e18);
-    }
-
-    function test_RepayAndWithdrawHook_DeriveCollateralAmountFromLoanAmount() public view {
-        uint256 loanAmount = 100e18;
-        uint256 collateral = repayAndWithdrawHook.deriveCollateralAmountFromLoanAmount(address(mockOracle), loanAmount);
-
-        assertEq(collateral, 50e18);
-    }
-
-    /*//////////////////////////////////////////////////////////////
               DERIVE COLLATERAL FOR PARTIAL REPAYMENT TESTS
     //////////////////////////////////////////////////////////////*/
     function test_RepayAndWithdrawHook_DeriveCollateralForPartialRepayment() public view {
@@ -593,13 +577,14 @@ contract MorphoLoanHooksTest is Helpers {
                       PRE/POST EXECUTE TESTS
     //////////////////////////////////////////////////////////////*/
     function test_BorrowHook_PrePostExecute() public {
+        loanToken = address(new MockERC20("Loan Token", "LOAN", 18));
         bytes memory data = _encodeBorrowData(false);
-        deal(address(collateralToken), address(this), amount);
+        deal(address(loanToken), address(this), amount);
         borrowHook.preExecute(address(0), address(this), data);
-        assertEq(borrowHook.outAmount(), amount);
+        assertEq(borrowHook.outAmount(), amount, "A");
 
         borrowHook.postExecute(address(0), address(this), data);
-        assertEq(borrowHook.outAmount(), 0);
+        assertEq(borrowHook.outAmount(), 0, "B");
     }
 
     function test_RepayHook_PrePostExecute() public {

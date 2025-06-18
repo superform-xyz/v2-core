@@ -150,7 +150,6 @@ contract ApproveAndRedeem5115VaultHookTest is Helpers {
             tokenOut,
             shares,
             minTokenOut,
-            burnFromInternalBalance,
             usePrevHookAmount,
             address(0),
             uint256(0)

@@ -26,6 +26,10 @@ contract MockERC20 is ERC20 {
     function claimableRedeemRequest(uint256, address) external pure returns (uint256) {
         return 0;
     }
+
+    function previewWithdraw(uint256 amount) external pure returns (uint256) {
+        return amount;
+    }   
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/

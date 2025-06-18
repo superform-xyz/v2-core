@@ -58,7 +58,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         uint256 fullCollateral;
     }
 
-
     uint256 private constant AMOUNT_POSITION = 80;
     uint256 private constant PRICE_SCALING_FACTOR = 1e36;
     uint256 private constant PERCENTAGE_SCALING_FACTOR = 1e18;
@@ -98,16 +97,10 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         ctx.fee = deriveFeeAmount(ctx.marketParams);
 
         executions = new Execution[](5);
-        executions[0] = Execution({
-            target: vars.loanToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (morpho, 0))
-        });
-        executions[3] = Execution({
-            target: vars.loanToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (morpho, 0))
-        });
+        executions[0] =
+            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
+        executions[3] =
+            Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
 
         if (vars.isFullRepayment) {
             ctx.borrowBalance = deriveShareBalance(ctx.id, account);
@@ -123,17 +116,13 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
             executions[2] = Execution({
                 target: morpho,
                 value: 0,
-                callData: abi.encodeCall(
-                    IMorphoBase.repay,
-                    (ctx.marketParams, 0, ctx.shareBalance, account, "")
-                )
+                callData: abi.encodeCall(IMorphoBase.repay, (ctx.marketParams, 0, ctx.shareBalance, account, ""))
             });
             executions[4] = Execution({
                 target: morpho,
                 value: 0,
                 callData: abi.encodeCall(
-                    IMorphoBase.withdrawCollateral,
-                    (ctx.marketParams, ctx.collateralForWithdraw, account, account)
+                    IMorphoBase.withdrawCollateral, (ctx.marketParams, ctx.collateralForWithdraw, account, account)
                 )
             });
         } else {
@@ -153,17 +142,13 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
             executions[2] = Execution({
                 target: morpho,
                 value: 0,
-                callData: abi.encodeCall(
-                    IMorphoBase.repay,
-                    (ctx.marketParams, vars.amount, 0, account, "")
-                )
+                callData: abi.encodeCall(IMorphoBase.repay, (ctx.marketParams, vars.amount, 0, account, ""))
             });
             executions[4] = Execution({
                 target: morpho,
                 value: 0,
                 callData: abi.encodeCall(
-                    IMorphoBase.withdrawCollateral,
-                    (ctx.marketParams, ctx.collateralForWithdraw, account, account)
+                    IMorphoBase.withdrawCollateral, (ctx.marketParams, ctx.collateralForWithdraw, account, account)
                 )
             });
         }
@@ -201,20 +186,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     function deriveCollateralForFullRepayment(Id id, address account) public view returns (uint256 collateralAmount) {
         (,, uint128 collateral) = morphoStaticTyping.position(id, account);
         collateralAmount = uint256(collateral);
-    }
-
-    function deriveCollateralAmountFromLoanAmount(
-        address oracle,
-        uint256 loanAmount
-    )
-        public
-        view
-        returns (uint256 collateralAmount)
-    {
-        IOracle oracleInstance = IOracle(oracle);
-        uint256 price = oracleInstance.price();
-
-        collateralAmount = Math.mulDiv(loanAmount, PRICE_SCALING_FACTOR, price);
     }
 
     function deriveCollateralForPartialRepayment(

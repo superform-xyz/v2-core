@@ -120,6 +120,15 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         assertEq(executions[4].value, 0);
     }
 
+    function test_Build_With_ApproveSpender_OdosRouter() public view {
+        bytes memory data = _buildApproveAndSwapOdosData(false);
+
+        Execution[] memory executions = approveAndSwapOdosHook.build(address(prevHook), account, data);
+
+        assertEq(executions.length, 6);
+        assertEq(executions[3].target, address(odosRouter));
+    }
+
     function test_Build_WithPrevHookAmount() public {
         bytes memory data = _buildApproveAndSwapOdosData(true);
 
