@@ -75,7 +75,7 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
             target: morpho,
             value: 0,
             callData: abi.encodeCall(
-                morphoBase.withdraw, (vars.marketParams, vars.assets, vars.shares, vars.onBehalf, vars.receiver)
+                IMorphoBase.withdraw, (vars.marketParams, vars.assets, vars.shares, vars.onBehalf, vars.receiver)
             )
         });
     }
