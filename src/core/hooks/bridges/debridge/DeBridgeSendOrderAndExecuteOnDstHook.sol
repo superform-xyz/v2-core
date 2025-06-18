@@ -49,9 +49,9 @@ import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../
 /// destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength);
 /// @notice         bytes orderAuthorityAddressDst = BytesLib.slice(data, 404 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength, orderAuthorityAddressDst_paramLength);
-/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 436 + destinationMessage_paramLength
+/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 404 + destinationMessage_paramLength
 /// + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength);
-/// @notice         bytes allowedTakerDst = BytesLib.slice(data, 404 + destinationMessage_paramLength +
+/// @notice         bytes allowedTakerDst = BytesLib.slice(data, 436 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength,
 /// allowedTakerDst_paramLength);
 /// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 436 +
