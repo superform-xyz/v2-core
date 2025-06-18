@@ -4,25 +4,21 @@ pragma solidity 0.8.30;
 // external
 import { IIrm } from "../../../../vendor/morpho/IIrm.sol";
 import { MathLib } from "../../../../vendor/morpho/MathLib.sol";
-import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SharesMathLib } from "../../../../vendor/morpho/SharesMathLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { MarketParamsLib } from "../../../../vendor/morpho/MarketParamsLib.sol";
-import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import {
     IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market
 } from "../../../../vendor/morpho/IMorpho.sol";
 
 // Superform
-import { BaseHook } from "../../BaseHook.sol";
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
-import { ISuperHook, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoRepayAndWithdrawHook
 /// @author Superform Labs
@@ -168,7 +164,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                             PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
-
     function deriveInterest(MarketParams memory marketParams) public view returns (uint256 interest) {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
