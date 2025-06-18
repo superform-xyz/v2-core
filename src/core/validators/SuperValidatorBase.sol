@@ -72,9 +72,9 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     //////////////////////////////////////////////////////////////*/
     function onInstall(bytes calldata data) external {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
-        _initialized[msg.sender] = true;
         address owner = abi.decode(data, (address));
         if (owner == address(0)) revert ZERO_ADDRESS();
+        _initialized[msg.sender] = true;
         _accountOwners[msg.sender] = owner;
     }
 

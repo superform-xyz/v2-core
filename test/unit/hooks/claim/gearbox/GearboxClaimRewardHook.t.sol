@@ -7,6 +7,7 @@ import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
 import {MockERC20} from "../../../../mocks/MockERC20.sol";
 import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
 import {Helpers} from "../../../../utils/Helpers.sol";
+import {IGearboxFarmingPool} from "../../../../../src/vendor/gearbox/IGearboxFarmingPool.sol";
 
 contract GearboxClaimRewardHookTest is Helpers {
     GearboxClaimRewardHook public hook;
@@ -66,6 +67,8 @@ contract GearboxClaimRewardHookTest is Helpers {
     function test_PreAndPostExecute() public {
         _getTokens(mockRewardToken, mockAccount, mockAmount);
 
+        vm.mockCall(mockFarmingPool, abi.encodeWithSelector(IGearboxFarmingPool.rewardsToken.selector), abi.encode(mockRewardToken));
+        
         vm.prank(mockAccount);
         hook.preExecute(address(0), mockAccount, _encodeData());
         assertEq(hook.outAmount(), mockAmount);
@@ -86,26 +89,25 @@ contract GearboxClaimRewardHookTest is Helpers {
         address testFarmingPool = address(0x1234567890123456789012345678901234567890);
         address testRewardToken = address(0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD);
         address testAccount = address(0x9876543210987654321098765432109876543210);
-        
+
         // Encode data according to the NatSpec format:
         // bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
         // address farmingPool = BytesLib.toAddress(data, 4);
         // address rewardToken = BytesLib.toAddress(data, 24);
         // address account = BytesLib.toAddress(data, 44);
         bytes memory data = abi.encodePacked(
-            bytes4(0),              // placeholder
-            testFarmingPool,        // farmingPool at offset 4
-            testRewardToken,        // rewardToken at offset 24
-            testAccount             // account at offset 44
+            bytes4(0), // placeholder
+            testFarmingPool, // farmingPool at offset 4
+            testRewardToken, // rewardToken at offset 24
+            testAccount // account at offset 44
         );
-        
+
         // Verify the build function extracts farmingPool correctly
         Execution[] memory executions = hook.build(address(0), testAccount, data);
-        
+
         // Check farmingPool is properly extracted
         // Validate it by checking that it's used as the target in the execution
         assertEq(executions[1].target, testFarmingPool, "FarmingPool address not correctly decoded");
-        
         // Verify data length is as expected (4 + 20 + 20 + 20 = 64 bytes)
         assertEq(data.length, 64, "Calldata length is incorrect");
     }

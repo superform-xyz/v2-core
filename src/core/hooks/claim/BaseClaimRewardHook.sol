@@ -10,6 +10,7 @@ import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
 /// @author Superform Labs
 abstract contract BaseClaimRewardHook {
     error ASSET_ZERO_ADDRESS();
+    error INVALID_REWARD_TOKEN();
     error REWARD_TOKEN_ZERO_ADDRESS();
 
     /*//////////////////////////////////////////////////////////////
@@ -20,10 +21,8 @@ abstract contract BaseClaimRewardHook {
         executions[0] = Execution({target: yieldSource, value: 0, callData: encoded});
     }
 
-    function _getBalance(bytes memory data) internal view returns (uint256) {
+    function _getBalance(bytes memory data, address account) internal view returns (uint256) {
         address rewardToken = BytesLib.toAddress(data, 24);
-        address account = BytesLib.toAddress(data, 44);
-
         if (rewardToken == address(0)) revert REWARD_TOKEN_ZERO_ADDRESS();
 
         return IERC20(rewardToken).balanceOf(account);
