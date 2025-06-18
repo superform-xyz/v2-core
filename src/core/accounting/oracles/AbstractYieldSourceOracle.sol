@@ -26,7 +26,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         returns (uint256);
 
     /// @inheritdoc IYieldSourceOracle
-    function getAssetOutput(address yieldSourceAddress, address assetIn, uint256 sharesIn)
+    function getAssetOutput(address yieldSourceAddress, address assetOut, uint256 sharesIn)
         external
         view
         virtual
@@ -106,11 +106,14 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     }
 
     /// @inheritdoc IYieldSourceOracle
-    function isValidUnderlyingAsset(address yieldSourceAddress, address expectedUnderlying)
+    function isValidUnderlyingAsset(address /** yieldSourceAddress */, address /** expectedUnderlying */)
         public
         view
         virtual
-        returns (bool);
+        returns (bool) 
+    {
+        return true;
+    }
 
     /// @inheritdoc IYieldSourceOracle
     function isValidUnderlyingAssets(address[] memory yieldSourceAddresses, address[] memory expectedUnderlying)

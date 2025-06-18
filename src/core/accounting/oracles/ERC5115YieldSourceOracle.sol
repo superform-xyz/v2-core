@@ -32,13 +32,13 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getAssetOutput(address yieldSourceAddress, address assetIn, uint256 sharesIn)
+    function getAssetOutput(address yieldSourceAddress, address assetOut, uint256 sharesIn)
         external
         view
         override
         returns (uint256)
     {
-        return IStandardizedYield(yieldSourceAddress).previewRedeem(assetIn, sharesIn);
+        return IStandardizedYield(yieldSourceAddress).previewRedeem(assetOut, sharesIn);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle

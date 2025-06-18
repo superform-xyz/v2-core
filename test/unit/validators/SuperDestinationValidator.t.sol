@@ -59,7 +59,7 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
 
     uint256 executorNonce;
 
-    bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
+    bytes4 constant VALID_SIGNATURE = bytes4(0x5c2ec0f3);
 
     function setUp() public {
         validator = new SuperDestinationValidator();
