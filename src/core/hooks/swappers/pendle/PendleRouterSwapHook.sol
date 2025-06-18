@@ -66,13 +66,13 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address account,
         bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -87,7 +87,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(pendleRouterV4),
-            value: value,
+            value: usePrevHookAmount ? ISuperHookResult(prevHook).outAmount() : value,
             callData: usePrevHookAmount ? updatedTxData : txData_
         });
     }
@@ -288,6 +288,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
     }
 
     function _validateOrder(Order memory order) internal view {
+        //an order can execute until the block timestamp strictly exceeds the expiry time
         if (order.expiry < block.timestamp) revert ORDER_EXPIRED();
         if (order.maker == address(0) || order.receiver == address(0)) revert ADDRESS_NOT_VALID();
     }

@@ -40,6 +40,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
 
     /// @notice Maximum allowed fee percentage change (50% = 5000 basis points)
     /// @dev Limits how much fees can be increased or decreased in a single proposal
+    /// @dev Allow fee percent change without validation when the new fee percentage is 0
     uint256 internal constant MAX_FEE_PERCENT_CHANGE = 5000;
 
     /// @notice Duration of the timelock period for configuration proposals
@@ -129,8 +130,17 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         for (uint256 i; i < length; ++i) {
             bytes4 yieldSourceOracleId = yieldSourceOracleIds[i];
             YieldSourceOracleConfig memory proposal = yieldSourceOracleConfigProposals[yieldSourceOracleId];
+            YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[yieldSourceOracleId];
 
-            if (proposal.manager != msg.sender) revert NOT_MANAGER();
+            // Cannot check on `proposal.manager` because:
+            // if the manager role is transferred after the proposal is created, the new manager cannot accept the proposal
+            // and the outdated manager is reinstated upon acceptance
+            // also as long as an existing proposal remains pending, the current manager is blocked from submitting a new one
+            // So, we check against `existingConfig.manager` instead and rewrite `proposal.manager`
+            if (existingConfig.manager != msg.sender) revert NOT_MANAGER();
+            proposal.manager = existingConfig.manager;
+
+            // If the proposal has not expired, the manager cannot accept it
             if (yieldSourceOracleConfigProposalGracePeriod[yieldSourceOracleId] > block.timestamp) {
                 revert CANNOT_ACCEPT_YET();
             }
@@ -212,7 +222,6 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
             yieldSourceOracleId, yieldSourceOracle, feePercent, feeRecipient, ledgerContract
         );
 
-        // Only allow updates if no config exists or if caller is the manager
         YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[yieldSourceOracleId];
         if (existingConfig.manager != address(0) && existingConfig.ledger != address(0)) revert CONFIG_EXISTS();
 
@@ -225,7 +234,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         });
 
         emit YieldSourceOracleConfigSet(
-            yieldSourceOracleId, yieldSourceOracle, feePercent, msg.sender, feeRecipient, ledgerContract
+            yieldSourceOracleId, yieldSourceOracle, feePercent, feeRecipient, msg.sender, ledgerContract
         );
     }
 
