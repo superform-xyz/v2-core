@@ -293,7 +293,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
     /*//////////////////////////////////////////////////////////////
                         VALIDATOR HELPER METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getSignature(bytes32 root) private view returns (bytes memory) {
+    function _getSignature(bytes32 root) internal view returns (bytes memory) {
         bytes32 messageHash = keccak256(abi.encode(superMerkleValidator.namespace(), root));
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrvKey, ethSignedMessageHash);

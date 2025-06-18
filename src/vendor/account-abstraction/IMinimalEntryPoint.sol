@@ -34,6 +34,8 @@ interface IMinimalEntryPoint {
      */
     function getNonce(address sender, uint192 key) external view returns (uint256 nonce);
 
+    function nonceSequenceNumber(address, uint192) external view returns(uint256);
+
     function getUserOpHash(PackedUserOperation calldata userOp) external view returns (bytes32);
 
     function depositTo(address account) external payable;

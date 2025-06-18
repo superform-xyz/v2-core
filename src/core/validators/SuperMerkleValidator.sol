@@ -68,6 +68,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         if (isValid && sigData.proofDst.length > 0) {
             // we check only the signature validity here
             //    merkle tree was checked already in `_processSignatureAndVerifyLeaf` and reverts if invalid
+            // we keep stored signature per userOpHash in case there are multiple userOps for the same account using the same execution context 
             _storeSignature(uint256(_userOpHash), _userOp.signature);
             storedUserOpHash = _userOpHash;
         }
