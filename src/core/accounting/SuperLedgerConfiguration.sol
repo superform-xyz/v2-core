@@ -28,7 +28,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     /// @notice Timestamps for when proposals can be accepted
     /// @dev Implements timelock period for configuration changes to allow for review
     mapping(bytes4 yieldSourceOracleId => uint256 proposalExpirationTime) private
-        yieldSourceOracleConfigProposalExpirationTime;
+        yieldSourceOracleConfigProposalGracePeriod;
 
     /// @notice Addresses nominated to receive manager role transfers
     /// @dev Used in the two-step process for transferring management rights
@@ -79,7 +79,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
 
             if (existingConfig.manager != msg.sender) revert NOT_MANAGER();
 
-            if (yieldSourceOracleConfigProposalExpirationTime[config.yieldSourceOracleId] > block.timestamp) {
+            if (yieldSourceOracleConfigProposalGracePeriod[config.yieldSourceOracleId] > block.timestamp) {
                 revert CHANGE_ALREADY_PROPOSED();
             }
 
@@ -107,7 +107,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
                 manager: existingConfig.manager,
                 ledger: config.ledger
             });
-            yieldSourceOracleConfigProposalExpirationTime[config.yieldSourceOracleId] =
+            yieldSourceOracleConfigProposalGracePeriod[config.yieldSourceOracleId] =
                 block.timestamp + PROPOSAL_EXPIRATION_TIME;
 
             emit YieldSourceOracleConfigProposalSet(
@@ -131,14 +131,14 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
             YieldSourceOracleConfig memory proposal = yieldSourceOracleConfigProposals[yieldSourceOracleId];
 
             if (proposal.manager != msg.sender) revert NOT_MANAGER();
-            if (yieldSourceOracleConfigProposalExpirationTime[yieldSourceOracleId] > block.timestamp) {
+            if (yieldSourceOracleConfigProposalGracePeriod[yieldSourceOracleId] > block.timestamp) {
                 revert CANNOT_ACCEPT_YET();
             }
 
             yieldSourceOracleConfig[yieldSourceOracleId] = proposal;
 
             delete yieldSourceOracleConfigProposals[yieldSourceOracleId];
-            delete yieldSourceOracleConfigProposalExpirationTime[yieldSourceOracleId];
+            delete yieldSourceOracleConfigProposalGracePeriod[yieldSourceOracleId];
 
             emit YieldSourceOracleConfigAccepted(
                 yieldSourceOracleId,
