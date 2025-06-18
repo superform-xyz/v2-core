@@ -21,6 +21,7 @@ import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ApproveERC20Hook } from "../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { Deposit4626VaultHook } from "../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { ApproveAndDeposit4626VaultHook } from "../../src/core/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
 import { Redeem4626VaultHook } from "../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
 import "forge-std/console2.sol";
 
@@ -36,11 +37,13 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
 
     address public accountEth;
     AccountInstance public instanceOnEth;
+    AccountInstance public instanceOnEth2;
     ISuperExecutor public superExecutorOnEth;
     ISuperLedgerConfiguration public ledgerConfig;
     ISuperLedger public ledger;
     address public approveHook;
     address public deposit4626Hook;
+    address public approveAndDeposit4626Hook;
     address public redeem4626Hook;
     uint256 public blockNumber;
 
@@ -57,6 +60,7 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
         yieldSourceOracle = address(new ERC4626YieldSourceOracle());
         vaultInstanceEth = IERC4626(yieldSourceAddressEth);
         instanceOnEth = makeAccountInstance(keccak256(abi.encode("acc1")));
+        instanceOnEth2 = makeAccountInstance(keccak256(abi.encode("acc2")));
         accountEth = instanceOnEth.account;
         _getTokens(underlyingEth_USDC, accountEth, 1e18);
 
@@ -98,6 +102,7 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
         approveHook = address(new ApproveERC20Hook());
         deposit4626Hook = address(new Deposit4626VaultHook());
         redeem4626Hook = address(new Redeem4626VaultHook());
+        approveAndDeposit4626Hook = address(new ApproveAndDeposit4626VaultHook());
 
         useRealOdosRouter = false;
     }

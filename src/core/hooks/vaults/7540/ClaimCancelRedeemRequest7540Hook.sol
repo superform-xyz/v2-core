@@ -29,8 +29,9 @@ contract ClaimCancelRedeemRequest7540Hook is BaseHook, ISuperHookAsyncCancelatio
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address, address account, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(address, address account, bytes calldata data)
+        internal
         pure
         override
         returns (Execution[] memory executions)
@@ -75,8 +76,9 @@ contract ClaimCancelRedeemRequest7540Hook is BaseHook, ISuperHookAsyncCancelatio
         spToken = IERC7540(data.extractYieldSource()).share();
     }
 
-    function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+    function _postExecute(address, address, bytes calldata data) internal override {
+        address receiver = BytesLib.toAddress(data, 24);
+        outAmount = _getBalance(receiver, data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////
