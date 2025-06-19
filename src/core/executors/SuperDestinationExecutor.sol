@@ -22,6 +22,8 @@ import {ISuperExecutor} from "../interfaces/ISuperExecutor.sol";
 import {ISuperDestinationExecutor} from "../interfaces/ISuperDestinationExecutor.sol";
 import {ISuperDestinationValidator} from "../interfaces/ISuperDestinationValidator.sol";
 
+import "forge-std/console2.sol";
+
 /// @title SuperDestinationExecutor
 /// @author Superform Labs
 /// @notice Generic executor for destination chains of Superform, processing bridged executions
@@ -63,7 +65,6 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error INVALID_ACCOUNT();
-    error INVALID_GASLEFT();
     error INVALID_SIGNATURE();
     error ADDRESS_NOT_ACCOUNT();
     error ACCOUNT_NOT_CREATED();
@@ -145,6 +146,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         if (usedMerkleRoots[account][merkleRoot]) revert MERKLE_ROOT_ALREADY_USED();
         usedMerkleRoots[account][merkleRoot] = true;
 
+        console2.log("--- executorCalldata.length", executorCalldata.length);
         if (executorCalldata.length <= EMPTY_EXECUTION_LENGTH) {
             emit SuperDestinationExecutorReceivedButNoHooks(account);
             return;
@@ -160,24 +162,8 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
             payload: ModePayload.wrap(bytes22(0))
         });
 
-        uint256 gasBefore = gasleft();
-        try IERC7579Account(account).executeFromExecutor(modeCode, ERC7579ExecutionLib.encodeBatch(execs)) {
-            emit SuperDestinationExecutorExecuted(account);
-        } catch Panic(uint256 errorCode) {
-            _checkGas(gasBefore);
-            emit SuperDestinationExecutorPanicFailed(account, errorCode);
-        } catch Error(string memory reason) {
-            _checkGas(gasBefore);
-            emit SuperDestinationExecutorFailed(account, reason);
-        } catch (bytes memory lowLevelData) {
-            _checkGas(gasBefore);
-            emit SuperDestinationExecutorFailedLowLevel(account, lowLevelData);
-        }
-    }
-
-    function _checkGas(uint256 gasBefore) internal {
-        uint256 gasAfter = gasleft();
-        if (gasAfter * 64 <= gasBefore) revert INVALID_GASLEFT();
+        IERC7579Account(account).executeFromExecutor(modeCode, ERC7579ExecutionLib.encodeBatch(execs));
+        emit SuperDestinationExecutorExecuted(account);
     }
 
     function _validateOrCreateAccount(address account, bytes memory initData) internal returns (address) {
