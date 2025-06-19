@@ -8,6 +8,12 @@ import {IYieldSourceOracle} from "../../../../src/core/interfaces/accounting/IYi
 import {MockStandardizedYield} from "../../../mocks/MockStandardizedYield.sol";
 import {MockPendleMarket} from "../../../mocks/MockPendleMarket.sol";
 import {MockERC20} from "../../../mocks/MockERC20.sol";
+import "forge-std/console.sol";
+
+interface iPendleMarket {
+  function readTokens() external view returns (address sy, address pt, address yt);
+}
+
 
 contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
     PendlePTYieldSourceOracle public oracle;
@@ -19,6 +25,7 @@ contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
     MockStandardizedYield public sy;
     MockStandardizedYield public pt;
     MockStandardizedYield public yt;
+    address public account;
 
     address public constant OWNER = address(0x123);
     uint256 public constant INITIAL_UNDERLYING_AMOUNT = 1000e18;
@@ -34,6 +41,31 @@ contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
         pt = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
         yt = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
         mockPendleMarket = new MockPendleMarket(address(sy), address(pt), address(yt));
+    }
+
+    function test_PendlePtOracle_takeSnapshot() public {
+        uint256 ethFork = vm.createFork(vm.envString(ETHEREUM_RPC_URL_KEY), 22579300);
+        vm.selectFork(ethFork);
+        account = address(this);
+
+      // aUSDC market https://app.pendle.finance/trade/markets?utm_source=landing&utm_medium=landing&chains=ethereum&search=USDC
+      address market = address(0x8539B41CA14148d1F7400d399723827a80579414);
+      (address _sy, address _pt, address _yt) = iPendleMarket(market).readTokens();
+      console.log("sy %x", uint256(uint160(_sy)));
+      console.log("pt %x", uint256(uint160(_pt)));
+      console.log("yt %x", uint256(uint160(_yt)));
+
+      oracle = new PendlePTYieldSourceOracle();
+
+      uint256 ptIn = 1e6;
+      uint256 decimals = oracle.decimals(market);
+      console.log("oracle decimals %s", decimals);
+      uint256 pps = oracle.getPricePerShare(market);
+      uint256 costBasis = ptIn * pps / (10** decimals);
+      console.log("pps %18ee18", pps);
+
+      uint256 assetsOut = oracle.getAssetOutput(market, address(0), ptIn);
+      assertEq(assetsOut, costBasis, "assetsOut != costBasis");
     }
 
     function test_decimals() public view {

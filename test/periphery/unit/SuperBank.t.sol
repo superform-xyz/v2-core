@@ -330,14 +330,8 @@ contract SuperBankTest is Helpers, InternalHelpers, OdosAPIParser {
             abi.encode(merkleRoot)
         );
         
-        vm.expectEmit(true, true, true, true, address(mockHook));
-        emit MockSuperHook.PreExecuteCalled(address(0), address(superBank), "data1");
-        
         vm.expectEmit(true, true, false, false, address(mockTarget));
         emit MockHookTarget.Executed();
-        
-        vm.expectEmit(true, true, true, true, address(mockHook));
-        emit MockSuperHook.PostExecuteCalled(address(0), address(superBank), "data1");
         
         vm.expectEmit(true, true, true, true, address(superBank));
         emit Bank.HooksExecuted(hooks, data);

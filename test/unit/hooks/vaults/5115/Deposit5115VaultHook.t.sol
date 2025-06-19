@@ -30,6 +30,15 @@ contract Deposit5115VaultHookTest is Helpers {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.INFLOW));
     }
 
+    function test_NativePOC() public {
+        token = address(0);
+
+        bytes memory data = _encodeData(false);
+        // this shouldn't revert anymore after the fix
+        //vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        hook.build(address(0), address(this), data);
+    }
+
     function test_UsePrevHookAmount() public view {
         bytes memory data = _encodeData(true);
         assertTrue(hook.decodeUsePrevHookAmount(data));
@@ -38,13 +47,25 @@ contract Deposit5115VaultHookTest is Helpers {
         assertFalse(hook.decodeUsePrevHookAmount(data));
     }
 
+
     function test_Build() public view {
         bytes memory data = _encodeData(false);
         Execution[] memory executions = hook.build(address(0), address(this), data);
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, yieldSource);
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, yieldSource);
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
+    }
+
+    function test_Build_Native() public view {
+        bytes memory data = abi.encodePacked(
+            yieldSourceOracleId, yieldSource, address(0), amount, amount, false, address(0), uint256(0)
+        );
+        Execution[] memory executions = hook.build(address(0), address(this), data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, yieldSource);
+        assertEq(executions[1].value, amount);
+        assertGt(executions[1].callData.length, 0);
     }
 
     function test_Build_WithPrevHook() public {
@@ -55,10 +76,10 @@ contract Deposit5115VaultHookTest is Helpers {
         bytes memory data = _encodeData(true);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, yieldSource);
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, yieldSource);
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
     }
 
     function test_Build_RevertIf_AddressZero() public {

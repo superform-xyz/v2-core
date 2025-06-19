@@ -44,7 +44,7 @@ contract MockYieldSourceOracle is AbstractYieldSourceOracle {
         return TVL;
     }
 
-    function isValidUnderlyingAsset(address, address) external pure override returns (bool) {
+    function isValidUnderlyingAsset(address, address) public pure override returns (bool) {
         return true;
     }
 

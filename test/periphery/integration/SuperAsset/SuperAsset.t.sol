@@ -17,6 +17,9 @@ import { Helpers } from "../../../utils/Helpers.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { SuperAssetFactory, ISuperAssetFactory } from "../../../../src/periphery/SuperAsset/SuperAssetFactory.sol";
 import { SuperBank } from "../../../../src/periphery/SuperBank.sol";
+import { SuperVault } from "../../../../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultStrategy } from "../../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
 
 contract SuperAssetTest is Helpers {
     // --- Constants ---
@@ -109,8 +112,13 @@ contract SuperAssetTest is Helpers {
         superGovernor.grantRole(superGovernor.BANK_MANAGER_ROLE(), admin);
         console.log("SuperGovernor Roles Granted");
 
+        // Deploy implementation contracts first
+        address vaultImpl = address(new SuperVault());
+        address strategyImpl = address(new SuperVaultStrategy());
+        address escrowImpl = address(new SuperVaultEscrow());
+
         // Deploy SuperVaultAggregator
-        aggregator = new SuperVaultAggregator(address(superGovernor));
+        aggregator = new SuperVaultAggregator(address(superGovernor), vaultImpl, strategyImpl, escrowImpl);
         superGovernor.setAddress(superGovernor.SUPER_VAULT_AGGREGATOR(), address(aggregator));
 
         // Deploy mock tokens and vault
@@ -475,8 +483,6 @@ contract SuperAssetTest is Helpers {
         assertTrue(superAsset.balanceOf(user) > 0, "User should have shares");
     }
 
-
-
     struct BasicDepositWithCircuitBreaker {
         uint256 depositAmount;
         uint256 minSharesOut;
@@ -667,8 +673,6 @@ contract SuperAssetTest is Helpers {
         assertEq(superAsset.balanceOf(user), 0, "User should have no shares left");
     }
 
-
-
     function test_RedeemWithZeroAmount() public {
         vm.startPrank(user);
         vm.expectRevert(ISuperAsset.ZERO_AMOUNT.selector);
@@ -728,7 +732,8 @@ contract SuperAssetTest is Helpers {
             minTokenOut: 0
         });
 
-        // vm.expectRevert(abi.encodeWithSelector(ISuperAsset.SUPPORTED_ASSET_PRICE_DEPEG.selector, address(underlyingToken1)));
+        // vm.expectRevert(abi.encodeWithSelector(ISuperAsset.SUPPORTED_ASSET_PRICE_DEPEG.selector,
+        // address(underlyingToken1)));
         ISuperAsset.RedeemReturnVars memory retRedeem = superAsset.redeem(redeemArgs);
 
         assertGt(retRedeem.amountTokenOutAfterFees, 0, "User should receive some tokens out");
@@ -1359,7 +1364,6 @@ contract SuperAssetTest is Helpers {
 
         vm.stopPrank();
     }
-
 
     function test_CircuitBreaker_DispersionDetection1() public {
         // Test depeg detection - price moves beyond ±2% threshold

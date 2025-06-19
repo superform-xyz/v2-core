@@ -347,7 +347,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         assertTrue(isValid, "Merkle proof should be valid");
     }
 
-    function test_ValidateUserOp() public {
+    function test_ValidateUserOpA() public {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
 
         // simulate a merkle tree with 4 leaves (4 user ops)
@@ -363,12 +363,57 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
         // validate first user op
         _testUserOpValidation(validUntil, root, proof[0], signature, approveUserOp);
+    }
+
+    function test_ValidateUserOpB() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+
+        // simulate a merkle tree with 4 leaves (4 user ops)
+        bytes32[] memory leaves = new bytes32[](4);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil);
+        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil);
+        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+        bytes memory signature = _getSignature(root);
 
         // validate second user op
         _testUserOpValidation(validUntil, root, proof[1], signature, transferUserOp);
+    }
+
+    function test_ValidateUserOpC() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+
+        // simulate a merkle tree with 4 leaves (4 user ops)
+        bytes32[] memory leaves = new bytes32[](4);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil);
+        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil);
+        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+        bytes memory signature = _getSignature(root);
 
         // validate third user op
         _testUserOpValidation(validUntil, root, proof[2], signature, depositUserOp);
+    }
+
+    function test_ValidateUserOpD() public {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+
+        // simulate a merkle tree with 4 leaves (4 user ops)
+        bytes32[] memory leaves = new bytes32[](4);
+        leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil);
+        leaves[1] = _createSourceValidatorLeaf(transferUserOp.userOpHash, validUntil);
+        leaves[2] = _createSourceValidatorLeaf(depositUserOp.userOpHash, validUntil);
+        leaves[3] = _createSourceValidatorLeaf(withdrawUserOp.userOpHash, validUntil);
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+        bytes memory signature = _getSignature(root);
 
         // validate fourth user op
         _testUserOpValidation(validUntil, root, proof[3], signature, withdrawUserOp);
