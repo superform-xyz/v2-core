@@ -154,7 +154,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         assertEq(assetId, uint128(242_333_941_209_166_991_950_178_742_833_476_896_417));
     }
 
-    function test_SuperVault_7540_Underlying_E2E_Flow() public executeWithoutHookRestrictions {
+    function test_SuperVault_7540_Underlying_E2E_Flow() public   {
         // Request deposit into superVault as user1
         _requestDeposit(amount);
 
@@ -212,7 +212,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         console2.log("---- PPS After Fulfill Redemptions SUPER VAULT SIDE", _getSuperVaultPricePerShare());
     }
 
-    function test_SuperVault_7540_Underlying_E2E_Flow_Warping() public executeWithoutHookRestrictions {
+    function test_SuperVault_7540_Underlying_E2E_Flow_Warping() public   {
         // Request deposit into superVault as user1
         _requestDeposit(amount);
 
@@ -270,7 +270,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         console2.log("---- PPS After Fulfill Redemptions SUPER VAULT SIDE", _getSuperVaultPricePerShare());
     }
 
-    function test_SuperVault_7540_Underlying_Cancel_Deposit_Flow() public executeWithoutHookRestrictions {
+    function test_SuperVault_7540_Underlying_Cancel_Deposit_Flow() public   {
         // Request deposit into superVault as user1
         _requestDeposit(amount);
 
@@ -344,7 +344,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         console2.log("---- PPS After Fulfill Redemptions SUPER VAULT SIDE", _getSuperVaultPricePerShare());
     }
 
-    function test_SuperVault_7540_Underlying_Cancel_Redeem_Flow() public executeWithoutHookRestrictions {
+    function test_SuperVault_7540_Underlying_Cancel_Redeem_Flow() public   {
         // Request deposit into superVault as user1
         _requestDeposit(amount);
 

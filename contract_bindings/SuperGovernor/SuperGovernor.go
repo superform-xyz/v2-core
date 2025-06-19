@@ -31,7 +31,7 @@ var (
 
 // SuperGovernorMetaData contains all meta data concerning the SuperGovernor contract.
 var SuperGovernorMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"superGovernor\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"governor\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"bankManager\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"treasury_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"prover_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"BANK_MANAGER\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"BANK_MANAGER_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"BLSPPSORACLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"DEFAULT_ADMIN_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"ECDSAPPSORACLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"GOVERNOR_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"GUARDIAN_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"SUP\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SUPER_BANK\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SUPER_GOVERNOR_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"SUPER_ORACLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SUPER_VAULT_AGGREGATOR\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"TREASURY\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"UP\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"addExecutor\",\"inputs\":[{\"name\":\"executor_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addRelayer\",\"inputs\":[{\"name\":\"relayer_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addSuperformStrategist\",\"inputs\":[{\"name\":\"strategist\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addValidator\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"changePrimaryStrategist\",\"inputs\":[{\"name\":\"strategy_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"newStrategist_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeActivePPSOracleChange\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeFeeUpdate\",\"inputs\":[{\"name\":\"feeType\",\"type\":\"uint8\",\"internalType\":\"enumFeeType\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeSuperBankHookMerkleRootUpdate\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeUpkeepCostPerUpdateChange\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeUpkeepPaymentsChange\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeVaultBankHookMerkleRootUpdate\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"freezeStrategistTakeover\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getActivePPSOracle\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAddress\",\"inputs\":[{\"name\":\"key\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAllSuperformStrategists\",\"inputs\":[],\"outputs\":[{\"name\":\"strategists\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getFee\",\"inputs\":[{\"name\":\"feeType\",\"type\":\"uint8\",\"internalType\":\"enumFeeType\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPPSOracleQuorum\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getProposedActivePPSOracle\",\"inputs\":[],\"outputs\":[{\"name\":\"proposedOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getProposedSuperBankHookMerkleRoot\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"proposedRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getProposedUpkeepCostPerUpdate\",\"inputs\":[],\"outputs\":[{\"name\":\"proposedCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getProposedUpkeepPaymentsStatus\",\"inputs\":[],\"outputs\":[{\"name\":\"enabled\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getProposedVaultBankHookMerkleRoot\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"proposedRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getProver\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRegisteredFulfillRequestsHooks\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRegisteredHooks\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRoleAdmin\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getSuperBankHookMerkleRoot\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getUpkeepCostPerUpdate\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getValidators\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getVaultBankHookMerkleRoot\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"grantRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"hasRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isActivePPSOracle\",\"inputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isExecutor\",\"inputs\":[{\"name\":\"executor\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isFulfillRequestsHookRegistered\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isGuardian\",\"inputs\":[{\"name\":\"guardian\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isHookRegistered\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isRelayer\",\"inputs\":[{\"name\":\"relayer\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isStrategistTakeoverFrozen\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isSuperformStrategist\",\"inputs\":[{\"name\":\"strategist\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isSuperform\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isUpkeepPaymentsEnabled\",\"inputs\":[],\"outputs\":[{\"name\":\"enabled\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isValidator\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"proposeActivePPSOracle\",\"inputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeFee\",\"inputs\":[{\"name\":\"feeType\",\"type\":\"uint8\",\"internalType\":\"enumFeeType\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeGlobalHooksRoot\",\"inputs\":[{\"name\":\"newRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeSuperBankHookMerkleRoot\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"proposedRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeUpkeepCostPerUpdate\",\"inputs\":[{\"name\":\"newCost_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeUpkeepPaymentsChange\",\"inputs\":[{\"name\":\"enabled\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeVaultBankHookMerkleRoot\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"proposedRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registerHook\",\"inputs\":[{\"name\":\"hook_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"isFulfillRequestsHook_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"removeExecutor\",\"inputs\":[{\"name\":\"executor_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"removeRelayer\",\"inputs\":[{\"name\":\"relayer_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"removeSuperformStrategist\",\"inputs\":[{\"name\":\"strategist\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"removeValidator\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"renounceRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"callerConfirmation\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"revokeRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setActivePPSOracle\",\"inputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setAddress\",\"inputs\":[{\"name\":\"key\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"value\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setGlobalHooksRootVetoStatus\",\"inputs\":[{\"name\":\"vetoed_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setPPSOracleQuorum\",\"inputs\":[{\"name\":\"quorum\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setProver\",\"inputs\":[{\"name\":\"prover_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setStrategyHooksRootVetoStatus\",\"inputs\":[{\"name\":\"strategy_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"vetoed_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"supportsInterface\",\"inputs\":[{\"name\":\"interfaceId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"unregisterHook\",\"inputs\":[{\"name\":\"hook_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"isFulfillRequestsHook_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"ActivePPSOracleChanged\",\"inputs\":[{\"name\":\"oldOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ActivePPSOracleProposed\",\"inputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ActivePPSOracleSet\",\"inputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AddressSet\",\"inputs\":[{\"name\":\"key\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"value\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ExecutorAdded\",\"inputs\":[{\"name\":\"executor\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ExecutorRemoved\",\"inputs\":[{\"name\":\"executor\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FeeProposed\",\"inputs\":[{\"name\":\"feeType\",\"type\":\"uint8\",\"indexed\":true,\"internalType\":\"enumFeeType\"},{\"name\":\"value\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FeeUpdated\",\"inputs\":[{\"name\":\"feeType\",\"type\":\"uint8\",\"indexed\":true,\"internalType\":\"enumFeeType\"},{\"name\":\"value\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FulfillRequestsHookRegistered\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FulfillRequestsHookUnregistered\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HookApproved\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HookRemoved\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PPSOracleQuorumUpdated\",\"inputs\":[{\"name\":\"quorum\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ProverSet\",\"inputs\":[{\"name\":\"prover\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RelayerAdded\",\"inputs\":[{\"name\":\"relayer\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RelayerRemoved\",\"inputs\":[{\"name\":\"relayer\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RevenueShareUpdated\",\"inputs\":[{\"name\":\"share\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleAdminChanged\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"previousAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"newAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleGranted\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleRevoked\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategistAdded\",\"inputs\":[{\"name\":\"strategist\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategistRemoved\",\"inputs\":[{\"name\":\"strategist\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategistTakeoversFrozen\",\"inputs\":[],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperBankHookMerkleRootProposed\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newRoot\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperBankHookMerkleRootUpdated\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newRoot\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperformStrategistAdded\",\"inputs\":[{\"name\":\"strategist\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperformStrategistRemoved\",\"inputs\":[{\"name\":\"strategist\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UpkeepCostPerUpdateChanged\",\"inputs\":[{\"name\":\"newCost\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UpkeepCostPerUpdateProposed\",\"inputs\":[{\"name\":\"newCost\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UpkeepPaymentsChangeProposed\",\"inputs\":[{\"name\":\"enabled\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UpkeepPaymentsChanged\",\"inputs\":[{\"name\":\"enabled\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ValidatorAdded\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ValidatorRemoved\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"VaultBankHookMerkleRootProposed\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newRoot\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"VaultBankHookMerkleRootUpdated\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newRoot\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"AccessControlBadConfirmation\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AccessControlUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"neededRole\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"CONTRACT_ALREADY_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CONTRACT_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EXECUTOR_ALREADY_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EXECUTOR_NOT_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FULFILL_REQUESTS_HOOK_ALREADY_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FULFILL_REQUESTS_HOOK_NOT_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"HOOK_ALREADY_APPROVED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"HOOK_NOT_APPROVED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE_VALUE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_QUORUM\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_REVENUE_SHARE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_TIMESTAMP\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MUST_USE_TIMELOCK_FOR_CHANGE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_ACTIVE_PPS_ORACLE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_PENDING_CHANGE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_PROPOSED_FEE\",\"inputs\":[{\"name\":\"feeType\",\"type\":\"uint8\",\"internalType\":\"enumFeeType\"}]},{\"type\":\"error\",\"name\":\"NO_PROPOSED_MERKLE_ROOT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_PROPOSED_PPS_ORACLE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_PROPOSED_UPKEEP_COST\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ONLY_GOVERNOR\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"RELAYER_ALREADY_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"RELAYER_NOT_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"STRATEGIST_ALREADY_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"STRATEGIST_NOT_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"STRATEGIST_TAKEOVERS_FROZEN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TIMELOCK_NOT_EXPIRED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"VALIDATOR_ALREADY_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"VALIDATOR_NOT_REGISTERED\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"superGovernor\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"governor\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"bankManager\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"treasury_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"prover_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"BANK_MANAGER\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"BANK_MANAGER_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"DEFAULT_ADMIN_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"ECDSAPPSORACLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"GOVERNOR_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"GUARDIAN_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"SUP\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SUPER_ASSET_FACTORY\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"SUPER_BANK\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SUPER_GOVERNOR_ROLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"SUPER_ORACLE\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SUPER_VAULT_AGGREGATOR\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"TREASURY\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"UP\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"VAULT_BANK\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"addExecutor\",\"inputs\":[{\"name\":\"executor_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addICCToWhitelist\",\"inputs\":[{\"name\":\"icc\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addRelayer\",\"inputs\":[{\"name\":\"relayer_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addSuperformStrategist\",\"inputs\":[{\"name\":\"strategist\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addValidator\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addVaultBank\",\"inputs\":[{\"name\":\"chainId\",\"type\":\"uint64\",\"internalType\":\"uint64\"},{\"name\":\"vaultBank\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"batchSetEmergencyPrices\",\"inputs\":[{\"name\":\"tokens_\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"prices_\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"batchSetOracleUptimeFeed\",\"inputs\":[{\"name\":\"dataOracles_\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"uptimeOracles_\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"gracePeriods_\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"changeHooksRootUpdateTimelock\",\"inputs\":[{\"name\":\"newTimelock_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"changePrimaryStrategist\",\"inputs\":[{\"name\":\"strategy_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"newStrategist_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeActivePPSOracleChange\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeAddIncentiveTokens\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeFeeUpdate\",\"inputs\":[{\"name\":\"feeType\",\"type\":\"uint8\",\"internalType\":\"enumFeeType\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeRemoveIncentiveTokens\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeSuperBankHookMerkleRootUpdate\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeUpkeepCostPerUpdateChange\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeUpkeepPaymentsChange\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"executeVaultBankHookMerkleRootUpdate\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"freezeStrategistTakeover\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getActivePPSOracle\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAddress\",\"inputs\":[{\"name\":\"key\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAllSuperformStrategists\",\"inputs\":[],\"outputs\":[{\"name\":\"strategists\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getFee\",\"inputs\":[{\"name\":\"feeType\",\"type\":\"uint8\",\"internalType\":\"enumFeeType\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPPSOracleQuorum\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getProposedActivePPSOracle\",\"inputs\":[],\"outputs\":[{\"name\":\"proposedOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getProposedSuperBankHookMerkleRoot\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"proposedRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getProposedUpkeepCostPerUpdate\",\"inputs\":[],\"outputs\":[{\"name\":\"proposedCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getProposedUpkeepPaymentsStatus\",\"inputs\":[],\"outputs\":[{\"name\":\"enabled\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getProposedVaultBankHookMerkleRoot\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"proposedRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getProver\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRegisteredFulfillRequestsHooks\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRegisteredHooks\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getRoleAdmin\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getStrategistsPaginated\",\"inputs\":[{\"name\":\"cursor\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"limit\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"chunkOfStrategists\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"next\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getSuperBankHookMerkleRoot\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getSuperformStrategistsCount\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getUpkeepCostPerUpdate\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getValidators\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getVaultBank\",\"inputs\":[{\"name\":\"chainId\",\"type\":\"uint64\",\"internalType\":\"uint64\"}],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getVaultBankHookMerkleRoot\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"grantRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"hasRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isActivePPSOracle\",\"inputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isExecutor\",\"inputs\":[{\"name\":\"executor\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isFulfillRequestsHookRegistered\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isGuardian\",\"inputs\":[{\"name\":\"guardian\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isHookRegistered\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isRelayer\",\"inputs\":[{\"name\":\"relayer\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isStrategistTakeoverFrozen\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isSuperformStrategist\",\"inputs\":[{\"name\":\"strategist\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isSuperform\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isUpkeepPaymentsEnabled\",\"inputs\":[],\"outputs\":[{\"name\":\"enabled\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isValidator\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isWhitelistedIncentiveToken\",\"inputs\":[{\"name\":\"token\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"proposeActivePPSOracle\",\"inputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeAddIncentiveTokens\",\"inputs\":[{\"name\":\"tokens\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeFee\",\"inputs\":[{\"name\":\"feeType\",\"type\":\"uint8\",\"internalType\":\"enumFeeType\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeGlobalHooksRoot\",\"inputs\":[{\"name\":\"newRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeRemoveIncentiveTokens\",\"inputs\":[{\"name\":\"tokens\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeSuperBankHookMerkleRoot\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"proposedRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeUpkeepCostPerUpdate\",\"inputs\":[{\"name\":\"newCost_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeUpkeepPaymentsChange\",\"inputs\":[{\"name\":\"enabled\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"proposeVaultBankHookMerkleRoot\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"proposedRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"queueOracleProviderRemoval\",\"inputs\":[{\"name\":\"providers_\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"queueOracleUpdate\",\"inputs\":[{\"name\":\"bases_\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"quotes_\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"providers_\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"},{\"name\":\"feeds_\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"registerHook\",\"inputs\":[{\"name\":\"hook_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"isFulfillRequestsHook_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"removeExecutor\",\"inputs\":[{\"name\":\"executor_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"removeICCFromWhitelist\",\"inputs\":[{\"name\":\"icc\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"removeRelayer\",\"inputs\":[{\"name\":\"relayer_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"removeSuperformStrategist\",\"inputs\":[{\"name\":\"strategist\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"removeValidator\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"renounceRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"callerConfirmation\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"revokeRole\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setActivePPSOracle\",\"inputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setAddress\",\"inputs\":[{\"name\":\"key\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"value\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setEmergencyPrice\",\"inputs\":[{\"name\":\"token_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"price_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setGlobalHooksRootVetoStatus\",\"inputs\":[{\"name\":\"vetoed_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setOracleFeedMaxStaleness\",\"inputs\":[{\"name\":\"feed_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"newMaxStaleness_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setOracleFeedMaxStalenessBatch\",\"inputs\":[{\"name\":\"feeds_\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"newMaxStalenessList_\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setOracleMaxStaleness\",\"inputs\":[{\"name\":\"newMaxStaleness_\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setPPSOracleQuorum\",\"inputs\":[{\"name\":\"quorum\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setProver\",\"inputs\":[{\"name\":\"prover_\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setStrategyHooksRootVetoStatus\",\"inputs\":[{\"name\":\"strategy_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"vetoed_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setSuperAssetManager\",\"inputs\":[{\"name\":\"superAsset\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"_superAssetManager\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"supportsInterface\",\"inputs\":[{\"name\":\"interfaceId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"unregisterHook\",\"inputs\":[{\"name\":\"hook_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"isFulfillRequestsHook_\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"ActivePPSOracleChanged\",\"inputs\":[{\"name\":\"oldOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ActivePPSOracleProposed\",\"inputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ActivePPSOracleSet\",\"inputs\":[{\"name\":\"oracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AddressSet\",\"inputs\":[{\"name\":\"key\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"value\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ExecutorAdded\",\"inputs\":[{\"name\":\"executor\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ExecutorRemoved\",\"inputs\":[{\"name\":\"executor\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FeeProposed\",\"inputs\":[{\"name\":\"feeType\",\"type\":\"uint8\",\"indexed\":true,\"internalType\":\"enumFeeType\"},{\"name\":\"value\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FeeUpdated\",\"inputs\":[{\"name\":\"feeType\",\"type\":\"uint8\",\"indexed\":true,\"internalType\":\"enumFeeType\"},{\"name\":\"value\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FulfillRequestsHookRegistered\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"FulfillRequestsHookUnregistered\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HookApproved\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"HookRemoved\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"PPSOracleQuorumUpdated\",\"inputs\":[{\"name\":\"quorum\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ProverSet\",\"inputs\":[{\"name\":\"prover\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RelayerAdded\",\"inputs\":[{\"name\":\"relayer\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RelayerRemoved\",\"inputs\":[{\"name\":\"relayer\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RevenueShareUpdated\",\"inputs\":[{\"name\":\"share\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleAdminChanged\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"previousAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"newAdminRole\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleGranted\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"RoleRevoked\",\"inputs\":[{\"name\":\"role\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategistAdded\",\"inputs\":[{\"name\":\"strategist\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategistRemoved\",\"inputs\":[{\"name\":\"strategist\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"StrategistTakeoversFrozen\",\"inputs\":[],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperBankHookMerkleRootProposed\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newRoot\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperBankHookMerkleRootUpdated\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newRoot\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperformStrategistAdded\",\"inputs\":[{\"name\":\"strategist\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperformStrategistRemoved\",\"inputs\":[{\"name\":\"strategist\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UpkeepCostPerUpdateChanged\",\"inputs\":[{\"name\":\"newCost\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UpkeepCostPerUpdateProposed\",\"inputs\":[{\"name\":\"newCost\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UpkeepPaymentsChangeProposed\",\"inputs\":[{\"name\":\"enabled\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UpkeepPaymentsChanged\",\"inputs\":[{\"name\":\"enabled\",\"type\":\"bool\",\"indexed\":false,\"internalType\":\"bool\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ValidatorAdded\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ValidatorRemoved\",\"inputs\":[{\"name\":\"validator\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"VaultBankAddressAdded\",\"inputs\":[{\"name\":\"chainId\",\"type\":\"uint64\",\"indexed\":true,\"internalType\":\"uint64\"},{\"name\":\"vaultBank\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"VaultBankHookMerkleRootProposed\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newRoot\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"VaultBankHookMerkleRootUpdated\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newRoot\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"WhitelistedIncentiveTokensAdded\",\"inputs\":[{\"name\":\"tokens\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"WhitelistedIncentiveTokensProposed\",\"inputs\":[{\"name\":\"tokens\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"},{\"name\":\"effectiveTime\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"WhitelistedIncentiveTokensRemoved\",\"inputs\":[{\"name\":\"tokens\",\"type\":\"address[]\",\"indexed\":false,\"internalType\":\"address[]\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"AccessControlBadConfirmation\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"AccessControlUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"neededRole\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}]},{\"type\":\"error\",\"name\":\"CONTRACT_ALREADY_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CONTRACT_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EXECUTOR_ALREADY_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"EXECUTOR_NOT_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FULFILL_REQUESTS_HOOK_ALREADY_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FULFILL_REQUESTS_HOOK_NOT_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"HOOK_ALREADY_APPROVED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"HOOK_NOT_APPROVED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ADDRESS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_CHAIN_ID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE_VALUE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_QUORUM\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_REVENUE_SHARE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_TIMESTAMP\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MUST_USE_TIMELOCK_FOR_CHANGE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_PROPOSED_INCENTIVE_TOKEN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_WHITELISTED_INCENTIVE_TOKEN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_ACTIVE_PPS_ORACLE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_PENDING_CHANGE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_PROPOSED_FEE\",\"inputs\":[{\"name\":\"feeType\",\"type\":\"uint8\",\"internalType\":\"enumFeeType\"}]},{\"type\":\"error\",\"name\":\"NO_PROPOSED_MERKLE_ROOT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_PROPOSED_PPS_ORACLE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_PROPOSED_UPKEEP_COST\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ONLY_GOVERNOR\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"RELAYER_ALREADY_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"RELAYER_NOT_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"STRATEGIST_ALREADY_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"STRATEGIST_NOT_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"STRATEGIST_TAKEOVERS_FROZEN\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TIMELOCK_NOT_EXPIRED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"TOKEN_ALREADY_WHITELISTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"VALIDATOR_ALREADY_REGISTERED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"VALIDATOR_NOT_REGISTERED\",\"inputs\":[]}]",
 }
 
 // SuperGovernorABI is the input ABI used to generate the binding from.
@@ -242,37 +242,6 @@ func (_SuperGovernor *SuperGovernorCallerSession) BANKMANAGERROLE() ([32]byte, e
 	return _SuperGovernor.Contract.BANKMANAGERROLE(&_SuperGovernor.CallOpts)
 }
 
-// BLSPPSORACLE is a free data retrieval call binding the contract method 0x863d4332.
-//
-// Solidity: function BLSPPSORACLE() view returns(bytes32)
-func (_SuperGovernor *SuperGovernorCaller) BLSPPSORACLE(opts *bind.CallOpts) ([32]byte, error) {
-	var out []interface{}
-	err := _SuperGovernor.contract.Call(opts, &out, "BLSPPSORACLE")
-
-	if err != nil {
-		return *new([32]byte), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
-
-	return out0, err
-
-}
-
-// BLSPPSORACLE is a free data retrieval call binding the contract method 0x863d4332.
-//
-// Solidity: function BLSPPSORACLE() view returns(bytes32)
-func (_SuperGovernor *SuperGovernorSession) BLSPPSORACLE() ([32]byte, error) {
-	return _SuperGovernor.Contract.BLSPPSORACLE(&_SuperGovernor.CallOpts)
-}
-
-// BLSPPSORACLE is a free data retrieval call binding the contract method 0x863d4332.
-//
-// Solidity: function BLSPPSORACLE() view returns(bytes32)
-func (_SuperGovernor *SuperGovernorCallerSession) BLSPPSORACLE() ([32]byte, error) {
-	return _SuperGovernor.Contract.BLSPPSORACLE(&_SuperGovernor.CallOpts)
-}
-
 // DEFAULTADMINROLE is a free data retrieval call binding the contract method 0xa217fddf.
 //
 // Solidity: function DEFAULT_ADMIN_ROLE() view returns(bytes32)
@@ -426,6 +395,37 @@ func (_SuperGovernor *SuperGovernorSession) SUP() ([32]byte, error) {
 // Solidity: function SUP() view returns(bytes32)
 func (_SuperGovernor *SuperGovernorCallerSession) SUP() ([32]byte, error) {
 	return _SuperGovernor.Contract.SUP(&_SuperGovernor.CallOpts)
+}
+
+// SUPERASSETFACTORY is a free data retrieval call binding the contract method 0xec63a694.
+//
+// Solidity: function SUPER_ASSET_FACTORY() pure returns(bytes32)
+func (_SuperGovernor *SuperGovernorCaller) SUPERASSETFACTORY(opts *bind.CallOpts) ([32]byte, error) {
+	var out []interface{}
+	err := _SuperGovernor.contract.Call(opts, &out, "SUPER_ASSET_FACTORY")
+
+	if err != nil {
+		return *new([32]byte), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
+
+	return out0, err
+
+}
+
+// SUPERASSETFACTORY is a free data retrieval call binding the contract method 0xec63a694.
+//
+// Solidity: function SUPER_ASSET_FACTORY() pure returns(bytes32)
+func (_SuperGovernor *SuperGovernorSession) SUPERASSETFACTORY() ([32]byte, error) {
+	return _SuperGovernor.Contract.SUPERASSETFACTORY(&_SuperGovernor.CallOpts)
+}
+
+// SUPERASSETFACTORY is a free data retrieval call binding the contract method 0xec63a694.
+//
+// Solidity: function SUPER_ASSET_FACTORY() pure returns(bytes32)
+func (_SuperGovernor *SuperGovernorCallerSession) SUPERASSETFACTORY() ([32]byte, error) {
+	return _SuperGovernor.Contract.SUPERASSETFACTORY(&_SuperGovernor.CallOpts)
 }
 
 // SUPERBANK is a free data retrieval call binding the contract method 0x6f2140c1.
@@ -612,6 +612,37 @@ func (_SuperGovernor *SuperGovernorSession) UP() ([32]byte, error) {
 // Solidity: function UP() view returns(bytes32)
 func (_SuperGovernor *SuperGovernorCallerSession) UP() ([32]byte, error) {
 	return _SuperGovernor.Contract.UP(&_SuperGovernor.CallOpts)
+}
+
+// VAULTBANK is a free data retrieval call binding the contract method 0x39e0739e.
+//
+// Solidity: function VAULT_BANK() view returns(bytes32)
+func (_SuperGovernor *SuperGovernorCaller) VAULTBANK(opts *bind.CallOpts) ([32]byte, error) {
+	var out []interface{}
+	err := _SuperGovernor.contract.Call(opts, &out, "VAULT_BANK")
+
+	if err != nil {
+		return *new([32]byte), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new([32]byte)).(*[32]byte)
+
+	return out0, err
+
+}
+
+// VAULTBANK is a free data retrieval call binding the contract method 0x39e0739e.
+//
+// Solidity: function VAULT_BANK() view returns(bytes32)
+func (_SuperGovernor *SuperGovernorSession) VAULTBANK() ([32]byte, error) {
+	return _SuperGovernor.Contract.VAULTBANK(&_SuperGovernor.CallOpts)
+}
+
+// VAULTBANK is a free data retrieval call binding the contract method 0x39e0739e.
+//
+// Solidity: function VAULT_BANK() view returns(bytes32)
+func (_SuperGovernor *SuperGovernorCallerSession) VAULTBANK() ([32]byte, error) {
+	return _SuperGovernor.Contract.VAULTBANK(&_SuperGovernor.CallOpts)
 }
 
 // GetActivePPSOracle is a free data retrieval call binding the contract method 0x275f0f2b.
@@ -1118,6 +1149,51 @@ func (_SuperGovernor *SuperGovernorCallerSession) GetRoleAdmin(role [32]byte) ([
 	return _SuperGovernor.Contract.GetRoleAdmin(&_SuperGovernor.CallOpts, role)
 }
 
+// GetStrategistsPaginated is a free data retrieval call binding the contract method 0x703714ca.
+//
+// Solidity: function getStrategistsPaginated(uint256 cursor, uint256 limit) view returns(address[] chunkOfStrategists, uint256 next)
+func (_SuperGovernor *SuperGovernorCaller) GetStrategistsPaginated(opts *bind.CallOpts, cursor *big.Int, limit *big.Int) (struct {
+	ChunkOfStrategists []common.Address
+	Next               *big.Int
+}, error) {
+	var out []interface{}
+	err := _SuperGovernor.contract.Call(opts, &out, "getStrategistsPaginated", cursor, limit)
+
+	outstruct := new(struct {
+		ChunkOfStrategists []common.Address
+		Next               *big.Int
+	})
+	if err != nil {
+		return *outstruct, err
+	}
+
+	outstruct.ChunkOfStrategists = *abi.ConvertType(out[0], new([]common.Address)).(*[]common.Address)
+	outstruct.Next = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
+
+	return *outstruct, err
+
+}
+
+// GetStrategistsPaginated is a free data retrieval call binding the contract method 0x703714ca.
+//
+// Solidity: function getStrategistsPaginated(uint256 cursor, uint256 limit) view returns(address[] chunkOfStrategists, uint256 next)
+func (_SuperGovernor *SuperGovernorSession) GetStrategistsPaginated(cursor *big.Int, limit *big.Int) (struct {
+	ChunkOfStrategists []common.Address
+	Next               *big.Int
+}, error) {
+	return _SuperGovernor.Contract.GetStrategistsPaginated(&_SuperGovernor.CallOpts, cursor, limit)
+}
+
+// GetStrategistsPaginated is a free data retrieval call binding the contract method 0x703714ca.
+//
+// Solidity: function getStrategistsPaginated(uint256 cursor, uint256 limit) view returns(address[] chunkOfStrategists, uint256 next)
+func (_SuperGovernor *SuperGovernorCallerSession) GetStrategistsPaginated(cursor *big.Int, limit *big.Int) (struct {
+	ChunkOfStrategists []common.Address
+	Next               *big.Int
+}, error) {
+	return _SuperGovernor.Contract.GetStrategistsPaginated(&_SuperGovernor.CallOpts, cursor, limit)
+}
+
 // GetSuperBankHookMerkleRoot is a free data retrieval call binding the contract method 0xf43526f4.
 //
 // Solidity: function getSuperBankHookMerkleRoot(address hook) view returns(bytes32)
@@ -1147,6 +1223,37 @@ func (_SuperGovernor *SuperGovernorSession) GetSuperBankHookMerkleRoot(hook comm
 // Solidity: function getSuperBankHookMerkleRoot(address hook) view returns(bytes32)
 func (_SuperGovernor *SuperGovernorCallerSession) GetSuperBankHookMerkleRoot(hook common.Address) ([32]byte, error) {
 	return _SuperGovernor.Contract.GetSuperBankHookMerkleRoot(&_SuperGovernor.CallOpts, hook)
+}
+
+// GetSuperformStrategistsCount is a free data retrieval call binding the contract method 0x0129e699.
+//
+// Solidity: function getSuperformStrategistsCount() view returns(uint256)
+func (_SuperGovernor *SuperGovernorCaller) GetSuperformStrategistsCount(opts *bind.CallOpts) (*big.Int, error) {
+	var out []interface{}
+	err := _SuperGovernor.contract.Call(opts, &out, "getSuperformStrategistsCount")
+
+	if err != nil {
+		return *new(*big.Int), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+
+	return out0, err
+
+}
+
+// GetSuperformStrategistsCount is a free data retrieval call binding the contract method 0x0129e699.
+//
+// Solidity: function getSuperformStrategistsCount() view returns(uint256)
+func (_SuperGovernor *SuperGovernorSession) GetSuperformStrategistsCount() (*big.Int, error) {
+	return _SuperGovernor.Contract.GetSuperformStrategistsCount(&_SuperGovernor.CallOpts)
+}
+
+// GetSuperformStrategistsCount is a free data retrieval call binding the contract method 0x0129e699.
+//
+// Solidity: function getSuperformStrategistsCount() view returns(uint256)
+func (_SuperGovernor *SuperGovernorCallerSession) GetSuperformStrategistsCount() (*big.Int, error) {
+	return _SuperGovernor.Contract.GetSuperformStrategistsCount(&_SuperGovernor.CallOpts)
 }
 
 // GetUpkeepCostPerUpdate is a free data retrieval call binding the contract method 0xb4e111ca.
@@ -1209,6 +1316,37 @@ func (_SuperGovernor *SuperGovernorSession) GetValidators() ([]common.Address, e
 // Solidity: function getValidators() view returns(address[])
 func (_SuperGovernor *SuperGovernorCallerSession) GetValidators() ([]common.Address, error) {
 	return _SuperGovernor.Contract.GetValidators(&_SuperGovernor.CallOpts)
+}
+
+// GetVaultBank is a free data retrieval call binding the contract method 0x3e099f30.
+//
+// Solidity: function getVaultBank(uint64 chainId) view returns(address)
+func (_SuperGovernor *SuperGovernorCaller) GetVaultBank(opts *bind.CallOpts, chainId uint64) (common.Address, error) {
+	var out []interface{}
+	err := _SuperGovernor.contract.Call(opts, &out, "getVaultBank", chainId)
+
+	if err != nil {
+		return *new(common.Address), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
+
+	return out0, err
+
+}
+
+// GetVaultBank is a free data retrieval call binding the contract method 0x3e099f30.
+//
+// Solidity: function getVaultBank(uint64 chainId) view returns(address)
+func (_SuperGovernor *SuperGovernorSession) GetVaultBank(chainId uint64) (common.Address, error) {
+	return _SuperGovernor.Contract.GetVaultBank(&_SuperGovernor.CallOpts, chainId)
+}
+
+// GetVaultBank is a free data retrieval call binding the contract method 0x3e099f30.
+//
+// Solidity: function getVaultBank(uint64 chainId) view returns(address)
+func (_SuperGovernor *SuperGovernorCallerSession) GetVaultBank(chainId uint64) (common.Address, error) {
+	return _SuperGovernor.Contract.GetVaultBank(&_SuperGovernor.CallOpts, chainId)
 }
 
 // GetVaultBankHookMerkleRoot is a free data retrieval call binding the contract method 0xdfebb1c2.
@@ -1583,6 +1721,37 @@ func (_SuperGovernor *SuperGovernorCallerSession) IsValidator(validator common.A
 	return _SuperGovernor.Contract.IsValidator(&_SuperGovernor.CallOpts, validator)
 }
 
+// IsWhitelistedIncentiveToken is a free data retrieval call binding the contract method 0x7045af80.
+//
+// Solidity: function isWhitelistedIncentiveToken(address token) view returns(bool)
+func (_SuperGovernor *SuperGovernorCaller) IsWhitelistedIncentiveToken(opts *bind.CallOpts, token common.Address) (bool, error) {
+	var out []interface{}
+	err := _SuperGovernor.contract.Call(opts, &out, "isWhitelistedIncentiveToken", token)
+
+	if err != nil {
+		return *new(bool), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new(bool)).(*bool)
+
+	return out0, err
+
+}
+
+// IsWhitelistedIncentiveToken is a free data retrieval call binding the contract method 0x7045af80.
+//
+// Solidity: function isWhitelistedIncentiveToken(address token) view returns(bool)
+func (_SuperGovernor *SuperGovernorSession) IsWhitelistedIncentiveToken(token common.Address) (bool, error) {
+	return _SuperGovernor.Contract.IsWhitelistedIncentiveToken(&_SuperGovernor.CallOpts, token)
+}
+
+// IsWhitelistedIncentiveToken is a free data retrieval call binding the contract method 0x7045af80.
+//
+// Solidity: function isWhitelistedIncentiveToken(address token) view returns(bool)
+func (_SuperGovernor *SuperGovernorCallerSession) IsWhitelistedIncentiveToken(token common.Address) (bool, error) {
+	return _SuperGovernor.Contract.IsWhitelistedIncentiveToken(&_SuperGovernor.CallOpts, token)
+}
+
 // SupportsInterface is a free data retrieval call binding the contract method 0x01ffc9a7.
 //
 // Solidity: function supportsInterface(bytes4 interfaceId) view returns(bool)
@@ -1633,6 +1802,27 @@ func (_SuperGovernor *SuperGovernorSession) AddExecutor(executor_ common.Address
 // Solidity: function addExecutor(address executor_) returns()
 func (_SuperGovernor *SuperGovernorTransactorSession) AddExecutor(executor_ common.Address) (*types.Transaction, error) {
 	return _SuperGovernor.Contract.AddExecutor(&_SuperGovernor.TransactOpts, executor_)
+}
+
+// AddICCToWhitelist is a paid mutator transaction binding the contract method 0xd070909e.
+//
+// Solidity: function addICCToWhitelist(address icc) returns()
+func (_SuperGovernor *SuperGovernorTransactor) AddICCToWhitelist(opts *bind.TransactOpts, icc common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "addICCToWhitelist", icc)
+}
+
+// AddICCToWhitelist is a paid mutator transaction binding the contract method 0xd070909e.
+//
+// Solidity: function addICCToWhitelist(address icc) returns()
+func (_SuperGovernor *SuperGovernorSession) AddICCToWhitelist(icc common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.AddICCToWhitelist(&_SuperGovernor.TransactOpts, icc)
+}
+
+// AddICCToWhitelist is a paid mutator transaction binding the contract method 0xd070909e.
+//
+// Solidity: function addICCToWhitelist(address icc) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) AddICCToWhitelist(icc common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.AddICCToWhitelist(&_SuperGovernor.TransactOpts, icc)
 }
 
 // AddRelayer is a paid mutator transaction binding the contract method 0xdd39f00d.
@@ -1698,6 +1888,90 @@ func (_SuperGovernor *SuperGovernorTransactorSession) AddValidator(validator com
 	return _SuperGovernor.Contract.AddValidator(&_SuperGovernor.TransactOpts, validator)
 }
 
+// AddVaultBank is a paid mutator transaction binding the contract method 0xbecbf729.
+//
+// Solidity: function addVaultBank(uint64 chainId, address vaultBank) returns()
+func (_SuperGovernor *SuperGovernorTransactor) AddVaultBank(opts *bind.TransactOpts, chainId uint64, vaultBank common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "addVaultBank", chainId, vaultBank)
+}
+
+// AddVaultBank is a paid mutator transaction binding the contract method 0xbecbf729.
+//
+// Solidity: function addVaultBank(uint64 chainId, address vaultBank) returns()
+func (_SuperGovernor *SuperGovernorSession) AddVaultBank(chainId uint64, vaultBank common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.AddVaultBank(&_SuperGovernor.TransactOpts, chainId, vaultBank)
+}
+
+// AddVaultBank is a paid mutator transaction binding the contract method 0xbecbf729.
+//
+// Solidity: function addVaultBank(uint64 chainId, address vaultBank) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) AddVaultBank(chainId uint64, vaultBank common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.AddVaultBank(&_SuperGovernor.TransactOpts, chainId, vaultBank)
+}
+
+// BatchSetEmergencyPrices is a paid mutator transaction binding the contract method 0x00f1131f.
+//
+// Solidity: function batchSetEmergencyPrices(address[] tokens_, uint256[] prices_) returns()
+func (_SuperGovernor *SuperGovernorTransactor) BatchSetEmergencyPrices(opts *bind.TransactOpts, tokens_ []common.Address, prices_ []*big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "batchSetEmergencyPrices", tokens_, prices_)
+}
+
+// BatchSetEmergencyPrices is a paid mutator transaction binding the contract method 0x00f1131f.
+//
+// Solidity: function batchSetEmergencyPrices(address[] tokens_, uint256[] prices_) returns()
+func (_SuperGovernor *SuperGovernorSession) BatchSetEmergencyPrices(tokens_ []common.Address, prices_ []*big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.BatchSetEmergencyPrices(&_SuperGovernor.TransactOpts, tokens_, prices_)
+}
+
+// BatchSetEmergencyPrices is a paid mutator transaction binding the contract method 0x00f1131f.
+//
+// Solidity: function batchSetEmergencyPrices(address[] tokens_, uint256[] prices_) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) BatchSetEmergencyPrices(tokens_ []common.Address, prices_ []*big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.BatchSetEmergencyPrices(&_SuperGovernor.TransactOpts, tokens_, prices_)
+}
+
+// BatchSetOracleUptimeFeed is a paid mutator transaction binding the contract method 0x52ad8b00.
+//
+// Solidity: function batchSetOracleUptimeFeed(address[] dataOracles_, address[] uptimeOracles_, uint256[] gracePeriods_) returns()
+func (_SuperGovernor *SuperGovernorTransactor) BatchSetOracleUptimeFeed(opts *bind.TransactOpts, dataOracles_ []common.Address, uptimeOracles_ []common.Address, gracePeriods_ []*big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "batchSetOracleUptimeFeed", dataOracles_, uptimeOracles_, gracePeriods_)
+}
+
+// BatchSetOracleUptimeFeed is a paid mutator transaction binding the contract method 0x52ad8b00.
+//
+// Solidity: function batchSetOracleUptimeFeed(address[] dataOracles_, address[] uptimeOracles_, uint256[] gracePeriods_) returns()
+func (_SuperGovernor *SuperGovernorSession) BatchSetOracleUptimeFeed(dataOracles_ []common.Address, uptimeOracles_ []common.Address, gracePeriods_ []*big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.BatchSetOracleUptimeFeed(&_SuperGovernor.TransactOpts, dataOracles_, uptimeOracles_, gracePeriods_)
+}
+
+// BatchSetOracleUptimeFeed is a paid mutator transaction binding the contract method 0x52ad8b00.
+//
+// Solidity: function batchSetOracleUptimeFeed(address[] dataOracles_, address[] uptimeOracles_, uint256[] gracePeriods_) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) BatchSetOracleUptimeFeed(dataOracles_ []common.Address, uptimeOracles_ []common.Address, gracePeriods_ []*big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.BatchSetOracleUptimeFeed(&_SuperGovernor.TransactOpts, dataOracles_, uptimeOracles_, gracePeriods_)
+}
+
+// ChangeHooksRootUpdateTimelock is a paid mutator transaction binding the contract method 0x9649933b.
+//
+// Solidity: function changeHooksRootUpdateTimelock(uint256 newTimelock_) returns()
+func (_SuperGovernor *SuperGovernorTransactor) ChangeHooksRootUpdateTimelock(opts *bind.TransactOpts, newTimelock_ *big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "changeHooksRootUpdateTimelock", newTimelock_)
+}
+
+// ChangeHooksRootUpdateTimelock is a paid mutator transaction binding the contract method 0x9649933b.
+//
+// Solidity: function changeHooksRootUpdateTimelock(uint256 newTimelock_) returns()
+func (_SuperGovernor *SuperGovernorSession) ChangeHooksRootUpdateTimelock(newTimelock_ *big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.ChangeHooksRootUpdateTimelock(&_SuperGovernor.TransactOpts, newTimelock_)
+}
+
+// ChangeHooksRootUpdateTimelock is a paid mutator transaction binding the contract method 0x9649933b.
+//
+// Solidity: function changeHooksRootUpdateTimelock(uint256 newTimelock_) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) ChangeHooksRootUpdateTimelock(newTimelock_ *big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.ChangeHooksRootUpdateTimelock(&_SuperGovernor.TransactOpts, newTimelock_)
+}
+
 // ChangePrimaryStrategist is a paid mutator transaction binding the contract method 0x3c308f54.
 //
 // Solidity: function changePrimaryStrategist(address strategy_, address newStrategist_) returns()
@@ -1740,6 +2014,27 @@ func (_SuperGovernor *SuperGovernorTransactorSession) ExecuteActivePPSOracleChan
 	return _SuperGovernor.Contract.ExecuteActivePPSOracleChange(&_SuperGovernor.TransactOpts)
 }
 
+// ExecuteAddIncentiveTokens is a paid mutator transaction binding the contract method 0xe5cc7970.
+//
+// Solidity: function executeAddIncentiveTokens() returns()
+func (_SuperGovernor *SuperGovernorTransactor) ExecuteAddIncentiveTokens(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "executeAddIncentiveTokens")
+}
+
+// ExecuteAddIncentiveTokens is a paid mutator transaction binding the contract method 0xe5cc7970.
+//
+// Solidity: function executeAddIncentiveTokens() returns()
+func (_SuperGovernor *SuperGovernorSession) ExecuteAddIncentiveTokens() (*types.Transaction, error) {
+	return _SuperGovernor.Contract.ExecuteAddIncentiveTokens(&_SuperGovernor.TransactOpts)
+}
+
+// ExecuteAddIncentiveTokens is a paid mutator transaction binding the contract method 0xe5cc7970.
+//
+// Solidity: function executeAddIncentiveTokens() returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) ExecuteAddIncentiveTokens() (*types.Transaction, error) {
+	return _SuperGovernor.Contract.ExecuteAddIncentiveTokens(&_SuperGovernor.TransactOpts)
+}
+
 // ExecuteFeeUpdate is a paid mutator transaction binding the contract method 0x365d6bf3.
 //
 // Solidity: function executeFeeUpdate(uint8 feeType) returns()
@@ -1759,6 +2054,27 @@ func (_SuperGovernor *SuperGovernorSession) ExecuteFeeUpdate(feeType uint8) (*ty
 // Solidity: function executeFeeUpdate(uint8 feeType) returns()
 func (_SuperGovernor *SuperGovernorTransactorSession) ExecuteFeeUpdate(feeType uint8) (*types.Transaction, error) {
 	return _SuperGovernor.Contract.ExecuteFeeUpdate(&_SuperGovernor.TransactOpts, feeType)
+}
+
+// ExecuteRemoveIncentiveTokens is a paid mutator transaction binding the contract method 0xdc972801.
+//
+// Solidity: function executeRemoveIncentiveTokens() returns()
+func (_SuperGovernor *SuperGovernorTransactor) ExecuteRemoveIncentiveTokens(opts *bind.TransactOpts) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "executeRemoveIncentiveTokens")
+}
+
+// ExecuteRemoveIncentiveTokens is a paid mutator transaction binding the contract method 0xdc972801.
+//
+// Solidity: function executeRemoveIncentiveTokens() returns()
+func (_SuperGovernor *SuperGovernorSession) ExecuteRemoveIncentiveTokens() (*types.Transaction, error) {
+	return _SuperGovernor.Contract.ExecuteRemoveIncentiveTokens(&_SuperGovernor.TransactOpts)
+}
+
+// ExecuteRemoveIncentiveTokens is a paid mutator transaction binding the contract method 0xdc972801.
+//
+// Solidity: function executeRemoveIncentiveTokens() returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) ExecuteRemoveIncentiveTokens() (*types.Transaction, error) {
+	return _SuperGovernor.Contract.ExecuteRemoveIncentiveTokens(&_SuperGovernor.TransactOpts)
 }
 
 // ExecuteSuperBankHookMerkleRootUpdate is a paid mutator transaction binding the contract method 0x290c49a1.
@@ -1908,6 +2224,27 @@ func (_SuperGovernor *SuperGovernorTransactorSession) ProposeActivePPSOracle(ora
 	return _SuperGovernor.Contract.ProposeActivePPSOracle(&_SuperGovernor.TransactOpts, oracle)
 }
 
+// ProposeAddIncentiveTokens is a paid mutator transaction binding the contract method 0x51597672.
+//
+// Solidity: function proposeAddIncentiveTokens(address[] tokens) returns()
+func (_SuperGovernor *SuperGovernorTransactor) ProposeAddIncentiveTokens(opts *bind.TransactOpts, tokens []common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "proposeAddIncentiveTokens", tokens)
+}
+
+// ProposeAddIncentiveTokens is a paid mutator transaction binding the contract method 0x51597672.
+//
+// Solidity: function proposeAddIncentiveTokens(address[] tokens) returns()
+func (_SuperGovernor *SuperGovernorSession) ProposeAddIncentiveTokens(tokens []common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.ProposeAddIncentiveTokens(&_SuperGovernor.TransactOpts, tokens)
+}
+
+// ProposeAddIncentiveTokens is a paid mutator transaction binding the contract method 0x51597672.
+//
+// Solidity: function proposeAddIncentiveTokens(address[] tokens) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) ProposeAddIncentiveTokens(tokens []common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.ProposeAddIncentiveTokens(&_SuperGovernor.TransactOpts, tokens)
+}
+
 // ProposeFee is a paid mutator transaction binding the contract method 0x022e38cf.
 //
 // Solidity: function proposeFee(uint8 feeType, uint256 value) returns()
@@ -1948,6 +2285,27 @@ func (_SuperGovernor *SuperGovernorSession) ProposeGlobalHooksRoot(newRoot [32]b
 // Solidity: function proposeGlobalHooksRoot(bytes32 newRoot) returns()
 func (_SuperGovernor *SuperGovernorTransactorSession) ProposeGlobalHooksRoot(newRoot [32]byte) (*types.Transaction, error) {
 	return _SuperGovernor.Contract.ProposeGlobalHooksRoot(&_SuperGovernor.TransactOpts, newRoot)
+}
+
+// ProposeRemoveIncentiveTokens is a paid mutator transaction binding the contract method 0xcb53603e.
+//
+// Solidity: function proposeRemoveIncentiveTokens(address[] tokens) returns()
+func (_SuperGovernor *SuperGovernorTransactor) ProposeRemoveIncentiveTokens(opts *bind.TransactOpts, tokens []common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "proposeRemoveIncentiveTokens", tokens)
+}
+
+// ProposeRemoveIncentiveTokens is a paid mutator transaction binding the contract method 0xcb53603e.
+//
+// Solidity: function proposeRemoveIncentiveTokens(address[] tokens) returns()
+func (_SuperGovernor *SuperGovernorSession) ProposeRemoveIncentiveTokens(tokens []common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.ProposeRemoveIncentiveTokens(&_SuperGovernor.TransactOpts, tokens)
+}
+
+// ProposeRemoveIncentiveTokens is a paid mutator transaction binding the contract method 0xcb53603e.
+//
+// Solidity: function proposeRemoveIncentiveTokens(address[] tokens) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) ProposeRemoveIncentiveTokens(tokens []common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.ProposeRemoveIncentiveTokens(&_SuperGovernor.TransactOpts, tokens)
 }
 
 // ProposeSuperBankHookMerkleRoot is a paid mutator transaction binding the contract method 0x5e46e8b9.
@@ -2034,6 +2392,48 @@ func (_SuperGovernor *SuperGovernorTransactorSession) ProposeVaultBankHookMerkle
 	return _SuperGovernor.Contract.ProposeVaultBankHookMerkleRoot(&_SuperGovernor.TransactOpts, hook, proposedRoot)
 }
 
+// QueueOracleProviderRemoval is a paid mutator transaction binding the contract method 0x6490305f.
+//
+// Solidity: function queueOracleProviderRemoval(bytes32[] providers_) returns()
+func (_SuperGovernor *SuperGovernorTransactor) QueueOracleProviderRemoval(opts *bind.TransactOpts, providers_ [][32]byte) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "queueOracleProviderRemoval", providers_)
+}
+
+// QueueOracleProviderRemoval is a paid mutator transaction binding the contract method 0x6490305f.
+//
+// Solidity: function queueOracleProviderRemoval(bytes32[] providers_) returns()
+func (_SuperGovernor *SuperGovernorSession) QueueOracleProviderRemoval(providers_ [][32]byte) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.QueueOracleProviderRemoval(&_SuperGovernor.TransactOpts, providers_)
+}
+
+// QueueOracleProviderRemoval is a paid mutator transaction binding the contract method 0x6490305f.
+//
+// Solidity: function queueOracleProviderRemoval(bytes32[] providers_) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) QueueOracleProviderRemoval(providers_ [][32]byte) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.QueueOracleProviderRemoval(&_SuperGovernor.TransactOpts, providers_)
+}
+
+// QueueOracleUpdate is a paid mutator transaction binding the contract method 0xba1f073c.
+//
+// Solidity: function queueOracleUpdate(address[] bases_, address[] quotes_, bytes32[] providers_, address[] feeds_) returns()
+func (_SuperGovernor *SuperGovernorTransactor) QueueOracleUpdate(opts *bind.TransactOpts, bases_ []common.Address, quotes_ []common.Address, providers_ [][32]byte, feeds_ []common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "queueOracleUpdate", bases_, quotes_, providers_, feeds_)
+}
+
+// QueueOracleUpdate is a paid mutator transaction binding the contract method 0xba1f073c.
+//
+// Solidity: function queueOracleUpdate(address[] bases_, address[] quotes_, bytes32[] providers_, address[] feeds_) returns()
+func (_SuperGovernor *SuperGovernorSession) QueueOracleUpdate(bases_ []common.Address, quotes_ []common.Address, providers_ [][32]byte, feeds_ []common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.QueueOracleUpdate(&_SuperGovernor.TransactOpts, bases_, quotes_, providers_, feeds_)
+}
+
+// QueueOracleUpdate is a paid mutator transaction binding the contract method 0xba1f073c.
+//
+// Solidity: function queueOracleUpdate(address[] bases_, address[] quotes_, bytes32[] providers_, address[] feeds_) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) QueueOracleUpdate(bases_ []common.Address, quotes_ []common.Address, providers_ [][32]byte, feeds_ []common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.QueueOracleUpdate(&_SuperGovernor.TransactOpts, bases_, quotes_, providers_, feeds_)
+}
+
 // RegisterHook is a paid mutator transaction binding the contract method 0x8481643b.
 //
 // Solidity: function registerHook(address hook_, bool isFulfillRequestsHook_) returns()
@@ -2074,6 +2474,27 @@ func (_SuperGovernor *SuperGovernorSession) RemoveExecutor(executor_ common.Addr
 // Solidity: function removeExecutor(address executor_) returns()
 func (_SuperGovernor *SuperGovernorTransactorSession) RemoveExecutor(executor_ common.Address) (*types.Transaction, error) {
 	return _SuperGovernor.Contract.RemoveExecutor(&_SuperGovernor.TransactOpts, executor_)
+}
+
+// RemoveICCFromWhitelist is a paid mutator transaction binding the contract method 0x256b71a0.
+//
+// Solidity: function removeICCFromWhitelist(address icc) returns()
+func (_SuperGovernor *SuperGovernorTransactor) RemoveICCFromWhitelist(opts *bind.TransactOpts, icc common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "removeICCFromWhitelist", icc)
+}
+
+// RemoveICCFromWhitelist is a paid mutator transaction binding the contract method 0x256b71a0.
+//
+// Solidity: function removeICCFromWhitelist(address icc) returns()
+func (_SuperGovernor *SuperGovernorSession) RemoveICCFromWhitelist(icc common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.RemoveICCFromWhitelist(&_SuperGovernor.TransactOpts, icc)
+}
+
+// RemoveICCFromWhitelist is a paid mutator transaction binding the contract method 0x256b71a0.
+//
+// Solidity: function removeICCFromWhitelist(address icc) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) RemoveICCFromWhitelist(icc common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.RemoveICCFromWhitelist(&_SuperGovernor.TransactOpts, icc)
 }
 
 // RemoveRelayer is a paid mutator transaction binding the contract method 0x60f0a5ac.
@@ -2223,6 +2644,27 @@ func (_SuperGovernor *SuperGovernorTransactorSession) SetAddress(key [32]byte, v
 	return _SuperGovernor.Contract.SetAddress(&_SuperGovernor.TransactOpts, key, value)
 }
 
+// SetEmergencyPrice is a paid mutator transaction binding the contract method 0x7ee185c1.
+//
+// Solidity: function setEmergencyPrice(address token_, uint256 price_) returns()
+func (_SuperGovernor *SuperGovernorTransactor) SetEmergencyPrice(opts *bind.TransactOpts, token_ common.Address, price_ *big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "setEmergencyPrice", token_, price_)
+}
+
+// SetEmergencyPrice is a paid mutator transaction binding the contract method 0x7ee185c1.
+//
+// Solidity: function setEmergencyPrice(address token_, uint256 price_) returns()
+func (_SuperGovernor *SuperGovernorSession) SetEmergencyPrice(token_ common.Address, price_ *big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.SetEmergencyPrice(&_SuperGovernor.TransactOpts, token_, price_)
+}
+
+// SetEmergencyPrice is a paid mutator transaction binding the contract method 0x7ee185c1.
+//
+// Solidity: function setEmergencyPrice(address token_, uint256 price_) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) SetEmergencyPrice(token_ common.Address, price_ *big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.SetEmergencyPrice(&_SuperGovernor.TransactOpts, token_, price_)
+}
+
 // SetGlobalHooksRootVetoStatus is a paid mutator transaction binding the contract method 0xd5f3cd86.
 //
 // Solidity: function setGlobalHooksRootVetoStatus(bool vetoed_) returns()
@@ -2242,6 +2684,69 @@ func (_SuperGovernor *SuperGovernorSession) SetGlobalHooksRootVetoStatus(vetoed_
 // Solidity: function setGlobalHooksRootVetoStatus(bool vetoed_) returns()
 func (_SuperGovernor *SuperGovernorTransactorSession) SetGlobalHooksRootVetoStatus(vetoed_ bool) (*types.Transaction, error) {
 	return _SuperGovernor.Contract.SetGlobalHooksRootVetoStatus(&_SuperGovernor.TransactOpts, vetoed_)
+}
+
+// SetOracleFeedMaxStaleness is a paid mutator transaction binding the contract method 0x17a79fa6.
+//
+// Solidity: function setOracleFeedMaxStaleness(address feed_, uint256 newMaxStaleness_) returns()
+func (_SuperGovernor *SuperGovernorTransactor) SetOracleFeedMaxStaleness(opts *bind.TransactOpts, feed_ common.Address, newMaxStaleness_ *big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "setOracleFeedMaxStaleness", feed_, newMaxStaleness_)
+}
+
+// SetOracleFeedMaxStaleness is a paid mutator transaction binding the contract method 0x17a79fa6.
+//
+// Solidity: function setOracleFeedMaxStaleness(address feed_, uint256 newMaxStaleness_) returns()
+func (_SuperGovernor *SuperGovernorSession) SetOracleFeedMaxStaleness(feed_ common.Address, newMaxStaleness_ *big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.SetOracleFeedMaxStaleness(&_SuperGovernor.TransactOpts, feed_, newMaxStaleness_)
+}
+
+// SetOracleFeedMaxStaleness is a paid mutator transaction binding the contract method 0x17a79fa6.
+//
+// Solidity: function setOracleFeedMaxStaleness(address feed_, uint256 newMaxStaleness_) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) SetOracleFeedMaxStaleness(feed_ common.Address, newMaxStaleness_ *big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.SetOracleFeedMaxStaleness(&_SuperGovernor.TransactOpts, feed_, newMaxStaleness_)
+}
+
+// SetOracleFeedMaxStalenessBatch is a paid mutator transaction binding the contract method 0x3fa9fe64.
+//
+// Solidity: function setOracleFeedMaxStalenessBatch(address[] feeds_, uint256[] newMaxStalenessList_) returns()
+func (_SuperGovernor *SuperGovernorTransactor) SetOracleFeedMaxStalenessBatch(opts *bind.TransactOpts, feeds_ []common.Address, newMaxStalenessList_ []*big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "setOracleFeedMaxStalenessBatch", feeds_, newMaxStalenessList_)
+}
+
+// SetOracleFeedMaxStalenessBatch is a paid mutator transaction binding the contract method 0x3fa9fe64.
+//
+// Solidity: function setOracleFeedMaxStalenessBatch(address[] feeds_, uint256[] newMaxStalenessList_) returns()
+func (_SuperGovernor *SuperGovernorSession) SetOracleFeedMaxStalenessBatch(feeds_ []common.Address, newMaxStalenessList_ []*big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.SetOracleFeedMaxStalenessBatch(&_SuperGovernor.TransactOpts, feeds_, newMaxStalenessList_)
+}
+
+// SetOracleFeedMaxStalenessBatch is a paid mutator transaction binding the contract method 0x3fa9fe64.
+//
+// Solidity: function setOracleFeedMaxStalenessBatch(address[] feeds_, uint256[] newMaxStalenessList_) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) SetOracleFeedMaxStalenessBatch(feeds_ []common.Address, newMaxStalenessList_ []*big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.SetOracleFeedMaxStalenessBatch(&_SuperGovernor.TransactOpts, feeds_, newMaxStalenessList_)
+}
+
+// SetOracleMaxStaleness is a paid mutator transaction binding the contract method 0x324341ed.
+//
+// Solidity: function setOracleMaxStaleness(uint256 newMaxStaleness_) returns()
+func (_SuperGovernor *SuperGovernorTransactor) SetOracleMaxStaleness(opts *bind.TransactOpts, newMaxStaleness_ *big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "setOracleMaxStaleness", newMaxStaleness_)
+}
+
+// SetOracleMaxStaleness is a paid mutator transaction binding the contract method 0x324341ed.
+//
+// Solidity: function setOracleMaxStaleness(uint256 newMaxStaleness_) returns()
+func (_SuperGovernor *SuperGovernorSession) SetOracleMaxStaleness(newMaxStaleness_ *big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.SetOracleMaxStaleness(&_SuperGovernor.TransactOpts, newMaxStaleness_)
+}
+
+// SetOracleMaxStaleness is a paid mutator transaction binding the contract method 0x324341ed.
+//
+// Solidity: function setOracleMaxStaleness(uint256 newMaxStaleness_) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) SetOracleMaxStaleness(newMaxStaleness_ *big.Int) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.SetOracleMaxStaleness(&_SuperGovernor.TransactOpts, newMaxStaleness_)
 }
 
 // SetPPSOracleQuorum is a paid mutator transaction binding the contract method 0x52da1de3.
@@ -2305,6 +2810,27 @@ func (_SuperGovernor *SuperGovernorSession) SetStrategyHooksRootVetoStatus(strat
 // Solidity: function setStrategyHooksRootVetoStatus(address strategy_, bool vetoed_) returns()
 func (_SuperGovernor *SuperGovernorTransactorSession) SetStrategyHooksRootVetoStatus(strategy_ common.Address, vetoed_ bool) (*types.Transaction, error) {
 	return _SuperGovernor.Contract.SetStrategyHooksRootVetoStatus(&_SuperGovernor.TransactOpts, strategy_, vetoed_)
+}
+
+// SetSuperAssetManager is a paid mutator transaction binding the contract method 0xe778f632.
+//
+// Solidity: function setSuperAssetManager(address superAsset, address _superAssetManager) returns()
+func (_SuperGovernor *SuperGovernorTransactor) SetSuperAssetManager(opts *bind.TransactOpts, superAsset common.Address, _superAssetManager common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.contract.Transact(opts, "setSuperAssetManager", superAsset, _superAssetManager)
+}
+
+// SetSuperAssetManager is a paid mutator transaction binding the contract method 0xe778f632.
+//
+// Solidity: function setSuperAssetManager(address superAsset, address _superAssetManager) returns()
+func (_SuperGovernor *SuperGovernorSession) SetSuperAssetManager(superAsset common.Address, _superAssetManager common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.SetSuperAssetManager(&_SuperGovernor.TransactOpts, superAsset, _superAssetManager)
+}
+
+// SetSuperAssetManager is a paid mutator transaction binding the contract method 0xe778f632.
+//
+// Solidity: function setSuperAssetManager(address superAsset, address _superAssetManager) returns()
+func (_SuperGovernor *SuperGovernorTransactorSession) SetSuperAssetManager(superAsset common.Address, _superAssetManager common.Address) (*types.Transaction, error) {
+	return _SuperGovernor.Contract.SetSuperAssetManager(&_SuperGovernor.TransactOpts, superAsset, _superAssetManager)
 }
 
 // UnregisterHook is a paid mutator transaction binding the contract method 0xdf30fc07.
@@ -7090,6 +7616,159 @@ func (_SuperGovernor *SuperGovernorFilterer) ParseValidatorRemoved(log types.Log
 	return event, nil
 }
 
+// SuperGovernorVaultBankAddressAddedIterator is returned from FilterVaultBankAddressAdded and is used to iterate over the raw logs and unpacked data for VaultBankAddressAdded events raised by the SuperGovernor contract.
+type SuperGovernorVaultBankAddressAddedIterator struct {
+	Event *SuperGovernorVaultBankAddressAdded // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperGovernorVaultBankAddressAddedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperGovernorVaultBankAddressAdded)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperGovernorVaultBankAddressAdded)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperGovernorVaultBankAddressAddedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperGovernorVaultBankAddressAddedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SuperGovernorVaultBankAddressAdded represents a VaultBankAddressAdded event raised by the SuperGovernor contract.
+type SuperGovernorVaultBankAddressAdded struct {
+	ChainId   uint64
+	VaultBank common.Address
+	Raw       types.Log // Blockchain specific contextual infos
+}
+
+// FilterVaultBankAddressAdded is a free log retrieval operation binding the contract event 0x5cb45d0d54e4695b28909810784917d1e30ad097489dc83bfc62abac3097f169.
+//
+// Solidity: event VaultBankAddressAdded(uint64 indexed chainId, address indexed vaultBank)
+func (_SuperGovernor *SuperGovernorFilterer) FilterVaultBankAddressAdded(opts *bind.FilterOpts, chainId []uint64, vaultBank []common.Address) (*SuperGovernorVaultBankAddressAddedIterator, error) {
+
+	var chainIdRule []interface{}
+	for _, chainIdItem := range chainId {
+		chainIdRule = append(chainIdRule, chainIdItem)
+	}
+	var vaultBankRule []interface{}
+	for _, vaultBankItem := range vaultBank {
+		vaultBankRule = append(vaultBankRule, vaultBankItem)
+	}
+
+	logs, sub, err := _SuperGovernor.contract.FilterLogs(opts, "VaultBankAddressAdded", chainIdRule, vaultBankRule)
+	if err != nil {
+		return nil, err
+	}
+	return &SuperGovernorVaultBankAddressAddedIterator{contract: _SuperGovernor.contract, event: "VaultBankAddressAdded", logs: logs, sub: sub}, nil
+}
+
+// WatchVaultBankAddressAdded is a free log subscription operation binding the contract event 0x5cb45d0d54e4695b28909810784917d1e30ad097489dc83bfc62abac3097f169.
+//
+// Solidity: event VaultBankAddressAdded(uint64 indexed chainId, address indexed vaultBank)
+func (_SuperGovernor *SuperGovernorFilterer) WatchVaultBankAddressAdded(opts *bind.WatchOpts, sink chan<- *SuperGovernorVaultBankAddressAdded, chainId []uint64, vaultBank []common.Address) (event.Subscription, error) {
+
+	var chainIdRule []interface{}
+	for _, chainIdItem := range chainId {
+		chainIdRule = append(chainIdRule, chainIdItem)
+	}
+	var vaultBankRule []interface{}
+	for _, vaultBankItem := range vaultBank {
+		vaultBankRule = append(vaultBankRule, vaultBankItem)
+	}
+
+	logs, sub, err := _SuperGovernor.contract.WatchLogs(opts, "VaultBankAddressAdded", chainIdRule, vaultBankRule)
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperGovernorVaultBankAddressAdded)
+				if err := _SuperGovernor.contract.UnpackLog(event, "VaultBankAddressAdded", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseVaultBankAddressAdded is a log parse operation binding the contract event 0x5cb45d0d54e4695b28909810784917d1e30ad097489dc83bfc62abac3097f169.
+//
+// Solidity: event VaultBankAddressAdded(uint64 indexed chainId, address indexed vaultBank)
+func (_SuperGovernor *SuperGovernorFilterer) ParseVaultBankAddressAdded(log types.Log) (*SuperGovernorVaultBankAddressAdded, error) {
+	event := new(SuperGovernorVaultBankAddressAdded)
+	if err := _SuperGovernor.contract.UnpackLog(event, "VaultBankAddressAdded", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
 // SuperGovernorVaultBankHookMerkleRootProposedIterator is returned from FilterVaultBankHookMerkleRootProposed and is used to iterate over the raw logs and unpacked data for VaultBankHookMerkleRootProposed events raised by the SuperGovernor contract.
 type SuperGovernorVaultBankHookMerkleRootProposedIterator struct {
 	Event *SuperGovernorVaultBankHookMerkleRootProposed // Event containing the contract specifics and raw log
@@ -7375,6 +8054,409 @@ func (_SuperGovernor *SuperGovernorFilterer) WatchVaultBankHookMerkleRootUpdated
 func (_SuperGovernor *SuperGovernorFilterer) ParseVaultBankHookMerkleRootUpdated(log types.Log) (*SuperGovernorVaultBankHookMerkleRootUpdated, error) {
 	event := new(SuperGovernorVaultBankHookMerkleRootUpdated)
 	if err := _SuperGovernor.contract.UnpackLog(event, "VaultBankHookMerkleRootUpdated", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// SuperGovernorWhitelistedIncentiveTokensAddedIterator is returned from FilterWhitelistedIncentiveTokensAdded and is used to iterate over the raw logs and unpacked data for WhitelistedIncentiveTokensAdded events raised by the SuperGovernor contract.
+type SuperGovernorWhitelistedIncentiveTokensAddedIterator struct {
+	Event *SuperGovernorWhitelistedIncentiveTokensAdded // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperGovernorWhitelistedIncentiveTokensAddedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperGovernorWhitelistedIncentiveTokensAdded)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperGovernorWhitelistedIncentiveTokensAdded)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperGovernorWhitelistedIncentiveTokensAddedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperGovernorWhitelistedIncentiveTokensAddedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SuperGovernorWhitelistedIncentiveTokensAdded represents a WhitelistedIncentiveTokensAdded event raised by the SuperGovernor contract.
+type SuperGovernorWhitelistedIncentiveTokensAdded struct {
+	Tokens []common.Address
+	Raw    types.Log // Blockchain specific contextual infos
+}
+
+// FilterWhitelistedIncentiveTokensAdded is a free log retrieval operation binding the contract event 0xfcea9a0a0943a560b6065073054ea3e19aa43e137d7e753876775ad1179847c6.
+//
+// Solidity: event WhitelistedIncentiveTokensAdded(address[] tokens)
+func (_SuperGovernor *SuperGovernorFilterer) FilterWhitelistedIncentiveTokensAdded(opts *bind.FilterOpts) (*SuperGovernorWhitelistedIncentiveTokensAddedIterator, error) {
+
+	logs, sub, err := _SuperGovernor.contract.FilterLogs(opts, "WhitelistedIncentiveTokensAdded")
+	if err != nil {
+		return nil, err
+	}
+	return &SuperGovernorWhitelistedIncentiveTokensAddedIterator{contract: _SuperGovernor.contract, event: "WhitelistedIncentiveTokensAdded", logs: logs, sub: sub}, nil
+}
+
+// WatchWhitelistedIncentiveTokensAdded is a free log subscription operation binding the contract event 0xfcea9a0a0943a560b6065073054ea3e19aa43e137d7e753876775ad1179847c6.
+//
+// Solidity: event WhitelistedIncentiveTokensAdded(address[] tokens)
+func (_SuperGovernor *SuperGovernorFilterer) WatchWhitelistedIncentiveTokensAdded(opts *bind.WatchOpts, sink chan<- *SuperGovernorWhitelistedIncentiveTokensAdded) (event.Subscription, error) {
+
+	logs, sub, err := _SuperGovernor.contract.WatchLogs(opts, "WhitelistedIncentiveTokensAdded")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperGovernorWhitelistedIncentiveTokensAdded)
+				if err := _SuperGovernor.contract.UnpackLog(event, "WhitelistedIncentiveTokensAdded", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseWhitelistedIncentiveTokensAdded is a log parse operation binding the contract event 0xfcea9a0a0943a560b6065073054ea3e19aa43e137d7e753876775ad1179847c6.
+//
+// Solidity: event WhitelistedIncentiveTokensAdded(address[] tokens)
+func (_SuperGovernor *SuperGovernorFilterer) ParseWhitelistedIncentiveTokensAdded(log types.Log) (*SuperGovernorWhitelistedIncentiveTokensAdded, error) {
+	event := new(SuperGovernorWhitelistedIncentiveTokensAdded)
+	if err := _SuperGovernor.contract.UnpackLog(event, "WhitelistedIncentiveTokensAdded", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// SuperGovernorWhitelistedIncentiveTokensProposedIterator is returned from FilterWhitelistedIncentiveTokensProposed and is used to iterate over the raw logs and unpacked data for WhitelistedIncentiveTokensProposed events raised by the SuperGovernor contract.
+type SuperGovernorWhitelistedIncentiveTokensProposedIterator struct {
+	Event *SuperGovernorWhitelistedIncentiveTokensProposed // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperGovernorWhitelistedIncentiveTokensProposedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperGovernorWhitelistedIncentiveTokensProposed)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperGovernorWhitelistedIncentiveTokensProposed)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperGovernorWhitelistedIncentiveTokensProposedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperGovernorWhitelistedIncentiveTokensProposedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SuperGovernorWhitelistedIncentiveTokensProposed represents a WhitelistedIncentiveTokensProposed event raised by the SuperGovernor contract.
+type SuperGovernorWhitelistedIncentiveTokensProposed struct {
+	Tokens        []common.Address
+	EffectiveTime *big.Int
+	Raw           types.Log // Blockchain specific contextual infos
+}
+
+// FilterWhitelistedIncentiveTokensProposed is a free log retrieval operation binding the contract event 0xdc25fd6bdd21f8da9b5b76d30960d45120a708e1f91ae912871da0fc21454979.
+//
+// Solidity: event WhitelistedIncentiveTokensProposed(address[] tokens, uint256 effectiveTime)
+func (_SuperGovernor *SuperGovernorFilterer) FilterWhitelistedIncentiveTokensProposed(opts *bind.FilterOpts) (*SuperGovernorWhitelistedIncentiveTokensProposedIterator, error) {
+
+	logs, sub, err := _SuperGovernor.contract.FilterLogs(opts, "WhitelistedIncentiveTokensProposed")
+	if err != nil {
+		return nil, err
+	}
+	return &SuperGovernorWhitelistedIncentiveTokensProposedIterator{contract: _SuperGovernor.contract, event: "WhitelistedIncentiveTokensProposed", logs: logs, sub: sub}, nil
+}
+
+// WatchWhitelistedIncentiveTokensProposed is a free log subscription operation binding the contract event 0xdc25fd6bdd21f8da9b5b76d30960d45120a708e1f91ae912871da0fc21454979.
+//
+// Solidity: event WhitelistedIncentiveTokensProposed(address[] tokens, uint256 effectiveTime)
+func (_SuperGovernor *SuperGovernorFilterer) WatchWhitelistedIncentiveTokensProposed(opts *bind.WatchOpts, sink chan<- *SuperGovernorWhitelistedIncentiveTokensProposed) (event.Subscription, error) {
+
+	logs, sub, err := _SuperGovernor.contract.WatchLogs(opts, "WhitelistedIncentiveTokensProposed")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperGovernorWhitelistedIncentiveTokensProposed)
+				if err := _SuperGovernor.contract.UnpackLog(event, "WhitelistedIncentiveTokensProposed", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseWhitelistedIncentiveTokensProposed is a log parse operation binding the contract event 0xdc25fd6bdd21f8da9b5b76d30960d45120a708e1f91ae912871da0fc21454979.
+//
+// Solidity: event WhitelistedIncentiveTokensProposed(address[] tokens, uint256 effectiveTime)
+func (_SuperGovernor *SuperGovernorFilterer) ParseWhitelistedIncentiveTokensProposed(log types.Log) (*SuperGovernorWhitelistedIncentiveTokensProposed, error) {
+	event := new(SuperGovernorWhitelistedIncentiveTokensProposed)
+	if err := _SuperGovernor.contract.UnpackLog(event, "WhitelistedIncentiveTokensProposed", log); err != nil {
+		return nil, err
+	}
+	event.Raw = log
+	return event, nil
+}
+
+// SuperGovernorWhitelistedIncentiveTokensRemovedIterator is returned from FilterWhitelistedIncentiveTokensRemoved and is used to iterate over the raw logs and unpacked data for WhitelistedIncentiveTokensRemoved events raised by the SuperGovernor contract.
+type SuperGovernorWhitelistedIncentiveTokensRemovedIterator struct {
+	Event *SuperGovernorWhitelistedIncentiveTokensRemoved // Event containing the contract specifics and raw log
+
+	contract *bind.BoundContract // Generic contract to use for unpacking event data
+	event    string              // Event name to use for unpacking event data
+
+	logs chan types.Log        // Log channel receiving the found contract events
+	sub  ethereum.Subscription // Subscription for errors, completion and termination
+	done bool                  // Whether the subscription completed delivering logs
+	fail error                 // Occurred error to stop iteration
+}
+
+// Next advances the iterator to the subsequent event, returning whether there
+// are any more events found. In case of a retrieval or parsing error, false is
+// returned and Error() can be queried for the exact failure.
+func (it *SuperGovernorWhitelistedIncentiveTokensRemovedIterator) Next() bool {
+	// If the iterator failed, stop iterating
+	if it.fail != nil {
+		return false
+	}
+	// If the iterator completed, deliver directly whatever's available
+	if it.done {
+		select {
+		case log := <-it.logs:
+			it.Event = new(SuperGovernorWhitelistedIncentiveTokensRemoved)
+			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+				it.fail = err
+				return false
+			}
+			it.Event.Raw = log
+			return true
+
+		default:
+			return false
+		}
+	}
+	// Iterator still in progress, wait for either a data or an error event
+	select {
+	case log := <-it.logs:
+		it.Event = new(SuperGovernorWhitelistedIncentiveTokensRemoved)
+		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
+			it.fail = err
+			return false
+		}
+		it.Event.Raw = log
+		return true
+
+	case err := <-it.sub.Err():
+		it.done = true
+		it.fail = err
+		return it.Next()
+	}
+}
+
+// Error returns any retrieval or parsing error occurred during filtering.
+func (it *SuperGovernorWhitelistedIncentiveTokensRemovedIterator) Error() error {
+	return it.fail
+}
+
+// Close terminates the iteration process, releasing any pending underlying
+// resources.
+func (it *SuperGovernorWhitelistedIncentiveTokensRemovedIterator) Close() error {
+	it.sub.Unsubscribe()
+	return nil
+}
+
+// SuperGovernorWhitelistedIncentiveTokensRemoved represents a WhitelistedIncentiveTokensRemoved event raised by the SuperGovernor contract.
+type SuperGovernorWhitelistedIncentiveTokensRemoved struct {
+	Tokens []common.Address
+	Raw    types.Log // Blockchain specific contextual infos
+}
+
+// FilterWhitelistedIncentiveTokensRemoved is a free log retrieval operation binding the contract event 0x592ccb66164159ca890f72fc24cdab8c5fcfcfe35f7455b88e594060568ce011.
+//
+// Solidity: event WhitelistedIncentiveTokensRemoved(address[] tokens)
+func (_SuperGovernor *SuperGovernorFilterer) FilterWhitelistedIncentiveTokensRemoved(opts *bind.FilterOpts) (*SuperGovernorWhitelistedIncentiveTokensRemovedIterator, error) {
+
+	logs, sub, err := _SuperGovernor.contract.FilterLogs(opts, "WhitelistedIncentiveTokensRemoved")
+	if err != nil {
+		return nil, err
+	}
+	return &SuperGovernorWhitelistedIncentiveTokensRemovedIterator{contract: _SuperGovernor.contract, event: "WhitelistedIncentiveTokensRemoved", logs: logs, sub: sub}, nil
+}
+
+// WatchWhitelistedIncentiveTokensRemoved is a free log subscription operation binding the contract event 0x592ccb66164159ca890f72fc24cdab8c5fcfcfe35f7455b88e594060568ce011.
+//
+// Solidity: event WhitelistedIncentiveTokensRemoved(address[] tokens)
+func (_SuperGovernor *SuperGovernorFilterer) WatchWhitelistedIncentiveTokensRemoved(opts *bind.WatchOpts, sink chan<- *SuperGovernorWhitelistedIncentiveTokensRemoved) (event.Subscription, error) {
+
+	logs, sub, err := _SuperGovernor.contract.WatchLogs(opts, "WhitelistedIncentiveTokensRemoved")
+	if err != nil {
+		return nil, err
+	}
+	return event.NewSubscription(func(quit <-chan struct{}) error {
+		defer sub.Unsubscribe()
+		for {
+			select {
+			case log := <-logs:
+				// New log arrived, parse the event and forward to the user
+				event := new(SuperGovernorWhitelistedIncentiveTokensRemoved)
+				if err := _SuperGovernor.contract.UnpackLog(event, "WhitelistedIncentiveTokensRemoved", log); err != nil {
+					return err
+				}
+				event.Raw = log
+
+				select {
+				case sink <- event:
+				case err := <-sub.Err():
+					return err
+				case <-quit:
+					return nil
+				}
+			case err := <-sub.Err():
+				return err
+			case <-quit:
+				return nil
+			}
+		}
+	}), nil
+}
+
+// ParseWhitelistedIncentiveTokensRemoved is a log parse operation binding the contract event 0x592ccb66164159ca890f72fc24cdab8c5fcfcfe35f7455b88e594060568ce011.
+//
+// Solidity: event WhitelistedIncentiveTokensRemoved(address[] tokens)
+func (_SuperGovernor *SuperGovernorFilterer) ParseWhitelistedIncentiveTokensRemoved(log types.Log) (*SuperGovernorWhitelistedIncentiveTokensRemoved, error) {
+	event := new(SuperGovernorWhitelistedIncentiveTokensRemoved)
+	if err := _SuperGovernor.contract.UnpackLog(event, "WhitelistedIncentiveTokensRemoved", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
