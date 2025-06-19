@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {FluidClaimRewardHook} from "../../../../../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
-import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
-import {MockERC20} from "../../../../mocks/MockERC20.sol";
-import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
-import {Helpers} from "../../../../utils/Helpers.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { FluidClaimRewardHook } from "../../../../../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { IFluidLendingStakingRewards } from "../../../../../src/vendor/fluid/IFluidLendingStakingRewards.sol";
+import { MockERC20 } from "../../../../mocks/MockERC20.sol";
+import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
 contract FluidClaimRewardHookTest is Helpers {
     FluidClaimRewardHook public hook;
@@ -63,8 +64,10 @@ contract FluidClaimRewardHookTest is Helpers {
         hook.build(address(0), address(0), data);
     }
 
-    function test_PreAndPostExecute() public {
+    function test_PreAndPostExecuteA() public {
         _getTokens(rewardToken, account, amount);
+
+        vm.mockCall(stakingRewards, abi.encodeWithSelector(IFluidLendingStakingRewards.rewardsToken.selector), abi.encode(rewardToken));
 
         vm.prank(account);
         hook.preExecute(address(0), account, _encodeData());
@@ -81,7 +84,36 @@ contract FluidClaimRewardHookTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
+    function test_CalldataDecoding() public view {
+        // Create test addresses and data values
+        address testStakingRewards = address(0x1234567890123456789012345678901234567890);
+        address testRewardToken = address(0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD);
+        address testAccount = address(0x9876543210987654321098765432109876543210);
+
+        // Encode data according to the NatSpec format:
+        // bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
+        // address stakingRewards = BytesLib.toAddress(data, 4);
+        // address rewardToken = BytesLib.toAddress(data, 24);
+        // address account = BytesLib.toAddress(data, 44);
+        bytes memory data = abi.encodePacked(
+            bytes4(0), // placeholder
+            testStakingRewards, // stakingRewards at offset 4
+            testRewardToken, // rewardToken at offset 24
+            testAccount // account at offset 44
+        );
+
+        // Verify the build function extracts stakingRewards correctly
+        Execution[] memory executions = hook.build(address(0), testAccount, data);
+
+        // Check stakingRewards is properly extracted
+        // Validate it by checking that it's used as the target in the execution
+        assertEq(executions[1].target, testStakingRewards, "StakingRewards address not correctly decoded");
+
+        // Verify data length is as expected (4 + 20 + 20 + 20 = 64 bytes)
+        assertEq(data.length, 64, "Calldata length is incorrect");
+    }
+
     function _encodeData() internal view returns (bytes memory) {
-        return abi.encodePacked(stakingRewards, rewardToken, account);
+        return abi.encodePacked(bytes4(0), stakingRewards, rewardToken, account);
     }
 }

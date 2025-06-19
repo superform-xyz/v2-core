@@ -80,7 +80,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
 
         executions = new Execution[](1);
         executions[0] =
-            Execution({ target: address(router), value: value, callData: usePrevHookAmount ? updatedTxData : txData_ });
+            Execution({ target: address(router), value: usePrevHookAmount ? ISuperHookResult(prevHook).outAmount() : value, callData: usePrevHookAmount ? updatedTxData : txData_ });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -218,7 +218,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
                 }
                 if (params.assets == 0) revert AMOUNT_NOT_VALID();
 
-                params.updatedInputs[i] = abi.encode(params.pt, params.assets, params.ptRecipient, params.ytRecipient);
+                params.updatedInputs[i] = abi.encode(params.pt, params.assets, params.ptRecipient, params.ytRecipient, params.minShares);
             } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
                 // https://dev.spectra.finance/technical-reference/contract-functions/router#deposit_asset_in_ibt-command
 

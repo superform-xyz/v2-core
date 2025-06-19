@@ -122,6 +122,34 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         }
     }
 
+    /// @notice Cancels a pending yield source oracle configuration proposal.
+    /// @param yieldSourceOracleId The identifier of the yield source oracle.
+    /// @dev Only the current manager can call this function.
+    function cancelYieldSourceOracleConfigProposal(bytes4 yieldSourceOracleId) external virtual {
+        // Ensure only the current manager can cancel
+        if (yieldSourceOracleConfig[yieldSourceOracleId].manager != msg.sender) {
+            revert NOT_MANAGER();
+        }
+        // Check if there is a pending proposal
+        if (yieldSourceOracleConfigProposalExpirationTime[yieldSourceOracleId] == 0) {
+            revert NO_PENDING_PROPOSAL();
+        }
+        // Store proposal details for event emission
+        YieldSourceOracleConfig memory proposal = yieldSourceOracleConfigProposals[yieldSourceOracleId];
+        // Clear the pending proposal and expiration time
+        delete yieldSourceOracleConfigProposals[yieldSourceOracleId];
+        delete yieldSourceOracleConfigProposalExpirationTime[yieldSourceOracleId];
+        // Emit event for transparency
+        emit YieldSourceOracleConfigProposalCancelled(
+            yieldSourceOracleId,
+            proposal.yieldSourceOracle,
+            proposal.feePercent,
+            proposal.feeRecipient,
+            proposal.manager,
+            proposal.ledger
+        );
+    }
+
     /// @inheritdoc ISuperLedgerConfiguration
     function acceptYieldSourceOracleConfigProposal(bytes4[] calldata yieldSourceOracleIds) external virtual {
         uint256 length = yieldSourceOracleIds.length;
@@ -131,6 +159,8 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
             bytes4 yieldSourceOracleId = yieldSourceOracleIds[i];
             YieldSourceOracleConfig memory proposal = yieldSourceOracleConfigProposals[yieldSourceOracleId];
             YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[yieldSourceOracleId];
+            
+            if (proposal.yieldSourceOracle == address(0) && proposal.feeRecipient == address(0) && proposal.ledger == address(0)) revert CONFIG_NOT_FOUND();
 
             // Cannot check on `proposal.manager` because:
             // if the manager role is transferred after the proposal is created, the new manager cannot accept the proposal
@@ -193,6 +223,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     function transferManagerRole(bytes4 yieldSourceOracleId, address newManager) external virtual {
         YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
         if (config.manager != msg.sender) revert NOT_MANAGER();
+        if (newManager == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
 
         pendingManager[yieldSourceOracleId] = newManager;
 
@@ -234,7 +265,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         });
 
         emit YieldSourceOracleConfigSet(
-            yieldSourceOracleId, yieldSourceOracle, feePercent, msg.sender, feeRecipient, ledgerContract
+            yieldSourceOracleId, yieldSourceOracle, feePercent, feeRecipient, msg.sender, ledgerContract
         );
     }
 

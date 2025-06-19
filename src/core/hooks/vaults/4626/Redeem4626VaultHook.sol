@@ -131,6 +131,10 @@ contract Redeem4626VaultHook is
 
     function _getSharesBalance(address account, bytes memory data) private view returns (uint256) {
         address yieldSource = data.extractYieldSource();
-        return IERC4626(yieldSource).balanceOf(account);
+        address owner = BytesLib.toAddress(data, 24);
+        if (owner == address(0)) {
+            owner = account;
+        }
+        return IERC4626(yieldSource).balanceOf(owner);
     }
 }
