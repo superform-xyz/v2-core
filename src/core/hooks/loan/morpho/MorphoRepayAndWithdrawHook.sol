@@ -158,16 +158,29 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                             PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
-
+    /// @dev derive the share balance of the account
+    /// @param id the id of the market
+    /// @param account the account to derive the share balance for
+    /// @return borrowShares the share balance of the account
     function deriveShareBalance(Id id, address account) public view returns (uint128 borrowShares) {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
     }
 
+    /// @dev derive the collateral balance of the account
+    /// @param id the id of the market
+    /// @param account the account to derive the collateral balance for
+    /// @return collateral the collateral balance of the account
     function deriveCollateralForFullRepayment(Id id, address account) public view returns (uint256 collateralAmount) {
         (,, uint128 collateral) = morphoStaticTyping.position(id, account);
         collateralAmount = uint256(collateral);
     }
 
+    /// @dev derive the collateral amount for partial repayment
+    /// @param id the id of the market
+    /// @param account the account to derive the collateral amount for
+    /// @param amount the amount to repay
+    /// @param fullCollateral the full collateral amount
+    /// @return withdrawableCollateral the collateral amount for partial repayment
     function deriveCollateralForPartialRepayment(
         Id id,
         address account,
@@ -184,6 +197,10 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         withdrawableCollateral = Math.mulDiv(fullCollateral, amount, fullLoanAmount);
     }
 
+    /// @dev derive the loan amount of the account
+    /// @param id the id of the market
+    /// @param account the account to derive the loan amount for
+    /// @return loanAmount the loan amount of the account
     function deriveLoanAmount(Id id, address account) public view returns (uint256 loanAmount) {
         (, uint128 fullShares,) = morphoStaticTyping.position(id, account);
         uint256 castShares = uint256(fullShares);
@@ -192,6 +209,10 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         loanAmount = castShares.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
 
+    /// @dev derive the assets for a share balance in a market
+    /// @param marketParams the market parameters
+    /// @param account the account to derive the assets for
+    /// @return assets the assets of the account
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {
         Id id = marketParams.id();
         uint256 shareBalance = deriveShareBalance(id, account);
@@ -199,6 +220,10 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         assets = shareBalance.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
 
+    /// @dev derive the shares for an amount of assets in a market
+    /// @param marketParams the market parameters
+    /// @param assets the assets to derive the shares for
+    /// @return shares the shares of the account
     function assetsToShares(MarketParams memory marketParams, uint256 assets) public view returns (uint256 shares) {
         Id id = marketParams.id();
         Market memory market = morphoInterface.market(id);
