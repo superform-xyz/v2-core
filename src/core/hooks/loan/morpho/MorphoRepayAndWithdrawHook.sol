@@ -2,10 +2,10 @@
 pragma solidity 0.8.30;
 
 // external
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SharesMathLib } from "../../../../vendor/morpho/SharesMathLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { MarketParamsLib } from "../../../../vendor/morpho/MarketParamsLib.sol";
 import {
     IMorpho, IMorphoBase, IMorphoStaticTyping, MarketParams, Id, Market
@@ -158,6 +158,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                             PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
+
     function deriveShareBalance(Id id, address account) public view returns (uint128 borrowShares) {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
     }
@@ -209,13 +210,8 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         BuildHookLocalVars memory vars = _decodeHookData(data);
-        MarketParams memory marketParams = _generateMarketParams(
-            vars.loanToken,
-            vars.collateralToken,
-            vars.oracle,
-            vars.irm,
-            vars.lltv
-        );
+        MarketParams memory marketParams =
+            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
         morphoInterface.accrueInterest(marketParams);
         // store current balance
         outAmount = getCollateralTokenBalance(account, data);
