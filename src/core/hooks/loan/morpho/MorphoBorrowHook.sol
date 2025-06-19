@@ -2,20 +2,20 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {IOracle} from "../../../../vendor/morpho/IOracle.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IMorphoBase, MarketParams} from "../../../../vendor/morpho/IMorpho.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IMorphoBase, MarketParams } from "../../../../vendor/morpho/IMorpho.sol";
 
 // Superform
-import {BaseMorphoLoanHook} from "./BaseMorphoLoanHook.sol";
-import {ISuperHook, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {ISuperHookLoans} from "../../../interfaces/ISuperHook.sol";
-import {ISuperHookResult} from "../../../interfaces/ISuperHook.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
+import { ISuperHook, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title MorphoBorrowHook
 /// @author Superform Labs
@@ -68,9 +68,12 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function build(address prevHook, address account, bytes memory data)
-        external
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -91,7 +94,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
 
         executions = new Execution[](4);
         executions[0] =
-            Execution({target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0))});
+            Execution({ target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
         executions[1] = Execution({
             target: vars.collateralToken,
             value: 0,
@@ -107,11 +110,6 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
             value: 0,
             callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, loanAmount, 0, account, account))
         });
-    }
-
-    /// @inheritdoc ISuperHookLoans
-    function getUsedAssets(address, bytes memory) external view returns (uint256) {
-        return outAmount;
     }
 
     /// @inheritdoc ISuperHookInspector
@@ -133,7 +131,12 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
     /// @dev It corresponds to the price of 10**(collateral token decimals) assets of collateral token quoted in
     /// 10**(loan token decimals) assets of loan token with `36 + loan token decimals - collateral token decimals`
     /// decimals of precision.
-    function deriveLoanAmount(uint256 collateralAmount, uint256 ltvRatio, uint256 lltv, address oracle)
+    function deriveLoanAmount(
+        uint256 collateralAmount,
+        uint256 ltvRatio,
+        uint256 lltv,
+        address oracle
+    )
         public
         view
         returns (uint256 loanAmount)
@@ -174,10 +177,10 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
 
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
-        outAmount = getCollateralTokenBalance(account, data);
+        outAmount = getLoanTokenBalance(account, data);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = outAmount - getCollateralTokenBalance(account, data);
+        outAmount = getLoanTokenBalance(account, data) - outAmount;
     }
 }
