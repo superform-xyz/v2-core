@@ -363,24 +363,22 @@ abstract contract InternalHelpers {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
-    function _createApproveAndWithdraw7540VaultHookData(
+    function _createRedeem7540VaultHookData(
         bytes4 yieldSourceOracleId,
         address yieldSource,
-        address token,
         uint256 amount,
         bool usePrevHookAmount
     ) internal pure returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
-    function _createApproveAndRedeem7540VaultHookData(
+    function _createApproveAndRequestRedeem7540VaultHookData(
         bytes4 yieldSourceOracleId,
         address yieldSource,
-        address token,
         uint256 shares,
         bool usePrevHookAmount
     ) internal pure returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, shares, usePrevHookAmount);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, shares, usePrevHookAmount);
     }
 
     function _createDeposit5115VaultHookData(
