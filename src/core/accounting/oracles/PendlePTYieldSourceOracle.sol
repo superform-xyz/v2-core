@@ -164,22 +164,6 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         return _validateAssetFoundInSY(sY, expectedUnderlying);
     }
 
-    /// @inheritdoc AbstractYieldSourceOracle
-    function isValidUnderlyingAssets(address[] memory yieldSourceAddresses, address[] memory expectedUnderlying)
-        external
-        view
-        override
-        returns (bool[] memory isValid)
-    {
-        uint256 length = yieldSourceAddresses.length;
-        if (length != expectedUnderlying.length) revert ARRAY_LENGTH_MISMATCH();
-
-        isValid = new bool[](length);
-        for (uint256 i; i < length; ++i) {
-            isValid[i] = isValidUnderlyingAsset(yieldSourceAddresses[i], expectedUnderlying[i]);
-        }
-    }
-
     function _validateAssetFoundInSY(IStandardizedYield sY, address expectedUnderlying) internal view returns (bool) {
         address[] memory tokensIn = sY.getTokensIn();
         address[] memory tokensOut = sY.getTokensOut();

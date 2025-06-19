@@ -78,8 +78,12 @@ contract FluidClaimRewardHook is
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
+        address stakingRewards = BytesLib.toAddress(data, 4);
         asset = BytesLib.toAddress(data, 24);
         if (asset == address(0)) revert ASSET_ZERO_ADDRESS();
+
+        address rewardsToken = IFluidLendingStakingRewards(stakingRewards).rewardsToken();
+        if (asset != rewardsToken) revert INVALID_REWARD_TOKEN();
 
         outAmount = _getBalance(data, account);
     }
