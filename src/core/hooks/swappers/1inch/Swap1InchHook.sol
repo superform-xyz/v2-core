@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import "../../../../vendor/1inch/I1InchAggregationRouterV6.sol";
 
 // Superform
@@ -27,6 +28,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
     //////////////////////////////////////////////////////////////*/
     I1InchAggregationRouterV6 public immutable aggregationRouter;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
+    uint256 private constant PRECISION = 1e5;
 
     address constant NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
@@ -76,7 +78,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(aggregationRouter),
-            value: value,
+            value: usePrevHookAmount && value > 0 ? ISuperHookResult(prevHook).outAmount() : value,
             callData: usePrevHookAmount ? updatedTxData : txData_
         });
     }
@@ -224,7 +226,23 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         }
 
         if (usePrevHookAmount) {
+            uint256 _prevAmount = amount;
             amount = ISuperHookResult(prevHook).outAmount();
+
+            if (amount != _prevAmount) {
+                if (amount > _prevAmount) {
+                    uint256 percentIncrease = Math.mulDiv(amount - _prevAmount, PRECISION, _prevAmount);
+                    minReturn = minReturn + Math.mulDiv(minReturn, percentIncrease, PRECISION);
+                } else {
+                    uint256 percentDecrease = Math.mulDiv(_prevAmount - amount, PRECISION, _prevAmount);
+                    uint256 decreaseAmount = Math.mulDiv(minReturn, percentDecrease, PRECISION);
+                    if (decreaseAmount > minReturn) {
+                        minReturn = 0;
+                    } else {
+                        minReturn = minReturn - decreaseAmount;
+                    }
+                }
+            }
         }
 
         if (amount == 0) {

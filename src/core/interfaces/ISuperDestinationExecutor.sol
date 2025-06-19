@@ -31,6 +31,12 @@ interface ISuperDestinationExecutor {
     /// @param salt The deterministic salt used to create the account
     event AccountCreated(address indexed account, bytes32 salt);
 
+    /// @notice Emitted when a bridged execution fails with an invalid intent amount
+    /// @param account The account on which the execution failed
+    /// @param token The token that was required but not available
+    /// @param intentAmount The amount of tokens required for execution
+    event SuperDestinationExecutorInvalidIntentAmount(address indexed account, address indexed token, uint256 intentAmount);
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/

@@ -16,6 +16,7 @@ import { BaseLoanHook } from "../../../../src/core/hooks/loan/BaseLoanHook.sol";
 import { MorphoRepayAndWithdrawHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
 import { MorphoRepayHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
 import { MorphoBorrowHook } from "../../../../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoSupplyHook } from "../../../../src/core/hooks/loan/morpho/MorphoSupplyHook.sol";
 
 contract MockOracle is IOracle {
     function price() external pure returns (uint256) {
@@ -69,6 +70,7 @@ contract MorphoLoanHooksTest is Helpers {
     MorphoBorrowHook public borrowHook;
     MorphoRepayHook public repayHook;
     MorphoRepayAndWithdrawHook public repayAndWithdrawHook;
+    MorphoSupplyHook public supplyHook;
 
     MarketParams public marketParams;
     Id public marketId;
@@ -93,6 +95,7 @@ contract MorphoLoanHooksTest is Helpers {
         borrowHook = new MorphoBorrowHook(address(mockMorpho));
         repayHook = new MorphoRepayHook(address(mockMorpho));
         repayAndWithdrawHook = new MorphoRepayAndWithdrawHook(address(mockMorpho));
+        supplyHook = new MorphoSupplyHook(address(mockMorpho));
 
         amount = 1e18;
         lltv = 860_000_000_000_000_000;
@@ -112,6 +115,9 @@ contract MorphoLoanHooksTest is Helpers {
 
         assertEq(address(repayAndWithdrawHook.morpho()), address(mockMorpho));
         assertEq(uint256(repayAndWithdrawHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
+
+        assertEq(address(supplyHook.morpho()), address(mockMorpho));
+        assertEq(uint256(supplyHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
     function test_Constructors_RevertIf_ZeroAddress() public {
@@ -123,6 +129,9 @@ contract MorphoLoanHooksTest is Helpers {
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         new MorphoRepayAndWithdrawHook(address(0));
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        new MorphoSupplyHook(address(0));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -159,6 +168,12 @@ contract MorphoLoanHooksTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
+    function test_SupplyHook_Inspector() public view {
+        bytes memory data = _encodeSupplyData(false);
+        bytes memory argsEncoded = supplyHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
     function test_BorrowHook_Build_RevertIf_ZeroAddress() public {
         vm.expectRevert();
         borrowHook.build(
@@ -174,6 +189,17 @@ contract MorphoLoanHooksTest is Helpers {
                 false,
                 lltv,
                 false
+            )
+        );
+    }
+
+    function test_SupplyHook_Build_RevertIf_ZeroAddress() public {
+        vm.expectRevert();
+        supplyHook.build(
+            address(0),
+            address(this),
+            abi.encodePacked(
+                address(loanToken), address(collateralToken), address(0), MORPHO_IRM, amount, lltv, false, false
             )
         );
     }
@@ -197,6 +223,17 @@ contract MorphoLoanHooksTest is Helpers {
         );
     }
 
+    function test_SupplyHook_Build_RevertIf_InvalidLoanToken() public {
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        supplyHook.build(
+            address(0),
+            address(this),
+            abi.encodePacked(
+                address(0), address(collateralToken), address(mockOracle), MORPHO_IRM, amount, lltv, false, false
+            )
+        );
+    }
+
     function test_BorrowHook_Build_RevertIf_InvalidCollateralToken() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         borrowHook.build(
@@ -204,6 +241,17 @@ contract MorphoLoanHooksTest is Helpers {
             address(this),
             abi.encodePacked(
                 address(loanToken), address(0), address(mockOracle), MORPHO_IRM, amount, lltvRatio, false, lltv, false
+            )
+        );
+    }
+
+    function test_SupplyHook_Build_RevertIf_InvalidCollateralToken() public {
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        supplyHook.build(
+            address(0),
+            address(this),
+            abi.encodePacked(
+                address(loanToken), address(0), address(mockOracle), MORPHO_IRM, amount, lltv, false, false
             )
         );
     }
@@ -222,6 +270,24 @@ contract MorphoLoanHooksTest is Helpers {
                 lltvRatio,
                 false,
                 lltv,
+                false
+            )
+        );
+    }
+
+    function test_SupplyHook_Build_RevertIf_InvalidAmount() public {
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        supplyHook.build(
+            address(0),
+            address(this),
+            abi.encodePacked(
+                address(loanToken),
+                address(collateralToken),
+                address(mockOracle),
+                MORPHO_IRM,
+                uint256(0),
+                lltv,
+                false,
                 false
             )
         );
@@ -422,6 +488,7 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(executions[2].target, loanToken);
         assertEq(executions[2].value, 0);
         assertGt(executions[2].callData.length, 0);
+
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -430,6 +497,20 @@ contract MorphoLoanHooksTest is Helpers {
     function test_RepayHook_DeriveInterest() public view {
         _encodeRepayData(false, false);
         uint256 interest = repayHook.deriveInterest(
+            MarketParams({
+                loanToken: loanToken,
+                collateralToken: collateralToken,
+                oracle: address(mockOracle),
+                irm: address(mockIRM),
+                lltv: lltv
+            })
+        );
+        assertEq(interest, 0);
+    }
+
+    function test_SupplyHook_DeriveInterest() public view {
+        _encodeSupplyData(false);
+        uint256 interest = supplyHook.deriveFeeAmount(
             MarketParams({
                 loanToken: loanToken,
                 collateralToken: collateralToken,
@@ -498,23 +579,6 @@ contract MorphoLoanHooksTest is Helpers {
         Id id = params.id();
         uint256 collateral = repayAndWithdrawHook.deriveCollateralForFullRepayment(id, address(this));
         assertEq(collateral, 100e18); // From MockMorpho position() return value (third value)
-    }
-
-    /*//////////////////////////////////////////////////////////////
-              DERIVE COLLATERAL AMOUNT FROM LOAN AMOUNT TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_DeriveCollateralAmountFromLoanAmount() public view {
-        uint256 loanAmount = 100e18;
-        uint256 collateral = repayHook.deriveCollateralAmountFromLoanAmount(address(mockOracle), loanAmount);
-
-        assertEq(collateral, 200e18);
-    }
-
-    function test_RepayAndWithdrawHook_DeriveCollateralAmountFromLoanAmount() public view {
-        uint256 loanAmount = 100e18;
-        uint256 collateral = repayAndWithdrawHook.deriveCollateralAmountFromLoanAmount(address(mockOracle), loanAmount);
-
-        assertEq(collateral, 50e18);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -593,13 +657,24 @@ contract MorphoLoanHooksTest is Helpers {
                       PRE/POST EXECUTE TESTS
     //////////////////////////////////////////////////////////////*/
     function test_BorrowHook_PrePostExecute() public {
+        loanToken = address(new MockERC20("Loan Token", "LOAN", 18));
         bytes memory data = _encodeBorrowData(false);
-        deal(address(collateralToken), address(this), amount);
+        deal(address(loanToken), address(this), amount);
         borrowHook.preExecute(address(0), address(this), data);
-        assertEq(borrowHook.outAmount(), amount);
+        assertEq(borrowHook.outAmount(), amount, "A");
 
         borrowHook.postExecute(address(0), address(this), data);
-        assertEq(borrowHook.outAmount(), 0);
+        assertEq(borrowHook.outAmount(), 0, "B");
+    }
+
+    function test_SupplyHook_PrePostExecute() public {
+        bytes memory data = _encodeSupplyData(false);
+        deal(address(collateralToken), address(this), amount);
+        supplyHook.preExecute(address(0), address(this), data);
+        assertEq(supplyHook.outAmount(), amount);
+
+        supplyHook.postExecute(address(0), address(this), data);
+        assertEq(supplyHook.outAmount(), 0);
     }
 
     function test_RepayHook_PrePostExecute() public {
@@ -666,6 +741,19 @@ contract MorphoLoanHooksTest is Helpers {
             usePrevHook,
             lltv,
             false
+        );
+    }
+
+    function _encodeSupplyData(bool usePrevHook) internal view returns (bytes memory) {
+        return abi.encodePacked(
+            loanToken,
+            collateralToken,
+            address(mockOracle),
+            address(mockIRM),
+            amount,
+            lltv,
+            usePrevHook,
+            false // isFullRepayment
         );
     }
 
