@@ -21,6 +21,7 @@ import { MockLedger, MockLedgerConfiguration } from "../../mocks/MockLedger.sol"
 
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperDestinationExecutor } from "../../../src/core/interfaces/ISuperDestinationExecutor.sol";
 
 import { Helpers } from "../../utils/Helpers.sol";
 
@@ -485,7 +486,6 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         vm.mockCall(address(stakingRewards), abi.encodeWithSignature("rewardsToken()"), abi.encode(rewardToken));
         vm.startPrank(account);
-        uint256 initBal = MockERC20(rewardToken).balanceOf(account);
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
@@ -736,9 +736,105 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
                 signerPrvKeyInvalid
             );
         }
-
+        SuperValidatorBase.DstInfo memory dstInfo = SuperValidatorBase.DstInfo({
+            data: executionDataForLeaf,
+            executor: address(superDestinationExecutor),
+            dstTokens: dstTokens,
+            intentAmounts: intentAmounts,
+            account: account
+        });
         SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
-        proofDst[0] = SuperValidatorBase.DstProof({proof: merkleProof[0], dstChainId: uint64(block.chainid)});
+        proofDst[0] = SuperValidatorBase.DstProof({proof: merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo});
         signatureData = abi.encode(validUntil, merkleRoot, merkleProof[0], proofDst, signature);
     }
+
+    struct ExecutionContext {
+        bytes executorCalldata;
+        bytes executionDataForLeaf;
+        bytes32[] leaves;
+        address[] dstTokens;
+        uint256[] intentAmounts;
+        bytes32[][] merkleProof;
+        bytes32 merkleRoot;
+        bytes signature;
+        bytes signatureData;
+    }
+
+
+    function test_DestinationExecutor_ValidateBalances_RejectsZeroIntentAmount() public {
+        bytes memory initData = "";
+
+        address[] memory dstHookAddresses = new address[](0);
+        bytes[] memory dstHookData = new bytes[](0);
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: dstHookAddresses, hooksData: dstHookData });
+        
+        ExecutionContext memory ctx;
+
+        ctx.executorCalldata = abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
+
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+
+        ctx.dstTokens = new address[](1);
+        ctx.dstTokens[0] = address(token);
+        ctx.intentAmounts = new uint256[](1);
+        ctx.intentAmounts[0] = 0;
+
+        ctx.executionDataForLeaf = abi.encode(
+            ctx.executorCalldata,
+            uint64(block.chainid),
+            account,
+            address(superDestinationExecutor),
+            1
+        );
+
+        ctx.leaves = new bytes32[](1);
+        ctx.leaves[0] = _createDestinationValidatorLeaf(
+            ctx.executionDataForLeaf,
+            uint64(block.chainid),
+            account,
+            address(superDestinationExecutor),
+            ctx.dstTokens,
+            ctx.intentAmounts,
+            validUntil
+        );
+
+        (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
+
+        ctx.signature = _createSignature(
+            SuperValidatorBase(address(superDestinationValidator)).namespace(),
+            ctx.merkleRoot,
+            signer,
+            signerPrvKey
+        );
+
+        SuperValidatorBase.DstInfo memory dstInfo = SuperValidatorBase.DstInfo({
+            data: ctx.executionDataForLeaf,
+            executor: address(superDestinationExecutor),
+            dstTokens: ctx.dstTokens,
+            intentAmounts: ctx.intentAmounts,
+            account: account
+        });
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        proofDst[0] = SuperValidatorBase.DstProof({proof: ctx.merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo});
+        ctx.signatureData = abi.encode(validUntil, ctx.merkleRoot, ctx.merkleProof[0], proofDst, ctx.signature);
+
+        vm.expectEmit(true, true, false, true);
+        emit ISuperDestinationExecutor.SuperDestinationExecutorInvalidIntentAmount(
+            account,
+            address(token),
+            0
+        );
+
+        superDestinationExecutor.processBridgedExecution(
+            address(token),
+            address(account),
+            ctx.dstTokens,
+            ctx.intentAmounts,
+            initData,
+            ctx.executionDataForLeaf,
+            ctx.signatureData
+        );
+    }
+
 }

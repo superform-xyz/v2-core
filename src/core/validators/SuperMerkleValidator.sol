@@ -52,16 +52,31 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         // Decode signature
         SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
 
-        // Process signature
+        // Verify source data
         (address signer,) = _processSignatureAndVerifyLeaf(sigData, _userOpHash);
-
         // Validate
         bool isValid = _isSignatureValid(signer, _userOp.sender, sigData.validUntil);
 
-        // store only if destination proof exists and sig is valid
-        if (isValid && sigData.proofDst.length > 0) {
-            // we check only the signature validity here
-            //    merkle tree was checked already in `_processSignatureAndVerifyLeaf` and reverts if invalid
+        // Verify destination data
+        uint256 dstLen = sigData.proofDst.length;
+        if (isValid && dstLen > 0) {
+            for (uint256 i; i < dstLen; ++i) {
+                DstProof memory dstProof = sigData.proofDst[i];
+
+                DestinationData memory dstData = DestinationData({
+                    callData: dstProof.info.data,
+                    chainId: dstProof.dstChainId,
+                    sender: dstProof.info.account,
+                    executor: dstProof.info.executor,
+                    dstTokens: dstProof.info.dstTokens,
+                    intentAmounts: dstProof.info.intentAmounts
+                });
+                bytes32 dstLeaf = _createDestinationLeaf(dstData, sigData.validUntil);
+
+                if (!MerkleProof.verify(dstProof.proof, sigData.merkleRoot, dstLeaf)) revert INVALID_DESTINATION_PROOF();
+            }
+
+            // store signature in transient storage to be retrieved during bridge execution
             _storeSignature(uint256(uint160(_userOp.sender)), _userOp.signature);
         }
 
@@ -146,6 +161,15 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     /// @param data The signature data to store
     function _storeSignature(uint256 identifier, bytes calldata data) private {
         bytes32 storageKey = _makeKey(identifier);
+
+        // only one userOp per account is being executed
+        uint256 stored;        
+        assembly {
+            stored := tload(storageKey)
+        }
+
+        if(stored != 0) revert INVALID_USER_OP();
+
         uint256 len = data.length;
 
         assembly {

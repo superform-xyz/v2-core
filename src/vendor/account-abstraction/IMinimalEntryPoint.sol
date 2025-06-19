@@ -13,6 +13,8 @@ pragma solidity >=0.7.5;
 import { PackedUserOperation } from "@account-abstraction/interfaces/PackedUserOperation.sol";
 
 interface IMinimalEntryPoint {
+    error FailedOpWithRevert(uint256 opIndex, string reason, bytes inner);
+
     /**
      * Execute a batch of UserOperations.
      * No signature aggregator is used.
@@ -35,6 +37,8 @@ interface IMinimalEntryPoint {
     function getNonce(address sender, uint192 key) external view returns (uint256 nonce);
 
     function getUserOpHash(PackedUserOperation calldata userOp) external view returns (bytes32);
+
+    function nonceSequenceNumber(address, uint192) external view returns (uint256);
 
     function depositTo(address account) external payable;
 }

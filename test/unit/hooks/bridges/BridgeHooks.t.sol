@@ -21,11 +21,12 @@ contract MockSignatureStorage {
         bytes32[] memory proofSrc = new bytes32[](1);
         proofSrc[0] = keccak256("src1");
 
-        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](0);
+        /**
         bytes32[] memory proofs = new bytes32[](1);
         proofs[0] = keccak256("dst1");
         proofDst[0] = SuperValidatorBase.DstProof({proof: proofs, dstChainId: uint64(block.chainid)});
-
+        */
         bytes memory signature = hex"abcdef";
         return abi.encode(validUntil, merkleRoot, proofSrc, proofDst, signature);
     }
@@ -205,6 +206,25 @@ contract BridgeHooks is Helpers {
 
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         acrossV3hook.build(mockPrevHook, mockAccount, data);
+    }
+
+    function test_AcrossV3_Build_NoLengthCheck() public {
+        // Create data shorter than required 217 bytes
+        bytes memory malformedData = abi.encodePacked(
+            uint256(1 ether),          // value (32 bytes)
+            address(0x1),              // recipient (20 bytes)
+            address(0x2),              // inputToken (20 bytes)
+            address(0x3),              // outputToken (20 bytes)
+            uint256(1000),            // inputAmount (32 bytes)
+            uint256(900),             // outputAmount (32 bytes)
+            uint256(1)                // destinationChainId (32 bytes)
+        // Missing remaining required fields - total length = 188 bytes
+        );
+
+        // This should revert due to out of bounds read, but it doesn't
+        // The build function will try to read past the end of the bytes array
+        vm.expectRevert();  // Any revert would prove length is checked
+        acrossV3hook.build(address(0), mockAccount, malformedData);
     }
 
     function test_AcrossV3_Build_WithPrevHookAmount_AndRevertIfAmountZero_WithWrappedNative() public {

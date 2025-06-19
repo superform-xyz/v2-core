@@ -2021,8 +2021,22 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
 
         SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
-        proofDst[0] = SuperValidatorBase.DstProof({proof: ctx.merkleProof[0], dstChainId: dstChainId});
+        SuperValidatorBase.DstInfo memory dstInfo = SuperValidatorBase.DstInfo({
+            data: ctx.executionData,
+            executor: messageData.targetExecutor,
+            dstTokens: ctx.dstTokens,
+            intentAmounts: ctx.intentAmounts,
+            account: accountToUse
+        });
+        proofDst[0] = SuperValidatorBase.DstProof({proof: ctx.merkleProof[0], dstChainId: dstChainId, info: dstInfo});
 
+        console2.log("---- base test dst data len", ctx.executionData.length);
+        console2.log("---- base test targetExecutor", messageData.targetExecutor);
+        console2.log("---- base test dstTokens", ctx.dstTokens.length);
+        console2.log("---- base test intentAmounts", ctx.intentAmounts.length);
+        console2.log("---- base test validUntil", ctx.validUntil);
+        console2.log("---- base test merkleRoot");
+        console2.logBytes32(ctx.merkleRoot);
         sig = _createSignatureData_DestinationExecutor(
             ctx.validUntil,
             ctx.merkleRoot,

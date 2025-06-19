@@ -19,23 +19,6 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    /// @notice Structure representing data specific to a destination chain operation
-    /// @dev Contains all necessary data to validate and execute a cross-chain operation
-    struct DestinationData {
-        /// @notice The encoded call data to be executed
-        bytes callData;
-        /// @notice The destination chain ID where execution should occur
-        uint64 chainId;
-        /// @notice The account that should execute the operation
-        address sender;
-        /// @notice The executor contract address that handles the operation
-        address executor;
-        /// @notice The tokens required in the target account to proceed with the execution
-        address[] dstTokens;
-        /// @notice The minimum token amounts required for execution
-        uint256[] intentAmounts;
-    }
-
     bytes4 constant VALID_SIGNATURE = bytes4(0x5c2ec0f3);
 
     /*//////////////////////////////////////////////////////////////
@@ -94,24 +77,8 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /// @return The calculated leaf hash used in merkle tree verification
     function _createLeaf(bytes memory data, uint48 validUntil) internal pure override returns (bytes32) {
         DestinationData memory destinationData = abi.decode(data, (DestinationData));
-        // Note: destinationData.initData is not included because it is not needed for the leaf.
-        // If precomputed account is != than the executing account, the entire execution reverts
-        // before this method is called. Check SuperDestinationExecutor for more details.
-        return keccak256(
-            bytes.concat(
-                keccak256(
-                    abi.encode(
-                        destinationData.callData,
-                        destinationData.chainId,
-                        destinationData.sender,
-                        destinationData.executor,
-                        destinationData.dstTokens,
-                        destinationData.intentAmounts,
-                        validUntil
-                    )
-                )
-            )
-        );
+
+        return _createDestinationLeaf(destinationData, validUntil);
     }
 
     /// @notice Validates a signature based on signer identity and expiration time

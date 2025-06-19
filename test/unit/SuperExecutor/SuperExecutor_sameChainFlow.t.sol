@@ -798,7 +798,9 @@ contract SuperExecutor_sameChainFlow is
 
         bytes memory signature =
             _createSignature(SuperValidatorBase(address(validator)).namespace(), merkleRoot, signer, signerPrvKey);
-        signatureData = abi.encode(validUntil, merkleRoot, merkleProof[0], merkleProof[0], signature);
+
+        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](0);
+        signatureData = abi.encode(validUntil, merkleRoot, merkleProof[0], proofDst, signature);
     }
 
     function _get7702InitData() internal view returns (bytes memory) {

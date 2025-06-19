@@ -17,7 +17,37 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     struct DstProof {
         bytes32[] proof;
         uint64 dstChainId;
+        DstInfo info;
     }
+
+    /// @notice Structure holding destination chain operation details
+    /// @dev Used to validate destination `proof` on source validator
+    struct DstInfo {
+        address account;
+        address executor;
+        address[] dstTokens;
+        uint256[] intentAmounts;
+        bytes data;
+    }
+
+    /// @notice Structure representing data specific to a destination chain operation
+    /// @dev Contains all necessary data to validate and execute a cross-chain operation
+    struct DestinationData {
+        /// @notice The encoded call data to be executed
+        bytes callData;
+        /// @notice The destination chain ID where execution should occur
+        uint64 chainId;
+        /// @notice The account that should execute the operation
+        address sender;
+        /// @notice The executor contract address that handles the operation
+        address executor;
+        /// @notice The tokens required in the target account to proceed with the execution
+        address[] dstTokens;
+        /// @notice The minimum token amounts required for execution
+        uint256[] intentAmounts;
+    }
+
+
     /// @notice Structure holding signature data used across validator implementations
     /// @dev Contains all components needed for merkle proof verification and signature validation
     struct SignatureData {
@@ -47,6 +77,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     error ZERO_ADDRESS();
     error INVALID_PROOF();
     error ALREADY_INITIALIZED();
+    error INVALID_DESTINATION_PROOF(); // thrown on source 
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -95,6 +126,28 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     }
 
     function _createLeaf(bytes memory data, uint48 validUntil) internal view virtual returns (bytes32);
+
+    function _createDestinationLeaf(DestinationData memory destinationData, uint48 validUntil) internal pure virtual returns (bytes32) {
+        // Note: destinationData.initData is not included because it is not needed for the leaf.
+        // If precomputed account is != than the executing account, the entire execution reverts
+        // before this method is called. Check SuperDestinationExecutor for more details.
+        return keccak256(
+            bytes.concat(
+                keccak256(
+                    abi.encode(
+                        destinationData.callData,
+                        destinationData.chainId,
+                        destinationData.sender,
+                        destinationData.executor,
+                        destinationData.dstTokens,
+                        destinationData.intentAmounts,
+                        validUntil
+                    )
+                )
+            )
+        );
+    }
+
 
     /// @notice Decodes raw signature data into a structured SignatureData object
     /// @dev Handles ABI decoding of all signature components

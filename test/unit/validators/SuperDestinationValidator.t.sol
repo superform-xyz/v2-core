@@ -326,7 +326,15 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
         bytes memory signature = _getSignature(root);
 
         SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
-        proofDst[0] = SuperValidatorBase.DstProof({proof: proof[0], dstChainId: uint64(block.chainid)});
+
+        SuperValidatorBase.DstInfo memory dstInfo = SuperValidatorBase.DstInfo({
+            data: approveDestinationData.callData,
+            executor: approveDestinationData.executor,
+            dstTokens: approveDestinationData.dstTokens,
+            intentAmounts: approveDestinationData.intentAmounts,
+            account: approveDestinationData.sender
+        });
+        proofDst[0] = SuperValidatorBase.DstProof({proof: proof[0], dstChainId: uint64(block.chainid), info: dstInfo});
 
         bytes memory sigDataRaw = abi.encode(validUntil, root, proof, proofDst, signature);
 
@@ -372,7 +380,15 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
     ) private view {
 
         SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
-        proofDst[0] = SuperValidatorBase.DstProof({proof: proof, dstChainId: uint64(block.chainid)});
+
+        SuperValidatorBase.DstInfo memory dstInfo = SuperValidatorBase.DstInfo({
+            data: destinationData.callData,
+            executor: destinationData.executor,
+            dstTokens: destinationData.dstTokens,
+            intentAmounts: destinationData.intentAmounts,
+            account: destinationData.sender
+        });
+        proofDst[0] = SuperValidatorBase.DstProof({proof: proof, dstChainId: uint64(block.chainid), info: dstInfo});
         bytes memory sigDataRaw = abi.encode(validUntil, root, proof, proofDst, signature);
 
         bytes memory destinationDataRaw = abi.encode(
