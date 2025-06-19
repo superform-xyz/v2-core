@@ -1695,6 +1695,60 @@ contract LedgerTests is Helpers {
         );
     }
 
+    function test_CancelConfigProposal() public {
+        // First set initial config
+        bytes4 oracleId = bytes4(keccak256("test"));
+        address oracle = address(0x123);
+        uint256 feePercent = 1000; // 10%
+        address feeRecipient = address(0x456);
+        address ledger = address(superLedger);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+        config.setYieldSourceOracles(configs);
+
+        // Now propose new config
+        address newOracle = address(0x789);
+        uint256 newFeePercent = 1500; // 15%
+        address newFeeRecipient = address(0xabc);
+        address newLedger = address(flatFeeLedger);
+
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: newOracle,
+            feePercent: newFeePercent,
+            feeRecipient: newFeeRecipient,
+            ledger: newLedger
+        });
+
+        // Create proposal
+        config.proposeYieldSourceOracleConfig(configs);
+
+        // Check proposal exists by attempting to accept before expiration (should revert)
+        bytes4[] memory ids = new bytes4[](1);
+        ids[0] = oracleId;
+        vm.expectRevert(ISuperLedgerConfiguration.CANNOT_ACCEPT_YET.selector);
+        config.acceptYieldSourceOracleConfigProposal(ids);
+
+        // Cancel the proposal
+        vm.expectEmit(true, true, false, true);
+        emit ISuperLedgerConfiguration.YieldSourceOracleConfigProposalCancelled(
+            oracleId, newOracle, newFeePercent, newFeeRecipient, address(this), newLedger
+        );
+        config.cancelYieldSourceOracleConfigProposal(oracleId);
+
+        // Verify proposal was cancelled by checking it can't be accepted
+        vm.warp(block.timestamp + 1 weeks + 1); // Move past timelock period
+        vm.expectRevert(ISuperLedgerConfiguration.CONFIG_NOT_FOUND.selector); 
+        config.acceptYieldSourceOracleConfigProposal(ids);
+    }
     function test_YieldSourceOracleConfigSet_EventFields() public {
         bytes4 oracleId = bytes4(keccak256("testFieldOrder"));
         address oracle = address(0xABCD);
