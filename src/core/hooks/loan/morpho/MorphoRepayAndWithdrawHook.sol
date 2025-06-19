@@ -169,7 +169,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     /// @dev derive the collateral balance of the account
     /// @param id the id of the market
     /// @param account the account to derive the collateral balance for
-    /// @return collateral the collateral balance of the account
+    /// @return collateralAmount the collateral balance of the account
     function deriveCollateralForFullRepayment(Id id, address account) public view returns (uint256 collateralAmount) {
         (,, uint128 collateral) = morphoStaticTyping.position(id, account);
         collateralAmount = uint256(collateral);
