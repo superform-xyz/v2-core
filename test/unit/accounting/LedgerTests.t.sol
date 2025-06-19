@@ -11,6 +11,9 @@ import {SuperLedgerConfiguration} from "../../../src/core/accounting/SuperLedger
 import {ISuperLedgerData} from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import {ISuperLedger} from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import {BaseLedger} from "../../../src/core/accounting/BaseLedger.sol";
+import "forge-std/console.sol";
+
+import "forge-std/console2.sol";
 
 contract MockYieldSourceOracle {
     uint256 public pricePerShare = 1e18;
@@ -71,9 +74,179 @@ contract LedgerTests is Helpers {
         mockBaseLedger = new MockBaseLedger(address(config), executors);
     }
 
+    function testOutflowWithZeroFeeSkipsAccounting() public {
+ 
+      
+
+        uint256 INITIAL_SHARES = 100 ether; // Amount of shares to deposit initially
+        uint256 PPS = 1 ether; // Mock Price Per Share (1 token = 1 share)
+        uint8 DECIMALS = 18; // Mock Token decimals
+
+        address user = makeAddr("user");
+        address yieldSource = makeAddr("yieldSource");
+        bytes4 yieldSourceOracleId = bytes4(keccak256("TEST_ORACLE_ID"));
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: yieldSourceOracleId,
+            yieldSourceOracle: yieldSource,
+            feePercent: 0,
+            feeRecipient: address(this),
+            ledger: address(flatFeeLedger)
+        });
+        config.setYieldSourceOracles(configs);
+
+        vm.mockCall(yieldSource, abi.encodeWithSignature("getPricePerShare(address)"), abi.encode(PPS));
+        vm.mockCall(yieldSource, abi.encodeWithSignature("decimals(address)"), abi.encode(DECIMALS));
+
+        // User wants to withdraw all shares
+        uint256 outflowShares = INITIAL_SHARES;
+        // Asset value of the shares (assuming pps hasn't changed)
+        uint256 outflowAssets = outflowShares * PPS / (10**DECIMALS); // 100e18
+
+        // Initiate the withdrawal transaction (outflow)
+        // updateAccounting function has onlyExecutor modifier, so call from executor address
+        vm.startPrank(address(exec));
+        flatFeeLedger.updateAccounting(
+            user,
+            yieldSource,
+            yieldSourceOracleId,
+            false, // isInflow = false (outflow)
+            outflowAssets, // amountSharesOrAssets (assets for outflow)
+            outflowShares // usedShares (shares used for outflow)
+        );
+        vm.stopPrank();
+
+        // If the bug exists: The user's internal share and cost basis balances should NOT have been reduced
+        // These asserts will PASS if the bug exists.
+        // If the bug is fixed, these asserts will FAIL.
+        //those now fail
+        //assertEq(flatFeeLedger.usersAccumulatorShares(user, yieldSource), INITIAL_SHARES, "BUG: Shares were NOT deducted during zero-fee outflow");
+        //assertEq(flatFeeLedger.usersAccumulatorCostBasis(user, yieldSource), INITIAL_SHARES, "BUG: Cost basis was NOT deducted during zero-fee outflow");
+
+        assertEq(flatFeeLedger.usersAccumulatorShares(user, yieldSource), 0, "BUG fixed: this should be 0 now");
+    
+        console2.log("PoC Successful: Accounting skipped for zero-fee outflow.");
+        console2.log("User Shares (Expected: 0, Actual: %s)", flatFeeLedger.usersAccumulatorShares(user, yieldSource));
+        console2.log("User Cost Basis (Expected: 0, Actual: %s)", flatFeeLedger.usersAccumulatorCostBasis(user, yieldSource));
+    }
+
     /*//////////////////////////////////////////////////////////////
                         CONFIGURATION TESTS
     //////////////////////////////////////////////////////////////*/
+    function test_TransferManagerRole_ToZeroAddress_Vulnerability() public {
+        // Setup a configuration first
+        bytes4 oracleId = bytes4(keccak256("test"));
+        address oracle = address(0x123);
+        uint256 feePercent = 1000; // 10%
+        address feeRecipient = address(0x456);
+        address ledger = address(superLedger);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+        config.setYieldSourceOracles(configs);
+
+        // Initial verification
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory initialConfig = 
+            config.getYieldSourceOracleConfig(oracleId);
+        assertEq(initialConfig.manager, address(this), "Initial manager should be test contract");
+
+        // VULNERABILITY: Transfer manager role to zero address - this should be prevented but isn't
+        vm.expectRevert(ISuperLedgerConfiguration.ZERO_ADDRESS_NOT_ALLOWED.selector);
+        // fixed ^
+        config.transferManagerRole(oracleId, address(0));
+
+        console.log("VULNERABILITY DEMONSTRATION: Transferred manager role to zero address without revert");
+
+        // Try to make a proposal as the current manager - should still work because the transfer isn't complete
+        address newOracle = address(0x999);
+        configs[0].yieldSourceOracle = newOracle;
+        config.proposeYieldSourceOracleConfig(configs);
+
+        console.log("Current manager can still make proposals");
+
+        // Demonstrate that the role transfer is now stuck - no one can accept it
+        console.log("VULNERABILITY IMPACT: The role transfer is now stuck because:");
+        console.log("1. The pending manager is address(0)");
+        console.log("2. address(0) cannot call acceptManagerRole()");
+        console.log("3. No other address is authorized to accept the role");
+
+        // Verify our current state
+        address currentManager = config.getYieldSourceOracleConfig(oracleId).manager;
+        assertEq(currentManager, address(this), "Original manager should still be in control");
+
+        // Try to initiate another transfer to fix the situation
+        address validNewManager = address(0x888);
+        config.transferManagerRole(oracleId, validNewManager);
+
+        // Have the new valid manager accept the role
+        vm.prank(validNewManager);
+        config.acceptManagerRole(oracleId);
+
+        // Verify the transfer succeeded
+        address finalManager = config.getYieldSourceOracleConfig(oracleId).manager;
+        assertEq(finalManager, validNewManager, "New valid manager should now be in control");
+
+        console.log("VULNERABILITY MITIGATION: Current manager was able to overwrite the zero address transfer");
+        console.log("But this requires the manager to realize the issue and take corrective action");
+    }
+
+    function test_AcceptManagerRole_PendingProposal() public {
+        bytes4 oracleId = bytes4(keccak256("test"));
+        address oracle = address(0x123);
+        uint256 feePercent = 1000;
+        address feeRecipient = address(0x456);
+        address ledger = address(superLedger);
+        address newManager = address(0x999);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+        config.setYieldSourceOracles(configs);
+
+        // Propose new config
+        config.proposeYieldSourceOracleConfig(configs);
+
+        // Fast forward past proposal expiration
+        vm.warp(block.timestamp + 1 weeks + 1);
+
+        bytes4[] memory oracleIds = new bytes4[](1);
+        oracleIds[0] = oracleId;
+
+        config.transferManagerRole(oracleId, newManager);
+
+        vm.prank(newManager);
+        vm.expectEmit(true, true, false, false);
+        emit ISuperLedgerConfiguration.ManagerRoleTransferAccepted(oracleId, newManager);
+        // manager acceptance before proposal acceptance
+        config.acceptManagerRole(oracleId);
+
+        vm.prank(newManager);
+        // manager not updated in proposal config
+        //vm.expectRevert(ISuperLedgerConfiguration.NOT_MANAGER.selector);
+        //^ fixed 
+        config.acceptYieldSourceOracleConfigProposal(oracleIds);
+
+        // manager updated in oracle config
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory storedConfig =
+            config.getYieldSourceOracleConfig(oracleId);
+        assertEq(storedConfig.manager, newManager);
+    }
+
     function test_SetYieldSourceOracles() public {
         bytes4 oracleId = bytes4(keccak256("test"));
         address oracle = address(0x123);
@@ -1520,5 +1693,180 @@ contract LedgerTests is Helpers {
         assertEq(
             costBasis, (amountAssets1 + amountAssets2) / 2, "Cost basis calculation incorrect for multiple inflows"
         );
+    }
+
+    function test_CancelConfigProposal() public {
+        // First set initial config
+        bytes4 oracleId = bytes4(keccak256("test"));
+        address oracle = address(0x123);
+        uint256 feePercent = 1000; // 10%
+        address feeRecipient = address(0x456);
+        address ledger = address(superLedger);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+        config.setYieldSourceOracles(configs);
+
+        // Now propose new config
+        address newOracle = address(0x789);
+        uint256 newFeePercent = 1500; // 15%
+        address newFeeRecipient = address(0xabc);
+        address newLedger = address(flatFeeLedger);
+
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: newOracle,
+            feePercent: newFeePercent,
+            feeRecipient: newFeeRecipient,
+            ledger: newLedger
+        });
+
+        // Create proposal
+        config.proposeYieldSourceOracleConfig(configs);
+
+        // Check proposal exists by attempting to accept before expiration (should revert)
+        bytes4[] memory ids = new bytes4[](1);
+        ids[0] = oracleId;
+        vm.expectRevert(ISuperLedgerConfiguration.CANNOT_ACCEPT_YET.selector);
+        config.acceptYieldSourceOracleConfigProposal(ids);
+
+        // Cancel the proposal
+        vm.expectEmit(true, true, false, true);
+        emit ISuperLedgerConfiguration.YieldSourceOracleConfigProposalCancelled(
+            oracleId, newOracle, newFeePercent, newFeeRecipient, address(this), newLedger
+        );
+        config.cancelYieldSourceOracleConfigProposal(oracleId);
+
+        // Verify proposal was cancelled by checking it can't be accepted
+        vm.warp(block.timestamp + 1 weeks + 1); // Move past timelock period
+        vm.expectRevert(ISuperLedgerConfiguration.CONFIG_NOT_FOUND.selector); 
+        config.acceptYieldSourceOracleConfigProposal(ids);
+    }
+    function test_YieldSourceOracleConfigSet_EventFields() public {
+        bytes4 oracleId = bytes4(keccak256("testFieldOrder"));
+        address oracle = address(0xABCD);
+        uint256 feePercent = 1000; // 10%
+        address feeRecipient = address(0xDEF0);
+        address ledger = address(superLedger);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+
+        vm.expectEmit(true, true, true, true);
+        emit ISuperLedgerConfiguration.YieldSourceOracleConfigSet(
+            oracleId,     
+            oracle,       
+            feePercent,   
+            feeRecipient, 
+            address(this),
+            ledger        
+        );
+        config.setYieldSourceOracles(configs);
+    }
+
+    function test_YieldSourceOracleConfigProposalSet_EventFields() public {
+        bytes4 oracleId = bytes4(keccak256("testFieldOrder"));
+        address oracle = address(0xABCD);
+        uint256 feePercent = 1000; 
+        address feeRecipient = address(0xDEF0);
+        address ledger = address(superLedger);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+        config.setYieldSourceOracles(configs);
+
+        address newOracle = address(0x1234);
+        uint256 newFeePercent = 1500; 
+        address newFeeRecipient = address(0x5678);
+        address newLedger = address(flatFeeLedger);
+
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: newOracle,
+            feePercent: newFeePercent,
+            feeRecipient: newFeeRecipient,
+            ledger: newLedger
+        });
+
+        vm.expectEmit(true, true, true, true);
+        emit ISuperLedgerConfiguration.YieldSourceOracleConfigProposalSet(
+            oracleId,       
+            newOracle,      
+            newFeePercent,  
+            newFeeRecipient,
+            address(this),  
+            newLedger       
+        );
+        config.proposeYieldSourceOracleConfig(configs);
+    }
+
+    function test_YieldSourceOracleConfigAccepted_EventFields() public {
+        bytes4 oracleId = bytes4(keccak256("testFieldOrder"));
+        address oracle = address(0xABCD);
+        uint256 feePercent = 1000; // 10%
+        address feeRecipient = address(0xDEF0);
+        address ledger = address(superLedger);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+        config.setYieldSourceOracles(configs);
+
+        address newOracle = address(0x1234);
+        uint256 newFeePercent = 1500; 
+        address newFeeRecipient = address(0x5678);
+        address newLedger = address(flatFeeLedger);
+
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: newOracle,
+            feePercent: newFeePercent,
+            feeRecipient: newFeeRecipient,
+            ledger: newLedger
+        });
+        config.proposeYieldSourceOracleConfig(configs);
+
+        vm.warp(block.timestamp + 1 weeks + 1);
+
+        bytes4[] memory oracleIds = new bytes4[](1);
+        oracleIds[0] = oracleId;
+
+        vm.expectEmit(true, true, true, true);
+        emit ISuperLedgerConfiguration.YieldSourceOracleConfigAccepted(
+            oracleId,       
+            newOracle,      
+            newFeePercent,  
+            newFeeRecipient,
+            address(this),  
+            newLedger       
+        );
+        config.acceptYieldSourceOracleConfigProposal(oracleIds);
     }
 }

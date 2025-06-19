@@ -66,13 +66,12 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function build(
+    function _buildHookExecutions(
         address prevHook,
         address account,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -110,7 +109,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
             if (vars.usePrevHookAmount) {
                 vars.amount = ISuperHookResult(prevHook).outAmount();
             }
-            _verifyAmount(vars.amount, marketParams);
+            if (vars.amount == 0) revert AMOUNT_NOT_VALID();
 
             executions[1] = Execution({
                 target: vars.loanToken,
@@ -126,15 +125,6 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
         }
         executions[3] =
             Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
-    }
-
-    /// @inheritdoc ISuperHookLoans
-    function getUsedAssets(address, bytes memory data) external view returns (uint256) {
-        BuildHookLocalVars memory vars = _decodeHookData(data);
-        uint256 amountInCollateral = deriveCollateralAmountFromLoanAmount(vars.oracle, outAmount);
-        MarketParams memory marketParams =
-            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
-        return amountInCollateral + deriveFeeAmount(marketParams);
     }
 
     /// @inheritdoc ISuperHookInspector
@@ -165,19 +155,6 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
     }
 
-    function deriveCollateralAmountFromLoanAmount(
-        address oracle,
-        uint256 loanAmount
-    )
-        public
-        view
-        returns (uint256 collateralAmount)
-    {
-        IOracle oracleInstance = IOracle(oracle);
-        uint256 price = oracleInstance.price();
-
-        collateralAmount = Math.mulDiv(loanAmount, price, PRICE_SCALING_FACTOR);
-    }
 
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {
         Id id = marketParams.id();
@@ -189,20 +166,9 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address account, bytes calldata data) internal override {
-        // store current balance
-        outAmount = getCollateralTokenBalance(account, data);
-    }
+    function _preExecute(address, address, bytes calldata) internal override {}
 
     function _postExecute(address, address, bytes calldata) internal override {
         outAmount = 0;
-    }
-
-    function _verifyAmount(uint256 amount, MarketParams memory marketParams) internal view {
-        if (amount == 0) revert AMOUNT_NOT_VALID();
-        uint256 fee = deriveFeeAmount(marketParams);
-        uint256 interest = deriveInterest(marketParams);
-        uint256 totalAmount = amount + fee + interest;
-        if (amount < totalAmount) revert AMOUNT_NOT_VALID();
     }
 }

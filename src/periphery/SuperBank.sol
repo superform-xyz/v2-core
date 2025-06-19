@@ -77,7 +77,7 @@ contract SuperBank is ISuperBank, Bank {
     }
 
     /// @inheritdoc ISuperBank
-    function executeHooks(ISuperBank.HookExecutionData calldata executionData) external onlyBankManager {
+    function executeHooks(ISuperBank.HookExecutionData calldata executionData) external payable onlyBankManager {
         _executeHooks(executionData);
     }
 
