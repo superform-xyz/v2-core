@@ -551,11 +551,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             uint48 validUntil
         )
     {
-        address[] memory dstHookAddresses = new address[](0);
-        bytes[] memory dstHookData = new bytes[](0);
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: dstHookAddresses, hooksData: dstHookData });
-        executorCalldata = abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
+        // Create execution that calls a simple view function that should succeed
+        executorCalldata = abi.encodeWithSelector(ISuperExecutor.version.selector);
 
         validUntil = uint48(block.timestamp + 100 days);
         executionDataForLeaf =
