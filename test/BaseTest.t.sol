@@ -1812,48 +1812,64 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         NOT_ENOUGH_BALANCE,
         ENOUGH_BALANCE,
         NO_HOOKS,
-        LOW_LEVEL_FAILED,
-        FAILED
+        REVERT
     }
 
-    function _processAcrossV3Message(
-        uint64 srcChainId,
-        uint64 dstChainId,
-        uint256 warpTimestamp,
-        ExecutionReturnData memory executionData,
-        RELAYER_TYPE relayerType,
-        address account
-    )
-        internal
-    {
-        if (relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
+    struct ProcessAcrossV3MessageParams {
+        uint64 srcChainId;
+        uint64 dstChainId;
+        uint256 warpTimestamp;
+        ExecutionReturnData executionData;
+        RELAYER_TYPE relayerType;
+        bytes4 errorMessage;
+        string errorReason;
+        address account;
+        uint256 relayerGas;
+    }
+
+    function _processAcrossV3Message(ProcessAcrossV3MessageParams memory params) internal {
+        if (params.relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
             vm.expectEmit(true, false, false, false);
             emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNotEnoughBalance(
-                account, address(0), 0, 0
+                params.account, address(0), 0, 0
             );
-        } else if (relayerType == RELAYER_TYPE.ENOUGH_BALANCE) {
+        } else if (params.relayerType == RELAYER_TYPE.ENOUGH_BALANCE) {
             vm.expectEmit(true, true, true, true);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorExecuted(account);
-        } else if (relayerType == RELAYER_TYPE.NO_HOOKS) {
+            emit ISuperDestinationExecutor.SuperDestinationExecutorExecuted(params.account);
+        } else if (params.relayerType == RELAYER_TYPE.NO_HOOKS) {
             vm.expectEmit(true, true, true, true);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNoHooks(account);
-        } else if (relayerType == RELAYER_TYPE.LOW_LEVEL_FAILED) {
-            vm.expectEmit(true, false, false, false);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorFailedLowLevel(account, "");
-        } else if (relayerType == RELAYER_TYPE.FAILED) {
-            vm.expectEmit(true, false, false, false);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorFailed(account, "");
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNoHooks(params.account);
+        } else if (params.relayerType == RELAYER_TYPE.REVERT) {
+            if (params.errorMessage != bytes4(0)) {
+                vm.expectRevert(params.errorMessage);
+            } else {
+                vm.expectRevert(bytes(params.errorReason));
+            }
         }
-        AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
-            SPOKE_POOL_V3_ADDRESSES[srcChainId],
-            SPOKE_POOL_V3_ADDRESSES[dstChainId],
-            ACROSS_RELAYER,
-            warpTimestamp,
-            FORKS[dstChainId],
-            dstChainId,
-            srcChainId,
-            executionData.logs
-        );
+        if (params.relayerGas == 0) {
+            AcrossV3Helper(_getContract(params.srcChainId, ACROSS_V3_HELPER_KEY)).help(
+                SPOKE_POOL_V3_ADDRESSES[params.srcChainId],
+                SPOKE_POOL_V3_ADDRESSES[params.dstChainId],
+                ACROSS_RELAYER,
+                params.warpTimestamp,
+                FORKS[params.dstChainId],
+                params.dstChainId,
+                params.srcChainId,
+                params.executionData.logs
+            );
+        } else {
+            AcrossV3Helper(_getContract(params.srcChainId, ACROSS_V3_HELPER_KEY)).help(
+                SPOKE_POOL_V3_ADDRESSES[params.srcChainId],
+                SPOKE_POOL_V3_ADDRESSES[params.dstChainId],
+                ACROSS_RELAYER,
+                params.warpTimestamp,
+                FORKS[params.dstChainId],
+                params.dstChainId,
+                params.srcChainId,
+                params.executionData.logs,
+                params.relayerGas
+            );
+        }
     }
 
     function _processAcrossV3MessageWithoutDestinationAccount(
