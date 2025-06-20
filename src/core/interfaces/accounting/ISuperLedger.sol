@@ -58,24 +58,17 @@ interface ISuperLedgerData {
         uint256 amount,
         uint256 feeAmount
     );
-
-    /// @notice Emitted when an outflow is skipped due to zero fee percentage
-    /// @param user The user whose outflow was skipped
-    /// @param yieldSource The yield-bearing asset being accounted for
-    /// @param yieldSourceOracleId The ID of the oracle for this yield source
-    /// @param amount The amount of shares/assets in the skipped operation
-    event AccountingOutflowSkipped(
-        address indexed user, address indexed yieldSource, bytes4 indexed yieldSourceOracleId, uint256 amount
-    );
+    
+    /// @notice Emitted when the amount of shares used is capped due to insufficient shares
+    /// @param originalVal The original amount of shares used
+    /// @param cappedVal The capped amount of shares used
+    event UsedSharesCapped(uint256 originalVal, uint256 cappedVal);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     /// @notice Thrown when a referenced hook cannot be found
     error HOOK_NOT_FOUND();
-
-    /// @notice Thrown when a user attempts to consume more shares than they have available
-    error INSUFFICIENT_SHARES();
 
     /// @notice Thrown when a price returned from an oracle is invalid (typically zero)
     error INVALID_PRICE();
@@ -160,13 +153,13 @@ interface ISuperLedger is ISuperLedgerData {
     /// @dev Cost basis represents the original asset value of the shares when they were acquired
     ///      This is calculated proportionally based on the shares being consumed
     ///      Formula: user_cost_basis * (used_shares / total_shares)
-    ///      Reverts with INSUFFICIENT_SHARES if usedShares > user's total shares
     /// @param user The user address whose cost basis is being calculated
     /// @param yieldSource The yield source address (e.g. aUSDC, cUSDC, etc.)
     /// @param usedShares The amount of shares to calculate cost basis for
     /// @return costBasis The original asset value of the specified shares
+    /// @return updatedUsedShares The amount of shares that will be consumed
     function calculateCostBasisView(address user, address yieldSource, uint256 usedShares)
         external
         view
-        returns (uint256 costBasis);
+        returns (uint256 costBasis, uint256 updatedUsedShares);
 }

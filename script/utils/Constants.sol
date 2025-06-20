@@ -141,12 +141,14 @@ abstract contract Constants {
     string internal constant YEARN_CLAIM_ONE_REWARD_HOOK_KEY = "YearnClaimOneRewardHook";
     string internal constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
     string internal constant TRANSFER_ERC20_HOOK_KEY = "TransferERC20Hook";
+    string internal constant BATCH_TRANSFER_HOOK_KEY = "BatchTransferHook";
     string internal constant BATCH_TRANSFER_FROM_HOOK_KEY = "BatchTransferFromHook";
     string internal constant DEPOSIT_4626_VAULT_HOOK_KEY = "Deposit4626VaultHook";
     string internal constant REDEEM_4626_VAULT_HOOK_KEY = "Redeem4626VaultHook";
     string internal constant DEPOSIT_5115_VAULT_HOOK_KEY = "Deposit5115VaultHook";
     string internal constant REDEEM_5115_VAULT_HOOK_KEY = "Redeem5115VaultHook";
     string internal constant REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "RequestDeposit7540VaultHook";
+    string internal constant REDEEM_7540_VAULT_HOOK_KEY = "Redeem7540VaultHook";
     string internal constant REQUEST_REDEEM_7540_VAULT_HOOK_KEY = "RequestRedeem7540VaultHook";
     string internal constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
     string internal constant GEARBOX_UNSTAKE_HOOK_KEY = "GearboxUnstakeHook";
@@ -165,8 +167,7 @@ abstract contract Constants {
     string internal constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
     string internal constant APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY = "ApproveAndRedeem4626VaultHook";
     string internal constant APPROVE_AND_REDEEM_5115_VAULT_HOOK_KEY = "ApproveAndRedeem5115VaultHook";
-    string internal constant APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY = "ApproveAndWithdraw7540VaultHook";
-    string internal constant APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY = "ApproveAndRedeem7540VaultHook";
+    string internal constant APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY = "ApproveAndRequestRedeem7540VaultHook";
     string internal constant DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendOrderAndExecuteOnDstHook";
     string internal constant ETHENA_COOLDOWN_SHARES_HOOK_KEY = "EthenaCooldownSharesHook";
     string internal constant ETHENA_UNSTAKE_HOOK_KEY = "EthenaUnstakeHook";
@@ -182,6 +183,9 @@ abstract contract Constants {
     string internal constant CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "ClaimCancelRedeemRequest7540Hook";
     string internal constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
     string internal constant SUPER_VAULT_AGGREGATOR_KEY = "SuperVaultAggregator";
+    string internal constant SUPER_VAULT_REGISTRY_KEY = "SuperAssetRegistry";
+    string internal constant SUPER_VAULT_FACTORY_KEY = "SuperVaultFactory";
+    string internal constant HOOK_FACTORY_KEY = "HookRegistry";
     string internal constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
     string internal constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";
     string internal constant ECDSAPPS_ORACLE_KEY = "ECDSAPPSOracle";

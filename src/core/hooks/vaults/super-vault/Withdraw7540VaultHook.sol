@@ -19,16 +19,15 @@ import {
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title ApproveAndRedeem7540VaultHook
+/// @title Withdraw7540VaultHook
 /// @author Superform Labs
-/// @notice This hook does not support tokens reverting on 0 approval
+/// @notice Compatible only with ERC-7540 vaults where `requestId` is non-fungible
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         address token = BytesLib.toAddress(data, 24);
-/// @notice         uint256 shares = BytesLib.toUint256(data, 44);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
-contract ApproveAndRedeem7540VaultHook is
+/// @notice         uint256 amount = BytesLib.toUint256(data, 24);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
+contract Withdraw7540VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
@@ -37,48 +36,42 @@ contract ApproveAndRedeem7540VaultHook is
 {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 44;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 76;
+    uint256 private constant AMOUNT_POSITION = 24;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC7540) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address account,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address token = BytesLib.toAddress(data, 24);
-        uint256 shares = _decodeAmount(data);
+        uint256 amount = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            shares = ISuperHookResultOutflow(prevHook).outAmount();
+            amount = ISuperHookResultOutflow(prevHook).outAmount();
         }
 
-        if (shares == 0) revert AMOUNT_NOT_VALID();
+        if (amount == 0) revert AMOUNT_NOT_VALID();
         if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
-        executions = new Execution[](4);
-        executions[0] =
-            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
-        executions[1] =
-            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, shares)) });
-        executions[2] = Execution({
+        executions = new Execution[](1);
+        executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC7540.redeem, (shares, account, account))
+            callData: abi.encodeCall(IERC7540.withdraw, (amount, account, account))
         });
-        executions[3] =
-            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -102,13 +95,10 @@ contract ApproveAndRedeem7540VaultHook is
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
-        return abi.encodePacked(
-            data.extractYieldSource(),
-            BytesLib.toAddress(data, 24) //token
-        );
+        return abi.encodePacked(data.extractYieldSource());
     }
 
-    /*//////////////////////////////////////////////////////////////    
+    /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {

@@ -114,13 +114,10 @@ library SuperAssetPriceLib {
     }
 
     /// @dev Checks if the token is depegged
-    /// @param token The address of the token to check the status of
     /// @param priceUSD The price of the token in USD
     /// @param assetPriceUSD The price of the asset in USD
     /// @return isDepeg True if the token is depegged
     function _isTokenDepeg(
-        address token,
-        address superAsset,
         uint256 priceUSD,
         uint256 precision,
         uint256 assetPriceUSD,
@@ -128,16 +125,16 @@ library SuperAssetPriceLib {
         uint256 depegUpperThreshold
     )
         internal
-        view
+        pure
         returns (bool isDepeg)
     {
-        // NOTE: There should be no need to adjust for decimals since 
-        // the token specific decimals and 
-        // the Oracle Price decimals 
-        // can be different 
-        // Example, if we send 2 USDC to someone then the transferred amount is 2e6 since USDC has 6d 
-        // but the USDC price quoted in USD can have its own decimals, for example 
-        // if USDC depegs high and is worth 3 USD then its price quoted in a 18d oracle will be 3e18 
+        // NOTE: There should be no need to adjust for decimals since
+        // the token specific decimals and
+        // the Oracle Price decimals
+        // can be different
+        // Example, if we send 2 USDC to someone then the transferred amount is 2e6 since USDC has 6d
+        // but the USDC price quoted in USD can have its own decimals, for example
+        // if USDC depegs high and is worth 3 USD then its price quoted in a 18d oracle will be 3e18
         uint256 ratio = Math.mulDiv(priceUSD, precision, assetPriceUSD);
 
         if (ratio < depegLowerThreshold || ratio > depegUpperThreshold) {
@@ -184,32 +181,39 @@ library SuperAssetPriceLib {
         }
     }
 
+    /// @dev Gets the depeg and dispersion status of a token
+    /// @param args The arguments for the price calculation
+    /// @param precision The precision of the token
+    /// @param priceUSD The price of the token in USD
+    /// @param stddev The standard deviation of the token
+    /// @return isDepeg True if the token is depegged
+    /// @return isDispersion True if the token has price dispersion
     function _getDepegAndDispersion(
         ISuperAsset.PriceArgs memory args,
         uint256 precision,
         uint256 priceUSD,
         uint256 stddev
-    ) internal view returns (bool isDepeg, bool isDispersion) {
-        uint256 assetPriceUSD = _getAssetPriceUSD(args.superOracle, args.superAsset, args.usd, args.token);
+    )
+        internal
+        view
+        returns (bool isDepeg, bool isDispersion)
+    {
+        uint256 assetPriceUSD = _getAssetPriceUSD(args.superOracle, args.superAsset, args.usd);
 
-        isDepeg = _isTokenDepeg(
-            args.token,
-            args.superAsset,
-            priceUSD,
-            precision,
-            assetPriceUSD,
-            args.depegLowerThreshold,
-            args.depegUpperThreshold
-        );
+        isDepeg = _isTokenDepeg(priceUSD, precision, assetPriceUSD, args.depegLowerThreshold, args.depegUpperThreshold);
 
         isDispersion = _isSTDDevDegged(args.superAsset, stddev, priceUSD, args.dispersionThreshold);
     }
 
+    /// @dev Gets the price of the asset in USD
+    /// @param superOracleAddress The address of the super oracle
+    /// @param superAssetAddress The address of the super asset
+    /// @param USD The address of the USD token
+    /// @return assetPriceUSD The price of the asset in USD
     function _getAssetPriceUSD(
         address superOracleAddress,
         address superAssetAddress,
-        address USD,
-        address token
+        address USD
     )
         internal
         view

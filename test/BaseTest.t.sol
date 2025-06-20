@@ -59,10 +59,10 @@ import { ClaimCancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/
 import { CancelRedeemHook } from "../src/core/hooks/vaults/super-vault/CancelRedeemHook.sol";
 import { ApproveAndRequestDeposit7540VaultHook } from
     "../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
+import { Redeem7540VaultHook } from "../src/core/hooks/vaults/7540/Redeem7540VaultHook.sol";
 import { RequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
-import { ApproveAndWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndWithdraw7540VaultHook.sol";
-import { ApproveAndRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndRedeem7540VaultHook.sol";
+import { ApproveAndRequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
@@ -148,6 +148,9 @@ import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "./mocks/MockRegistry.sol";
 
 import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { SuperVault } from "../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultStrategy } from "../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../src/periphery/SuperVault/SuperVaultEscrow.sol";
 import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 
 import { BaseHook } from "../src/core/hooks/BaseHook.sol";
@@ -187,10 +190,10 @@ struct Addresses {
     Redeem5115VaultHook redeem5115VaultHook;
     Deposit7540VaultHook deposit7540VaultHook;
     RequestDeposit7540VaultHook requestDeposit7540VaultHook;
+    Redeem7540VaultHook redeem7540VaultHook;
     RequestRedeem7540VaultHook requestRedeem7540VaultHook;
     Withdraw7540VaultHook withdraw7540VaultHook;
-    ApproveAndWithdraw7540VaultHook approveAndWithdraw7540VaultHook;
-    ApproveAndRedeem7540VaultHook approveAndRedeem7540VaultHook;
+    ApproveAndRequestRedeem7540VaultHook approveAndRequestRedeem7540VaultHook;
     CancelDepositRequest7540Hook cancelDepositRequest7540Hook;
     CancelRedeemRequest7540Hook cancelRedeemRequest7540Hook;
     ClaimCancelDepositRequest7540Hook claimCancelDepositRequest7540Hook;
@@ -229,8 +232,6 @@ struct Addresses {
     ECDSAPPSOracle ecdsappsOracle;
     ISuperExecutor superExecutorWithSPLock;
     MockTargetExecutor mockTargetExecutor;
-    MockBaseHook mockBaseHook; // this is needed for all tests which we need to use executeWithoutHookRestrictions
-
     SuperBank superBank;
 }
 
@@ -328,8 +329,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     bool public useLatestFork = false;
     bool public useRealOdosRouter = false;
     address[] public globalMerkleHooks;
-    address globalSVStrategy;
-    address globalSVGearStrategy;
+    string[] public globalMerkleHookNames;
+    address public globalSVStrategy;
+    address public globalSVGearStrategy;
+    address public globalRuggableVault;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -460,8 +463,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     function _deployContracts(Addresses[] memory A) internal returns (Addresses[] memory) {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-            mockBaseHook = address(new MockBaseHook());
-            vm.makePersistent(mockBaseHook);
             address acrossV3Helper = address(new AcrossV3Helper());
             vm.allowCheatcodes(acrossV3Helper);
             vm.makePersistent(acrossV3Helper);
@@ -587,13 +588,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.label(address(A[i].stakingYieldSourceOracle), STAKING_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][STAKING_YIELD_SOURCE_ORACLE_KEY] = address(A[i].stakingYieldSourceOracle);
 
-            A[i].superVaultAggregator = new SuperVaultAggregator(address(A[i].superGovernor));
-            vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
-            contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
-
             A[i].ecdsappsOracle = new ECDSAPPSOracle(address(A[i].superGovernor));
             vm.label(address(A[i].ecdsappsOracle), ECDSAPPS_ORACLE_KEY);
             contractAddresses[chainIds[i]][ECDSAPPS_ORACLE_KEY] = address(A[i].ecdsappsOracle);
+
+            // Deploy implementation contracts first
+            address vaultImpl = address(new SuperVault());
+            address strategyImpl = address(new SuperVaultStrategy());
+            address escrowImpl = address(new SuperVaultEscrow());
+
+            A[i].superVaultAggregator =
+                new SuperVaultAggregator(address(A[i].superGovernor), vaultImpl, strategyImpl, escrowImpl);
+            vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
 
             A[i].superGovernor.setActivePPSOracle(address(A[i].ecdsappsOracle));
             A[i].superGovernor.addValidator(VALIDATOR);
@@ -835,37 +842,27 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 hooks[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY]
             );
             hooksAddresses[14] = address(A[i].withdraw7540VaultHook);
-            A[i].approveAndWithdraw7540VaultHook = new ApproveAndWithdraw7540VaultHook{ salt: SALT }();
-            vm.label(address(A[i].approveAndWithdraw7540VaultHook), APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY] =
-                address(A[i].approveAndWithdraw7540VaultHook);
-            hooks[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY] = Hook(
-                APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY,
-                HookCategory.TokenApprovals,
-                HookCategory.VaultWithdrawals,
-                address(A[i].approveAndWithdraw7540VaultHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY]
-            );
-            hooksAddresses[15] = address(A[i].approveAndWithdraw7540VaultHook);
 
-            A[i].approveAndRedeem7540VaultHook = new ApproveAndRedeem7540VaultHook{ salt: SALT }();
-            vm.label(address(A[i].approveAndRedeem7540VaultHook), APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY] =
-                address(A[i].approveAndRedeem7540VaultHook);
-            hooks[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY] = Hook(
-                APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY,
-                HookCategory.TokenApprovals,
+            A[i].redeem7540VaultHook = new Redeem7540VaultHook{ salt: SALT }();
+            vm.label(address(A[i].redeem7540VaultHook), REDEEM_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][REDEEM_7540_VAULT_HOOK_KEY] = address(A[i].redeem7540VaultHook);
+            hooks[chainIds[i]][REDEEM_7540_VAULT_HOOK_KEY] = Hook(
+                REDEEM_7540_VAULT_HOOK_KEY,
                 HookCategory.VaultWithdrawals,
-                address(A[i].approveAndRedeem7540VaultHook),
+                HookCategory.VaultDeposits,
+                address(A[i].redeem7540VaultHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY]
+                hooks[chainIds[i]][REDEEM_7540_VAULT_HOOK_KEY]
             );
-            hooksAddresses[16] = address(A[i].approveAndRedeem7540VaultHook);
+            hooksAddresses[15] = address(A[i].redeem7540VaultHook);
+
+            A[i].approveAndRequestRedeem7540VaultHook = new ApproveAndRequestRedeem7540VaultHook{ salt: SALT }();
+            vm.label(address(A[i].approveAndRequestRedeem7540VaultHook), APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY] =
+                address(A[i].approveAndRequestRedeem7540VaultHook);
+            hooksAddresses[16] = address(A[i].approveAndRequestRedeem7540VaultHook);
 
             A[i].swap1InchHook = new Swap1InchHook{ salt: SALT }(ONE_INCH_ROUTER);
             vm.label(address(A[i].swap1InchHook), SWAP_1INCH_HOOK_KEY);
@@ -1225,6 +1222,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             globalMerkleHooks[3] = address(A[i].approveAndGearboxStakeHook);
             globalMerkleHooks[4] = address(A[i].gearboxUnstakeHook);
 
+            // Initialize corresponding hook names for scalability
+            globalMerkleHookNames = new string[](5);
+            globalMerkleHookNames[0] = "APPROVE_AND_REDEEM_4626_VAULT_HOOK";
+            globalMerkleHookNames[1] = "APPROVE_AND_DEPOSIT_4626_VAULT_HOOK";
+            globalMerkleHookNames[2] = "REDEEM_4626_VAULT_HOOK";
+            globalMerkleHookNames[3] = "APPROVE_AND_GEARBOX_STAKE_HOOK";
+            globalMerkleHookNames[4] = "GEARBOX_UNSTAKE_HOOK";
+
             if (chainIds[i] == ETH) {
                 /// @dev set any new sv addresses here
                 address aggregator = _getContract(ETH, SUPER_VAULT_AGGREGATOR_KEY);
@@ -1242,76 +1247,107 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                     ),
                     aggregator
                 );
-                _generateMerkleTree(ETH);
+
+                globalRuggableVault = SuperVaultAggregator(aggregator).STRATEGY_IMPLEMENTATION()
+                    .predictDeterministicAddress(
+                    keccak256(
+                        abi.encodePacked(
+                            existingUnderlyingTokens[ETH][USDC_KEY], "SuperVault", "SV_USDC_RUG", uint256(1)
+                        )
+                    ),
+                    aggregator
+                );
             }
         }
 
         return A;
     }
 
-    /**
-     * @notice Generate Merkle tree with the global hook addresses and optional strategy addresses
-     */
-    function _generateMerkleTree(uint64 chainid) internal {
-        console2.log("\n[DEBUG] Starting _generateMerkleTree for chainid:", chainid);
+    /*
+    
+    
+    function _updateAndRegenerateMerkleTree(
+        string memory vaultName_,
+        address vaultAddress_,
+        uint64 chainId_
+    )
+        internal
+    {
+        string memory vaultAddressStr = vm.toString(vaultAddress_);
+        string memory chainIdStr = vm.toString(chainId_);
 
-        // Read current owner_list.json content
-        string memory ownerListPath = string.concat(vm.projectRoot(), "/test/utils/merkle/target/owner_list.json");
-        string memory currentOwnerList = "";
-        try vm.readFile(ownerListPath) returns (string memory content) {
-            currentOwnerList = content;
-            console2.log("[DEBUG] Current owner_list.json content:", currentOwnerList);
-        } catch {
-            console2.log("[DEBUG] Could not read owner_list.json or file is empty");
-        }
-
-        console2.log("[DEBUG] Predicted strategy addresses:");
-        console2.log("  - globalSVStrategy:", globalSVStrategy);
-        console2.log("  - globalSVGearStrategy:", globalSVGearStrategy);
-
-        address[] memory globalTreeOwnerAddresses = new address[](2);
-        globalTreeOwnerAddresses[0] = globalSVStrategy;
-        globalTreeOwnerAddresses[1] = globalSVGearStrategy;
-
-        string[] memory cmd = new string[](globalTreeOwnerAddresses.length > 0 ? 4 : 3);
+        string[] memory cmd = new string[](5);
         cmd[0] = "node";
-        cmd[1] = "test/utils/merkle/merkle-js/build-hook-merkle-trees.js";
+        cmd[1] = "test/utils/merkle/merkle-js/update-lists.js";
+        cmd[2] = vaultName_; // Single vault name (not a number, signals single mode to script)
+        cmd[3] = vaultAddressStr;
+        cmd[4] = chainIdStr;
 
-        // Build comma-separated list of hook addresses from globalMerkleHooks
-        string memory hooksString = "";
-        for (uint256 i = 0; i < globalMerkleHooks.length; i++) {
-            if (i > 0) hooksString = string.concat(hooksString, ",");
-            hooksString = string.concat(hooksString, vm.toString(globalMerkleHooks[i]));
+        _executeVaultListUpdateScript(cmd, chainId_);
+    }
+
+
+    function _updateAndRegenerateMerkleTreeBatch(
+        string[] memory vaultNames_,
+        address[] memory vaultAddresses_,
+        uint64 chainId_
+    )
+        internal
+    {
+    require(vaultNames_.length == vaultAddresses_.length, "Vault names and addresses array lengths must match.");
+
+        uint256 numVaults = vaultNames_.length;
+        string memory chainIdStr = vm.toString(chainId_);
+
+        // cmd: node <script_path> <numVaults> <name1> <name2> ... <addr1_str> <addr2_str> ... <chainId_str>
+        string[] memory cmd = new string[](3 + numVaults * 2 + 1);
+        cmd[0] = "node";
+        cmd[1] = "test/utils/merkle/merkle-js/update-lists.js";
+        cmd[2] = vm.toString(numVaults); // This signals batch mode to the script
+
+        for (uint256 i = 0; i < numVaults; i++) {
+            cmd[3 + i] = vaultNames_[i];
+            cmd[3 + numVaults + i] = vm.toString(vaultAddresses_[i]);
         }
-        cmd[2] = hooksString;
+        cmd[3 + numVaults * 2] = chainIdStr;
 
-        string memory strategiesString = "";
-        for (uint256 i = 0; i < globalTreeOwnerAddresses.length; i++) {
-            if (i > 0) strategiesString = string.concat(strategiesString, ",");
-            strategiesString = string.concat(strategiesString, vm.toString(globalTreeOwnerAddresses[i]));
-        }
-        cmd[3] = strategiesString;
+        _executeVaultListUpdateScript(cmd, chainId_);
+    }
 
-        console2.log("[DEBUG] Running FFI command with parameters:");
-        console2.log("  - cmd[0]:", cmd[0]);
-        console2.log("  - cmd[1]:", cmd[1]);
-        console2.log("  - cmd[2]:", cmd[2]);
-        console2.log("  - cmd[3]:", cmd[3]);
+       function _executeVaultListUpdateScript(string[] memory cmd_, uint64 chainId_) internal {
+        bytes memory output = vm.ffi(cmd_);
+        string memory outputStr = string(output);
+        // Note: _trim was removed. JS script now outputs "true\n" or "false\n".
 
-        console2.log("[DEBUG] Executing FFI command...");
-        vm.ffi(cmd);
-        console2.log("[DEBUG] FFI command completed");
-
-        // Check if owner_list.json was updated
-        try vm.readFile(ownerListPath) returns (string memory content) {
-            console2.log("[DEBUG] Updated owner_list.json content:", content);
-            if (keccak256(bytes(content)) == keccak256(bytes(currentOwnerList))) {
-                console2.log("[DEBUG] WARNING: owner_list.json content did not change!");
+        bool wasSuccessful = false;
+        if (bytes(outputStr).length > 0) {
+            // Check if the script output starts with 't', indicating "true\n"
+            if (bytes(outputStr)[0] == "t") {
+                wasSuccessful = true;
             }
-        } catch {
-            console2.log("[DEBUG] ERROR: Could not read owner_list.json after update");
+        }
+
+        if (wasSuccessful) {
+            console2.log(
+                "[DEBUG] update-lists.js executed successfully. Regenerating Merkle tree for chainId:", chainId_
+            );
+            _generateMerkleTree(chainId_);
+        } else {
+            // Log details to stderr from the script will provide more context on failure.
+            console2.log(
+    "[WARN] update-lists.js indicated failure or no changes made. Merkle tree not regenerated. Check stderr for details
+    from script."
+            );
+            if (bytes(outputStr).length == 0) {
+                console2.log(
+    "[WARN] update-lists.js produced empty output (FFI call might have failed before script execution)."
+                );
+            }
+            // revert("Failed to update token/yield lists.");
         }
     }
+
+    */
 
     function _configureGovernor() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
@@ -1358,7 +1394,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 console2.log("transferErc20Hook", address(A[i].transferErc20Hook));
                 console2.log("deposit7540VaultHook", address(A[i].deposit7540VaultHook));
                 console2.log("withdraw7540VaultHook", address(A[i].withdraw7540VaultHook));
-                console2.log("approveAndRedeem7540VaultHook", address(A[i].approveAndRedeem7540VaultHook));
+                console2.log("approveAndRequestRedeem7540VaultHook", address(A[i].approveAndRequestRedeem7540VaultHook));
                 console2.log("swap1InchHook", address(A[i].swap1InchHook));
                 console2.log("swapOdosHook", address(A[i].swapOdosHook));
                 console2.log("approveAndSwapOdosHook", address(A[i].approveAndSwapOdosHook));
@@ -1399,7 +1435,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             superGovernor.registerHook(address(A[i].transferErc20Hook), false);
             superGovernor.registerHook(address(A[i].deposit7540VaultHook), true);
             superGovernor.registerHook(address(A[i].withdraw7540VaultHook), false);
-            superGovernor.registerHook(address(A[i].approveAndRedeem7540VaultHook), true);
+            superGovernor.registerHook(address(A[i].approveAndRequestRedeem7540VaultHook), true);
             superGovernor.registerHook(address(A[i].swap1InchHook), false);
             superGovernor.registerHook(address(A[i].swapOdosHook), false);
             superGovernor.registerHook(address(A[i].approveAndSwapOdosHook), false);
@@ -1433,16 +1469,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     // Hook mocking helpers
 
     /**
-     * @notice Setup hook mocks to clear execution context
-     * @param hooks_ Array of hook addresses to mock
-     */
-    function _setupHookMocks(address[] memory hooks_) internal {
-        for (uint256 i = 0; i < hooks_.length; i++) {
-            vm.mockCall(hooks_[i], abi.encodeWithSignature("getExecutionCaller()"), abi.encode(address(0)));
-        }
-    }
-
-    /**
      * @notice Helper to get all hooks for all chains
      * @return hooks Array of all hooks across all chains
      */
@@ -1468,29 +1494,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         }
 
         return allHooks;
-    }
-
-    /**
-     * @notice Modifier to mock hook execution context, allowing the same hook to be used multiple times in a test
-     */
-    modifier executeWithoutHookRestrictions() {
-        // Get all hooks for current chain
-        address[] memory hooks_ = _getAllHooksForTest();
-
-        // Setup mocks for all hooks
-        for (uint256 i = 0; i < hooks_.length; i++) {
-            if (hooks_[i] != address(0)) {
-                vm.mockFunction(
-                    hooks_[i], address(mockBaseHook), abi.encodeWithSelector(BaseHook.getExecutionCaller.selector)
-                );
-            }
-        }
-
-        // Run the test
-        _;
-
-        // Clear all mocks
-        vm.clearMockedCalls();
     }
 
     function _initializeAccounts(uint256 count) internal {
@@ -1809,48 +1812,64 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         NOT_ENOUGH_BALANCE,
         ENOUGH_BALANCE,
         NO_HOOKS,
-        LOW_LEVEL_FAILED,
-        FAILED
+        REVERT
     }
 
-    function _processAcrossV3Message(
-        uint64 srcChainId,
-        uint64 dstChainId,
-        uint256 warpTimestamp,
-        ExecutionReturnData memory executionData,
-        RELAYER_TYPE relayerType,
-        address account
-    )
-        internal
-    {
-        if (relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
+    struct ProcessAcrossV3MessageParams {
+        uint64 srcChainId;
+        uint64 dstChainId;
+        uint256 warpTimestamp;
+        ExecutionReturnData executionData;
+        RELAYER_TYPE relayerType;
+        bytes4 errorMessage;
+        string errorReason;
+        address account;
+        uint256 relayerGas;
+    }
+
+    function _processAcrossV3Message(ProcessAcrossV3MessageParams memory params) internal {
+        if (params.relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
             vm.expectEmit(true, false, false, false);
             emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNotEnoughBalance(
-                account, address(0), 0, 0
+                params.account, address(0), 0, 0
             );
-        } else if (relayerType == RELAYER_TYPE.ENOUGH_BALANCE) {
+        } else if (params.relayerType == RELAYER_TYPE.ENOUGH_BALANCE) {
             vm.expectEmit(true, true, true, true);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorExecuted(account);
-        } else if (relayerType == RELAYER_TYPE.NO_HOOKS) {
+            emit ISuperDestinationExecutor.SuperDestinationExecutorExecuted(params.account);
+        } else if (params.relayerType == RELAYER_TYPE.NO_HOOKS) {
             vm.expectEmit(true, true, true, true);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNoHooks(account);
-        } else if (relayerType == RELAYER_TYPE.LOW_LEVEL_FAILED) {
-            vm.expectEmit(true, false, false, false);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorFailedLowLevel(account, "");
-        } else if (relayerType == RELAYER_TYPE.FAILED) {
-            vm.expectEmit(true, false, false, false);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorFailed(account, "");
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNoHooks(params.account);
+        } else if (params.relayerType == RELAYER_TYPE.REVERT) {
+            if (params.errorMessage != bytes4(0)) {
+                vm.expectRevert(params.errorMessage);
+            } else {
+                vm.expectRevert(bytes(params.errorReason));
+            }
         }
-        AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
-            SPOKE_POOL_V3_ADDRESSES[srcChainId],
-            SPOKE_POOL_V3_ADDRESSES[dstChainId],
-            ACROSS_RELAYER,
-            warpTimestamp,
-            FORKS[dstChainId],
-            dstChainId,
-            srcChainId,
-            executionData.logs
-        );
+        if (params.relayerGas == 0) {
+            AcrossV3Helper(_getContract(params.srcChainId, ACROSS_V3_HELPER_KEY)).help(
+                SPOKE_POOL_V3_ADDRESSES[params.srcChainId],
+                SPOKE_POOL_V3_ADDRESSES[params.dstChainId],
+                ACROSS_RELAYER,
+                params.warpTimestamp,
+                FORKS[params.dstChainId],
+                params.dstChainId,
+                params.srcChainId,
+                params.executionData.logs
+            );
+        } else {
+            AcrossV3Helper(_getContract(params.srcChainId, ACROSS_V3_HELPER_KEY)).help(
+                SPOKE_POOL_V3_ADDRESSES[params.srcChainId],
+                SPOKE_POOL_V3_ADDRESSES[params.dstChainId],
+                ACROSS_RELAYER,
+                params.warpTimestamp,
+                FORKS[params.dstChainId],
+                params.dstChainId,
+                params.srcChainId,
+                params.executionData.logs,
+                params.relayerGas
+            );
+        }
     }
 
     function _processAcrossV3MessageWithoutDestinationAccount(
