@@ -2,16 +2,14 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../vendor/BytesLib.sol";
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import {BaseHook} from "../BaseHook.sol";
-import {HookSubTypes} from "../../libraries/HookSubTypes.sol";
-import {ISuperHookLoans} from "../../interfaces/ISuperHook.sol";
-import {HookDataDecoder} from "../../libraries/HookDataDecoder.sol";
-import {ISuperHookContextAware} from "../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../BaseHook.sol";
+import { ISuperHookLoans } from "../../interfaces/ISuperHook.sol";
+import { HookDataDecoder } from "../../libraries/HookDataDecoder.sol";
+import { ISuperHookContextAware } from "../../interfaces/ISuperHook.sol";
 
 /// @title BaseLoanHook
 /// @author Superform Labs
@@ -26,7 +24,7 @@ abstract contract BaseLoanHook is BaseHook, ISuperHookLoans {
     /*//////////////////////////////////////////////////////////////
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
-    constructor(bytes32 hookSubtype_) BaseHook(HookType.NONACCOUNTING, hookSubtype_) {}
+    constructor(bytes32 hookSubtype_) BaseHook(HookType.NONACCOUNTING, hookSubtype_) { }
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL METHODS
