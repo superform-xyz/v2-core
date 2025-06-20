@@ -53,17 +53,6 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     uint256 internal constant EMPTY_EXECUTION_LENGTH = 228;
 
     /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-    error INVALID_ACCOUNT();
-    error INVALID_GASLEFT();
-    error INVALID_SIGNATURE();
-    error ADDRESS_NOT_ACCOUNT();
-    error ACCOUNT_NOT_CREATED();
-    error ARRAY_LENGTH_MISMATCH();
-    error MERKLE_ROOT_ALREADY_USED();
-
-    /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
     /// @notice Initializes the SuperDestinationExecutor with required references
@@ -194,7 +183,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
             uint256 _intentAmount = intentAmounts[i];
 
             if (_intentAmount == 0) {
-                emit SuperDestinationExecutorInvalidIntentAmount(account, _token,_intentAmount);
+                emit SuperDestinationExecutorInvalidIntentAmount(account, _token, _intentAmount);
                 return false;
             }
 

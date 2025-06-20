@@ -35,7 +35,30 @@ interface ISuperDestinationExecutor {
     /// @param account The account on which the execution failed
     /// @param token The token that was required but not available
     /// @param intentAmount The amount of tokens required for execution
-    event SuperDestinationExecutorInvalidIntentAmount(address indexed account, address indexed token, uint256 intentAmount);
+    event SuperDestinationExecutorInvalidIntentAmount(
+        address indexed account, address indexed token, uint256 intentAmount
+    );
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Emitted when the account is not a valid account
+    error INVALID_ACCOUNT();
+
+    /// @notice Emitted when the signature is invalid
+    error INVALID_SIGNATURE();
+
+    /// @notice Emitted when the address is not an account
+    error ADDRESS_NOT_ACCOUNT();
+
+    /// @notice Emitted when the account is not created
+    error ACCOUNT_NOT_CREATED();
+
+    /// @notice Emitted when the array length mismatch
+    error ARRAY_LENGTH_MISMATCH();
+
+    /// @notice Emitted when the merkle root is already used
+    error MERKLE_ROOT_ALREADY_USED();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW FUNCTIONS
