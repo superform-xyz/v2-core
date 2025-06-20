@@ -7,7 +7,7 @@ import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { Id, IMorphoStaticTyping, MarketParams } from "../../src/vendor/morpho/IMorpho.sol";
 import { MorphoRepayAndWithdrawHook } from "../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { MorphoBorrowHook } from "../../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoSupplyAndBorrowHook } from "../../src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import { console } from "forge-std/console.sol";
 
@@ -15,7 +15,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
     using MarketParamsLib for MarketParams;
 
     address public repayAndWithdrawHookAddress;
-    address public morphoBorrowHook;
+    address public morphoSupplyAndBorrowHook;
     address public morphoRepayHook;
 
     MorphoRepayAndWithdrawHook public repayAndWithdrawHook;
@@ -33,7 +33,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         blockNumber = ETH_BLOCK;
         super.setUp();
 
-        morphoBorrowHook = address(new MorphoBorrowHook(address(MORPHO)));
+        morphoSupplyAndBorrowHook = address(new MorphoSupplyAndBorrowHook(address(MORPHO)));
         repayAndWithdrawHook = new MorphoRepayAndWithdrawHook(address(MORPHO));
         repayAndWithdrawHookAddress = address(repayAndWithdrawHook);
 
@@ -44,8 +44,8 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         _getTokens(CHAIN_1_WBTC, accountEth, 1e8);
     }
 
-    function test_MorphoBorrowHook_TracksCollateralNotLoan() external {
-        console.log("=== MorphoBorrowHook Token Tracking Test ===");
+    function test_MorphoSupplyAndBorrowHook_TracksCollateralNotLoan() external {
+        console.log("=== MorphoSupplyAndBorrowHook Token Tracking Test ===");
 
         address loanToken = CHAIN_1_USDC;
         address collateralToken = CHAIN_1_WBTC;
@@ -60,10 +60,10 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
 
         // Setup the borrow hook execution
         address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = morphoBorrowHook;
+        hooksAddresses[0] = morphoSupplyAndBorrowHook;
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createMorphoBorrowHookData(
+        hooksData[0] = _createMorphoSupplyAndBorrowHookData(
             loanToken, collateralToken, morpho_oracle_wbtc_usdc, morpho_irm_wbtc_usdc, amount, lltvRatio, false, lltv
         );
 
@@ -86,10 +86,10 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
 
         // Setup the borrow hook execution
         address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = morphoBorrowHook;
+        hooksAddresses[0] = morphoSupplyAndBorrowHook;
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createMorphoBorrowHookData(
+        hooksData[0] = _createMorphoSupplyAndBorrowHookData(
             loanToken, collateralToken, morpho_oracle_wbtc_usdc, morpho_irm_wbtc_usdc, amount, lltvRatio, false, lltv
         );
 
@@ -149,14 +149,11 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         // Execute the partial repayment operation
         executeOp(userOpData1);
 
-        // Fetch final position data. LTV has increased as collateral to withdraw has been computed
-        // without accounting for unrealized debt.
-        // Final LTV is around 81.9% when it should have mantained at 80% + interest (around 80.9%).
-        console.log("Final borrow amount:", repayAndWithdrawHook.sharesToAssets(marketParams, accountEth));
-        console.log("Final collateral:", collateral);
-        console.log("---LTV1:", (repayAndWithdrawHook.sharesToAssets(marketParams, accountEth) * 1e18) / collateral);
+        uint128 collateralAfter;
+        (,, collateralAfter) = morpho.position(id, accountEth);
 
-        uint256 finalLtv = (repayAndWithdrawHook.sharesToAssets(marketParams, accountEth) * 1e18) / collateral;
-        console.log("---LTV Diff:", initialLtv - finalLtv);
+        uint256 finalLtv = (repayAndWithdrawHook.sharesToAssets(marketParams, accountEth) * 1e18) / collateralAfter;
+
+        assertApproxEqRel(finalLtv, initialLtv, 1e16);
     }
 }
