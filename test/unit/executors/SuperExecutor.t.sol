@@ -308,20 +308,20 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(0), // Native token as address(0)
-            account, 
-            1, 
+            account,
+            1,
             false
         );
 
         // Fund the account with ETH
         vm.deal(account, 1000);
-        
+
         // Execute the hook
         vm.startPrank(account);
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // Check initial balances
         uint256 initialFeeRecipientBalance = feeRecipient.balance;
@@ -329,16 +329,19 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         // Execute and process the hook
         superSourceExecutor.execute(abi.encode(entry));
-        
+
         // Verify fee was transferred correctly
         assertEq(account.balance, initialAccountBalance - 100, "Native fee should be deducted from account");
-        assertEq(feeRecipient.balance, initialFeeRecipientBalance + 100, "Fee recipient should receive native token fee");
+        assertEq(
+            feeRecipient.balance, initialFeeRecipientBalance + 100, "Fee recipient should receive native token fee"
+        );
         vm.stopPrank();
     }
 
     function test_SourceExecutor_UpdateAccounting_Outflow_WithFee_NativeTokenSentinel() public {
         // Create a hook that uses NATIVE_TOKEN_SENTINEL
-        MockHook nativeSentinelHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE));
+        MockHook nativeSentinelHook =
+            new MockHook(ISuperHook.HookType.OUTFLOW, address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE));
         nativeSentinelHook.setOutAmount(1000);
         nativeSentinelHook.setUsedShares(500);
         ledger.setFeeAmount(100);
@@ -349,20 +352,20 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
-            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), 
-            account, 
-            1, 
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE),
+            account,
+            1,
             false
         );
 
         // Fund the account with ETH
         vm.deal(account, 1000);
-        
+
         // Execute the hook
         vm.startPrank(account);
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // Check initial balances
         uint256 initialFeeRecipientBalance = feeRecipient.balance;
@@ -370,10 +373,12 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         // Execute and process the hook
         superSourceExecutor.execute(abi.encode(entry));
-        
+
         // Verify fee was transferred correctly
         assertEq(account.balance, initialAccountBalance - 100, "Native fee should be deducted from account");
-        assertEq(feeRecipient.balance, initialFeeRecipientBalance + 100, "Fee recipient should receive native token fee");
+        assertEq(
+            feeRecipient.balance, initialFeeRecipientBalance + 100, "Fee recipient should receive native token fee"
+        );
         vm.stopPrank();
     }
 
@@ -389,21 +394,16 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         hooksAddresses[0] = address(nativeHook);
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
-            address(0), 
-            account, 
-            1, 
-            false
-        );
+        hooksData[0] =
+            _createRedeem4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(0), account, 1, false);
 
         // Don't fund the account - should have 0 ETH
         vm.deal(account, 0);
-        
+
         // Try to execute the hook
         vm.startPrank(account);
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // Should revert due to insufficient balance
         vm.expectRevert(ISuperExecutor.INSUFFICIENT_BALANCE_FOR_FEE.selector);
@@ -478,7 +478,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         address rewardToken = address(_mockToken);
         FluidClaimRewardHook hook = new FluidClaimRewardHook();
         address stakingRewards = address(new MockStakingRewards(rewardToken));
-        
+
         vm.mockCall(address(stakingRewards), abi.encodeWithSignature("rewardsToken()"), abi.encode(rewardToken));
         MockERC20(rewardToken).mint(stakingRewards, 1e18);
 
@@ -577,7 +577,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         );
 
         vm.mockCall(address(this), abi.encodeWithSignature("accountId()"), abi.encode(""));
-        vm.expectRevert(SuperDestinationExecutor.ADDRESS_NOT_ACCOUNT.selector);
+        vm.expectRevert(ISuperDestinationExecutor.ADDRESS_NOT_ACCOUNT.selector);
         superDestinationExecutor.processBridgedExecution(
             address(token), address(this), dstTokens, intentAmounts, "", "", ""
         );
@@ -593,14 +593,14 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         );
 
         vm.mockCall(address(this), abi.encodeWithSignature("accountId()"), abi.encode(""));
-        vm.expectRevert(SuperDestinationExecutor.ARRAY_LENGTH_MISMATCH.selector);
+        vm.expectRevert(ISuperDestinationExecutor.ARRAY_LENGTH_MISMATCH.selector);
         superDestinationExecutor.processBridgedExecution(
             address(token), address(this), dstTokens, intentAmounts, "", "", ""
         );
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_Revert_AccountCreated() public {
-        vm.expectRevert(SuperDestinationExecutor.ACCOUNT_NOT_CREATED.selector);
+        vm.expectRevert(ISuperDestinationExecutor.ACCOUNT_NOT_CREATED.selector);
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         superDestinationExecutor.processBridgedExecution(
             address(token), address(0), dstTokens, intentAmounts, "", "", ""
@@ -685,7 +685,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData
         );
 
-        vm.expectRevert(SuperDestinationExecutor.MERKLE_ROOT_ALREADY_USED.selector);
+        vm.expectRevert(ISuperDestinationExecutor.MERKLE_ROOT_ALREADY_USED.selector);
         superDestinationExecutor.processBridgedExecution(
             address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData
         );
@@ -700,11 +700,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             uint48 validUntil
         )
     {
-        address[] memory dstHookAddresses = new address[](0);
-        bytes[] memory dstHookData = new bytes[](0);
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: dstHookAddresses, hooksData: dstHookData });
-        executorCalldata = abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
+        // Create execution that calls a simple view function that should succeed
+        executorCalldata = abi.encodeWithSelector(ISuperExecutor.version.selector);
 
         validUntil = uint48(block.timestamp + 100 days);
         executionDataForLeaf =
@@ -747,12 +744,12 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         // Create a test token with precise control over transfer amounts
         TokenWithTransferControl feeToken = new TokenWithTransferControl("Fee Token", "FEE", 18);
         feeToken.setFeeRecipient(feeRecipient);
-        
+
         // Create a mock hook for outflow operations
         MockHook outflowTestHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(feeToken));
-        outflowTestHook.setOutAmount(1000 * 10**18);
+        outflowTestHook.setOutAmount(1000 * 10 ** 18);
         outflowTestHook.setUsedShares(500);
-        
+
         // Set up executor with new ledger configuration
         MockLedgerConfiguration testConfig = new MockLedgerConfiguration(
             address(ledger),
@@ -761,36 +758,32 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             1000, // 10% fee rate
             account
         );
-        
+
         SuperExecutor testExecutor = new SuperExecutor(address(testConfig));
-        
+
         // Initialize executor in the account
-        instance.installModule({
-            moduleTypeId: MODULE_TYPE_EXECUTOR,
-            module: address(testExecutor),
-            data: ""
-        });
-        
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(testExecutor), data: "" });
+
         // Make sure account has sufficient balance
-        uint256 initialBalance = 100_000 * 10**18;
+        uint256 initialBalance = 100_000 * 10 ** 18;
         feeToken.mint(account, initialBalance);
-        
+
         // Calculate the expected fee (10% of 1000 tokens)
-        uint256 feeAmount = 100 * 10**18; // 10% of 1000 tokens
-        
+        uint256 feeAmount = 100 * 10 ** 18; // 10% of 1000 tokens
+
         // Calculate 1% tolerance
         uint256 onePercent = feeAmount / 100; // Exactly 1%
-        
+
         console2.log("Testing fee tolerance with:");
         console2.log(" - Fee amount:", feeAmount);
         console2.log(" - 1% tolerance:", onePercent);
         console2.log(" - Min allowed:", feeAmount - onePercent);
         console2.log(" - Max allowed:", feeAmount + onePercent);
-        
+
         // Create execution entry with our test hook
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(outflowTestHook);
-        
+
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
@@ -799,51 +792,47 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             1000, // Amount
             false // Use amount from previous hook
         );
-        
-        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor.ExecutorEntry({
-            hooksAddresses: hooksAddresses,
-            hooksData: hooksData
-        });
-        
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+
         // Test case 1: Exact transfer amount (should pass)
         vm.prank(account);
         testExecutor.execute(abi.encode(entry));
-        
+
         // Test case 2: Exactly 1% less than expected (at lower boundary, should pass)
         uint256 exactlyOnePercentLess = feeAmount - onePercent;
         feeToken.setTransferOverride(true);
         feeToken.setCustomTransferAmount(exactlyOnePercentLess);
-        
+
         vm.prank(account);
         testExecutor.execute(abi.encode(entry));
-        
+
         // Test case 3: Exactly 1% more than expected (at upper boundary, should pass)
         uint256 exactlyOnePercentMore = feeAmount + onePercent;
         feeToken.setCustomTransferAmount(exactlyOnePercentMore);
-        
+
         vm.prank(account);
         testExecutor.execute(abi.encode(entry));
-        
+
         // Test case 4: Just under 1% less (within tolerance, should pass)
         uint256 slightlyLessThanOnePercent = feeAmount - onePercent + 1;
         feeToken.setCustomTransferAmount(slightlyLessThanOnePercent);
-        
+
         vm.prank(account);
         testExecutor.execute(abi.encode(entry));
-        
-
     }
 
     function test_FeeToleranceIsOnePercent_2() public {
-         // Create a test token with precise control over transfer amounts
+        // Create a test token with precise control over transfer amounts
         TokenWithTransferControl feeToken = new TokenWithTransferControl("Fee Token", "FEE", 18);
         feeToken.setFeeRecipient(feeRecipient);
-        
+
         // Create a mock hook for outflow operations
         MockHook outflowTestHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(feeToken));
-        outflowTestHook.setOutAmount(1000 * 10**18);
+        outflowTestHook.setOutAmount(1000 * 10 ** 18);
         outflowTestHook.setUsedShares(500);
-        
+
         // Set up executor with new ledger configuration
 
         MockLedgerConfiguration testConfig = new MockLedgerConfiguration(
@@ -853,37 +842,33 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             1000, // 10% fee rate
             account
         );
-        
+
         SuperExecutor testExecutor = new SuperExecutor(address(testConfig));
-        
+
         // Initialize executor in the account
-        instance.installModule({
-            moduleTypeId: MODULE_TYPE_EXECUTOR,
-            module: address(testExecutor),
-            data: ""
-        });
-        
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(testExecutor), data: "" });
+
         // Make sure account has sufficient balance
-        uint256 initialBalance = 100_000 * 10**18;
+        uint256 initialBalance = 100_000 * 10 ** 18;
         feeToken.mint(account, initialBalance);
-        
+
         // Calculate the expected fee (10% of 1000 tokens)
-        uint256 feeAmount = 100 * 10**18; // 10% of 1000 tokens
-        
+        uint256 feeAmount = 100 * 10 ** 18; // 10% of 1000 tokens
+
         // Calculate 1% tolerance
         uint256 onePercent = feeAmount / 100; // Exactly 1%
-        
+
         console2.log("Testing fee tolerance with:");
         console2.log(" - Fee amount:", feeAmount);
         console2.log(" - 1% tolerance:", onePercent);
         console2.log(" - Min allowed:", feeAmount - onePercent);
         console2.log(" - Max allowed:", feeAmount + onePercent);
         console2.log(" - FeeToken:", address(feeToken));
-        
+
         // Create execution entry with our test hook
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(outflowTestHook);
-        
+
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
@@ -892,12 +877,9 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             1000, // Amount
             false // Use amount from previous hook
         );
-        
-        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor.ExecutorEntry({
-            hooksAddresses: hooksAddresses,
-            hooksData: hooksData
-        });
 
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // Test case 5: Just over 1% less (exceeds tolerance, should fail)
         uint256 slightlyMoreThanOnePercent = feeAmount - onePercent - 2;
@@ -909,7 +891,17 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         testExecutor.execute(abi.encode(entry));
     }
 
-
+    struct ExecutionContext {
+        bytes executorCalldata;
+        bytes executionDataForLeaf;
+        bytes32[] leaves;
+        address[] dstTokens;
+        uint256[] intentAmounts;
+        bytes32[][] merkleProof;
+        bytes32 merkleRoot;
+        bytes signature;
+        bytes signatureData;
+    }
 
     function test_DestinationExecutor_ValidateBalances_RejectsZeroIntentAmount() public {
         bytes memory initData = "";
@@ -918,7 +910,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         bytes[] memory dstHookData = new bytes[](0);
         ISuperExecutor.ExecutorEntry memory entryToExecute =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: dstHookAddresses, hooksData: dstHookData });
-        
+
         ExecutionContext memory ctx;
 
         ctx.executorCalldata = abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
@@ -930,13 +922,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         ctx.intentAmounts = new uint256[](1);
         ctx.intentAmounts[0] = 0;
 
-        ctx.executionDataForLeaf = abi.encode(
-            ctx.executorCalldata,
-            uint64(block.chainid),
-            account,
-            address(superDestinationExecutor),
-            1
-        );
+        ctx.executionDataForLeaf =
+            abi.encode(ctx.executorCalldata, uint64(block.chainid), account, address(superDestinationExecutor), 1);
 
         ctx.leaves = new bytes32[](1);
         ctx.leaves[0] = _createDestinationValidatorLeaf(
@@ -952,20 +939,14 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
 
         ctx.signature = _createSignature(
-            SuperValidatorBase(address(superDestinationValidator)).namespace(),
-            ctx.merkleRoot,
-            signer,
-            signerPrvKey
+            SuperValidatorBase(address(superDestinationValidator)).namespace(), ctx.merkleRoot, signer, signerPrvKey
         );
 
-        ctx.signatureData = abi.encode(validUntil, ctx.merkleRoot, ctx.merkleProof[0], ctx.merkleProof[0], ctx.signature);
+        ctx.signatureData =
+            abi.encode(validUntil, ctx.merkleRoot, ctx.merkleProof[0], ctx.merkleProof[0], ctx.signature);
 
         vm.expectEmit(true, true, false, true);
-        emit ISuperDestinationExecutor.SuperDestinationExecutorInvalidIntentAmount(
-            account,
-            address(token),
-            0
-        );
+        emit ISuperDestinationExecutor.SuperDestinationExecutorInvalidIntentAmount(account, address(token), 0);
 
         superDestinationExecutor.processBridgedExecution(
             address(token),
@@ -976,17 +957,5 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             ctx.executionDataForLeaf,
             ctx.signatureData
         );
-    }
-
-    struct ExecutionContext {
-        bytes executorCalldata;
-        bytes executionDataForLeaf;
-        bytes32[] leaves;
-        address[] dstTokens;
-        uint256[] intentAmounts;
-        bytes32[][] merkleProof;
-        bytes32 merkleRoot;
-        bytes signature;
-        bytes signatureData;
     }
 }

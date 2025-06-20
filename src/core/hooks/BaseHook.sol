@@ -5,7 +5,7 @@ pragma solidity 0.8.30;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { ISuperHook } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookSetter } from "../interfaces/ISuperHook.sol";
 
 /// @title BaseHook
 /// @author Superform Labs
@@ -14,7 +14,7 @@ import { ISuperHook } from "../interfaces/ISuperHook.sol";
 ///      All specialized hooks should inherit from this base contract
 ///      Implements the ISuperHook interface defined lifecycle methods
 ///      Uses a transient storage pattern for stateful execution context
-abstract contract BaseHook is ISuperHook {
+abstract contract BaseHook is ISuperHook, ISuperHookSetter {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -171,6 +171,12 @@ abstract contract BaseHook is ISuperHook {
         
         postExecuteMutex = true;
         _postExecute(prevHook, account, data);
+    }
+
+    /// @inheritdoc ISuperHookSetter
+    function setOutAmount(uint256 _outAmount) external {
+        if (caller != msg.sender) revert INCOMPLETE_HOOK_EXECUTION();
+        outAmount = _outAmount;
     }
 
     /// @inheritdoc ISuperHook
