@@ -27,7 +27,7 @@ import { SpectraCommands } from "../../../../vendor/spectra/SpectraCommands.sol"
 contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 160;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 128;
     uint256 private constant SHARES_POSITION = 96;
 
     bytes1 public constant REDEEM_IBT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_IBT_FOR_ASSET));
