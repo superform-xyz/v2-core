@@ -20,6 +20,13 @@ import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
  *      - OUTFLOW: Hooks that process withdrawals or reductions to positions
  */
 
+
+interface ISuperHookSetter {
+    /// @notice Sets the output amount for the hook
+    /// @dev Used for updating `outAmount` when fees were deducted
+    /// @param _outAmount The amount of tokens processed by the hook
+    function setOutAmount(uint256 _outAmount) external;
+}
 /// @title ISuperHookInspector
 /// @author Superform Labs
 /// @notice Interface for the SuperHookInspector contract that manages hook inspection
