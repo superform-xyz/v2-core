@@ -257,6 +257,30 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.stopPrank();
     }
 
+    function test_WrongData() public view {
+        // the following PoC demonstrates the length can be 228 but execution is invalid
+        ISuperExecutor.ExecutorEntry memory entry;
+        entry.hooksAddresses = new address[](0);
+        entry.hooksData = new bytes[](0);
+
+        bytes memory entryData = abi.encode(entry);
+        assertEq(entryData.length, 160);
+        console2.logBytes(entryData);
+
+        bytes memory alternativeEntryData = bytes.concat(
+            hex"0000000000000000000000000000000000000000000000000000000000000020",
+            hex"0000000000000000000000000000000000000000000000000000000000000040",
+            hex"0000000000000000000000000000000000000000000000000000000000000040",
+            hex"0000000000000000000000000000000000000000000000000000000000000001",
+            hex"0000000000000000000000000000000000000000000000000000000000000000"
+        );
+
+        bytes memory fullData = abi.encodeCall(this.execute, alternativeEntryData);
+        assertEq(fullData.length, 228);
+        console2.logBytes(fullData);
+    }
+
+
     function test_SourceExecutor_UpdateAccounting_Outflow_RevertIf_FeeNotTransferred() public {
         MaliciousToken maliciousToken = new MaliciousToken();
 
@@ -957,5 +981,16 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             ctx.executionDataForLeaf,
             ctx.signatureData
         );
+    }
+
+    function execute(bytes calldata data) external pure {
+      ISuperExecutor.ExecutorEntry memory e = abi.decode(data, (ISuperExecutor.ExecutorEntry));
+      console2.log("hooksAddresses.length", e.hooksAddresses.length);
+      console2.log("hooksData.length", e.hooksData.length);
+
+      for(uint i = 0; i < e.hooksAddresses.length; i++) {
+        console2.logAddress(e.hooksAddresses[i]);
+        console2.logBytes(e.hooksData[i]);
+      }
     }
 }
