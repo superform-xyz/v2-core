@@ -106,33 +106,34 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     function validateHookCompliance(
         address hook,
         address prevHook,
-        address account, 
+        address account,
         bytes memory hookData
-    ) public view returns (Execution[] memory) {
+    )
+        public
+        view
+        returns (Execution[] memory)
+    {
         Execution[] memory empty = new Execution[](0);
-        try ISuperHook(hook).build(prevHook, account, hookData) returns (Execution[] memory executions) {
-            if (executions.length < 2) return empty;
-            
-            // Check FIRST execution is preExecute
-            if (executions[0].target != hook) return empty;
-            bytes4 firstSelector = bytes4(executions[0].callData);
-            if (firstSelector != ISuperHook.preExecute.selector) return empty;
-            
-            // Check LAST execution is postExecute
-            uint256 lastIdx = executions.length - 1;
-            if (executions[lastIdx].target != hook) return empty;
-            bytes4 lastSelector = bytes4(executions[lastIdx].callData);
-            if (lastSelector != ISuperHook.postExecute.selector) return empty;
+        Execution[] memory executions = ISuperHook(hook).build(prevHook, account, hookData);
+        if (executions.length < 2) return empty;
 
-            // Do not allow any in-between executions to be performed on the same hook
-            for (uint256 i = 1; i < lastIdx; i++) {
-                if (executions[i].target == hook) return empty;
-            }
-            
-            return executions;
-        } catch {
-            return empty;
+        // Check FIRST execution is preExecute
+        if (executions[0].target != hook) return empty;
+        bytes4 firstSelector = bytes4(executions[0].callData);
+        if (firstSelector != ISuperHook.preExecute.selector) return empty;
+
+        // Check LAST execution is postExecute
+        uint256 lastIdx = executions.length - 1;
+        if (executions[lastIdx].target != hook) return empty;
+        bytes4 lastSelector = bytes4(executions[lastIdx].callData);
+        if (lastSelector != ISuperHook.postExecute.selector) return empty;
+
+        // Do not allow any in-between executions to be performed on the same hook
+        for (uint256 i = 1; i < lastIdx; i++) {
+            if (executions[i].target == hook) return empty;
         }
+
+        return executions;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -298,10 +299,10 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
         // STEP 3: Update accounting (both mutexes active, preventing reentrancy)
         _updateAccounting(account, address(hook), hookData);
-        
+
         // STEP 4: Handle cross-chain operations
         _checkAndLockForSuperPosition(account, address(hook));
-        
+
         // STEP 5: Reset both mutexes after all processing complete
         hook.resetExecutionState();
     }
