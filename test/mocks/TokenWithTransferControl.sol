@@ -8,6 +8,8 @@ import {ERC20} from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
  * @notice Mock token that allows controlling the exact amount that gets transferred
  * @dev Used for testing fee tolerance in SuperExecutor
  */
+
+ import "forge-std/console2.sol";
 contract TokenWithTransferControl is ERC20 {
     bool public useCustomTransferAmount;
     uint256 public customTransferAmount;
@@ -56,6 +58,11 @@ contract TokenWithTransferControl is ERC20 {
      * @param amount Amount to transfer (or attempt to transfer)
      */
     function transfer(address to, uint256 amount) public override returns (bool) {
+        console2.log("Transfer called with:");
+        console2.log(" - To B:", to);
+        console2.log(" - To A:", feeRecipient);
+        console2.log(" - Amount:", amount);
+        console2.log(" - useCustomTransferAmount:", useCustomTransferAmount);
         if (useCustomTransferAmount && to == feeRecipient) {
             // Burn the full amount from sender
             _burn(_msgSender(), amount);
