@@ -47,7 +47,9 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
     error LENGTH_MISMATCH();
     error INVALID_COMMAND();
     error INVALID_SELECTOR();
-    
+    error INVALID_RECIPIENT();
+    error INVALID_MIN_ASSETS();
+
     constructor(address router_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.PTYT) {
         if (router_ == address(0)) revert ADDRESS_NOT_VALID();
         router = ISpectraRouter(router_);
@@ -93,17 +95,15 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
         bytes calldata txData_ = data[TX_DATA_POSITION:];
-        ValidateTxDataParams memory params;
+        ValidateRedeemTxDataParams memory params;
         params.selector = bytes4(txData_[0:4]);
 
         if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
             (params.commandsData, params.inputs) = abi.decode(txData_[4:], (bytes, bytes[]));
             params.inputsLength = params.inputs.length;
             params.updatedInputs = new bytes[](params.inputsLength);
-        } else if (params.selector == bytes4(keccak256("execute(bytes,bytes[],uint256)"))) {
-            (params.commandsData, params.inputs, params.deadline) = abi.decode(txData_[4:], (bytes, bytes[], uint256));
-            params.inputsLength = params.inputs.length;
-            params.updatedInputs = new bytes[](params.inputsLength);
+        } else {
+            revert INVALID_SELECTOR();
         }
 
         params.commands = _validateCommands(params.commandsData, params.inputsLength);
@@ -114,17 +114,14 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
         for (uint256 i; i < params.commandsLength; ++i) {
             uint256 command = params.commands[i];
             bytes memory input = params.inputs[i];
-            if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
-                (params.pt, params.assets, params.ptRecipient, params.ytRecipient, params.minShares) =
-                    abi.decode(input, (address, uint256, address, address, uint256));
+            if (command == SpectraCommands.REDEEM_IBT_FOR_ASSET) {
+                (params.asset, params.sharesToBurn, params.recipient) = abi.decode(input, (address, uint256, address));
 
-                packed = abi.encodePacked(packed, params.pt, params.ptRecipient, params.ytRecipient);
-            } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
-                (params.ibt, params.assets, params.recipient) = abi.decode(input, (address, uint256, address));
-                packed = abi.encodePacked(packed, params.ibt, params.recipient);
-            } else if (command == SpectraCommands.TRANSFER_FROM) {
-                (params.transferToken) = abi.decode(input, (address));
-                packed = abi.encodePacked(packed, params.transferToken);
+                packed = abi.encodePacked(packed, params.asset, params.sharesToBurn, params.minAssets);
+            } else if (command == SpectraCommands.REDEEM_PT_FOR_ASSET) {
+                (params.pt, params.sharesToBurn, params.recipient, params.minAssets) =
+                    abi.decode(input, (address, uint256, address, uint256));
+                packed = abi.encodePacked(packed, params.pt, params.sharesToBurn, params.recipient, params.minAssets);
             }
         }
 
@@ -145,16 +142,15 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
                             PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
 
-    struct ValidateTxDataParams {
+    struct ValidateRedeemTxDataParams {
         bytes4 selector;
         bytes[] updatedInputs;
         bytes commandsData;
         bytes[] inputs;
         uint256 inputsLength;
-        uint256 deadline;
         uint256[] commands;
         uint256 commandsLength;
-        address pt;
+        address pt; // TODO
         address asset;
         address recipient;
         uint256 minAssets;
@@ -172,16 +168,11 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
         view
         returns (bytes memory updatedTxData)
     {
-        ValidateTxDataParams memory params;
+        ValidateRedeemTxDataParams memory params;
         params.selector = bytes4(data[0:4]);
 
         if (params.selector == bytes4(keccak256("execute(bytes,bytes[])"))) {
             (params.commandsData, params.inputs) = abi.decode(data[4:], (bytes, bytes[]));
-            params.inputsLength = params.inputs.length;
-            params.updatedInputs = new bytes[](params.inputsLength);
-        } else if (params.selector == bytes4(keccak256("execute(bytes,bytes[],uint256)"))) {
-            (params.commandsData, params.inputs, params.deadline) = abi.decode(data[4:], (bytes, bytes[], uint256));
-            if (params.deadline < block.timestamp) revert INVALID_DEADLINE();
             params.inputsLength = params.inputs.length;
             params.updatedInputs = new bytes[](params.inputsLength);
         } else {
@@ -191,36 +182,30 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
         params.commands = _validateCommands(params.commandsData, params.inputsLength);
         params.commandsLength = params.commands.length;
 
-        // last command cannot be TRANSFER_FROM
-        if (params.commands[params.commandsLength - 1] == SpectraCommands.TRANSFER_FROM) {
-            revert INVALID_LAST_COMMAND();
-        }
-
         for (uint256 i; i < params.commandsLength; ++i) {
             uint256 command = params.commands[i];
             bytes memory input = params.inputs[i];
-            if (command == SpectraCommands.DEPOSIT_ASSET_IN_PT) {
-                // https://dev.spectra.finance/technical-reference/contract-functions/router#deposit_asset_in_pt-command
+            if (command == SpectraCommands.REDEEM_IBT_FOR_ASSET) {
+                // https://dev.spectra.finance/technical-reference/contract-functions/router#redeem_ibt_for_asset-command
 
-                (params.pt, params.assets, params.ptRecipient, params.ytRecipient, params.minShares) =
-                    abi.decode(input, (address, uint256, address, address, uint256));
+                (params.asset, params.sharesToBurn, params.recipient) =
+                    abi.decode(input, (address, uint256, address));
 
-                if (params.minShares == 0) revert INVALID_MIN_SHARES();
-                if (params.pt != pt) revert INVALID_PT();
-                if (params.ptRecipient != account || params.ytRecipient != account) revert INVALID_RECIPIENT();
+                if (params.recipient != account) revert INVALID_RECIPIENT();
 
                 if (usePrevHookAmount) {
-                    params.assets = ISuperHookResult(prevHook).outAmount();
+                    params.sharesToBurn = ISuperHookResult(prevHook).outAmount();
                 }
-                if (params.assets == 0) revert AMOUNT_NOT_VALID();
+                if (params.sharesToBurn == 0) revert AMOUNT_NOT_VALID();
 
-                params.updatedInputs[i] = abi.encode(params.pt, params.assets, params.ptRecipient, params.ytRecipient);
-            } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
-                // https://dev.spectra.finance/technical-reference/contract-functions/router#deposit_asset_in_ibt-command
+                params.updatedInputs[i] = abi.encode(params.asset, params.sharesToBurn, params.recipient);
+            } else if (command == SpectraCommands.REDEEM_PT_FOR_ASSET) {
+                // https://dev.spectra.finance/technical-reference/contract-functions/router#redeem_pt_for_asset-command
 
-                (params.ibt, params.assets, params.recipient) = abi.decode(input, (address, uint256, address));
-                if (params.ibt == address(0)) revert INVALID_IBT();
+                (params.pt, params.sharesToBurn, params.recipient, params.minAssets) =
+                    abi.decode(input, (address, uint256, address, uint256));
                 if (params.recipient != account) revert INVALID_RECIPIENT();
+                if (params.minAssets == 0) revert INVALID_MIN_ASSETS();
 
                 if (usePrevHookAmount) {
                     params.assets = ISuperHookResult(prevHook).outAmount();
@@ -319,5 +304,4 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
         return BytesLib.toUint256(data, TX_DATA_POSITION);
     }
-
 }
