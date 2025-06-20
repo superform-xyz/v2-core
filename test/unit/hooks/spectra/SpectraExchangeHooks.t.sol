@@ -5,7 +5,6 @@ import { Helpers } from "../../../utils/Helpers.sol";
 import { SpectraExchangeDepositHook } from "../../../../src/core/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
 import { SpectraExchangeRedeemHook } from "../../../../src/core/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
 import { SpectraCommands } from "../../../../src/vendor/spectra/SpectraCommands.sol";
-import { ISpectraRouter } from "../../../../src/vendor/spectra/ISpectraRouter.sol";
 
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
@@ -22,6 +21,9 @@ contract SpectraExchangeHooksTests is Helpers {
     MockERC20 public token;
     MockHook public prevHook;
     address public account;
+
+    bytes1 public constant REDEEM_IBT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_IBT_FOR_ASSET));
+    bytes1 public constant REDEEM_PT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_PT_FOR_ASSET));
 
     function setUp() public {
         token = new MockERC20("Test Token", "TEST", 18);
@@ -81,7 +83,6 @@ contract SpectraExchangeHooksTests is Helpers {
 
         assertFalse(depositHook.decodeUsePrevHookAmount(data));
     }
-    
 
     function test_DepositHook_UsePrevHookAmount_SetToTrue() public view {
         bytes memory commandsData = new bytes(1);
@@ -425,8 +426,97 @@ contract SpectraExchangeHooksTests is Helpers {
         depositHook.build(address(0), account, data);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            REDEEM HOOK TESTS
+    //////////////////////////////////////////////////////////////*/
+
     function test_RedeemHook_Constructor_RevertIf_ZeroAddress() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         new SpectraExchangeRedeemHook(address(0));
+    }
+
+    function test_RedeemHook_UsePrevHookAmount() public view {
+        bytes memory data =
+            _createSpectraExchangeRedeemHookData(address(token), address(token), account, 1000, 1e18, true, false);
+
+        assertTrue(redeemHook.decodeUsePrevHookAmount(data));
+    }
+
+    function test_RedeemHook_Build_RedeemIBTForAsset() public view {
+        bytes memory data =
+            _createSpectraExchangeRedeemHookData(address(token), address(0), account, 1000, 1e18, false, false);
+
+        Execution[] memory executions = redeemHook.build(address(0), account, data);
+
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(router));
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
+    }
+
+    function test_RedeemHook_Build_InvalidReceiver() public {
+        bytes memory data =
+            _createSpectraExchangeRedeemHookData(address(token), address(token), address(0), 1000, 1e18, false, true);
+
+        vm.expectRevert(SpectraExchangeRedeemHook.INVALID_RECIPIENT.selector);
+        redeemHook.build(address(0), account, data);
+    }
+
+    function test_RedeemHook_Build_RedeemPtForAsset_RevertIf_ZeroAmount() public {
+        bytes memory data =
+            _createSpectraExchangeRedeemHookData(address(token), address(token), account, 0, 1e18, false, true);
+
+        vm.expectRevert(SpectraExchangeRedeemHook.INVALID_MIN_ASSETS.selector);
+        redeemHook.build(address(0), account, data);
+    }
+
+    function test_RedeemHook_Build_RedeemPTForAsset() public view {
+        bytes memory data =
+            _createSpectraExchangeRedeemHookData(address(token), address(token), account, 1000, 1e18, false, true);
+
+        Execution[] memory executions = redeemHook.build(address(0), account, data);
+
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(router));
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
+    }
+
+    function test_RedeemHook_Build_RedeemPTForAsset_RevertIf_InvalidPT() public {
+        bytes memory data =
+            _createSpectraExchangeRedeemHookData(address(token), address(0), account, 1000, 1e18, false, true);
+
+        vm.expectRevert(SpectraExchangeRedeemHook.INVALID_PT.selector);
+        redeemHook.build(address(0), account, data);
+    }
+
+    function test_RedeemHook_Inspect() public view {
+        bytes memory data =
+            _createSpectraExchangeRedeemHookData(address(token), address(token), account, 1000, 1e18, false, true);
+
+        bytes memory argsEncoded = redeemHook.inspect(data);
+        bytes memory expectedArgs = abi.encodePacked(address(token), address(token), account);
+
+        assertEq(argsEncoded, expectedArgs);
+    }
+
+    function _createSpectraExchangeRedeemHookData(
+        address asset,
+        address pt,
+        address recipient,
+        uint256 minAssets,
+        uint256 sharesToBurn,
+        bool usePrevHookAmount,
+        bool redeemPtForAsset
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes1 command = redeemPtForAsset ? REDEEM_PT_FOR_ASSET : REDEEM_IBT_FOR_ASSET;
+
+        return abi.encodePacked(
+            bytes4(bytes("")), asset, pt, recipient, minAssets, sharesToBurn, usePrevHookAmount, command
+        );
     }
 }
