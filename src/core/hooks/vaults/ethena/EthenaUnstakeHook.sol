@@ -19,8 +19,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 24);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 44);
 contract EthenaUnstakeHook is BaseHook, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
@@ -68,13 +66,8 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInspector {
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        address yieldSource = data.extractYieldSource();
-        asset = IERC4626(yieldSource).asset();
         outAmount = _getBalance(account, data);
         usedShares = _getSharesBalance(account, data);
-        vaultBank = BytesLib.toAddress(data, 24);
-        dstChainId = BytesLib.toUint256(data, 44);
-        spToken = asset;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

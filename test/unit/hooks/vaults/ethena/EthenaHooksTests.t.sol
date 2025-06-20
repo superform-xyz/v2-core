@@ -156,35 +156,6 @@ contract EthenaHooksTests is Helpers {
         assertEq(cooldownSharesHook.usedShares(), 0, "B");
     }
 
-    function test_EthenaUnstakeHook_PrePostExecute() public {
-        _getTokens(address(yieldSource), address(this), amount);
-
-        bytes memory data = _encodeUnstakeData();
-        unstakeHook.preExecute(address(0), address(this), data);
-        assertEq(unstakeHook.outAmount(), amount);
-
-        unstakeHook.postExecute(address(0), address(this), data);
-        assertEq(unstakeHook.outAmount(), 0);
-    }
-
-    function test_EthenaUnstakeHook_PreExecute_SpToken() public {
-        // Create a mock yield source token and asset token
-        MockERC20 assetToken = new MockERC20("Asset Token", "AT", 18);
-        
-        // Setup the yield source to return the asset token when asset() is called
-        Mock4626Vault mockYieldSource = new Mock4626Vault(address(assetToken), "Mock Yield Source", "MYS");
-        
-        // Ensure we have the necessary tokens
-        _getTokens(address(mockYieldSource), address(this), amount);
-        
-        // Call preExecute
-        bytes memory data = _encodeUnstakeData(address(mockYieldSource));
-        unstakeHook.preExecute(address(0), address(this), data);
-        
-        // Verify that spToken is correctly set to the asset token
-        assertEq(unstakeHook.spToken(), address(assetToken), "spToken should be set to the asset of the yield source");
-    }
-
     /*//////////////////////////////////////////////////////////////
                      GET USED ASSETS OR SHARES TESTS
     //////////////////////////////////////////////////////////////*/
@@ -209,29 +180,6 @@ contract EthenaHooksTests is Helpers {
         bytes memory data = _encodeUnstakeData();
         bytes memory argsEncoded = unstakeHook.inspect(data);
         assertGt(argsEncoded.length, 0);
-    }
-
-    function test_EthenaUnstakeHook_PreExecute_VaultBankAndDstChainId() public {
-        address testVaultBank = address(0xABCD);
-        uint256 testDstChainId = 9876;
-        
-        bytes memory data = _encodeUnstakeDataWithCustomValues(
-            address(yieldSource), 
-            testVaultBank, 
-            testDstChainId
-        );
-        
-        unstakeHook.preExecute(address(0), address(this), data);
-        
-        assertEq(
-            unstakeHook.vaultBank(),
-            testVaultBank
-        );
-        
-        assertEq(
-            unstakeHook.dstChainId(),
-            testDstChainId
-        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -263,14 +211,14 @@ contract EthenaHooksTests is Helpers {
     }
 
     function _encodeUnstakeData() internal view returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, address(yieldSource), amount, address(0), uint256(1));
+        return abi.encodePacked(yieldSourceOracleId, address(yieldSource), amount);
     }
 
     function _encodeUnstakeData(address customYieldSource) internal view returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, customYieldSource, amount, false, address(0), uint256(1));
+        return abi.encodePacked(yieldSourceOracleId, customYieldSource, amount, false);
     }
 
     function _encodeUnstakeDataWithZeroYieldSource() internal view returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, address(0), amount, address(0), uint256(1));
+        return abi.encodePacked(yieldSourceOracleId, address(0), amount);
     }
 }
