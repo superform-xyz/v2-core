@@ -5,7 +5,7 @@ pragma solidity >=0.8.30;
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockSpectraRouter } from "../../mocks/MockSpectraRouter.sol";
-import { SpectraExchangeHook } from "../../../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
+import { SpectraExchangeDepositHook } from "../../../src/core/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
@@ -15,7 +15,7 @@ contract SpectraExchangeSwapHookTest is MinimalBaseIntegrationTest {
     address public tokenIn;
     address public ptToken;
 
-    SpectraExchangeHook public hook;
+    SpectraExchangeDepositHook public hook;
 
     bool public useRealSpectraRouter;
 
@@ -33,14 +33,14 @@ contract SpectraExchangeSwapHookTest is MinimalBaseIntegrationTest {
             ptToken = CHAIN_1_SPECTRA_PT_IPOR_USDC;
             vm.label(ptToken, "PT-IPOR-USDC");
 
-            hook = new SpectraExchangeHook(CHAIN_1_SpectraRouter);
+            hook = new SpectraExchangeDepositHook(CHAIN_1_SpectraRouter);
         } else {
             tokenIn = address(new MockERC20("Test Token", "TEST", 18));
             ptToken = address(new MockERC20("Test Token", "TEST", 18));
 
             spectraRouter = address(new MockSpectraRouter(ptToken));
 
-            hook = new SpectraExchangeHook(spectraRouter);
+            hook = new SpectraExchangeDepositHook(spectraRouter);
         }
     }
 
@@ -57,7 +57,7 @@ contract SpectraExchangeSwapHookTest is MinimalBaseIntegrationTest {
 
             bytes[] memory hookData = new bytes[](2);
             hookData[0] = _createApproveHookData(tokenIn, spectraRouter, amount, false);
-            hookData[1] = _createSpectraExchangeSwapHookData(false, 0, ptToken, tokenIn, amount, accountEth);
+            hookData[1] = _createSpectraExchangeDepositHookData(false, 0, ptToken, tokenIn, amount, accountEth);
 
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
@@ -79,7 +79,7 @@ contract SpectraExchangeSwapHookTest is MinimalBaseIntegrationTest {
 
             bytes[] memory hookData = new bytes[](2);
             hookData[0] = _createApproveHookData(tokenIn, spectraRouter, amount, false);
-            hookData[1] = _createSpectraExchangeSwapHookData(false, 0, ptToken, tokenIn, amount, accountEth);
+            hookData[1] = _createSpectraExchangeDepositHookData(false, 0, ptToken, tokenIn, amount, accountEth);
 
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
