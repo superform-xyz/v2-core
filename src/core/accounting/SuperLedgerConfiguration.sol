@@ -2,10 +2,10 @@
 pragma solidity 0.8.30;
 
 // external
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
-import {ISuperLedgerConfiguration} from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 /// @title SuperLedgerConfiguration
 /// @author Superform Labs
@@ -131,14 +131,14 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
             revert NOT_MANAGER();
         }
         // Check if there is a pending proposal
-        if (yieldSourceOracleConfigProposalExpirationTime[yieldSourceOracleId] == 0) {
+        if (yieldSourceOracleConfigProposalGracePeriod[yieldSourceOracleId] == 0) {
             revert NO_PENDING_PROPOSAL();
         }
         // Store proposal details for event emission
         YieldSourceOracleConfig memory proposal = yieldSourceOracleConfigProposals[yieldSourceOracleId];
         // Clear the pending proposal and expiration time
         delete yieldSourceOracleConfigProposals[yieldSourceOracleId];
-        delete yieldSourceOracleConfigProposalExpirationTime[yieldSourceOracleId];
+        delete yieldSourceOracleConfigProposalGracePeriod[yieldSourceOracleId];
         // Emit event for transparency
         emit YieldSourceOracleConfigProposalCancelled(
             yieldSourceOracleId,
@@ -159,13 +159,18 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
             bytes4 yieldSourceOracleId = yieldSourceOracleIds[i];
             YieldSourceOracleConfig memory proposal = yieldSourceOracleConfigProposals[yieldSourceOracleId];
             YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[yieldSourceOracleId];
-            
-            if (proposal.yieldSourceOracle == address(0) && proposal.feeRecipient == address(0) && proposal.ledger == address(0)) revert CONFIG_NOT_FOUND();
+
+            if (
+                proposal.yieldSourceOracle == address(0) && proposal.feeRecipient == address(0)
+                    && proposal.ledger == address(0)
+            ) revert CONFIG_NOT_FOUND();
 
             // Cannot check on `proposal.manager` because:
-            // if the manager role is transferred after the proposal is created, the new manager cannot accept the proposal
+            // if the manager role is transferred after the proposal is created, the new manager cannot accept the
+            // proposal
             // and the outdated manager is reinstated upon acceptance
-            // also as long as an existing proposal remains pending, the current manager is blocked from submitting a new one
+            // also as long as an existing proposal remains pending, the current manager is blocked from submitting a
+            // new one
             // So, we check against `existingConfig.manager` instead and rewrite `proposal.manager`
             if (existingConfig.manager != msg.sender) revert NOT_MANAGER();
             proposal.manager = existingConfig.manager;
@@ -248,7 +253,10 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         uint256 feePercent,
         address feeRecipient,
         address ledgerContract
-    ) internal virtual {
+    )
+        internal
+        virtual
+    {
         _validateYieldSourceOracleConfig(
             yieldSourceOracleId, yieldSourceOracle, feePercent, feeRecipient, ledgerContract
         );
@@ -275,7 +283,11 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         uint256 feePercent,
         address feeRecipient,
         address ledgerContract
-    ) internal view virtual {
+    )
+        internal
+        view
+        virtual
+    {
         if (yieldSourceOracle == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (feeRecipient == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (ledgerContract == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
