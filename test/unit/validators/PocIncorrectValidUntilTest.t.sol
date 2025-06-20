@@ -1,0 +1,144 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.30;
+
+import { BaseTest } from "../../BaseTest.t.sol";
+import {SuperMerkleValidator} from "../../../src/core/validators/SuperMerkleValidator.sol";
+import {IERC7579Account} from "../../../lib/modulekit/src/accounts/common/interfaces/IERC7579Account.sol";
+import {ModeCode} from "../../../lib/modulekit/src/accounts/common/lib/ModeLib.sol";
+import {Execution} from "../../../lib/modulekit/src/accounts/common/interfaces/IERC7579Account.sol";
+
+
+contract POC_IncorrectValidUntilTest is BaseTest {
+    function test_POC_IncorrectValidUntilHandling() public {
+        // Select fork for testing
+        vm.selectFork(FORKS[ETH]);
+        
+        // Setup - Create new User contract instance
+        User user = new User();
+        vm.label(address(user), "User");
+        vm.makePersistent(address(user));
+
+        // Get validator address
+        address validator = _getContract(ETH, SUPER_MERKLE_VALIDATOR_KEY);
+        
+        uint256 privateKey = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
+        address signer = vm.addr(privateKey);
+
+        // Initialize validator for user
+        vm.startPrank(address(user));
+        SuperMerkleValidator(validator).onInstall(abi.encode(0x7F760B1DA4bCce584F96d4f4fe6e277D7899b2CE)); // Set this test contract as the owner
+
+        // Create merkle tree data
+        bytes32[] memory leaves = new bytes32[](1);
+        bytes32 userOpHash = keccak256("test");
+        leaves[0] = keccak256(bytes.concat(keccak256(abi.encode(userOpHash, uint48(0)))));
+
+        // Create merkle tree using _createValidatorMerkleTree
+        (bytes32[][] memory proofs, bytes32 root) = _createValidatorMerkleTree(leaves);
+        
+        // Create and sign the message hash
+        bytes32 messageHash = keccak256(abi.encode("SuperValidator", root)); // Use root as merkleRoot
+     
+        bytes memory signature = _signMessage(messageHash, privateKey);
+        
+        // Pack the signature data with validUntil = 0
+        bytes memory sigDataRaw = abi.encode(
+            uint48(0), // validUntil = 0 should mean infinite validity
+            root,   // merkleRoot
+            proofs[0],     // proofSrc
+            proofs[0],     // proofDst
+            signature
+        );
+
+        // Try to validate the signature
+        // This should return 0x1626ba7e (VALID_SIGNATURE) but will fail due to incorrect validUntil handling
+        bytes4 result = SuperMerkleValidator(validator).isValidSignatureWithSender(
+            address(user),
+            userOpHash,
+            abi.encode(sigDataRaw)
+        );
+
+        // The validation should fail even though validUntil=0 should mean infinite validity
+        assertEq(result, bytes4(0x1626ba7e), "Signature validation should fail due to incorrect validUntil handling");
+        //^ updated with the valid result
+
+        vm.stopPrank();
+    }
+
+    function _signMessage(bytes32 messageHash, uint256 privateKey) internal pure returns (bytes memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, messageHash);
+        return abi.encodePacked(r, s, v);
+    }
+} 
+
+
+
+
+contract User is IERC7579Account {
+    mapping(uint256 => mapping(address => bool)) private installedModules;
+
+    function execute(ModeCode, bytes calldata executionCalldata) external payable {
+        // Just forward the execution
+        (bool success, ) = address(this).call(executionCalldata);
+        require(success, "User: execution failed");
+    }
+
+    function executeFromExecutor(
+        ModeCode,
+        bytes calldata executionCalldata
+    ) external payable returns (bytes[] memory returnData) {
+        // Execute the call
+        (bool success, bytes memory result) = address(this).call(executionCalldata);
+        require(success, "User: execution failed");
+        
+        // Return the result in an array
+        returnData = new bytes[](1);
+        returnData[0] = result;
+        return returnData;
+    }
+
+    function installModule(
+        uint256 moduleTypeId,
+        address module,
+        bytes calldata
+    ) external payable {
+        installedModules[moduleTypeId][module] = true;
+        emit ModuleInstalled(moduleTypeId, module);
+    }
+
+    function uninstallModule(
+        uint256 moduleTypeId,
+        address module,
+        bytes calldata 
+    ) external payable {
+        installedModules[moduleTypeId][module] = false;
+        emit ModuleUninstalled(moduleTypeId, module);
+    }
+
+    function isModuleInstalled(
+        uint256 moduleTypeId,
+        address module,
+        bytes calldata
+    ) external view returns (bool) {
+        return installedModules[moduleTypeId][module];
+    }
+
+    function isValidSignature(bytes32 , bytes calldata ) external pure returns (bytes4) {
+        return 0x1626ba7e; // Magic value for EIP-1271
+    }   
+
+    function supportsExecutionMode(ModeCode ) external pure returns (bool) {
+        return true; // Support all execution modes for testing
+    }
+
+    function supportsModule(uint256 ) external pure returns (bool) {
+        return true; // Support all module types for testing
+    }
+
+    function accountId() external pure returns (string memory) {
+        return "TestUser"; // Simple ID for testing
+    }
+
+    receive() external payable {}
+} 
+

@@ -80,10 +80,11 @@ import { EthenaCooldownSharesHook } from "../src/core/hooks/vaults/ethena/Ethena
 import { EthenaUnstakeHook } from "../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
 import { SpectraExchangeHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
 import { PendleRouterSwapHook } from "../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
-import { MorphoBorrowHook } from "../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoSupplyAndBorrowHook } from "../src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
 import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
 import { MorphoRepayAndWithdrawHook } from "../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
 import { PendleRouterRedeemHook } from "../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
+import { MorphoBorrowHook } from "../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
 // -- oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
@@ -182,9 +183,10 @@ contract DeployV2 is Script, Configuration {
         address spectraExchangeHook;
         address pendleRouterSwapHook;
         address pendleRouterRedeemHook;
-        address morphoBorrowHook;
+        address MorphoSupplyAndBorrowHook;
         address morphoRepayHook;
         address morphoRepayAndWithdrawHook;
+        address morphoBorrowHook;
     }
     // --- New Hook Addresses End ---
 
@@ -518,7 +520,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (HookAddresses memory hookAddresses)
     {
-        uint256 len = 46; // Updated length including Pendle & batchTransferFrom hooks
+        uint256 len = 47; // Updated length including Pendle, batchTransferFrom & MorphoBorrow hooks
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -617,7 +619,7 @@ contract DeployV2 is Script, Configuration {
         hooks[42] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, type(CancelRedeemHook).creationCode);
 
         hooks[43] = HookDeployment(
-            MORPHO_BORROW_HOOK_KEY, abi.encodePacked(type(MorphoBorrowHook).creationCode, abi.encode(MORPHO))
+            MORPHO_BORROW_HOOK_KEY, abi.encodePacked(type(MorphoSupplyAndBorrowHook).creationCode, abi.encode(MORPHO))
         );
         hooks[44] = HookDeployment(
             MORPHO_REPAY_HOOK_KEY, abi.encodePacked(type(MorphoRepayHook).creationCode, abi.encode(MORPHO))
@@ -625,6 +627,10 @@ contract DeployV2 is Script, Configuration {
         hooks[45] = HookDeployment(
             MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
             abi.encodePacked(type(MorphoRepayAndWithdrawHook).creationCode, abi.encode(MORPHO))
+        );
+
+        hooks[46] = HookDeployment(
+            MORPHO_BORROW_ONLY_HOOK_KEY, abi.encodePacked(type(MorphoBorrowHook).creationCode, abi.encode(MORPHO))
         );
 
         for (uint256 i = 0; i < len; ++i) {
@@ -721,12 +727,14 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[41].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[41] : address(0);
         hookAddresses.cancelRedeemHook =
             Strings.equal(hooks[42].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[42] : address(0);
-        hookAddresses.morphoBorrowHook =
+        hookAddresses.MorphoSupplyAndBorrowHook =
             Strings.equal(hooks[43].name, MORPHO_BORROW_HOOK_KEY) ? addresses[43] : address(0);
         hookAddresses.morphoRepayHook =
             Strings.equal(hooks[44].name, MORPHO_REPAY_HOOK_KEY) ? addresses[44] : address(0);
         hookAddresses.morphoRepayAndWithdrawHook =
             Strings.equal(hooks[45].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[45] : address(0);
+        hookAddresses.morphoBorrowHook =
+            Strings.equal(hooks[46].name, MORPHO_BORROW_ONLY_HOOK_KEY) ? addresses[46] : address(0);
 
         // Verify no hooks were assigned address(0) (excluding experimental placeholders)
         require(hookAddresses.approveErc20Hook != address(0), "approveErc20Hook not assigned");
@@ -786,9 +794,10 @@ contract DeployV2 is Script, Configuration {
             "claimCancelRedeemRequest7540Hook not assigned"
         );
         require(hookAddresses.cancelRedeemHook != address(0), "cancelRedeemHook not assigned");
-        require(hookAddresses.morphoBorrowHook != address(0), "morphoBorrowHook not assigned");
+        require(hookAddresses.MorphoSupplyAndBorrowHook != address(0), "MorphoSupplyAndBorrowHook not assigned");
         require(hookAddresses.morphoRepayHook != address(0), "morphoRepayHook not assigned");
         require(hookAddresses.morphoRepayAndWithdrawHook != address(0), "morphoRepayAndWithdrawHook not assigned");
+        require(hookAddresses.morphoBorrowHook != address(0), "morphoBorrowHook not assigned");
     }
 
     function _registerHooks(HookAddresses memory hookAddresses, SuperGovernor superGovernor) internal {
@@ -833,13 +842,14 @@ contract DeployV2 is Script, Configuration {
         superGovernor.registerHook(address(hookAddresses.claimCancelDepositRequest7540Hook), false);
         superGovernor.registerHook(address(hookAddresses.claimCancelRedeemRequest7540Hook), false);
         superGovernor.registerHook(address(hookAddresses.cancelRedeemHook), false);
-        superGovernor.registerHook(address(hookAddresses.morphoBorrowHook), false);
+        superGovernor.registerHook(address(hookAddresses.MorphoSupplyAndBorrowHook), false);
         superGovernor.registerHook(address(hookAddresses.morphoRepayHook), false);
         superGovernor.registerHook(address(hookAddresses.morphoRepayAndWithdrawHook), false);
         superGovernor.registerHook(address(hookAddresses.ethenaCooldownSharesHook), false);
         superGovernor.registerHook(address(hookAddresses.spectraExchangeHook), false);
         superGovernor.registerHook(address(hookAddresses.pendleRouterSwapHook), false);
         superGovernor.registerHook(address(hookAddresses.pendleRouterRedeemHook), false);
+        superGovernor.registerHook(address(hookAddresses.morphoBorrowHook), false);
     }
 
     function _deployOracles(

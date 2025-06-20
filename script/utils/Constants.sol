@@ -173,9 +173,10 @@ abstract contract Constants {
     string internal constant ETHENA_UNSTAKE_HOOK_KEY = "EthenaUnstakeHook";
     string internal constant SPECTRA_EXCHANGE_HOOK_KEY = "SpectraExchangeHook";
     string internal constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
-    string internal constant MORPHO_BORROW_HOOK_KEY = "MorphoBorrowHook";
+    string internal constant MORPHO_BORROW_HOOK_KEY = "MorphoSupplyAndBorrowHook";
     string internal constant MORPHO_REPAY_HOOK_KEY = "MorphoRepayHook";
     string internal constant MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY = "MorphoRepayAndWithdrawHook";
+    string internal constant MORPHO_BORROW_ONLY_HOOK_KEY = "MorphoBorrowHook";
     string internal constant PENDLE_ROUTER_REDEEM_HOOK_KEY = "PendleRouterRedeemHook";
     string internal constant CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "CancelDepositRequest7540Hook";
     string internal constant CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "CancelRedeemRequest7540Hook";
