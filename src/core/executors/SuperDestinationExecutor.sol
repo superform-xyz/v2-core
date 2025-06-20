@@ -188,7 +188,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     }
 
     function _decodeMerkleRoot(bytes memory userSignatureData) private pure returns (bytes32) {
-        (, bytes32 merkleRoot,,) = abi.decode(userSignatureData, (uint48, bytes32, bytes32[], bytes));
+        (, bytes32 merkleRoot,,,) = abi.decode(userSignatureData, (uint48, bytes32, bytes32[], bytes32[], bytes));
         return merkleRoot;
     }
 
@@ -200,6 +200,11 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         for (uint256 i; i < len; i++) {
             address _token = dstTokens[i];
             uint256 _intentAmount = intentAmounts[i];
+
+            if (_intentAmount == 0) {
+                emit SuperDestinationExecutorInvalidIntentAmount(account, _token,_intentAmount);
+                return false;
+            }
 
             if (_token == address(0)) {
                 if (_intentAmount != 0 && account.balance < _intentAmount) {

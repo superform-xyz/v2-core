@@ -40,10 +40,10 @@ approveAndRedeem5115VaultHook_arg="$baseHook_arg"
 requestDeposit7540VaultHook_arg="$baseHook_arg"
 approveAndRequestDeposit7540VaultHook_arg="$baseHook_arg"
 requestRedeem7540VaultHook_arg="$baseHook_arg"
+redeem7540VaultHook_arg="$baseHook_arg"
 deposit7540VaultHook_arg="$baseHook_arg"
 withdraw7540VaultHook_arg="$baseHook_arg"
-approveAndWithdraw7540VaultHook_arg="$baseHook_arg"
-approveAndRedeem7540VaultHook_arg="$baseHook_arg"
+approveAndRequestRedeem7540VaultHook_arg="$baseHook_arg"
 aggregation_router="0x1111111254EEB25477B68fb85Ed929f73A960582"
 odos_router="0x4E3288c9ca110bCC82bf38F09A7b425c095d92Bf"
 swap1InchHook_arg="$(cast abi-encode "constructor(address)" "$aggregation_router")"
@@ -130,10 +130,10 @@ files_to_verify=(
     "src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol"
     "src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol"
     "src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol"
+    "src/core/hooks/vaults/7540/Redeem7540VaultHook.sol"
     "src/core/hooks/vaults/7540/Deposit7540VaultHook.sol"
     "src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol"
-    "src/core/hooks/vaults/7540/ApproveAndWithdraw7540VaultHook.sol"
-    "src/core/hooks/vaults/7540/ApproveAndRedeem7540VaultHook.sol"
+    "src/core/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol"
     "src/core/hooks/swappers/1inch/Swap1InchHook.sol"
     "src/core/hooks/swappers/odos/SwapOdosHook.sol"
     "src/core/hooks/swappers/odos/ApproveAndSwapOdosHook.sol"
@@ -199,11 +199,11 @@ contract_names=(
     "ApproveAndRedeem5115VaultHook"
     "RequestDeposit7540VaultHook"
     "ApproveAndRequestDeposit7540VaultHook"
+    "Redeem7540VaultHook"
     "RequestRedeem7540VaultHook"
     "Deposit7540VaultHook"
     "Withdraw7540VaultHook"
-    "ApproveAndWithdraw7540VaultHook"
-    "ApproveAndRedeem7540VaultHook"
+    "ApproveAndRequestRedeem7540VaultHook"
     "Swap1InchHook"
     "SwapOdosHook"
     "ApproveAndSwapOdosHook"
@@ -272,8 +272,7 @@ contract_addresses=(
     "0x6B150420D4813e6d11498e68f4C12E152b8513f2" # RequestRedeem7540VaultHook
     "0x699f60857A2020f602cA281AE532bF7366E1C92a" # Deposit7540VaultHook
     "0xB77848dcd61d8BC96794497b95D04cc0f5A2587C" # Withdraw7540VaultHook
-    "0x19778622bCbd2BB55Adc1C9b8e58fb64b644EB4F" # ApproveAndWithdraw7540VaultHook
-    "0x13Bbb938f3Bb59825A2C47F12F5aB0116ba571F1" # ApproveAndRedeem7540VaultHook
+    "0x13Bbb938f3Bb59825A2C47F12F5aB0116ba571F1" # ApproveAndRequestRedeem7540VaultHook
     "0x2a2a67f4d76306aE11280e46fC5b3e363b8F3c4F" # Swap1InchHook
     "0x1e7DDF9BCc12350336648d30280F63068d17A4d3" # SwapOdosHook
     "0x578A2DafFC9284C5a8E37ec989F731a1a59Aa530" # ApproveAndSwapOdosHook
@@ -340,10 +339,10 @@ constructor_args=(
     "$requestDeposit7540VaultHook_arg"        # RequestDeposit7540VaultHook
     "$approveAndRequestDeposit7540VaultHook_arg" # ApproveAndRequestDeposit7540VaultHook
     "$requestRedeem7540VaultHook_arg"         # RequestRedeem7540VaultHook
+    "$redeem7540VaultHook_arg"                # Redeem7540VaultHook
     "$deposit7540VaultHook_arg"               # Deposit7540VaultHook
     "$withdraw7540VaultHook_arg"              # Withdraw7540VaultHook
-    "$approveAndWithdraw7540VaultHook_arg"    # ApproveAndWithdraw7540VaultHook
-    "$approveAndRedeem7540VaultHook_arg"      # ApproveAndRedeem7540VaultHook
+    "$approveAndRequestRedeem7540VaultHook_arg"      # ApproveAndRequestRedeem7540VaultHook
     "$swap1InchHook_arg"                      # Swap1InchHook
     "$swapOdosHook_arg"                       # SwapOdosHook
     "$approveAndSwapOdosHook_arg"             # ApproveAndSwapOdosHook
