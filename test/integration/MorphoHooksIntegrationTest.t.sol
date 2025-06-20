@@ -140,8 +140,10 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
             false // not a full repayment
         );
 
-        ISuperExecutor.ExecutorEntry memory entry1 =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        ISuperExecutor.ExecutorEntry memory entry1 = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: repayAndWithdrawHookAddresses,
+            hooksData: repayAndWithdrawHookData
+        });
         UserOpData memory userOpData1 = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry1));
 
         // Execute the partial repayment operation
@@ -155,6 +157,6 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         console.log("---LTV1:", (repayAndWithdrawHook.sharesToAssets(marketParams, accountEth) * 1e18) / collateral);
 
         uint256 finalLtv = (repayAndWithdrawHook.sharesToAssets(marketParams, accountEth) * 1e18) / collateral;
-        console.log("---LTV Diff:", finalLtv - initialLtv);
+        console.log("---LTV Diff:", initialLtv - finalLtv);
     }
 }
