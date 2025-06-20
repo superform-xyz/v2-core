@@ -95,13 +95,15 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address account, bytes calldata data) internal override {
+    function _preExecute(address, address, bytes calldata data) internal override {
+        address recipient = BytesLib.toAddress(data, 100);
         // store current balance
-        outAmount = getCollateralTokenBalance(account, data);
+        outAmount = getCollateralTokenBalance(recipient, data);
     }
 
-    function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = getCollateralTokenBalance(account, data) - outAmount;
+    function _postExecute(address, address, bytes calldata data) internal override {
+        address recipient = BytesLib.toAddress(data, 100);
+        outAmount = getCollateralTokenBalance(recipient, data) - outAmount;
     }
 
     function _decodeWithdrawData(bytes calldata data) internal pure returns (WithdrawHookVars memory vars) {
