@@ -149,7 +149,7 @@ contract MorphoLoanHooksTest is Helpers {
 
         assertFalse(borrowHookB.decodeUsePrevHookAmount(data));
 
-        assertEq(executions.length, 3);
+        assertEq(executions.length, 6);
 
         // Check borrow call
         assertEq(executions[1].target, address(mockMorpho));
@@ -239,7 +239,7 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeBorrowOnlyData(true);
         Execution[] memory executions = borrowHookB.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 3);
+        assertEq(executions.length, 6);
         // Verify the borrow call is present
         assertEq(executions[1].target, address(mockMorpho));
         assertEq(executions[1].value, 0);
