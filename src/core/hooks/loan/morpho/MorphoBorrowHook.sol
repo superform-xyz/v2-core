@@ -8,6 +8,12 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IMorphoBase, MarketParams } from "../../../../vendor/morpho/IMorpho.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IMorphoBase, MarketParams } from "../../../../vendor/morpho/IMorpho.sol";
 
 // Superform
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
@@ -142,9 +148,11 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
         outAmount = getLoanTokenBalance(account, data);
+        outAmount = getLoanTokenBalance(account, data);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
+        outAmount = getLoanTokenBalance(account, data) - outAmount;
         outAmount = getLoanTokenBalance(account, data) - outAmount;
     }
 }

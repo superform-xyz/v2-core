@@ -462,7 +462,7 @@ abstract contract InternalHelpers {
     {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
-
+    
     function _createApproveAndRequestRedeem7540VaultHookData(
         bytes4 yieldSourceOracleId,
         address yieldSource,
