@@ -363,24 +363,22 @@ abstract contract InternalHelpers {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
-    function _createApproveAndWithdraw7540VaultHookData(
+    function _createRedeem7540VaultHookData(
         bytes4 yieldSourceOracleId,
         address yieldSource,
-        address token,
         uint256 amount,
         bool usePrevHookAmount
     ) internal pure returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
-    function _createApproveAndRedeem7540VaultHookData(
+    function _createApproveAndRequestRedeem7540VaultHookData(
         bytes4 yieldSourceOracleId,
         address yieldSource,
-        address token,
         uint256 shares,
         bool usePrevHookAmount
     ) internal pure returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, shares, usePrevHookAmount);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, shares, usePrevHookAmount);
     }
 
     function _createDeposit5115VaultHookData(
@@ -505,9 +503,10 @@ abstract contract InternalHelpers {
         uint256 arrayLength,
         address[] memory tokens,
         uint256[] memory amounts,
+        uint48[] memory nonces,
         bytes memory sig
     ) internal view returns (bytes memory data) {
-        return _createBatchTransferFromHookData(from, arrayLength, block.timestamp + 2 weeks, tokens, amounts, sig);
+        return _createBatchTransferFromHookData(from, arrayLength, block.timestamp + 2 weeks, tokens, amounts, nonces, sig);
     }
 
     function _createBatchTransferFromHookData(
@@ -516,6 +515,7 @@ abstract contract InternalHelpers {
         uint256 sigDeadline,
         address[] memory tokens,
         uint256[] memory amounts,
+        uint48[] memory nonces,
         bytes memory sig
     ) internal pure returns (bytes memory data) {
         data = abi.encodePacked(from, arrayLength, sigDeadline);
@@ -528,6 +528,11 @@ abstract contract InternalHelpers {
         // Directly encode the amounts as bytes
         for (uint256 i = 0; i < arrayLength; i++) {
             data = bytes.concat(data, abi.encodePacked(amounts[i]));
+        }
+
+        // Directly encode the nonces as bytes
+        for (uint256 i = 0; i < arrayLength; i++) {
+            data = bytes.concat(data, abi.encodePacked(nonces[i]));
         }
 
         data = bytes.concat(data, sig);

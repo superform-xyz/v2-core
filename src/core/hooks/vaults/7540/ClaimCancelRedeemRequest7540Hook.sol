@@ -67,12 +67,14 @@ contract ClaimCancelRedeemRequest7540Hook is BaseHook, ISuperHookAsyncCancelatio
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+    function _preExecute(address, address, bytes calldata data) internal override {
+        address receiver = BytesLib.toAddress(data, 24);
+        outAmount = _getBalance(receiver, data);
     }
 
-    function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+    function _postExecute(address, address, bytes calldata data) internal override {
+        address receiver = BytesLib.toAddress(data, 24);
+        outAmount = _getBalance(receiver, data) - outAmount;
     }
 
     /*//////////////////////////////////////////////////////////////

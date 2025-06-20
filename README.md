@@ -190,7 +190,7 @@ SuperMerkleValidator:
 SuperDestinationValidator:
 - Role: Validates cross-chain operation signatures for destination chain operations. It verifies merkle proofs and signatures to ensure only authorized operations are executed.
 - Usage: Specifically designed for validating operations executed *directly* on a destination chain via `SuperDestinationExecutor`, bypassing the ERC-4337 `EntryPoint`. Implements a custom `isValidDestinationSignature` method; `validateUserOp` and `isValidSignatureWithSender` are explicitly **not** implemented and will revert.
-- Merkle Leaf Contents: `keccak256(keccak256(abi.encode(callData, chainId, sender, executor, adapter, dstTokens[], intentAmounts[], validUntil)))`. The leaf commits to the full context of the destination execution parameters.
+- Merkle Leaf Contents: `keccak256(keccak256(abi.encode(callData, chainId, sender, executor, dstTokens[], intentAmounts[], validUntil)))`. The leaf commits to the full context of the destination execution parameters.
 - Replay Protection:
     - Includes `block.chainid` in the leaf and verifies it during signature validation to prevent cross-chain replay.
     - Incorporates a `validUntil` timestamp in the leaf, checked against `block.timestamp`.
@@ -276,9 +276,7 @@ Key Points for Auditors:
       where the funds land.
   - Slippage loss due to bridging:
     - The user accepts the conditions the solver providers to execute the operations. All subsequent operations on
-      destination are dependent on the actual value provided by the relayer. It is accepted that if the valued filled is
-      substantially lower, execution continues anyway with the chained hooks (using the context awareness) and the users
-      acknowledges this risk.
+      destination are dependent on the actual value provided by the relayer. 
 - Things to watch for:
   - Cancellation Scenarios:
     - User cancellations during pending bridge operations
@@ -362,6 +360,7 @@ graph TD
    - Bridge adapters call the SuperDestinationExecutor with bridged assets and execution data
    - The SuperDestinationValidator verifies the signature and merkle proof for destination operations
    - Upon validation, the SuperDestinationExecutor executes the intended operations
+   - Multiple messages/bridging actions from same source to a given destination chain using 1 merkle root is not supported and is a deliberate design choice. This is because once a merkle root is marked as used in the SuperDestinationValidator, no subsequent operations with the same merkle root can be executed on that destination chain.
 
 4. **Replay Protection**:
    - Each merkle root is tracked per user to prevent replay attacks

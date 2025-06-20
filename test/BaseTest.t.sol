@@ -59,10 +59,10 @@ import { ClaimCancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/
 import { CancelRedeemHook } from "../src/core/hooks/vaults/super-vault/CancelRedeemHook.sol";
 import { ApproveAndRequestDeposit7540VaultHook } from
     "../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
+import { Redeem7540VaultHook } from "../src/core/hooks/vaults/7540/Redeem7540VaultHook.sol";
 import { RequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
-import { ApproveAndWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndWithdraw7540VaultHook.sol";
-import { ApproveAndRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndRedeem7540VaultHook.sol";
+import { ApproveAndRequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
@@ -190,10 +190,10 @@ struct Addresses {
     Redeem5115VaultHook redeem5115VaultHook;
     Deposit7540VaultHook deposit7540VaultHook;
     RequestDeposit7540VaultHook requestDeposit7540VaultHook;
+    Redeem7540VaultHook redeem7540VaultHook;
     RequestRedeem7540VaultHook requestRedeem7540VaultHook;
     Withdraw7540VaultHook withdraw7540VaultHook;
-    ApproveAndWithdraw7540VaultHook approveAndWithdraw7540VaultHook;
-    ApproveAndRedeem7540VaultHook approveAndRedeem7540VaultHook;
+    ApproveAndRequestRedeem7540VaultHook approveAndRequestRedeem7540VaultHook;
     CancelDepositRequest7540Hook cancelDepositRequest7540Hook;
     CancelRedeemRequest7540Hook cancelRedeemRequest7540Hook;
     ClaimCancelDepositRequest7540Hook claimCancelDepositRequest7540Hook;
@@ -329,6 +329,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     bool public useLatestFork = false;
     bool public useRealOdosRouter = false;
     address[] public globalMerkleHooks;
+    string[] public globalMerkleHookNames;
     address public globalSVStrategy;
     address public globalSVGearStrategy;
     address public globalRuggableVault;
@@ -841,37 +842,27 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 hooks[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY]
             );
             hooksAddresses[14] = address(A[i].withdraw7540VaultHook);
-            A[i].approveAndWithdraw7540VaultHook = new ApproveAndWithdraw7540VaultHook{ salt: SALT }();
-            vm.label(address(A[i].approveAndWithdraw7540VaultHook), APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY] =
-                address(A[i].approveAndWithdraw7540VaultHook);
-            hooks[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY] = Hook(
-                APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY,
-                HookCategory.TokenApprovals,
-                HookCategory.VaultWithdrawals,
-                address(A[i].approveAndWithdraw7540VaultHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY]
-            );
-            hooksAddresses[15] = address(A[i].approveAndWithdraw7540VaultHook);
 
-            A[i].approveAndRedeem7540VaultHook = new ApproveAndRedeem7540VaultHook{ salt: SALT }();
-            vm.label(address(A[i].approveAndRedeem7540VaultHook), APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY] =
-                address(A[i].approveAndRedeem7540VaultHook);
-            hooks[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY] = Hook(
-                APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY,
-                HookCategory.TokenApprovals,
+            A[i].redeem7540VaultHook = new Redeem7540VaultHook{ salt: SALT }();
+            vm.label(address(A[i].redeem7540VaultHook), REDEEM_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][REDEEM_7540_VAULT_HOOK_KEY] = address(A[i].redeem7540VaultHook);
+            hooks[chainIds[i]][REDEEM_7540_VAULT_HOOK_KEY] = Hook(
+                REDEEM_7540_VAULT_HOOK_KEY,
                 HookCategory.VaultWithdrawals,
-                address(A[i].approveAndRedeem7540VaultHook),
+                HookCategory.VaultDeposits,
+                address(A[i].redeem7540VaultHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY]
+                hooks[chainIds[i]][REDEEM_7540_VAULT_HOOK_KEY]
             );
-            hooksAddresses[16] = address(A[i].approveAndRedeem7540VaultHook);
+            hooksAddresses[15] = address(A[i].redeem7540VaultHook);
+
+            A[i].approveAndRequestRedeem7540VaultHook = new ApproveAndRequestRedeem7540VaultHook{ salt: SALT }();
+            vm.label(address(A[i].approveAndRequestRedeem7540VaultHook), APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY] =
+                address(A[i].approveAndRequestRedeem7540VaultHook);
+            hooksAddresses[16] = address(A[i].approveAndRequestRedeem7540VaultHook);
 
             A[i].swap1InchHook = new Swap1InchHook{ salt: SALT }(ONE_INCH_ROUTER);
             vm.label(address(A[i].swap1InchHook), SWAP_1INCH_HOOK_KEY);
@@ -1231,6 +1222,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             globalMerkleHooks[3] = address(A[i].approveAndGearboxStakeHook);
             globalMerkleHooks[4] = address(A[i].gearboxUnstakeHook);
 
+            // Initialize corresponding hook names for scalability
+            globalMerkleHookNames = new string[](5);
+            globalMerkleHookNames[0] = "APPROVE_AND_REDEEM_4626_VAULT_HOOK";
+            globalMerkleHookNames[1] = "APPROVE_AND_DEPOSIT_4626_VAULT_HOOK";
+            globalMerkleHookNames[2] = "REDEEM_4626_VAULT_HOOK";
+            globalMerkleHookNames[3] = "APPROVE_AND_GEARBOX_STAKE_HOOK";
+            globalMerkleHookNames[4] = "GEARBOX_UNSTAKE_HOOK";
+
             if (chainIds[i] == ETH) {
                 /// @dev set any new sv addresses here
                 address aggregator = _getContract(ETH, SUPER_VAULT_AGGREGATOR_KEY);
@@ -1258,111 +1257,15 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                     ),
                     aggregator
                 );
-                _generateMerkleTree(ETH);
             }
         }
 
         return A;
     }
 
-    /**
-     * @notice Generate Merkle tree with the global hook addresses and optional strategy addresses
-     */
-    function _generateMerkleTree(uint64 chainid) internal {
-        console2.log("\n[DEBUG] Starting _generateMerkleTree for chainid:", chainid);
-
-        // Read current owner_list.json content
-        string memory ownerListPath = string.concat(vm.projectRoot(), "/test/utils/merkle/target/owner_list.json");
-        string memory currentOwnerList = "";
-        try vm.readFile(ownerListPath) returns (string memory content) {
-            currentOwnerList = content;
-            console2.log("[DEBUG] Current owner_list.json content:", currentOwnerList);
-        } catch {
-            console2.log("[DEBUG] Could not read owner_list.json or file is empty");
-        }
-
-        console2.log("[DEBUG] Predicted strategy addresses:");
-        console2.log("  - globalSVStrategy:", globalSVStrategy);
-        console2.log("  - globalSVGearStrategy:", globalSVGearStrategy);
-        console2.log("  - globalRuggableVault:", globalRuggableVault);
-
-        address[] memory globalTreeOwnerAddresses = new address[](3);
-        globalTreeOwnerAddresses[0] = globalSVStrategy;
-        globalTreeOwnerAddresses[1] = globalSVGearStrategy;
-        globalTreeOwnerAddresses[2] = globalRuggableVault;
-
-        string[] memory cmd = new string[](globalTreeOwnerAddresses.length > 0 ? 4 : 3);
-        cmd[0] = "node";
-        cmd[1] = "test/utils/merkle/merkle-js/build-hook-merkle-trees.js";
-
-        // Build comma-separated list of hook addresses from globalMerkleHooks
-        string memory hooksString = "";
-        for (uint256 i = 0; i < globalMerkleHooks.length; i++) {
-            if (i > 0) hooksString = string.concat(hooksString, ",");
-            hooksString = string.concat(hooksString, vm.toString(globalMerkleHooks[i]));
-        }
-        cmd[2] = hooksString;
-
-        string memory strategiesString = "";
-        for (uint256 i = 0; i < globalTreeOwnerAddresses.length; i++) {
-            if (i > 0) strategiesString = string.concat(strategiesString, ",");
-            strategiesString = string.concat(strategiesString, vm.toString(globalTreeOwnerAddresses[i]));
-        }
-        cmd[3] = strategiesString;
-
-        console2.log("[DEBUG] Running FFI command with parameters:");
-        console2.log("  - cmd[0]:", cmd[0]);
-        console2.log("  - cmd[1]:", cmd[1]);
-        console2.log("  - cmd[2]:", cmd[2]);
-        console2.log("  - cmd[3]:", cmd[3]);
-
-        console2.log("[DEBUG] Executing FFI command...");
-        vm.ffi(cmd);
-        console2.log("[DEBUG] FFI command completed");
-
-        // Check if owner_list.json was updated
-        try vm.readFile(ownerListPath) returns (string memory content) {
-            console2.log("[DEBUG] Updated owner_list.json content:", content);
-            if (keccak256(bytes(content)) == keccak256(bytes(currentOwnerList))) {
-                console2.log("[DEBUG] WARNING: owner_list.json content did not change!");
-            }
-        } catch {
-            console2.log("[DEBUG] ERROR: Could not read owner_list.json after update");
-        }
-    }
-
-    function _executeVaultListUpdateScript(string[] memory cmd_, uint64 chainId_) internal {
-        bytes memory output = vm.ffi(cmd_);
-        string memory outputStr = string(output);
-        // Note: _trim was removed. JS script now outputs "true\n" or "false\n".
-
-        bool wasSuccessful = false;
-        if (bytes(outputStr).length > 0) {
-            // Check if the script output starts with 't', indicating "true\n"
-            if (bytes(outputStr)[0] == "t") {
-                wasSuccessful = true;
-            }
-        }
-
-        if (wasSuccessful) {
-            console2.log(
-                "[DEBUG] update-lists.js executed successfully. Regenerating Merkle tree for chainId:", chainId_
-            );
-            _generateMerkleTree(chainId_);
-        } else {
-            // Log details to stderr from the script will provide more context on failure.
-            console2.log(
-                "[WARN] update-lists.js indicated failure or no changes made. Merkle tree not regenerated. Check stderr for details from script."
-            );
-            if (bytes(outputStr).length == 0) {
-                console2.log(
-                    "[WARN] update-lists.js produced empty output (FFI call might have failed before script execution)."
-                );
-            }
-            // revert("Failed to update token/yield lists.");
-        }
-    }
-
+    /*
+    
+    
     function _updateAndRegenerateMerkleTree(
         string memory vaultName_,
         address vaultAddress_,
@@ -1383,14 +1286,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         _executeVaultListUpdateScript(cmd, chainId_);
     }
 
-    /**
-     * @notice Updates vault information in JSON files for multiple vaults and regenerates the Merkle tree if
-     * successful.
-     * @dev Calls the `update-lists.js` script via FFI to perform the update.
-     * @param vaultNames_ An array of names (symbols) of the vaults to add.
-     * @param vaultAddresses_ An array of addresses of the vaults to add.
-     * @param chainId_ The chain ID for which to add the vaults and regenerate the tree.
-     */
+
     function _updateAndRegenerateMerkleTreeBatch(
         string[] memory vaultNames_,
         address[] memory vaultAddresses_,
@@ -1398,7 +1294,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     )
         internal
     {
-        require(vaultNames_.length == vaultAddresses_.length, "Vault names and addresses array lengths must match.");
+    require(vaultNames_.length == vaultAddresses_.length, "Vault names and addresses array lengths must match.");
 
         uint256 numVaults = vaultNames_.length;
         string memory chainIdStr = vm.toString(chainId_);
@@ -1417,6 +1313,41 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         _executeVaultListUpdateScript(cmd, chainId_);
     }
+
+       function _executeVaultListUpdateScript(string[] memory cmd_, uint64 chainId_) internal {
+        bytes memory output = vm.ffi(cmd_);
+        string memory outputStr = string(output);
+        // Note: _trim was removed. JS script now outputs "true\n" or "false\n".
+
+        bool wasSuccessful = false;
+        if (bytes(outputStr).length > 0) {
+            // Check if the script output starts with 't', indicating "true\n"
+            if (bytes(outputStr)[0] == "t") {
+                wasSuccessful = true;
+            }
+        }
+
+        if (wasSuccessful) {
+            console2.log(
+                "[DEBUG] update-lists.js executed successfully. Regenerating Merkle tree for chainId:", chainId_
+            );
+            _generateMerkleTree(chainId_);
+        } else {
+            // Log details to stderr from the script will provide more context on failure.
+            console2.log(
+    "[WARN] update-lists.js indicated failure or no changes made. Merkle tree not regenerated. Check stderr for details
+    from script."
+            );
+            if (bytes(outputStr).length == 0) {
+                console2.log(
+    "[WARN] update-lists.js produced empty output (FFI call might have failed before script execution)."
+                );
+            }
+            // revert("Failed to update token/yield lists.");
+        }
+    }
+
+    */
 
     function _configureGovernor() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
@@ -1463,7 +1394,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 console2.log("transferErc20Hook", address(A[i].transferErc20Hook));
                 console2.log("deposit7540VaultHook", address(A[i].deposit7540VaultHook));
                 console2.log("withdraw7540VaultHook", address(A[i].withdraw7540VaultHook));
-                console2.log("approveAndRedeem7540VaultHook", address(A[i].approveAndRedeem7540VaultHook));
+                console2.log("approveAndRequestRedeem7540VaultHook", address(A[i].approveAndRequestRedeem7540VaultHook));
                 console2.log("swap1InchHook", address(A[i].swap1InchHook));
                 console2.log("swapOdosHook", address(A[i].swapOdosHook));
                 console2.log("approveAndSwapOdosHook", address(A[i].approveAndSwapOdosHook));
@@ -1504,7 +1435,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             superGovernor.registerHook(address(A[i].transferErc20Hook), false);
             superGovernor.registerHook(address(A[i].deposit7540VaultHook), true);
             superGovernor.registerHook(address(A[i].withdraw7540VaultHook), false);
-            superGovernor.registerHook(address(A[i].approveAndRedeem7540VaultHook), true);
+            superGovernor.registerHook(address(A[i].approveAndRequestRedeem7540VaultHook), true);
             superGovernor.registerHook(address(A[i].swap1InchHook), false);
             superGovernor.registerHook(address(A[i].swapOdosHook), false);
             superGovernor.registerHook(address(A[i].approveAndSwapOdosHook), false);
