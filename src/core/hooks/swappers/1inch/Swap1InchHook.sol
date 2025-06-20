@@ -78,7 +78,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(aggregationRouter),
-            value: value,
+            value: usePrevHookAmount && value > 0 ? ISuperHookResult(prevHook).outAmount() : value,
             callData: usePrevHookAmount ? updatedTxData : txData_
         });
     }

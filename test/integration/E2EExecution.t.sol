@@ -10,6 +10,14 @@ import { INexus } from "../../src/vendor/nexus/INexus.sol";
 import { MockRegistry } from "../mocks/MockRegistry.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 
+import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { AcrossSendFundsAndExecuteOnDstHook } from
+    "../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+
+import { ISuperSignatureStorage } from "../../src/core/interfaces/ISuperSignatureStorage.sol";
+import "forge-std/console.sol";
+
 contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     MockRegistry public nexusRegistry;
     address[] public attesters;
@@ -60,6 +68,191 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         address nexusAccount4 = _createWithNexus(address(nexusRegistry), actualAttesters, threshold, 0);
         _assertAccountCreation(nexusAccount4);
         assertNotEq(nexusAccount, nexusAccount4, "Nexus4 account should be different");
+    }
+
+    struct TestData {
+        address[] hooksAddresses;
+        bytes[] hooksData;
+        uint256 zero;
+        uint256 ten;
+        PackedUserOperation[] userOps;
+        bytes signature;
+        bytes sigData;
+        bytes32[] leaves;
+        bytes32[][] proof;
+        bytes32 root;
+    }
+
+    struct DestinationMessage {
+        bytes initData;
+        bytes executorCalldata;
+        address _account;
+        address[] dstTokens;
+        uint256[] intentAmounts;
+    }
+
+    function testOrion_multipleUserOpsBreakFetchedSignature() public {
+        TestData memory testData;
+        testData.zero = 0;
+        testData.ten = 10;
+
+        uint256 amount = 100e6;
+
+        AcrossSendFundsAndExecuteOnDstHook acrossHook = new AcrossSendFundsAndExecuteOnDstHook(
+            0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5, address(superMerkleValidator)
+        );
+
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+
+        _getTokens(CHAIN_1_USDC, nexusAccount, amount);
+        _getTokens(CHAIN_1_WETH, nexusAccount, amount);
+
+        testData.userOps = new PackedUserOperation[](2);
+        testData.userOps[0] = _buildUserOp(testData, nexusAccount, amount, CHAIN_1_USDC, acrossHook);
+        testData.userOps[1] = _buildUserOp(testData, nexusAccount, amount, CHAIN_1_WETH, acrossHook);
+
+        vm.expectRevert(
+            abi.encodeWithSelector(
+                IMinimalEntryPoint.FailedOpWithRevert.selector,
+                1,
+                "AA23 reverted",
+                abi.encodePacked(ISuperSignatureStorage.INVALID_USER_OP.selector)
+            )
+        );
+        IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(testData.userOps, payable(nexusAccount));
+    }
+
+    function _buildUserOp(
+        TestData memory testData,
+        address nexusAccount,
+        uint256 amount,
+        address token,
+        AcrossSendFundsAndExecuteOnDstHook acrossHook
+    )
+        internal
+        view
+        returns (PackedUserOperation memory userOp)
+    {
+        testData.hooksAddresses = new address[](2);
+        testData.hooksAddresses[0] = approveHook;
+        testData.hooksAddresses[1] = address(acrossHook);
+
+        testData.hooksData = new bytes[](2);
+        testData.hooksData[0] = _createApproveHookData(token, CHAIN_1_SPOKE_POOL_V3_ADDRESS, amount, false);
+
+        DestinationMessage memory message = _buildDestinationMessage(token, amount);
+
+        testData.hooksData[1] = _encodeAcrossHookData(nexusAccount, token, amount, message, testData.zero, testData.ten);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: testData.hooksAddresses, hooksData: testData.hooksData });
+
+        Execution[] memory executions = new Execution[](1);
+        executions[0] = Execution({
+            target: address(superExecutorModule),
+            value: 0,
+            callData: abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entry))
+        });
+
+        bytes memory callData = _prepareExecutionCalldata(executions);
+        uint256 nonce = _prepareUserOpNonce(nexusAccount, token);
+
+        userOp = _createPackedUserOperation(nexusAccount, nonce, callData);
+
+        (bytes memory sigData, bytes32[][] memory proof, bytes32 root, bytes memory signature) =
+            _getSignatureData(userOp, ENTRYPOINT_ADDR);
+
+        testData.sigData = sigData;
+        testData.proof = proof;
+        testData.root = root;
+        testData.signature = signature;
+
+        userOp.signature = testData.sigData;
+    }
+
+    function _buildDestinationMessage(
+        address token,
+        uint256 amount
+    )
+        internal
+        pure
+        returns (DestinationMessage memory message)
+    {
+        message.initData = hex"aaaaaaaa";
+        message.executorCalldata = hex"eeeeeeee";
+        message.dstTokens = new address[](1);
+        message.dstTokens[0] = token;
+        message.intentAmounts = new uint256[](1);
+        message.intentAmounts[0] = amount;
+    }
+
+    function _encodeAcrossHookData(
+        address nexusAccount,
+        address token,
+        uint256 amount,
+        DestinationMessage memory message,
+        uint256 zero,
+        uint256 ten
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory messageData = _encodeMessageData(message);
+        return abi.encodePacked(
+            zero,
+            nexusAccount,
+            token,
+            token,
+            amount,
+            amount,
+            ten,
+            address(0),
+            uint32(zero),
+            uint32(zero),
+            false,
+            messageData
+        );
+    }
+
+    function _encodeMessageData(DestinationMessage memory message) internal pure returns (bytes memory) {
+        return abi.encode(
+            message.initData, message.executorCalldata, message._account, message.dstTokens, message.intentAmounts
+        );
+    }
+
+    function _getSignatureData(
+        PackedUserOperation memory userOp,
+        address entryPoint
+    )
+        internal
+        view
+        returns (bytes memory sigData, bytes32[][] memory proof, bytes32 root, bytes memory signature)
+    {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil);
+        (proof, root) = _createValidatorMerkleTree(leaves);
+        signature = _getSignature(root);
+        sigData = abi.encode(validUntil, root, proof[0], hex"1111", signature);
+    }
+
+    function _prepareUserOpNonce(address nexusAccount, address token) internal view returns (uint256 nonce) {
+        if (token == CHAIN_1_USDC) {
+            return _prepareNonce(nexusAccount);
+        }
+
+        uint192 nonceKey;
+        address validator = address(superMerkleValidator);
+        bytes32 batchId = bytes3(0);
+        bytes1 vMode = MODE_VALIDATION;
+        assembly {
+            nonceKey := or(shr(88, vMode), validator)
+            nonceKey := or(shr(64, batchId), nonceKey)
+        }
+
+        nonce = (IMinimalEntryPoint(ENTRYPOINT_ADDR).nonceSequenceNumber(nexusAccount, nonceKey) + 1)
+            | (uint256(nonceKey) << 64);
     }
 
     function test_Approval_With_Nexus(uint256 amount) public {
