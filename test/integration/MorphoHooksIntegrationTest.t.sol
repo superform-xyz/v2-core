@@ -80,7 +80,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
     /*//////////////////////////////////////////////////////////////
                       TEST REPAY AND WITHDRAW LLTV
     //////////////////////////////////////////////////////////////*/
-    function test_RepayAndWithdrawHook_PartialRepayAndWithdraw_Maintains_LTV() public {
+    function test_RepayAndWithdrawHook_PartialRepay_Maintains_LTV() public {
         address loanToken = CHAIN_1_USDC;
         address collateralToken = CHAIN_1_WBTC;
 
@@ -108,8 +108,21 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
             lltv: lltv
         });
 
+        // Fast forward some time
+        vm.warp(block.timestamp + 10 weeks);
+
+        // Accrue interest
+        IMorphoStaticTyping morpho = IMorphoStaticTyping(MORPHO);
+        morpho.accrueInterest(marketParams);
+
+        uint128 collateral;
+        Id id = marketParams.id();
+        (,, collateral) = morpho.position(id, accountEth);
+
+        uint256 initialLtv = (repayAndWithdrawHook.sharesToAssets(marketParams, accountEth) * 1e18) / collateral;
+
         // Generate data for hook
-        uint256 repayAmount = 500000; // repay 50% of loan
+        uint256 repayAmount = 500_000; // repay 50% of loan
 
         // Setup the borrow hook execution
         address[] memory repayAndWithdrawHookAddresses = new address[](1);
@@ -127,19 +140,6 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
             false // not a full repayment
         );
 
-        // Fast forward some time
-        vm.warp(block.timestamp + 10 weeks);
-
-        // Accrue interest
-        IMorphoStaticTyping morpho = IMorphoStaticTyping(MORPHO);
-        morpho.accrueInterest(marketParams);
-
-        uint128 collateral;
-        Id id = marketParams.id();
-        (,, collateral) = morpho.position(id, accountEth);
-
-        uint256 initialLtv = (repayAndWithdrawHook.sharesToAssets(marketParams, accountEth) * 1e18) / collateral;
-
         ISuperExecutor.ExecutorEntry memory entry1 =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData1 = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry1));
@@ -156,7 +156,5 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
 
         uint256 finalLtv = (repayAndWithdrawHook.sharesToAssets(marketParams, accountEth) * 1e18) / collateral;
         console.log("---LTV Diff:", finalLtv - initialLtv);
-        
-        
     }
 }
