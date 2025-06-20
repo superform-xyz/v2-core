@@ -50,8 +50,8 @@ contract DeBridgeCancelOrderHook is BaseHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address, address account, bytes memory data)
-        external
+    function _buildHookExecutions(address, address account, bytes calldata data)
+        internal
         view
         override
         returns (Execution[] memory executions)
