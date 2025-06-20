@@ -420,11 +420,15 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
             hooksData = new bytes[](2);
 
+            // Store initial values for assertions
+            uint256 initialShares = IERC4626(morphoVault).balanceOf(nexusAccount);
+            uint256 sharesToRedeem = IERC4626(morphoVault).convertToShares(amount);
+
             hooksData[0] = _createRedeem4626HookData(
                 bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 morphoVault,
                 nexusAccount,
-                IERC4626(morphoVault).convertToShares(amount),
+                sharesToRedeem,
                 false
             );
 
@@ -442,8 +446,24 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
                 hooksData: hooksData
             });
 
+            // Track balances before executing chained operations
+            uint256 tokenBalanceBefore = IERC20(underlyingToken).balanceOf(nexusAccount);
+
             // prepare data & execute through entry point
             _executeThroughEntrypoint(nexusAccount, entry);
+            
+            uint256 finalShares = IERC4626(morphoVault).balanceOf(nexusAccount);
+            uint256 tokenBalanceAfter = IERC20(underlyingToken).balanceOf(nexusAccount);
+            
+            assertLt(finalShares, initialShares);
+            
+            uint256 redeemedAmount = IERC4626(morphoVault).convertToAssets(initialShares - finalShares);
+            assertGt(redeemedAmount, 0);
+            assertLt(redeemedAmount, amount);
+            
+            if (tokenBalanceAfter > 0) {
+                assertLt(tokenBalanceAfter, amount);
+            }
         }
     }
 
@@ -473,6 +493,8 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         // - approval
         // - deposit
         // - redemption, whose amount should be charged
+        // - approval
+        // - deposit
         address[] memory hooksAddresses = new address[](3);
         hooksAddresses[0] = approveHook;
         hooksAddresses[1] = deposit4626Hook;
