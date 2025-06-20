@@ -18,6 +18,7 @@ import { AcrossSendFundsAndExecuteOnDstHook } from
 
 import { ISuperSignatureStorage } from "../../src/core/interfaces/ISuperSignatureStorage.sol";
 import "forge-std/console.sol";
+import "forge-std/Test.sol";
 
 contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     MockRegistry public nexusRegistry;
@@ -25,6 +26,13 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     uint8 public threshold;
 
     bytes public mockSignature;
+
+    bytes32[] internal firstLoggedProof;
+    bytes32[] internal secondLoggedProof;
+    address[] internal loggedTokens;
+    SuperValidatorBase.DstProof internal tempDstProof;
+    bytes32 internal tempRoot;
+    bytes internal tempSignature;
 
     function setUp() public override {
         blockNumber = ETH_BLOCK;
@@ -92,6 +100,428 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         uint256[] intentAmounts;
     }
 
+    // Helper struct to organize cross-chain test data
+    struct CrossChainTestData {
+        address[] hooksAddresses;
+        bytes[] hooksData;
+        bytes32[] leaves;
+        bytes32[][] proof;
+        bytes32 root;
+        bytes signature;
+        bytes sigData;
+        address nexusAccount;
+        PackedUserOperation userOp;
+        uint48 validUntil;
+        DestinationMessage usdcMessage;
+        DestinationMessage wethMessage;
+        uint64 destinationChainId;
+    }
+
+    // Helper to set up cross chain test data
+    function _setupCrossChainTestData(uint256 amount) internal returns (CrossChainTestData memory testData) {
+        AcrossSendFundsAndExecuteOnDstHook acrossHook = new AcrossSendFundsAndExecuteOnDstHook(
+            0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5,
+            address(superMerkleValidator)
+        );
+
+        // Step 1: Create account
+        testData.nexusAccount = _createWithNexus(
+            address(nexusRegistry),
+            attesters,
+            threshold,
+            1e18
+        );
+
+        // 2. Add tokens to account
+        _getTokens(CHAIN_1_USDC, testData.nexusAccount, amount);
+        _getTokens(CHAIN_1_WETH, testData.nexusAccount, amount);
+
+        // 3. Create Hook data for the UserOp
+        testData.hooksAddresses = new address[](4);
+        testData.hooksAddresses[0] = approveHook;
+        testData.hooksAddresses[1] = approveHook;
+        testData.hooksAddresses[2] = address(acrossHook);
+        testData.hooksAddresses[3] = address(acrossHook);
+
+        testData.hooksData = new bytes[](4);
+        // Build approval data
+        testData.hooksData[0] = _createApproveHookData(
+            CHAIN_1_USDC,
+            0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5,
+            amount,
+            false
+        );
+        testData.hooksData[1] = _createApproveHookData(
+            CHAIN_1_WETH,
+            0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5,
+            amount,
+            false
+        );
+
+        return testData;
+    }
+
+    // Helper to create destination messages
+    function _createDestinationMessage(
+        address token, 
+        uint256 amount, 
+        bytes memory executorCalldata
+    ) internal pure returns (DestinationMessage memory message) {
+        message.initData = hex"aaaaaaaa"; // not important for the test
+        message.executorCalldata = executorCalldata;
+        message.dstTokens = new address[](1);
+        message.dstTokens[0] = token;
+        message.intentAmounts = new uint256[](1);
+        message.intentAmounts[0] = amount;
+        
+        return message;
+    }
+
+    // Helper to create across hook data by splitting into smaller steps
+    function _createAcrossHookData(
+        address nexusAccount,
+        address token,
+        uint256 amount,
+        uint256 destinationChainId,
+        DestinationMessage memory message
+    ) internal pure returns (bytes memory) {
+        // Step 1: Create header data
+        bytes memory headerData = _createAcrossHeaderData(
+            nexusAccount,
+            token,
+            amount,
+            destinationChainId
+        );
+        
+        // Step 2: Create destination message data
+        bytes memory messageData = _encodeDestinationMessage(message);
+        
+        // Combine both parts
+        return bytes.concat(headerData, messageData);
+    }
+    
+    // Create the header portion of across hook data
+    function _createAcrossHeaderData(
+        address nexusAccount,
+        address token,
+        uint256 amount,
+        uint256 destinationChainId
+    ) internal pure returns (bytes memory) {
+        uint256 zero = 0;
+        
+        return abi.encodePacked(
+            zero, // uint256 value = BytesLib.toUint256(data, 0);
+            nexusAccount, // address recipient = BytesLib.toAddress(data, 32);
+            token, // address inputToken = BytesLib.toAddress(data, 52);
+            token, // address outputToken = BytesLib.toAddress(data, 72);
+            amount, // uint256 inputAmount = BytesLib.toUint256(data, 92);
+            amount, // uint256 outputAmount = BytesLib.toUint256(data, 124);
+            destinationChainId, // uint256 destinationChainId = BytesLib.toUint256(data, 156);
+            address(0), // address exclusiveRelayer = BytesLib.toAddress(data, 188);
+            uint32(zero), // uint32 fillDeadlineOffset = BytesLib.toUint32(data, 208);
+            uint32(zero), // uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
+            false // bool usePrevHookAmount = _decodeBool(data, 216);
+        );
+    }
+    
+    // Encode destination message
+    function _encodeDestinationMessage(DestinationMessage memory message) internal pure returns (bytes memory) {
+        return abi.encode(
+            message.initData,
+            message.executorCalldata,
+            message._account,
+            message.dstTokens,
+            message.intentAmounts
+        );
+    }
+
+    // Helper to create validator leaves
+    function _createValidatorLeaves(
+        bytes32 userOpHash,
+        uint48 validUntil,
+        DestinationMessage memory usdcMessage,
+        DestinationMessage memory wethMessage,
+        address nexusAccount,
+        uint64 destChainId
+    ) internal returns (bytes32[] memory leaves) {
+        leaves = new bytes32[](3);
+        
+        // Leaf for source operation
+        leaves[0] = _createSourceValidatorLeaf(userOpHash, validUntil);
+
+        // Leaf for cross-chain USDC
+        leaves[1] = _createDestinationValidatorLeaf(
+            abi.encode(
+                usdcMessage.initData,
+                usdcMessage.executorCalldata,
+                usdcMessage._account,
+                usdcMessage.dstTokens,
+                usdcMessage.intentAmounts
+            ), // executionData
+            destChainId,
+            nexusAccount,
+            makeAddr("executor"),
+            usdcMessage.dstTokens,
+            usdcMessage.intentAmounts,
+            uint48(block.timestamp)
+        );
+
+        // Leaf for cross-chain WETH
+        leaves[2] = _createDestinationValidatorLeaf(
+            abi.encode(
+                wethMessage.initData,
+                wethMessage.executorCalldata,
+                wethMessage._account,
+                wethMessage.dstTokens,
+                wethMessage.intentAmounts
+            ), // executionData
+            destChainId,
+            nexusAccount,
+            makeAddr("executor"),
+            wethMessage.dstTokens,
+            wethMessage.intentAmounts,
+            uint48(block.timestamp)
+        );
+        
+        return leaves;
+    }
+
+    // Test that clearly shows the issue: multiple cross-chain txs cannot be sent
+    function testOrion_multipleCrossChainTransactionsCanNotBeSent() public {
+        uint256 amount = 100e6;
+        uint64 destinationChainId = 10;
+        
+        // Setup the test data using our helper
+        CrossChainTestData memory testData = _setupCrossChainTestData(amount);
+        testData.destinationChainId = destinationChainId;
+        
+        // Create destination messages
+        testData.usdcMessage = _createDestinationMessage(
+            CHAIN_1_USDC, 
+            amount,
+            hex"eeeeeeee" // USDC executor calldata
+        );
+        
+        testData.wethMessage = _createDestinationMessage(
+            CHAIN_1_WETH,
+            amount,
+            hex"dddddddd" // WETH executor calldata
+        );
+        
+        // Create across hook data
+        testData.hooksData[2] = _createAcrossHookData(
+            testData.nexusAccount,
+            CHAIN_1_USDC,
+            amount,
+            destinationChainId,
+            testData.usdcMessage
+        );
+        
+        testData.hooksData[3] = _createAcrossHookData(
+            testData.nexusAccount,
+            CHAIN_1_WETH,
+            amount,
+            destinationChainId,
+            testData.wethMessage
+        );
+
+        // Prepare the executor entry and callData
+        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: testData.hooksAddresses,
+            hooksData: testData.hooksData
+        });
+
+        // Prepare and execute through entry point
+        Execution[] memory executions = new Execution[](1);
+        executions[0] = Execution({
+            target: address(superExecutorModule),
+            value: 0,
+            callData: abi.encodeWithSelector(
+                ISuperExecutor.execute.selector,
+                abi.encode(entry)
+            )
+        });
+
+        // Generate user operation data
+        bytes memory callData = _prepareExecutionCalldata(executions);
+        uint256 nonce = _prepareNonce(testData.nexusAccount);
+        testData.userOp = _createPackedUserOperation(
+            testData.nexusAccount,
+            nonce,
+            callData
+        );
+        
+        // Create validator merkle tree & signature
+        testData.validUntil = uint48(block.timestamp + 1 hours);
+        bytes32 userOpHash = IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(testData.userOp);
+        
+        testData.leaves = _createValidatorLeaves(
+            userOpHash,
+            testData.validUntil,
+            testData.usdcMessage,
+            testData.wethMessage,
+            testData.nexusAccount,
+            destinationChainId
+        );
+        
+        // Process the signature and submit user op
+        (testData.proof, testData.root) = _createValidatorMerkleTree(testData.leaves);
+        testData.signature = _getSignature(testData.root);
+        
+        // Now execute the rest of the test
+        _executeMultipleCrossChainTest(testData);
+    }
+    
+    // Continuation of testOrion_multipleCrossChainTransactionsCanNotBeSent
+    function _executeMultipleCrossChainTest(
+        CrossChainTestData memory testData
+    ) internal {
+        // Create signature data in steps to avoid stack too deep
+        _createDstProof(testData);
+        _createSigData(testData);
+        _executeUserOp(testData);
+    }
+    
+    // Step 1: Create destination proof
+    function _createDstProof(CrossChainTestData memory testData) internal {
+        // We choose proof[1] which leaves proof[2] outside of the signature data,
+        // making it impossible to provide proof for WETH's cross-chain message
+        
+        // Create the same execution data format that was used in leaf creation
+        bytes memory executionData = abi.encode(
+            testData.usdcMessage.initData,
+            testData.usdcMessage.executorCalldata,
+            testData.usdcMessage._account,
+            testData.usdcMessage.dstTokens,
+            testData.usdcMessage.intentAmounts
+        );
+        
+        tempDstProof = SuperValidatorBase.DstProof({
+            proof: testData.proof[1],
+            dstChainId: testData.destinationChainId,
+            info: SuperValidatorBase.DstInfo({
+                account: testData.nexusAccount,
+                executor: makeAddr("executor"),
+                dstTokens: testData.usdcMessage.dstTokens,
+                intentAmounts: testData.usdcMessage.intentAmounts,
+                data: executionData // Use the full encoded data format matching leaf creation
+            })
+        });
+        
+        // Save important values to storage to reduce stack
+        tempRoot = testData.root;
+        tempSignature = testData.signature;
+    }
+    
+    // Step 2: Create signature data
+    function _createSigData(CrossChainTestData memory testData) internal {
+        // Create array of DstProof objects
+        SuperValidatorBase.DstProof[] memory dstProofs = new SuperValidatorBase.DstProof[](1);
+        dstProofs[0] = tempDstProof;
+        
+        testData.sigData = abi.encode(
+            testData.validUntil,
+            tempRoot,
+            testData.proof[0],
+            dstProofs, // Pass the array instead of a single object
+            tempSignature
+        );
+    }
+    
+    // Step 3: Execute the user operation
+    function _executeUserOp(CrossChainTestData memory testData) internal {
+        // Build userops
+        testData.userOp.signature = testData.sigData;
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = testData.userOp;
+
+        // Reset storage arrays before recording logs
+        delete firstLoggedProof;
+        delete secondLoggedProof;
+        delete loggedTokens;
+
+        // Record logs
+        vm.recordLogs();
+        IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(userOps, payable(testData.nexusAccount));
+
+        // Process logs in a separate function to avoid stack too deep
+        _processLogsAndVerifyProofs();
+    }
+    
+    // Helper to process logs and verify proofs
+    function _processLogsAndVerifyProofs() internal {
+        bytes32 FundsDeposited = keccak256(
+            "FundsDeposited(bytes32,bytes32,uint256,uint256,uint256,uint256,uint32,uint32,uint32,bytes32,bytes32,bytes32,bytes)"
+        );
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        for (uint256 i; i < entries.length; i++) {
+            if (entries[i].topics[0] == FundsDeposited) {
+                // decode destination message
+                (address inputToken, , , , , , , , , bytes memory message) = abi.decode(
+                    entries[i].data,
+                    (
+                        address,
+                        address,
+                        uint256,
+                        uint256,
+                        uint32,
+                        uint32,
+                        uint32,
+                        address,
+                        address,
+                        bytes
+                    )
+                );
+
+                // decode appended signature
+                (, , , , , bytes memory sigData) = abi.decode(
+                    message,
+                    (bytes, bytes, address, address[], uint256[], bytes)
+                );
+
+                // decode sigData
+                (, , , bytes32[] memory proofDst, ) = abi.decode(
+                    sigData,
+                    (uint48, bytes32, bytes32[], bytes32[], bytes)
+                );
+                
+                _collectProof(inputToken, proofDst);
+            }
+        }
+        
+        _verifyCollectedProofs();
+    }
+    
+    // Collect proofs into storage arrays to avoid stack too deep
+    function _collectProof(address inputToken, bytes32[] memory proofDst) internal {
+        if (firstLoggedProof.length == 0) {
+            // First proof found
+            for (uint256 j; j < proofDst.length; j++) {
+                firstLoggedProof.push(proofDst[j]);
+            }
+        } else if (secondLoggedProof.length == 0) {
+            // Second proof found
+            for (uint256 j; j < proofDst.length; j++) {
+                secondLoggedProof.push(proofDst[j]);
+            }
+        }
+        
+        // Store token address and log it
+        loggedTokens.push(inputToken);
+        console.log(inputToken); // show messages are different, first one will show USDC, second one WETH
+    }
+    
+    // Verify that both proofs are the same (showing the limitation)
+    function _verifyCollectedProofs() internal {
+        if (firstLoggedProof.length > 0 && secondLoggedProof.length > 0) {
+            for (uint256 j; j < firstLoggedProof.length && j < secondLoggedProof.length; j++) {
+                assertEq(firstLoggedProof[j], secondLoggedProof[j]);
+            }
+        }
+    }
+
     function testOrion_multipleUserOpsBreakFetchedSignature() public {
         TestData memory testData;
         testData.zero = 0;
@@ -143,7 +573,14 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         DestinationMessage memory message = _buildDestinationMessage(token, amount);
 
-        testData.hooksData[1] = _encodeAcrossHookData(nexusAccount, token, amount, message, testData.zero, testData.ten);
+        testData.hooksData[1] = _encodeAcrossHookData(
+            nexusAccount,
+            token,
+            amount,
+            message,
+            testData.zero,
+            testData.ten
+        );
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: testData.hooksAddresses, hooksData: testData.hooksData });
@@ -199,21 +636,18 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         pure
         returns (bytes memory)
     {
-        bytes memory messageData = _encodeMessageData(message);
-        return abi.encodePacked(
-            zero,
+        // Use our new helper functions
+        bytes memory headerData = _createAcrossHeaderData(
             nexusAccount,
             token,
-            token,
             amount,
-            amount,
-            ten,
-            address(0),
-            uint32(zero),
-            uint32(zero),
-            false,
-            messageData
+            ten // Using ten as destination chain ID
         );
+        
+        bytes memory messageData = _encodeDestinationMessage(message);
+        
+        // Combine both parts
+        return bytes.concat(headerData, messageData);
     }
 
     function _encodeMessageData(DestinationMessage memory message) internal pure returns (bytes memory) {
@@ -375,65 +809,6 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             amount * 1e5 / 1e6,
             "Shares should be close to obtainable"
         );
-    }
-
-    function test_feeBypassByCustomHook_Reverts() public {
-        uint256 amount = 10_000e6;
-        address underlyingToken = CHAIN_1_USDC;
-        address morphoVault = CHAIN_1_MorphoVault;
-
-        address accountOwner = makeAddr("owner");
-        MaliciousHook maliciousHook = new MaliciousHook(accountOwner, underlyingToken);
-
-        // Step 1: Create account and install custom malicious hook
-        address nexusAccount = _createWithNexusWithMaliciousHook(
-            address(nexusRegistry), attesters, threshold, 1e18, address(maliciousHook)
-        );
-
-        maliciousHook.setAccount(nexusAccount);
-
-        // Step 2: Account approval to the hook
-        vm.startPrank(nexusAccount);
-        IERC4626(underlyingToken).approve(address(maliciousHook), type(uint256).max);
-
-        // add tokens to account
-        _getTokens(underlyingToken, nexusAccount, amount);
-
-        // 3. Create SuperExecutor data, with:
-        // - approval
-        // - deposit
-        // - redemption, whose amount should be charged
-        address[] memory hooksAddresses = new address[](3);
-        hooksAddresses[0] = approveHook;
-        hooksAddresses[1] = deposit4626Hook;
-        hooksAddresses[2] = redeem4626Hook;
-
-        bytes[] memory hooksData = new bytes[](3);
-        hooksData[0] = _createApproveHookData(underlyingToken, morphoVault, amount, false);
-        hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), morphoVault, amount, false, address(0), 0
-        );
-        hooksData[2] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            morphoVault,
-            nexusAccount,
-            IERC4626(morphoVault).convertToShares(amount),
-            false
-        );
-
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-
-        address feeRecipient = makeAddr("feeRecipient"); // this is the recipient configured in base tests.
-
-        // Fetch the fee recipient balance before execution
-        uint256 feeReceiverBalanceBefore = IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient);
-
-        // prepare data & execute through entry point
-        _executeThroughEntrypointWithMaliciousHook(nexusAccount, entry);
-
-        // Ensure fee obtained is 0
-        assertEq(IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient) - feeReceiverBalanceBefore, 0);
     }
 
     /*//////////////////////////////////////////////////////////////

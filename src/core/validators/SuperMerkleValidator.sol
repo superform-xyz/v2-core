@@ -48,12 +48,12 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         returns (ValidationData)
     {
         if (!_initialized[_userOp.sender]) revert NOT_INITIALIZED();
-
         // Decode signature
         SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
 
         // Verify source data
         (address signer,) = _processSignatureAndVerifyLeaf(sigData, _userOpHash);
+        
         // Validate
         bool isValid = _isSignatureValid(signer, _userOp.sender, sigData.validUntil);
 
