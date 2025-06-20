@@ -56,6 +56,8 @@ contract CantinaIntegrationPendleRouterSwapHookTest is Test {
     }
 
     function test_execute_swapExactPtForToken_decodeTokenOut() public {
+        // for https://cantina.xyz/code/ba62fa4e-f933-4eec-b9ac-868325f4a694/findings/310
+        // https://cantina.xyz/code/ba62fa4e-f933-4eec-b9ac-868325f4a694/findings/311
         // https://explorer.phalcon.xyz/tx/eth/0x202cfd7e8dae561af172274dcfce04703daeaf63852c0872208d030fa71a457e
         fork("eth", 22_581_741 - 1);
         user = address(0x708Db604264455673e63D82e8a6bbb66Ab856617);
