@@ -20,7 +20,7 @@ contract Mock7540Hook {
     function requestDeposit(uint256 assets, address controller, address owner) external returns (uint256) {
         IERC20(assetToken).transferFrom(owner, address(this), assets);
         depositRequests[controller] += assets;
-        return depositRequests[controller];
+        return assets;
     }
 
     function cancelDepositRequest(uint256, address controller) external {

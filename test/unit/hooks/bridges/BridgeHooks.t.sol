@@ -351,7 +351,7 @@ contract BridgeHooks is Helpers {
     // DeBridge Cancel Order Hook Tests
     
     function test_CancelOrderHook_Constructor() public view {
-        assertEq(address(cancelOrderHook.dlnSource()), address(this));
+        assertEq(address(cancelOrderHook.dlnDestination()), address(this));
         assertEq(uint256(cancelOrderHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
