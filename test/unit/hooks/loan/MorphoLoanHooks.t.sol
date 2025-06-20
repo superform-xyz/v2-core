@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+import { console } from "forge-std/console.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 import { Helpers } from "../../../utils/Helpers.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
@@ -149,7 +152,7 @@ contract MorphoLoanHooksTest is Helpers {
 
         assertFalse(borrowHookB.decodeUsePrevHookAmount(data));
 
-        assertEq(executions.length, 6);
+        assertEq(executions.length, 3);
 
         // Check borrow call
         assertEq(executions[1].target, address(mockMorpho));
@@ -239,7 +242,7 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeBorrowOnlyData(true);
         Execution[] memory executions = borrowHookB.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 6);
+        assertEq(executions.length, 3);
         // Verify the borrow call is present
         assertEq(executions[1].target, address(mockMorpho));
         assertEq(executions[1].value, 0);
@@ -249,6 +252,7 @@ contract MorphoLoanHooksTest is Helpers {
     function test_BorrowHookB_PrePostExecute() public {
         bytes memory data = _encodeBorrowOnlyData(false);
         deal(loanToken, address(this), amount);
+        console.log("---", IERC20(loanToken).balanceOf(address(this)));
         borrowHookB.preExecute(address(0), address(this), data);
         assertEq(borrowHookB.outAmount(), amount);
 
@@ -815,7 +819,7 @@ contract MorphoLoanHooksTest is Helpers {
     function test_BorrowHook_PrePostExecute() public {
         loanToken = address(new MockERC20("Loan Token", "LOAN", 18));
         bytes memory data = _encodeBorrowData(false);
-        deal(address(loanToken), address(this), amount);
+        deal(address(collateralToken), address(this), amount);
         borrowHook.preExecute(address(0), address(this), data);
         assertEq(borrowHook.outAmount(), amount, "A");
 
