@@ -61,7 +61,7 @@ test-vvv :; $(MAKE) ensure-merkle-cache && forge test --match-test testReplayOnS
 
 test-integration :; $(MAKE) ensure-merkle-cache && forge test --match-test test_ShouldExecuteAll_AndLockAssetsInVaultBank -vvv --jobs 10
 
-test-vvv-quick :; forge test --match-test testOrion_multipleUserOpsBreakFetchedSignature -vvv --jobs 10
+test-vvv-quick :; forge test --match-test test_execute_swapExactPtForToken_decodeTokenOut -vvvv --jobs 10
 
 test-gas-report-user :; $(MAKE) ensure-merkle-cache && forge test --match-test test_gasReport --gas-report --jobs 10
 test-gas-report-2vaults :; $(MAKE) ensure-merkle-cache && forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10
