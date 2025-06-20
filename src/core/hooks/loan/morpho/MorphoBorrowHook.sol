@@ -90,8 +90,6 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 loanAmount = deriveLoanAmount(vars.amount, vars.ltvRatio, vars.lltv, vars.oracle);
-
         executions = new Execution[](4);
         executions[0] =
             Execution({ target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
@@ -117,32 +115,6 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
         return abi.encodePacked(
             marketParams.loanToken, marketParams.collateralToken, marketParams.oracle, marketParams.irm
         );
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            PUBLIC METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @dev This function returns the loan amount required for a given collateral amount.
-    /// @dev It corresponds to the price of 10**(collateral token decimals) assets of collateral token quoted in
-    /// 10**(loan token decimals) assets of loan token with `36 + loan token decimals - collateral token decimals`
-    /// decimals of precision.
-    function deriveLoanAmount(
-        uint256 collateralAmount,
-        uint256 ltvRatio,
-        uint256 lltv,
-        address oracle
-    )
-        public
-        view
-        returns (uint256 loanAmount)
-    {
-        IOracle oracleInstance = IOracle(oracle);
-        uint256 price = oracleInstance.price();
-
-        if (ltvRatio >= lltv) revert LTV_RATIO_NOT_VALID();
-
-        uint256 fullAmount = Math.mulDiv(collateralAmount, price, PRICE_SCALING_FACTOR);
-        loanAmount = Math.mulDiv(fullAmount, ltvRatio, PERCENTAGE_SCALING_FACTOR);
     }
 
     /*//////////////////////////////////////////////////////////////
