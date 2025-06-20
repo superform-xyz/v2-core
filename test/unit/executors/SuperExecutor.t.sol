@@ -11,6 +11,7 @@ import { SuperDestinationExecutor } from "../../../src/core/executors/SuperDesti
 import { SuperDestinationValidator } from "../../../src/core/validators/SuperDestinationValidator.sol";
 import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
 import { FluidClaimRewardHook } from "../../../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
+import { BaseClaimRewardHook } from "../../../src/core/hooks/claim/BaseClaimRewardHook.sol";
 import { MaliciousToken } from "../../mocks/MaliciousToken.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockStakingRewards } from "../../mocks/MockStakingRewards.sol";
@@ -20,6 +21,7 @@ import { MockLedger, MockLedgerConfiguration } from "../../mocks/MockLedger.sol"
 
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperDestinationExecutor } from "../../../src/core/interfaces/ISuperDestinationExecutor.sol";
 
 import { Helpers } from "../../utils/Helpers.sol";
 
@@ -303,20 +305,20 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(0), // Native token as address(0)
-            account, 
-            1, 
+            account,
+            1,
             false
         );
 
         // Fund the account with ETH
         vm.deal(account, 1000);
-        
+
         // Execute the hook
         vm.startPrank(account);
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // Check initial balances
         uint256 initialFeeRecipientBalance = feeRecipient.balance;
@@ -324,16 +326,19 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         // Execute and process the hook
         superSourceExecutor.execute(abi.encode(entry));
-        
+
         // Verify fee was transferred correctly
         assertEq(account.balance, initialAccountBalance - 100, "Native fee should be deducted from account");
-        assertEq(feeRecipient.balance, initialFeeRecipientBalance + 100, "Fee recipient should receive native token fee");
+        assertEq(
+            feeRecipient.balance, initialFeeRecipientBalance + 100, "Fee recipient should receive native token fee"
+        );
         vm.stopPrank();
     }
 
     function test_SourceExecutor_UpdateAccounting_Outflow_WithFee_NativeTokenSentinel() public {
         // Create a hook that uses NATIVE_TOKEN_SENTINEL
-        MockHook nativeSentinelHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE));
+        MockHook nativeSentinelHook =
+            new MockHook(ISuperHook.HookType.OUTFLOW, address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE));
         nativeSentinelHook.setOutAmount(1000);
         nativeSentinelHook.setUsedShares(500);
         ledger.setFeeAmount(100);
@@ -344,20 +349,20 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
-            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE), 
-            account, 
-            1, 
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE),
+            account,
+            1,
             false
         );
 
         // Fund the account with ETH
         vm.deal(account, 1000);
-        
+
         // Execute the hook
         vm.startPrank(account);
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // Check initial balances
         uint256 initialFeeRecipientBalance = feeRecipient.balance;
@@ -365,10 +370,12 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         // Execute and process the hook
         superSourceExecutor.execute(abi.encode(entry));
-        
+
         // Verify fee was transferred correctly
         assertEq(account.balance, initialAccountBalance - 100, "Native fee should be deducted from account");
-        assertEq(feeRecipient.balance, initialFeeRecipientBalance + 100, "Fee recipient should receive native token fee");
+        assertEq(
+            feeRecipient.balance, initialFeeRecipientBalance + 100, "Fee recipient should receive native token fee"
+        );
         vm.stopPrank();
     }
 
@@ -384,21 +391,16 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         hooksAddresses[0] = address(nativeHook);
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), 
-            address(0), 
-            account, 
-            1, 
-            false
-        );
+        hooksData[0] =
+            _createRedeem4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(0), account, 1, false);
 
         // Don't fund the account - should have 0 ETH
         vm.deal(account, 0);
-        
+
         // Try to execute the hook
         vm.startPrank(account);
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // Should revert due to insufficient balance
         vm.expectRevert(ISuperExecutor.INSUFFICIENT_BALANCE_FOR_FEE.selector);
@@ -474,6 +476,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         FluidClaimRewardHook hook = new FluidClaimRewardHook();
         address stakingRewards = address(new MockStakingRewards(rewardToken));
 
+        vm.mockCall(address(stakingRewards), abi.encodeWithSignature("rewardsToken()"), abi.encode(rewardToken));
         MockERC20(rewardToken).mint(stakingRewards, 1e18);
 
         address wrong_RewardToken = address(new MockERC20("Wrong Token", "FRT", 18));
@@ -481,16 +484,15 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         hooksAddresses[0] = address(hook);
         hooksData[0] = abi.encodePacked(bytes4(0), stakingRewards, wrong_RewardToken, account);
 
+        vm.mockCall(address(stakingRewards), abi.encodeWithSignature("rewardsToken()"), abi.encode(rewardToken));
         vm.startPrank(account);
         uint256 initBal = MockERC20(rewardToken).balanceOf(account);
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
+        vm.expectRevert(BaseClaimRewardHook.INVALID_REWARD_TOKEN.selector);
         superDestinationExecutor.execute(abi.encode(entry));
-
-        uint256 amountReceived = MockERC20(rewardToken).balanceOf(account) - initBal;
-        vm.assertEq(amountReceived, 1e18);
-        vm.assertEq(FluidClaimRewardHook(hook).outAmount(), 0);
+        vm.stopPrank();
     }
 
     // ---------------- DESTINATION EXECUTOR ------------------
@@ -572,7 +574,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         );
 
         vm.mockCall(address(this), abi.encodeWithSignature("accountId()"), abi.encode(""));
-        vm.expectRevert(SuperDestinationExecutor.ADDRESS_NOT_ACCOUNT.selector);
+        vm.expectRevert(ISuperDestinationExecutor.ADDRESS_NOT_ACCOUNT.selector);
         superDestinationExecutor.processBridgedExecution(
             address(token), address(this), dstTokens, intentAmounts, "", "", ""
         );
@@ -588,14 +590,14 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         );
 
         vm.mockCall(address(this), abi.encodeWithSignature("accountId()"), abi.encode(""));
-        vm.expectRevert(SuperDestinationExecutor.ARRAY_LENGTH_MISMATCH.selector);
+        vm.expectRevert(ISuperDestinationExecutor.ARRAY_LENGTH_MISMATCH.selector);
         superDestinationExecutor.processBridgedExecution(
             address(token), address(this), dstTokens, intentAmounts, "", "", ""
         );
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_Revert_AccountCreated() public {
-        vm.expectRevert(SuperDestinationExecutor.ACCOUNT_NOT_CREATED.selector);
+        vm.expectRevert(ISuperDestinationExecutor.ACCOUNT_NOT_CREATED.selector);
         (address[] memory dstTokens, uint256[] memory intentAmounts) = _getDstTokensAndIntents();
         superDestinationExecutor.processBridgedExecution(
             address(token), address(0), dstTokens, intentAmounts, "", "", ""
@@ -680,7 +682,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData
         );
 
-        vm.expectRevert(SuperDestinationExecutor.MERKLE_ROOT_ALREADY_USED.selector);
+        vm.expectRevert(ISuperDestinationExecutor.MERKLE_ROOT_ALREADY_USED.selector);
         superDestinationExecutor.processBridgedExecution(
             address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData
         );
@@ -695,11 +697,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             uint48 validUntil
         )
     {
-        address[] memory dstHookAddresses = new address[](0);
-        bytes[] memory dstHookData = new bytes[](0);
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: dstHookAddresses, hooksData: dstHookData });
-        executorCalldata = abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
+        // Create execution that calls a simple view function that should succeed
+        executorCalldata = abi.encodeWithSelector(ISuperExecutor.version.selector);
 
         validUntil = uint48(block.timestamp + 100 days);
         executionDataForLeaf =
@@ -736,5 +735,73 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             );
         }
         signatureData = abi.encode(validUntil, merkleRoot, merkleProof[0], merkleProof[0], signature);
+    }
+
+    struct ExecutionContext {
+        bytes executorCalldata;
+        bytes executionDataForLeaf;
+        bytes32[] leaves;
+        address[] dstTokens;
+        uint256[] intentAmounts;
+        bytes32[][] merkleProof;
+        bytes32 merkleRoot;
+        bytes signature;
+        bytes signatureData;
+    }
+
+    function test_DestinationExecutor_ValidateBalances_RejectsZeroIntentAmount() public {
+        bytes memory initData = "";
+
+        address[] memory dstHookAddresses = new address[](0);
+        bytes[] memory dstHookData = new bytes[](0);
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: dstHookAddresses, hooksData: dstHookData });
+
+        ExecutionContext memory ctx;
+
+        ctx.executorCalldata = abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
+
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+
+        ctx.dstTokens = new address[](1);
+        ctx.dstTokens[0] = address(token);
+        ctx.intentAmounts = new uint256[](1);
+        ctx.intentAmounts[0] = 0;
+
+        ctx.executionDataForLeaf =
+            abi.encode(ctx.executorCalldata, uint64(block.chainid), account, address(superDestinationExecutor), 1);
+
+        ctx.leaves = new bytes32[](1);
+        ctx.leaves[0] = _createDestinationValidatorLeaf(
+            ctx.executionDataForLeaf,
+            uint64(block.chainid),
+            account,
+            address(superDestinationExecutor),
+            ctx.dstTokens,
+            ctx.intentAmounts,
+            validUntil
+        );
+
+        (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
+
+        ctx.signature = _createSignature(
+            SuperValidatorBase(address(superDestinationValidator)).namespace(), ctx.merkleRoot, signer, signerPrvKey
+        );
+
+        ctx.signatureData =
+            abi.encode(validUntil, ctx.merkleRoot, ctx.merkleProof[0], ctx.merkleProof[0], ctx.signature);
+
+        vm.expectEmit(true, true, false, true);
+        emit ISuperDestinationExecutor.SuperDestinationExecutorInvalidIntentAmount(account, address(token), 0);
+
+        superDestinationExecutor.processBridgedExecution(
+            address(token),
+            address(account),
+            ctx.dstTokens,
+            ctx.intentAmounts,
+            initData,
+            ctx.executionDataForLeaf,
+            ctx.signatureData
+        );
     }
 }

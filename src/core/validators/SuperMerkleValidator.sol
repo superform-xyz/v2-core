@@ -146,6 +146,15 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     /// @param data The signature data to store
     function _storeSignature(uint256 identifier, bytes calldata data) private {
         bytes32 storageKey = _makeKey(identifier);
+
+        // only one userOp per account is being executed
+        uint256 stored;        
+        assembly {
+            stored := tload(storageKey)
+        }
+
+        if(stored != 0) revert INVALID_USER_OP();
+
         uint256 len = data.length;
 
         assembly {

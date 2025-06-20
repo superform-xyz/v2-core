@@ -4,6 +4,7 @@ pragma solidity 0.8.30;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { FluidClaimRewardHook } from "../../../../../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
 import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { IFluidLendingStakingRewards } from "../../../../../src/vendor/fluid/IFluidLendingStakingRewards.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
@@ -63,8 +64,10 @@ contract FluidClaimRewardHookTest is Helpers {
         hook.build(address(0), address(0), data);
     }
 
-    function test_PreAndPostExecute() public {
+    function test_PreAndPostExecuteA() public {
         _getTokens(rewardToken, account, amount);
+
+        vm.mockCall(stakingRewards, abi.encodeWithSelector(IFluidLendingStakingRewards.rewardsToken.selector), abi.encode(rewardToken));
 
         vm.prank(account);
         hook.preExecute(address(0), account, _encodeData());

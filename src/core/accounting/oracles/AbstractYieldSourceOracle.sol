@@ -106,16 +106,28 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     }
 
     /// @inheritdoc IYieldSourceOracle
-    function isValidUnderlyingAsset(address yieldSourceAddress, address expectedUnderlying)
-        external
+    function isValidUnderlyingAsset(address /** yieldSourceAddress */, address /** expectedUnderlying */)
+        public
         view
         virtual
-        returns (bool);
+        returns (bool) 
+    {
+        return true;
+    }
 
     /// @inheritdoc IYieldSourceOracle
     function isValidUnderlyingAssets(address[] memory yieldSourceAddresses, address[] memory expectedUnderlying)
         external
         view
         virtual
-        returns (bool[] memory);
+        returns (bool[] memory isValid)
+    {
+        uint256 length = yieldSourceAddresses.length;
+        if (length != expectedUnderlying.length) revert ARRAY_LENGTH_MISMATCH();
+
+        isValid = new bool[](length);
+        for (uint256 i; i < length; ++i) {
+            isValid[i] = isValidUnderlyingAsset(yieldSourceAddresses[i], expectedUnderlying[i]);
+        }
+    }
 }

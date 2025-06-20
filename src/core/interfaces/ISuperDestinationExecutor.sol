@@ -26,25 +26,39 @@ interface ISuperDestinationExecutor {
     /// @param account The account on which the execution was performed
     event SuperDestinationExecutorExecuted(address indexed account);
 
-    /// @notice Emitted when a bridged execution fails with a reason string
-    /// @param account The account on which the execution failed
-    /// @param reason The error message explaining why the execution failed
-    event SuperDestinationExecutorFailed(address indexed account, string reason);
-
-    /// @notice Emitted when a bridged execution fails with low-level data
-    /// @param account The account on which the execution failed
-    /// @param lowLevelData Raw bytes data from the low-level failure
-    event SuperDestinationExecutorFailedLowLevel(address indexed account, bytes lowLevelData);
-
-    /// @notice Emitted when a bridged execution fails with a panic code
-    /// @param account The account on which the execution failed
-    /// @param errorCode The panic code explaining why the execution failed
-    event SuperDestinationExecutorPanicFailed(address indexed account, uint256 errorCode);
-
     /// @notice Emitted when a new account is created during bridged execution
     /// @param account The address of the newly created account
     /// @param salt The deterministic salt used to create the account
     event AccountCreated(address indexed account, bytes32 salt);
+
+    /// @notice Emitted when a bridged execution fails with an invalid intent amount
+    /// @param account The account on which the execution failed
+    /// @param token The token that was required but not available
+    /// @param intentAmount The amount of tokens required for execution
+    event SuperDestinationExecutorInvalidIntentAmount(
+        address indexed account, address indexed token, uint256 intentAmount
+    );
+
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+    /// @notice Emitted when the account is not a valid account
+    error INVALID_ACCOUNT();
+
+    /// @notice Emitted when the signature is invalid
+    error INVALID_SIGNATURE();
+
+    /// @notice Emitted when the address is not an account
+    error ADDRESS_NOT_ACCOUNT();
+
+    /// @notice Emitted when the account is not created
+    error ACCOUNT_NOT_CREATED();
+
+    /// @notice Emitted when the array length mismatch
+    error ARRAY_LENGTH_MISMATCH();
+
+    /// @notice Emitted when the merkle root is already used
+    error MERKLE_ROOT_ALREADY_USED();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW FUNCTIONS
@@ -84,5 +98,6 @@ interface ISuperDestinationExecutor {
         bytes memory initData,
         bytes memory executorCalldata,
         bytes memory userSignatureData
-    ) external;
+    )
+        external;
 }
