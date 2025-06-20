@@ -262,8 +262,6 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
             }
             if (exactPtIn == 0) revert AMOUNT_IN_NOT_VALID();
 
-            // validate token output
-            if (output.pendleSwap == address(0)) revert ADDRESS_NOT_VALID();
             if (output.minTokenOut == 0) revert MIN_OUT_NOT_VALID();
 
             // validate limit order
