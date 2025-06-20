@@ -84,21 +84,18 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
         }
 
         if (vars.amount == 0) revert AMOUNT_NOT_VALID();
-        if (vars.loanToken == address(0) || vars.collateralToken == address(0) || vars.oracle == address(0) || vars.irm == address(0))
+        if (
+            vars.loanToken == address(0) || vars.collateralToken == address(0) || vars.oracle == address(0)
+                || vars.irm == address(0)
+        ) {
             revert ADDRESS_NOT_VALID();
+        }
 
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        executions = new Execution[](4);
-        executions[0] =
-            Execution({ target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
-        executions[1] = Execution({
-            target: vars.collateralToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
-        });
-        executions[2] = Execution({
+        executions = new Execution[](1);
+        executions[0] = Execution({
             target: morpho,
             value: 0,
             callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, vars.amount, 0, account, account))
