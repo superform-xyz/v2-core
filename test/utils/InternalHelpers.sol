@@ -244,11 +244,11 @@ abstract contract InternalHelpers {
         pure
         returns (bytes memory)
     {
-        bytes1 command = redeemPtForAsset
-            ? REDEEM_PT_FOR_ASSET
-            : REDEEM_IBT_FOR_ASSET;
+        bytes1 command = redeemPtForAsset ? REDEEM_PT_FOR_ASSET : REDEEM_IBT_FOR_ASSET;
 
-        return abi.encodePacked(asset, pt, recipient, minAssets, sharesToBurn, usePrevHookAmount, command);
+        return abi.encodePacked(
+            bytes4(bytes("")), asset, pt, recipient, minAssets, sharesToBurn, usePrevHookAmount, command
+        );
     }
 
     function _createMockOdosSwapHookData(
