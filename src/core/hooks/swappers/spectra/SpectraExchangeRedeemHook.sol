@@ -124,15 +124,7 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
     function inspect(bytes calldata data) external pure returns (bytes memory) {
         RedeemParams memory params = _decodeRedeemParams(data);
 
-        bytes memory callData;
-        if (params.command == REDEEM_IBT_FOR_ASSET) {
-            callData = _createRedeemIbtForAssetCallData(params.asset, params.sharesToBurn, params.recipient);
-        } else if (params.command == REDEEM_PT_FOR_ASSET) {
-            callData =
-                _createRedeemPtForAssetCallData(params.pt, params.sharesToBurn, params.recipient, params.minAssets);
-        }
-
-        return abi.encodePacked(data.extractYieldSource(), callData);
+        return abi.encodePacked(params.asset, params.pt, params.recipient);
     }
 
     /*//////////////////////////////////////////////////////////////
