@@ -57,12 +57,11 @@ ftest-quick :; forge test
 
 coverage :; $(MAKE) ensure-merkle-cache && FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-test-vvv :; $(MAKE) ensure-merkle-cache && forge test --match-test testReplayOnSingleTokenBatch -vvv --jobs 10
+test-vvv :; $(MAKE) ensure-merkle-cache && forge test --match-test test_1_DynamicAllocation -vv --jobs 10
 
 test-integration :; $(MAKE) ensure-merkle-cache && forge test --match-test test_ShouldExecuteAll_AndLockAssetsInVaultBank -vvv --jobs 10
 
-test-vvv-quick :; forge test --match-test testOrion_maliciousRelayersDoSCrosschainExecution -vvvv --jobs 10
-
+test-vvv-quick :; forge test --match-test test_11_Allocate_NewYieldSource -vv --jobs 10
 
 test-gas-report-user :; $(MAKE) ensure-merkle-cache && forge test --match-test test_gasReport --gas-report --jobs 10
 test-gas-report-2vaults :; $(MAKE) ensure-merkle-cache && forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10

@@ -61,7 +61,8 @@ import { ApproveAndRequestDeposit7540VaultHook } from
 import { Redeem7540VaultHook } from "../src/core/hooks/vaults/7540/Redeem7540VaultHook.sol";
 import { RequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
-import { ApproveAndRequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
+import { ApproveAndRequestRedeem7540VaultHook } from
+    "../src/core/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
