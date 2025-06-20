@@ -13,7 +13,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookSetter } from "../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 import { IVaultBank } from "../../periphery/interfaces/VaultBank/IVaultBank.sol";
 
@@ -45,7 +45,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
     /// @notice Tolerance for fee transfer verification (numerator)
     /// @dev Used to account for tokens with transfer fees or rounding errors
-    uint256 internal constant FEE_TOLERANCE = 10_000;
+    uint256 internal constant FEE_TOLERANCE = 1_000; //1%
 
     /// @notice Denominator for fee tolerance calculation
     /// @dev FEE_TOLERANCE/FEE_TOLERANCE_DENOMINATOR represents the maximum allowed deviation
@@ -106,33 +106,34 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     function validateHookCompliance(
         address hook,
         address prevHook,
-        address account, 
+        address account,
         bytes memory hookData
-    ) public view returns (Execution[] memory) {
+    )
+        public
+        view
+        returns (Execution[] memory)
+    {
         Execution[] memory empty = new Execution[](0);
-        try ISuperHook(hook).build(prevHook, account, hookData) returns (Execution[] memory executions) {
-            if (executions.length < 2) return empty;
-            
-            // Check FIRST execution is preExecute
-            if (executions[0].target != hook) return empty;
-            bytes4 firstSelector = bytes4(executions[0].callData);
-            if (firstSelector != ISuperHook.preExecute.selector) return empty;
-            
-            // Check LAST execution is postExecute
-            uint256 lastIdx = executions.length - 1;
-            if (executions[lastIdx].target != hook) return empty;
-            bytes4 lastSelector = bytes4(executions[lastIdx].callData);
-            if (lastSelector != ISuperHook.postExecute.selector) return empty;
+        Execution[] memory executions = ISuperHook(hook).build(prevHook, account, hookData);
+        if (executions.length < 2) return empty;
 
-            // Do not allow any in-between executions to be performed on the same hook
-            for (uint256 i = 1; i < lastIdx; i++) {
-                if (executions[i].target == hook) return empty;
-            }
-            
-            return executions;
-        } catch {
-            return empty;
+        // Check FIRST execution is preExecute
+        if (executions[0].target != hook) return empty;
+        bytes4 firstSelector = bytes4(executions[0].callData);
+        if (firstSelector != ISuperHook.preExecute.selector) return empty;
+
+        // Check LAST execution is postExecute
+        uint256 lastIdx = executions.length - 1;
+        if (executions[lastIdx].target != hook) return empty;
+        bytes4 lastSelector = bytes4(executions[lastIdx].callData);
+        if (lastSelector != ISuperHook.postExecute.selector) return empty;
+
+        // Do not allow any in-between executions to be performed on the same hook
+        for (uint256 i = 1; i < lastIdx; i++) {
+            if (executions[i].target == hook) return empty;
         }
+
+        return executions;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -171,7 +172,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     /// @param account The smart account executing the operation
     /// @param hook The hook that was just executed
     /// @param hookData The data provided to the hook for execution
-    function _updateAccounting(address account, address hook, bytes memory hookData) internal virtual {
+    function _updateAccounting(address account, address hook, bytes memory hookData) internal virtual returns (uint256 feeAmount) {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             // Extract yield source information from the hook data
@@ -183,20 +184,21 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
                 ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
             if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
+            uint256 _outAmount = ISuperHookResult(address(hook)).outAmount(); // Amount of shares or assets processed
             // Update accounting records and calculate any fees
-            uint256 feeAmount = ISuperLedger(config.ledger).updateAccounting(
+            feeAmount = ISuperLedger(config.ledger).updateAccounting(
                 account,
                 yieldSource,
                 yieldSourceOracleId,
                 _type == ISuperHook.HookType.INFLOW, // True for inflow, false for outflow
-                ISuperHookResult(address(hook)).outAmount(), // Amount of shares or assets processed
+                _outAmount, // Amount of shares or assets processed
                 ISuperHookResultOutflow(address(hook)).usedShares() // Shares consumed (for outflows)
             );
 
             // Handle fee collection for outflows if a fee was generated
             if (feeAmount > 0 && _type == ISuperHook.HookType.OUTFLOW) {
                 // Sanity check to ensure fee isn't greater than the output amount
-                if (feeAmount > ISuperHookResult(address(hook)).outAmount()) revert INVALID_FEE();
+                if (feeAmount > _outAmount) revert INVALID_FEE();
 
                 // Determine token type (native or ERC20) and process fee transfer
                 address assetToken = ISuperHookResultOutflow(hook).asset();
@@ -209,6 +211,9 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
                     if (IERC20(assetToken).balanceOf(account) < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
                     _performErc20FeeTransfer(account, assetToken, config.feeRecipient, feeAmount);
                 }
+
+                // refresh `outAmount`
+                ISuperHookSetter(hook).setOutAmount(_outAmount - feeAmount);
             }
         }
     }
@@ -298,10 +303,10 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
         // STEP 3: Update accounting (both mutexes active, preventing reentrancy)
         _updateAccounting(account, address(hook), hookData);
-        
+
         // STEP 4: Handle cross-chain operations
         _checkAndLockForSuperPosition(account, address(hook));
-        
+
         // STEP 5: Reset both mutexes after all processing complete
         hook.resetExecutionState();
     }
