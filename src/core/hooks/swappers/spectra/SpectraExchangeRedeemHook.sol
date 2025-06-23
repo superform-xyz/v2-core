@@ -90,26 +90,24 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
         if (params.sharesToBurn == 0) revert AMOUNT_NOT_VALID();
 
         executions = new Execution[](1);
+        bytes memory callData;
         if (params.command == REDEEM_IBT_FOR_ASSET) {
             // https://dev.spectra.finance/technical-reference/contract-functions/router#redeem_ibt_for_asset-command
 
             if (params.asset == address(0)) revert INVALID_ASSET();
 
-            bytes memory callData =
-                _createRedeemIbtForAssetCallData(params.asset, params.sharesToBurn, params.recipient);
-
-            executions[0] = Execution({ target: ROUTER, value: 0, callData: callData });
+            callData = _createRedeemIbtForAssetCallData(params.asset, params.sharesToBurn, params.recipient);
         } else if (params.command == REDEEM_PT_FOR_ASSET) {
             // https://dev.spectra.finance/technical-reference/contract-functions/router#redeem_pt_for_asset-command
 
             if (params.pt == address(0)) revert INVALID_PT();
             if (params.minAssets == 0) revert INVALID_MIN_ASSETS();
 
-            bytes memory callData =
+            callData =
                 _createRedeemPtForAssetCallData(params.pt, params.sharesToBurn, params.recipient, params.minAssets);
-
-            executions[0] = Execution({ target: ROUTER, value: 0, callData: callData });
         }
+
+        executions[0] = Execution({ target: ROUTER, value: 0, callData: callData });
     }
 
     /*//////////////////////////////////////////////////////////////
