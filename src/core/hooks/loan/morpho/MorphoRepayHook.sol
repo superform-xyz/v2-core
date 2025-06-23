@@ -161,6 +161,6 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = outAmount - getLoanTokenBalance(account, data);
+        outAmount = 0;
     }
 }
