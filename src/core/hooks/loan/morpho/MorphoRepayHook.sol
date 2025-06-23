@@ -155,9 +155,6 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
         morphoInterface.accrueInterest(marketParams);
-
-        // store current balance
-        outAmount = getLoanTokenBalance(account, data);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
