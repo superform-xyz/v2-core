@@ -36,6 +36,7 @@ import { ApproveERC20Hook } from "../src/core/hooks/tokens/erc20/ApproveERC20Hoo
 import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
 import { BatchTransferHook } from "../src/core/hooks/tokens/BatchTransferHook.sol";
 import { BatchTransferFromHook } from "../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
+import { OfframpTokensHook } from "../src/core/hooks/tokens/OfframpTokensHook.sol";
 // ---- | claim
 import { FluidClaimRewardHook } from "../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
 import { GearboxClaimRewardHook } from "../src/core/hooks/claim/gearbox/GearboxClaimRewardHook.sol";
@@ -144,6 +145,7 @@ contract DeployV2 is Script, Configuration {
         address transferErc20Hook;
         address batchTransferHook;
         address batchTransferFromHook;
+        address offrampTokensHook;
         address deposit4626VaultHook;
         address approveAndDeposit4626VaultHook;
         address redeem4626VaultHook;
@@ -249,7 +251,7 @@ contract DeployV2 is Script, Configuration {
             SUPER_LEDGER_CONFIGURATION_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_CONFIGURATION_KEY),
-            type(SuperLedgerConfiguration).creationCode
+            abi.encodePacked(type(SuperLedgerConfiguration).creationCode, abi.encode(configuration.owner))
         );
 
         // Deploy SuperMerkleValidator
@@ -520,7 +522,7 @@ contract DeployV2 is Script, Configuration {
         private
         returns (HookAddresses memory hookAddresses)
     {
-        uint256 len = 47; // Updated length including Pendle, batchTransferFrom & MorphoBorrow hooks
+        uint256 len = 48; // Updated length including Pendle, batchTransferFrom, MorphoBorrow & OfframpTokens hooks
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -548,7 +550,9 @@ contract DeployV2 is Script, Configuration {
         hooks[13] = HookDeployment(
             APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, type(ApproveAndRequestDeposit7540VaultHook).creationCode
         );
-        hooks[14] = HookDeployment(APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(ApproveAndRequestRedeem7540VaultHook).creationCode);
+        hooks[14] = HookDeployment(
+            APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(ApproveAndRequestRedeem7540VaultHook).creationCode
+        );
         hooks[15] = HookDeployment(REDEEM_7540_VAULT_HOOK_KEY, type(Redeem7540VaultHook).creationCode);
         hooks[16] = HookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(RequestRedeem7540VaultHook).creationCode);
         hooks[17] = HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, type(Deposit7540VaultHook).creationCode);
@@ -632,6 +636,8 @@ contract DeployV2 is Script, Configuration {
         hooks[46] = HookDeployment(
             MORPHO_BORROW_ONLY_HOOK_KEY, abi.encodePacked(type(MorphoBorrowHook).creationCode, abi.encode(MORPHO))
         );
+
+        hooks[47] = HookDeployment(OFFRAMP_TOKENS_HOOK_KEY, type(OfframpTokensHook).creationCode);
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
@@ -735,6 +741,8 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[45].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[45] : address(0);
         hookAddresses.morphoBorrowHook =
             Strings.equal(hooks[46].name, MORPHO_BORROW_ONLY_HOOK_KEY) ? addresses[46] : address(0);
+        hookAddresses.offrampTokensHook =
+            Strings.equal(hooks[47].name, OFFRAMP_TOKENS_HOOK_KEY) ? addresses[47] : address(0);
 
         // Verify no hooks were assigned address(0) (excluding experimental placeholders)
         require(hookAddresses.approveErc20Hook != address(0), "approveErc20Hook not assigned");
@@ -762,7 +770,10 @@ contract DeployV2 is Script, Configuration {
         require(hookAddresses.requestRedeem7540VaultHook != address(0), "requestRedeem7540VaultHook not assigned");
         require(hookAddresses.deposit7540VaultHook != address(0), "deposit7540VaultHook not assigned");
         require(hookAddresses.withdraw7540VaultHook != address(0), "withdraw7540VaultHook not assigned");
-        require(hookAddresses.approveAndRequestRedeem7540VaultHook != address(0), "approveAndRequestRedeem7540VaultHook not assigned");
+        require(
+            hookAddresses.approveAndRequestRedeem7540VaultHook != address(0),
+            "approveAndRequestRedeem7540VaultHook not assigned"
+        );
         require(hookAddresses.swap1InchHook != address(0), "swap1InchHook not assigned");
         require(hookAddresses.swapOdosHook != address(0), "swapOdosHook not assigned");
         require(hookAddresses.approveAndSwapOdosHook != address(0), "approveAndSwapOdosHook not assigned");
@@ -798,6 +809,7 @@ contract DeployV2 is Script, Configuration {
         require(hookAddresses.morphoRepayHook != address(0), "morphoRepayHook not assigned");
         require(hookAddresses.morphoRepayAndWithdrawHook != address(0), "morphoRepayAndWithdrawHook not assigned");
         require(hookAddresses.morphoBorrowHook != address(0), "morphoBorrowHook not assigned");
+        require(hookAddresses.offrampTokensHook != address(0), "offrampTokensHook not assigned");
     }
 
     function _registerHooks(HookAddresses memory hookAddresses, SuperGovernor superGovernor) internal {
@@ -850,6 +862,7 @@ contract DeployV2 is Script, Configuration {
         superGovernor.registerHook(address(hookAddresses.pendleRouterSwapHook), false);
         superGovernor.registerHook(address(hookAddresses.pendleRouterRedeemHook), false);
         superGovernor.registerHook(address(hookAddresses.morphoBorrowHook), false);
+        superGovernor.registerHook(address(hookAddresses.offrampTokensHook), false);
     }
 
     function _deployOracles(

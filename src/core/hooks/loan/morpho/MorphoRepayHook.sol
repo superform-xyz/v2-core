@@ -80,14 +80,13 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
 
         Id id = marketParams.id();
 
-        uint256 fee = deriveFeeAmount(marketParams);
         executions = new Execution[](4);
         executions[0] =
             Execution({ target: vars.loanToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0)) });
         if (vars.isFullRepayment) {
             uint128 borrowBalance = deriveShareBalance(id, account);
             uint256 shareBalance = uint256(borrowBalance);
-            uint256 assetsToPay = fee + deriveInterest(marketParams) + sharesToAssets(marketParams, account);
+            uint256 assetsToPay = sharesToAssets(marketParams, account);
 
             executions[1] = Execution({
                 target: vars.loanToken,
@@ -137,19 +136,9 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                             PUBLIC METHODS
     //////////////////////////////////////////////////////////////*/
-    function deriveInterest(MarketParams memory marketParams) public view returns (uint256 interest) {
-        Id id = marketParams.id();
-        Market memory market = morphoInterface.market(id);
-        uint256 borrowRate = IIrm(marketParams.irm).borrowRateView(marketParams, market);
-        if (block.timestamp < market.lastUpdate) revert INVALID_TIMESTAMP();
-        uint256 elapsed = block.timestamp - market.lastUpdate;
-        interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
-    }
-
     function deriveShareBalance(Id id, address account) public view returns (uint128 borrowShares) {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
     }
-
 
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {
         Id id = marketParams.id();
@@ -161,7 +150,12 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata) internal override {}
+    function _preExecute(address, address, bytes calldata data) internal override {
+        BuildHookLocalVars memory vars = _decodeHookData(data);
+        MarketParams memory marketParams =
+            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
+        morphoInterface.accrueInterest(marketParams);
+    }
 
     function _postExecute(address, address, bytes calldata) internal override {
         outAmount = 0;

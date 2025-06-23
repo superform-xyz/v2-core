@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+//external 
+import { console } from "forge-std/console.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
@@ -8,7 +10,7 @@ import { IOracle } from "../../../../src/vendor/morpho/IOracle.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
 import { SharesMathLib } from "../../../../src/vendor/morpho/SharesMathLib.sol";
-import { Id, MarketParams, Market } from "../../../../src/vendor/morpho/IMorpho.sol";
+import { Id, IMorphoStaticTyping, MarketParams, Market } from "../../../../src/vendor/morpho/IMorpho.sol";
 import { MarketParamsLib } from "../../../../src/vendor/morpho/MarketParamsLib.sol";
 
 // Hooks
@@ -40,6 +42,8 @@ contract MockMorpho {
     function position(Id, address) external pure returns (uint256, uint128, uint128) {
         return (10e18, 100e18, 100e18);
     }
+
+    function accrueInterest(MarketParams memory) external { }
 }
 
 contract MockIRM {
@@ -656,51 +660,6 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                          DERIVE INTEREST TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_DeriveInterest() public view {
-        _encodeRepayData(false, false);
-        uint256 interest = repayHook.deriveInterest(
-            MarketParams({
-                loanToken: loanToken,
-                collateralToken: collateralToken,
-                oracle: address(mockOracle),
-                irm: address(mockIRM),
-                lltv: lltv
-            })
-        );
-        assertEq(interest, 0);
-    }
-
-    function test_SupplyHook_DeriveInterest() public view {
-        _encodeSupplyData(false);
-        uint256 interest = supplyHook.deriveFeeAmount(
-            MarketParams({
-                loanToken: loanToken,
-                collateralToken: collateralToken,
-                oracle: address(mockOracle),
-                irm: address(mockIRM),
-                lltv: lltv
-            })
-        );
-        assertEq(interest, 0);
-    }
-
-    function test_RepayAndWithdrawHook_DeriveInterest() public view {
-        _encodeRepayAndWithdrawData(false, false);
-        uint256 interest = repayAndWithdrawHook.deriveInterest(
-            MarketParams({
-                loanToken: loanToken,
-                collateralToken: collateralToken,
-                oracle: address(mockOracle),
-                irm: address(mockIRM),
-                lltv: lltv
-            })
-        );
-        assertEq(interest, 0);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                         DERIVE SHARE BALANCE TESTS
     //////////////////////////////////////////////////////////////*/
     function test_RepayHook_DeriveShareBalance() public view {
@@ -859,7 +818,7 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                           BASE LOAN HOOK
+                            BASE LOAN HOOK
     //////////////////////////////////////////////////////////////*/
     function test_DecodeUsePrevHookAmount() public view {
         bytes memory data = _encodeRepayData(false, false);
@@ -1000,7 +959,7 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        HELPER FUNCTIONS
+                            HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function _encodeBorrowData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(
