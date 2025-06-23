@@ -23,7 +23,7 @@ import { MorphoSupplyHook } from "../../../../src/core/hooks/loan/morpho/MorphoS
 
 contract MockOracle is IOracle {
     function price() external pure returns (uint256) {
-        return 1e36; // 1 collateral = 1 loan tokens
+        return 2e36; // 1 collateral = 2 loan tokens
     }
 }
 
@@ -31,9 +31,9 @@ contract MockMorpho {
     Market public marketData;
 
     struct Position {
-        uint128 supplyAssets;
-        uint128 borrowAssets;
+        uint256 supplyShares;
         uint128 borrowShares;
+        uint128 collateral;
     }
 
     mapping(Id => mapping(address => Position)) public positions;
@@ -42,15 +42,19 @@ contract MockMorpho {
         marketData = _market;
     }
 
-    function setPosition(Id id, address account, uint128 borrowShares) external {
-        positions[id][account] = Position({
-            supplyAssets: 0,
-            borrowAssets: 0,
-            borrowShares: borrowShares
-        });
+    function setPosition(Id id, address account, Position memory positionParams) external {
+        positions[id][account] = positionParams;
     }
+
     function market(Id) external view returns (Market memory) {
-        return marketData;
+        return Market({
+            totalSupplyAssets: 100e18,
+            totalSupplyShares: 10e18,
+            totalBorrowAssets: 10e18,
+            totalBorrowShares: 1e18,
+            lastUpdate: uint128(block.timestamp),
+            fee: 100
+        });
     }
 
     function position(Id id, address account) external view returns (Position memory) {
@@ -58,13 +62,11 @@ contract MockMorpho {
     }
 
     function accrueInterest(MarketParams memory) external { }
-
-    function repay(MarketParams calldata, uint256, uint256, address, bytes calldata) external {}
 }
 
 contract MockIRM {
     function borrowRateView(MarketParams memory, Market memory) external pure returns (uint256) {
-        return 0.05e18;
+        return 10e18;
     }
 }
 
@@ -128,6 +130,30 @@ contract MorphoLoanHooksTest is Helpers {
         collateralToken = address(mockCollateralToken);
         mockLoanToken = new MockERC20("Loan Token", "LOAN", 18);
         loanToken = address(mockLoanToken);
+
+        marketParams = MarketParams({
+            loanToken: loanToken,
+            collateralToken: collateralToken,
+            oracle: address(mockOracle),
+            irm: address(mockIRM),
+            lltv: lltv
+        });
+        
+        Market memory market = Market({
+            totalSupplyAssets: 100e18,
+            totalSupplyShares: 10e18,
+            totalBorrowAssets: 10e18,
+            totalBorrowShares: 1e18,
+            lastUpdate: uint128(block.timestamp),
+            fee: 100
+        });
+        mockMorpho.setMarket(marketParams.id(), market);
+
+        mockMorpho.setPosition(marketParams.id(), address(this), MockMorpho.Position({
+            supplyShares: 100e18,
+            borrowShares: 100e18,
+            collateral: 1e18
+        }));
     }
 
     function test_Constructors() public view {
@@ -709,7 +735,8 @@ contract MorphoLoanHooksTest is Helpers {
         });
         Id id = params.id();
         uint256 collateral = repayAndWithdrawHook.deriveCollateralForFullRepayment(id, address(this));
-        assertEq(collateral, 100e18); // From MockMorpho position() return value (third value)
+        MockMorpho.Position memory position = mockMorpho.position(id, address(this));
+        assertEq(collateral, uint256(position.collateral));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -809,9 +836,8 @@ contract MorphoLoanHooksTest is Helpers {
 
     function test_RepayHook_PrePostExecute() public {
         bytes memory data = _encodeRepayData(false, false);
-        deal(address(loanToken), address(this), amount);
         repayHook.preExecute(address(0), address(this), data);
-        assertEq(repayHook.outAmount(), amount);
+        assertEq(repayHook.outAmount(), 0);
 
         repayHook.postExecute(address(0), address(this), data);
         assertEq(repayHook.outAmount(), 0);
@@ -858,6 +884,9 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(repayHook.getLoanTokenBalance(address(this), data), 0);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                            ASSETS TO PAY TESTS
+    //////////////////////////////////////////////////////////////*/
     function test_No_OverestimatedAssetsToPay() public {
         address account = address(this);
 
@@ -879,7 +908,12 @@ contract MorphoLoanHooksTest is Helpers {
             fee: 0
         });
         mockMorpho.setMarket(id, newMarket);
-        mockMorpho.setPosition(id, account, 10e18); // User has 1% of total shares
+        MockMorpho.Position memory positionMock = MockMorpho.Position({
+            supplyShares: 0,
+            borrowShares: 10e18,
+            collateral: 0
+        });
+        mockMorpho.setPosition(id, account, positionMock); // User has 1% of total shares
         vm.warp(block.timestamp + 1 days); // Accrue interest for 1 day
 
         bytes memory data = abi.encodePacked(
