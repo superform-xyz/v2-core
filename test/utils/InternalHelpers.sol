@@ -462,7 +462,7 @@ abstract contract InternalHelpers {
     {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
-    
+
     function _createApproveAndRequestRedeem7540VaultHookData(
         bytes4 yieldSourceOracleId,
         address yieldSource,
@@ -654,8 +654,13 @@ abstract contract InternalHelpers {
         uint256[] memory amounts,
         uint48[] memory nonces,
         bytes memory sig
-    ) internal view returns (bytes memory data) {
-        return _createBatchTransferFromHookData(from, arrayLength, block.timestamp + 2 weeks, tokens, amounts, nonces, sig);
+    )
+        internal
+        view
+        returns (bytes memory data)
+    {
+        return
+            _createBatchTransferFromHookData(from, arrayLength, block.timestamp + 2 weeks, tokens, amounts, nonces, sig);
     }
 
     function _createBatchTransferFromHookData(
@@ -666,7 +671,11 @@ abstract contract InternalHelpers {
         uint256[] memory amounts,
         uint48[] memory nonces,
         bytes memory sig
-    ) internal pure returns (bytes memory data) {
+    )
+        internal
+        pure
+        returns (bytes memory data)
+    {
         data = abi.encodePacked(from, arrayLength, sigDeadline);
 
         // Directly encode the token addresses as bytes
@@ -687,11 +696,29 @@ abstract contract InternalHelpers {
         data = bytes.concat(data, sig);
     }
 
-    function _createTransferERC20HookData(address token, address to, uint256 amount, bool usePrevHookAmount)
+    function _createTransferERC20HookData(
+        address token,
+        address to,
+        uint256 amount,
+        bool usePrevHookAmount
+    )
         internal
         pure
         returns (bytes memory data)
     {
         data = abi.encodePacked(token, to, amount, usePrevHookAmount);
+    }
+
+    function _createOfframpTokensHookData(
+        address to,
+        address[] memory tokens
+    )
+        internal
+        pure
+        returns (bytes memory data)
+    {
+        // First 20 bytes: to address
+        // Rest: abi encoded tokens array
+        data = abi.encodePacked(to, abi.encode(tokens));
     }
 }
