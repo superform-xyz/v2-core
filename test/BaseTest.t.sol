@@ -1492,7 +1492,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             superGovernor.registerHook(address(A[i].morphoRepayAndWithdrawHook), false);
             superGovernor.registerHook(address(A[i].pendleRouterRedeemHook), false);
             superGovernor.registerHook(address(A[i].offrampTokensHook), false);
-            superGovernor.registerHook(address(A[i].spectraRedeemHook), false);
         }
 
         return A;
