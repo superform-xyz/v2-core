@@ -43,19 +43,6 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            PUBLIC METHODS
-    //////////////////////////////////////////////////////////////*/
-    function deriveFeeAmount(MarketParams memory marketParams) public view returns (uint256 feeAmount) {
-        Id id = marketParams.id();
-        Market memory market = morphoInterface.market(id);
-        uint256 borrowRate = IIrm(marketParams.irm).borrowRateView(marketParams, market);
-        uint256 elapsed = block.timestamp - market.lastUpdate;
-        uint256 interest = MathLib.wMulDown(market.totalBorrowAssets, MathLib.wTaylorCompounded(borrowRate, elapsed));
-
-        feeAmount = MathLib.wMulDown(interest, market.fee);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @dev Decodes the hook data

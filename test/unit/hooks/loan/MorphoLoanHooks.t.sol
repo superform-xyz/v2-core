@@ -651,37 +651,6 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                          DERIVE INTEREST TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_DeriveInterest() public view {
-        _encodeRepayData(false, false);
-        uint256 interest = repayHook.deriveInterest(
-            MarketParams({
-                loanToken: loanToken,
-                collateralToken: collateralToken,
-                oracle: address(mockOracle),
-                irm: address(mockIRM),
-                lltv: lltv
-            })
-        );
-        assertEq(interest, 0);
-    }
-
-    function test_SupplyHook_DeriveInterest() public view {
-        _encodeSupplyData(false);
-        uint256 interest = supplyHook.deriveFeeAmount(
-            MarketParams({
-                loanToken: loanToken,
-                collateralToken: collateralToken,
-                oracle: address(mockOracle),
-                irm: address(mockIRM),
-                lltv: lltv
-            })
-        );
-        assertEq(interest, 0);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                         DERIVE SHARE BALANCE TESTS
     //////////////////////////////////////////////////////////////*/
     function test_RepayHook_DeriveShareBalance() public view {
