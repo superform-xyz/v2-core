@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-//external 
+//external
 import { console } from "forge-std/console.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
@@ -1038,5 +1038,52 @@ contract MorphoLoanHooksTest is Helpers {
         return abi.encodePacked(
             loanToken, collateralToken, address(mockOracle), MORPHO_IRM, amount, lltvRatio, usePrevHook, lltv, false
         );
+    }
+
+    function test_RepayAndWithdrawHook_Build_FullRepayment() public view {
+        bytes memory data = _encodeRepayAndWithdrawData(false, true);
+        Execution[] memory executions = repayAndWithdrawHook.build(address(0), address(this), data);
+
+        // For full repayment, executions array should have length 5
+        assertEq(executions.length, 7);
+        // Approve(0)
+        assertEq(executions[1].target, address(loanToken));
+        assertGt(executions[1].callData.length, 0);
+        // Approve(loanAmount)
+        assertEq(executions[2].target, address(loanToken));
+        assertGt(executions[2].callData.length, 0);
+        // Repay (amount=0, shares=borrowBalance)
+        assertEq(executions[3].target, address(mockMorpho));
+        assertGt(executions[3].callData.length, 0);
+        // Approve(0)
+        assertEq(executions[4].target, address(loanToken));
+        assertGt(executions[4].callData.length, 0);
+        // WithdrawCollateral
+        assertEq(executions[5].target, address(mockMorpho));
+        assertGt(executions[5].callData.length, 0);
+    }
+
+    function test_RepayAndWithdrawHook_PrePostExecute_FullRepayment() public {
+        bytes memory data = _encodeRepayAndWithdrawData(false, true);
+        // outAmount should be 0 before and after since MockERC20 has no balance logic
+        repayAndWithdrawHook.preExecute(address(0), address(this), data);
+        assertEq(repayAndWithdrawHook.outAmount(), 0);
+        repayAndWithdrawHook.postExecute(address(0), address(this), data);
+        assertEq(repayAndWithdrawHook.outAmount(), 0);
+    }
+
+    function test_RepayAndWithdrawHook_Build_RevertIf_ZeroAmount_FullRepayment() public {
+        bytes memory data = abi.encodePacked(
+            loanToken,
+            collateralToken,
+            address(mockOracle),
+            address(mockIRM),
+            uint256(0), // amount
+            lltv,
+            false, // usePrevHook
+            true // isFullRepayment
+        );
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        repayAndWithdrawHook.build(address(0), address(this), data);
     }
 }
