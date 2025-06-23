@@ -5,6 +5,7 @@ pragma solidity 0.8.30;
 import { console } from "forge-std/console.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
+import { BytesLib } from "../../../../src/vendor/BytesLib.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
 import { IOracle } from "../../../../src/vendor/morpho/IOracle.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -22,32 +23,48 @@ import { MorphoSupplyHook } from "../../../../src/core/hooks/loan/morpho/MorphoS
 
 contract MockOracle is IOracle {
     function price() external pure returns (uint256) {
-        return 2e36; // 1 collateral = 2 loan tokens
+        return 1e36; // 1 collateral = 1 loan tokens
     }
 }
 
 contract MockMorpho {
-    function market(Id) external pure returns (Market memory) {
-        return Market({
-            totalSupplyAssets: 100e18,
-            totalSupplyShares: 10e18,
-            totalBorrowAssets: 10e18,
-            totalBorrowShares: 1e18,
-            lastUpdate: 1,
-            fee: 100
-        });
+    Market public marketData;
+
+    struct Position {
+        uint128 supplyAssets;
+        uint128 borrowAssets;
+        uint128 borrowShares;
     }
 
-    function position(Id, address) external pure returns (uint256, uint128, uint128) {
-        return (10e18, 100e18, 100e18);
+    mapping(Id => mapping(address => Position)) public positions;
+
+    function setMarket(Id, Market memory _market) external {
+        marketData = _market;
+    }
+
+    function setPosition(Id id, address account, uint128 borrowShares) external {
+        positions[id][account] = Position({
+            supplyAssets: 0,
+            borrowAssets: 0,
+            borrowShares: borrowShares
+        });
+    }
+    function market(Id) external view returns (Market memory) {
+        return marketData;
+    }
+
+    function position(Id id, address account) external view returns (Position memory) {
+        return positions[id][account];
     }
 
     function accrueInterest(MarketParams memory) external { }
+
+    function repay(MarketParams calldata, uint256, uint256, address, bytes calldata) external {}
 }
 
 contract MockIRM {
     function borrowRateView(MarketParams memory, Market memory) external pure returns (uint256) {
-        return 10e18;
+        return 0.05e18;
     }
 }
 
@@ -858,7 +875,7 @@ contract MorphoLoanHooksTest is Helpers {
             totalSupplyShares: 0,
             totalBorrowAssets: 1000e18, // 1000 loan tokens borrowed
             totalBorrowShares: 1000e18, // 1000 shares
-            lastUpdate: block.timestamp - 1 days,
+            lastUpdate: uint128(block.timestamp),
             fee: 0
         });
         mockMorpho.setMarket(id, newMarket);
@@ -877,13 +894,17 @@ contract MorphoLoanHooksTest is Helpers {
         );
 
         Execution[] memory executions = repayHook.build(address(0), account, data);
+        
         bytes memory approveCallData = executions[1].callData;
-        (, uint256 currentAssetsToPay) = abi.decode(approveCallData[4:], (address, uint256));
+        bytes memory args = BytesLib.slice(approveCallData, 4, approveCallData.length - 4);
+
+        (, uint256 currentAssetsToPay) = abi.decode(args, (address, uint256));
 
         // Calculate expected assetsToPay
-        uint256 deriveInterest = 0;
+        uint256 deriveInterest = 0; // Removed from RepayHook
         uint256 estimatedTotalBorrowAssets = newMarket.totalBorrowAssets + deriveInterest;
-        uint256 shareBalance = uint256(mockMorpho.position(id, account).borrowShares);
+        MockMorpho.Position memory position = mockMorpho.position(id, account);
+        uint256 shareBalance = uint256(position.borrowShares);
         uint256 expectedAssetsToPay = shareBalance.toAssetsUp(estimatedTotalBorrowAssets, newMarket.totalBorrowShares);
 
         // Log values for clarity
