@@ -174,7 +174,10 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
         bytes memory command = new bytes(1);
         command[0] = REDEEM_IBT_FOR_ASSET;
 
-        callData = abi.encodeWithSelector(SELECTOR, command, abi.encode(asset, sharesToBurn, recipient));
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(asset, sharesToBurn, recipient);
+
+        callData = abi.encodeWithSelector(SELECTOR, command, inputs);
     }
 
     function _createRedeemPtForAssetCallData(
@@ -190,7 +193,10 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
         bytes memory command = new bytes(1);
         command[0] = REDEEM_PT_FOR_ASSET;
 
-        callData = abi.encodeWithSelector(SELECTOR, command, abi.encode(pt, sharesToBurn, recipient, minAssets));
+        bytes[] memory inputs = new bytes[](1);
+        inputs[0] = abi.encode(pt, sharesToBurn, recipient, minAssets);
+
+        callData = abi.encodeWithSelector(SELECTOR, command, inputs);
     }
 
     function _getBalance(bytes calldata data, address) private view returns (uint256) {
