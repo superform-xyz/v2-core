@@ -143,6 +143,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {
         Id id = marketParams.id();
         uint256 shareBalance = deriveShareBalance(id, account);
+        
         Market memory market = morphoInterface.market(id);
         assets = shareBalance.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
