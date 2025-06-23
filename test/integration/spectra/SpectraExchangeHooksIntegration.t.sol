@@ -94,4 +94,115 @@ contract SpectraExchangeHooksIntegrationTest is MinimalBaseIntegrationTest {
             assertGt(balance, 0);
         }
     }
+
+    function test_SpectraExchangeSwapHook_DepositAndRedeemPT() public {
+        if (useRealSpectraRouter) {
+            uint256 amount = 1e6;
+
+            // get tokens
+            deal(tokenIn, accountEth, amount);
+
+            // First, deposit asset in PT
+            address[] memory hookAddresses_ = new address[](2);
+            hookAddresses_[0] = address(approveHook);
+            hookAddresses_[1] = address(hook);
+
+            bytes[] memory hookData = new bytes[](2);
+            hookData[0] = _createApproveHookData(tokenIn, spectraRouter, amount, false);
+            hookData[1] = _createSpectraExchangeDepositHookData(false, 0, ptToken, tokenIn, amount, accountEth);
+
+            ISuperExecutor.ExecutorEntry memory entryToExecute =
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
+            UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+            executeOp(opData);
+
+            uint256 ptBalance = IERC20(ptToken).balanceOf(accountEth);
+            assertGt(ptBalance, 0);
+
+            // Now redeem PT for asset
+            uint256 sharesToBurn = ptBalance;
+            uint256 minAssets = 1; // Minimum assets to receive
+
+            address[] memory redeemHookAddresses_ = new address[](1);
+            redeemHookAddresses_[0] = address(redeemHook);
+
+            bytes[] memory redeemHookData = new bytes[](1);
+            redeemHookData[0] = _createSpectraExchangeRedeemHookData(
+                tokenIn, // asset
+                ptToken, // pt
+                accountEth, // recipient
+                minAssets, // minAssets
+                sharesToBurn, // sharesToBurn
+                false, // usePrevHookAmount
+                true // redeemPtForAsset
+            );
+
+            ISuperExecutor.ExecutorEntry memory redeemEntryToExecute =
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: redeemHookAddresses_, hooksData: redeemHookData });
+            UserOpData memory redeemOpData =
+                _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(redeemEntryToExecute));
+            executeOp(redeemOpData);
+
+            // Verify the redemption was successful
+            uint256 finalAssetBalance = IERC20(tokenIn).balanceOf(accountEth);
+            uint256 finalPtBalance = IERC20(ptToken).balanceOf(accountEth);
+
+            assertGt(finalAssetBalance, 0);
+            assertEq(finalPtBalance, 0); // All PT tokens should be redeemed
+        } else {
+            uint256 amount = 1e6;
+
+            // get tokens
+            deal(tokenIn, accountEth, amount);
+            deal(ptToken, address(spectraRouter), amount);
+
+            // First, deposit asset in PT
+            address[] memory hookAddresses_ = new address[](2);
+            hookAddresses_[0] = address(approveHook);
+            hookAddresses_[1] = address(hook);
+
+            bytes[] memory hookData = new bytes[](2);
+            hookData[0] = _createApproveHookData(tokenIn, spectraRouter, amount, false);
+            hookData[1] = _createSpectraExchangeDepositHookData(false, 0, ptToken, tokenIn, amount, accountEth);
+
+            ISuperExecutor.ExecutorEntry memory entryToExecute =
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
+            UserOpData memory opData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryToExecute));
+            executeOp(opData);
+
+            uint256 ptBalance = IERC20(ptToken).balanceOf(accountEth);
+            assertGt(ptBalance, 0);
+
+            // Now redeem PT for asset
+            uint256 sharesToBurn = ptBalance;
+            uint256 minAssets = 1; // Minimum assets to receive
+
+            address[] memory redeemHookAddresses_ = new address[](1);
+            redeemHookAddresses_[0] = address(redeemHook);
+
+            bytes[] memory redeemHookData = new bytes[](1);
+            redeemHookData[0] = _createSpectraExchangeRedeemHookData(
+                tokenIn, // asset
+                ptToken, // pt
+                accountEth, // recipient
+                minAssets, // minAssets
+                sharesToBurn, // sharesToBurn
+                false, // usePrevHookAmount
+                true // redeemPtForAsset
+            );
+
+            ISuperExecutor.ExecutorEntry memory redeemEntryToExecute =
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: redeemHookAddresses_, hooksData: redeemHookData });
+            UserOpData memory redeemOpData =
+                _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(redeemEntryToExecute));
+            executeOp(redeemOpData);
+
+            // Verify the redemption was successful
+            uint256 finalAssetBalance = IERC20(tokenIn).balanceOf(accountEth);
+            uint256 finalPtBalance = IERC20(ptToken).balanceOf(accountEth);
+
+            assertGt(finalAssetBalance, 0);
+            assertEq(finalPtBalance, 0); // All PT tokens should be redeemed
+        }
+    }
 }
