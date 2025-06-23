@@ -4,7 +4,7 @@ pragma solidity >=0.8.30;
 // Tests
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
-import { MockSpectraRouter } from "../../mocks/MockSpectraRouter.sol";
+import { MockSpectraRouter, MockSpectraRedeemRouter } from "../../mocks/MockSpectraRouter.sol";
 import { SpectraExchangeDepositHook } from "../../../src/core/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
 import { SpectraExchangeRedeemHook } from "../../../src/core/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
@@ -13,6 +13,8 @@ import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol"
 
 contract SpectraExchangeHooksIntegrationTest is MinimalBaseIntegrationTest {
     address public spectraRouter;
+    address public spectraRedeemRouter;
+
     address public tokenIn;
     address public ptToken;
 
@@ -42,9 +44,10 @@ contract SpectraExchangeHooksIntegrationTest is MinimalBaseIntegrationTest {
             ptToken = address(new MockERC20("Test Token", "TEST", 18));
 
             spectraRouter = address(new MockSpectraRouter(ptToken));
+            spectraRedeemRouter = address(new MockSpectraRedeemRouter(tokenIn, ptToken));
 
             hook = new SpectraExchangeDepositHook(spectraRouter);
-            redeemHook = new SpectraExchangeRedeemHook(spectraRouter);
+            redeemHook = new SpectraExchangeRedeemHook(spectraRedeemRouter);
         }
     }
 
@@ -123,10 +126,12 @@ contract SpectraExchangeHooksIntegrationTest is MinimalBaseIntegrationTest {
             uint256 sharesToBurn = ptBalance;
             uint256 minAssets = 1; // Minimum assets to receive
 
-            address[] memory redeemHookAddresses_ = new address[](1);
-            redeemHookAddresses_[0] = address(redeemHook);
+            address[] memory redeemHookAddresses_ = new address[](2);
+            redeemHookAddresses_[0] = address(approveHook);
+            redeemHookAddresses_[1] = address(redeemHook);
 
-            bytes[] memory redeemHookData = new bytes[](1);
+            bytes[] memory redeemHookData = new bytes[](2);
+            redeemHookData[0] = _createApproveHookData(ptToken, spectraRedeemRouter, amount, false);
             redeemHookData[0] = _createSpectraExchangeRedeemHookData(
                 tokenIn, // asset
                 ptToken, // pt
@@ -155,6 +160,7 @@ contract SpectraExchangeHooksIntegrationTest is MinimalBaseIntegrationTest {
             // get tokens
             deal(tokenIn, accountEth, amount);
             deal(ptToken, address(spectraRouter), amount);
+            deal(tokenIn, address(spectraRedeemRouter), amount);
 
             // First, deposit asset in PT
             address[] memory hookAddresses_ = new address[](2);
@@ -175,13 +181,15 @@ contract SpectraExchangeHooksIntegrationTest is MinimalBaseIntegrationTest {
 
             // Now redeem PT for asset
             uint256 sharesToBurn = ptBalance;
-            uint256 minAssets = 1; // Minimum assets to receive
+            uint256 minAssets = 100; // Minimum assets to receive
 
-            address[] memory redeemHookAddresses_ = new address[](1);
-            redeemHookAddresses_[0] = address(redeemHook);
+            address[] memory redeemHookAddresses_ = new address[](2);
+            redeemHookAddresses_[0] = address(approveHook);
+            redeemHookAddresses_[1] = address(redeemHook);
 
-            bytes[] memory redeemHookData = new bytes[](1);
-            redeemHookData[0] = _createSpectraExchangeRedeemHookData(
+            bytes[] memory redeemHookData = new bytes[](2);
+            redeemHookData[0] = _createApproveHookData(ptToken, spectraRedeemRouter, amount, false);
+            redeemHookData[1] = _createSpectraExchangeRedeemHookData(
                 tokenIn, // asset
                 ptToken, // pt
                 accountEth, // recipient
