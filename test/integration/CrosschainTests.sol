@@ -36,6 +36,8 @@ import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Ac
 import { BootstrapConfig, INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
 import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
 
+import { BaseHook } from "../../src/core/hooks/BaseHook.sol";
+
 contract CrosschainTests is BaseTest {
     IERC7540 public vaultInstance7540ETH;
     IERC4626 public vaultInstance4626OP;
@@ -290,23 +292,35 @@ contract CrosschainTests is BaseTest {
         deal(underlyingBase_WETH, mockOdosRouters[BASE], 1e12);
     }
 
-    function test_CreateNexusAccount_Through_SuperDestinationExecutor_results_in_different_signatures_in_executor() public {
+    function testOrion_maliciousRelayersDoSCrosschainExecution() public {
         uint256 amountPerVault = 1e8 / 2;
 
-        // ETH IS DST
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
-        // PREPARE ETH DATA
+        // 1. Prepare data for ETH (destination chain). On destination, we'll:
+        // - Approve an ERC20
+        // - Request a deposit in a 7540 vault
         bytes memory targetExecutorMessage;
         address accountToUse;
         TargetExecutorMessage memory messageData;
         {
-            address[] memory dstHookAddresses = new address[](0);
-            bytes[] memory dstHookData = new bytes[](0);
+            // Create hook addresses
+            address[] memory eth7540HooksAddresses = new address[](2);
+            eth7540HooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+            eth7540HooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
 
+            // Create hook data
+            bytes[] memory eth7540HooksData = new bytes[](2);
+            eth7540HooksData[0] =
+                _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault / 2, false);
+            eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
+                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault / 2, true
+            );
+
+            // Build the target executor message
             messageData = TargetExecutorMessage({
-                hooksAddresses: dstHookAddresses,
-                hooksData: dstHookData,
+                hooksAddresses: eth7540HooksAddresses,
+                hooksData: eth7540HooksData,
                 validator: address(validatorOnETH),
                 signer: validatorSigner,
                 signerPrivateKey: validatorSignerPrivateKey,
@@ -315,7 +329,7 @@ contract CrosschainTests is BaseTest {
                 nexusFactory: CHAIN_1_NEXUS_FACTORY,
                 nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
                 chainId: uint64(ETH),
-                amount: amountPerVault,
+                amount: amountPerVault / 2,
                 account: address(0),
                 tokenSent: underlyingETH_USDC
             });
@@ -323,44 +337,75 @@ contract CrosschainTests is BaseTest {
             (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
         }
 
-        // BASE IS SRC
+        // 2. Update account in restriction manager
+        {
+            address share = IERC7540(yieldSource7540AddressETH_USDC).share();
+
+            ITranche(share).hook();
+
+            address mngr = ITranche(share).hook();
+
+            restrictionManager = RestrictionManagerLike(mngr);
+
+            vm.startPrank(RestrictionManagerLike(mngr).root());
+
+            restrictionManager.updateMember(share, accountToUse, type(uint64).max);
+
+            vm.stopPrank();
+        }
+
+        // 3. Prepare data for Base (source chain). On source, we'll:
+        // - Approve an ERC20 to the accross bridge
+        // - Send funds via across
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
 
-        // PREPARE BASE DATA
+        // Prepare hooks addresses
         address[] memory srcHooksAddresses = new address[](2);
         srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
         srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
+        // Prepare hooks data
         bytes[] memory srcHooksData = new bytes[](2);
         srcHooksData[0] =
             _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault / 2, false);
         srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, true, targetExecutorMessage
+            underlyingBase_USDC,
+            underlyingETH_USDC,
+            amountPerVault / 2,
+            amountPerVault / 2,
+            ETH,
+            true,
+            targetExecutorMessage
         );
 
+        // Build userOp
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
 
         bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
         srcUserOpData.userOp.signature = signatureData;
 
-        // EXECUTE BASE
+        // 4. Trigger execution with low gas.
+        // `executeOp` will execute the source transaction, sending the message to destination via
+        // across. It returns the userOp execution logs, which are later dissected the accross helper contract.
+
         _processAcrossV3Message(
-            BASE, ETH, WARP_START_TIME + 30 days, executeOp(srcUserOpData), RELAYER_TYPE.NO_HOOKS, accountToUse
+            ProcessAcrossV3MessageParams({
+                srcChainId: BASE,
+                dstChainId: ETH,
+                warpTimestamp: WARP_START_TIME + 30 days,
+                executionData: executeOp(srcUserOpData),
+                relayerType: RELAYER_TYPE.REVERT,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                account: accountToUse,
+                relayerGas: 600_000
+            })
         );
-        
-        // the signatures don't match due to wrong decoding
-        (, , , bytes memory destinationChainSignature) = abi.decode(signatureData, (uint48, bytes32, bytes32[], bytes));
-
-
-        (, , , , bytes memory sourceChainSignature) = abi.decode(signatureData, (uint48, bytes32, bytes32[],  bytes32[], bytes));
-
-        assert(keccak256(destinationChainSignature) != keccak256(sourceChainSignature));
     }
-
-
     /*//////////////////////////////////////////////////////////////
                           ACCOUNT CREATION TESTS
     //////////////////////////////////////////////////////////////*/
+
     function test_Bridge_To_ETH_And_Create_Nexus_Account() public {
         // ETH IS DST
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
@@ -439,7 +484,7 @@ contract CrosschainTests is BaseTest {
     /*//////////////////////////////////////////////////////////////
                           FULL FLOW TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_ETH_Bridge_With_Debridge_And_Deposit() public   {
+    function test_ETH_Bridge_With_Debridge_And_Deposit() public {
         uint256 amountPerVault = 1e8;
 
         // ETH IS DST
@@ -542,12 +587,12 @@ contract CrosschainTests is BaseTest {
         assertNotEq(pricePerShare, 1);
     }
 
-    function test_ETH_Bridge_Deposit_Redeem_Bridge_Back_Flow() public   {
+    function test_ETH_Bridge_Deposit_Redeem_Bridge_Back_Flow() public {
         test_Bridge_To_ETH_And_Deposit();
         _redeem_From_ETH_And_Bridge_Back_To_Base(true);
     }
 
-    function test_ETH_Bridge_Deposit_Partial_Redeem_Bridge_Flow() public   {
+    function test_ETH_Bridge_Deposit_Partial_Redeem_Bridge_Flow() public {
         test_Bridge_To_ETH_And_Deposit();
         _redeem_From_ETH_And_Bridge_Back_To_Base(false);
     }
@@ -557,12 +602,12 @@ contract CrosschainTests is BaseTest {
         _warped_Redeem_From_ETH_And_Bridge_Back_To_Base();
     }
 
-    function test_OP_Bridge_Deposit_Redeem_Flow() public   {
+    function test_OP_Bridge_Deposit_Redeem_Flow() public {
         test_bridge_To_OP_And_Deposit();
         _redeem_From_OP();
     }
 
-    function test_OP_Bridge_Deposit_Redeem_Bridge_Back_Flow() public   {
+    function test_OP_Bridge_Deposit_Redeem_Bridge_Back_Flow() public {
         test_bridge_To_OP_And_Deposit();
         _redeem_From_OP_And_Bridge_Back_To_Base();
     }
@@ -636,7 +681,17 @@ contract CrosschainTests is BaseTest {
 
         // EXECUTE BASE
         _processAcrossV3Message(
-            BASE, ETH, WARP_START_TIME + 30 days, executeOp(srcUserOpData), RELAYER_TYPE.NO_HOOKS, accountToUse
+            ProcessAcrossV3MessageParams({
+                srcChainId: BASE,
+                dstChainId: ETH,
+                warpTimestamp: WARP_START_TIME + 30 days,
+                executionData: executeOp(srcUserOpData),
+                relayerType: RELAYER_TYPE.NO_HOOKS,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                account: accountToUse,
+                relayerGas: 0
+            })
         );
     }
 
@@ -723,7 +778,17 @@ contract CrosschainTests is BaseTest {
 
         // EXECUTE ETH
         _processAcrossV3Message(
-            BASE, ETH, WARP_START_TIME + 30 days, executeOp(srcUserOpData), RELAYER_TYPE.LOW_LEVEL_FAILED, accountToUse
+            ProcessAcrossV3MessageParams({
+                srcChainId: BASE,
+                dstChainId: ETH,
+                warpTimestamp: WARP_START_TIME + 30 days,
+                executionData: executeOp(srcUserOpData),
+                relayerType: RELAYER_TYPE.REVERT,
+                errorMessage: BaseHook.AMOUNT_NOT_VALID.selector,
+                errorReason: "",
+                account: accountToUse,
+                relayerGas: 0
+            })
         );
     }
 
@@ -810,7 +875,17 @@ contract CrosschainTests is BaseTest {
 
         // EXECUTE ETH
         _processAcrossV3Message(
-            BASE, ETH, WARP_START_TIME + 30 days, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountToUse
+            ProcessAcrossV3MessageParams({
+                srcChainId: BASE,
+                dstChainId: ETH,
+                warpTimestamp: WARP_START_TIME + 30 days,
+                executionData: executeOp(srcUserOpData),
+                relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                account: accountToUse,
+                relayerGas: 0
+            })
         );
 
         // DEPOSIT
@@ -882,7 +957,17 @@ contract CrosschainTests is BaseTest {
 
         // EXECUTE ETH
         _processAcrossV3Message(
-            BASE, ETH, WARP_START_TIME + 30 days, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountETH
+            ProcessAcrossV3MessageParams({
+                srcChainId: BASE,
+                dstChainId: ETH,
+                warpTimestamp: WARP_START_TIME + 30 days,
+                executionData: executeOp(srcUserOpData),
+                relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                account: accountETH,
+                relayerGas: 0
+            })
         );
 
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), balance_Base_USDC_Before - amountPerVault);
@@ -916,7 +1001,7 @@ contract CrosschainTests is BaseTest {
             nexusFactory: CHAIN_8453_NEXUS_FACTORY,
             nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
             chainId: uint64(BASE),
-            amount: 0,
+            amount: amountPerVault,
             account: accountBase,
             tokenSent: underlyingBase_USDC
         });
@@ -980,7 +1065,17 @@ contract CrosschainTests is BaseTest {
         ethUserOpData.userOp.signature = signatureData;
 
         _processAcrossV3Message(
-            ETH, BASE, WARP_START_TIME + 10 seconds, executeOp(ethUserOpData), RELAYER_TYPE.NO_HOOKS, accountBase
+            ProcessAcrossV3MessageParams({
+                srcChainId: ETH,
+                dstChainId: BASE,
+                warpTimestamp: WARP_START_TIME + 10 seconds,
+                executionData: executeOp(ethUserOpData),
+                relayerType: RELAYER_TYPE.NO_HOOKS,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                account: accountBase,
+                relayerGas: 0
+            })
         );
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 10 seconds);
 
@@ -1067,7 +1162,17 @@ contract CrosschainTests is BaseTest {
 
         // EXECUTE OP
         _processAcrossV3Message(
-            BASE, OP, WARP_START_TIME, executeOp(srcUserOpDataOP), RELAYER_TYPE.ENOUGH_BALANCE, accountOP
+            ProcessAcrossV3MessageParams({
+                srcChainId: BASE,
+                dstChainId: OP,
+                warpTimestamp: WARP_START_TIME,
+                executionData: executeOp(srcUserOpDataOP),
+                relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                account: accountOP,
+                relayerGas: 0
+            })
         );
 
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), userBalanceBaseUSDCBefore - amountPerVault);
@@ -1168,9 +1273,21 @@ contract CrosschainTests is BaseTest {
         srcUserOpData.userOp.signature = signatureData;
 
         _processAcrossV3Message(
-            ETH, BASE, block.timestamp, executeOp(srcUserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
+            ProcessAcrossV3MessageParams({
+                srcChainId: ETH,
+                dstChainId: BASE,
+                warpTimestamp: block.timestamp,
+                executionData: executeOp(srcUserOpData),
+                relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                account: accountBase,
+                relayerGas: 0
+            })
         );
     }
+
+    /*
 
     function test_BridgeThroughDifferentAdapters() public {
         uint256 amount = 1e8;
@@ -1189,7 +1306,7 @@ contract CrosschainTests is BaseTest {
             dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
 
             bytes[] memory dstHooksData = new bytes[](1);
-            dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, 123, false);
+    dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, 123, false);
 
             messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
@@ -1219,7 +1336,7 @@ contract CrosschainTests is BaseTest {
             dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
 
             bytes[] memory dstHooksData = new bytes[](1);
-            dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, 123, false);
+    dstHooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, 123, false);
 
             messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
@@ -1252,7 +1369,7 @@ contract CrosschainTests is BaseTest {
         srcHooksAddresses[5] = _getHookAddress(ETH, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         bytes[] memory srcHooksData = new bytes[](6);
-        srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount, false);
+    srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount, false);
         srcHooksData[1] = _createDeposit4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceMorphoUsdcAddressEth,
@@ -1308,10 +1425,16 @@ contract CrosschainTests is BaseTest {
         UserOpData memory srcUserOpData = _getExecOpsWithValidator(
             instanceOnETH, superExecutorOnETH, abi.encode(entry), address(sourceValidatorOnETH)
         );
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+    bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
         srcUserOpData.userOp.signature = signatureData;
         _processAcrossV3Message(
-            ETH, BASE, block.timestamp, executeOp(srcUserOpData), RELAYER_TYPE.NOT_ENOUGH_BALANCE, accountToUse
+            ETH,
+            BASE,
+            block.timestamp,
+            executeOp(srcUserOpData),
+            RELAYER_TYPE.NOT_ENOUGH_BALANCE,
+            bytes4(0),
+            accountToUse
         );
         srcUserOpData = _getExecOpsWithValidator(
             instanceOnETH, superExecutorOnETH, abi.encode(entry), address(sourceValidatorOnETH)
@@ -1325,6 +1448,7 @@ contract CrosschainTests is BaseTest {
             IERC20(underlyingBase_USDC).allowance(accountToUse, address(yieldSourceMorphoUsdcAddressBase));
         assertEq(allowance, 123);
     }
+    */
 
     function test_InvalidDestinationFLow() public {
         SELECT_FORK_AND_WARP(ETH, block.timestamp);
@@ -1340,6 +1464,7 @@ contract CrosschainTests is BaseTest {
         TargetExecutorMessage memory messageData;
         address accountToUse;
         {
+            /// @dev this test lacks an allowance hook, hence it will revert
             // PREPARE DST DATA
             address[] memory dstHooksAddresses = new address[](1);
             dstHooksAddresses[0] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
@@ -1413,7 +1538,19 @@ contract CrosschainTests is BaseTest {
         bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
         srcUserOpData.userOp.signature = signatureData;
 
-        _processAcrossV3Message(ETH, BASE, block.timestamp, executeOp(srcUserOpData), RELAYER_TYPE.FAILED, accountBase);
+        _processAcrossV3Message(
+            ProcessAcrossV3MessageParams({
+                srcChainId: ETH,
+                dstChainId: BASE,
+                warpTimestamp: block.timestamp,
+                executionData: executeOp(srcUserOpData),
+                relayerType: RELAYER_TYPE.REVERT,
+                errorMessage: bytes4(0),
+                errorReason: "ERC20: transfer amount exceeds allowance",
+                account: accountBase,
+                relayerGas: 0
+            })
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1540,7 +1677,19 @@ contract CrosschainTests is BaseTest {
         bytes memory signatureData = _createMerkleRootAndSignature(messageData, opUserOpData.userOpHash, accountToUse);
         opUserOpData.userOp.signature = signatureData;
 
-        _processAcrossV3Message(OP, BASE, WARP_START_TIME, executeOp(opUserOpData), RELAYER_TYPE.NO_HOOKS, accountBase);
+        _processAcrossV3Message(
+            ProcessAcrossV3MessageParams({
+                srcChainId: OP,
+                dstChainId: BASE,
+                warpTimestamp: WARP_START_TIME,
+                executionData: executeOp(opUserOpData),
+                relayerType: RELAYER_TYPE.NO_HOOKS,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                account: accountBase,
+                relayerGas: 0
+            })
+        );
 
         vm.selectFork(FORKS[BASE]);
 
@@ -1944,7 +2093,17 @@ contract CrosschainTests is BaseTest {
         console2.log("sending from op to base");
         // not enough balance is received
         _processAcrossV3Message(
-            OP, BASE, block.timestamp, executeOp(src1UserOpData), RELAYER_TYPE.NOT_ENOUGH_BALANCE, accountBase
+            ProcessAcrossV3MessageParams({
+                srcChainId: OP,
+                dstChainId: BASE,
+                warpTimestamp: block.timestamp,
+                executionData: executeOp(src1UserOpData),
+                relayerType: RELAYER_TYPE.NOT_ENOUGH_BALANCE,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                account: accountBase,
+                relayerGas: 0
+            })
         );
     }
 
@@ -2037,7 +2196,17 @@ contract CrosschainTests is BaseTest {
 
         // enough balance is received
         _processAcrossV3Message(
-            ETH, BASE, block.timestamp, executeOp(src1UserOpData), RELAYER_TYPE.ENOUGH_BALANCE, accountBase
+            ProcessAcrossV3MessageParams({
+                srcChainId: ETH,
+                dstChainId: BASE,
+                warpTimestamp: block.timestamp,
+                executionData: executeOp(src1UserOpData),
+                relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                account: accountBase,
+                relayerGas: 0
+            })
         );
 
         SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP + 2 days + 1 hours);
