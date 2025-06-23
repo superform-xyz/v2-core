@@ -76,7 +76,7 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(router),
-            value: usePrevHookAmount ? ISuperHookResult(prevHook).outAmount() : value,
+            value: usePrevHookAmount && value > 0 ? ISuperHookResult(prevHook).outAmount() : value,
             callData: usePrevHookAmount ? updatedTxData : txData_
         });
     }
