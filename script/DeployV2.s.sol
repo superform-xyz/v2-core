@@ -251,7 +251,7 @@ contract DeployV2 is Script, Configuration {
             SUPER_LEDGER_CONFIGURATION_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_CONFIGURATION_KEY),
-            type(SuperLedgerConfiguration).creationCode
+            abi.encodePacked(type(SuperLedgerConfiguration).creationCode, abi.encode(configuration.owner))
         );
 
         // Deploy SuperMerkleValidator
