@@ -119,7 +119,7 @@ contract SuperExecutor_sameChainFlow is
 
         (signer, signerPrvKey) = makeAddrAndKey("signer");
 
-        ledgerConfig = address(new SuperLedgerConfiguration());
+        ledgerConfig = address(new SuperLedgerConfiguration(address(this)));
 
         superExecutor = ISuperExecutor(new SuperExecutor(address(ledgerConfig)));
         newSuperExecutor = ISuperExecutor(new SuperExecutor(address(ledgerConfig)));

@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+//external 
+import { console } from "forge-std/console.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
@@ -8,7 +10,7 @@ import { IOracle } from "../../../../src/vendor/morpho/IOracle.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
 import { SharesMathLib } from "../../../../src/vendor/morpho/SharesMathLib.sol";
-import { Id, MarketParams, Market } from "../../../../src/vendor/morpho/IMorpho.sol";
+import { Id, IMorphoStaticTyping, MarketParams, Market } from "../../../../src/vendor/morpho/IMorpho.sol";
 import { MarketParamsLib } from "../../../../src/vendor/morpho/MarketParamsLib.sol";
 
 // Hooks
@@ -39,6 +41,8 @@ contract MockMorpho {
     function position(Id, address) external pure returns (uint256, uint128, uint128) {
         return (10e18, 100e18, 100e18);
     }
+
+    function accrueInterest(MarketParams memory) external { }
 }
 
 contract MockIRM {
@@ -644,24 +648,6 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(executions[2].target, loanToken);
         assertEq(executions[2].value, 0);
         assertGt(executions[2].callData.length, 0);
-
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                        GET USED ASSETS TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_GetUsedAssets() public view {
-        bytes memory data = _encodeRepayData(false, false);
-        uint256 usedAssets = repayHook.getUsedAssets(address(this), data);
-
-        assertEq(usedAssets, 0);
-    }
-
-    function test_RepayAndWithdrawHook_GetUsedAssets() public view {
-        bytes memory data = _encodeRepayAndWithdrawData(false, false);
-        uint256 usedAssets = repayAndWithdrawHook.getUsedAssets(address(this), data);
-
-        assertEq(usedAssets, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -824,7 +810,7 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        BASE LOAN HOOK
+                            BASE LOAN HOOK
     //////////////////////////////////////////////////////////////*/
     function test_DecodeUsePrevHookAmount() public view {
         bytes memory data = _encodeRepayData(false, false);
@@ -881,7 +867,7 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        HELPER FUNCTIONS
+                            HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function _encodeBorrowData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(

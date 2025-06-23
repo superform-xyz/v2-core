@@ -72,7 +72,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         vm.label(address(nexusFactory), "NexusFactory");
         nexusBootstrap = INexusBootstrap(CHAIN_1_NEXUS_BOOTSTRAP);
         vm.label(address(nexusBootstrap), "NexusBootstrap");
-        ledgerConfig = ISuperLedgerConfiguration(new SuperLedgerConfiguration());
+        ledgerConfig = ISuperLedgerConfiguration(new SuperLedgerConfiguration(address(this)));
 
         superExecutorModule = new SuperExecutor(address(ledgerConfig));
 
