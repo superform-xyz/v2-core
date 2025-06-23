@@ -841,29 +841,60 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(repayHook.getLoanTokenBalance(address(this), data), 0);
     }
 
-    function test_RepayHook_No_Overcharges_On_PartialRepayment() public {
-        // User wants to repay only 1 ETH
-        uint256 userAmount = 1 ether;
+    function test_No_OverestimatedAssetsToPay() public {
 
-        // Manually build the MarketParams the hook would use
-        MarketParams memory mp = MarketParams({
-            loanToken:       loanToken,
-            collateralToken: collateralToken,
-            oracle:          address(mockOracle),
-            irm:             address(mockIRM),
-            lltv:            lltv
+        hook = new MorphoRepayHook(address(mockMorpho));
+
+        MarketParams memory params = MarketParams({
+            loanToken: address(loanToken),
+            collateralToken: address(collateralToken),
+            oracle: address(mockOracle),
+            irm: address(mockIrm),
+            lltv: 0.8e18
         });
+        Id id = params.id();
 
-        // Let some interest accrue on the whole market
-        vm.warp(block.timestamp + 1 hours);
+        Market memory market = Market({
+            totalSupplyAssets: 0,
+            totalSupplyShares: 0,
+            totalBorrowAssets: 1000e18, // 1000 loan tokens borrowed
+            totalBorrowShares: 1000e18, // 1000 shares
+            lastUpdate: block.timestamp - 1 days,
+            fee: 0
+        });
+        mockMorpho.setMarket(id, market);
+        mockMorpho.setPosition(id, account, 10e18); // User has 1% of total shares
+        vm.warp(block.timestamp + 1 days); // Accrue interest for 1 day
 
-        // Compute what the hook will charge
-        uint256 feeHook      = repayHook.deriveFeeAmount(mp);
-        uint256 interestHook = 0;
-        uint256 totalHook    = feeHook + interestHook;
+        bytes memory data = abi.encodePacked(
+            address(loanToken),
+            address(collateralToken),
+            address(mockOracle),
+            address(mockIrm),
+            uint256(0), // amount (unused for full repayment)
+            uint256(0.8e18), // lltv
+            false, // usePrevHookAmount
+            true // isFullRepayment
+        );
 
-        // Assert that no overcharge occurs 
-        assertLt(totalHook, userAmount, "hook over-charges beyond user debt");
+        Execution[] memory executions = hook.build(address(0), account, data);
+        bytes memory approveCallData = executions[1].callData;
+        (, uint256 currentAssetsToPay) = abi.decode(approveCallData[4:], (address, uint256));
+
+        // Calculate expected assetsToPay
+        Id id = params.id();
+        Market memory market = mockMorpho.market(id);
+        uint256 deriveInterest = 0;
+        uint256 estimatedTotalBorrowAssets = market.totalBorrowAssets + deriveInterest;
+        uint256 shareBalance = uint256(mockMorpho.position(id, account).borrowShares);
+        uint256 expectedAssetsToPay = shareBalance.toAssetsUp(estimatedTotalBorrowAssets, market.totalBorrowShares);
+
+        // Log values for clarity
+        emit log_named_uint("Current assetsToPay", currentAssetsToPay);
+        emit log_named_uint("Expected assetsToPay", expectedAssetsToPay);
+
+        // Assert overestimation
+        assertFalse(currentAssetsToPay > expectedAssetsToPay, "assetsToPay is overestimated");
     }
 
     /*//////////////////////////////////////////////////////////////
