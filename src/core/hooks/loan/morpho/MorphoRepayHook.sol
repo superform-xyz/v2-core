@@ -146,12 +146,8 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
     }
     
-    function getUsedAssets(address, bytes memory data) external view returns (uint256) {
-        BuildHookLocalVars memory vars = _decodeHookData(data);
-        uint256 amountInCollateral = deriveCollateralAmountFromLoanAmount(vars.oracle, outAmount);
-        MarketParams memory marketParams =
-            _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
-        return amountInCollateral + deriveFeeAmount(marketParams);
+    function getUsedAssets(address, bytes memory) external view returns (uint256) {
+        return outAmount;
     }
 
 
