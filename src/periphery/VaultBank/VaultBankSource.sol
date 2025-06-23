@@ -19,10 +19,8 @@ abstract contract VaultBankSource is IVaultBankSource {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     // locked assets
-    mapping(address => mapping(uint64 => EnumerableSet.AddressSet)) internal _lockedAssets;
-    mapping(address account => mapping(uint64 dstChainId => mapping(address token => uint256 amount))) internal
-        _lockedAmounts;
-    mapping(address account => mapping(address token => uint256 amount)) internal _totalLocked;
+    EnumerableSet.AddressSet internal _lockedAssets;
+    mapping(address token => uint256 amount) internal _lockedAmounts;
 
     uint64 internal immutable _chainId;
 
@@ -34,18 +32,13 @@ abstract contract VaultBankSource is IVaultBankSource {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IVaultBankSource
-    function viewLockedAmount(address account, address token, uint64 dstChainId) external view returns (uint256) {
-        return _lockedAmounts[account][dstChainId][token];
+    function viewTotalLockedAsset(address token) external view returns (uint256) {
+        return _lockedAmounts[token];
     }
 
     /// @inheritdoc IVaultBankSource
-    function viewAllLockedAssets(address account, uint64 dstChainId) external view returns (address[] memory) {
-        return _lockedAssets[account][dstChainId].values();
-    }
-
-    /// @inheritdoc IVaultBankSource
-    function viewTotalLockedAsset(address account, address token) external view returns (uint256) {
-        return _totalLocked[account][token];
+    function viewAllLockedAssets() external view returns (address[] memory) {
+        return _lockedAssets.values();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -64,9 +57,11 @@ abstract contract VaultBankSource is IVaultBankSource {
         if (amount == 0) revert INVALID_AMOUNT();
         if (token == address(0)) revert INVALID_TOKEN();
         if (account == address(0)) revert INVALID_ACCOUNT();
-        _lockedAmounts[account][toChainId][token] += amount;
-        _lockedAssets[account][toChainId].add(token);
-        _totalLocked[account][token] += amount;
+
+        if (!_lockedAssets.contains(token)) {
+            _lockedAssets.add(token);
+        }
+        _lockedAmounts[token] += amount;
 
         IERC20(token).safeTransferFrom(account, address(this), amount);
         emit SharesLocked(account, token, amount, _chainId, toChainId, nonce);
@@ -83,13 +78,14 @@ abstract contract VaultBankSource is IVaultBankSource {
     {
         if (account == address(0)) revert INVALID_ACCOUNT();
         if (token == address(0)) revert INVALID_TOKEN();
-        if (amount == 0 || amount > _lockedAmounts[account][fromChainId][token]) revert INVALID_AMOUNT();
-        _lockedAmounts[account][fromChainId][token] -= amount;
-        _totalLocked[account][token] -= amount;
-        _lockedAssets[account][fromChainId].remove(token);
+        if (amount == 0 || amount > _lockedAmounts[token]) revert INVALID_AMOUNT();
+
+        _lockedAmounts[token] -= amount;
+        if (_lockedAmounts[token] == 0) {
+            _lockedAssets.remove(token);
+        }
 
         IERC20(token).safeTransfer(account, amount);
-
         emit SharesUnlocked(account, token, amount, _chainId, fromChainId, nonce);
     }
     // ------------------ MANAGE REWARDS ------------------

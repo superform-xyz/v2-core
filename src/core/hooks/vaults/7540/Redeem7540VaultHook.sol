@@ -4,8 +4,8 @@ pragma solidity 0.8.30;
 // external
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -14,75 +14,75 @@ import {
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookInspector,
+    ISuperHookAsync
 } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
-/// @title ApproveAndWithdraw7540VaultHook
+/// @title Redeem7540VaultHook
 /// @author Superform Labs
+/// @notice This hook does not support tokens reverting on 0 approval
 /// @dev data has the following structure
 /// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         address token = BytesLib.toAddress(data, 24);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 44);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
-contract ApproveAndWithdraw7540VaultHook is
+/// @notice         uint256 shares = BytesLib.toUint256(data, 24);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
+contract Redeem7540VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookInspector,
+    ISuperHookAsync
 {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 44;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 76;
+    uint256 private constant AMOUNT_POSITION = 24;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC7540) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address account,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address token = BytesLib.toAddress(data, 24);
-        uint256 amount = _decodeAmount(data);
+        uint256 shares = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResultOutflow(prevHook).outAmount();
+            shares = ISuperHookResultOutflow(prevHook).outAmount();
         }
 
-        if (amount == 0) revert AMOUNT_NOT_VALID();
+        if (shares == 0) revert AMOUNT_NOT_VALID();
         if (yieldSource == address(0) || account == address(0)) revert ADDRESS_NOT_VALID();
 
-        executions = new Execution[](4);
-        executions[0] =
-            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
-        executions[1] =
-            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, amount)) });
-        executions[2] = Execution({
+        executions = new Execution[](1);
+        executions[0] = Execution({
             target: yieldSource,
             value: 0,
-            callData: abi.encodeCall(IERC7540.withdraw, (amount, account, account))
+            callData: abi.encodeCall(IERC7540.redeem, (shares, account, account))
         });
-        executions[3] =
-            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
     }
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperHookAsync
+    function getUsedAssetsOrShares() external view returns (uint256 amount, bool isShares) {
+        return (usedShares, true);
+    }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
@@ -107,7 +107,7 @@ contract ApproveAndWithdraw7540VaultHook is
         );
     }
 
-    /*//////////////////////////////////////////////////////////////
+    /*//////////////////////////////////////////////////////////////    
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {

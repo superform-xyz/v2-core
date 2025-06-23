@@ -32,13 +32,13 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getAssetOutput(address yieldSourceAddress, address assetIn, uint256 sharesIn)
+    function getAssetOutput(address yieldSourceAddress, address assetOut, uint256 sharesIn)
         external
         view
         override
         returns (uint256)
     {
-        return IStandardizedYield(yieldSourceAddress).previewRedeem(assetIn, sharesIn);
+        return IStandardizedYield(yieldSourceAddress).previewRedeem(assetOut, sharesIn);
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
@@ -108,21 +108,5 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
         }
 
         return foundInTokensOut;
-    }
-
-    /// @inheritdoc AbstractYieldSourceOracle
-    function isValidUnderlyingAssets(address[] memory yieldSourceAddresses, address[] memory expectedUnderlying)
-        external
-        view
-        override
-        returns (bool[] memory isValid)
-    {
-        uint256 length = yieldSourceAddresses.length;
-        if (length != expectedUnderlying.length) revert ARRAY_LENGTH_MISMATCH();
-
-        isValid = new bool[](length);
-        for (uint256 i; i < length; ++i) {
-            isValid[i] = isValidUnderlyingAsset(yieldSourceAddresses[i], expectedUnderlying[i]);
-        }
     }
 }

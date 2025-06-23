@@ -49,24 +49,24 @@ import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../
 /// destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength);
 /// @notice         bytes orderAuthorityAddressDst = BytesLib.slice(data, 404 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength, orderAuthorityAddressDst_paramLength);
-/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 436 + destinationMessage_paramLength
+/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 404 + destinationMessage_paramLength
 /// + takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength);
-/// @notice         bytes allowedTakerDst = BytesLib.slice(data, 468 + destinationMessage_paramLength +
+/// @notice         bytes allowedTakerDst = BytesLib.slice(data, 436 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength,
 /// allowedTakerDst_paramLength);
-/// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 498 +
+/// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 436 +
 /// destinationMessage_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
 /// orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength);
-/// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 530 + destinationMessage_paramLength +
+/// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 468 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength, allowedCancelBeneficiarySrc_paramLength);
-/// @notice         uint256 affiliateFee_paramLength = BytesLib.toUint256(data, 562 + destinationMessage_paramLength +
+/// @notice         uint256 affiliateFee_paramLength = BytesLib.toUint256(data, 468 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength);
-/// @notice         bytes affiliateFee = BytesLib.slice(data, 594 + destinationMessage_paramLength +
+/// @notice         bytes affiliateFee = BytesLib.slice(data, 500 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength, affiliateFee_paramLength);
-/// @notice         uint256 referralCode = BytesLib.toUint256(data, 626 + destinationMessage_paramLength +
+/// @notice         uint256 referralCode = BytesLib.toUint256(data, 500 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
 contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
@@ -77,6 +77,8 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     address private immutable _validator;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 0;
 
+    error AMOUNT_UNDERFLOW();
+
     constructor(address dlnSource_, address validator_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (dlnSource_ == address(0) || validator_ == address(0)) revert ADDRESS_NOT_VALID();
         dlnSource = dlnSource_;
@@ -86,8 +88,9 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address account, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(address prevHook, address account, bytes calldata data)
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -102,6 +105,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
             uint256 _oldGiveAmount = orderCreation.giveAmount;
             orderCreation.giveAmount = outAmount;
             if (orderCreation.giveTokenAddress == address(0)) {
+                if (value < _oldGiveAmount) revert AMOUNT_UNDERFLOW();
                 value -= _oldGiveAmount;
                 value += outAmount;
             }

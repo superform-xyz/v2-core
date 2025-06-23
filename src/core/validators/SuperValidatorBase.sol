@@ -66,9 +66,9 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     //////////////////////////////////////////////////////////////*/
     function onInstall(bytes calldata data) external {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
-        _initialized[msg.sender] = true;
         address owner = abi.decode(data, (address));
         if (owner == address(0)) revert ZERO_ADDRESS();
+        _initialized[msg.sender] = true;
         _accountOwners[msg.sender] = owner;
     }
 
@@ -127,6 +127,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
         returns (bool)
     {
         /// @dev block.timestamp could vary between chains
-        return signer == _accountOwners[sender] && validUntil >= block.timestamp;
+        /// @dev validUntil = 0 means infinite validity
+        return signer == _accountOwners[sender] && (validUntil == 0 || validUntil >= block.timestamp);
     }
 }
