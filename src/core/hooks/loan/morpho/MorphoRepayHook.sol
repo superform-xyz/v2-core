@@ -143,6 +143,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {
         Id id = marketParams.id();
         uint256 shareBalance = deriveShareBalance(id, account);
+        
         Market memory market = morphoInterface.market(id);
         assets = shareBalance.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
@@ -150,14 +151,14 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address account, bytes calldata data) internal override {
+    function _preExecute(address, address, bytes calldata data) internal override {
         BuildHookLocalVars memory vars = _decodeHookData(data);
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
         morphoInterface.accrueInterest(marketParams);
     }
 
-    function _postExecute(address, address account, bytes calldata data) internal override {
+    function _postExecute(address, address, bytes calldata) internal override {
         outAmount = 0;
     }
 }
