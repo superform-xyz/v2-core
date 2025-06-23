@@ -842,19 +842,18 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     function test_No_OverestimatedAssetsToPay() public {
-
-        hook = new MorphoRepayHook(address(mockMorpho));
+        address account = address(this);
 
         MarketParams memory params = MarketParams({
             loanToken: address(loanToken),
             collateralToken: address(collateralToken),
             oracle: address(mockOracle),
-            irm: address(mockIrm),
+            irm: address(mockIRM),
             lltv: 0.8e18
         });
         Id id = params.id();
 
-        Market memory market = Market({
+        Market memory newMarket = Market({
             totalSupplyAssets: 0,
             totalSupplyShares: 0,
             totalBorrowAssets: 1000e18, // 1000 loan tokens borrowed
@@ -862,7 +861,7 @@ contract MorphoLoanHooksTest is Helpers {
             lastUpdate: block.timestamp - 1 days,
             fee: 0
         });
-        mockMorpho.setMarket(id, market);
+        mockMorpho.setMarket(id, newMarket);
         mockMorpho.setPosition(id, account, 10e18); // User has 1% of total shares
         vm.warp(block.timestamp + 1 days); // Accrue interest for 1 day
 
@@ -870,24 +869,22 @@ contract MorphoLoanHooksTest is Helpers {
             address(loanToken),
             address(collateralToken),
             address(mockOracle),
-            address(mockIrm),
+            address(mockIRM),
             uint256(0), // amount (unused for full repayment)
             uint256(0.8e18), // lltv
             false, // usePrevHookAmount
             true // isFullRepayment
         );
 
-        Execution[] memory executions = hook.build(address(0), account, data);
+        Execution[] memory executions = repayHook.build(address(0), account, data);
         bytes memory approveCallData = executions[1].callData;
         (, uint256 currentAssetsToPay) = abi.decode(approveCallData[4:], (address, uint256));
 
         // Calculate expected assetsToPay
-        Id id = params.id();
-        Market memory market = mockMorpho.market(id);
         uint256 deriveInterest = 0;
-        uint256 estimatedTotalBorrowAssets = market.totalBorrowAssets + deriveInterest;
+        uint256 estimatedTotalBorrowAssets = newMarket.totalBorrowAssets + deriveInterest;
         uint256 shareBalance = uint256(mockMorpho.position(id, account).borrowShares);
-        uint256 expectedAssetsToPay = shareBalance.toAssetsUp(estimatedTotalBorrowAssets, market.totalBorrowShares);
+        uint256 expectedAssetsToPay = shareBalance.toAssetsUp(estimatedTotalBorrowAssets, newMarket.totalBorrowShares);
 
         // Log values for clarity
         emit log_named_uint("Current assetsToPay", currentAssetsToPay);
