@@ -57,7 +57,7 @@ ftest-quick :; forge test
 
 coverage :; $(MAKE) ensure-merkle-cache && FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-test-vvv :; $(MAKE) ensure-merkle-cache && forge test --match-test test_RepayAndWithdrawHook_PartialRepay_Maintains_LTV -vvvv --jobs 10
+test-vvv :; $(MAKE) ensure-merkle-cache && forge test --match-test test_No_OverestimatedAssetsToPay -vvvv --jobs 10
 
 test-integration :; $(MAKE) ensure-merkle-cache && forge test --match-test test_ShouldExecuteAll_AndLockAssetsInVaultBank -vvv --jobs 10
 
