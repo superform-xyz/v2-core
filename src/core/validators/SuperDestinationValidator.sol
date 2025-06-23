@@ -9,25 +9,18 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
 
 import {SuperValidatorBase} from "./SuperValidatorBase.sol";
 import {ISuperSignatureStorage} from "../interfaces/ISuperSignatureStorage.sol";
+import {ISuperValidator} from "../interfaces/ISuperValidator.sol";
 
 /// @title SuperDestinationValidator
 /// @author Superform Labs
 /// @notice Validates cross-chain operation signatures for destination chain operations
 /// @dev Handles signature verification and merkle proof validation for cross-chain messages
 ///      Cannot be used for standard ERC-1271 validation (those methods revert with NOT_IMPLEMENTED)
-contract SuperDestinationValidator is SuperValidatorBase {
+contract SuperDestinationValidator is SuperValidatorBase, ISuperValidator {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     bytes4 constant VALID_SIGNATURE = bytes4(0x5c2ec0f3);
-
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-    error INVALID_SENDER();
-    error NOT_IMPLEMENTED();
-    error INVALID_CHAIN_ID();
-    error PROOF_NOT_FOUND();
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS

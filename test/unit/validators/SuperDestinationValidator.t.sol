@@ -13,6 +13,7 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {SuperDestinationValidator} from "../../../src/core/validators/SuperDestinationValidator.sol";
 import {SuperValidatorBase} from "../../../src/core/validators/SuperValidatorBase.sol";
 import {ISuperSignatureStorage} from "../../../src/core/interfaces/ISuperSignatureStorage.sol";
+import {ISuperValidator} from "../../../src/core/interfaces/ISuperValidator.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MerkleTreeHelper} from "../../utils/MerkleTreeHelper.sol";
@@ -125,12 +126,12 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             abi.encodeWithSelector(IERC20.approve.selector, address(this), 1e18),
             address(instance.defaultValidator)
         );
-        vm.expectRevert(SuperDestinationValidator.NOT_IMPLEMENTED.selector);
+        vm.expectRevert(ISuperValidator.NOT_IMPLEMENTED.selector);
         validator.validateUserOp(userOpData.userOp, bytes32(0));
     }
 
     function test_DestinationValidator_isValidSignatureWithSender_NotImplemented() public {
-        vm.expectRevert(SuperDestinationValidator.NOT_IMPLEMENTED.selector);
+        vm.expectRevert(ISuperValidator.NOT_IMPLEMENTED.selector);
         validator.isValidSignatureWithSender(account, bytes32(0), "");
     }
 
