@@ -2009,7 +2009,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             ctx.intentAmounts,
             ctx.validUntil
         );
-        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil);
+        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, true);
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
 
@@ -2030,14 +2030,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         });
         proofDst[0] = SuperValidatorBase.DstProof({proof: ctx.merkleProof[0], dstChainId: dstChainId, info: dstInfo});
 
-        console2.log("---- base test dst data len", ctx.executionData.length);
-        console2.log("---- base test targetExecutor", messageData.targetExecutor);
-        console2.log("---- base test dstTokens", ctx.dstTokens.length);
-        console2.log("---- base test intentAmounts", ctx.intentAmounts.length);
-        console2.log("---- base test validUntil", ctx.validUntil);
-        console2.log("---- base test merkleRoot");
         console2.logBytes32(ctx.merkleRoot);
         sig = _createSignatureData_DestinationExecutor(
+            true,
             ctx.validUntil,
             ctx.merkleRoot,
             ctx.merkleProof[1],
@@ -2047,6 +2042,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     }
 
     function _createSignatureData_DestinationExecutor(
+        bool validateDstProof,
         uint48 validUntil,
         bytes32 merkleRoot,
         bytes32[] memory merkleProofSrc,
@@ -2057,7 +2053,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         pure
         returns (bytes memory)
     {
-        return abi.encode(validUntil, merkleRoot, merkleProofSrc, merkleProofDst, signature);
+        return abi.encode(validateDstProof, validUntil, merkleRoot, merkleProofSrc, merkleProofDst, signature);
     }
 
     function _createCrosschainExecutionData_DestinationExecutor(

@@ -51,6 +51,8 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     /// @notice Structure holding signature data used across validator implementations
     /// @dev Contains all components needed for merkle proof verification and signature validation
     struct SignatureData {
+        /// @notice Whether to validate destination proof
+        bool validateDstProof;
         /// @notice Timestamp after which the signature is no longer valid
         uint48 validUntil;
         /// @notice Root of the merkle tree containing operation leaves
@@ -125,7 +127,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
         return "SuperValidator";
     }
 
-    function _createLeaf(bytes memory data, uint48 validUntil) internal view virtual returns (bytes32);
+    function _createLeaf(bytes memory data, uint48 validUntil, bool checkCrossChainExecution) internal view virtual returns (bytes32);
 
     function _createDestinationLeaf(DestinationData memory destinationData, uint48 validUntil) internal pure virtual returns (bytes32) {
         // Note: destinationData.initData is not included because it is not needed for the leaf.
@@ -155,13 +157,14 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     /// @return Structured SignatureData for further processing
     function _decodeSignatureData(bytes memory sigDataRaw) internal pure virtual returns (SignatureData memory) {
         (
+            bool validateDstProof,
             uint48 validUntil,
             bytes32 merkleRoot,
             bytes32[] memory proofSrc,
             DstProof[] memory proofDst,
             bytes memory signature
-        ) = abi.decode(sigDataRaw, (uint48, bytes32, bytes32[], DstProof[], bytes));
-        return SignatureData(validUntil, merkleRoot, proofSrc, proofDst, signature);
+        ) = abi.decode(sigDataRaw, (bool, uint48, bytes32, bytes32[], DstProof[], bytes));
+        return SignatureData(validateDstProof, validUntil, merkleRoot, proofSrc, proofDst, signature);
     }
 
     /// @notice Creates a message hash from a merkle root for signature verification

@@ -75,7 +75,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /// @param data Encoded destination data containing execution details
     /// @param validUntil Timestamp after which the signature becomes invalid
     /// @return The calculated leaf hash used in merkle tree verification
-    function _createLeaf(bytes memory data, uint48 validUntil) internal pure override returns (bytes32) {
+    function _createLeaf(bytes memory data, uint48 validUntil, bool) internal pure override returns (bytes32) {
         DestinationData memory destinationData = abi.decode(data, (DestinationData));
 
         return _createDestinationLeaf(destinationData, validUntil);
@@ -113,7 +113,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
         returns (address signer, bytes32 leaf)
     {
         // Create leaf from destination data and verify against merkle root using the proof
-        leaf = _createLeaf(abi.encode(destinationData), sigData.validUntil);
+        leaf = _createLeaf(abi.encode(destinationData), sigData.validUntil, false);
         if (!MerkleProof.verify(_extractProof(sigData), sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
         // Recover signer from signature using standard Ethereum signature recovery

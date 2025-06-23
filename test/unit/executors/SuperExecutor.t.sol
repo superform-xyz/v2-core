@@ -745,7 +745,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         });
         SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
         proofDst[0] = SuperValidatorBase.DstProof({proof: merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo});
-        signatureData = abi.encode(validUntil, merkleRoot, merkleProof[0], proofDst, signature);
+        signatureData = abi.encode(false, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
     }
 
     struct ExecutionContext {
@@ -817,7 +817,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         });
         SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
         proofDst[0] = SuperValidatorBase.DstProof({proof: ctx.merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo});
-        ctx.signatureData = abi.encode(validUntil, ctx.merkleRoot, ctx.merkleProof[0], proofDst, ctx.signature);
+        ctx.signatureData = abi.encode(false, validUntil, ctx.merkleRoot, ctx.merkleProof[0], proofDst, ctx.signature);
 
         vm.expectEmit(true, true, false, true);
         emit ISuperDestinationExecutor.SuperDestinationExecutorInvalidIntentAmount(

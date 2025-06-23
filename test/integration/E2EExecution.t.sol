@@ -235,7 +235,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](2);
-        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil);
+        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil, true);
 
         leaves[1] = _createDestinationValidatorLeaf(dstMessage.executorCalldata, uint64(block.chainid), acc, targetExecutor, dstMessage.dstTokens, dstMessage.intentAmounts, validUntil);
         (proof, root) = _createValidatorMerkleTree(leaves);
@@ -251,7 +251,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         });
         proofDst[0] = SuperValidatorBase.DstProof({proof: proof[1], dstChainId: uint64(block.chainid), info: dstInfo});
          
-        sigData = abi.encode(validUntil, root, proof[0], proofDst, signature);
+        sigData = abi.encode(true, validUntil, root, proof[0], proofDst, signature);
     }
 
     function _prepareUserOpNonce(address nexusAccount, address token) internal view returns (uint256 nonce) {

@@ -336,7 +336,7 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
         });
         proofDst[0] = SuperValidatorBase.DstProof({proof: proof[0], dstChainId: uint64(block.chainid), info: dstInfo});
 
-        bytes memory sigDataRaw = abi.encode(validUntil, root, proof, proofDst, signature);
+        bytes memory sigDataRaw = abi.encode(false, validUntil, root, proof, proofDst, signature);
 
         bytes memory destinationDataRaw = abi.encode(
             approveDestinationData.callData,
@@ -389,7 +389,7 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             account: destinationData.sender
         });
         proofDst[0] = SuperValidatorBase.DstProof({proof: proof, dstChainId: uint64(block.chainid), info: dstInfo});
-        bytes memory sigDataRaw = abi.encode(validUntil, root, proof, proofDst, signature);
+        bytes memory sigDataRaw = abi.encode(false, validUntil, root, proof, proofDst, signature);
 
         bytes memory destinationDataRaw = abi.encode(
             destinationData.callData,

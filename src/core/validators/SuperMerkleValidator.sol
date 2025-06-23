@@ -58,8 +58,8 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         bool isValid = _isSignatureValid(signer, _userOp.sender, sigData.validUntil);
 
         // Verify destination data
-        uint256 dstLen = sigData.proofDst.length;
-        if (isValid && dstLen > 0) {
+        if (isValid && sigData.validateDstProof) {
+            uint256 dstLen = sigData.proofDst.length;
             for (uint256 i; i < dstLen; ++i) {
                 DstProof memory dstProof = sigData.proofDst[i];
 
@@ -113,10 +113,11 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     ///      Double-hashing is used for added security
     /// @param data Encoded data containing the user operation hash
     /// @param validUntil Timestamp after which the signature becomes invalid
+    /// @param checkCrossChainExecution Whether to validate destination proof
     /// @return The calculated leaf hash used in merkle tree verification
-    function _createLeaf(bytes memory data, uint48 validUntil) internal pure override returns (bytes32) {
+    function _createLeaf(bytes memory data, uint48 validUntil, bool checkCrossChainExecution) internal pure override returns (bytes32) {
         bytes32 userOpHash = abi.decode(data, (bytes32));
-        return keccak256(bytes.concat(keccak256(abi.encode(userOpHash, validUntil))));
+        return keccak256(bytes.concat(keccak256(abi.encode(userOpHash, validUntil, checkCrossChainExecution))));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -135,7 +136,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         returns (address signer, bytes32 leaf)
     {
         // Create leaf from user operation hash and verify it's part of the merkle tree
-        leaf = _createLeaf(abi.encode(userOpHash), sigData.validUntil);
+        leaf = _createLeaf(abi.encode(userOpHash), sigData.validUntil, sigData.validateDstProof);
         if (!MerkleProof.verify(sigData.proofSrc, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
         // Recover signer from signature using standard Ethereum signature recovery

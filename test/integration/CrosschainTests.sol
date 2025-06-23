@@ -349,10 +349,10 @@ contract CrosschainTests is BaseTest {
         );
         
         // the signatures don't match due to wrong decoding
-        (, , , bytes memory destinationChainSignature) = abi.decode(signatureData, (uint48, bytes32, bytes32[], bytes));
+        (, , , , bytes memory destinationChainSignature) = abi.decode(signatureData, (bool, uint48, bytes32, bytes32[], bytes));
 
 
-        (, , , , bytes memory sourceChainSignature) = abi.decode(signatureData, (uint48, bytes32, bytes32[],  bytes32[], bytes));
+        (, , , , , bytes memory sourceChainSignature) = abi.decode(signatureData, (bool, uint48, bytes32, bytes32[],  bytes32[], bytes));
 
         assert(keccak256(destinationChainSignature) != keccak256(sourceChainSignature));
     }
