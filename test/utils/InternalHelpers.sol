@@ -8,7 +8,6 @@ import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { UserOpData, AccountInstance, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
-import { SpectraCommands } from "../../src/vendor/spectra/SpectraCommands.sol";
 
 abstract contract InternalHelpers {
     using ModuleKitHelpers for *;
@@ -473,10 +472,9 @@ abstract contract InternalHelpers {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
-    function _createApproveAndWithdraw7540VaultHookData(
+    function _createRedeem7540VaultHookData(
         bytes4 yieldSourceOracleId,
         address yieldSource,
-        address token,
         uint256 amount,
         bool usePrevHookAmount
     )
@@ -484,13 +482,12 @@ abstract contract InternalHelpers {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, usePrevHookAmount);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHookAmount);
     }
 
-    function _createApproveAndRedeem7540VaultHookData(
+    function _createApproveAndRequestRedeem7540VaultHookData(
         bytes4 yieldSourceOracleId,
         address yieldSource,
-        address token,
         uint256 shares,
         bool usePrevHookAmount
     )
@@ -498,7 +495,7 @@ abstract contract InternalHelpers {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, shares, usePrevHookAmount);
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, shares, usePrevHookAmount);
     }
 
     function _createDeposit5115VaultHookData(
@@ -600,6 +597,24 @@ abstract contract InternalHelpers {
         return abi.encodePacked(bytes4(bytes("")), yieldSource, receiver);
     }
 
+    function _createMorphoSupplyAndBorrowHookData(
+        address loanToken,
+        address collateralToken,
+        address oracle,
+        address irm,
+        uint256 amount,
+        uint256 ltvRatio,
+        bool usePrevHookAmount,
+        uint256 lltv
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return
+            abi.encodePacked(loanToken, collateralToken, oracle, irm, amount, ltvRatio, usePrevHookAmount, lltv, false);
+    }
+
     function _createMorphoBorrowHookData(
         address loanToken,
         address collateralToken,
@@ -659,13 +674,15 @@ abstract contract InternalHelpers {
         uint256 arrayLength,
         address[] memory tokens,
         uint256[] memory amounts,
+        uint48[] memory nonces,
         bytes memory sig
     )
         internal
         view
         returns (bytes memory data)
     {
-        return _createBatchTransferFromHookData(from, arrayLength, block.timestamp + 2 weeks, tokens, amounts, sig);
+        return
+            _createBatchTransferFromHookData(from, arrayLength, block.timestamp + 2 weeks, tokens, amounts, nonces, sig);
     }
 
     function _createBatchTransferFromHookData(
@@ -674,6 +691,7 @@ abstract contract InternalHelpers {
         uint256 sigDeadline,
         address[] memory tokens,
         uint256[] memory amounts,
+        uint48[] memory nonces,
         bytes memory sig
     )
         internal
@@ -692,6 +710,11 @@ abstract contract InternalHelpers {
             data = bytes.concat(data, abi.encodePacked(amounts[i]));
         }
 
+        // Directly encode the nonces as bytes
+        for (uint256 i = 0; i < arrayLength; i++) {
+            data = bytes.concat(data, abi.encodePacked(nonces[i]));
+        }
+
         data = bytes.concat(data, sig);
     }
 
@@ -706,5 +729,18 @@ abstract contract InternalHelpers {
         returns (bytes memory data)
     {
         data = abi.encodePacked(token, to, amount, usePrevHookAmount);
+    }
+
+    function _createOfframpTokensHookData(
+        address to,
+        address[] memory tokens
+    )
+        internal
+        pure
+        returns (bytes memory data)
+    {
+        // First 20 bytes: to address
+        // Rest: abi encoded tokens array
+        data = abi.encodePacked(to, abi.encode(tokens));
     }
 }

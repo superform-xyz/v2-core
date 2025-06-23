@@ -11,6 +11,7 @@ import { MockHook } from "../../../mocks/MockHook.sol";
 import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
+import { BytesLib } from "../../../../src/vendor/BytesLib.sol";
 
 import { MockSpectraRouter } from "../../../mocks/MockSpectraRouter.sol";
 

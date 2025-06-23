@@ -47,6 +47,9 @@ interface ISuperLedgerConfiguration {
     //////////////////////////////////////////////////////////////*/
     /// @notice Thrown when a function restricted to managers is called by a non-manager address
     error NOT_MANAGER();
+    
+    /// @notice Thrown when a function restricted to deployer is called by a non-deployer address
+    error NOT_DEPLOYER();
 
     /// @notice Thrown when providing an empty array where at least one element is required
     error ZERO_LENGTH();
@@ -69,14 +72,21 @@ interface ISuperLedgerConfiguration {
     /// @notice Thrown when setting a fee percentage outside the allowed range (0-10000)
     error INVALID_FEE_PERCENT();
 
+    /// @notice Thrown when there is no pending proposal
+    error NO_PENDING_PROPOSAL();
+
     /// @notice Thrown when attempting to accept a manager role without being the pending manager
     error NOT_PENDING_MANAGER();
+
+    /// @notice Thrown when `SuperLedgerConfiguration` is already initialized
+    error ALREADY_INITIALIZED();
 
     /// @notice Thrown when attempting to propose changes to a configuration that already has pending changes
     error CHANGE_ALREADY_PROPOSED();
 
     /// @notice Thrown when a critical address parameter is set to the zero address
     error ZERO_ADDRESS_NOT_ALLOWED();
+
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -141,6 +151,22 @@ interface ISuperLedgerConfiguration {
     /// @param yieldSourceOracleId Unique identifier for the yield source oracle
     /// @param newManager Address of the new manager who accepted the role
     event ManagerRoleTransferAccepted(bytes4 indexed yieldSourceOracleId, address indexed newManager);
+
+    /// @notice Emitted when a yield source oracle configuration proposal is cancelled.
+    /// @param yieldSourceOracleId The identifier of the yield source oracle.
+    /// @param yieldSourceOracle The proposed oracle address.
+    /// @param feePercent The proposed fee percentage.
+    /// @param feeRecipient The proposed fee recipient.
+    /// @param manager The manager who proposed the change.
+    /// @param ledger The proposed ledger address.
+    event YieldSourceOracleConfigProposalCancelled(
+        bytes4 indexed yieldSourceOracleId,
+        address yieldSourceOracle,
+        uint256 feePercent,
+        address feeRecipient,
+        address manager,
+        address ledger
+    );
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS

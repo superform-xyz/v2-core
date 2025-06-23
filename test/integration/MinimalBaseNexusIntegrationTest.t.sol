@@ -72,7 +72,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         vm.label(address(nexusFactory), "NexusFactory");
         nexusBootstrap = INexusBootstrap(CHAIN_1_NEXUS_BOOTSTRAP);
         vm.label(address(nexusBootstrap), "NexusBootstrap");
-        ledgerConfig = ISuperLedgerConfiguration(new SuperLedgerConfiguration());
+        ledgerConfig = ISuperLedgerConfiguration(new SuperLedgerConfiguration(address(this)));
 
         superExecutorModule = new SuperExecutor(address(ledgerConfig));
 
@@ -199,7 +199,12 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(userOps, payable(account));
     }
 
-    function _executeThroughEntrypointWithMaliciousHook(address account, ISuperExecutor.ExecutorEntry memory entry) internal {
+    function _executeThroughEntrypointWithMaliciousHook(
+        address account,
+        ISuperExecutor.ExecutorEntry memory entry
+    )
+        internal
+    {
         Execution[] memory executions = new Execution[](1);
         executions[0] = Execution({
             target: address(superExecutorModule),
@@ -231,7 +236,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(userOps, payable(account));
 
         // Check logs for failed UserOperations
-        _checkUserOperationResults();
+        _checkUserOperationResults(ISuperExecutor.INSUFFICIENT_BALANCE_FOR_FEE.selector);
     }
 
     function _prepareExecutionCalldata(Execution[] memory executions)
@@ -293,7 +298,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
     /*//////////////////////////////////////////////////////////////
                         VALIDATOR HELPER METHODS
     //////////////////////////////////////////////////////////////*/
-    function _getSignature(bytes32 root) private view returns (bytes memory) {
+    function _getSignature(bytes32 root) internal view returns (bytes memory) {
         bytes32 messageHash = keccak256(abi.encode(superMerkleValidator.namespace(), root));
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerPrvKey, ethSignedMessageHash);
@@ -308,37 +313,76 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
     error UserOperationReverted(bytes32 userOpHash, address sender, uint256 nonce, bytes revertReason);
 
     /// @dev Check logs for failed UserOperations and revert with detailed error info
-    function _checkUserOperationResults() internal {
+    function _checkUserOperationResults(bytes4 selector) internal {
         Vm.Log[] memory logs = vm.getRecordedLogs();
 
-    for (uint256 i; i < logs.length; i++) {
-        // Match UserOperationEvent topic
-        if (logs[i].topics[0] == keccak256("UserOperationEvent(bytes32,address,address,uint256,bool,uint256,uint256)")) {
-            (, bool success,,) = abi.decode(logs[i].data, (uint256, bool, uint256, uint256));
+        for (uint256 i; i < logs.length; i++) {
+            // Match UserOperationEvent topic
+            if (
+                logs[i].topics[0]
+                    == keccak256("UserOperationEvent(bytes32,address,address,uint256,bool,uint256,uint256)")
+            ) {
+                (, bool success,,) = abi.decode(logs[i].data, (uint256, bool, uint256, uint256));
 
-            if (!success) {
-                bytes32 userOpHash = logs[i].topics[1];
-                bytes memory revertReason = _getUserOpRevertReason(logs, userOpHash);
+                if (!success) {
+                    bytes32 userOpHash = logs[i].topics[1];
+                    bytes memory revertReason = _getUserOpRevertReason(logs, userOpHash);
 
-                // Extract selector
-                bytes4 actualSelector;
-                if (revertReason.length >= 4) {
-                    assembly {
-                        actualSelector := mload(add(revertReason, 32))
+                    // Extract selector
+                    bytes4 actualSelector;
+                    if (revertReason.length >= 4) {
+                        assembly {
+                            actualSelector := mload(add(revertReason, 32))
+                        }
                     }
-                }
 
-                // Log and check
-                if (actualSelector != ISuperExecutor.INSUFFICIENT_BALANCE_FOR_FEE.selector) {
-                    revert("Unexpected revert selector");
-                }
+                    // Log and check
+                    if (actualSelector != selector) {
+                        revert("Unexpected revert selector");
+                    }
 
-                return; // success, matched expected revert
+                    return; // success, matched expected revert
+                }
             }
         }
+
+        revert("No reverted UserOperationEvent found");
     }
 
-    revert("No reverted UserOperationEvent found");
+    function _checkValidateUserOperationResults(bytes4 selector) internal {
+        Vm.Log[] memory logs = vm.getRecordedLogs();
+
+        for (uint256 i; i < logs.length; i++) {
+            // Match UserOperationEvent topic
+            if (
+                logs[i].topics[0]
+                    == keccak256("UserOperationEvent(bytes32,address,address,uint256,bool,uint256,uint256)")
+            ) {
+                (, bool success,,) = abi.decode(logs[i].data, (uint256, bool, uint256, uint256));
+
+                if (!success) {
+                    bytes32 userOpHash = logs[i].topics[1];
+                    bytes memory revertReason = _getUserOpRevertReason(logs, userOpHash);
+
+                    // Extract selector
+                    bytes4 actualSelector;
+                    if (revertReason.length >= 4) {
+                        assembly {
+                            actualSelector := mload(add(revertReason, 32))
+                        }
+                    }
+
+                    // Log and check
+                    if (actualSelector != selector) {
+                        revert("Unexpected revert selector");
+                    }
+
+                    return; // success, matched expected revert
+                }
+            }
+        }
+
+        revert("No reverted UserOperationEvent found");
     }
 
     /// @dev Extract revert reason from logs for a specific UserOperation

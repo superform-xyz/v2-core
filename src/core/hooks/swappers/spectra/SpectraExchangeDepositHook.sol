@@ -216,7 +216,7 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
                 }
                 if (params.assets == 0) revert AMOUNT_NOT_VALID();
 
-                params.updatedInputs[i] = abi.encode(params.pt, params.assets, params.ptRecipient, params.ytRecipient);
+                params.updatedInputs[i] = abi.encode(params.pt, params.assets, params.ptRecipient, params.ytRecipient, params.minShares);
             } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
                 // https://dev.spectra.finance/technical-reference/contract-functions/router#deposit_asset_in_ibt-command
 

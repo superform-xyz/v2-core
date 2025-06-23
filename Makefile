@@ -61,7 +61,8 @@ test-vvv :; $(MAKE) ensure-merkle-cache && forge test --match-test test_SpectraE
 
 test-integration :; $(MAKE) ensure-merkle-cache && forge test --match-test test_ShouldExecuteAll_AndLockAssetsInVaultBank -vvv --jobs 10
 
-test-vvv-quick :; forge test --match-test test_2_MultipleOperations_RandomAmounts -vvv --jobs 10
+test-vvv-quick :; forge test --match-test test_FrontRunning_SetYieldSourceOracles -vvvv --jobs 10
+
 
 test-gas-report-user :; $(MAKE) ensure-merkle-cache && forge test --match-test test_gasReport --gas-report --jobs 10
 test-gas-report-2vaults :; $(MAKE) ensure-merkle-cache && forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10
