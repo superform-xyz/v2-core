@@ -233,7 +233,7 @@ contract SpectraExchangeHooksTests is Helpers {
             bytes4(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(1), // usePrevHookAmount = true
-            uint256(0), // value
+            uint256(2e18), // value
             txData
         );
 
