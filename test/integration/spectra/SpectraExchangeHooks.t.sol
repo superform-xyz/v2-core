@@ -10,7 +10,7 @@ import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol"
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
 
-contract SpectraExchangeSwapHookTest is MinimalBaseIntegrationTest {
+contract SpectraExchangeHooksTest is MinimalBaseIntegrationTest {
     address public spectraRouter;
     address public tokenIn;
     address public ptToken;
