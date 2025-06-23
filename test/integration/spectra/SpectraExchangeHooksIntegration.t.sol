@@ -6,16 +6,18 @@ import { UserOpData } from "modulekit/ModuleKit.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockSpectraRouter } from "../../mocks/MockSpectraRouter.sol";
 import { SpectraExchangeDepositHook } from "../../../src/core/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
+import { SpectraExchangeRedeemHook } from "../../../src/core/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
 
-contract SpectraExchangeHooksTest is MinimalBaseIntegrationTest {
+contract SpectraExchangeHooksIntegrationTest is MinimalBaseIntegrationTest {
     address public spectraRouter;
     address public tokenIn;
     address public ptToken;
 
     SpectraExchangeDepositHook public hook;
+    SpectraExchangeRedeemHook public redeemHook;
 
     bool public useRealSpectraRouter;
 
@@ -34,6 +36,7 @@ contract SpectraExchangeHooksTest is MinimalBaseIntegrationTest {
             vm.label(ptToken, "PT-IPOR-USDC");
 
             hook = new SpectraExchangeDepositHook(CHAIN_1_SpectraRouter);
+            redeemHook = new SpectraExchangeRedeemHook(CHAIN_1_SpectraRouter);
         } else {
             tokenIn = address(new MockERC20("Test Token", "TEST", 18));
             ptToken = address(new MockERC20("Test Token", "TEST", 18));
@@ -41,6 +44,7 @@ contract SpectraExchangeHooksTest is MinimalBaseIntegrationTest {
             spectraRouter = address(new MockSpectraRouter(ptToken));
 
             hook = new SpectraExchangeDepositHook(spectraRouter);
+            redeemHook = new SpectraExchangeRedeemHook(spectraRouter);
         }
     }
 
