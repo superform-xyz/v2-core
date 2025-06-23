@@ -7,6 +7,26 @@ pragma solidity 0.8.30;
 /// @dev Used to verify that cross-chain execution requests are properly authorized
 ///      Works with EIP-1271 signature verification standard
 interface ISuperDestinationValidator {
+    /// @notice Structure holding proof data for destination chain operations
+    /// @dev Contains merkle proof and destination chain ID
+    struct DstProof {
+        bytes32[] proof;
+        uint64 dstChainId;
+        DstInfo info;
+    }
+
+    /// @notice Structure holding destination chain operation details
+    /// @dev Used to validate destination `proof` on source validator
+    struct DstInfo {
+        address account;
+        address executor;
+        address[] dstTokens;
+        uint256[] intentAmounts;
+        bytes data;
+    }
+
+
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
