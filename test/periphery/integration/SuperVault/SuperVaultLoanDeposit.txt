@@ -32,7 +32,7 @@ import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounti
 import { MorphoRepayAndWithdrawHook } from "../../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { ISuperVaultFactory } from "../../../src/periphery/interfaces/ISuperVaultFactory.sol";
-import { MorphoBorrowHook } from "../../../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoSupplyAndBorrowHook } from "../../../src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
 import { MorphoRepayHook } from "../../../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
 import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
@@ -76,7 +76,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
     ISuperExecutor public superExecutorOnBase;
 
     MorphoRepayAndWithdrawHook public withdrawHook;
-    MorphoBorrowHook public borrowHook;
+    MorphoSupplyAndBorrowHook public borrowHook;
     MorphoRepayHook public repayHook;
 
     MarketParams public marketParams;
@@ -195,7 +195,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         deal(address(loanToken), swapRouter, 1e18);
 
         withdrawHook = new MorphoRepayAndWithdrawHook(MORPHO);
-        borrowHook = new MorphoBorrowHook(MORPHO);
+        borrowHook = new MorphoSupplyAndBorrowHook(MORPHO);
         repayHook = new MorphoRepayHook(MORPHO);
 
         ltvRatio = 0.75e18;
@@ -387,7 +387,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         hooks[0] = hook;
 
         bytes memory hookData =
-            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, ltvRatio, false, lltv);
+            _createMorphoSupplyAndBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, ltvRatio, false, lltv);
         bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;
 
@@ -424,7 +424,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         hooks[0] = hook;
 
         bytes memory hookData =
-            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, ltvRatio, false, lltv);
+            _createMorphoSupplyAndBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, ltvRatio, false, lltv);
 
         bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;

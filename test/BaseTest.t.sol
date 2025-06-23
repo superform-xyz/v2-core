@@ -34,7 +34,7 @@ import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20H
 
 // loan hooks
 import { MorphoRepayAndWithdrawHook } from "../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
-import { MorphoBorrowHook } from "../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoSupplyAndBorrowHook } from "../src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
 import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
 
 // vault hooks
@@ -59,10 +59,10 @@ import { ClaimCancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/
 import { CancelRedeemHook } from "../src/core/hooks/vaults/super-vault/CancelRedeemHook.sol";
 import { ApproveAndRequestDeposit7540VaultHook } from
     "../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
+import { Redeem7540VaultHook } from "../src/core/hooks/vaults/7540/Redeem7540VaultHook.sol";
 import { RequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
-import { ApproveAndWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndWithdraw7540VaultHook.sol";
-import { ApproveAndRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndRedeem7540VaultHook.sol";
+import { ApproveAndRequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
@@ -173,7 +173,7 @@ struct Addresses {
     AcrossV3Adapter acrossV3Adapter;
     DebridgeAdapter debridgeAdapter;
     ApproveERC20Hook approveErc20Hook;
-    MorphoBorrowHook morphoBorrowHook;
+    MorphoSupplyAndBorrowHook MorphoSupplyAndBorrowHook;
     MorphoRepayHook morphoRepayHook;
     MorphoRepayAndWithdrawHook morphoRepayAndWithdrawHook;
     TransferERC20Hook transferErc20Hook;
@@ -190,10 +190,10 @@ struct Addresses {
     Redeem5115VaultHook redeem5115VaultHook;
     Deposit7540VaultHook deposit7540VaultHook;
     RequestDeposit7540VaultHook requestDeposit7540VaultHook;
+    Redeem7540VaultHook redeem7540VaultHook;
     RequestRedeem7540VaultHook requestRedeem7540VaultHook;
     Withdraw7540VaultHook withdraw7540VaultHook;
-    ApproveAndWithdraw7540VaultHook approveAndWithdraw7540VaultHook;
-    ApproveAndRedeem7540VaultHook approveAndRedeem7540VaultHook;
+    ApproveAndRequestRedeem7540VaultHook approveAndRequestRedeem7540VaultHook;
     CancelDepositRequest7540Hook cancelDepositRequest7540Hook;
     CancelRedeemRequest7540Hook cancelRedeemRequest7540Hook;
     ClaimCancelDepositRequest7540Hook claimCancelDepositRequest7540Hook;
@@ -842,37 +842,27 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 hooks[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY]
             );
             hooksAddresses[14] = address(A[i].withdraw7540VaultHook);
-            A[i].approveAndWithdraw7540VaultHook = new ApproveAndWithdraw7540VaultHook{ salt: SALT }();
-            vm.label(address(A[i].approveAndWithdraw7540VaultHook), APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY] =
-                address(A[i].approveAndWithdraw7540VaultHook);
-            hooks[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY] = Hook(
-                APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY,
-                HookCategory.TokenApprovals,
-                HookCategory.VaultWithdrawals,
-                address(A[i].approveAndWithdraw7540VaultHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY]
-            );
-            hooksAddresses[15] = address(A[i].approveAndWithdraw7540VaultHook);
 
-            A[i].approveAndRedeem7540VaultHook = new ApproveAndRedeem7540VaultHook{ salt: SALT }();
-            vm.label(address(A[i].approveAndRedeem7540VaultHook), APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY] =
-                address(A[i].approveAndRedeem7540VaultHook);
-            hooks[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY] = Hook(
-                APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY,
-                HookCategory.TokenApprovals,
+            A[i].redeem7540VaultHook = new Redeem7540VaultHook{ salt: SALT }();
+            vm.label(address(A[i].redeem7540VaultHook), REDEEM_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][REDEEM_7540_VAULT_HOOK_KEY] = address(A[i].redeem7540VaultHook);
+            hooks[chainIds[i]][REDEEM_7540_VAULT_HOOK_KEY] = Hook(
+                REDEEM_7540_VAULT_HOOK_KEY,
                 HookCategory.VaultWithdrawals,
-                address(A[i].approveAndRedeem7540VaultHook),
+                HookCategory.VaultDeposits,
+                address(A[i].redeem7540VaultHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY]
+                hooks[chainIds[i]][REDEEM_7540_VAULT_HOOK_KEY]
             );
-            hooksAddresses[16] = address(A[i].approveAndRedeem7540VaultHook);
+            hooksAddresses[15] = address(A[i].redeem7540VaultHook);
+
+            A[i].approveAndRequestRedeem7540VaultHook = new ApproveAndRequestRedeem7540VaultHook{ salt: SALT }();
+            vm.label(address(A[i].approveAndRequestRedeem7540VaultHook), APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY] =
+                address(A[i].approveAndRequestRedeem7540VaultHook);
+            hooksAddresses[16] = address(A[i].approveAndRequestRedeem7540VaultHook);
 
             A[i].swap1InchHook = new Swap1InchHook{ salt: SALT }(ONE_INCH_ROUTER);
             vm.label(address(A[i].swap1InchHook), SWAP_1INCH_HOOK_KEY);
@@ -1200,13 +1190,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]][CANCEL_REDEEM_HOOK_KEY]);
             hooksAddresses[43] = address(A[i].cancelRedeemHook);
 
-            A[i].morphoBorrowHook = new MorphoBorrowHook{ salt: SALT }(MORPHO);
-            vm.label(address(A[i].morphoBorrowHook), MORPHO_BORROW_HOOK_KEY);
-            hookAddresses[chainIds[i]][MORPHO_BORROW_HOOK_KEY] = address(A[i].morphoBorrowHook);
-            hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY] =
-                Hook(MORPHO_BORROW_HOOK_KEY, HookCategory.Loans, HookCategory.None, address(A[i].morphoBorrowHook), "");
+            A[i].MorphoSupplyAndBorrowHook = new MorphoSupplyAndBorrowHook{ salt: SALT }(MORPHO);
+            vm.label(address(A[i].MorphoSupplyAndBorrowHook), MORPHO_BORROW_HOOK_KEY);
+            hookAddresses[chainIds[i]][MORPHO_BORROW_HOOK_KEY] = address(A[i].MorphoSupplyAndBorrowHook);
+            hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY] = Hook(
+                MORPHO_BORROW_HOOK_KEY,
+                HookCategory.Loans,
+                HookCategory.None,
+                address(A[i].MorphoSupplyAndBorrowHook),
+                ""
+            );
             hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY]);
-            hooksAddresses[44] = address(A[i].morphoBorrowHook);
+            hooksAddresses[44] = address(A[i].MorphoSupplyAndBorrowHook);
 
             A[i].morphoRepayHook = new MorphoRepayHook{ salt: SALT }(MORPHO);
             vm.label(address(A[i].morphoRepayHook), MORPHO_REPAY_HOOK_KEY);
@@ -1404,7 +1399,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 console2.log("transferErc20Hook", address(A[i].transferErc20Hook));
                 console2.log("deposit7540VaultHook", address(A[i].deposit7540VaultHook));
                 console2.log("withdraw7540VaultHook", address(A[i].withdraw7540VaultHook));
-                console2.log("approveAndRedeem7540VaultHook", address(A[i].approveAndRedeem7540VaultHook));
+                console2.log("approveAndRequestRedeem7540VaultHook", address(A[i].approveAndRequestRedeem7540VaultHook));
                 console2.log("swap1InchHook", address(A[i].swap1InchHook));
                 console2.log("swapOdosHook", address(A[i].swapOdosHook));
                 console2.log("approveAndSwapOdosHook", address(A[i].approveAndSwapOdosHook));
@@ -1445,7 +1440,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             superGovernor.registerHook(address(A[i].transferErc20Hook), false);
             superGovernor.registerHook(address(A[i].deposit7540VaultHook), true);
             superGovernor.registerHook(address(A[i].withdraw7540VaultHook), false);
-            superGovernor.registerHook(address(A[i].approveAndRedeem7540VaultHook), true);
+            superGovernor.registerHook(address(A[i].approveAndRequestRedeem7540VaultHook), true);
             superGovernor.registerHook(address(A[i].swap1InchHook), false);
             superGovernor.registerHook(address(A[i].swapOdosHook), false);
             superGovernor.registerHook(address(A[i].approveAndSwapOdosHook), false);
@@ -1467,7 +1462,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             // EXPERIMENTAL HOOKS FROM HERE ONWARDS
             superGovernor.registerHook(address(A[i].ethenaCooldownSharesHook), false);
             superGovernor.registerHook(address(A[i].ethenaUnstakeHook), true);
-            superGovernor.registerHook(address(A[i].morphoBorrowHook), false);
+            superGovernor.registerHook(address(A[i].MorphoSupplyAndBorrowHook), false);
             superGovernor.registerHook(address(A[i].morphoRepayHook), false);
             superGovernor.registerHook(address(A[i].morphoRepayAndWithdrawHook), false);
             superGovernor.registerHook(address(A[i].pendleRouterRedeemHook), false);
@@ -1822,48 +1817,64 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         NOT_ENOUGH_BALANCE,
         ENOUGH_BALANCE,
         NO_HOOKS,
-        LOW_LEVEL_FAILED,
-        FAILED
+        REVERT
     }
 
-    function _processAcrossV3Message(
-        uint64 srcChainId,
-        uint64 dstChainId,
-        uint256 warpTimestamp,
-        ExecutionReturnData memory executionData,
-        RELAYER_TYPE relayerType,
-        address account
-    )
-        internal
-    {
-        if (relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
+    struct ProcessAcrossV3MessageParams {
+        uint64 srcChainId;
+        uint64 dstChainId;
+        uint256 warpTimestamp;
+        ExecutionReturnData executionData;
+        RELAYER_TYPE relayerType;
+        bytes4 errorMessage;
+        string errorReason;
+        address account;
+        uint256 relayerGas;
+    }
+
+    function _processAcrossV3Message(ProcessAcrossV3MessageParams memory params) internal {
+        if (params.relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
             vm.expectEmit(true, false, false, false);
             emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNotEnoughBalance(
-                account, address(0), 0, 0
+                params.account, address(0), 0, 0
             );
-        } else if (relayerType == RELAYER_TYPE.ENOUGH_BALANCE) {
+        } else if (params.relayerType == RELAYER_TYPE.ENOUGH_BALANCE) {
             vm.expectEmit(true, true, true, true);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorExecuted(account);
-        } else if (relayerType == RELAYER_TYPE.NO_HOOKS) {
+            emit ISuperDestinationExecutor.SuperDestinationExecutorExecuted(params.account);
+        } else if (params.relayerType == RELAYER_TYPE.NO_HOOKS) {
             vm.expectEmit(true, true, true, true);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNoHooks(account);
-        } else if (relayerType == RELAYER_TYPE.LOW_LEVEL_FAILED) {
-            vm.expectEmit(true, false, false, false);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorFailedLowLevel(account, "");
-        } else if (relayerType == RELAYER_TYPE.FAILED) {
-            vm.expectEmit(true, false, false, false);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorFailed(account, "");
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNoHooks(params.account);
+        } else if (params.relayerType == RELAYER_TYPE.REVERT) {
+            if (params.errorMessage != bytes4(0)) {
+                vm.expectRevert(params.errorMessage);
+            } else {
+                vm.expectRevert(bytes(params.errorReason));
+            }
         }
-        AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
-            SPOKE_POOL_V3_ADDRESSES[srcChainId],
-            SPOKE_POOL_V3_ADDRESSES[dstChainId],
-            ACROSS_RELAYER,
-            warpTimestamp,
-            FORKS[dstChainId],
-            dstChainId,
-            srcChainId,
-            executionData.logs
-        );
+        if (params.relayerGas == 0) {
+            AcrossV3Helper(_getContract(params.srcChainId, ACROSS_V3_HELPER_KEY)).help(
+                SPOKE_POOL_V3_ADDRESSES[params.srcChainId],
+                SPOKE_POOL_V3_ADDRESSES[params.dstChainId],
+                ACROSS_RELAYER,
+                params.warpTimestamp,
+                FORKS[params.dstChainId],
+                params.dstChainId,
+                params.srcChainId,
+                params.executionData.logs
+            );
+        } else {
+            AcrossV3Helper(_getContract(params.srcChainId, ACROSS_V3_HELPER_KEY)).help(
+                SPOKE_POOL_V3_ADDRESSES[params.srcChainId],
+                SPOKE_POOL_V3_ADDRESSES[params.dstChainId],
+                ACROSS_RELAYER,
+                params.warpTimestamp,
+                FORKS[params.dstChainId],
+                params.dstChainId,
+                params.srcChainId,
+                params.executionData.logs,
+                params.relayerGas
+            );
+        }
     }
 
     function _processAcrossV3MessageWithoutDestinationAccount(

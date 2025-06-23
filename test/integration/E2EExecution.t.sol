@@ -377,6 +377,113 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         );
     }
 
+    function testOrion_feesCauseChainedOperationFailures() public {
+        uint256 amount = 100e6;
+        address underlyingToken = CHAIN_1_USDC;
+        address morphoVault = CHAIN_1_MorphoVault;
+
+        address accountOwner = makeAddr("owner");
+
+        // 1. Create account
+        address nexusAccount = _createWithNexus(
+            address(nexusRegistry),
+            attesters,
+            threshold,
+            1e18
+        );
+
+        // add tokens to account
+        _getTokens(underlyingToken, nexusAccount, amount);
+        // Mock account approval to vault
+        vm.startPrank(nexusAccount);
+        IERC20(CHAIN_1_USDC).approve(morphoVault, type(uint256).max);
+
+        // 2. Create SuperExecutor data, with:
+        // - approval
+        // - deposit
+        // - redemption, whose amount should be charged
+        // - approval
+        // - deposit
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = deposit4626Hook;
+
+        bytes[] memory hooksData = new bytes[](1);
+
+        hooksData[0] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            morphoVault,
+            amount,
+            false,
+            address(0),
+            0
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor
+            .ExecutorEntry({
+                hooksAddresses: hooksAddresses,
+                hooksData: hooksData
+            });
+
+        // prepare data & execute through entry point
+        _executeThroughEntrypoint(nexusAccount, entry);
+
+        // Warp to mock interest accrual so that fees are applied
+        vm.warp(block.timestamp + 10 weeks);
+
+        {
+            hooksAddresses = new address[](2);
+            hooksAddresses[0] = redeem4626Hook;
+            hooksAddresses[1] = deposit4626Hook;
+
+            hooksData = new bytes[](2);
+
+            // Store initial values for assertions
+            uint256 initialShares = IERC4626(morphoVault).balanceOf(nexusAccount);
+            uint256 sharesToRedeem = IERC4626(morphoVault).convertToShares(amount);
+
+            hooksData[0] = _createRedeem4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                morphoVault,
+                nexusAccount,
+                sharesToRedeem,
+                false
+            );
+
+            hooksData[1] = _createDeposit4626HookData(
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                morphoVault,
+                amount,
+                true, // use previous output amount set to true
+                address(0),
+                0
+            );
+
+            entry = ISuperExecutor.ExecutorEntry({
+                hooksAddresses: hooksAddresses,
+                hooksData: hooksData
+            });
+
+            // Track balances before executing chained operations
+            uint256 tokenBalanceBefore = IERC20(underlyingToken).balanceOf(nexusAccount);
+
+            // prepare data & execute through entry point
+            _executeThroughEntrypoint(nexusAccount, entry);
+            
+            uint256 finalShares = IERC4626(morphoVault).balanceOf(nexusAccount);
+            uint256 tokenBalanceAfter = IERC20(underlyingToken).balanceOf(nexusAccount);
+            
+            assertLt(finalShares, initialShares);
+            
+            uint256 redeemedAmount = IERC4626(morphoVault).convertToAssets(initialShares - finalShares);
+            assertGt(redeemedAmount, 0);
+            assertLt(redeemedAmount, amount);
+            
+            if (tokenBalanceAfter > 0) {
+                assertLt(tokenBalanceAfter, amount);
+            }
+        }
+    }
+
     function test_feeBypassByCustomHook_Reverts() public {
         uint256 amount = 10_000e6;
         address underlyingToken = CHAIN_1_USDC;
@@ -403,6 +510,8 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         // - approval
         // - deposit
         // - redemption, whose amount should be charged
+        // - approval
+        // - deposit
         address[] memory hooksAddresses = new address[](3);
         hooksAddresses[0] = approveHook;
         hooksAddresses[1] = deposit4626Hook;

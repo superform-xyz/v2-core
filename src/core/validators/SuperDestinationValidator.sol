@@ -81,22 +81,6 @@ contract SuperDestinationValidator is SuperValidatorBase {
         return _createDestinationLeaf(destinationData, validUntil);
     }
 
-    /// @notice Validates a signature based on signer identity and expiration time
-    /// @dev Overrides the base implementation to check both ownership and expiration
-    /// @param signer The address that signed the message (recovered from signature)
-    /// @param sender The smart account address that should execute the operation
-    /// @param validUntil Timestamp after which the signature becomes invalid
-    /// @return True if the signer is the account owner and signature hasn't expired
-    function _isSignatureValid(address signer, address sender, uint48 validUntil)
-        internal
-        view
-        override
-        returns (bool)
-    {
-        /// @dev block.timestamp could vary between chains
-        return signer == _accountOwners[sender] && validUntil >= block.timestamp;
-    }
-
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/

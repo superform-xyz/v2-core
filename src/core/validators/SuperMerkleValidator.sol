@@ -11,6 +11,8 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
 import {SuperValidatorBase} from "./SuperValidatorBase.sol";
 import {ISuperSignatureStorage} from "../interfaces/ISuperSignatureStorage.sol";
 
+import "forge-std/console2.sol";
+
 /// @title SuperMerkleValidator
 /// @author Superform Labs
 /// @notice Validates user operations using merkle proofs for smart account signatures
@@ -60,6 +62,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         // Verify destination data
         if (isValid && sigData.validateDstProof) {
             uint256 dstLen = sigData.proofDst.length;
+            if (dstLen == 0) revert INVALID_DESTINATION_PROOF();
             for (uint256 i; i < dstLen; ++i) {
                 DstProof memory dstProof = sigData.proofDst[i];
 
