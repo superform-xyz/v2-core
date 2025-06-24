@@ -2,6 +2,8 @@
 pragma solidity 0.8.30;
 
 // external
+import { IIrm } from "../../../../vendor/morpho/IIrm.sol";
+import { MathLib } from "../../../../vendor/morpho/MathLib.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SharesMathLib } from "../../../../vendor/morpho/SharesMathLib.sol";
