@@ -8,6 +8,8 @@ import {ModeCode} from "../../../lib/modulekit/src/accounts/common/lib/ModeLib.s
 import {Execution} from "../../../lib/modulekit/src/accounts/common/interfaces/IERC7579Account.sol";
 import {ISuperValidator} from "../../../src/core/interfaces/ISuperValidator.sol";
 
+import "forge-std/console2.sol";
+
 contract POC_IncorrectValidUntilTest is BaseTest {
     function test_POC_IncorrectValidUntilHandling() public {
         // Select fork for testing
@@ -20,9 +22,10 @@ contract POC_IncorrectValidUntilTest is BaseTest {
 
         // Get validator address
         address validator = _getContract(ETH, SUPER_MERKLE_VALIDATOR_KEY);
+        console2.log("--------- test validator", validator);
         
         uint256 privateKey = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
-        address signer = 0xE73972752A8831E582dc5f980B8f3e328D1d481e;
+        address signer = 0x641FBfeA0c2826Cfb96C84DAF8Df58b6c1455F6A;
 
         // Initialize validator for user
         vm.startPrank(address(user));
@@ -31,7 +34,7 @@ contract POC_IncorrectValidUntilTest is BaseTest {
         // Create merkle tree data
         bytes32[] memory leaves = new bytes32[](1);
         bytes32 userOpHash = keccak256("test");
-        leaves[0] = keccak256(bytes.concat(keccak256(abi.encode(userOpHash, uint48(0), false))));
+        leaves[0] = keccak256(bytes.concat(keccak256(abi.encode(userOpHash, uint48(0), false, address(validator)))));
 
         // Create merkle tree using _createValidatorMerkleTree
         (bytes32[][] memory proofs, bytes32 root) = _createValidatorMerkleTree(leaves);

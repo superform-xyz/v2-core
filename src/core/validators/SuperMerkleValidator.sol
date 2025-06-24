@@ -116,9 +116,9 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     /// @param validUntil Timestamp after which the signature becomes invalid
     /// @param checkCrossChainExecution Whether to validate destination proof
     /// @return The calculated leaf hash used in merkle tree verification
-    function _createLeaf(bytes memory data, uint48 validUntil, bool checkCrossChainExecution) internal pure override returns (bytes32) {
+    function _createLeaf(bytes memory data, uint48 validUntil, bool checkCrossChainExecution) internal view override returns (bytes32) {
         bytes32 userOpHash = abi.decode(data, (bytes32));
-        return keccak256(bytes.concat(keccak256(abi.encode(userOpHash, validUntil, checkCrossChainExecution))));
+        return keccak256(bytes.concat(keccak256(abi.encode(userOpHash, validUntil, checkCrossChainExecution, address(this)))));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -133,7 +133,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     /// @return leaf The computed leaf hash used in merkle verification
     function _processSignatureAndVerifyLeaf(SignatureData memory sigData, bytes32 userOpHash)
         private
-        pure
+        view
         returns (address signer, bytes32 leaf)
     {
         // Create leaf from user operation hash and verify it's part of the merkle tree

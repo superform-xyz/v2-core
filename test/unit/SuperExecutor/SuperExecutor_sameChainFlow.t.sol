@@ -793,7 +793,7 @@ contract SuperExecutor_sameChainFlow is
         returns (bytes memory signatureData)
     {
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(userOpData.userOpHash, validUntil, false);
+        leaves[0] = _createSourceValidatorLeaf(userOpData.userOpHash, validUntil, false, address(validator));
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
 

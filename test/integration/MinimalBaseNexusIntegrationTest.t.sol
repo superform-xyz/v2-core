@@ -184,7 +184,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         // create validator merkle tree & get signature data
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false);
+        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false, address(superMerkleValidator));
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
 
@@ -222,7 +222,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         // create validator merkle tree & get signature data
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false);
+        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false, address(superMerkleValidator));
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
         bytes memory sigData = abi.encode(false, validUntil, root, proof[0], proof[0], signature);
