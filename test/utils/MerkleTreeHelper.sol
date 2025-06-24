@@ -31,8 +31,8 @@ abstract contract MerkleTreeHelper is StdCheats, Helpers {
     /*//////////////////////////////////////////////////////////////
                                  SOURCE CHAIN HELPERS
     //////////////////////////////////////////////////////////////*/
-    function _createSourceValidatorLeaf(bytes32 userOpHash, uint48 validUntil, bool validateDstProof) internal pure returns (bytes32) {
-        return keccak256(bytes.concat(keccak256(abi.encode(userOpHash, validUntil, validateDstProof))));
+    function _createSourceValidatorLeaf(bytes32 userOpHash, uint48 validUntil, bool validateDstProof, address validator) internal pure returns (bytes32) {
+        return keccak256(bytes.concat(keccak256(abi.encode(userOpHash, validUntil, validateDstProof, validator))));
     }
 
     /*//////////////////////////////////////////////////////////////
