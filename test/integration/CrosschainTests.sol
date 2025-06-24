@@ -1682,6 +1682,44 @@ contract CrosschainTests is BaseTest {
         );
     }
 
+    function test_DeBridgeCancelOrderHook() public {
+        uint256 amountPerVault = 1e8;
+
+        _attemptToExecuteDeBridgeOrder();
+
+        // CANCEL ORDER
+        vm.selectFork(FORKS[BASE]);
+
+        address[] memory cancelOrderHooksAddresses = new address[](1);
+        cancelOrderHooksAddresses[0] = _getHookAddress(BASE, DEBRIDGE_CANCEL_ORDER_HOOK_KEY);
+
+        uint256 msgValue = IDlnSource(DEBRIDGE_DLN_ADDRESSES[BASE]).globalFixedNativeFee();
+
+        bytes[] memory cancelData = new bytes[](1);
+        cancelData[0] = _createDebrigeCancelOrderData(
+            accountBase,
+            address(debridgeAdapterOnETH),
+            address(0),
+            accountETH,
+            address(0),
+            address(0),
+            underlyingBase_USDC,
+            underlyingETH_USDC,
+            msgValue,
+            amountPerVault,
+            amountPerVault,
+            uint256(ETH)
+        );
+
+        UserOpData memory cancelOrderUserOpData = _createUserOpData(cancelOrderHooksAddresses, cancelData, BASE, true);
+
+        executeOp(cancelOrderUserOpData);
+
+        console2.log("CANCELLED ORDER");
+        //console2.log(IERC20(underlyingBase_USDC).balanceOf(accountETH));
+        // assertEq(IERC20(underlyingBase_USDC).balanceOf(accountETH), amountPerVault);
+    }
+
     /*//////////////////////////////////////////////////////////////
                            INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
@@ -2352,5 +2390,92 @@ contract CrosschainTests is BaseTest {
             uint256 sharesWETH = IERC4626(yieldSource4626AddressBase_WETH).balanceOf(accountBase);
             assertGt(sharesWETH, 0);
         }
+    }
+
+    function _attemptToExecuteDeBridgeOrder() internal {
+        uint256 amountPerVault = 1e8;
+
+        // ETH IS DST
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+
+        // PREPARE ETH DATA (This becomes the *payload* for the Debridge external call)
+        bytes memory innerExecutorPayload;
+        TargetExecutorMessage memory messageData;
+        address accountToUse;
+        {   
+            // No approval hook here so will not be successfully executed
+            address[] memory eth7540HooksAddresses = new address[](1);
+            eth7540HooksAddresses[0] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+
+            bytes[] memory eth7540HooksData = new bytes[](1);
+            eth7540HooksData[0] = _createRequestDeposit7540VaultHookData(
+                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
+            );
+
+            messageData = TargetExecutorMessage({
+                hooksAddresses: eth7540HooksAddresses,
+                hooksData: eth7540HooksData,
+                validator: address(validatorOnETH),
+                signer: validatorSigners[ETH],
+                signerPrivateKey: validatorSignerPrivateKeys[ETH],
+                targetAdapter: address(debridgeAdapterOnETH),
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: CHAIN_1_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+                chainId: uint64(ETH),
+                amount: amountPerVault,
+                account: accountETH,
+                tokenSent: underlyingETH_USDC
+            });
+
+            (innerExecutorPayload, accountToUse) = _createTargetExecutorMessage(messageData);
+        }
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], amountPerVault, false);
+
+        uint256 msgValue = IDlnSource(DEBRIDGE_DLN_ADDRESSES[BASE]).globalFixedNativeFee();
+
+        bytes memory debridgeData = _createDebridgeSendFundsAndExecuteHookData(
+            DebridgeOrderData({
+                usePrevHookAmount: false, //usePrevHookAmount
+                value: msgValue, //value
+                giveTokenAddress: underlyingBase_USDC, //giveTokenAddress
+                giveAmount: amountPerVault, //giveAmount
+                version: 1, //envelope.version
+                fallbackAddress: accountETH, //envelope.fallbackAddress
+                executorAddress: address(debridgeAdapterOnETH), //envelope.executorAddress
+                executionFee: uint160(0), //envelope.executionFee
+                allowDelayedExecution: false, //envelope.allowDelayedExecution
+                requireSuccessfulExecution: true, //envelope.requireSuccessfulExecution
+                payload: innerExecutorPayload, //envelope.payload
+                takeTokenAddress: underlyingETH_USDC, //takeTokenAddress
+                takeAmount: amountPerVault - amountPerVault * 1e4 / 1e5, //takeAmount
+                takeChainId: ETH, //takeChainId
+                // receiverDst must be the Debridge Adapter on the destination chain
+                receiverDst: address(debridgeAdapterOnETH),
+                givePatchAuthoritySrc: address(0), //givePatchAuthoritySrc
+                orderAuthorityAddressDst: abi.encodePacked(accountETH), //orderAuthorityAddressDst
+                allowedTakerDst: "", //allowedTakerDst
+                allowedCancelBeneficiarySrc: "", //allowedCancelBeneficiarySrc
+                affiliateFee: "", //affiliateFee
+                referralCode: 0 //referralCode
+            })
+        );
+        srcHooksData[1] = debridgeData;
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+        
+        instanceOnBase.expect4337Revert();
+        executeOp(srcUserOpData);
     }
 }
