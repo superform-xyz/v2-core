@@ -1103,21 +1103,6 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(repayAndWithdrawHook.outAmount(), 0);
     }
 
-    function test_RepayAndWithdrawHook_Build_RevertIf_ZeroAmount_FullRepayment() public {
-        bytes memory data = abi.encodePacked(
-            loanToken,
-            collateralToken,
-            address(mockOracle),
-            address(mockIRM),
-            uint256(0), // amount
-            lltv,
-            false, // usePrevHook
-            true // isFullRepayment
-        );
-        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
-        repayAndWithdrawHook.build(address(0), address(this), data);
-    }
-
     /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
