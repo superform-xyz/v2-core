@@ -135,7 +135,7 @@ contract BatchTransferHookTest is Helpers {
         bytes memory data = _encodeData(tokens, amounts);
 
         // Test should revert with LENGTH_MISMATCH error
-        vm.expectRevert("LENGTH_MISMATCH()");
+        vm.expectRevert(BatchTransferHook.LENGTH_MISMATCH.selector);
         hook.build(address(0), address(0), data);
     }
 
