@@ -702,4 +702,120 @@ abstract contract InternalHelpers {
         // Rest: abi encoded tokens array
         data = abi.encodePacked(to, abi.encode(tokens));
     }
+
+    function _createDebrigeCancelOrderData(
+        address account,
+        address receiver,
+        address givePatchAuthority,
+        address orderAuthorityAddress,
+        address allowedTaker,
+        address allowedCancelBeneficiary,
+        address inputToken,
+        address outputToken,
+        uint256 value,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint256 destinationChainId
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return _combineOrderCancellationData(
+            _createOrderCancellationPart1(
+                account, inputToken, outputToken, value, inputAmount, outputAmount, destinationChainId
+            ),
+            _createOrderCancellationPart2(
+                receiver,
+                givePatchAuthority,
+                orderAuthorityAddress,
+                allowedTaker,
+                allowedCancelBeneficiary
+            )
+        );
+    }
+
+    // First part of the cancellation data
+    function _createOrderCancellationPart1(
+        address account,
+        address inputToken,
+        address outputToken,
+        uint256 value,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint256 destinationChainId
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory makerSrc = abi.encodePacked(account);
+        bytes memory giveTokenAddress = abi.encodePacked(inputToken);
+        bytes memory takeTokenAddress = abi.encodePacked(outputToken);
+
+        uint64 makerOrderNonce = 123_456;
+        uint256 giveAmount = inputAmount;
+        uint256 takeAmount = outputAmount;
+
+        return abi.encodePacked(
+            value, // value
+            makerOrderNonce, // makerOrderNonce
+            uint256(makerSrc.length), // makerSrc length
+            makerSrc, // makerSrc
+            uint256(giveTokenAddress.length), // giveTokenAddress length
+            giveTokenAddress, // giveTokenAddress
+            giveAmount, // giveAmount
+            destinationChainId, // takeChainId
+            uint256(takeTokenAddress.length), // takeTokenAddress length
+            takeTokenAddress, // takeTokenAddress
+            takeAmount // takeAmount
+        );
+    }
+
+    // Second part of the cancellation data
+    function _createOrderCancellationPart2(
+        address receiver,
+        address givePatchAuthority,
+        address orderAuthorityAddress,
+        address allowedTaker,
+        address allowedCancelBeneficiary
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory receiverDst = abi.encodePacked(receiver);
+        bytes memory givePatchAuthoritySrc = abi.encodePacked(givePatchAuthority);
+        bytes memory orderAuthorityAddressDst = abi.encodePacked(orderAuthorityAddress);
+        bytes memory allowedTakerDst = abi.encodePacked(allowedTaker);
+        bytes memory allowedCancelBeneficiarySrc = abi.encodePacked(allowedCancelBeneficiary);
+
+        uint256 executionFee = 0.01 ether;
+
+        return abi.encodePacked(
+            uint256(receiverDst.length), // receiverDst length
+            receiverDst, // receiverDst
+            uint256(givePatchAuthoritySrc.length), // givePatchAuthoritySrc length
+            givePatchAuthoritySrc, // givePatchAuthoritySrc
+            uint256(orderAuthorityAddressDst.length), // orderAuthorityAddressDst length
+            orderAuthorityAddressDst, // orderAuthorityAddressDst
+            uint256(allowedTakerDst.length), // allowedTakerDst length
+            allowedTakerDst, // allowedTakerDst
+            uint256(allowedCancelBeneficiarySrc.length), // allowedCancelBeneficiarySrc length
+            allowedCancelBeneficiarySrc, // allowedCancelBeneficiarySrc
+            executionFee // executionFee
+        );
+    }
+
+    // Helper function to combine the data parts
+    function _combineOrderCancellationData(
+        bytes memory part1,
+        bytes memory part2
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(part1, part2);
+    }
 }
