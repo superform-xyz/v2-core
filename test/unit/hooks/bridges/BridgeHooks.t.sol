@@ -1,21 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {AcrossSendFundsAndExecuteOnDstHook} from
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { AcrossSendFundsAndExecuteOnDstHook } from
     "../../../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
-import {DeBridgeSendOrderAndExecuteOnDstHook} from
+import { DeBridgeSendOrderAndExecuteOnDstHook } from
     "../../../../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
-import {DeBridgeCancelOrderHook} from
-    "../../../../src/core/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
-import {ISuperHook} from "../../../../src/core/interfaces/ISuperHook.sol";
-import {ISuperValidator} from "../../../../src/core/interfaces/ISuperValidator.sol";
-import {IAcrossSpokePoolV3} from "../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
-import {MockHook} from "../../../mocks/MockHook.sol";
-import {BaseHook} from "../../../../src/core/hooks/BaseHook.sol";
-import {SuperValidatorBase} from "../../../../src/core/validators/SuperValidatorBase.sol";
-import {Helpers} from "../../../utils/Helpers.sol";
-import {DlnExternalCallLib} from "../../../../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
+import { DeBridgeCancelOrderHook } from "../../../../src/core/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
+import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperValidator } from "../../../../src/core/interfaces/ISuperValidator.sol";
+import { IAcrossSpokePoolV3 } from "../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
+import { MockHook } from "../../../mocks/MockHook.sol";
+import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
+import { SuperValidatorBase } from "../../../../src/core/validators/SuperValidatorBase.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
+import { DlnExternalCallLib } from "../../../../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
 
 contract MockSignatureStorage {
     function retrieveSignatureData(address) external view returns (bytes memory) {
@@ -26,10 +25,10 @@ contract MockSignatureStorage {
 
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         /**
-        bytes32[] memory proofs = new bytes32[](1);
-        proofs[0] = keccak256("dst1");
-        proofDst[0] = ISuperValidator.DstProof({proof: proofs, dstChainId: uint64(block.chainid)});
-        */
+         * bytes32[] memory proofs = new bytes32[](1);
+         *     proofs[0] = keccak256("dst1");
+         *     proofDst[0] = ISuperValidator.DstProof({proof: proofs, dstChainId: uint64(block.chainid)});
+         */
         bytes memory signature = hex"abcdef";
         return abi.encode(validUntil, merkleRoot, proofSrc, proofDst, signature);
     }
@@ -216,19 +215,19 @@ contract BridgeHooks is Helpers {
     function test_AcrossV3_Build_NoLengthCheck() public {
         // Create data shorter than required 217 bytes
         bytes memory malformedData = abi.encodePacked(
-            uint256(1 ether),          // value (32 bytes)
-            address(0x1),              // recipient (20 bytes)
-            address(0x2),              // inputToken (20 bytes)
-            address(0x3),              // outputToken (20 bytes)
-            uint256(1000),            // inputAmount (32 bytes)
-            uint256(900),             // outputAmount (32 bytes)
-            uint256(1)                // destinationChainId (32 bytes)
-        // Missing remaining required fields - total length = 188 bytes
+            uint256(1 ether), // value (32 bytes)
+            address(0x1), // recipient (20 bytes)
+            address(0x2), // inputToken (20 bytes)
+            address(0x3), // outputToken (20 bytes)
+            uint256(1000), // inputAmount (32 bytes)
+            uint256(900), // outputAmount (32 bytes)
+            uint256(1) // destinationChainId (32 bytes)
         );
+        // Missing remaining required fields - total length = 188 bytes
 
         // This should revert due to out of bounds read, but it doesn't
         // The build function will try to read past the end of the bytes array
-        vm.expectRevert();  // Any revert would prove length is checked
+        vm.expectRevert(); // Any revert would prove length is checked
         acrossV3hook.build(address(0), mockAccount, malformedData);
     }
 
@@ -340,7 +339,6 @@ contract BridgeHooks is Helpers {
         deBridgehook.build(mockPrevHook, mockAccount, data);
     }
 
-
     function test_subtype() public view {
         assertNotEq(BaseHook(address(deBridgehook)).subtype(), bytes32(0));
     }
@@ -354,7 +352,7 @@ contract BridgeHooks is Helpers {
     }
 
     // DeBridge Cancel Order Hook Tests
-    
+
     function test_CancelOrderHook_Constructor() public view {
         assertEq(address(cancelOrderHook.dlnDestination()), address(this));
         assertEq(uint256(cancelOrderHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
@@ -376,7 +374,7 @@ contract BridgeHooks is Helpers {
         assertEq(executions.length, 3);
         assertEq(executions[1].target, address(this)); // Should be the dlnSource address
         assertEq(executions[1].value, 0.1 ether); // Using mockValue
-        
+
         // Skip checking the exact selector since it's complex to extract in Solidity
         // Just verify the callData is not empty and the target is correct
         assertTrue(executions[1].callData.length > 0, "CallData should not be empty");
@@ -432,7 +430,12 @@ contract BridgeHooks is Helpers {
         uint32 referralCode;
     }
 
-    function _encodeDebridgeData(bool usePrevHookAmount, uint256 amount, uint256 value, address tokenIn)
+    function _encodeDebridgeData(
+        bool usePrevHookAmount,
+        uint256 amount,
+        uint256 value,
+        address tokenIn
+    )
         internal
         view
         returns (bytes memory hookData)
@@ -480,7 +483,11 @@ contract BridgeHooks is Helpers {
         bytes memory payload,
         bool allowDelayedExecution,
         bool requireSuccessfulExecution // Note: Keep typo from library 'requireSuccessfullExecution'
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         DlnExternalCallLib.ExternalCallEnvelopV1 memory dataEnvelope = DlnExternalCallLib.ExternalCallEnvelopV1({
             executorAddress: executorAddress,
             executionFee: executionFee,
@@ -543,22 +550,19 @@ contract BridgeHooks is Helpers {
 
     function _encodeCancelOrderData() internal view returns (bytes memory) {
         // Create and return the combined data in parts to avoid stack too deep error
-        return _combineOrderCancellationData(
-            _createOrderCancellationPart1(),
-            _createOrderCancellationPart2()
-        );
+        return _combineOrderCancellationData(_createOrderCancellationPart1(), _createOrderCancellationPart2());
     }
-    
+
     // First part of the cancellation data
     function _createOrderCancellationPart1() internal view returns (bytes memory) {
         bytes memory makerSrc = abi.encodePacked(mockAccount);
         bytes memory giveTokenAddress = abi.encodePacked(mockInputToken);
         bytes memory takeTokenAddress = abi.encodePacked(mockOutputToken);
-        
-        uint64 makerOrderNonce = 123456;
+
+        uint64 makerOrderNonce = 123_456;
         uint256 giveAmount = mockInputAmount;
         uint256 takeAmount = mockOutputAmount;
-        
+
         return abi.encodePacked(
             mockValue, // value
             makerOrderNonce, // makerOrderNonce
@@ -573,7 +577,7 @@ contract BridgeHooks is Helpers {
             takeAmount // takeAmount
         );
     }
-    
+
     // Second part of the cancellation data
     function _createOrderCancellationPart2() internal view returns (bytes memory) {
         bytes memory receiverDst = abi.encodePacked(mockRecipient);
@@ -581,9 +585,9 @@ contract BridgeHooks is Helpers {
         bytes memory orderAuthorityAddressDst = abi.encodePacked(address(this));
         bytes memory allowedTakerDst = abi.encodePacked(address(0));
         bytes memory allowedCancelBeneficiarySrc = abi.encodePacked(mockAccount);
-        
+
         uint256 executionFee = 0.01 ether;
-        
+
         return abi.encodePacked(
             uint256(receiverDst.length), // receiverDst length
             receiverDst, // receiverDst
@@ -598,9 +602,16 @@ contract BridgeHooks is Helpers {
             executionFee // executionFee
         );
     }
-    
+
     // Helper function to combine the data parts
-    function _combineOrderCancellationData(bytes memory part1, bytes memory part2) internal pure returns (bytes memory) {
+    function _combineOrderCancellationData(
+        bytes memory part1,
+        bytes memory part2
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encodePacked(part1, part2);
     }
 }
