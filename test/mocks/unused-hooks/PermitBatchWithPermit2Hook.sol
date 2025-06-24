@@ -93,7 +93,8 @@ contract PermitBatchWithPermit2Hook is BaseHook {
         vars.signature = BytesLib.slice(data, vars.signatureOffset, data.length - vars.signatureOffset);
 
         if (vars.usePrevHookAmount) {
-            vars.permitBatch.details[vars.indexOfAmount].amount = ISuperHookResult(prevHook).outAmount().toUint160();
+            vars.permitBatch.details[vars.indexOfAmount].amount =
+                ISuperHookResult(prevHook).getOutAmount(account).toUint160();
         }
 
         if (vars.permitBatch.spender == address(0)) revert ADDRESS_NOT_VALID();
@@ -109,17 +110,17 @@ contract PermitBatchWithPermit2Hook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
+    function _preExecute(address, address account, bytes calldata data) internal override {
         (,, uint256 indexOfAmount, IAllowanceTransfer.PermitBatch memory permitBatch,) =
             abi.decode(data, (address, bool, uint256, IAllowanceTransfer.PermitBatch, bytes));
 
-        outAmount = permitBatch.details[indexOfAmount].amount;
+        setOutAmount(permitBatch.details[indexOfAmount].amount, account);
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
+    function _postExecute(address, address account, bytes calldata data) internal override {
         (,, uint256 indexOfAmount, IAllowanceTransfer.PermitBatch memory permitBatch,) =
             abi.decode(data, (address, bool, uint256, IAllowanceTransfer.PermitBatch, bytes));
 
-        outAmount = permitBatch.details[indexOfAmount].amount;
+        setOutAmount(permitBatch.details[indexOfAmount].amount, account);
     }
 }

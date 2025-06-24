@@ -46,10 +46,6 @@ interface ISuperHookResult {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice The amount of tokens processed by the hook
-    /// @dev This is the primary output value used by subsequent hooks and for accounting
-    /// @return The amount of tokens (assets or shares) processed
-    function outAmount() external view returns (uint256);
 
     /// @notice The type of hook
     /// @dev Used to determine how accounting should process this hook's results
@@ -75,6 +71,12 @@ interface ISuperHookResult {
     /// @dev Used to identify the target chain for cross-chain position transfers
     /// @return The destination chain ID, or 0 if not a cross-chain operation
     function dstChainId() external view returns (uint256);
+
+    /// @notice The amount of tokens processed by the hook in a given caller context, subject to fees after update
+    /// @dev This is the primary output value used by subsequent hooks
+    /// @param caller The caller address for context identification
+    /// @return The amount of tokens (assets or shares) processed
+    function getOutAmount(address caller) external view returns (uint256);
 }
 
 /// @title ISuperHookContextAware
@@ -122,18 +124,6 @@ interface ISuperHookResultOutflow is ISuperHookResult {
     /// @dev Used for cost basis calculation in the accounting system
     /// @return The amount of shares consumed from the user's position
     function usedShares() external view returns (uint256);
-}
-
-/// @title ISuperHookAsync
-/// @author Superform Labs
-/// @notice Interface for hooks that perform asynchronous operations
-/// @dev Used for operations that may complete in a separate transaction
-interface ISuperHookAsync {
-    /// @notice Retrieves the amount of assets or shares processed asynchronously
-    /// @dev Used to track the quantities involved in pending async operations
-    /// @return amount The amount of tokens processed
-    /// @return isShares True if the amount represents shares, false if it represents assets
-    function getUsedAssetsOrShares() external view returns (uint256 amount, bool isShares);
 }
 
 /// @title ISuperHookLoans

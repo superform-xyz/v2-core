@@ -167,7 +167,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         approveAndSwapOdosHook.preExecute(address(0), account, data);
 
-        assertEq(approveAndSwapOdosHook.outAmount(), 500);
+        assertEq(approveAndSwapOdosHook.getOutAmount(address(this)), 500);
     }
 
     function test_PostExecute() public {
@@ -182,7 +182,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         approveAndSwapOdosHook.postExecute(address(0), account, data);
 
-        assertEq(approveAndSwapOdosHook.outAmount(), 300);
+        assertEq(approveAndSwapOdosHook.getOutAmount(address(this)), 300);
     }
 
     function test_BytesLengthDecoding() public view {
@@ -322,7 +322,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         approveAndSwapOdosHook.preExecute(address(0), account, data);
 
-        assertEq(approveAndSwapOdosHook.outAmount(), 500);
+        assertEq(approveAndSwapOdosHook.getOutAmount(address(this)), 500);
     }
 
     function test_SwapOdosHook_PostExecute() public {
@@ -337,7 +337,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         swapOdosHook.postExecute(address(0), account, data);
 
-        assertEq(swapOdosHook.outAmount(), 300);
+        assertEq(swapOdosHook.getOutAmount(address(this)), 300);
     }
 
     function test_SwapOdosHook_BytesLengthDecoding() public view {

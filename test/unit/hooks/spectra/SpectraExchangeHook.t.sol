@@ -497,7 +497,7 @@ contract SpectraExchangeHookTest is Helpers {
 
         // Verify our mock hook is returning the correct amount
         assertEq(
-            MockPrevHookWithFixedAmount(vars.mockPrevHook).outAmount(),
+            MockPrevHookWithFixedAmount(vars.mockPrevHook).getOutAmount(address(this)),
             vars.prevHookAmount,
             "Mock hook should return the fixed amount"
         );
@@ -541,7 +541,7 @@ contract MockPrevHookWithFixedAmount {
         amount = _amount;
     }
 
-    function outAmount() public view returns (uint256) {
+    function getOutAmount(address) public view returns (uint256) {
         return amount;
     }
 }

@@ -11,7 +11,6 @@ import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
-    ISuperHookAsync,
     ISuperHookContextAware,
     ISuperHookAsyncCancelations,
     ISuperHookInspector
@@ -32,7 +31,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract ApproveAndRequestDeposit7540VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
-    ISuperHookAsync,
     ISuperHookAsyncCancelations,
     ISuperHookContextAware,
     ISuperHookInspector
@@ -64,7 +62,7 @@ contract ApproveAndRequestDeposit7540VaultHook is
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
@@ -82,11 +80,6 @@ contract ApproveAndRequestDeposit7540VaultHook is
         });
         executions[3] =
             Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
-    }
-
-    /// @inheritdoc ISuperHookAsync
-    function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
-        return (outAmount, false);
     }
 
     /// @inheritdoc ISuperHookAsyncCancelations
@@ -120,11 +113,11 @@ contract ApproveAndRequestDeposit7540VaultHook is
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+        setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = outAmount - _getBalance(account, data);
+        setOutAmount(getOutAmount(account) - _getBalance(account, data), account);
     }
 
     /*//////////////////////////////////////////////////////////////

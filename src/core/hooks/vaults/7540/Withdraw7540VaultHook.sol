@@ -60,7 +60,7 @@ contract Withdraw7540VaultHook is
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResultOutflow(prevHook).outAmount();
+            amount = ISuperHookResultOutflow(prevHook).getOutAmount(account);
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
@@ -104,13 +104,13 @@ contract Withdraw7540VaultHook is
     function _preExecute(address, address account, bytes calldata data) internal override {
         address yieldSource = data.extractYieldSource();
         asset = IERC7540(yieldSource).asset();
-        outAmount = _getBalance(account, data);
+        setOutAmount(_getBalance(account, data), account);
         usedShares = _getSharesBalance(account, data);
         spToken = IERC7540(yieldSource).share();
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
         usedShares = usedShares - _getSharesBalance(account, data);
     }
 

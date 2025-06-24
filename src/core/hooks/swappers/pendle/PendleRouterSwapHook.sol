@@ -87,7 +87,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(pendleRouterV4),
-            value: usePrevHookAmount ? ISuperHookResult(prevHook).outAmount() : value,
+            value: usePrevHookAmount ? ISuperHookResult(prevHook).getOutAmount(account) : value,
             callData: usePrevHookAmount ? updatedTxData : txData_
         });
     }
@@ -185,12 +185,12 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data);
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        setOutAmount(_getBalance(data), account);
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data) - outAmount;
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        setOutAmount(_getBalance(data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -231,7 +231,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
             if (input.tokenMintSy == address(0) || input.pendleSwap == address(0)) revert ADDRESS_NOT_VALID();
 
             if (usePrevHookAmount) {
-                input.netTokenIn = ISuperHookResult(prevHook).outAmount();
+                input.netTokenIn = ISuperHookResult(prevHook).getOutAmount(account);
             }
             if (input.netTokenIn == 0) revert AMOUNT_IN_NOT_VALID();
 
@@ -258,7 +258,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
             if (market != pendleMarket) revert MARKET_NOT_VALID();
 
             if (usePrevHookAmount) {
-                exactPtIn = ISuperHookResult(prevHook).outAmount();
+                exactPtIn = ISuperHookResult(prevHook).getOutAmount(account);
             }
             if (exactPtIn == 0) revert AMOUNT_IN_NOT_VALID();
 
@@ -291,20 +291,19 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
         if (order.maker == address(0) || order.receiver == address(0)) revert ADDRESS_NOT_VALID();
     }
 
-    function _decodeTokenOutAndReceiver(bytes calldata data) internal view returns (address tokenOut, address receiver) {
+    function _decodeTokenOutAndReceiver(bytes calldata data)
+        internal
+        view
+        returns (address tokenOut, address receiver)
+    {
         bytes4 selector = bytes4(data[0:4]);
         if (selector == IPendleRouterV4.swapExactTokenForPt.selector) {
-            (
-                address _receiver,
-                address market,
-                ,
-                ,
-                ,
-            ) = abi.decode(data[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
+            (address _receiver, address market,,,,) =
+                abi.decode(data[4:], (address, address, uint256, ApproxParams, TokenInput, LimitOrderData));
             (, tokenOut,) = IPendleMarket(market).readTokens();
             receiver = _receiver;
         } else if (selector == IPendleRouterV4.swapExactPtForToken.selector) {
-            (address _receiver,,, TokenOutput memory output, ) =
+            (address _receiver,,, TokenOutput memory output,) =
                 abi.decode(data[4:], (address, address, uint256, TokenOutput, LimitOrderData));
             tokenOut = output.tokenOut;
             receiver = _receiver;

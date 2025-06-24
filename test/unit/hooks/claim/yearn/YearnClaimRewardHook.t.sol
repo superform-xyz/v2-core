@@ -69,11 +69,11 @@ contract YearnClaimOneRewardHookTest is Helpers {
 
         vm.prank(mockAccount);
         hook.preExecute(address(0), mockAccount, _encodeData());
-        assertEq(hook.outAmount(), mockAmount);
+        assertEq(hook.getOutAmount(address(this)), mockAmount);
 
         vm.prank(mockAccount);
         hook.postExecute(address(0), mockAccount, _encodeData());
-        assertEq(hook.outAmount(), 0);
+        assertEq(hook.getOutAmount(address(this)), 0);
     }
 
     function test_Inspector() public view {

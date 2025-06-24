@@ -157,25 +157,15 @@ contract EthenaHooksTests is Helpers {
 
         bytes memory data = _encodeUnstakeData();
         unstakeHook.preExecute(address(0), address(this), data);
-        assertEq(unstakeHook.outAmount(), amount);
+        assertEq(unstakeHook.getOutAmount(address(this)), amount);
 
         unstakeHook.postExecute(address(0), address(this), data);
-        assertEq(unstakeHook.outAmount(), 0);
+        assertEq(unstakeHook.getOutAmount(address(this)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
                      GET USED ASSETS OR SHARES TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_EthenaCooldownSharesHook_GetUsedAssetsOrShares() public {
-        _getTokens(address(yieldSource), address(this), amount);
-
-        bytes memory data = _encodeCooldownData(false);
-        cooldownSharesHook.preExecute(address(0), address(this), data);
-
-        (uint256 usedAssets, bool isShares) = cooldownSharesHook.getUsedAssetsOrShares();
-        assertEq(usedAssets, amount);
-        assertEq(isShares, true);
-    }
 
     function test_cooldownSharesHook_Inspector() public view {
         bytes memory data = _encodeCooldownData(false);

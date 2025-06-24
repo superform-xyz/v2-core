@@ -192,7 +192,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
                 ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
             if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
-            uint256 _outAmount = ISuperHookResult(address(hook)).outAmount(); // Amount of shares or assets processed
+            uint256 _outAmount = ISuperHookResult(address(hook)).getOutAmount(account); // Amount of shares or assets processed
             // Update accounting records and calculate any fees
             feeAmount = ISuperLedger(config.ledger).updateAccounting(
                 account,
@@ -335,7 +335,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         // Process cross-chain operation if a vault bank is specified
         if (vaultBank != address(0)) {
             address spToken = ISuperHookResult(hook).spToken();
-            uint256 amount = ISuperHookResult(hook).outAmount();
+            uint256 amount = ISuperHookResult(hook).getOutAmount(account);
 
             // Create and execute approval for the vault bank to access tokens
             Execution[] memory execs = new Execution[](1);

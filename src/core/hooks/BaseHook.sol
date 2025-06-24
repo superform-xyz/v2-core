@@ -20,9 +20,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    /// @notice The output amount produced by this hook's execution
-    /// @dev Set during postExecute, used by subsequent hooks in the chain
-    uint256 public transient outAmount;
 
     /// @notice The number of shares used by this hook's operation
     /// @dev Used for accounting and tracking consumption of position shares
@@ -190,12 +187,16 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     }
 
     /// @inheritdoc ISuperHookSetter
-    function setOutAmount(uint256 _outAmount, address caller) external {
+    function setOutAmount(uint256 _outAmount, address caller) public {
         uint256 context = _getCurrentExecutionContext(caller);
         _setOutAmount(context, _outAmount);
         console2.log("caller", caller);
 
         console2.log("CONTEXT SET OUT AMOUNT", context);
+    }
+
+    function getOutAmount(address caller) public view returns (uint256) {
+        return _getOutAmount(_getCurrentExecutionContext(caller));
     }
 
     /// @inheritdoc ISuperHook

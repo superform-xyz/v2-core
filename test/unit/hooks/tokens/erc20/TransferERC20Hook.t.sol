@@ -75,10 +75,10 @@ contract TransferERC20HookTest is Helpers {
     function test_PreAndPostExecute() public {
         _getTokens(token, address(to), amount);
         hook.preExecute(address(0), address(this), _encodeData(false));
-        assertEq(hook.outAmount(), amount);
+        assertEq(hook.getOutAmount(address(this)), amount);
 
         hook.postExecute(address(0), address(this), _encodeData(false));
-        assertEq(hook.outAmount(), 0);
+        assertEq(hook.getOutAmount(address(this)), 0);
     }
 
     function test_Inspector() public view {

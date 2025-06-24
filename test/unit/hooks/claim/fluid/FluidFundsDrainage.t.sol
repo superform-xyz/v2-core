@@ -88,7 +88,7 @@ contract FluidClaimRewardHookPoC is Test {
         require(success, "Reward claim failed");
 
         // Check inflated outAmount
-        uint256 outAmount = hook.outAmount();
+        uint256 outAmount = hook.getOutAmount(address(this));
         //assertEq(outAmount, 100 ether, "Inflated outAmount");
         // ^ fixed
         assertEq(outAmount, 0, "amount is not inflated");

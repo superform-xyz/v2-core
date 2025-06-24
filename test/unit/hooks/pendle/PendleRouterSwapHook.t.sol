@@ -306,7 +306,7 @@ contract PendleRouterSwapHookTest is Helpers {
         ptToken.mint(receiver, 500);
         vm.prank(receiver);
         hook.preExecute(address(0), receiver, data);
-        assertEq(hook.outAmount(), 500);
+        assertEq(hook.getOutAmount(address(this)), 500);
     }
 
     function test_PostExecute() public {
@@ -340,7 +340,7 @@ contract PendleRouterSwapHookTest is Helpers {
 
         ptToken.mint(receiver, 300);
         hook.postExecute(address(0), receiver, data);
-        assertEq(hook.outAmount(), 300);
+        assertEq(hook.getOutAmount(address(this)), 300);
     }
 
     function test_Build_RevertIf_InvalidReceiver() public {

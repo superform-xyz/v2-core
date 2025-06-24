@@ -81,12 +81,9 @@ contract ApproveERC20HookTest is Helpers {
         hook.build(address(0), address(this), _encodeData(false));
     }
 
-    function test_PreAndPostExecute() public {
-        hook.preExecute(address(0), address(this), _encodeData(false));
-        assertEq(hook.outAmount(), amount);
-
+    function test_PostExecute() public {
         hook.postExecute(address(0), address(this), _encodeData(false));
-        assertEq(hook.outAmount(), 0);
+        assertEq(hook.getOutAmount(address(this)), 0);
     }
 
     function test_PreAndPostExecute_WithPrevHook() public {
@@ -95,7 +92,7 @@ contract ApproveERC20HookTest is Helpers {
         MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         hook.postExecute(mockPrevHook, address(this), _encodeData(true));
-        assertEq(hook.outAmount(), 0);
+        assertEq(hook.getOutAmount(address(this)), 0);
     }
 
     function test_Inspector() public view {

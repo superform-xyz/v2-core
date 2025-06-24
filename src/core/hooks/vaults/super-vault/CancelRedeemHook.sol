@@ -64,11 +64,11 @@ contract CancelRedeemHook is BaseHook, ISuperHookAsyncCancelations, ISuperHookIn
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+        setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS

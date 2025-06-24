@@ -33,7 +33,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspe
     /// @inheritdoc BaseHook
     function _buildHookExecutions(
         address prevHook,
-        address,
+        address account,
         bytes calldata data
     )
         internal
@@ -48,7 +48,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspe
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResultOutflow(prevHook).outAmount();
+            amount = ISuperHookResultOutflow(prevHook).getOutAmount(account);
         }
         if (amount == 0) revert AMOUNT_NOT_VALID();
 
@@ -81,11 +81,11 @@ contract GearboxUnstakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspe
         address yieldSource = data.extractYieldSource();
         /// @dev in Gearbox, the staking token is the asset
         asset = IGearboxFarmingPool(yieldSource).stakingToken();
-        outAmount = _getBalance(account, data);
+        setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

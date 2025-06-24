@@ -441,7 +441,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
         }
         ISuperHook(address(vars.hookContract)).resetExecutionState(address(this));
 
-        uint256 actualOutput = ISuperHookResult(hook).outAmount();
+        uint256 actualOutput = ISuperHookResult(hook).getOutAmount(address(this));
         if (actualOutput == 0) revert ZERO_OUTPUT_AMOUNT();
 
         uint256 minExpectedOut = expectedAssetsOrSharesOut * (BPS_PRECISION - _getSlippageTolerance()) / BPS_PRECISION;
@@ -863,7 +863,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /// @param prevHook Address of the previous hook
     /// @return Output amount of the previous hook
     function _getPreviousHookOutAmount(address prevHook) private view returns (uint256) {
-        return ISuperHookResultOutflow(prevHook).outAmount();
+        return ISuperHookResultOutflow(prevHook).getOutAmount(address(this));
     }
 
     /// @notice Internal function to handle a redeem claimable

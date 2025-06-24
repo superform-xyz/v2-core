@@ -267,10 +267,10 @@ contract ERC4626VaultHooksTest is Helpers {
 
         bytes memory data = _encodeApproveAndDepositData();
         approveAndDepositHook.preExecute(address(0), address(this), data);
-        assertEq(approveAndDepositHook.outAmount(), amount);
+        assertEq(approveAndDepositHook.getOutAmount(address(this)), amount);
 
         approveAndDepositHook.postExecute(address(0), address(this), data);
-        assertEq(approveAndDepositHook.outAmount(), 0);
+        assertEq(approveAndDepositHook.getOutAmount(address(this)), 0);
     }
 
     function test_DepositHook_PrePostExecute() public {
@@ -279,10 +279,10 @@ contract ERC4626VaultHooksTest is Helpers {
 
         bytes memory data = _encodeDepositData();
         depositHook.preExecute(address(0), address(this), data);
-        assertEq(depositHook.outAmount(), amount);
+        assertEq(depositHook.getOutAmount(address(this)), amount);
 
         depositHook.postExecute(address(0), address(this), data);
-        assertEq(depositHook.outAmount(), 0);
+        assertEq(depositHook.getOutAmount(address(this)), 0);
     }
 
     function test_RedeemHook_PrePostExecute() public {
@@ -291,10 +291,10 @@ contract ERC4626VaultHooksTest is Helpers {
 
         bytes memory data = _encodeRedeemData();
         redeemHook.preExecute(address(0), address(this), data);
-        assertEq(redeemHook.outAmount(), amount);
+        assertEq(redeemHook.getOutAmount(address(this)), amount);
 
         redeemHook.postExecute(address(0), address(this), data);
-        assertEq(redeemHook.outAmount(), 0);
+        assertEq(redeemHook.getOutAmount(address(this)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////

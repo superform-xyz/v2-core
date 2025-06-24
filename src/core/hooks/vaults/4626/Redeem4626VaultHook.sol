@@ -61,7 +61,7 @@ contract Redeem4626VaultHook is
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            shares = ISuperHookResultOutflow(prevHook).outAmount();
+            shares = ISuperHookResultOutflow(prevHook).getOutAmount(account);
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
@@ -108,13 +108,13 @@ contract Redeem4626VaultHook is
     function _preExecute(address, address account, bytes calldata data) internal override {
         address yieldSource = data.extractYieldSource();
         asset = IERC4626(yieldSource).asset();
-        outAmount = _getBalance(account, data);
+        setOutAmount(_getBalance(account, data), account);
         usedShares = _getSharesBalance(account, data);
         spToken = yieldSource;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
         usedShares = usedShares - _getSharesBalance(account, data);
     }
 

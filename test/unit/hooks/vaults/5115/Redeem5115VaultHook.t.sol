@@ -93,7 +93,7 @@ contract Redeem5115VaultHookTest is Helpers {
         _getTokens(token, address(this), amount);
         bytes memory data = _encodeData(false);
         hook.preExecute(address(0), address(this), data);
-        assertEq(hook.outAmount(), amount);
+        assertEq(hook.getOutAmount(address(this)), amount);
 
         address spToken = hook.spToken();
         assertEq(spToken, yieldSource);
@@ -102,7 +102,7 @@ contract Redeem5115VaultHookTest is Helpers {
         assertEq(asset, token);
 
         hook.postExecute(address(0), address(this), data);
-        assertEq(hook.outAmount(), 0);
+        assertEq(hook.getOutAmount(address(this)), 0);
     }
 
     function test_ReplaceCalldata() public view {

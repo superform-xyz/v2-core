@@ -2,16 +2,16 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
-import {ISuperHookContextAware, ISuperHookResult, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
-import {IGearboxFarmingPool} from "../../../../vendor/gearbox/IGearboxFarmingPool.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperHookContextAware, ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { IGearboxFarmingPool } from "../../../../vendor/gearbox/IGearboxFarmingPool.sol";
 
 /// @title ApproveAndGearboxStakeHook
 /// @author Superform Labs
@@ -27,13 +27,17 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware, ISuperH
     uint256 private constant AMOUNT_POSITION = 44;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 76;
 
-    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.STAKE) {}
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.STAKE) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc BaseHook
-    function _buildHookExecutions(address prevHook, address, bytes calldata data)
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
         internal
         view
         override
@@ -48,17 +52,22 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware, ISuperH
         if (yieldSource == address(0) || token == address(0)) revert ADDRESS_NOT_VALID();
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).getOutAmount(account);
         }
         if (amount == 0) revert AMOUNT_NOT_VALID();
 
         executions = new Execution[](4);
-        executions[0] = Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0))});
+        executions[0] =
+            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
         executions[1] =
-            Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, amount))});
-        executions[2] =
-            Execution({target: yieldSource, value: 0, callData: abi.encodeCall(IGearboxFarmingPool.deposit, (amount))});
-        executions[3] = Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0))});
+            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, amount)) });
+        executions[2] = Execution({
+            target: yieldSource,
+            value: 0,
+            callData: abi.encodeCall(IGearboxFarmingPool.deposit, (amount))
+        });
+        executions[3] =
+            Execution({ target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (yieldSource, 0)) });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -79,11 +88,11 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware, ISuperH
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+        setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

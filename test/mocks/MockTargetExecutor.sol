@@ -160,7 +160,7 @@ contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
                 yieldSource,
                 yieldSourceOracleId,
                 _type == ISuperHook.HookType.INFLOW,
-                ISuperHookResult(address(hook)).outAmount(),
+                ISuperHookResult(address(hook)).getOutAmount(account),
                 0
             );
         }
@@ -170,7 +170,7 @@ contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
         bool lockForSP = ISuperHookResult(address(hook)).vaultBank() != address(0);
         if (lockForSP) {
             address spToken = ISuperHookResult(hook).spToken();
-            uint256 amount = ISuperHookResult(hook).outAmount();
+            uint256 amount = ISuperHookResult(hook).getOutAmount(account);
 
             ISuperCollectiveVault vault = ISuperCollectiveVault(SUPER_COLLECTIVE_VAULT);
 

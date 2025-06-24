@@ -35,7 +35,7 @@ contract ApproveAndFluidStakeHook is BaseHook, ISuperHookContextAware, ISuperHoo
     /// @inheritdoc BaseHook
     function _buildHookExecutions(
         address prevHook,
-        address,
+        address account,
         bytes calldata data
     )
         internal
@@ -51,7 +51,7 @@ contract ApproveAndFluidStakeHook is BaseHook, ISuperHookContextAware, ISuperHoo
         if (yieldSource == address(0) || token == address(0)) revert ADDRESS_NOT_VALID();
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).getOutAmount(account);
         }
         if (amount == 0) revert AMOUNT_NOT_VALID();
 
@@ -90,12 +90,12 @@ contract ApproveAndFluidStakeHook is BaseHook, ISuperHookContextAware, ISuperHoo
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+        setOutAmount(_getBalance(account, data), account);
         /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

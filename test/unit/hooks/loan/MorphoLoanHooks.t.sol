@@ -84,6 +84,10 @@ contract MockHook {
     function setOutAmount(uint256 _outAmount, address) external {
         outAmount = _outAmount;
     }
+
+    function getOutAmount(address) external view returns (uint256) {
+        return outAmount;
+    }
 }
 
 contract MorphoLoanHooksTest is Helpers {
@@ -306,10 +310,10 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeBorrowOnlyData(false);
         deal(loanToken, address(this), amount);
         borrowHookB.preExecute(address(0), address(this), data);
-        assertEq(borrowHookB.outAmount(), amount);
+        assertEq(borrowHookB.getOutAmount(address(this)), amount);
 
         borrowHookB.postExecute(address(0), address(this), data);
-        assertEq(borrowHookB.outAmount(), 0);
+        assertEq(borrowHookB.getOutAmount(address(this)), 0);
     }
 
     function test_BorrowHookB_DecodeUsePrevHookAmount() public view {
@@ -827,38 +831,38 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeBorrowData(false);
         deal(address(collateralToken), address(this), amount);
         borrowHook.preExecute(address(0), address(this), data);
-        assertEq(borrowHook.outAmount(), amount, "A");
+        assertEq(borrowHook.getOutAmount(address(this)), amount, "A");
 
         borrowHook.postExecute(address(0), address(this), data);
-        assertEq(borrowHook.outAmount(), 0, "B");
+        assertEq(borrowHook.getOutAmount(address(this)), 0, "B");
     }
 
     function test_SupplyHook_PrePostExecute() public {
         bytes memory data = _encodeSupplyData(false);
         deal(address(collateralToken), address(this), amount);
         supplyHook.preExecute(address(0), address(this), data);
-        assertEq(supplyHook.outAmount(), amount);
+        assertEq(supplyHook.getOutAmount(address(this)), amount);
 
         supplyHook.postExecute(address(0), address(this), data);
-        assertEq(supplyHook.outAmount(), 0);
+        assertEq(supplyHook.getOutAmount(address(this)), 0);
     }
 
     function test_RepayHook_PrePostExecute() public {
         bytes memory data = _encodeRepayData(false, false);
         repayHook.preExecute(address(0), address(this), data);
-        assertEq(repayHook.outAmount(), 0);
+        assertEq(repayHook.getOutAmount(address(this)), 0);
 
         repayHook.postExecute(address(0), address(this), data);
-        assertEq(repayHook.outAmount(), 0);
+        assertEq(repayHook.getOutAmount(address(this)), 0);
     }
 
     function test_RepayAndWithdrawHook_PrePostExecute() public {
         bytes memory data = _encodeRepayAndWithdrawData(false, false);
         repayAndWithdrawHook.preExecute(address(0), address(this), data);
-        assertEq(repayAndWithdrawHook.outAmount(), 0);
+        assertEq(repayAndWithdrawHook.getOutAmount(address(this)), 0);
 
         repayAndWithdrawHook.postExecute(address(0), address(this), data);
-        assertEq(repayAndWithdrawHook.outAmount(), 0);
+        assertEq(repayAndWithdrawHook.getOutAmount(address(this)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -997,9 +1001,9 @@ contract MorphoLoanHooksTest is Helpers {
             0
         );
         withdrawHook.preExecute(address(0), address(this), data);
-        assertEq(withdrawHook.outAmount(), 0);
+        assertEq(withdrawHook.getOutAmount(address(this)), 0);
         withdrawHook.postExecute(address(0), address(this), data);
-        assertEq(withdrawHook.outAmount(), 0);
+        assertEq(withdrawHook.getOutAmount(address(this)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1095,9 +1099,9 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeRepayAndWithdrawData(false, true);
         // outAmount should be 0 before and after since MockERC20 has no balance logic
         repayAndWithdrawHook.preExecute(address(0), address(this), data);
-        assertEq(repayAndWithdrawHook.outAmount(), 0);
+        assertEq(repayAndWithdrawHook.getOutAmount(address(this)), 0);
         repayAndWithdrawHook.postExecute(address(0), address(this), data);
-        assertEq(repayAndWithdrawHook.outAmount(), 0);
+        assertEq(repayAndWithdrawHook.getOutAmount(address(this)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////

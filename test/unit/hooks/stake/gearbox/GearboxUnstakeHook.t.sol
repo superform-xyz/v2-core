@@ -88,10 +88,10 @@ contract GearboxUnstakeHookTest is Helpers {
         _getTokens(token, address(this), amount);
 
         hook.preExecute(address(0), address(this), data);
-        assertEq(hook.outAmount(), amount);
+        assertEq(hook.getOutAmount(address(this)), amount);
 
         hook.postExecute(address(0), address(this), data);
-        assertEq(hook.outAmount(), 0);
+        assertEq(hook.getOutAmount(address(this)), 0);
     }
 
     function stakingToken() external view returns (address) {

@@ -118,7 +118,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
             });
         } else {
             if (vars.usePrevHookAmount) {
-                vars.amount = ISuperHookResult(prevHook).outAmount();
+                vars.amount = ISuperHookResult(prevHook).getOutAmount(account);
             }
             if (vars.amount == 0) revert AMOUNT_NOT_VALID();
 
@@ -164,6 +164,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     /// @param id the id of the market
     /// @param account the account to derive the share balance for
     /// @return borrowShares the share balance of the account
+
     function deriveShareBalance(Id id, address account) public view returns (uint128 borrowShares) {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
     }
@@ -241,10 +242,10 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         morphoInterface.accrueInterest(marketParams);
 
         // store current balance
-        outAmount = getCollateralTokenBalance(account, data);
+        setOutAmount(getCollateralTokenBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = getCollateralTokenBalance(account, data) - outAmount;
+        setOutAmount(getCollateralTokenBalance(account, data) - getOutAmount(account), account);
     }
 }

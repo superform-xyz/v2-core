@@ -191,10 +191,10 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
         _getTokens(token, address(this), amount);
         bytes memory data = _encodeData(false);
         hook.preExecute(address(0), address(this), data);
-        assertEq(hook.outAmount(), amount);
+        assertEq(hook.getOutAmount(address(this)), amount);
 
         hook.postExecute(address(0), address(this), data);
-        assertEq(hook.outAmount(), 0);
+        assertEq(hook.getOutAmount(address(this)), 0);
     }
 
     function test_Inspector() public view {

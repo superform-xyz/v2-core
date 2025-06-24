@@ -13,7 +13,6 @@ import { BaseHook } from "../../BaseHook.sol";
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
-    ISuperHookAsync,
     ISuperHookAsyncCancelations,
     ISuperHookContextAware,
     ISuperHookInspector
@@ -31,7 +30,6 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 contract RequestRedeem7540VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
-    ISuperHookAsync,
     ISuperHookAsyncCancelations,
     ISuperHookContextAware,
     ISuperHookInspector
@@ -62,7 +60,7 @@ contract RequestRedeem7540VaultHook is
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            shares = ISuperHookResult(prevHook).outAmount();
+            shares = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
@@ -74,11 +72,6 @@ contract RequestRedeem7540VaultHook is
             value: 0,
             callData: abi.encodeCall(IERC7540.requestRedeem, (shares, account, account))
         });
-    }
-
-    /// @inheritdoc ISuperHookAsync
-    function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
-        return (outAmount, true);
     }
 
     /// @inheritdoc ISuperHookAsyncCancelations
@@ -110,11 +103,11 @@ contract RequestRedeem7540VaultHook is
     //////////////////////////////////////////////////////////////*/
 
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+        setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = outAmount - _getBalance(account, data);
+        setOutAmount(getOutAmount(account) - _getBalance(account, data), account);
     }
 
     /*//////////////////////////////////////////////////////////////

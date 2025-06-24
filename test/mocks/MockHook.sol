@@ -32,6 +32,10 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         outAmount = _outAmount;
     }
 
+    function getOutAmount(address) external view returns (uint256) {
+        return outAmount;
+    }
+
     function setUsedShares(uint256 _usedShares) external {
         usedShares = _usedShares;
     }

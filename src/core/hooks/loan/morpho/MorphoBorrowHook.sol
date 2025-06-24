@@ -80,7 +80,7 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
         BorrowHookLocalVars memory vars = _decodeBorrowHookData(data);
 
         if (vars.usePrevHookAmount) {
-            vars.amount = ISuperHookResult(prevHook).outAmount();
+            vars.amount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         if (vars.amount == 0) revert AMOUNT_NOT_VALID();
@@ -141,10 +141,10 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
 
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
-        outAmount = getLoanTokenBalance(account, data);
+        setOutAmount(getLoanTokenBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = getLoanTokenBalance(account, data) - outAmount;
+        setOutAmount(getLoanTokenBalance(account, data) - getOutAmount(account), account);
     }
 }

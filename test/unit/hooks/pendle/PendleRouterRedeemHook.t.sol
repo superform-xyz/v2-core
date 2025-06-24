@@ -125,7 +125,7 @@ contract PendleRouterRedeemHookTest is Helpers {
 
         tokenOut.mint(account, 500);
         hook.preExecute(address(0), account, data);
-        assertEq(hook.outAmount(), 500);
+        assertEq(hook.getOutAmount(address(this)), 500);
     }
 
     function test_PostExecute() public {
@@ -137,7 +137,7 @@ contract PendleRouterRedeemHookTest is Helpers {
 
         tokenOut.mint(account, 300);
         hook.postExecute(address(0), account, data);
-        assertEq(hook.outAmount(), 300);
+        assertEq(hook.getOutAmount(address(this)), 300);
     }
 
     function test_UsePrevHookAmount() public view {
