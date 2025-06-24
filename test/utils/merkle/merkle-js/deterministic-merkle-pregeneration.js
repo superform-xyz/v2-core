@@ -87,8 +87,6 @@ DESCRIPTION:
                 addresses.vaults.globalSVGearStrategy = this.extractAddress(line);
             } else if (line.includes('VAULT_globalRuggableVault:')) {
                 addresses.vaults.globalRuggableVault = this.extractAddress(line);
-            } else if (line.includes('HOOK_APPROVE_AND_REDEEM_4626_VAULT_HOOK:')) {
-                addresses.hooks.APPROVE_AND_REDEEM_4626_VAULT_HOOK = this.extractAddress(line);
             } else if (line.includes('HOOK_APPROVE_AND_DEPOSIT_4626_VAULT_HOOK:')) {
                 addresses.hooks.APPROVE_AND_DEPOSIT_4626_VAULT_HOOK = this.extractAddress(line);
             } else if (line.includes('HOOK_REDEEM_4626_VAULT_HOOK:')) {
@@ -166,7 +164,6 @@ DESCRIPTION:
     validateAddresses(addresses) {
         const requiredVaults = ['globalSVStrategy', 'globalSVGearStrategy', 'globalRuggableVault'];
         const requiredHooks = [
-            'APPROVE_AND_REDEEM_4626_VAULT_HOOK',
             'APPROVE_AND_DEPOSIT_4626_VAULT_HOOK',
             'REDEEM_4626_VAULT_HOOK',
             'APPROVE_AND_GEARBOX_STAKE_HOOK',
@@ -222,11 +219,10 @@ DESCRIPTION:
                         },
                         hooks: {
                             // The remaining are hooks in the order they appear in globalMerkleHooks
-                            APPROVE_AND_REDEEM_4626_VAULT_HOOK: originalOwnerList[3] || originalOwnerList[0],
-                            APPROVE_AND_DEPOSIT_4626_VAULT_HOOK: originalOwnerList[4] || originalOwnerList[0],
-                            REDEEM_4626_VAULT_HOOK: originalOwnerList[5] || originalOwnerList[0],
-                            APPROVE_AND_GEARBOX_STAKE_HOOK: originalOwnerList[6] || originalOwnerList[0],
-                            GEARBOX_UNSTAKE_HOOK: originalOwnerList[7] || originalOwnerList[0]
+                            APPROVE_AND_DEPOSIT_4626_VAULT_HOOK: originalOwnerList[3] || originalOwnerList[0],
+                            REDEEM_4626_VAULT_HOOK: originalOwnerList[1] || originalOwnerList[0],
+                            APPROVE_AND_GEARBOX_STAKE_HOOK: originalOwnerList[2] || originalOwnerList[0],
+                            GEARBOX_UNSTAKE_HOOK: originalOwnerList[3] || originalOwnerList[0]
                         }
                     };
                 }

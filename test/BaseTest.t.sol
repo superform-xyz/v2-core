@@ -1196,7 +1196,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             globalMerkleHookNames[0] = "APPROVE_AND_DEPOSIT_4626_VAULT_HOOK";
             globalMerkleHookNames[1] = "REDEEM_4626_VAULT_HOOK";
             globalMerkleHookNames[2] = "APPROVE_AND_GEARBOX_STAKE_HOOK";
-            globalMerkleHookNames[4] = "GEARBOX_UNSTAKE_HOOK";
+            globalMerkleHookNames[3] = "GEARBOX_UNSTAKE_HOOK";
 
             if (chainIds[i] == ETH) {
                 /// @dev set any new sv addresses here
