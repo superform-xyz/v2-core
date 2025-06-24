@@ -7,8 +7,6 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { ISuperHook, ISuperHookSetter, ISuperHookContextAware, ISuperHookResult } from "../interfaces/ISuperHook.sol";
 
-import { console2 } from "forge-std/console2.sol";
-
 /// @title BaseHook
 /// @author Superform Labs
 /// @notice Base implementation for all hooks in the Superform system
@@ -119,9 +117,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     /// @inheritdoc ISuperHook
     function setExecutionContext(address caller, bytes calldata hookData) external {
         uint256 context = _createExecutionContext(caller, hookData);
-
-        console2.log("caller", caller);
-        console2.log("CONTEXT SET CALLER", context);
     }
 
     /// @dev Standard build pattern - MUST include preExecute first, postExecute last
@@ -169,9 +164,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
         if (_getPreExecuteMutex(context)) revert PRE_EXECUTE_ALREADY_CALLED();
         _setPreExecuteMutex(context, true);
         _preExecute(prevHook, account, data);
-        console2.log("caller", account);
-
-        console2.log("CONTEXT PRE EXECUTE", context);
     }
 
     /// @inheritdoc ISuperHook
@@ -181,18 +173,12 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
         if (_getPostExecuteMutex(context)) revert POST_EXECUTE_ALREADY_CALLED();
         _setPostExecuteMutex(context, true);
         _postExecute(prevHook, account, data);
-        console2.log("caller", account);
-
-        console2.log("CONTEXT POST EXECUTE", context);
     }
 
     /// @inheritdoc ISuperHookSetter
     function setOutAmount(uint256 _outAmount, address caller) public {
         uint256 context = _getCurrentExecutionContext(caller);
         _setOutAmount(context, _outAmount);
-        console2.log("caller", caller);
-
-        console2.log("CONTEXT SET OUT AMOUNT", context);
     }
 
     function getOutAmount(address caller) public view returns (uint256) {
@@ -202,21 +188,10 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     /// @inheritdoc ISuperHook
     function resetExecutionState(address caller) external {
         uint256 context = _getCurrentExecutionContext(caller);
-        console2.log("caller", caller);
-
-        console2.log("CONTEXT RESET EXECUTION STATE", context);
         if (!_getPreExecuteMutex(context) || !_getPostExecuteMutex(context)) {
             revert INCOMPLETE_HOOK_EXECUTION();
         }
         _clearExecutionState(context);
-
-        /*
-        // Clear the account's context
-        bytes32 key = _makeAccountContextKey(caller);
-        assembly {
-            tstore(key, 0)
-        }
-        */
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -317,16 +292,12 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
             shouldUsePreviousOutput = _shouldUsePreviousOutput(hookData);
         }
 
-        console2.log("shouldUsePreviousOutput", shouldUsePreviousOutput);
-
         if (shouldUsePreviousOutput) {
             // Get existing context for caller
             uint256 existingContext;
             assembly {
                 existingContext := tload(key)
             }
-
-            console2.log("existingContext", existingContext);
 
             // If we have an existing context, reuse it for chaining
             if (existingContext != 0) {
