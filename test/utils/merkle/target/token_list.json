@@ -61,40 +61,52 @@
       "address": "0xda00000035fef4082F78dEF6A8903bee419FbF8E"
     },
     {
-      "symbol": "test_10RuggableVaultOnDeposit",
-      "address": "0x4a4e6F1Efa284fc1Bbe8E895150d8F273451AE2D"
+      "symbol": "test_1_DynamicAllocation_MockVault",
+      "address": "0x8b26827CCA35B559599d64d7147badF7d9Dc291D"
     },
     {
-      "symbol": "test6YA_Mock4626Vault2",
-      "address": "0x6dA8858C6B0f0945787DF5F3E153D2De1d710FaD"
+      "symbol": "test_3_UnderlyingVaults_StressTest",
+      "address": "0xE811B64ec8155Fd09A6a41Aec6304eea65abA489"
     },
     {
-      "symbol": "test6YA_Mock4626Vault3",
-      "address": "0xb4de8C7865754c92837370DBF693C4c2AdbB447d"
+      "symbol": "test_6_yieldAccumulation_vault1",
+      "address": "0x36c03eD8648A943127886fB19175E5D6be819E87"
     },
     {
-      "symbol": "test_10RuggableVaultOnDeposit",
-      "address": "0xB71cfe0a1d8E5480448cE6940Fd42456a2701E7C"
+      "symbol": "test_6_yieldAccumulation_vault2",
+      "address": "0x708fbB892c4bB273EC42e38987485C0D7C8136C3"
     },
     {
-      "symbol": "test6YA_Mock4626Vault2",
-      "address": "0xeF0e819FFFB402B45EBd49eFd4d73cbEC5fE98C5"
+      "symbol": "test_6_yieldAccumulation_vault3",
+      "address": "0x2377d4e22a9cA83691621d7c9E21B2a03501E389"
     },
     {
-      "symbol": "test6YA_Mock4626Vault3",
-      "address": "0x392b7e6096419e341aeBE77166C27165e304DC5a"
+      "symbol": "test_6_yieldAccumulation_WithRebalancing_vault1",
+      "address": "0xF9C4948A0f34DC1014Fa3eD9f52c88EFE1E4FaF7"
     },
     {
-      "symbol": "RuggableVault",
-      "address": "0x8f769B1d039dB1654Ad56D2D0d05C4A489e67CF2"
+      "symbol": "test_6_yieldAccumulation_WithRebalancing_vault2",
+      "address": "0x5685536cD8f1Ad725685D8EF9491453B6c3c3863"
     },
     {
-      "symbol": "test6YAREB_Mock4626Vault2",
-      "address": "0x7c6f3788Fa8DD12f8C3db0d7EC28009832B60E28"
+      "symbol": "test_6_yieldAccumulation_WithRebalancing_vault3",
+      "address": "0x61ECC2e7794a3D29e7346D5d2f942D67F4968902"
     },
     {
-      "symbol": "test6YAREB_Mock4626Vault3",
-      "address": "0x00e6dAbDf739aA958245D93Fe50e35297354674B"
+      "symbol": "test_10_RuggableVault_Deposit",
+      "address": "0x82304f7b5E252Ce000992b606a6d74BcE0Dde1C2"
+    },
+    {
+      "symbol": "test_10_RuggableVault_Withdraw",
+      "address": "0xf9622ef687564AfF6EE6F4CB08e9c8914303D17D"
+    },
+    {
+      "symbol": "test_10_RuggableVault_Withdraw_ConvertDistortion",
+      "address": "0xCCD1275961A2f604CAe254D891D29fb7B43ACF0b"
+    },
+    {
+      "symbol": "test_11_Allocate_NewYieldSource",
+      "address": "0x80e209Bf4A011b9CD30d4594994c81c88E7F1E62"
     }
   ],
   "10": [

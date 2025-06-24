@@ -2463,7 +2463,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         /// @dev with preserve percentages based on USD value allocation
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountEth;
-        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](1);
         fulfillHooksAddresses[0] = withdrawHookAddress;
@@ -2471,9 +2471,8 @@ contract SuperVaultTest is BaseSuperVaultTest {
         uint256 shares = strategyGearSuperVault.pendingRedeemRequest(accountEth);
 
         bytes[] memory fulfillHooksData = new bytes[](1);
-        fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
+        fulfillHooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(gearboxVault),
             address(gearboxVault),
             address(strategyGearSuperVault),
             shares,
@@ -2570,7 +2569,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         console2.log("Target FluidVault assets:", vars.targetFluidVaultAssets);
         console2.log("Target AaveVault assets:", vars.targetAaveVaultAssets);
 
-        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](2);
@@ -2627,7 +2626,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         address[] memory hooksAddresses = new address[](2);
         bytes[] memory hooksData = new bytes[](2);
 
-        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         hooksAddresses[0] = withdrawHookAddress;
@@ -2698,7 +2697,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         address[] memory hooksAddresses = new address[](2);
         bytes[] memory hooksData = new bytes[](2);
 
-        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
         hooksAddresses[0] = withdrawHookAddress;
         hooksAddresses[1] = depositHookAddress;
@@ -3202,8 +3201,8 @@ contract SuperVaultTest is BaseSuperVaultTest {
         ScenarioNewYieldSourceVars memory vars;
         vars.depositAmount = 100e6;
 
-        Mock4626Vault newVault = new Mock4626Vault(address(asset), "New Vault", "NV");
-
+        Mock4626Vault newVault = new Mock4626Vault{ salt: "TEST" }(address(asset), "New Vault", "NV");
+        console2.log("newVault", address(newVault));
         _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);
         asset.approve(address(newVault), type(uint256).max);
         newVault.deposit(2 * LARGE_DEPOSIT, address(this));
@@ -3592,7 +3591,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vars.initialTimestamp = block.timestamp;
 
         vars.ruggableVault = address(
-            new RuggableVault(
+            new RuggableVault{ salt: "Test" }(
                 IERC20(address(asset)),
                 "Ruggable Vault",
                 "RUG",
@@ -3601,7 +3600,6 @@ contract SuperVaultTest is BaseSuperVaultTest {
                 vars.rugPercentage
             )
         );
-
 
         vm.label(vars.ruggableVault, "Ruggable Vault");
         vm.label(address(fluidVault), "Fluid Vault");
@@ -3774,7 +3772,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         console2.log("\n=== First Reallocation: Target 50/25/25 ===");
 
         // Set up hooks for reallocation
-        vars.withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        vars.withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         vars.depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         // Perform first reallocation to 50/25/25
@@ -3870,7 +3868,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         uint256 totalAssets = currentFluidVaultAssets + currentAaveVaultAssets;
 
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](2);
@@ -3956,9 +3954,9 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vars.initialTimestamp = block.timestamp;
 
         // create yield testing vaults
-        vars.vault1 = new Mock4626Vault(address(asset), "Mock4626Vault 3%", "MV3");
-        vars.vault2 = new Mock4626Vault(address(asset), "Mock4626Vault 5%", "MV5");
-        vars.vault3 = new Mock4626Vault(address(asset), "Mock4626Vault 10%", "MV10");
+        vars.vault1 = new Mock4626Vault{ salt: "Test" }(address(asset), "Mock4626Vault 3%", "MV3");
+        vars.vault2 = new Mock4626Vault{ salt: "Test" }(address(asset), "Mock4626Vault 5%", "MV5");
+        vars.vault3 = new Mock4626Vault{ salt: "Test" }(address(asset), "Mock4626Vault 10%", "MV10");
         string[] memory vaultNames = new string[](3);
         vaultNames[0] = "test6YA_Mock4626Vault1";
         vaultNames[1] = "test6YA_Mock4626Vault2";
@@ -3967,6 +3965,10 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vaultAddresses[0] = address(vars.vault1);
         vaultAddresses[1] = address(vars.vault2);
         vaultAddresses[2] = address(vars.vault3);
+
+        console2.log("vault1", address(vars.vault1));
+        console2.log("vault2", address(vars.vault2));
+        console2.log("vault3", address(vars.vault3));
 
         vars.vault1.setYield(3000); // 3%
         vars.vault2.setYield(5000); // 5%
@@ -4109,9 +4111,9 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vars.initialTimestamp = block.timestamp;
 
         // create yield testing vaults
-        vars.vault1 = new Mock4626Vault(address(asset), "Mock Vault 3%", "MV3");
-        vars.vault2 = new Mock4626Vault(address(asset), "Mock Vault 5%", "MV5");
-        vars.vault3 = new Mock4626Vault(address(asset), "Mock Vault 10%", "MV10");
+        vars.vault1 = new Mock4626Vault{ salt: "Test" }(address(asset), "Mock Vault 3%", "MV3");
+        vars.vault2 = new Mock4626Vault{ salt: "Test" }(address(asset), "Mock Vault 5%", "MV5");
+        vars.vault3 = new Mock4626Vault{ salt: "Test" }(address(asset), "Mock Vault 10%", "MV10");
         string[] memory vaultNames = new string[](3);
         vaultNames[0] = "test6YAREB_Mock4626Vault1";
         vaultNames[1] = "test6YAREB_Mock4626Vault2";
@@ -4120,6 +4122,10 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vaultAddresses[0] = address(vars.vault1);
         vaultAddresses[1] = address(vars.vault2);
         vaultAddresses[2] = address(vars.vault3);
+
+        console2.log("vault1", address(vars.vault1));
+        console2.log("vault2", address(vars.vault2));
+        console2.log("vault3", address(vars.vault3));
 
         vars.vault1.setYield(3000); // 3%
         vars.vault2.setYield(5000); // 5%
@@ -4223,7 +4229,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             vars.initialVault3Assets = vars.vault3.convertToAssets(vars.initialVault3Balance);
 
             address[] memory hooksAddresses = new address[](2);
-            hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+            hooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
             hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
             bytes[] memory hooksData = new bytes[](2);
 
@@ -4754,7 +4760,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vars.initialTimestamp = block.timestamp;
 
         // Deploy a ruggable vault that rugs on deposit
-        vars.ruggableVault = new RuggableVault(
+        vars.ruggableVault = new RuggableVault{ salt: "Test" }(
             IERC20(address(asset)),
             "Ruggable Vault",
             "RUG",
@@ -4762,6 +4768,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             false, // don't rug on withdraw
             vars.rugPercentage
         );
+        console2.log("ruggableVault", address(vars.ruggableVault));
 
         // Add funds to the ruggable vault to respect LARGE_DEPOSIT
         _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);
@@ -4825,7 +4832,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vars.initialTimestamp = block.timestamp;
 
         // Deploy a ruggable vault that rugs on withdraw
-        RuggableVault ruggableVault = new RuggableVault(
+        RuggableVault ruggableVault = new RuggableVault{ salt: "Test" }(
             IERC20(address(asset)),
             "Ruggable Vault",
             "RUG",
@@ -4833,6 +4840,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             true, // rug on withdraw
             vars.rugPercentage
         );
+        console2.log("ruggableVault", address(ruggableVault));
 
         vars.ruggableVault = address(ruggableVault);
         vars.convertVault = false;
@@ -4864,13 +4872,14 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vars.initialTimestamp = block.timestamp;
 
         // Deploy a ruggable vault that rugs via convert functions
-        RuggableConvertVault ruggableConvertVault = new RuggableConvertVault(
+        RuggableConvertVault ruggableConvertVault = new RuggableConvertVault{ salt: "Test" }(
             IERC20(address(asset)),
             "Ruggable Convert Vault",
             "RUGC",
             vars.rugPercentage,
             true // rug enabled
         );
+        console2.log("ruggableConvertVault", address(ruggableConvertVault));
 
         vars.ruggableVault = address(ruggableConvertVault);
         vars.convertVault = true;
@@ -4903,7 +4912,8 @@ contract SuperVaultTest is BaseSuperVaultTest {
         _completeDepositFlow(vars.depositAmount);
 
         // add new vault as yield source
-        Mock4626Vault newVault = new Mock4626Vault(address(asset), "New Vault", "NV");
+        Mock4626Vault newVault = new Mock4626Vault{ salt: "Test" }(address(asset), "New Vault", "NV");
+        console2.log("newVault", address(newVault));
 
         //  -- add funds to the newVault to respect LARGE_DEPOSIT
         _getTokens(address(asset), address(this), 2 * LARGE_DEPOSIT);

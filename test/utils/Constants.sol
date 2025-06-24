@@ -57,10 +57,8 @@ abstract contract Constants {
     string public constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
     string public constant DEPOSIT_4626_VAULT_HOOK_KEY = "Deposit4626VaultHook";
     string public constant REDEEM_4626_VAULT_HOOK_KEY = "Redeem4626VaultHook";
-    string public constant APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY = "ApproveAndRedeem4626VaultHook";
     string public constant TRANSFER_ERC20_HOOK_KEY = "TransferERC20Hook";
     string public constant APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY = "ApproveAndDeposit5115VaultHook";
-    string public constant APPROVE_AND_REDEEM_5115_VAULT_HOOK_KEY = "ApproveAndRedeem5115VaultHook";
     string public constant DEPOSIT_5115_VAULT_HOOK_KEY = "Deposit5115VaultHook";
     string public constant REDEEM_5115_VAULT_HOOK_KEY = "Redeem5115VaultHook";
     string public constant REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "RequestDeposit7540VaultHook";
