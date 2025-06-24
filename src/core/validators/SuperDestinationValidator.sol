@@ -8,7 +8,6 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import {SuperValidatorBase} from "./SuperValidatorBase.sol";
-import {ISuperSignatureStorage} from "../interfaces/ISuperSignatureStorage.sol";
 
 /// @title SuperDestinationValidator
 /// @author Superform Labs
@@ -19,31 +18,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    /// @notice Structure representing data specific to a destination chain operation
-    /// @dev Contains all necessary data to validate and execute a cross-chain operation
-    struct DestinationData {
-        /// @notice The encoded call data to be executed
-        bytes callData;
-        /// @notice The destination chain ID where execution should occur
-        uint64 chainId;
-        /// @notice The account that should execute the operation
-        address sender;
-        /// @notice The executor contract address that handles the operation
-        address executor;
-        /// @notice The tokens required in the target account to proceed with the execution
-        address[] dstTokens;
-        /// @notice The minimum token amounts required for execution
-        uint256[] intentAmounts;
-    }
-
     bytes4 constant VALID_SIGNATURE = bytes4(0x5c2ec0f3);
-
-    /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-    error INVALID_SENDER();
-    error NOT_IMPLEMENTED();
-    error INVALID_CHAIN_ID();
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -67,7 +42,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
     }
 
     function isValidDestinationSignature(address sender, bytes calldata data) external view returns (bytes4) {
-        if (!_initialized[sender]) revert ISuperSignatureStorage.NOT_INITIALIZED();
+        if (!_initialized[sender]) revert NOT_INITIALIZED();
 
         // Decode data
         (SignatureData memory sigData, DestinationData memory destinationData) =
@@ -91,42 +66,10 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /// @param data Encoded destination data containing execution details
     /// @param validUntil Timestamp after which the signature becomes invalid
     /// @return The calculated leaf hash used in merkle tree verification
-    function _createLeaf(bytes memory data, uint48 validUntil) internal pure override returns (bytes32) {
+    function _createLeaf(bytes memory data, uint48 validUntil, bool) internal view override returns (bytes32) {
         DestinationData memory destinationData = abi.decode(data, (DestinationData));
-        // Note: destinationData.initData is not included because it is not needed for the leaf.
-        // If precomputed account is != than the executing account, the entire execution reverts
-        // before this method is called. Check SuperDestinationExecutor for more details.
-        return keccak256(
-            bytes.concat(
-                keccak256(
-                    abi.encode(
-                        destinationData.callData,
-                        destinationData.chainId,
-                        destinationData.sender,
-                        destinationData.executor,
-                        destinationData.dstTokens,
-                        destinationData.intentAmounts,
-                        validUntil
-                    )
-                )
-            )
-        );
-    }
 
-    /// @notice Validates a signature based on signer identity and expiration time
-    /// @dev Overrides the base implementation to check both ownership and expiration
-    /// @param signer The address that signed the message (recovered from signature)
-    /// @param sender The smart account address that should execute the operation
-    /// @param validUntil Timestamp after which the signature becomes invalid
-    /// @return True if the signer is the account owner and signature hasn't expired
-    function _isSignatureValid(address signer, address sender, uint48 validUntil)
-        internal
-        view
-        override
-        returns (bool)
-    {
-        /// @dev block.timestamp could vary between chains
-        return signer == _accountOwners[sender] && validUntil >= block.timestamp;
+        return _createDestinationLeaf(destinationData, validUntil, address(this));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -141,17 +84,30 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /// @return leaf The computed leaf hash used in merkle verification
     function _processSignatureAndVerifyLeaf(SignatureData memory sigData, DestinationData memory destinationData)
         private
-        pure
+        view
         returns (address signer, bytes32 leaf)
     {
         // Create leaf from destination data and verify against merkle root using the proof
-        leaf = _createLeaf(abi.encode(destinationData), sigData.validUntil);
-        if (!MerkleProof.verify(sigData.proofDst, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
+        leaf = _createLeaf(abi.encode(destinationData), sigData.validUntil, false);
+        if (!MerkleProof.verify(_extractProof(sigData), sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
         // Recover signer from signature using standard Ethereum signature recovery
         bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
         signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
+    }
+
+    /// @notice Extracts the proof for the current chain from the signature data
+    /// @dev Iterates over the proofDst array to find a match for the current chain ID
+    /// @param sigData Signature data containing proofs for different chains
+    /// @return The proof array corresponding to the current chain ID
+    /// @dev Reverts with PROOF_NOT_FOUND if no matching proof is found
+    function _extractProof(SignatureData memory sigData) private view returns (bytes32[] memory) {
+        uint256 len = sigData.proofDst.length;
+        for (uint256 i; i < len; ++i) {
+            if (sigData.proofDst[i].dstChainId == block.chainid) return sigData.proofDst[i].proof;
+        }
+        revert PROOF_NOT_FOUND();
     }
 
     /// @notice Decodes and validates raw destination data

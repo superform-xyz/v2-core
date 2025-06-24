@@ -22,6 +22,7 @@ import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
 import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { SuperMerkleValidator } from "../../src/core/validators/SuperMerkleValidator.sol";
+import { ISuperValidator } from "../../src/core/interfaces/ISuperValidator.sol";
 import { SuperLedgerConfiguration } from "../../src/core/accounting/SuperLedgerConfiguration.sol";
 import { SuperExecutor } from "../../src/core/executors/SuperExecutor.sol";
 import { ERC4626YieldSourceOracle } from "../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -34,6 +35,7 @@ import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.
 import { ApproveERC20Hook } from "../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { Deposit4626VaultHook } from "../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
 import { Redeem4626VaultHook } from "../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { SuperValidatorBase } from "../../src/core/validators/SuperValidatorBase.sol";
 
 import { ERC4337Helpers } from "modulekit/test/utils/ERC4337Helpers.sol";
 
@@ -72,7 +74,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         vm.label(address(nexusFactory), "NexusFactory");
         nexusBootstrap = INexusBootstrap(CHAIN_1_NEXUS_BOOTSTRAP);
         vm.label(address(nexusBootstrap), "NexusBootstrap");
-        ledgerConfig = ISuperLedgerConfiguration(new SuperLedgerConfiguration());
+        ledgerConfig = ISuperLedgerConfiguration(new SuperLedgerConfiguration(address(this)));
 
         superExecutorModule = new SuperExecutor(address(ledgerConfig));
 
@@ -182,10 +184,11 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         // create validator merkle tree & get signature data
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil);
+        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false);
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
-        bytes memory sigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
+
+        bytes memory sigData = abi.encode(false, validUntil, root, proof[0], new ISuperValidator.DstProof[](0), signature);
         // -- replace signature with validator signature
         userOp.signature = sigData;
 
@@ -219,10 +222,10 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         // create validator merkle tree & get signature data
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil);
+        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false);
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
-        bytes memory sigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
+        bytes memory sigData = abi.encode(false, validUntil, root, proof[0], proof[0], signature);
         // -- replace signature with validator signature
         userOp.signature = sigData;
 

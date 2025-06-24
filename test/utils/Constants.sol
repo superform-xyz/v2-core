@@ -57,10 +57,8 @@ abstract contract Constants {
     string public constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
     string public constant DEPOSIT_4626_VAULT_HOOK_KEY = "Deposit4626VaultHook";
     string public constant REDEEM_4626_VAULT_HOOK_KEY = "Redeem4626VaultHook";
-    string public constant APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY = "ApproveAndRedeem4626VaultHook";
     string public constant TRANSFER_ERC20_HOOK_KEY = "TransferERC20Hook";
     string public constant APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY = "ApproveAndDeposit5115VaultHook";
-    string public constant APPROVE_AND_REDEEM_5115_VAULT_HOOK_KEY = "ApproveAndRedeem5115VaultHook";
     string public constant DEPOSIT_5115_VAULT_HOOK_KEY = "Deposit5115VaultHook";
     string public constant REDEEM_5115_VAULT_HOOK_KEY = "Redeem5115VaultHook";
     string public constant REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "RequestDeposit7540VaultHook";
@@ -77,6 +75,7 @@ abstract contract Constants {
     string public constant APPROVE_WITH_PERMIT2_HOOK_KEY = "ApproveWithPermit2Hook";
     string public constant PERMIT_WITH_PERMIT2_HOOK_KEY = "PermitWithPermit2Hook";
     string public constant BATCH_TRANSFER_FROM_HOOK_KEY = "BatchTransferFromHook";
+    string public constant OFFRAMP_TOKENS_HOOK_KEY = "OfframpTokensHook";
     string public constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string public constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string public constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
@@ -98,10 +97,11 @@ abstract contract Constants {
     string public constant APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "ApproveAndRequestDeposit7540VaultHook";
     string public constant ETHENA_COOLDOWN_SHARES_HOOK_KEY = "EthenaCooldownSharesHook";
     string public constant ETHENA_UNSTAKE_HOOK_KEY = "EthenaUnstakeHook";
-    string public constant SPECTRA_EXCHANGE_HOOK_KEY = "SpectraExchangeHook";
+    string public constant SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY = "SpectraExchangeDepositHook";
+    string public constant SPECTRA_EXCHANGE_REDEEM_HOOK_KEY = "SpectraExchangeRedeemHook";
     string public constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
     string public constant PENDLE_ROUTER_REDEEM_HOOK_KEY = "PendleRouterRedeemHook";
-    string public constant MORPHO_BORROW_HOOK_KEY = "MorphoBorrowHook";
+    string public constant MORPHO_BORROW_HOOK_KEY = "MorphoSupplyAndBorrowHook";
     string public constant MORPHO_REPAY_HOOK_KEY = "MorphoRepayHook";
     string public constant MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY = "MorphoRepayAndWithdrawHook";
 

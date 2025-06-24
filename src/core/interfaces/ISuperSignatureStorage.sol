@@ -9,9 +9,6 @@ interface ISuperSignatureStorage {
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Thrown when attempting to retrieve signature data for an uninitialized account
-    error NOT_INITIALIZED();
-
     /// @notice Thrown when more than one user op is detected for signature storage
     error INVALID_USER_OP();
 

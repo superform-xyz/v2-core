@@ -19,10 +19,9 @@ contract GetAddressesFromBaseTest is BaseTest {
         console.log("VAULT_globalSVStrategy:", globalSVStrategy);
         console.log("VAULT_globalSVGearStrategy:", globalSVGearStrategy);
         console.log("VAULT_globalRuggableVault:", globalRuggableVault);
-        console.log("HOOK_APPROVE_AND_REDEEM_4626_VAULT_HOOK:", globalMerkleHooks[0]);
-        console.log("HOOK_APPROVE_AND_DEPOSIT_4626_VAULT_HOOK:", globalMerkleHooks[1]);
-        console.log("HOOK_REDEEM_4626_VAULT_HOOK:", globalMerkleHooks[2]);
-        console.log("HOOK_APPROVE_AND_GEARBOX_STAKE_HOOK:", globalMerkleHooks[3]);
-        console.log("HOOK_GEARBOX_UNSTAKE_HOOK:", globalMerkleHooks[4]);
+        console.log("HOOK_APPROVE_AND_DEPOSIT_4626_VAULT_HOOK:", globalMerkleHooks[0]);
+        console.log("HOOK_REDEEM_4626_VAULT_HOOK:", globalMerkleHooks[1]);
+        console.log("HOOK_APPROVE_AND_GEARBOX_STAKE_HOOK:", globalMerkleHooks[2]);
+        console.log("HOOK_GEARBOX_UNSTAKE_HOOK:", globalMerkleHooks[3]);
     }
 }

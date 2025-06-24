@@ -81,7 +81,7 @@ cancelRedeemHook_arg="$baseHook_arg"
 
 # Morpho Hooks
 morpho_address="0x64c7044050Ba0431252df24fEd4d9635a275CB41"
-morphoBorrowHook_arg="$(cast abi-encode "constructor(address)" "$morpho_address")"
+MorphoSupplyAndBorrowHook_arg="$(cast abi-encode "constructor(address)" "$morpho_address")"
 morphoRepayHook_arg="$(cast abi-encode "constructor(address)" "$morpho_address")"
 morphoRepayAndWithdrawHook_arg="$(cast abi-encode "constructor(address)" "$morpho_address")"
 
@@ -158,7 +158,7 @@ files_to_verify=(
     "src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol"
     "src/core/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol"
     "src/core/hooks/vaults/super-vault/CancelRedeemHook.sol"
-    "src/core/hooks/loan/morpho/MorphoBorrowHook.sol"
+    "src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol"
     "src/core/hooks/loan/morpho/MorphoRepayHook.sol"
     "src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol"
     "src/core/accounting/oracles/ERC4626YieldSourceOracle.sol"
@@ -228,7 +228,7 @@ contract_names=(
     "ClaimCancelDepositRequest7540Hook"
     "ClaimCancelRedeemRequest7540Hook"
     "CancelRedeemHook"
-    "MorphoBorrowHook"
+    "MorphoSupplyAndBorrowHook"
     "MorphoRepayHook"
     "MorphoRepayAndWithdrawHook"
     "ERC4626YieldSourceOracle"
@@ -297,7 +297,7 @@ contract_addresses=(
     "0xc543f58E04318B9b68BDc19E076C727D0b176172" # ClaimCancelDepositRequest7540Hook
     "0x9CB16B447d69839EBb561fF0264485A6d44C773e" # ClaimCancelRedeemRequest7540Hook
     "0x60E97F1164eF511bb96C71F4c6Cd1558D7240eD6" # CancelRedeemHook
-    "0x502fFC766Ad508AE8107137781137106Fc483d52" # MorphoBorrowHook
+    "0x502fFC766Ad508AE8107137781137106Fc483d52" # MorphoSupplyAndBorrowHook
     "0x17eF6E153C2310Aa1719A81b5bfEc8Cd24C469ab" # MorphoRepayHook
     "0xB1784769CcF1AF1691f5096B948117547559C2f3" # MorphoRepayAndWithdrawHook
     "0xb8AEF48D60575Ebc117382A30c7e104ab333d529" # ERC4626YieldSourceOracle
@@ -367,7 +367,7 @@ constructor_args=(
     "$claimCancelDepositRequest7540Hook_arg"  # ClaimCancelDepositRequest7540Hook
     "$claimCancelRedeemRequest7540Hook_arg"   # ClaimCancelRedeemRequest7540Hook
     "$cancelRedeemHook_arg"                   # CancelRedeemHook
-    "$morphoBorrowHook_arg"                   # MorphoBorrowHook
+    "$MorphoSupplyAndBorrowHook_arg"                   # MorphoSupplyAndBorrowHook
     "$morphoRepayHook_arg"                    # MorphoRepayHook
     "$morphoRepayAndWithdrawHook_arg"         # MorphoRepayAndWithdrawHook
     "$erc4626YieldSourceOracle_arg"           # ERC4626YieldSourceOracle

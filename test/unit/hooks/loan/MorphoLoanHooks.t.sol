@@ -1,21 +1,25 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+//external
+import { console } from "forge-std/console.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
+import { BytesLib } from "../../../../src/vendor/BytesLib.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
 import { IOracle } from "../../../../src/vendor/morpho/IOracle.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
 import { SharesMathLib } from "../../../../src/vendor/morpho/SharesMathLib.sol";
-import { Id, IMorpho, MarketParams, Market } from "../../../../src/vendor/morpho/IMorpho.sol";
+import { Id, IMorphoStaticTyping, MarketParams, Market } from "../../../../src/vendor/morpho/IMorpho.sol";
 import { MarketParamsLib } from "../../../../src/vendor/morpho/MarketParamsLib.sol";
 
 // Hooks
-import { BaseLoanHook } from "../../../../src/core/hooks/loan/BaseLoanHook.sol";
+import { MorphoBorrowHook } from "../../../../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
 import { MorphoRepayAndWithdrawHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
 import { MorphoRepayHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
-import { MorphoBorrowHook } from "../../../../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoSupplyAndBorrowHook } from "../../../../src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
+import { MorphoWithdrawHook } from "../../../../src/core/hooks/loan/morpho/MorphoWithdrawHook.sol";
 import { MorphoSupplyHook } from "../../../../src/core/hooks/loan/morpho/MorphoSupplyHook.sol";
 
 contract MockOracle is IOracle {
@@ -25,6 +29,24 @@ contract MockOracle is IOracle {
 }
 
 contract MockMorpho {
+    Market public marketData;
+
+    struct Position {
+        uint256 supplyShares;
+        uint128 borrowShares;
+        uint128 collateral;
+    }
+
+    mapping(Id => mapping(address => Position)) public positions;
+
+    function setMarket(Id, Market memory _market) external {
+        marketData = _market;
+    }
+
+    function setPosition(Id id, address account, Position memory positionParams) external {
+        positions[id][account] = positionParams;
+    }
+
     function market(Id) external view returns (Market memory) {
         return Market({
             totalSupplyAssets: 100e18,
@@ -36,9 +58,11 @@ contract MockMorpho {
         });
     }
 
-    function position(Id, address) external pure returns (uint256, uint128, uint128) {
-        return (10e18, 100e18, 100e18);
+    function position(Id id, address account) external view returns (Position memory) {
+        return positions[id][account];
     }
+
+    function accrueInterest(MarketParams memory) external { }
 }
 
 contract MockIRM {
@@ -67,9 +91,11 @@ contract MorphoLoanHooksTest is Helpers {
     using SharesMathLib for uint256;
 
     // Hooks
-    MorphoBorrowHook public borrowHook;
+    MorphoSupplyAndBorrowHook public borrowHook;
+    MorphoBorrowHook public borrowHookB;
     MorphoRepayHook public repayHook;
     MorphoRepayAndWithdrawHook public repayAndWithdrawHook;
+    MorphoWithdrawHook public withdrawHook;
     MorphoSupplyHook public supplyHook;
 
     MarketParams public marketParams;
@@ -85,16 +111,17 @@ contract MorphoLoanHooksTest is Helpers {
     MockIRM public mockIRM;
     MockOracle public mockOracle;
     MockMorpho public mockMorpho;
+    MockERC20 public mockLoanToken;
     MockERC20 public mockCollateralToken;
 
     function setUp() public {
-        loanToken = 0x4200000000000000000000000000000000000006;
-
         mockMorpho = new MockMorpho();
         mockIRM = new MockIRM();
-        borrowHook = new MorphoBorrowHook(address(mockMorpho));
+        borrowHook = new MorphoSupplyAndBorrowHook(address(mockMorpho));
         repayHook = new MorphoRepayHook(address(mockMorpho));
         repayAndWithdrawHook = new MorphoRepayAndWithdrawHook(address(mockMorpho));
+        withdrawHook = new MorphoWithdrawHook(address(mockMorpho));
+        borrowHookB = new MorphoBorrowHook(address(mockMorpho));
         supplyHook = new MorphoSupplyHook(address(mockMorpho));
 
         amount = 1e18;
@@ -104,6 +131,32 @@ contract MorphoLoanHooksTest is Helpers {
         mockOracle = new MockOracle();
         mockCollateralToken = new MockERC20("Collateral Token", "COLL", 18);
         collateralToken = address(mockCollateralToken);
+        mockLoanToken = new MockERC20("Loan Token", "LOAN", 18);
+        loanToken = address(mockLoanToken);
+
+        marketParams = MarketParams({
+            loanToken: loanToken,
+            collateralToken: collateralToken,
+            oracle: address(mockOracle),
+            irm: address(mockIRM),
+            lltv: lltv
+        });
+        
+        Market memory market = Market({
+            totalSupplyAssets: 100e18,
+            totalSupplyShares: 10e18,
+            totalBorrowAssets: 10e18,
+            totalBorrowShares: 1e18,
+            lastUpdate: uint128(block.timestamp),
+            fee: 100
+        });
+        mockMorpho.setMarket(marketParams.id(), market);
+
+        mockMorpho.setPosition(marketParams.id(), address(this), MockMorpho.Position({
+            supplyShares: 100e18,
+            borrowShares: 100e18,
+            collateral: 1e18
+        }));
     }
 
     function test_Constructors() public view {
@@ -116,19 +169,178 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(address(repayAndWithdrawHook.morpho()), address(mockMorpho));
         assertEq(uint256(repayAndWithdrawHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
 
+        assertEq(address(withdrawHook.morpho()), address(mockMorpho));
+        assertEq(address(withdrawHook.morphoBase()), address(mockMorpho));
+
+        assertEq(address(borrowHookB.morpho()), address(mockMorpho));
+        assertEq(uint256(borrowHookB.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
+
         assertEq(address(supplyHook.morpho()), address(mockMorpho));
         assertEq(uint256(supplyHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
     function test_Constructors_RevertIf_ZeroAddress() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new MorphoBorrowHook(address(0));
+        new MorphoSupplyAndBorrowHook(address(0));
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         new MorphoRepayHook(address(0));
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         new MorphoRepayAndWithdrawHook(address(0));
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        new MorphoWithdrawHook(address(0));
+
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        new MorphoBorrowHook(address(0));
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                           MORPHO BORROW HOOK TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_BorrowHookB_Build() public view {
+        bytes memory data = _encodeBorrowOnlyData(false);
+        Execution[] memory executions = borrowHookB.build(address(0), address(this), data);
+
+        assertFalse(borrowHookB.decodeUsePrevHookAmount(data));
+
+        assertEq(executions.length, 3);
+
+        // Check borrow call
+        assertEq(executions[1].target, address(mockMorpho));
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
+    }
+
+    function test_BorrowHookB_Inspector() public view {
+        bytes memory data = _encodeBorrowOnlyData(false);
+        bytes memory argsEncoded = borrowHookB.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_BorrowHookB_Build_RevertIf_ZeroAddress() public {
+        vm.expectRevert();
+        borrowHookB.build(
+            address(0),
+            address(this),
+            abi.encodePacked(
+                address(loanToken),
+                address(collateralToken),
+                address(0),
+                MORPHO_IRM,
+                amount,
+                lltvRatio,
+                false,
+                lltv,
+                false
+            )
+        );
+    }
+
+    function test_BorrowHookB_Build_RevertIf_InvalidLoanToken() public {
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        borrowHookB.build(
+            address(0),
+            address(this),
+            abi.encodePacked(
+                address(0),
+                address(collateralToken),
+                address(mockOracle),
+                MORPHO_IRM,
+                amount,
+                lltvRatio,
+                false,
+                lltv,
+                false
+            )
+        );
+    }
+
+    function test_BorrowHookB_Build_RevertIf_InvalidCollateralToken() public {
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        borrowHookB.build(
+            address(0),
+            address(this),
+            abi.encodePacked(
+                address(loanToken), address(0), address(mockOracle), MORPHO_IRM, amount, lltvRatio, false, lltv, false
+            )
+        );
+    }
+
+    function test_BorrowHookB_Build_RevertIf_InvalidAmount() public {
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        borrowHookB.build(
+            address(0),
+            address(this),
+            abi.encodePacked(
+                address(loanToken),
+                address(collateralToken),
+                address(mockOracle),
+                MORPHO_IRM,
+                uint256(0),
+                lltvRatio,
+                false,
+                lltv,
+                false
+            )
+        );
+    }
+
+    function test_BorrowHookB_BuildWithPreviousHook() public {
+        uint256 prevHookAmount = 2000;
+        address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+
+        bytes memory data = _encodeBorrowOnlyData(true);
+        Execution[] memory executions = borrowHookB.build(mockPrevHook, address(this), data);
+
+        assertEq(executions.length, 3);
+        // Verify the borrow call is present
+        assertEq(executions[1].target, address(mockMorpho));
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
+    }
+
+    function test_BorrowHookB_PrePostExecute() public {
+        bytes memory data = _encodeBorrowOnlyData(false);
+        deal(loanToken, address(this), amount);
+        borrowHookB.preExecute(address(0), address(this), data);
+        assertEq(borrowHookB.outAmount(), amount);
+
+        borrowHookB.postExecute(address(0), address(this), data);
+        assertEq(borrowHookB.outAmount(), 0);
+    }
+
+    function test_BorrowHookB_DecodeUsePrevHookAmount() public view {
+        bytes memory data = _encodeBorrowOnlyData(false);
+        assertEq(borrowHookB.decodeUsePrevHookAmount(data), false);
+
+        data = _encodeBorrowOnlyData(true);
+        assertEq(borrowHookB.decodeUsePrevHookAmount(data), true);
+    }
+
+    function test_BorrowHookB_GetLoanTokenAddress() public view {
+        bytes memory data = _encodeBorrowOnlyData(false);
+        assertNotEq(borrowHookB.getLoanTokenAddress(data), address(0));
+        assertEq(borrowHookB.getLoanTokenAddress(data), loanToken);
+    }
+
+    function test_BorrowHookB_GetCollateralTokenAddress() public view {
+        bytes memory data = _encodeBorrowOnlyData(false);
+        assertNotEq(borrowHookB.getCollateralTokenAddress(data), address(0));
+        assertEq(borrowHookB.getCollateralTokenAddress(data), collateralToken);
+    }
+
+    function test_BorrowHookB_GetCollateralTokenBalance() public view {
+        bytes memory data = _encodeBorrowOnlyData(false);
+        assertEq(borrowHookB.getCollateralTokenBalance(address(this), data), 0);
+    }
+
+    function test_BorrowHookB_GetLoanTokenBalance() public {
+        loanToken = address(mockCollateralToken);
+        bytes memory data = _encodeBorrowOnlyData(false);
+        assertEq(borrowHookB.getLoanTokenBalance(address(this), data), 0);
 
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
         new MorphoSupplyHook(address(0));
@@ -488,52 +700,6 @@ contract MorphoLoanHooksTest is Helpers {
         assertEq(executions[2].target, loanToken);
         assertEq(executions[2].value, 0);
         assertGt(executions[2].callData.length, 0);
-
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                          DERIVE INTEREST TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_RepayHook_DeriveInterest() public view {
-        _encodeRepayData(false, false);
-        uint256 interest = repayHook.deriveInterest(
-            MarketParams({
-                loanToken: loanToken,
-                collateralToken: collateralToken,
-                oracle: address(mockOracle),
-                irm: address(mockIRM),
-                lltv: lltv
-            })
-        );
-        assertEq(interest, 0);
-    }
-
-    function test_SupplyHook_DeriveInterest() public view {
-        _encodeSupplyData(false);
-        uint256 interest = supplyHook.deriveFeeAmount(
-            MarketParams({
-                loanToken: loanToken,
-                collateralToken: collateralToken,
-                oracle: address(mockOracle),
-                irm: address(mockIRM),
-                lltv: lltv
-            })
-        );
-        assertEq(interest, 0);
-    }
-
-    function test_RepayAndWithdrawHook_DeriveInterest() public view {
-        _encodeRepayAndWithdrawData(false, false);
-        uint256 interest = repayAndWithdrawHook.deriveInterest(
-            MarketParams({
-                loanToken: loanToken,
-                collateralToken: collateralToken,
-                oracle: address(mockOracle),
-                irm: address(mockIRM),
-                lltv: lltv
-            })
-        );
-        assertEq(interest, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -578,7 +744,8 @@ contract MorphoLoanHooksTest is Helpers {
         });
         Id id = params.id();
         uint256 collateral = repayAndWithdrawHook.deriveCollateralForFullRepayment(id, address(this));
-        assertEq(collateral, 100e18); // From MockMorpho position() return value (third value)
+        MockMorpho.Position memory position = mockMorpho.position(id, address(this));
+        assertEq(collateral, uint256(position.collateral));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -657,9 +824,8 @@ contract MorphoLoanHooksTest is Helpers {
                       PRE/POST EXECUTE TESTS
     //////////////////////////////////////////////////////////////*/
     function test_BorrowHook_PrePostExecute() public {
-        loanToken = address(new MockERC20("Loan Token", "LOAN", 18));
         bytes memory data = _encodeBorrowData(false);
-        deal(address(loanToken), address(this), amount);
+        deal(address(collateralToken), address(this), amount);
         borrowHook.preExecute(address(0), address(this), data);
         assertEq(borrowHook.outAmount(), amount, "A");
 
@@ -696,7 +862,7 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        BASE LOAN HOOK
+                            BASE LOAN HOOK
     //////////////////////////////////////////////////////////////*/
     function test_DecodeUsePrevHookAmount() public view {
         bytes memory data = _encodeRepayData(false, false);
@@ -728,7 +894,217 @@ contract MorphoLoanHooksTest is Helpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                        HELPER FUNCTIONS
+                        MORPHO WITHDRAW HOOK
+    //////////////////////////////////////////////////////////////*/
+    function test_WithdrawHook_Constructor() public view {
+        assertEq(address(withdrawHook.morpho()), address(mockMorpho));
+        assertEq(address(withdrawHook.morphoBase()), address(mockMorpho));
+    }
+
+    function test_WithdrawHook_Constructor_RevertIf_ZeroAddress() public {
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        new MorphoWithdrawHook(address(0));
+    }
+
+    function test_WithdrawHook_Build() public view {
+        bytes memory data = _encodeWithdrawData(
+            loanToken,
+            collateralToken,
+            address(mockOracle),
+            address(mockIRM),
+            address(this),
+            address(this),
+            lltv,
+            amount,
+            0
+        );
+        Execution[] memory executions = withdrawHook.build(address(0), address(this), data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(mockMorpho));
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
+    }
+
+    function test_WithdrawHook_Build_WithShares() public view {
+        bytes memory data = _encodeWithdrawData(
+            loanToken,
+            collateralToken,
+            address(mockOracle),
+            address(mockIRM),
+            address(this),
+            address(this),
+            lltv,
+            0,
+            amount
+        );
+        Execution[] memory executions = withdrawHook.build(address(0), address(this), data);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(mockMorpho));
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
+    }
+
+    function test_WithdrawHook_Build_RevertIf_ZeroAssetsAndShares() public {
+        bytes memory data = _encodeWithdrawData(
+            loanToken, collateralToken, address(mockOracle), address(mockIRM), address(this), address(this), lltv, 0, 0
+        );
+        vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
+        withdrawHook.build(address(0), address(this), data);
+    }
+
+    function test_WithdrawHook_Build_RevertIf_InvalidAddresses() public {
+        bytes memory data = _encodeWithdrawData(
+            address(0),
+            collateralToken,
+            address(mockOracle),
+            address(mockIRM),
+            address(this),
+            address(this),
+            lltv,
+            amount,
+            0
+        );
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        withdrawHook.build(address(0), address(this), data);
+    }
+
+    function test_WithdrawHook_Inspector() public view {
+        bytes memory data = _encodeWithdrawData(
+            loanToken,
+            collateralToken,
+            address(mockOracle),
+            address(mockIRM),
+            address(this),
+            address(this),
+            lltv,
+            amount,
+            0
+        );
+        bytes memory argsEncoded = withdrawHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
+    function test_WithdrawHook_PrePostExecute() public {
+        bytes memory data = _encodeWithdrawData(
+            loanToken,
+            collateralToken,
+            address(mockOracle),
+            address(mockIRM),
+            address(this),
+            address(this),
+            lltv,
+            amount,
+            0
+        );
+        withdrawHook.preExecute(address(0), address(this), data);
+        assertEq(withdrawHook.outAmount(), 0);
+        withdrawHook.postExecute(address(0), address(this), data);
+        assertEq(withdrawHook.outAmount(), 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                          ASSETS TO PAY TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_RepayHook_No_OverestimatedAssetsToPay() public {
+        address account = address(this);
+
+        MarketParams memory params = MarketParams({
+            loanToken: address(loanToken),
+            collateralToken: address(collateralToken),
+            oracle: address(mockOracle),
+            irm: address(mockIRM),
+            lltv: 0.8e18
+        });
+        Id id = params.id();
+
+        Market memory newMarket = Market({
+            totalSupplyAssets: 0,
+            totalSupplyShares: 0,
+            totalBorrowAssets: 1000e18, // 1000 loan tokens borrowed
+            totalBorrowShares: 1000e18, // 1000 shares
+            lastUpdate: uint128(block.timestamp),
+            fee: 0
+        });
+        mockMorpho.setMarket(id, newMarket);
+        MockMorpho.Position memory positionMock = MockMorpho.Position({
+            supplyShares: 0,
+            borrowShares: 10e18,
+            collateral: 0
+        });
+        mockMorpho.setPosition(id, account, positionMock); // User has 1% of total shares
+        vm.warp(block.timestamp + 1 days); // Accrue interest for 1 day
+
+        bytes memory data = abi.encodePacked(
+            address(loanToken),
+            address(collateralToken),
+            address(mockOracle),
+            address(mockIRM),
+            uint256(0), // amount (unused for full repayment)
+            uint256(0.8e18), // lltv
+            false, // usePrevHookAmount
+            true // isFullRepayment
+        );
+
+        Execution[] memory executions = repayHook.build(address(0), account, data);
+        
+        bytes memory approveCallData = executions[1].callData;
+        bytes memory args = BytesLib.slice(approveCallData, 4, approveCallData.length - 4);
+
+        (, uint256 currentAssetsToPay) = abi.decode(args, (address, uint256));
+
+        // Calculate expected assetsToPay
+        uint256 deriveInterest = 0; // Removed from RepayHook
+        uint256 estimatedTotalBorrowAssets = newMarket.totalBorrowAssets + deriveInterest;
+        MockMorpho.Position memory position = mockMorpho.position(id, account);
+        uint256 shareBalance = uint256(position.borrowShares);
+        uint256 expectedAssetsToPay = shareBalance.toAssetsUp(estimatedTotalBorrowAssets, newMarket.totalBorrowShares);
+
+        // Log values for clarity
+        emit log_named_uint("Current assetsToPay", currentAssetsToPay);
+        emit log_named_uint("Expected assetsToPay", expectedAssetsToPay);
+
+        // Assert overestimation
+        assertFalse(currentAssetsToPay > expectedAssetsToPay, "assetsToPay is overestimated");
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                    REPAY AND WITHDRAW FULL REPAYMENT 
+    //////////////////////////////////////////////////////////////*/
+    
+    function test_RepayAndWithdrawHook_Build_FullRepayment() public view {
+        bytes memory data = _encodeRepayAndWithdrawData(false, true);
+        Execution[] memory executions = repayAndWithdrawHook.build(address(0), address(this), data);
+
+        // For full repayment, executions array should have length 5
+        assertEq(executions.length, 7);
+        // Approve(0)
+        assertEq(executions[1].target, address(loanToken));
+        assertGt(executions[1].callData.length, 0);
+        // Approve(loanAmount)
+        assertEq(executions[2].target, address(loanToken));
+        assertGt(executions[2].callData.length, 0);
+        // Repay (amount=0, shares=borrowBalance)
+        assertEq(executions[3].target, address(mockMorpho));
+        assertGt(executions[3].callData.length, 0);
+        // Approve(0)
+        assertEq(executions[4].target, address(loanToken));
+        assertGt(executions[4].callData.length, 0);
+        // WithdrawCollateral
+        assertEq(executions[5].target, address(mockMorpho));
+        assertGt(executions[5].callData.length, 0);
+    }
+
+    function test_RepayAndWithdrawHook_PrePostExecute_FullRepayment() public {
+        bytes memory data = _encodeRepayAndWithdrawData(false, true);
+        // outAmount should be 0 before and after since MockERC20 has no balance logic
+        repayAndWithdrawHook.preExecute(address(0), address(this), data);
+        assertEq(repayAndWithdrawHook.outAmount(), 0);
+        repayAndWithdrawHook.postExecute(address(0), address(this), data);
+        assertEq(repayAndWithdrawHook.outAmount(), 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function _encodeBorrowData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(
@@ -780,6 +1156,32 @@ contract MorphoLoanHooksTest is Helpers {
             lltv,
             usePrevHook,
             isFullRepayment
+        );
+    }
+
+    function _encodeWithdrawData(
+        address _loanToken,
+        address _collateralToken,
+        address _oracle,
+        address _irm,
+        address _onBehalf,
+        address _recipient,
+        uint256 _lltv,
+        uint256 _assets,
+        uint256 _shares
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            _loanToken, _collateralToken, _oracle, _irm, _onBehalf, _recipient, _lltv, _assets, _shares
+        );
+    }
+
+    function _encodeBorrowOnlyData(bool usePrevHook) internal view returns (bytes memory) {
+        return abi.encodePacked(
+            loanToken, collateralToken, address(mockOracle), MORPHO_IRM, amount, lltvRatio, usePrevHook, lltv, false
         );
     }
 }

@@ -117,7 +117,7 @@ alwaysApply: false
 │   │   │   │   ├── BaseLoanHook.sol
 │   │   │   │   └── morpho
 │   │   │   │       ├── BaseMorphoLoanHook.sol
-│   │   │   │       ├── MorphoBorrowHook.sol
+│   │   │   │       ├── MorphoSupplyAndBorrowHook.sol
 │   │   │   │       ├── MorphoRepayAndWithdrawHook.sol
 │   │   │   │       └── MorphoRepayHook.sol
 │   │   │   ├── stake
@@ -147,7 +147,6 @@ alwaysApply: false
 │   │   │   └── vaults
 │   │   │       ├── 4626
 │   │   │       │   ├── ApproveAndDeposit4626VaultHook.sol
-│   │   │       │   ├── ApproveAndRedeem4626VaultHook.sol
 │   │   │       │   ├── Deposit4626VaultHook.sol
 │   │   │       │   └── Redeem4626VaultHook.sol
 │   │   │       ├── 5115
@@ -431,7 +430,7 @@ alwaysApply: false
     │   │   │   └── yearn
     │   │   │       └── YearnClaimRewardHook.t.sol
     │   │   ├── loan
-    │   │   │   ├── MorphoBorrowHook.t.sol
+    │   │   │   ├── MorphoSupplyAndBorrowHook.t.sol
     │   │   │   ├── MorphoRepayAndWithdrawHook.t.sol
     │   │   │   └── MorphoRepayHook.t.sol
     │   │   ├── pendle

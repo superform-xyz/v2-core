@@ -523,7 +523,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         vars.requestingUsers[0] = accountEth;
         vars.requestingUsers[1] = accInstances[2].account;
 
-        vars.redeemHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        vars.redeemHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         vars.redeem7540HookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY);
 
         vars.fulfillHooksAddresses = new address[](2);
@@ -531,9 +531,8 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         vars.fulfillHooksAddresses[1] = vars.redeem7540HookAddress;
 
         vars.fulfillHooksData = new bytes[](2);
-        vars.fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
+        vars.fulfillHooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(fluidVault),
             address(fluidVault),
             address(strategy),
             vars.vault1Shares,
