@@ -259,5 +259,5 @@ interface ISuperHook {
     /// @notice Sets the caller address that initiated the execution
     /// @dev Used for security validation between preExecute and postExecute calls
     /// @param caller The caller address for context identification
-    function setExecutionContext(address caller) external;
+    function setExecutionContext(address caller, bytes calldata hookData) external;
 }

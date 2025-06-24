@@ -432,7 +432,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
             }
         }
 
-        ISuperHook(address(vars.hookContract)).setExecutionContext(address(this));
+        ISuperHook(address(vars.hookContract)).setExecutionContext(address(this), "");
         vars.executions = vars.hookContract.build(prevHook, address(this), hookCalldata);
         for (uint256 j; j < vars.executions.length; ++j) {
             (vars.success,) =
@@ -490,7 +490,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
         vars.balanceAssetBefore = _getTokenBalance(vars.svAsset, address(this));
 
-        ISuperHook(address(vars.hookContract)).setExecutionContext(address(this));
+        ISuperHook(address(vars.hookContract)).setExecutionContext(address(this), "");
 
         vars.executions = vars.hookContract.build(address(0), address(this), hookCalldata);
         for (uint256 j; j < vars.executions.length; ++j) {

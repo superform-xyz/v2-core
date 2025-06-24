@@ -306,7 +306,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         }
 
         // STEP 2: Build and execute (dual mutexes protect pre/post)
-        hook.setExecutionContext(account);
+        hook.setExecutionContext(account, hookData);
         _execute(account, executions);
 
         // STEP 3: Update accounting (both mutexes active, preventing reentrancy)

@@ -5,7 +5,7 @@ pragma solidity 0.8.30;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { ISuperHook, ISuperHookSetter } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookSetter, ISuperHookContextAware, ISuperHookResult } from "../interfaces/ISuperHook.sol";
 
 import { console2 } from "forge-std/console2.sol";
 
@@ -16,7 +16,7 @@ import { console2 } from "forge-std/console2.sol";
 ///      All specialized hooks should inherit from this base contract
 ///      Implements the ISuperHook interface defined lifecycle methods
 ///      Uses a transient storage pattern for stateful execution context
-abstract contract BaseHook is ISuperHook, ISuperHookSetter {
+abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -119,10 +119,9 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter {
     /*//////////////////////////////////////////////////////////////
                           EXECUTION SECURITY
     //////////////////////////////////////////////////////////////*/
-    /// @notice Sets the caller address that initiated the execution
-    /// @dev Used for security validation between preExecute and postExecute calls
-    function setExecutionContext(address caller) external {
-        uint256 context = _createExecutionContext(caller);
+    /// @inheritdoc ISuperHook
+    function setExecutionContext(address caller, bytes calldata hookData) external {
+        uint256 context = _createExecutionContext(caller, hookData);
 
         console2.log("caller", caller);
         console2.log("CONTEXT SET CALLER", context);
@@ -210,11 +209,13 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter {
         }
         _clearExecutionState(context);
 
+        /*
         // Clear the account's context
         bytes32 key = _makeAccountContextKey(caller);
         assembly {
             tstore(key, 0)
         }
+        */
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -303,12 +304,40 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter {
         return keccak256(abi.encodePacked(ACCOUNT_CONTEXT_STORAGE, account));
     }
 
-    function _createExecutionContext(address caller) private returns (uint256) {
+    function _createExecutionContext(address caller, bytes calldata hookData) private returns (uint256) {
+        bytes32 key = _makeAccountContextKey(caller);
+
+        // Check if this hook should use previous execution context for chaining
+        bool shouldUsePreviousOutput;
+
+        // only grab usePrevHookAmount if hookData is not empty (used for when hooks are used standalone outside of
+        // 7579 execution and we always want new execution contexts)
+        if (hookData.length > 0) {
+            shouldUsePreviousOutput = _shouldUsePreviousOutput(hookData);
+        }
+
+        console2.log("shouldUsePreviousOutput", shouldUsePreviousOutput);
+
+        if (shouldUsePreviousOutput) {
+            // Get existing context for caller
+            uint256 existingContext;
+            assembly {
+                existingContext := tload(key)
+            }
+
+            console2.log("existingContext", existingContext);
+
+            // If we have an existing context, reuse it for chaining
+            if (existingContext != 0) {
+                return existingContext;
+            }
+            // If no existing context, fall through to create new one
+        }
+
         // Always increment nonce for new execution context
         executionNonce++;
 
         // Store this context for the current caller
-        bytes32 key = _makeAccountContextKey(caller);
         uint256 currentNonce = executionNonce; // Load into local variable for assembly
         assembly {
             tstore(key, currentNonce)
@@ -371,8 +400,15 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter {
     }
 
     function _clearExecutionState(uint256 context) private {
-        _setOutAmount(context, 0);
         _setPreExecuteMutex(context, false);
         _setPostExecuteMutex(context, false);
+    }
+
+    function _shouldUsePreviousOutput(bytes calldata hookData) private view returns (bool) {
+        try ISuperHookContextAware(address(this)).decodeUsePrevHookAmount(hookData) returns (bool usePrevHookAmount) {
+            return usePrevHookAmount;
+        } catch {
+            return false;
+        }
     }
 }

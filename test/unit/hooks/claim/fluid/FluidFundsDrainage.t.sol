@@ -80,7 +80,7 @@ contract FluidClaimRewardHookPoC is Test {
         // Craft malicious data
         bytes memory data = abi.encodePacked(address(stakingRewards), address(fakeToken), account);
 
-        hook.setExecutionContext(address(this));
+        hook.setExecutionContext(address(this), "");
         // Execute reward claim
         Execution[] memory executions = hook.build(address(0), address(0), data);
         vm.prank(account);
