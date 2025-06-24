@@ -5,6 +5,7 @@ pragma solidity 0.8.30;
 import { console } from "forge-std/console.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
+import { BytesLib } from "../../../../src/vendor/BytesLib.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
 import { IOracle } from "../../../../src/vendor/morpho/IOracle.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -27,6 +28,24 @@ contract MockOracle is IOracle {
 }
 
 contract MockMorpho {
+    Market public marketData;
+
+    struct Position {
+        uint256 supplyShares;
+        uint128 borrowShares;
+        uint128 collateral;
+    }
+
+    mapping(Id => mapping(address => Position)) public positions;
+
+    function setMarket(Id, Market memory _market) external {
+        marketData = _market;
+    }
+
+    function setPosition(Id id, address account, Position memory positionParams) external {
+        positions[id][account] = positionParams;
+    }
+
     function market(Id) external view returns (Market memory) {
         return Market({
             totalSupplyAssets: 100e18,
@@ -38,8 +57,8 @@ contract MockMorpho {
         });
     }
 
-    function position(Id, address) external pure returns (uint256, uint128, uint128) {
-        return (10e18, 100e18, 100e18);
+    function position(Id id, address account) external view returns (Position memory) {
+        return positions[id][account];
     }
 
     function accrueInterest(MarketParams memory) external { }
@@ -111,6 +130,30 @@ contract MorphoLoanHooksTest is Helpers {
         collateralToken = address(mockCollateralToken);
         mockLoanToken = new MockERC20("Loan Token", "LOAN", 18);
         loanToken = address(mockLoanToken);
+
+        marketParams = MarketParams({
+            loanToken: loanToken,
+            collateralToken: collateralToken,
+            oracle: address(mockOracle),
+            irm: address(mockIRM),
+            lltv: lltv
+        });
+        
+        Market memory market = Market({
+            totalSupplyAssets: 100e18,
+            totalSupplyShares: 10e18,
+            totalBorrowAssets: 10e18,
+            totalBorrowShares: 1e18,
+            lastUpdate: uint128(block.timestamp),
+            fee: 100
+        });
+        mockMorpho.setMarket(marketParams.id(), market);
+
+        mockMorpho.setPosition(marketParams.id(), address(this), MockMorpho.Position({
+            supplyShares: 100e18,
+            borrowShares: 100e18,
+            collateral: 1e18
+        }));
     }
 
     function test_Constructors() public view {
@@ -692,7 +735,8 @@ contract MorphoLoanHooksTest is Helpers {
         });
         Id id = params.id();
         uint256 collateral = repayAndWithdrawHook.deriveCollateralForFullRepayment(id, address(this));
-        assertEq(collateral, 100e18); // From MockMorpho position() return value (third value)
+        MockMorpho.Position memory position = mockMorpho.position(id, address(this));
+        assertEq(collateral, uint256(position.collateral));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -838,6 +882,71 @@ contract MorphoLoanHooksTest is Helpers {
         loanToken = address(mockCollateralToken);
         bytes memory data = _encodeRepayData(false, false);
         assertEq(repayHook.getLoanTokenBalance(address(this), data), 0);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            ASSETS TO PAY TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_No_OverestimatedAssetsToPay() public {
+        address account = address(this);
+
+        MarketParams memory params = MarketParams({
+            loanToken: address(loanToken),
+            collateralToken: address(collateralToken),
+            oracle: address(mockOracle),
+            irm: address(mockIRM),
+            lltv: 0.8e18
+        });
+        Id id = params.id();
+
+        Market memory newMarket = Market({
+            totalSupplyAssets: 0,
+            totalSupplyShares: 0,
+            totalBorrowAssets: 1000e18, // 1000 loan tokens borrowed
+            totalBorrowShares: 1000e18, // 1000 shares
+            lastUpdate: uint128(block.timestamp),
+            fee: 0
+        });
+        mockMorpho.setMarket(id, newMarket);
+        MockMorpho.Position memory positionMock = MockMorpho.Position({
+            supplyShares: 0,
+            borrowShares: 10e18,
+            collateral: 0
+        });
+        mockMorpho.setPosition(id, account, positionMock); // User has 1% of total shares
+        vm.warp(block.timestamp + 1 days); // Accrue interest for 1 day
+
+        bytes memory data = abi.encodePacked(
+            address(loanToken),
+            address(collateralToken),
+            address(mockOracle),
+            address(mockIRM),
+            uint256(0), // amount (unused for full repayment)
+            uint256(0.8e18), // lltv
+            false, // usePrevHookAmount
+            true // isFullRepayment
+        );
+
+        Execution[] memory executions = repayHook.build(address(0), account, data);
+        
+        bytes memory approveCallData = executions[1].callData;
+        bytes memory args = BytesLib.slice(approveCallData, 4, approveCallData.length - 4);
+
+        (, uint256 currentAssetsToPay) = abi.decode(args, (address, uint256));
+
+        // Calculate expected assetsToPay
+        uint256 deriveInterest = 0; // Removed from RepayHook
+        uint256 estimatedTotalBorrowAssets = newMarket.totalBorrowAssets + deriveInterest;
+        MockMorpho.Position memory position = mockMorpho.position(id, account);
+        uint256 shareBalance = uint256(position.borrowShares);
+        uint256 expectedAssetsToPay = shareBalance.toAssetsUp(estimatedTotalBorrowAssets, newMarket.totalBorrowShares);
+
+        // Log values for clarity
+        emit log_named_uint("Current assetsToPay", currentAssetsToPay);
+        emit log_named_uint("Expected assetsToPay", expectedAssetsToPay);
+
+        // Assert overestimation
+        assertFalse(currentAssetsToPay > expectedAssetsToPay, "assetsToPay is overestimated");
     }
 
     /*//////////////////////////////////////////////////////////////
