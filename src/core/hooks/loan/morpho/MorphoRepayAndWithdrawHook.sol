@@ -82,7 +82,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         returns (Execution[] memory executions)
     {
         BuildHookLocalVars memory vars = _decodeHookData(data);
-        if (vars.amount == 0) revert AMOUNT_NOT_VALID();
         if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
 
         BuildExecutionContext memory ctx;
@@ -121,6 +120,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
             if (vars.usePrevHookAmount) {
                 vars.amount = ISuperHookResult(prevHook).outAmount();
             }
+            if (vars.amount == 0) revert AMOUNT_NOT_VALID();
 
             ctx.fullCollateral = deriveCollateralForFullRepayment(ctx.id, account);
             ctx.collateralForWithdraw =
@@ -194,7 +194,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         returns (uint256 withdrawableCollateral)
     {
         uint256 fullLoanAmount = deriveLoanAmount(id, account);
-        if (fullLoanAmount < amount) revert AMOUNT_NOT_VALID();
 
         withdrawableCollateral = Math.mulDiv(fullCollateral, amount, fullLoanAmount);
     }
@@ -240,6 +239,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
         morphoInterface.accrueInterest(marketParams);
+
         // store current balance
         outAmount = getCollateralTokenBalance(account, data);
     }
