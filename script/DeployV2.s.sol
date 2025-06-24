@@ -735,9 +735,9 @@ contract DeployV2 is Script, Configuration {
         hookAddresses.MorphoSupplyAndBorrowHook =
             Strings.equal(hooks[42].name, MORPHO_BORROW_HOOK_KEY) ? addresses[42] : address(0);
         hookAddresses.morphoRepayHook =
-            Strings.equal(hooks[44].name, MORPHO_REPAY_HOOK_KEY) ? addresses[44] : address(0);
+            Strings.equal(hooks[43].name, MORPHO_REPAY_HOOK_KEY) ? addresses[43] : address(0);
         hookAddresses.morphoRepayAndWithdrawHook =
-            Strings.equal(hooks[45].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[45] : address(0);
+            Strings.equal(hooks[44].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[44] : address(0);
         hookAddresses.morphoBorrowHook =
             Strings.equal(hooks[45].name, MORPHO_BORROW_ONLY_HOOK_KEY) ? addresses[45] : address(0);
         hookAddresses.offrampTokensHook =
