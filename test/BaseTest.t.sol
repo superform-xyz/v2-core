@@ -14,6 +14,7 @@ import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperDestinationExecutor } from "../src/core/interfaces/ISuperDestinationExecutor.sol";
+import { ISuperValidator } from "../src/core/interfaces/ISuperValidator.sol";
 
 // Superform contracts coded
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
@@ -2032,8 +2033,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             messageData.signerPrivateKey
         );
 
-        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
-        SuperValidatorBase.DstInfo memory dstInfo = SuperValidatorBase.DstInfo({
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
             data: ctx.executionData,
             executor: messageData.targetExecutor,
             dstTokens: ctx.dstTokens,
@@ -2041,7 +2042,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             account: accountToUse,
             validator: messageData.validator
         });
-        proofDst[0] = SuperValidatorBase.DstProof({proof: ctx.merkleProof[0], dstChainId: dstChainId, info: dstInfo});
+        proofDst[0] = ISuperValidator.DstProof({proof: ctx.merkleProof[0], dstChainId: dstChainId, info: dstInfo});
 
         console2.logBytes32(ctx.merkleRoot);
         sig = _createSignatureData_DestinationExecutor(
@@ -2059,7 +2060,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint48 validUntil,
         bytes32 merkleRoot,
         bytes32[] memory merkleProofSrc,
-        SuperValidatorBase.DstProof[] memory merkleProofDst,
+        ISuperValidator.DstProof[] memory merkleProofDst,
         bytes memory signature
     )
         internal

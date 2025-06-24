@@ -7,6 +7,7 @@ import {AcrossSendFundsAndExecuteOnDstHook} from
 import {DeBridgeSendOrderAndExecuteOnDstHook} from
     "../../../../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
 import {ISuperHook} from "../../../../src/core/interfaces/ISuperHook.sol";
+import {ISuperValidator} from "../../../../src/core/interfaces/ISuperValidator.sol";
 import {IAcrossSpokePoolV3} from "../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
 import {MockHook} from "../../../mocks/MockHook.sol";
 import {BaseHook} from "../../../../src/core/hooks/BaseHook.sol";
@@ -21,11 +22,11 @@ contract MockSignatureStorage {
         bytes32[] memory proofSrc = new bytes32[](1);
         proofSrc[0] = keccak256("src1");
 
-        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](0);
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         /**
         bytes32[] memory proofs = new bytes32[](1);
         proofs[0] = keccak256("dst1");
-        proofDst[0] = SuperValidatorBase.DstProof({proof: proofs, dstChainId: uint64(block.chainid)});
+        proofDst[0] = ISuperValidator.DstProof({proof: proofs, dstChainId: uint64(block.chainid)});
         */
         bytes memory signature = hex"abcdef";
         return abi.encode(validUntil, merkleRoot, proofSrc, proofDst, signature);

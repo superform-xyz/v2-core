@@ -8,15 +8,13 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 import {SuperValidatorBase} from "./SuperValidatorBase.sol";
-import {ISuperSignatureStorage} from "../interfaces/ISuperSignatureStorage.sol";
-import {ISuperValidator} from "../interfaces/ISuperValidator.sol";
 
 /// @title SuperDestinationValidator
 /// @author Superform Labs
 /// @notice Validates cross-chain operation signatures for destination chain operations
 /// @dev Handles signature verification and merkle proof validation for cross-chain messages
 ///      Cannot be used for standard ERC-1271 validation (those methods revert with NOT_IMPLEMENTED)
-contract SuperDestinationValidator is SuperValidatorBase, ISuperValidator {
+contract SuperDestinationValidator is SuperValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -44,7 +42,7 @@ contract SuperDestinationValidator is SuperValidatorBase, ISuperValidator {
     }
 
     function isValidDestinationSignature(address sender, bytes calldata data) external view returns (bytes4) {
-        if (!_initialized[sender]) revert ISuperSignatureStorage.NOT_INITIALIZED();
+        if (!_initialized[sender]) revert NOT_INITIALIZED();
 
         // Decode data
         (SignatureData memory sigData, DestinationData memory destinationData) =

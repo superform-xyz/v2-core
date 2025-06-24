@@ -9,7 +9,7 @@ import { MinimalBaseNexusIntegrationTest } from "./MinimalBaseNexusIntegrationTe
 import { INexus } from "../../src/vendor/nexus/INexus.sol";
 import { MockRegistry } from "../mocks/MockRegistry.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
-
+import { ISuperValidator } from "../../src/core/interfaces/ISuperValidator.sol";
 import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { SuperValidatorBase } from "../../src/core/validators/SuperValidatorBase.sol";
@@ -233,14 +233,14 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         // ^ NOT A PROBLEM ANYMORE
         {
-            SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](2);
+            ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](2);
 
             message.dstTokens = new address[](1);
             message.dstTokens[0] = CHAIN_1_USDC;
-            proofDst[0] = SuperValidatorBase.DstProof({
+            proofDst[0] = ISuperValidator.DstProof({
                 proof: testData.proof[1],
                 dstChainId: uint64(10),
-                info: SuperValidatorBase.DstInfo({
+                info: ISuperValidator.DstInfo({
                     account: nexusAccount,
                     executor: _executor,
                     dstTokens: message.dstTokens,
@@ -252,10 +252,10 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
             message.dstTokens = new address[](1);
             message.dstTokens[0] = CHAIN_1_WETH;
-            proofDst[1] = SuperValidatorBase.DstProof({
+            proofDst[1] = ISuperValidator.DstProof({
                 proof: testData.proof[2],
                 dstChainId: uint64(11),
-                info: SuperValidatorBase.DstInfo({
+                info: ISuperValidator.DstInfo({
                     account: nexusAccount,
                     executor: _executor,
                     dstTokens: message.dstTokens,
@@ -277,7 +277,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         _assertAndExecuteMultileProofs(testData, nexusAccount);
         // This demonstrates that multiple cross-chain transactions CAN be sent in the same tx
     }
-    function _encodeSigData(SuperValidatorBase.DstProof[] memory proofDst, TestData memory testData, uint48 validUntil) internal pure returns (bytes memory) {
+    function _encodeSigData(ISuperValidator.DstProof[] memory proofDst, TestData memory testData, uint48 validUntil) internal pure returns (bytes memory) {
         return abi.encode(
             true,
             validUntil,
@@ -515,9 +515,9 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         leaves[1] = _createDestinationValidatorLeaf(dstMessage.executorCalldata, uint64(block.chainid), acc, targetExecutor, dstMessage.dstTokens, dstMessage.intentAmounts, validUntil, address(this));
         (proof, root) = _createValidatorMerkleTree(leaves);
         signature = _getSignature(root);
-        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
         
-        SuperValidatorBase.DstInfo memory dstInfo = SuperValidatorBase.DstInfo({
+        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
             data: dstMessage.executorCalldata,
             executor: targetExecutor,
             dstTokens: dstMessage.dstTokens,
@@ -525,7 +525,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             account: acc,
             validator: address(this)
         });
-        proofDst[0] = SuperValidatorBase.DstProof({proof: proof[1], dstChainId: uint64(block.chainid), info: dstInfo});
+        proofDst[0] = ISuperValidator.DstProof({proof: proof[1], dstChainId: uint64(block.chainid), info: dstInfo});
          
         sigData = abi.encode(true, validUntil, root, proof[0], proofDst, signature);
     }

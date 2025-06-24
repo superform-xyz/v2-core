@@ -3,11 +3,10 @@ pragma solidity 0.8.30;
 
 import { BaseTest } from "../../BaseTest.t.sol";
 import {SuperMerkleValidator} from "../../../src/core/validators/SuperMerkleValidator.sol";
-import {SuperValidatorBase} from "../../../src/core/validators/SuperValidatorBase.sol";
 import {IERC7579Account} from "../../../lib/modulekit/src/accounts/common/interfaces/IERC7579Account.sol";
 import {ModeCode} from "../../../lib/modulekit/src/accounts/common/lib/ModeLib.sol";
 import {Execution} from "../../../lib/modulekit/src/accounts/common/interfaces/IERC7579Account.sol";
-
+import {ISuperValidator} from "../../../src/core/interfaces/ISuperValidator.sol";
 
 contract POC_IncorrectValidUntilTest is BaseTest {
     function test_POC_IncorrectValidUntilHandling() public {
@@ -42,7 +41,7 @@ contract POC_IncorrectValidUntilTest is BaseTest {
      
         bytes memory signature = _signMessage(messageHash, privateKey);
         
-        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](0);
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         // Pack the signature data with validUntil = 0
         bytes memory sigDataRaw = abi.encode(
             false,

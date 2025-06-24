@@ -4,68 +4,15 @@ pragma solidity 0.8.30;
 // external
 import {ERC7579ValidatorBase} from "modulekit/Modules.sol";
 import {ISuperSignatureStorage} from "../interfaces/ISuperSignatureStorage.sol";
+import {ISuperValidator} from "../interfaces/ISuperValidator.sol";
 
 /// @title SuperValidatorBase
 /// @author Superform Labs
 /// @notice A base contract for all Superform validators
-abstract contract SuperValidatorBase is ERC7579ValidatorBase {
+abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    /// @notice Structure holding proof data for destination chain operations
-    /// @dev Contains merkle proof and destination chain ID
-    struct DstProof {
-        bytes32[] proof;
-        uint64 dstChainId;
-        DstInfo info;
-    }
-
-    /// @notice Structure holding destination chain operation details
-    /// @dev Used to validate destination `proof` on source validator
-    struct DstInfo {
-        address account;
-        address executor;
-        address[] dstTokens;
-        uint256[] intentAmounts;
-        address validator;
-        bytes data;
-    }
-
-    /// @notice Structure representing data specific to a destination chain operation
-    /// @dev Contains all necessary data to validate and execute a cross-chain operation
-    struct DestinationData {
-        /// @notice The encoded call data to be executed
-        bytes callData;
-        /// @notice The destination chain ID where execution should occur
-        uint64 chainId;
-        /// @notice The account that should execute the operation
-        address sender;
-        /// @notice The executor contract address that handles the operation
-        address executor;
-        /// @notice The tokens required in the target account to proceed with the execution
-        address[] dstTokens;
-        /// @notice The minimum token amounts required for execution
-        uint256[] intentAmounts;
-    }
-
-
-    /// @notice Structure holding signature data used across validator implementations
-    /// @dev Contains all components needed for merkle proof verification and signature validation
-    struct SignatureData {
-        /// @notice Whether to validate destination proof
-        bool validateDstProof;
-        /// @notice Timestamp after which the signature is no longer valid
-        uint48 validUntil;
-        /// @notice Root of the merkle tree containing operation leaves
-        bytes32 merkleRoot;
-        /// @notice Merkle proof for the source chain operation
-        bytes32[] proofSrc;
-        /// @notice Merkle proof for the destination chains operation
-        DstProof[] proofDst;
-        /// @notice Raw ECDSA signature bytes
-        bytes signature;
-    }
-
     /// @notice Tracks which accounts have initialized this validator
     /// @dev Used to prevent unauthorized use of the validator
     mapping(address account => bool initialized) internal _initialized;
@@ -113,7 +60,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     }
 
     function onUninstall(bytes calldata) external {
-        if (!_initialized[msg.sender]) revert ISuperSignatureStorage.NOT_INITIALIZED();
+        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
         delete _accountOwners[msg.sender];
     }

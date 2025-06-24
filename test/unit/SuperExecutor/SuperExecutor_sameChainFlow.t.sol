@@ -10,6 +10,7 @@ import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol"
 import { ISuperLedger, ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { Swap1InchHook } from "../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
 import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperValidator } from "../../../src/core/interfaces/ISuperValidator.sol";
 import { SuperExecutor } from "../../../src/core/executors/SuperExecutor.sol";
 import "../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 
@@ -799,7 +800,7 @@ contract SuperExecutor_sameChainFlow is
         bytes memory signature =
             _createSignature(SuperValidatorBase(address(validator)).namespace(), merkleRoot, signer, signerPrvKey);
 
-        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](0);
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         signatureData = abi.encode(false, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
     }
 

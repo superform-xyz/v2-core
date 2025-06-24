@@ -23,6 +23,7 @@ import { MockLedger, MockLedgerConfiguration } from "../../mocks/MockLedger.sol"
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 import { ISuperDestinationExecutor } from "../../../src/core/interfaces/ISuperDestinationExecutor.sol";
+import { ISuperValidator } from "../../../src/core/interfaces/ISuperValidator.sol";
 
 import { Helpers } from "../../utils/Helpers.sol";
 
@@ -761,7 +762,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
                 signerPrvKeyInvalid
             );
         }
-        SuperValidatorBase.DstInfo memory dstInfo = SuperValidatorBase.DstInfo({
+        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
             data: executionDataForLeaf,
             executor: address(superDestinationExecutor),
             dstTokens: dstTokens,
@@ -769,8 +770,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             account: account,
             validator: address(superDestinationValidator)
         });
-        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
-        proofDst[0] = SuperValidatorBase.DstProof({proof: merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo});
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+        proofDst[0] = ISuperValidator.DstProof({proof: merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo});
         signatureData = abi.encode(false, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
     }
 
@@ -977,7 +978,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             SuperValidatorBase(address(superDestinationValidator)).namespace(), ctx.merkleRoot, signer, signerPrvKey
         );
 
-        SuperValidatorBase.DstInfo memory dstInfo = SuperValidatorBase.DstInfo({
+        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
             data: ctx.executionDataForLeaf,
             executor: address(superDestinationExecutor),
             dstTokens: ctx.dstTokens,
@@ -985,8 +986,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             account: account,
             validator: address(superDestinationValidator)
         });
-        SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
-        proofDst[0] = SuperValidatorBase.DstProof({proof: ctx.merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo});
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+        proofDst[0] = ISuperValidator.DstProof({proof: ctx.merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo});
         ctx.signatureData = abi.encode(false, validUntil, ctx.merkleRoot, ctx.merkleProof[0], proofDst, ctx.signature);
 
         vm.expectEmit(true, true, false, true);

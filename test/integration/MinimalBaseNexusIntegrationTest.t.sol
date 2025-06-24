@@ -22,6 +22,7 @@ import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
 import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { SuperMerkleValidator } from "../../src/core/validators/SuperMerkleValidator.sol";
+import { ISuperValidator } from "../../src/core/interfaces/ISuperValidator.sol";
 import { SuperLedgerConfiguration } from "../../src/core/accounting/SuperLedgerConfiguration.sol";
 import { SuperExecutor } from "../../src/core/executors/SuperExecutor.sol";
 import { ERC4626YieldSourceOracle } from "../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -187,7 +188,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
 
-        bytes memory sigData = abi.encode(false, validUntil, root, proof[0], new SuperValidatorBase.DstProof[](0), signature);
+        bytes memory sigData = abi.encode(false, validUntil, root, proof[0], new ISuperValidator.DstProof[](0), signature);
         // -- replace signature with validator signature
         userOp.signature = sigData;
 
