@@ -196,7 +196,8 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             _executor,
             message.dstTokens,
             message.intentAmounts,
-            validUntil
+            validUntil,
+            address(this)
         );
 
         // Leaf for cross-chain WETH
@@ -209,7 +210,8 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             _executor,
             message.dstTokens,
             message.intentAmounts,
-            validUntil
+            validUntil,
+            address(this)
         );
  
 
@@ -243,7 +245,8 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
                     executor: _executor,
                     dstTokens: message.dstTokens,
                     intentAmounts: message.intentAmounts,
-                    data: hex"eeeeeeee"
+                    data: hex"eeeeeeee",
+                    validator: address(this)
                 })
             });
 
@@ -257,7 +260,8 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
                     executor: _executor,
                     dstTokens: message.dstTokens,
                     intentAmounts: message.intentAmounts,
-                    data: hex"dddddddd"
+                    data: hex"dddddddd",
+                    validator: address(this)
                 })
             });
 
@@ -508,7 +512,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         bytes32[] memory leaves = new bytes32[](2);
         leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil, true);
 
-        leaves[1] = _createDestinationValidatorLeaf(dstMessage.executorCalldata, uint64(block.chainid), acc, targetExecutor, dstMessage.dstTokens, dstMessage.intentAmounts, validUntil);
+        leaves[1] = _createDestinationValidatorLeaf(dstMessage.executorCalldata, uint64(block.chainid), acc, targetExecutor, dstMessage.dstTokens, dstMessage.intentAmounts, validUntil, address(this));
         (proof, root) = _createValidatorMerkleTree(leaves);
         signature = _getSignature(root);
         SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
@@ -518,7 +522,8 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             executor: targetExecutor,
             dstTokens: dstMessage.dstTokens,
             intentAmounts: dstMessage.intentAmounts,
-            account: acc
+            account: acc,
+            validator: address(this)
         });
         proofDst[0] = SuperValidatorBase.DstProof({proof: proof[1], dstChainId: uint64(block.chainid), info: dstInfo});
          

@@ -72,7 +72,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
                     dstTokens: dstProof.info.dstTokens,
                     intentAmounts: dstProof.info.intentAmounts
                 });
-                bytes32 dstLeaf = _createDestinationLeaf(dstData, sigData.validUntil);
+                bytes32 dstLeaf = _createDestinationLeaf(dstData, sigData.validUntil, dstProof.info.validator);
 
                 if (!MerkleProof.verify(dstProof.proof, sigData.merkleRoot, dstLeaf)) revert INVALID_DESTINATION_PROOF();
             }

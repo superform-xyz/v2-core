@@ -741,7 +741,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             address(superDestinationExecutor),
             dstTokens,
             intentAmounts,
-            validUntil
+            validUntil,
+            address(superDestinationValidator)
         );
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
@@ -765,7 +766,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             executor: address(superDestinationExecutor),
             dstTokens: dstTokens,
             intentAmounts: intentAmounts,
-            account: account
+            account: account,
+            validator: address(superDestinationValidator)
         });
         SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
         proofDst[0] = SuperValidatorBase.DstProof({proof: merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo});
@@ -965,7 +967,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             address(superDestinationExecutor),
             ctx.dstTokens,
             ctx.intentAmounts,
-            validUntil
+            validUntil,
+            address(superDestinationValidator)
         );
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
@@ -979,7 +982,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             executor: address(superDestinationExecutor),
             dstTokens: ctx.dstTokens,
             intentAmounts: ctx.intentAmounts,
-            account: account
+            account: account,
+            validator: address(superDestinationValidator)
         });
         SuperValidatorBase.DstProof[] memory proofDst = new SuperValidatorBase.DstProof[](1);
         proofDst[0] = SuperValidatorBase.DstProof({proof: ctx.merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo});

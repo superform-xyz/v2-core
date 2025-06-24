@@ -68,10 +68,10 @@ contract SuperDestinationValidator is SuperValidatorBase, ISuperValidator {
     /// @param data Encoded destination data containing execution details
     /// @param validUntil Timestamp after which the signature becomes invalid
     /// @return The calculated leaf hash used in merkle tree verification
-    function _createLeaf(bytes memory data, uint48 validUntil, bool) internal pure override returns (bytes32) {
+    function _createLeaf(bytes memory data, uint48 validUntil, bool) internal view override returns (bytes32) {
         DestinationData memory destinationData = abi.decode(data, (DestinationData));
 
-        return _createDestinationLeaf(destinationData, validUntil);
+        return _createDestinationLeaf(destinationData, validUntil, address(this));
     }
 
     /*//////////////////////////////////////////////////////////////

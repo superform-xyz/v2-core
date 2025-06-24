@@ -232,7 +232,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 
         bytes32[] memory leaves = new bytes32[](2);
         leaves[0] = _createSourceValidatorLeaf(approveUserOp.userOpHash, validUntil, true);
-        leaves[1] = _createDestinationValidatorLeaf("", uint64(block.chainid), account, address(0), new address[](0), new uint256[](0), validUntil);
+        leaves[1] = _createDestinationValidatorLeaf("", uint64(block.chainid), account, address(0), new address[](0), new uint256[](0), validUntil, address(0));
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
@@ -243,7 +243,8 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
             executor: address(0),
             dstTokens: new address[](0),
             intentAmounts: new uint256[](0),
-            account: account
+            account: account,
+            validator: address(0)
         });
         proofDst[0] = SuperValidatorBase.DstProof({proof: proof[1], dstChainId: uint64(block.chainid), info: dstInfo});
         

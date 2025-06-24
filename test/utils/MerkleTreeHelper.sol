@@ -45,12 +45,13 @@ abstract contract MerkleTreeHelper is StdCheats, Helpers {
         address executor,
         address[] memory dstTokens,
         uint256[] memory intentAmounts,
-        uint48 validUntil
+        uint48 validUntil,
+        address _validator
     ) internal pure returns (bytes32) {
         return keccak256(
             bytes.concat(
                 keccak256(
-                    abi.encode(executionData, dstChainId, account, executor, dstTokens, intentAmounts, validUntil)
+                    abi.encode(executionData, dstChainId, account, executor, dstTokens, intentAmounts, validUntil, _validator)
                 )
             )
         );

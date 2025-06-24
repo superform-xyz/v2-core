@@ -2018,7 +2018,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             messageData.targetExecutor,
             ctx.dstTokens,
             ctx.intentAmounts,
-            ctx.validUntil
+            ctx.validUntil,
+            messageData.validator
         );
         ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, true);
 
@@ -2037,7 +2038,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             executor: messageData.targetExecutor,
             dstTokens: ctx.dstTokens,
             intentAmounts: ctx.intentAmounts,
-            account: accountToUse
+            account: accountToUse,
+            validator: messageData.validator
         });
         proofDst[0] = SuperValidatorBase.DstProof({proof: ctx.merkleProof[0], dstChainId: dstChainId, info: dstInfo});
 

@@ -22,6 +22,7 @@ interface ISuperDestinationValidator {
         address executor;
         address[] dstTokens;
         uint256[] intentAmounts;
+        address validator;
         bytes data;
     }
 

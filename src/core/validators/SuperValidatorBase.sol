@@ -27,6 +27,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
         address executor;
         address[] dstTokens;
         uint256[] intentAmounts;
+        address validator;
         bytes data;
     }
 
@@ -129,7 +130,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
 
     function _createLeaf(bytes memory data, uint48 validUntil, bool checkCrossChainExecution) internal view virtual returns (bytes32);
 
-    function _createDestinationLeaf(DestinationData memory destinationData, uint48 validUntil) internal pure virtual returns (bytes32) {
+    function _createDestinationLeaf(DestinationData memory destinationData, uint48 validUntil, address validator) internal view virtual returns (bytes32) {
         // Note: destinationData.initData is not included because it is not needed for the leaf.
         // If precomputed account is != than the executing account, the entire execution reverts
         // before this method is called. Check SuperDestinationExecutor for more details.
@@ -143,7 +144,8 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
                         destinationData.executor,
                         destinationData.dstTokens,
                         destinationData.intentAmounts,
-                        validUntil
+                        validUntil,
+                        validator
                     )
                 )
             )
