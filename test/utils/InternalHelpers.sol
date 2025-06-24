@@ -340,21 +340,6 @@ abstract contract InternalHelpers {
         hookData = abi.encodePacked(yieldSourceOracleId, vault, owner, shares, usePrevHookAmount);
     }
 
-    function _createApproveAndRedeem4626HookData(
-        bytes4 yieldSourceOracleId,
-        address vault,
-        address token,
-        address owner,
-        uint256 amount,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(yieldSourceOracleId, vault, token, owner, amount, usePrevHookAmount);
-    }
-
     function _create5115RedeemHookData(
         bytes4 yieldSourceOracleId,
         address vault,
@@ -368,32 +353,6 @@ abstract contract InternalHelpers {
         returns (bytes memory hookData)
     {
         hookData = abi.encodePacked(yieldSourceOracleId, vault, tokenOut, shares, minTokenOut, false, usePrevHookAmount);
-    }
-
-    function _createApproveAndRedeem5115VaultHookData(
-        bytes4 yieldSourceOracleId,
-        address vault,
-        address tokenIn,
-        address tokenOut,
-        uint256 shares,
-        uint256 minTokenOut,
-        bool burnFromInternalBalance,
-        bool usePrevHookAmount
-    )
-        internal
-        pure
-        returns (bytes memory hookData)
-    {
-        hookData = abi.encodePacked(
-            yieldSourceOracleId,
-            vault,
-            tokenIn,
-            tokenOut,
-            shares,
-            minTokenOut,
-            burnFromInternalBalance,
-            usePrevHookAmount
-        );
     }
 
     function _createRequestDeposit7540VaultHookData(
