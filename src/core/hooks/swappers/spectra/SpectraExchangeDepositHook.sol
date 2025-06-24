@@ -8,18 +8,13 @@ import { BytesLib } from "../../../../vendor/BytesLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import {
-    ISuperHook,
-    ISuperHookResult,
-    ISuperHookContextAware,
-    ISuperHookInspector
-} from "../../../interfaces/ISuperHook.sol";
-import { SpectraCommands } from "../../../../vendor/spectra/SpectraCommands.sol";
-import { ISpectraRouter } from "../../../../vendor/spectra/ISpectraRouter.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISpectraRouter } from "../../../../vendor/spectra/ISpectraRouter.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { SpectraCommands } from "../../../../vendor/spectra/SpectraCommands.sol";
 
-/// @title SpectraExchangeHook
+/// @title SpectraExchangeDepositHook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
@@ -27,7 +22,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
 /// @notice         uint256 value = BytesLib.toUint256(data, 25);
 /// @notice         bytes txData_ = BytesLib.slice(data, 57, data.length - 57);
-contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 24;
@@ -81,7 +76,7 @@ contract SpectraExchangeHook is BaseHook, ISuperHookContextAware, ISuperHookInsp
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(router),
-            value: usePrevHookAmount ? ISuperHookResult(prevHook).getOutAmount(account) : value,
+            value: usePrevHookAmount && value > 0 ? ISuperHookResult(prevHook).getOutAmount(account) : value,
             callData: usePrevHookAmount ? updatedTxData : txData_
         });
     }

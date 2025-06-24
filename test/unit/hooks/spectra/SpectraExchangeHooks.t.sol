@@ -2,9 +2,9 @@
 pragma solidity >=0.8.30;
 
 import { Helpers } from "../../../utils/Helpers.sol";
-import { SpectraExchangeHook } from "../../../../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
+import { SpectraExchangeDepositHook } from "../../../../src/core/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
+import { SpectraExchangeRedeemHook } from "../../../../src/core/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
 import { SpectraCommands } from "../../../../src/vendor/spectra/SpectraCommands.sol";
-import { ISpectraRouter } from "../../../../src/vendor/spectra/ISpectraRouter.sol";
 
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
@@ -15,30 +15,33 @@ import { BytesLib } from "../../../../src/vendor/BytesLib.sol";
 
 import { MockSpectraRouter } from "../../../mocks/MockSpectraRouter.sol";
 
-import "forge-std/console2.sol";
-
-contract SpectraExchangeHookTest is Helpers {
-    SpectraExchangeHook public hook;
+contract SpectraExchangeHooksTests is Helpers {
+    SpectraExchangeDepositHook public depositHook;
+    SpectraExchangeRedeemHook public redeemHook;
     MockSpectraRouter public router;
     MockERC20 public token;
     MockHook public prevHook;
     address public account;
 
+    bytes1 public constant REDEEM_IBT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_IBT_FOR_ASSET));
+    bytes1 public constant REDEEM_PT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_PT_FOR_ASSET));
+
     function setUp() public {
         token = new MockERC20("Test Token", "TEST", 18);
         router = new MockSpectraRouter(address(token));
-        hook = new SpectraExchangeHook(address(router));
+        depositHook = new SpectraExchangeDepositHook(address(router));
+        redeemHook = new SpectraExchangeRedeemHook(address(router));
         account = address(this);
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, address(token));
     }
 
-    function test_Constructor_RevertIf_ZeroAddress() public {
+    function test_DepositHook_Constructor_RevertIf_ZeroAddress() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new SpectraExchangeHook(address(0));
+        new SpectraExchangeDepositHook(address(0));
     }
 
-    function test_UsePrevHookAmount_Is_Wrong() public view {
+    function test_DepositHook_UsePrevHookAmount_Is_Wrong() public view {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
@@ -59,10 +62,10 @@ contract SpectraExchangeHookTest is Helpers {
         //assertFalse(hook.decodeUsePrevHookAmount(data));
 
         // ^ this was fixed
-        assertTrue(hook.decodeUsePrevHookAmount(data));
+        assertTrue(depositHook.decodeUsePrevHookAmount(data));
     }
 
-    function test_UsePrevHookAmount() public view {
+    function test_DepositHook_UsePrevHookAmount() public view {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
@@ -79,10 +82,10 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        assertFalse(hook.decodeUsePrevHookAmount(data));
+        assertFalse(depositHook.decodeUsePrevHookAmount(data));
     }
 
-    function test_UsePrevHookAmount_SetToTrue() public view {
+    function test_DepositHook_UsePrevHookAmount_SetToTrue() public view {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
@@ -99,10 +102,10 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        assertTrue(hook.decodeUsePrevHookAmount(data));
+        assertTrue(depositHook.decodeUsePrevHookAmount(data));
     }
 
-    function test_Build_DepositAssetInPT() public view {
+    function test_DepositHook_Build_DepositAssetInPT() public view {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
@@ -118,16 +121,16 @@ contract SpectraExchangeHookTest is Helpers {
             uint256(0), // value
             txData
         );
-        assertEq(hook.decodeUsePrevHookAmount(data), false);
+        assertEq(depositHook.decodeUsePrevHookAmount(data), false);
 
-        Execution[] memory executions = hook.build(address(0), account, data);
+        Execution[] memory executions = depositHook.build(address(0), account, data);
 
         assertEq(executions.length, 3);
         assertEq(executions[1].target, address(router));
         assertEq(executions[1].value, 0);
     }
 
-    function test_DepositAssetInPT_Inspector() public view {
+    function test_DepositHook_DepositAssetInPT_Inspector() public view {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
@@ -144,11 +147,11 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        bytes memory argsEncoded = hook.inspect(data);
+        bytes memory argsEncoded = depositHook.inspect(data);
         assertGt(argsEncoded.length, 0);
     }
 
-    function test_Build_DepositAssetInIBT() public view {
+    function test_DepositHook_Build_DepositAssetInIBT() public view {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_IBT));
 
@@ -165,14 +168,14 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        Execution[] memory executions = hook.build(address(0), account, data);
+        Execution[] memory executions = depositHook.build(address(0), account, data);
 
         assertEq(executions.length, 3);
         assertEq(executions[1].target, address(router));
         assertEq(executions[1].value, 0);
     }
 
-    function test_DepositAssetInIBT_Inspector() public view {
+    function test_DepositHook_DepositAssetInIBT_Inspector() public view {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_IBT));
 
@@ -189,11 +192,11 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        bytes memory argsEncoded = hook.inspect(data);
+        bytes memory argsEncoded = depositHook.inspect(data);
         assertGt(argsEncoded.length, 0);
     }
 
-    function test_TransferFrom_Inspector() public view {
+    function test_DepositHook_TransferFrom_Inspector() public view {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.TRANSFER_FROM));
 
@@ -210,11 +213,11 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        bytes memory argsEncoded = hook.inspect(data);
+        bytes memory argsEncoded = depositHook.inspect(data);
         assertGt(argsEncoded.length, 0);
     }
 
-    function test_Build_WithPrevHookAmount() public {
+    function test_DepositHook_Build_WithPrevHookAmount() public {
         prevHook.setOutAmount(2e18, address(this));
 
         bytes memory commandsData = new bytes(1);
@@ -230,18 +233,18 @@ contract SpectraExchangeHookTest is Helpers {
             bytes4(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(1), // usePrevHookAmount = true
-            uint256(0), // value
+            uint256(2e18), // value
             txData
         );
 
-        Execution[] memory executions = hook.build(address(prevHook), account, data);
+        Execution[] memory executions = depositHook.build(address(prevHook), account, data);
 
         assertEq(executions.length, 3);
         assertEq(executions[1].target, address(router));
         assertEq(executions[1].value, 2e18);
     }
 
-    function test_Build_RevertIf_InvalidPT() public {
+    function test_DepositHook_Build_RevertIf_InvalidPT() public {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
@@ -258,11 +261,11 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        vm.expectRevert(SpectraExchangeHook.INVALID_PT.selector);
-        hook.build(address(0), account, data);
+        vm.expectRevert(SpectraExchangeDepositHook.INVALID_PT.selector);
+        depositHook.build(address(0), account, data);
     }
 
-    function test_Build_RevertIf_InvalidIBT() public {
+    function test_DepositHook_Build_RevertIf_InvalidIBT() public {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_IBT));
 
@@ -279,11 +282,11 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        vm.expectRevert(SpectraExchangeHook.INVALID_IBT.selector);
-        hook.build(address(0), account, data);
+        vm.expectRevert(SpectraExchangeDepositHook.INVALID_IBT.selector);
+        depositHook.build(address(0), account, data);
     }
 
-    function test_Build_RevertIf_InvalidRecipient() public {
+    function test_DepositHook_Build_RevertIf_InvalidRecipient() public {
         address otherAccount = makeAddr("other");
 
         bytes memory commandsData = new bytes(1);
@@ -302,11 +305,11 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        vm.expectRevert(SpectraExchangeHook.INVALID_RECIPIENT.selector);
-        hook.build(address(0), account, data);
+        vm.expectRevert(SpectraExchangeDepositHook.INVALID_RECIPIENT.selector);
+        depositHook.build(address(0), account, data);
     }
 
-    function test_Build_RevertIf_LengthMismatch() public {
+    function test_DepositHook_Build_RevertIf_LengthMismatch() public {
         bytes memory commandsData = new bytes(2); // 2 commands
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
         commandsData[1] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_IBT));
@@ -324,11 +327,11 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        vm.expectRevert(SpectraExchangeHook.LENGTH_MISMATCH.selector);
-        hook.build(address(0), account, data);
+        vm.expectRevert(SpectraExchangeDepositHook.LENGTH_MISMATCH.selector);
+        depositHook.build(address(0), account, data);
     }
 
-    function test_Build_RevertIf_InvalidCommand() public {
+    function test_DepositHook_Build_RevertIf_InvalidCommand() public {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(0xFF)); // Invalid command
 
@@ -345,11 +348,11 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        vm.expectRevert(SpectraExchangeHook.INVALID_COMMAND.selector);
-        hook.build(address(0), account, data);
+        vm.expectRevert(SpectraExchangeDepositHook.INVALID_COMMAND.selector);
+        depositHook.build(address(0), account, data);
     }
 
-    function test_PreExecute_PostExecute() public {
+    function test_DepositHook_PreExecute_PostExecute() public {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
@@ -366,14 +369,14 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        hook.preExecute(address(0), account, data);
+        depositHook.preExecute(address(0), account, data);
 
         token.mint(account, 2e18);
 
-        hook.postExecute(address(0), account, data);
+        depositHook.postExecute(address(0), account, data);
     }
 
-    function test_Build_WithDeadline() public view {
+    function test_DepositHook_Build_WithDeadline() public view {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
@@ -393,14 +396,14 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        Execution[] memory executions = hook.build(address(0), account, data);
+        Execution[] memory executions = depositHook.build(address(0), account, data);
 
         assertEq(executions.length, 3);
         assertEq(executions[1].target, address(router));
         assertEq(executions[1].value, 0);
     }
 
-    function test_Build_RevertIf_InvalidDeadline() public {
+    function test_DepositHook_Build_RevertIf_InvalidDeadline() public {
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
 
@@ -420,8 +423,17 @@ contract SpectraExchangeHookTest is Helpers {
             txData
         );
 
-        vm.expectRevert(SpectraExchangeHook.INVALID_DEADLINE.selector);
-        hook.build(address(0), account, data);
+        vm.expectRevert(SpectraExchangeDepositHook.INVALID_DEADLINE.selector);
+        depositHook.build(address(0), account, data);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            REDEEM HOOK TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_RedeemHook_Constructor_RevertIf_ZeroAddress() public {
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        new SpectraExchangeRedeemHook(address(0));
     }
 
     struct CallDataTestVars {
@@ -479,11 +491,11 @@ contract SpectraExchangeHookTest is Helpers {
         );
 
         // Verify decodeUsePrevHookAmount is working as expected
-        bool usePrevHookAmount = hook.decodeUsePrevHookAmount(vars.data);
+        bool usePrevHookAmount = redeemHook.decodeUsePrevHookAmount(vars.data);
         assertTrue(usePrevHookAmount, "usePrevHookAmount should be true");
 
         // Execute build with the custom previous hook that always returns our fixed amount
-        vars.executions = hook.build(vars.mockPrevHook, account, vars.data);
+        vars.executions = redeemHook.build(vars.mockPrevHook, account, vars.data);
 
         // Extract the updated callData from the execution
         vars.updatedTxData = vars.executions[1].callData;
@@ -515,11 +527,6 @@ contract SpectraExchangeHookTest is Helpers {
         // Decode the first input to get the updated amount
         (vars.updatedPt, vars.updatedAmount, vars.updatedPtRecipient, vars.updatedYtRecipient, vars.updatedMinShares) =
             abi.decode(vars.updatedInputs[0], (address, uint256, address, address, uint256));
-
-        // Debug output
-        console2.log("Original amount:", vars.originalAmount);
-        console2.log("Fixed prev hook amount:", vars.prevHookAmount);
-        console2.log("Updated amount in callData:", vars.updatedAmount);
 
         // Verify the amount was updated to use the previous hook amount
         assertEq(vars.updatedAmount, vars.prevHookAmount, "Amount should be updated to previous hook amount");

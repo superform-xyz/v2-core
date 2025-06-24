@@ -23,6 +23,7 @@ import { MockLedger, MockLedgerConfiguration } from "../../mocks/MockLedger.sol"
 import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 import { ISuperDestinationExecutor } from "../../../src/core/interfaces/ISuperDestinationExecutor.sol";
+import { ISuperValidator } from "../../../src/core/interfaces/ISuperValidator.sol";
 
 import { Helpers } from "../../utils/Helpers.sol";
 
@@ -512,7 +513,6 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         vm.mockCall(address(stakingRewards), abi.encodeWithSignature("rewardsToken()"), abi.encode(rewardToken));
         vm.startPrank(account);
-        uint256 initBal = MockERC20(rewardToken).balanceOf(account);
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
@@ -741,7 +741,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             address(superDestinationExecutor),
             dstTokens,
             intentAmounts,
-            validUntil
+            validUntil,
+            address(superDestinationValidator)
         );
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
@@ -760,7 +761,17 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
                 signerPrvKeyInvalid
             );
         }
-        signatureData = abi.encode(validUntil, merkleRoot, merkleProof[0], merkleProof[0], signature);
+        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
+            data: executionDataForLeaf,
+            executor: address(superDestinationExecutor),
+            dstTokens: dstTokens,
+            intentAmounts: intentAmounts,
+            account: account,
+            validator: address(superDestinationValidator)
+        });
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+        proofDst[0] = ISuperValidator.DstProof({proof: merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo});
+        signatureData = abi.encode(false, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
     }
 
     function test_FeeToleranceIsOnePercent() public {
@@ -956,7 +967,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             address(superDestinationExecutor),
             ctx.dstTokens,
             ctx.intentAmounts,
-            validUntil
+            validUntil,
+            address(superDestinationValidator)
         );
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
@@ -965,8 +977,17 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             SuperValidatorBase(address(superDestinationValidator)).namespace(), ctx.merkleRoot, signer, signerPrvKey
         );
 
-        ctx.signatureData =
-            abi.encode(validUntil, ctx.merkleRoot, ctx.merkleProof[0], ctx.merkleProof[0], ctx.signature);
+        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
+            data: ctx.executionDataForLeaf,
+            executor: address(superDestinationExecutor),
+            dstTokens: ctx.dstTokens,
+            intentAmounts: ctx.intentAmounts,
+            account: account,
+            validator: address(superDestinationValidator)
+        });
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+        proofDst[0] = ISuperValidator.DstProof({proof: ctx.merkleProof[0], dstChainId: uint64(block.chainid), info: dstInfo});
+        ctx.signatureData = abi.encode(false, validUntil, ctx.merkleRoot, ctx.merkleProof[0], proofDst, ctx.signature);
 
         vm.expectEmit(true, true, false, true);
         emit ISuperDestinationExecutor.SuperDestinationExecutorInvalidIntentAmount(account, address(token), 0);

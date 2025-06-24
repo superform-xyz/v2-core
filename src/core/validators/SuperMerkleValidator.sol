@@ -52,16 +52,32 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         // Decode signature
         SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
 
-        // Process signature
+        // Verify source data
         (address signer,) = _processSignatureAndVerifyLeaf(sigData, _userOpHash);
-
         // Validate
         bool isValid = _isSignatureValid(signer, _userOp.sender, sigData.validUntil);
 
-        // store only if destination proof exists and sig is valid
-        if (isValid && sigData.proofDst.length > 0) {
-            // we check only the signature validity here
-            //    merkle tree was checked already in `_processSignatureAndVerifyLeaf` and reverts if invalid
+        // Verify destination data
+        if (isValid && sigData.validateDstProof) {
+            uint256 dstLen = sigData.proofDst.length;
+            if (dstLen == 0) revert INVALID_DESTINATION_PROOF();
+
+            for (uint256 i; i < dstLen; ++i) {
+                DstProof memory dstProof = sigData.proofDst[i];
+                DestinationData memory dstData = DestinationData({
+                    callData: dstProof.info.data,
+                    chainId: dstProof.dstChainId,
+                    sender: dstProof.info.account,
+                    executor: dstProof.info.executor,
+                    dstTokens: dstProof.info.dstTokens,
+                    intentAmounts: dstProof.info.intentAmounts
+                });
+                bytes32 dstLeaf = _createDestinationLeaf(dstData, sigData.validUntil, dstProof.info.validator);
+
+                if (!MerkleProof.verify(dstProof.proof, sigData.merkleRoot, dstLeaf)) revert INVALID_DESTINATION_PROOF();
+            }
+
+            // store signature in transient storage to be retrieved during bridge execution
             _storeSignature(uint256(uint160(_userOp.sender)), _userOp.signature);
         }
 
@@ -98,10 +114,11 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     ///      Double-hashing is used for added security
     /// @param data Encoded data containing the user operation hash
     /// @param validUntil Timestamp after which the signature becomes invalid
+    /// @param checkCrossChainExecution Whether to validate destination proof
     /// @return The calculated leaf hash used in merkle tree verification
-    function _createLeaf(bytes memory data, uint48 validUntil) internal pure override returns (bytes32) {
+    function _createLeaf(bytes memory data, uint48 validUntil, bool checkCrossChainExecution) internal pure override returns (bytes32) {
         bytes32 userOpHash = abi.decode(data, (bytes32));
-        return keccak256(bytes.concat(keccak256(abi.encode(userOpHash, validUntil))));
+        return keccak256(bytes.concat(keccak256(abi.encode(userOpHash, validUntil, checkCrossChainExecution))));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -120,7 +137,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         returns (address signer, bytes32 leaf)
     {
         // Create leaf from user operation hash and verify it's part of the merkle tree
-        leaf = _createLeaf(abi.encode(userOpHash), sigData.validUntil);
+        leaf = _createLeaf(abi.encode(userOpHash), sigData.validUntil, sigData.validateDstProof);
         if (!MerkleProof.verify(sigData.proofSrc, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
         // Recover signer from signature using standard Ethereum signature recovery

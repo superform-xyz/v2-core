@@ -6,7 +6,7 @@ import {SuperMerkleValidator} from "../../../src/core/validators/SuperMerkleVali
 import {IERC7579Account} from "../../../lib/modulekit/src/accounts/common/interfaces/IERC7579Account.sol";
 import {ModeCode} from "../../../lib/modulekit/src/accounts/common/lib/ModeLib.sol";
 import {Execution} from "../../../lib/modulekit/src/accounts/common/interfaces/IERC7579Account.sol";
-
+import {ISuperValidator} from "../../../src/core/interfaces/ISuperValidator.sol";
 
 contract POC_IncorrectValidUntilTest is BaseTest {
     function test_POC_IncorrectValidUntilHandling() public {
@@ -22,16 +22,16 @@ contract POC_IncorrectValidUntilTest is BaseTest {
         address validator = _getContract(ETH, SUPER_MERKLE_VALIDATOR_KEY);
         
         uint256 privateKey = 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80;
-        address signer = vm.addr(privateKey);
+        address signer = 0xE73972752A8831E582dc5f980B8f3e328D1d481e;
 
         // Initialize validator for user
         vm.startPrank(address(user));
-        SuperMerkleValidator(validator).onInstall(abi.encode(0x7F760B1DA4bCce584F96d4f4fe6e277D7899b2CE)); // Set this test contract as the owner
+        SuperMerkleValidator(validator).onInstall(abi.encode(signer));
 
         // Create merkle tree data
         bytes32[] memory leaves = new bytes32[](1);
         bytes32 userOpHash = keccak256("test");
-        leaves[0] = keccak256(bytes.concat(keccak256(abi.encode(userOpHash, uint48(0)))));
+        leaves[0] = keccak256(bytes.concat(keccak256(abi.encode(userOpHash, uint48(0), false))));
 
         // Create merkle tree using _createValidatorMerkleTree
         (bytes32[][] memory proofs, bytes32 root) = _createValidatorMerkleTree(leaves);
@@ -41,12 +41,14 @@ contract POC_IncorrectValidUntilTest is BaseTest {
      
         bytes memory signature = _signMessage(messageHash, privateKey);
         
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         // Pack the signature data with validUntil = 0
         bytes memory sigDataRaw = abi.encode(
+            false,
             uint48(0), // validUntil = 0 should mean infinite validity
             root,   // merkleRoot
             proofs[0],     // proofSrc
-            proofs[0],     // proofDst
+            proofDst,     // proofDst
             signature
         );
 

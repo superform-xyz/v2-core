@@ -112,7 +112,6 @@ contract GearboxClaimRewardHookTest is Helpers {
         // Check farmingPool is properly extracted
         // Validate it by checking that it's used as the target in the execution
         assertEq(executions[1].target, testFarmingPool, "FarmingPool address not correctly decoded");
-
         // Verify data length is as expected (4 + 20 + 20 + 20 = 64 bytes)
         assertEq(data.length, 64, "Calldata length is incorrect");
     }

@@ -10,15 +10,17 @@ import { INexus } from "../../src/vendor/nexus/INexus.sol";
 import { MockRegistry } from "../mocks/MockRegistry.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
-
+import { ISuperValidator } from "../../src/core/interfaces/ISuperValidator.sol";
 import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { SuperValidatorBase } from "../../src/core/validators/SuperValidatorBase.sol";
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 
 import { ISuperSignatureStorage } from "../../src/core/interfaces/ISuperSignatureStorage.sol";
 import { MockValidator } from "../../lib/modulekit/src/module-bases/mocks/MockValidator.sol";
 import "forge-std/console.sol";
+import "forge-std/Test.sol";
 
 contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     MockRegistry public nexusRegistry;
@@ -36,6 +38,284 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         threshold = 1;
 
         mockSignature = abi.encodePacked(hex"41414141");
+    }
+
+    function testOrion_multipleCrossChainTransactionsCanBeSent() public {
+        TestData memory testData;
+
+        AcrossSendFundsAndExecuteOnDstHook acrossHook = new AcrossSendFundsAndExecuteOnDstHook(
+            0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5, address(superMerkleValidator)
+        );
+
+        // Step 1: Create account
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+
+        // 2. Add tokens to account
+        _getTokens(CHAIN_1_USDC, nexusAccount, 100e6);
+        _getTokens(CHAIN_1_WETH, nexusAccount, 100e6);
+
+        // 3. Create Hook data for the UserOp. We'll want to
+        // - Approve the bridge for USDC
+        // - Approve the bridge for WETH
+        // - Bridge USDC
+        // - Bridge WETH
+        DestinationMessage memory message;
+        {
+            testData.hooksAddresses = new address[](4);
+            testData.hooksAddresses[0] = approveHook;
+            testData.hooksAddresses[1] = approveHook;
+            testData.hooksAddresses[2] = address(acrossHook);
+            testData.hooksAddresses[3] = address(acrossHook);
+
+            testData.hooksData = new bytes[](4);
+            // Build approval data
+            testData.hooksData[0] =
+                _createApproveHookData(CHAIN_1_USDC, 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5, 100e6, false);
+            testData.hooksData[1] =
+                _createApproveHookData(CHAIN_1_WETH, 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5, 100e6, false);
+
+            message.initData = hex"aaaaaaaa"; // not important for the test
+            message.executorCalldata = hex"eeeeeeee";
+            message.dstTokens = new address[](1);
+            message.dstTokens[0] = CHAIN_1_USDC;
+            message.intentAmounts = new uint256[](1);
+            message.intentAmounts[0] = uint256(100e6);
+
+            testData.ten = 10;
+            // NOTE:
+            // Test execution will fail because `executionData` is not valid
+            //   but test demonstrates you can now pass 2 different proofs
+            //   for 2 different chains
+            // Build across data.
+            testData.hooksData[2] = abi.encodePacked(
+                testData.zero,
+                /// uint256 value = BytesLib.toUint256(data, 0);
+                nexusAccount,
+                /// address recipient = BytesLib.toAddress(data, 32);
+                CHAIN_1_USDC,
+                /// address inputToken = BytesLib.toAddress(data, 52);
+                CHAIN_1_USDC,
+                /// address outputToken = BytesLib.toAddress(data, 72);
+                uint256(100e6),
+                /// uint256 inputAmount = BytesLib.toUint256(data, 92);
+                uint256(100e6),
+                /// uint256 outputAmount = BytesLib.toUint256(data, 124);
+                testData.ten,
+                /// uint256 destinationChainId = BytesLib.toUint256(data, 156);
+                address(0),
+                /// address exclusiveRelayer = BytesLib.toAddress(data, 188);
+                uint32(testData.zero),
+                /// uint32 fillDeadlineOffset = BytesLib.toUint32(data, 208);
+                uint32(testData.zero),
+                /// uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
+                false,
+                /// bool usePrevHookAmount = _decodeBool(data, 216);
+                abi.encode(
+                    message.initData,
+                    message.executorCalldata,
+                    message._account,
+                    message.dstTokens,
+                    message.intentAmounts
+                )
+            );
+            /// bytes destinationMessage = BytesLib.slice(data, 217, data.length - 217);
+        }
+
+        {
+            message.dstTokens = new address[](1);
+            message.dstTokens[0] = CHAIN_1_WETH;
+            message.executorCalldata = hex"dddddddd"; // executor callData changes for destination
+
+            testData.ten = 11;
+            testData.hooksData[3] = abi.encodePacked(
+                testData.zero,
+                /// uint256 value = BytesLib.toUint256(data, 0);
+                nexusAccount,
+                /// address recipient = BytesLib.toAddress(data, 32);
+                CHAIN_1_WETH,
+                /// address inputToken = BytesLib.toAddress(data, 52);
+                CHAIN_1_WETH,
+                /// address outputToken = BytesLib.toAddress(data, 72);
+                uint256(100e6),
+                /// uint256 inputAmount = BytesLib.toUint256(data, 92);
+                uint256(100e6),
+                /// uint256 outputAmount = BytesLib.toUint256(data, 124);
+                testData.ten,
+                /// uint256 destinationChainId = BytesLib.toUint256(data, 156);
+                address(0),
+                /// address exclusiveRelayer = BytesLib.toAddress(data, 188);
+                uint32(testData.zero),
+                /// uint32 fillDeadlineOffset = BytesLib.toUint32(data, 208);
+                uint32(testData.zero),
+                /// uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
+                false,
+                /// bool usePrevHookAmount = _decodeBool(data, 216);
+                abi.encode(
+                    message.initData,
+                    message.executorCalldata,
+                    message._account,
+                    message.dstTokens,
+                    message.intentAmounts
+                )
+            );
+            /// bytes destinationMessage = BytesLib.slice(data, 217, data.length - 217);
+        }
+
+        // prepare data & execute through entry point
+        Execution[] memory executions = new Execution[](1);
+        executions[0] = Execution({
+            target: address(superExecutorModule),
+            value: 0,
+            callData: abi.encodeWithSelector(
+                ISuperExecutor.execute.selector,
+                abi.encode(
+                    ISuperExecutor.ExecutorEntry({ hooksAddresses: testData.hooksAddresses, hooksData: testData.hooksData })
+                )
+            )
+        });
+
+        // Nexus.execute()
+        bytes memory callData = _prepareExecutionCalldata(executions);
+        uint256 nonce = _prepareNonce(nexusAccount);
+        PackedUserOperation memory userOp = _createPackedUserOperation(nexusAccount, nonce, callData);
+
+        // create validator merkle tree & get signature data
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+
+        // Create leaves
+        testData.leaves = new bytes32[](3);
+        // Leaf for source operation
+        testData.leaves[0] =
+            _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, true);
+
+        // Leaf for cross-chain USDC
+        message.dstTokens = new address[](1);
+        message.dstTokens[0] = CHAIN_1_USDC;
+        address _executor = makeAddr("executor");
+        testData.leaves[1] = _createDestinationValidatorLeaf(
+            hex"eeeeeeee", // executionData
+            uint64(10),
+            nexusAccount,
+            _executor,
+            message.dstTokens,
+            message.intentAmounts,
+            validUntil,
+            address(this)
+        );
+
+        // Leaf for cross-chain WETH
+        message.dstTokens = new address[](1);
+        message.dstTokens[0] = CHAIN_1_WETH;
+        testData.leaves[2] = _createDestinationValidatorLeaf(
+            hex"dddddddd", // executionData
+            uint64(11),
+            nexusAccount,
+            _executor,
+            message.dstTokens,
+            message.intentAmounts,
+            validUntil,
+            address(this)
+        );
+
+        (testData.proof, testData.root) = _createValidatorMerkleTree(testData.leaves);
+
+        // Sign root
+        testData.signature = _getSignature(testData.root);
+
+        /////////////////////////////////////////////////////
+        //  HERE COMES THE PROBLEM: Which proof should we  //
+        //  set as destination? We can only choose one!    //
+        //  In this case, we choose proof[1], which leaves //
+        //  proof[2] outside of the signature data, making //
+        //  it impossible to provide the proof for WETH's  //
+        // cross-chain message                             //
+        /////////////////////////////////////////////////////
+
+        // ^ NOT A PROBLEM ANYMORE
+        {
+            ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](2);
+
+            message.dstTokens = new address[](1);
+            message.dstTokens[0] = CHAIN_1_USDC;
+            proofDst[0] = ISuperValidator.DstProof({
+                proof: testData.proof[1],
+                dstChainId: uint64(10),
+                info: ISuperValidator.DstInfo({
+                    account: nexusAccount,
+                    executor: _executor,
+                    dstTokens: message.dstTokens,
+                    intentAmounts: message.intentAmounts,
+                    data: hex"eeeeeeee",
+                    validator: address(this)
+                })
+            });
+
+            message.dstTokens = new address[](1);
+            message.dstTokens[0] = CHAIN_1_WETH;
+            proofDst[1] = ISuperValidator.DstProof({
+                proof: testData.proof[2],
+                dstChainId: uint64(11),
+                info: ISuperValidator.DstInfo({
+                    account: nexusAccount,
+                    executor: _executor,
+                    dstTokens: message.dstTokens,
+                    intentAmounts: message.intentAmounts,
+                    data: hex"dddddddd",
+                    validator: address(this)
+                })
+            });
+
+            testData.sigData = _encodeSigData(proofDst, testData, validUntil);
+        }
+
+        // Build userops
+        userOp.signature = testData.sigData;
+
+        testData.userOps = new PackedUserOperation[](1);
+        testData.userOps[0] = userOp;
+        _assertAndExecuteMultileProofs(testData, nexusAccount);
+        // This demonstrates that multiple cross-chain transactions CAN be sent in the same tx
+    }
+
+    function _encodeSigData(
+        ISuperValidator.DstProof[] memory proofDst,
+        TestData memory testData,
+        uint48 validUntil
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encode(
+            true,
+            validUntil,
+            testData.root,
+            testData.proof[0],
+            proofDst, // destination proof
+            testData.signature
+        );
+    }
+
+    function _assertAndExecuteMultileProofs(TestData memory testData, address nexusAccount) internal {
+        // Record logs
+        vm.recordLogs();
+        IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(testData.userOps, payable(nexusAccount));
+
+        bytes32 FundsDeposited = keccak256(
+            "FundsDeposited(bytes32,bytes32,uint256,uint256,uint256,uint256,uint32,uint32,uint32,bytes32,bytes32,bytes32,bytes)"
+        );
+
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        bool found;
+        for (uint256 i; i < entries.length; i++) {
+            if (entries[i].topics[0] == FundsDeposited) {
+                found = true;
+            }
+        }
+
+        // found means multiple proofs passed validation
+        assertTrue(found);
     }
 
     function test_AccountCreation_WithNexus() public {
@@ -162,7 +442,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         userOp = _createPackedUserOperation(nexusAccount, nonce, callData);
 
         (bytes memory sigData, bytes32[][] memory proof, bytes32 root, bytes memory signature) =
-            _getSignatureData(userOp, ENTRYPOINT_ADDR);
+            _getSignatureData(nexusAccount, userOp, ENTRYPOINT_ADDR, message, address(superExecutorModule));
 
         testData.sigData = sigData;
         testData.proof = proof;
@@ -223,7 +503,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         );
     }
 
-    function _getSignatureData(
+    function _getSameChainSignatureData(
         PackedUserOperation memory userOp,
         address entryPoint
     )
@@ -233,10 +513,52 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil);
+        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil, false);
         (proof, root) = _createValidatorMerkleTree(leaves);
         signature = _getSignature(root);
         sigData = abi.encode(validUntil, root, proof[0], hex"1111", signature);
+    }
+
+    function _getSignatureData(
+        address acc,
+        PackedUserOperation memory userOp,
+        address entryPoint,
+        DestinationMessage memory dstMessage,
+        address targetExecutor
+    )
+        internal
+        view
+        returns (bytes memory sigData, bytes32[][] memory proof, bytes32 root, bytes memory signature)
+    {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+        bytes32[] memory leaves = new bytes32[](2);
+        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil, true);
+
+        leaves[1] = _createDestinationValidatorLeaf(
+            dstMessage.executorCalldata,
+            uint64(block.chainid),
+            acc,
+            targetExecutor,
+            dstMessage.dstTokens,
+            dstMessage.intentAmounts,
+            validUntil,
+            address(this)
+        );
+        (proof, root) = _createValidatorMerkleTree(leaves);
+        signature = _getSignature(root);
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+
+        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
+            data: dstMessage.executorCalldata,
+            executor: targetExecutor,
+            dstTokens: dstMessage.dstTokens,
+            intentAmounts: dstMessage.intentAmounts,
+            account: acc,
+            validator: address(this)
+        });
+        proofDst[0] = ISuperValidator.DstProof({ proof: proof[1], dstChainId: uint64(block.chainid), info: dstInfo });
+
+        sigData = abi.encode(true, validUntil, root, proof[0], proofDst, signature);
     }
 
     function _prepareUserOpNonce(address nexusAccount, address token) internal view returns (uint256 nonce) {
@@ -671,7 +993,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         userOp = _createPackedUserOperation(nexusAccount, nonce, callData);
 
-        (bytes memory sigData,,,) = _getSignatureData(userOp, ENTRYPOINT_ADDR);
+        (bytes memory sigData,,,) = _getSameChainSignatureData(userOp, ENTRYPOINT_ADDR);
 
         userOp.signature = sigData;
     }
@@ -730,7 +1052,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         userOp = _createPackedUserOperation(nexusAccount, nonce, callData);
 
-        (bytes memory sigData,,,) = _getSignatureData(userOp, ENTRYPOINT_ADDR);
+        (bytes memory sigData,,,) = _getSameChainSignatureData(userOp, ENTRYPOINT_ADDR);
 
         userOp.signature = sigData;
     }
@@ -763,7 +1085,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         PackedUserOperation memory userOp = _createPackedUserOperation(account, nonce, callData);
 
-        (bytes memory sigData,,,) = _getSignatureData(userOp, ENTRYPOINT_ADDR);
+        (bytes memory sigData,,,) = _getSameChainSignatureData(userOp, ENTRYPOINT_ADDR);
         userOp.signature = sigData;
 
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);

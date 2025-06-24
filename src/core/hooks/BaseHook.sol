@@ -116,7 +116,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
     function setExecutionContext(address caller, bytes calldata hookData) external {
-        uint256 context = _createExecutionContext(caller, hookData);
+        _createExecutionContext(caller, hookData);
     }
 
     /// @dev Standard build pattern - MUST include preExecute first, postExecute last
