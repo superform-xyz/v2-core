@@ -170,7 +170,8 @@ abstract contract Constants {
     string internal constant DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendOrderAndExecuteOnDstHook";
     string internal constant ETHENA_COOLDOWN_SHARES_HOOK_KEY = "EthenaCooldownSharesHook";
     string internal constant ETHENA_UNSTAKE_HOOK_KEY = "EthenaUnstakeHook";
-    string internal constant SPECTRA_EXCHANGE_HOOK_KEY = "SpectraExchangeHook";
+    string internal constant SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY = "SpectraExchangeDepositHook";
+    string internal constant SPECTRA_EXCHANGE_REDEEM_HOOK_KEY = "SpectraExchangeRedeemHook";
     string internal constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
     string internal constant MORPHO_BORROW_HOOK_KEY = "MorphoSupplyAndBorrowHook";
     string internal constant MORPHO_REPAY_HOOK_KEY = "MorphoRepayHook";

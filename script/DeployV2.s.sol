@@ -77,7 +77,8 @@ import { DeBridgeSendOrderAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
 import { EthenaCooldownSharesHook } from "../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
 import { EthenaUnstakeHook } from "../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
-import { SpectraExchangeHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
+import { SpectraExchangeDepositHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
+import { SpectraExchangeRedeemHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
 import { PendleRouterSwapHook } from "../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
 import { MorphoSupplyAndBorrowHook } from "../src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
 import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
@@ -178,7 +179,8 @@ contract DeployV2 is Script, Configuration {
         address deBridgeSendOrderAndExecuteOnDstHook;
         address ethenaCooldownSharesHook;
         address ethenaUnstakeHook;
-        address spectraExchangeHook;
+        address spectraExchangeDepositHook;
+        address spectraExchangeRedeemHook;
         address pendleRouterSwapHook;
         address pendleRouterRedeemHook;
         address MorphoSupplyAndBorrowHook;
@@ -543,13 +545,13 @@ contract DeployV2 is Script, Configuration {
             APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, type(ApproveAndRequestDeposit7540VaultHook).creationCode
         );
 
-        hooks[13] = HookDeployment(
+        hooks[12] = HookDeployment(
             APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(ApproveAndRequestRedeem7540VaultHook).creationCode
         );
-        hooks[14] = HookDeployment(REDEEM_7540_VAULT_HOOK_KEY, type(Redeem7540VaultHook).creationCode);
-        hooks[15] = HookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(RequestRedeem7540VaultHook).creationCode);
-        hooks[16] = HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, type(Deposit7540VaultHook).creationCode);
-        hooks[17] = HookDeployment(WITHDRAW_7540_VAULT_HOOK_KEY, type(Withdraw7540VaultHook).creationCode);
+        hooks[13] = HookDeployment(REDEEM_7540_VAULT_HOOK_KEY, type(Redeem7540VaultHook).creationCode);
+        hooks[14] = HookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(RequestRedeem7540VaultHook).creationCode);
+        hooks[15] = HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, type(Deposit7540VaultHook).creationCode);
+        hooks[16] = HookDeployment(WITHDRAW_7540_VAULT_HOOK_KEY, type(Withdraw7540VaultHook).creationCode);
 
         hooks[17] = HookDeployment(
             SWAP_1INCH_HOOK_KEY,
@@ -591,42 +593,48 @@ contract DeployV2 is Script, Configuration {
         hooks[31] = HookDeployment(ETHENA_COOLDOWN_SHARES_HOOK_KEY, type(EthenaCooldownSharesHook).creationCode);
         hooks[32] = HookDeployment(ETHENA_UNSTAKE_HOOK_KEY, type(EthenaUnstakeHook).creationCode);
         hooks[33] = HookDeployment(
-            SPECTRA_EXCHANGE_HOOK_KEY,
-            abi.encodePacked(type(SpectraExchangeHook).creationCode, abi.encode(configuration.spectraRouters[chainId]))
+            SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY,
+            abi.encodePacked(type(SpectraExchangeDepositHook).creationCode, abi.encode(configuration.spectraRouters[chainId]))
         );
         hooks[34] = HookDeployment(
+            SPECTRA_EXCHANGE_REDEEM_HOOK_KEY,
+            abi.encodePacked(
+                type(SpectraExchangeRedeemHook).creationCode, abi.encode(configuration.spectraRouters[chainId])
+            )
+        );
+        hooks[35] = HookDeployment(
             PENDLE_ROUTER_SWAP_HOOK_KEY,
             abi.encodePacked(type(PendleRouterSwapHook).creationCode, abi.encode(configuration.pendleRouters[chainId]))
         );
-        hooks[35] = HookDeployment(
+        hooks[36] = HookDeployment(
             PENDLE_ROUTER_REDEEM_HOOK_KEY,
             abi.encodePacked(
                 type(PendleRouterRedeemHook).creationCode, abi.encode(configuration.pendleRouters[chainId])
             )
         );
-        hooks[36] =
+        hooks[37] =
             HookDeployment(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(CancelDepositRequest7540Hook).creationCode);
-        hooks[37] = HookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(CancelRedeemRequest7540Hook).creationCode);
-        hooks[38] = HookDeployment(
+        hooks[38] = HookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(CancelRedeemRequest7540Hook).creationCode);
+        hooks[39] = HookDeployment(
             CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(ClaimCancelDepositRequest7540Hook).creationCode
         );
-        hooks[39] = HookDeployment(
+        hooks[40] = HookDeployment(
             CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(ClaimCancelRedeemRequest7540Hook).creationCode
         );
-        hooks[40] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, type(CancelRedeemHook).creationCode);
+        hooks[41] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, type(CancelRedeemHook).creationCode);
 
-        hooks[41] = HookDeployment(
+        hooks[42] = HookDeployment(
             MORPHO_BORROW_HOOK_KEY, abi.encodePacked(type(MorphoSupplyAndBorrowHook).creationCode, abi.encode(MORPHO))
         );
-        hooks[42] = HookDeployment(
+        hooks[43] = HookDeployment(
             MORPHO_REPAY_HOOK_KEY, abi.encodePacked(type(MorphoRepayHook).creationCode, abi.encode(MORPHO))
         );
-        hooks[43] = HookDeployment(
+        hooks[44] = HookDeployment(
             MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
             abi.encodePacked(type(MorphoRepayAndWithdrawHook).creationCode, abi.encode(MORPHO))
         );
 
-        hooks[44] = HookDeployment(
+        hooks[45] = HookDeployment(
             MORPHO_BORROW_ONLY_HOOK_KEY, abi.encodePacked(type(MorphoBorrowHook).creationCode, abi.encode(MORPHO))
         );
 
@@ -677,7 +685,7 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[15].name, DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[15] : address(0);
         hookAddresses.withdraw7540VaultHook =
             Strings.equal(hooks[16].name, WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[16] : address(0);
-            hookAddresses.swap1InchHook = Strings.equal(hooks[17].name, SWAP_1INCH_HOOK_KEY) ? addresses[17] : address(0);
+        hookAddresses.swap1InchHook = Strings.equal(hooks[17].name, SWAP_1INCH_HOOK_KEY) ? addresses[17] : address(0);
         hookAddresses.swapOdosHook = Strings.equal(hooks[18].name, SWAP_ODOS_HOOK_KEY) ? addresses[18] : address(0);
         hookAddresses.approveAndSwapOdosHook =
             Strings.equal(hooks[19].name, APPROVE_AND_SWAP_ODOS_HOOK_KEY) ? addresses[19] : address(0);
@@ -706,28 +714,30 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[31].name, ETHENA_COOLDOWN_SHARES_HOOK_KEY) ? addresses[31] : address(0);
         hookAddresses.ethenaUnstakeHook =
             Strings.equal(hooks[32].name, ETHENA_UNSTAKE_HOOK_KEY) ? addresses[32] : address(0);
-        hookAddresses.spectraExchangeHook =
-            Strings.equal(hooks[33].name, SPECTRA_EXCHANGE_HOOK_KEY) ? addresses[33] : address(0);
+        hookAddresses.spectraExchangeDepositHook =
+            Strings.equal(hooks[33].name, SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY) ? addresses[33] : address(0);
+        hookAddresses.spectraExchangeRedeemHook =
+            Strings.equal(hooks[34].name, SPECTRA_EXCHANGE_REDEEM_HOOK_KEY) ? addresses[34] : address(0);
         hookAddresses.pendleRouterSwapHook =
-            Strings.equal(hooks[34].name, PENDLE_ROUTER_SWAP_HOOK_KEY) ? addresses[34] : address(0);
+            Strings.equal(hooks[35].name, PENDLE_ROUTER_SWAP_HOOK_KEY) ? addresses[35] : address(0);
         hookAddresses.pendleRouterRedeemHook =
-            Strings.equal(hooks[35].name, PENDLE_ROUTER_REDEEM_HOOK_KEY) ? addresses[35] : address(0);
+            Strings.equal(hooks[36].name, PENDLE_ROUTER_REDEEM_HOOK_KEY) ? addresses[36] : address(0);
         hookAddresses.cancelDepositRequest7540Hook =
-            Strings.equal(hooks[36].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[36] : address(0);
+            Strings.equal(hooks[37].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[37] : address(0);
         hookAddresses.cancelRedeemRequest7540Hook =
-            Strings.equal(hooks[37].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[37] : address(0);
+            Strings.equal(hooks[38].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[38] : address(0);
         hookAddresses.claimCancelDepositRequest7540Hook =
-            Strings.equal(hooks[38].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[38] : address(0);
+            Strings.equal(hooks[39].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[39] : address(0);
         hookAddresses.claimCancelRedeemRequest7540Hook =
-            Strings.equal(hooks[39].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[39] : address(0);
+            Strings.equal(hooks[40].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[40] : address(0);
         hookAddresses.cancelRedeemHook =
-            Strings.equal(hooks[40].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[40] : address(0);
+            Strings.equal(hooks[41].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[41] : address(0);
         hookAddresses.MorphoSupplyAndBorrowHook =
-            Strings.equal(hooks[41].name, MORPHO_BORROW_HOOK_KEY) ? addresses[41] : address(0);
+            Strings.equal(hooks[42].name, MORPHO_BORROW_HOOK_KEY) ? addresses[42] : address(0);
         hookAddresses.morphoRepayHook =
-            Strings.equal(hooks[42].name, MORPHO_REPAY_HOOK_KEY) ? addresses[42] : address(0);
+            Strings.equal(hooks[43].name, MORPHO_REPAY_HOOK_KEY) ? addresses[43] : address(0);
         hookAddresses.morphoRepayAndWithdrawHook =
-            Strings.equal(hooks[43].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[43] : address(0);
+            Strings.equal(hooks[44].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[44] : address(0);
         hookAddresses.morphoBorrowHook =
             Strings.equal(hooks[45].name, MORPHO_BORROW_ONLY_HOOK_KEY) ? addresses[45] : address(0);
         hookAddresses.offrampTokensHook =
@@ -843,7 +853,9 @@ contract DeployV2 is Script, Configuration {
         superGovernor.registerHook(address(hookAddresses.morphoRepayHook), false);
         superGovernor.registerHook(address(hookAddresses.morphoRepayAndWithdrawHook), false);
         superGovernor.registerHook(address(hookAddresses.ethenaCooldownSharesHook), false);
-        superGovernor.registerHook(address(hookAddresses.spectraExchangeHook), false);
+        superGovernor.registerHook(address(hookAddresses.ethenaUnstakeHook), false);
+        superGovernor.registerHook(address(hookAddresses.spectraExchangeDepositHook), false);
+        superGovernor.registerHook(address(hookAddresses.spectraExchangeRedeemHook), false);
         superGovernor.registerHook(address(hookAddresses.pendleRouterSwapHook), false);
         superGovernor.registerHook(address(hookAddresses.pendleRouterRedeemHook), false);
         superGovernor.registerHook(address(hookAddresses.morphoBorrowHook), false);

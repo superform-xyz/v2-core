@@ -4,7 +4,6 @@ pragma solidity 0.8.30;
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import "../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 import { SpectraCommands } from "../../src/vendor/spectra/SpectraCommands.sol";
-import { console2 } from "forge-std/console2.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { UserOpData, AccountInstance, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
@@ -12,6 +11,9 @@ import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 
 abstract contract InternalHelpers {
     using ModuleKitHelpers for *;
+
+    bytes1 public constant REDEEM_IBT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_IBT_FOR_ASSET));
+    bytes1 public constant REDEEM_PT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_PT_FOR_ASSET));
 
     // -- Rhinestone
 
@@ -173,7 +175,7 @@ abstract contract InternalHelpers {
         );
     }
 
-    function _createSpectraExchangeSwapHookData(
+    function _createSpectraExchangeDepositHookData(
         bool usePrevHookAmount,
         uint256 value,
         address ptToken,
@@ -226,6 +228,26 @@ abstract contract InternalHelpers {
         inputs[1] = abi.encode(ptToken_, amount_, account_, account_, 1);
 
         return abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
+    }
+
+    function _createSpectraExchangeRedeemHookData(
+        address asset,
+        address pt,
+        address recipient,
+        uint256 minAssets,
+        uint256 sharesToBurn,
+        bool usePrevHookAmount,
+        bool redeemPtForAsset
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes1 command = redeemPtForAsset ? REDEEM_PT_FOR_ASSET : REDEEM_IBT_FOR_ASSET;
+
+        return abi.encodePacked(
+            bytes4(bytes("")), asset, pt, recipient, minAssets, sharesToBurn, usePrevHookAmount, command
+        );
     }
 
     function _createMockOdosSwapHookData(
