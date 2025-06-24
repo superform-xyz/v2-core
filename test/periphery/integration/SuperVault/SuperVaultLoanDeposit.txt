@@ -510,7 +510,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountBase;
 
-        address redeemHook = _getHookAddress(BASE, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        address redeemHook = _getHookAddress(BASE, REDEEM_4626_VAULT_HOOK_KEY);
 
         address[] memory redeemHooks = new address[](1);
         redeemHooks[0] = redeemHook;
@@ -518,9 +518,8 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         uint256 redeemShares = strategy.pendingRedeemRequest(accountBase);
 
         bytes[] memory redeemHookData = new bytes[](1);
-        redeemHookData[0] = _createApproveAndRedeem4626HookData(
+        redeemHookData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(morphoVaultInstance),
             address(morphoVaultInstance),
             address(strategy),
             redeemShares,

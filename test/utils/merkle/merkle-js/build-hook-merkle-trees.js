@@ -13,7 +13,6 @@ let customAddresses = {};
 
 // Default hook addresses from deployment
 const hookAddresses = {
-  'ApproveAndRedeem4626VaultHook': '0x66e1Ed81804cd6c574f18cA88123B3284868D845',
   'ApproveAndDeposit4626VaultHook': '0x95C5A10d9C6d27985b7bad85635060C0AEcBf356',
   'Redeem4626VaultHook': '0x7692d9e0d10799199c8285E4c99E1fBC5C64fBf3',
   'ApproveAndGearboxStakeHook': '0x9ef444a6d7F4A5adcd68FD5329aA5240C90E14d2',
@@ -28,15 +27,13 @@ if (process.argv.length > 2) {
   // If we have the correct number of addresses, use them
   console.log("Using provided hook addresses from command line:");
   customAddresses = {
-    'ApproveAndRedeem4626VaultHook': addresses[0],
-    'ApproveAndDeposit4626VaultHook': addresses[1],
-    'Redeem4626VaultHook': addresses[2],
-    'ApproveAndGearboxStakeHook': addresses[3],
-    'GearboxUnstakeHook': addresses[4]
+    'ApproveAndDeposit4626VaultHook': addresses[0],
+    'Redeem4626VaultHook': addresses[1],
+    'ApproveAndGearboxStakeHook': addresses[2],
+    'GearboxUnstakeHook': addresses[3]
   };
 
   // Log the addresses being used
-  console.log("ApproveAndRedeem4626VaultHook:", customAddresses['ApproveAndRedeem4626VaultHook']);
   console.log("ApproveAndDeposit4626VaultHook:", customAddresses['ApproveAndDeposit4626VaultHook']);
   console.log("Redeem4626VaultHook:", customAddresses['Redeem4626VaultHook']);
   console.log("ApproveAndGearboxStakeHook:", customAddresses['ApproveAndGearboxStakeHook']);
@@ -87,18 +84,6 @@ if (process.argv.length > 3) {
 
 // Create hookDefinitions after command line arguments have been processed
 const hookDefinitions = {
-  ApproveAndRedeem4626VaultHook: {
-    // Contract address of the deployed hook
-    address: hookAddresses['ApproveAndRedeem4626VaultHook'],
-    // Map argument names to their semantic types for proper list lookups
-    argsInfo: {
-      extractedAddresses: [
-        { name: 'yieldSource', type: 'yieldSource' },
-        { name: 'token', type: 'token' },
-        { name: 'owner', type: 'beneficiary' }
-      ]
-    }
-  },
   ApproveAndDeposit4626VaultHook: {
     // Contract address of the deployed hook
     address: hookAddresses['ApproveAndDeposit4626VaultHook'],

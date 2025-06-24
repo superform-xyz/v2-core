@@ -2463,7 +2463,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         /// @dev with preserve percentages based on USD value allocation
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountEth;
-        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
 
         address[] memory fulfillHooksAddresses = new address[](1);
         fulfillHooksAddresses[0] = withdrawHookAddress;
@@ -2471,9 +2471,8 @@ contract SuperVaultTest is BaseSuperVaultTest {
         uint256 shares = strategyGearSuperVault.pendingRedeemRequest(accountEth);
 
         bytes[] memory fulfillHooksData = new bytes[](1);
-        fulfillHooksData[0] = _createApproveAndRedeem4626HookData(
+        fulfillHooksData[0] = _createRedeem4626HookData(
             bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(gearboxVault),
             address(gearboxVault),
             address(strategyGearSuperVault),
             shares,
@@ -2570,7 +2569,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         console2.log("Target FluidVault assets:", vars.targetFluidVaultAssets);
         console2.log("Target AaveVault assets:", vars.targetAaveVaultAssets);
 
-        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         address[] memory hooksAddresses = new address[](2);
@@ -2627,7 +2626,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         address[] memory hooksAddresses = new address[](2);
         bytes[] memory hooksData = new bytes[](2);
 
-        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         hooksAddresses[0] = withdrawHookAddress;
@@ -2698,7 +2697,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         address[] memory hooksAddresses = new address[](2);
         bytes[] memory hooksData = new bytes[](2);
 
-        address withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        address withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         address depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
         hooksAddresses[0] = withdrawHookAddress;
         hooksAddresses[1] = depositHookAddress;
@@ -3773,7 +3772,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         console2.log("\n=== First Reallocation: Target 50/25/25 ===");
 
         // Set up hooks for reallocation
-        vars.withdrawHookAddress = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        vars.withdrawHookAddress = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         vars.depositHookAddress = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         // Perform first reallocation to 50/25/25
@@ -3869,7 +3868,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         uint256 totalAssets = currentFluidVaultAssets + currentAaveVaultAssets;
 
         address[] memory hooksAddresses = new address[](2);
-        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        hooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
         hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](2);
@@ -4230,7 +4229,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             vars.initialVault3Assets = vars.vault3.convertToAssets(vars.initialVault3Balance);
 
             address[] memory hooksAddresses = new address[](2);
-            hooksAddresses[0] = _getHookAddress(ETH, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+            hooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
             hooksAddresses[1] = _getHookAddress(ETH, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
             bytes[] memory hooksData = new bytes[](2);
 
