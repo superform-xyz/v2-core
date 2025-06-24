@@ -147,7 +147,6 @@ alwaysApply: false
 │   │   │   └── vaults
 │   │   │       ├── 4626
 │   │   │       │   ├── ApproveAndDeposit4626VaultHook.sol
-│   │   │       │   ├── ApproveAndRedeem4626VaultHook.sol
 │   │   │       │   ├── Deposit4626VaultHook.sol
 │   │   │       │   └── Redeem4626VaultHook.sol
 │   │   │       ├── 5115
