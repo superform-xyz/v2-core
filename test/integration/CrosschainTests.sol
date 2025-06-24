@@ -26,19 +26,25 @@ import { ITranche } from "../mocks/centrifuge/ITranch.sol";
 import { IRoot } from "../mocks/centrifuge/IRoot.sol";
 import { ISuperDestinationExecutor } from "../../src/core/interfaces/ISuperDestinationExecutor.sol";
 import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
+import { SuperValidatorBase } from "../../src/core/validators/SuperValidatorBase.sol";
 
 // External
-import { UserOpData, AccountInstance } from "modulekit/ModuleKit.sol";
+import { UserOpData, AccountInstance, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import { BootstrapConfig, INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
 import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
+import {ExecutionReturnData} from "modulekit/test/RhinestoneModuleKit.sol";
+import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 import { BaseHook } from "../../src/core/hooks/BaseHook.sol";
 
 contract CrosschainTests is BaseTest {
+    using ModuleKitHelpers for *;
+    using ExecutionLib for *;
+
     IERC7540 public vaultInstance7540ETH;
     IERC4626 public vaultInstance4626OP;
 
@@ -292,6 +298,121 @@ contract CrosschainTests is BaseTest {
         deal(underlyingBase_WETH, mockOdosRouters[BASE], 1e12);
     }
 
+    function test_FAILS_ETH_Bridge_With_Debridge_And_Deposit() public {
+        uint256 amountPerVault = 1e8;
+
+        // ETH IS DST
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+
+        // PREPARE ETH DATA (This becomes the *payload* for the Debridge external call)
+        bytes memory innerExecutorPayload;
+        TargetExecutorMessage memory messageData;
+        address accountToUse;
+        {
+            address[] memory eth7540HooksAddresses = new address[](2);
+            eth7540HooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+            eth7540HooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+
+            bytes[] memory eth7540HooksData = new bytes[](2);
+            eth7540HooksData[0] =
+                _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
+            eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
+                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
+            );
+
+            messageData = TargetExecutorMessage({
+                hooksAddresses: eth7540HooksAddresses,
+                hooksData: eth7540HooksData,
+                validator: address(validatorOnETH),
+                signer: validatorSigners[ETH],
+                signerPrivateKey: validatorSignerPrivateKeys[ETH],
+                targetAdapter: address(debridgeAdapterOnETH),
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: CHAIN_1_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+                chainId: uint64(ETH),
+                amount: amountPerVault,
+                account: accountETH,
+                tokenSent: underlyingETH_USDC
+            });
+
+            (innerExecutorPayload, accountToUse) = _createTargetExecutorMessage(messageData);
+        }
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], amountPerVault, false);
+
+        uint256 msgValue = IDlnSource(DEBRIDGE_DLN_ADDRESSES[BASE]).globalFixedNativeFee();
+
+        bytes memory debridgeData = _createDebridgeSendFundsAndExecuteHookData(
+            DebridgeOrderData({
+                usePrevHookAmount: false, //usePrevHookAmount
+                value: msgValue, //value
+                giveTokenAddress: underlyingBase_USDC, //giveTokenAddress
+                giveAmount: amountPerVault, //giveAmount
+                version: 1, //envelope.version
+                fallbackAddress: accountETH, //envelope.fallbackAddress
+                executorAddress: address(debridgeAdapterOnETH), //envelope.executorAddress
+                executionFee: uint160(0), //envelope.executionFee
+                allowDelayedExecution: false, //envelope.allowDelayedExecution
+                requireSuccessfulExecution: true, //envelope.requireSuccessfulExecution
+                payload: innerExecutorPayload, //envelope.payload
+                takeTokenAddress: underlyingETH_USDC, //takeTokenAddress
+                takeAmount: amountPerVault - amountPerVault * 1e4 / 1e5, //takeAmount
+                takeChainId: ETH, //takeChainId
+                // receiverDst must be the Debridge Adapter on the destination chain
+                receiverDst: address(debridgeAdapterOnETH),
+                givePatchAuthoritySrc: address(0), //givePatchAuthoritySrc
+                orderAuthorityAddressDst: abi.encodePacked(accountETH), //orderAuthorityAddressDst
+                allowedTakerDst: "", //allowedTakerDst
+                allowedCancelBeneficiarySrc: "", //allowedCancelBeneficiarySrc
+                affiliateFee: "", //affiliateFee
+                referralCode: 0 //referralCode
+            })
+        );
+        srcHooksData[1] = debridgeData;
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
+        // attacker changes the dstProof in signature to empty bytes32[]
+        (
+            bool validateDstProof,
+            uint48 validUntil,
+            bytes32 merkleRoot,
+            bytes32[] memory merkleProofSrc,
+            , // This will be replaced
+            bytes memory signature
+        ) = abi.decode(signatureData, (bool, uint48, bytes32, bytes32[], bytes32[], bytes));
+
+        bytes32[] memory emptyMerkleProofDst = new bytes32[](0);
+
+        bytes memory tamperedSig = abi.encode(validateDstProof, validUntil, merkleRoot, merkleProofSrc, emptyMerkleProofDst, signature);
+
+        srcUserOpData.userOp.signature = tamperedSig;
+
+        // execute op on src chain, this will pass the validation even with tampered signature
+        vm.expectRevert(SuperValidatorBase.INVALID_DESTINATION_PROOF.selector);
+        instanceOnETH.expect4337Revert();
+        executeOp(srcUserOpData);
+        // ^ this now fails
+        
+
+        // EXECUTE BASE
+        // execution fails on the call to SuperDestinationExecutor::processBridgedExecution
+        //vm.expectRevert();
+        //_processDebridgeDlnMessage(BASE, ETH, returnData);
+    }
+
     function testOrion_maliciousRelayersDoSCrosschainExecution() public {
         uint256 amountPerVault = 1e8 / 2;
 
@@ -381,7 +502,7 @@ contract CrosschainTests is BaseTest {
         // Build userOp
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
         srcUserOpData.userOp.signature = signatureData;
 
         // 4. Trigger execution with low gas.
@@ -401,6 +522,13 @@ contract CrosschainTests is BaseTest {
                 relayerGas: 600_000
             })
         );
+        // the signatures don't match due to wrong decoding
+        (, , , , bytes memory destinationChainSignature) = abi.decode(signatureData, (bool, uint48, bytes32, bytes32[], bytes));
+
+
+        (, , , , , bytes memory sourceChainSignature) = abi.decode(signatureData, (bool, uint48, bytes32, bytes32[],  bytes32[], bytes));
+
+        assert(keccak256(destinationChainSignature) != keccak256(sourceChainSignature));
     }
     /*//////////////////////////////////////////////////////////////
                           ACCOUNT CREATION TESTS
@@ -569,7 +697,7 @@ contract CrosschainTests is BaseTest {
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE BASE
@@ -676,7 +804,7 @@ contract CrosschainTests is BaseTest {
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE BASE
@@ -773,7 +901,7 @@ contract CrosschainTests is BaseTest {
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE ETH
@@ -870,7 +998,8 @@ contract CrosschainTests is BaseTest {
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        console2.log(srcUserOpData.userOp.sender);
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE ETH
@@ -952,7 +1081,7 @@ contract CrosschainTests is BaseTest {
         );
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE ETH
@@ -1061,7 +1190,7 @@ contract CrosschainTests is BaseTest {
 
         UserOpData memory ethUserOpData = _createUserOpData(ethHooksAddresses, ethHooksData, ETH, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, ethUserOpData.userOpHash, accountToUse);
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, ethUserOpData.userOpHash, accountToUse, BASE);
         ethUserOpData.userOp.signature = signatureData;
 
         _processAcrossV3Message(
@@ -1157,7 +1286,7 @@ contract CrosschainTests is BaseTest {
         UserOpData memory srcUserOpDataOP = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE, true);
 
         bytes memory signatureData =
-            _createMerkleRootAndSignature(messageData, srcUserOpDataOP.userOpHash, accountToUse);
+            _createMerkleRootAndSignature(messageData, srcUserOpDataOP.userOpHash, accountToUse, OP);
         srcUserOpDataOP.userOp.signature = signatureData;
 
         // EXECUTE OP
@@ -1269,7 +1398,7 @@ contract CrosschainTests is BaseTest {
         UserOpData memory srcUserOpData = _getExecOpsWithValidator(
             instanceOnETH, superExecutorOnETH, abi.encode(entry), address(sourceValidatorOnETH)
         );
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, BASE);
         srcUserOpData.userOp.signature = signatureData;
 
         _processAcrossV3Message(
@@ -1535,7 +1664,7 @@ contract CrosschainTests is BaseTest {
         UserOpData memory srcUserOpData = _getExecOpsWithValidator(
             instanceOnETH, superExecutorOnETH, abi.encode(entry), address(sourceValidatorOnETH)
         );
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse);
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, BASE);
         srcUserOpData.userOp.signature = signatureData;
 
         _processAcrossV3Message(
@@ -1674,7 +1803,7 @@ contract CrosschainTests is BaseTest {
 
         UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, opUserOpData.userOpHash, accountToUse);
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, opUserOpData.userOpHash, accountToUse, BASE);
         opUserOpData.userOp.signature = signatureData;
 
         _processAcrossV3Message(
@@ -2087,7 +2216,7 @@ contract CrosschainTests is BaseTest {
 
         UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, OP, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, src1UserOpData.userOpHash, accountToUse);
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, src1UserOpData.userOpHash, accountToUse, BASE);
         src1UserOpData.userOp.signature = signatureData;
 
         console2.log("sending from op to base");
@@ -2191,7 +2320,7 @@ contract CrosschainTests is BaseTest {
         UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, ETH, true);
         console2.log("sending from eth to base");
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, src1UserOpData.userOpHash, accountToUse);
+        bytes memory signatureData = _createMerkleRootAndSignature(messageData, src1UserOpData.userOpHash, accountToUse, BASE);
         src1UserOpData.userOp.signature = signatureData;
 
         // enough balance is received

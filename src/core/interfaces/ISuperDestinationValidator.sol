@@ -8,12 +8,6 @@ pragma solidity 0.8.30;
 ///      Works with EIP-1271 signature verification standard
 interface ISuperDestinationValidator {
     /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Thrown when the sender account has not been initialized
-    error NOT_INITIALIZED();
-
-    /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @notice Validates a signature for cross-chain destination execution

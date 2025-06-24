@@ -42,7 +42,7 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc IYieldSourceOracle
-    function decimals(address market) external pure override returns (uint8) {
+    function decimals(address) external pure override returns (uint8) {
         return 18;
     }
 
