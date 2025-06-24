@@ -47,6 +47,9 @@ interface ISuperLedgerConfiguration {
     //////////////////////////////////////////////////////////////*/
     /// @notice Thrown when a function restricted to managers is called by a non-manager address
     error NOT_MANAGER();
+    
+    /// @notice Thrown when a function restricted to deployer is called by a non-deployer address
+    error NOT_DEPLOYER();
 
     /// @notice Thrown when providing an empty array where at least one element is required
     error ZERO_LENGTH();
@@ -75,11 +78,15 @@ interface ISuperLedgerConfiguration {
     /// @notice Thrown when attempting to accept a manager role without being the pending manager
     error NOT_PENDING_MANAGER();
 
+    /// @notice Thrown when `SuperLedgerConfiguration` is already initialized
+    error ALREADY_INITIALIZED();
+
     /// @notice Thrown when attempting to propose changes to a configuration that already has pending changes
     error CHANGE_ALREADY_PROPOSED();
 
     /// @notice Thrown when a critical address parameter is set to the zero address
     error ZERO_ADDRESS_NOT_ALLOWED();
+
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS

@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {console} from "forge-std/console.sol";
-import {UserOpData} from "modulekit/ModuleKit.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IPermit2} from "../../src/vendor/uniswap/permit2/IPermit2.sol";
-import {ISuperExecutor} from "../../src/core/interfaces/ISuperExecutor.sol";
-import {MinimalBaseIntegrationTest} from "./MinimalBaseIntegrationTest.t.sol";
-import {TrustedForwarder} from "modulekit/module-bases/utils/TrustedForwarder.sol";
-import {IPermit2Batch} from "../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
-import {BatchTransferFromHook} from "../../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
-import {IAllowanceTransfer} from "../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
-import {TransferERC20Hook} from "../../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
+import { console } from "forge-std/console.sol";
+import { UserOpData } from "modulekit/ModuleKit.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IPermit2 } from "../../src/vendor/uniswap/permit2/IPermit2.sol";
+import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
+import { TrustedForwarder } from "modulekit/module-bases/utils/TrustedForwarder.sol";
+import { IPermit2Batch } from "../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
+import { BatchTransferFromHook } from "../../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
+import { IAllowanceTransfer } from "../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import { TransferERC20Hook } from "../../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
+import { OfframpTokensHook } from "../../src/core/hooks/tokens/OfframpTokensHook.sol";
 
 contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
     address public eoa;
@@ -96,7 +97,6 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         IERC20(weth).approve(PERMIT2, 10e18);
         IERC20(dai).approve(PERMIT2, 10e18);
         vm.stopPrank();
-        
 
         IAllowanceTransfer.PermitBatch memory permitBatch =
             defaultERC20PermitBatchAllowance(tokens, amounts, uint48(block.timestamp + 2 weeks), nonces);
@@ -112,7 +112,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         assertEq(hookData.length, expectedLength);
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooks, hooksData: hookDataArray});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
 
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
@@ -138,7 +138,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         offrampHookData[2] = _createTransferERC20HookData(dai, eoa, 1e18, false);
 
         ISuperExecutor.ExecutorEntry memory offrampEntry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: offrampHooks, hooksData: offrampHookData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: offrampHooks, hooksData: offrampHookData });
 
         UserOpData memory offrampUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(offrampEntry));
 
@@ -149,12 +149,114 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         assertEq(IERC20(dai).balanceOf(eoa), daiBalanceEOABefore + 1e18);
     }
 
+    /// @dev Local variables struct to avoid stack too deep error
+    struct TestLocalVars {
+        uint256 usdcBalanceBefore;
+        uint256 wethBalanceBefore;
+        uint256 daiBalanceBefore;
+        uint256 usdcBalanceEOABefore;
+        uint256 wethBalanceEOABefore;
+        uint256 daiBalanceEOABefore;
+        BatchTransferFromHook hook;
+        address[] hooks;
+        bytes hookData;
+        bytes[] hookDataArray;
+        IAllowanceTransfer.PermitBatch permitBatch;
+        bytes sig;
+        ISuperExecutor.ExecutorEntry entry;
+        UserOpData userOpData;
+        OfframpTokensHook offrampHook;
+        address[] offrampHooks;
+        bytes[] offrampHookData;
+        ISuperExecutor.ExecutorEntry offrampEntry;
+        UserOpData offrampUserOpData;
+    }
+
+    function test_EOAOnrampOfframpWithOfframpTokensHook() public {
+        TestLocalVars memory vars;
+
+        // Initial balances
+        vars.usdcBalanceBefore = IERC20(usdc).balanceOf(accountEth);
+        vars.wethBalanceBefore = IERC20(weth).balanceOf(accountEth);
+        vars.daiBalanceBefore = IERC20(dai).balanceOf(accountEth);
+
+        // Setup onramp using BatchTransferFromHook (same as original test)
+        vars.hook = new BatchTransferFromHook(PERMIT2);
+        vars.hooks = new address[](1);
+        vars.hooks[0] = address(vars.hook);
+
+        vm.startPrank(eoa);
+        IERC20(usdc).approve(PERMIT2, 10e18);
+        IERC20(weth).approve(PERMIT2, 10e18);
+        IERC20(dai).approve(PERMIT2, 10e18);
+        vm.stopPrank();
+
+        vars.permitBatch = defaultERC20PermitBatchAllowance(tokens, amounts, uint48(block.timestamp + 2 weeks), nonces);
+
+        vars.sig = getPermitBatchSignature(vars.permitBatch, 0x12341234, DOMAIN_SEPARATOR);
+
+        vars.hookData = _createBatchTransferFromHookData(eoa, 3, sigDeadline, tokens, amounts, nonces, vars.sig);
+
+        vars.hookDataArray = new bytes[](1);
+        vars.hookDataArray[0] = vars.hookData;
+
+        vars.entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: vars.hooks, hooksData: vars.hookDataArray });
+
+        vars.userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(vars.entry));
+
+        executeOp(vars.userOpData);
+
+        // Verify onramp worked
+        assertEq(IERC20(usdc).balanceOf(accountEth), vars.usdcBalanceBefore + 1e18);
+        assertEq(IERC20(weth).balanceOf(accountEth), vars.wethBalanceBefore + 1e18);
+        assertEq(IERC20(dai).balanceOf(accountEth), vars.daiBalanceBefore + 1e18);
+
+        // Store EOA balances before offramp
+        vars.usdcBalanceEOABefore = IERC20(usdc).balanceOf(eoa);
+        vars.wethBalanceEOABefore = IERC20(weth).balanceOf(eoa);
+        vars.daiBalanceEOABefore = IERC20(dai).balanceOf(eoa);
+
+        // Setup offramp using OfframpTokensHook (single hook instead of multiple TransferERC20Hooks)
+        vars.offrampHook = new OfframpTokensHook();
+        vars.offrampHooks = new address[](1);
+        vars.offrampHooks[0] = address(vars.offrampHook);
+
+        vars.offrampHookData = new bytes[](1);
+        vars.offrampHookData[0] = _createOfframpTokensHookData(eoa, tokens);
+
+        vars.offrampEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: vars.offrampHooks, hooksData: vars.offrampHookData });
+
+        vars.offrampUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(vars.offrampEntry));
+
+        executeOp(vars.offrampUserOpData);
+
+        // Verify offramp worked - OfframpTokensHook transfers ALL tokens from account to EOA
+        // EOA receives: initial EOA balance + entire account balance (original + onramped)
+        uint256 expectedUsdcEOA = vars.usdcBalanceEOABefore + (vars.usdcBalanceBefore + 1e18);
+        uint256 expectedWethEOA = vars.wethBalanceEOABefore + (vars.wethBalanceBefore + 1e18);
+        uint256 expectedDaiEOA = vars.daiBalanceEOABefore + (vars.daiBalanceBefore + 1e18);
+
+        assertEq(IERC20(usdc).balanceOf(eoa), expectedUsdcEOA);
+        assertEq(IERC20(weth).balanceOf(eoa), expectedWethEOA);
+        assertEq(IERC20(dai).balanceOf(eoa), expectedDaiEOA);
+
+        // Verify account balances are now zero (all tokens transferred out)
+        assertEq(IERC20(usdc).balanceOf(accountEth), 0);
+        assertEq(IERC20(weth).balanceOf(accountEth), 0);
+        assertEq(IERC20(dai).balanceOf(accountEth), 0);
+    }
+
     function defaultERC20PermitBatchAllowance(
         address[] memory permitTokens,
         uint256[] memory permitAmounts,
         uint48 expiration,
         uint48[] memory _nonces
-    ) internal view returns (IAllowanceTransfer.PermitBatch memory) {
+    )
+        internal
+        view
+        returns (IAllowanceTransfer.PermitBatch memory)
+    {
         IAllowanceTransfer.PermitDetails[] memory details = new IAllowanceTransfer.PermitDetails[](permitTokens.length);
 
         for (uint256 i = 0; i < permitTokens.length; ++i) {
@@ -166,14 +268,18 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
             });
         }
 
-        return IAllowanceTransfer.PermitBatch({details: details, spender: accountEth, sigDeadline: sigDeadline});
+        return IAllowanceTransfer.PermitBatch({ details: details, spender: accountEth, sigDeadline: sigDeadline });
     }
 
     function getPermitBatchSignature(
         IAllowanceTransfer.PermitBatch memory permit,
         uint256 privateKey,
         bytes32 domainSeparator
-    ) internal pure returns (bytes memory sig) {
+    )
+        internal
+        pure
+        returns (bytes memory sig)
+    {
         bytes32[] memory permitHashes = new bytes32[](permit.details.length);
         for (uint256 i = 0; i < permit.details.length; ++i) {
             permitHashes[i] = keccak256(abi.encode(_PERMIT_DETAILS_TYPEHASH, permit.details[i]));

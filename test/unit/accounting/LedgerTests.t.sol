@@ -1,16 +1,16 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Helpers} from "../../utils/Helpers.sol";
-import {MockLedger} from "../../mocks/MockLedger.sol";
-import {MockExecutorModule} from "../../mocks/MockExecutorModule.sol";
-import {SuperLedger} from "../../../src/core/accounting/SuperLedger.sol";
-import {FlatFeeLedger} from "../../../src/core/accounting/FlatFeeLedger.sol";
-import {ISuperLedgerConfiguration} from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import {SuperLedgerConfiguration} from "../../../src/core/accounting/SuperLedgerConfiguration.sol";
-import {ISuperLedgerData} from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
-import {ISuperLedger} from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
-import {BaseLedger} from "../../../src/core/accounting/BaseLedger.sol";
+import { Helpers } from "../../utils/Helpers.sol";
+import { MockLedger } from "../../mocks/MockLedger.sol";
+import { MockExecutorModule } from "../../mocks/MockExecutorModule.sol";
+import { SuperLedger } from "../../../src/core/accounting/SuperLedger.sol";
+import { FlatFeeLedger } from "../../../src/core/accounting/FlatFeeLedger.sol";
+import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { SuperLedgerConfiguration } from "../../../src/core/accounting/SuperLedgerConfiguration.sol";
+import { ISuperLedgerData } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { BaseLedger } from "../../../src/core/accounting/BaseLedger.sol";
 import "forge-std/console.sol";
 
 import "forge-std/console2.sol";
@@ -34,9 +34,12 @@ contract MockYieldSourceOracle {
 
 // Mock BaseLedger for testing abstract contract functionality
 contract MockBaseLedger is BaseLedger {
-    constructor(address superLedgerConfiguration_, address[] memory allowedExecutors_)
+    constructor(
+        address superLedgerConfiguration_,
+        address[] memory allowedExecutors_
+    )
         BaseLedger(superLedgerConfiguration_, allowedExecutors_)
-    {}
+    { }
 
     // Implement abstract function for testing
     function _processOutflow(
@@ -45,7 +48,12 @@ contract MockBaseLedger is BaseLedger {
         uint256 amountAssets,
         uint256,
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
-    ) internal pure override returns (uint256 feeAmount) {
+    )
+        internal
+        pure
+        override
+        returns (uint256 feeAmount)
+    {
         // Simple implementation for testing
         feeAmount = (amountAssets * config.feePercent) / 10_000;
     }
@@ -63,7 +71,7 @@ contract LedgerTests is Helpers {
     function setUp() public {
         exec = new MockExecutorModule();
         mockLedger = new MockLedger(); // ToDo: update to inherit BaseLedger
-        config = new SuperLedgerConfiguration();
+        config = new SuperLedgerConfiguration(address(this));
         mockOracle = new MockYieldSourceOracle();
 
         address[] memory executors = new address[](1);
@@ -75,9 +83,6 @@ contract LedgerTests is Helpers {
     }
 
     function testOutflowWithZeroFeeSkipsAccounting() public {
- 
-      
-
         uint256 INITIAL_SHARES = 100 ether; // Amount of shares to deposit initially
         uint256 PPS = 1 ether; // Mock Price Per Share (1 token = 1 share)
         uint8 DECIMALS = 18; // Mock Token decimals
@@ -103,7 +108,7 @@ contract LedgerTests is Helpers {
         // User wants to withdraw all shares
         uint256 outflowShares = INITIAL_SHARES;
         // Asset value of the shares (assuming pps hasn't changed)
-        uint256 outflowAssets = outflowShares * PPS / (10**DECIMALS); // 100e18
+        uint256 outflowAssets = outflowShares * PPS / (10 ** DECIMALS); // 100e18
 
         // Initiate the withdrawal transaction (outflow)
         // updateAccounting function has onlyExecutor modifier, so call from executor address
@@ -122,14 +127,18 @@ contract LedgerTests is Helpers {
         // These asserts will PASS if the bug exists.
         // If the bug is fixed, these asserts will FAIL.
         //those now fail
-        //assertEq(flatFeeLedger.usersAccumulatorShares(user, yieldSource), INITIAL_SHARES, "BUG: Shares were NOT deducted during zero-fee outflow");
-        //assertEq(flatFeeLedger.usersAccumulatorCostBasis(user, yieldSource), INITIAL_SHARES, "BUG: Cost basis was NOT deducted during zero-fee outflow");
+        //assertEq(flatFeeLedger.usersAccumulatorShares(user, yieldSource), INITIAL_SHARES, "BUG: Shares were NOT
+        // deducted during zero-fee outflow");
+        //assertEq(flatFeeLedger.usersAccumulatorCostBasis(user, yieldSource), INITIAL_SHARES, "BUG: Cost basis was NOT
+        // deducted during zero-fee outflow");
 
         assertEq(flatFeeLedger.usersAccumulatorShares(user, yieldSource), 0, "BUG fixed: this should be 0 now");
-    
+
         console2.log("PoC Successful: Accounting skipped for zero-fee outflow.");
         console2.log("User Shares (Expected: 0, Actual: %s)", flatFeeLedger.usersAccumulatorShares(user, yieldSource));
-        console2.log("User Cost Basis (Expected: 0, Actual: %s)", flatFeeLedger.usersAccumulatorCostBasis(user, yieldSource));
+        console2.log(
+            "User Cost Basis (Expected: 0, Actual: %s)", flatFeeLedger.usersAccumulatorCostBasis(user, yieldSource)
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -155,7 +164,7 @@ contract LedgerTests is Helpers {
         config.setYieldSourceOracles(configs);
 
         // Initial verification
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory initialConfig = 
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory initialConfig =
             config.getYieldSourceOracleConfig(oracleId);
         assertEq(initialConfig.manager, address(this), "Initial manager should be test contract");
 
@@ -238,7 +247,7 @@ contract LedgerTests is Helpers {
         vm.prank(newManager);
         // manager not updated in proposal config
         //vm.expectRevert(ISuperLedgerConfiguration.NOT_MANAGER.selector);
-        //^ fixed 
+        //^ fixed
         config.acceptYieldSourceOracleConfigProposal(oracleIds);
 
         // manager updated in oracle config
@@ -1367,7 +1376,6 @@ contract LedgerTests is Helpers {
         assertEq(previewFee, 0, "Preview fee should be 0 when fee percent is 0");
     }
 
-
     function test_PreviewFees_MaxFeePercent() public {
         bytes4 oracleId = bytes4(keccak256("test"));
         address oracle = address(mockOracle);
@@ -1458,7 +1466,7 @@ contract LedgerTests is Helpers {
         );
 
         // Test cost basis calculation for half the shares
-        (uint256 costBasis, ) = mockBaseLedger.calculateCostBasisView(user, yieldSource, usedShares / 2);
+        (uint256 costBasis,) = mockBaseLedger.calculateCostBasisView(user, yieldSource, usedShares / 2);
 
         // Expected cost basis should be half of the initial amount
         assertEq(costBasis, amountAssets / 2, "Cost basis calculation incorrect");
@@ -1500,7 +1508,7 @@ contract LedgerTests is Helpers {
         );
 
         // Test cost basis calculation with zero shares
-        (uint256 costBasis, ) = mockBaseLedger.calculateCostBasisView(user, yieldSource, 0);
+        (uint256 costBasis,) = mockBaseLedger.calculateCostBasisView(user, yieldSource, 0);
 
         assertEq(costBasis, 0, "Cost basis should be 0 for zero shares");
     }
@@ -1542,7 +1550,7 @@ contract LedgerTests is Helpers {
         );
 
         // Test cost basis calculation for all shares
-        (uint256 costBasis, ) = mockBaseLedger.calculateCostBasisView(user, yieldSource, usedShares);
+        (uint256 costBasis,) = mockBaseLedger.calculateCostBasisView(user, yieldSource, usedShares);
 
         assertEq(costBasis, amountAssets, "Cost basis should equal total amount for all shares");
     }
@@ -1597,7 +1605,7 @@ contract LedgerTests is Helpers {
         );
 
         // Test cost basis calculation for half of total shares
-        (uint256 costBasis, ) = mockBaseLedger.calculateCostBasisView(user, yieldSource, (usedShares1 + usedShares2) / 2);
+        (uint256 costBasis,) = mockBaseLedger.calculateCostBasisView(user, yieldSource, (usedShares1 + usedShares2) / 2);
 
         // Expected cost basis should be half of total amount
         assertEq(
@@ -1656,9 +1664,10 @@ contract LedgerTests is Helpers {
 
         // Verify proposal was cancelled by checking it can't be accepted
         vm.warp(block.timestamp + 1 weeks + 1); // Move past timelock period
-        vm.expectRevert(ISuperLedgerConfiguration.CONFIG_NOT_FOUND.selector); 
+        vm.expectRevert(ISuperLedgerConfiguration.CONFIG_NOT_FOUND.selector);
         config.acceptYieldSourceOracleConfigProposal(ids);
     }
+
     function test_YieldSourceOracleConfigSet_EventFields() public {
         bytes4 oracleId = bytes4(keccak256("testFieldOrder"));
         address oracle = address(0xABCD);
@@ -1678,12 +1687,7 @@ contract LedgerTests is Helpers {
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedgerConfiguration.YieldSourceOracleConfigSet(
-            oracleId,     
-            oracle,       
-            feePercent,   
-            feeRecipient, 
-            address(this),
-            ledger        
+            oracleId, oracle, feePercent, feeRecipient, address(this), ledger
         );
         config.setYieldSourceOracles(configs);
     }
@@ -1691,7 +1695,7 @@ contract LedgerTests is Helpers {
     function test_YieldSourceOracleConfigProposalSet_EventFields() public {
         bytes4 oracleId = bytes4(keccak256("testFieldOrder"));
         address oracle = address(0xABCD);
-        uint256 feePercent = 1000; 
+        uint256 feePercent = 1000;
         address feeRecipient = address(0xDEF0);
         address ledger = address(superLedger);
 
@@ -1707,7 +1711,7 @@ contract LedgerTests is Helpers {
         config.setYieldSourceOracles(configs);
 
         address newOracle = address(0x1234);
-        uint256 newFeePercent = 1500; 
+        uint256 newFeePercent = 1500;
         address newFeeRecipient = address(0x5678);
         address newLedger = address(flatFeeLedger);
 
@@ -1721,12 +1725,7 @@ contract LedgerTests is Helpers {
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedgerConfiguration.YieldSourceOracleConfigProposalSet(
-            oracleId,       
-            newOracle,      
-            newFeePercent,  
-            newFeeRecipient,
-            address(this),  
-            newLedger       
+            oracleId, newOracle, newFeePercent, newFeeRecipient, address(this), newLedger
         );
         config.proposeYieldSourceOracleConfig(configs);
     }
@@ -1750,7 +1749,7 @@ contract LedgerTests is Helpers {
         config.setYieldSourceOracles(configs);
 
         address newOracle = address(0x1234);
-        uint256 newFeePercent = 1500; 
+        uint256 newFeePercent = 1500;
         address newFeeRecipient = address(0x5678);
         address newLedger = address(flatFeeLedger);
 
@@ -1770,12 +1769,7 @@ contract LedgerTests is Helpers {
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedgerConfiguration.YieldSourceOracleConfigAccepted(
-            oracleId,       
-            newOracle,      
-            newFeePercent,  
-            newFeeRecipient,
-            address(this),  
-            newLedger       
+            oracleId, newOracle, newFeePercent, newFeeRecipient, address(this), newLedger
         );
         config.acceptYieldSourceOracleConfigProposal(oracleIds);
     }
@@ -1787,6 +1781,7 @@ contract LedgerTests is Helpers {
         address feeRecipient;
         address ledger;
     }
+
     function test_ProposeYieldSourceOracleConfig_NewProposalAfterExpiration() public {
         ConfigTestData memory initialConfig;
         initialConfig.oracleId = bytes4(keccak256("test"));
@@ -1804,10 +1799,10 @@ contract LedgerTests is Helpers {
             feeRecipient: initialConfig.feeRecipient,
             ledger: initialConfig.ledger
         });
-        
+
         config.setYieldSourceOracles(initialConfigs);
-        
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory existingConfig = 
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory existingConfig =
             config.getYieldSourceOracleConfig(initialConfig.oracleId);
         assertEq(existingConfig.yieldSourceOracle, initialConfig.oracle);
         assertEq(existingConfig.feePercent, initialConfig.feePercent);
@@ -1815,14 +1810,14 @@ contract LedgerTests is Helpers {
         assertEq(existingConfig.manager, address(this));
         assertEq(existingConfig.ledger, initialConfig.ledger);
 
-        // 1st proposal 
+        // 1st proposal
         ConfigTestData memory firstProposal;
         firstProposal.oracleId = initialConfig.oracleId; // Same oracle ID
         firstProposal.oracle = initialConfig.oracle; // Same oracle
         firstProposal.feePercent = 1200; // 12%
         firstProposal.feeRecipient = makeAddr("proposalRecipient1");
         firstProposal.ledger = initialConfig.ledger; // Same ledger
-        
+
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory firstProposalConfigs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         firstProposalConfigs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
@@ -1832,7 +1827,7 @@ contract LedgerTests is Helpers {
             feeRecipient: firstProposal.feeRecipient,
             ledger: firstProposal.ledger
         });
-        
+
         vm.expectEmit(true, true, true, true);
         emit ISuperLedgerConfiguration.YieldSourceOracleConfigProposalSet(
             firstProposal.oracleId,
@@ -1843,9 +1838,9 @@ contract LedgerTests is Helpers {
             firstProposal.ledger
         );
         config.proposeYieldSourceOracleConfig(firstProposalConfigs);
-        
+
         vm.warp(block.timestamp + 7 days + 1);
-        
+
         // 2nd proposal data
         ConfigTestData memory secondProposal;
         secondProposal.oracleId = initialConfig.oracleId; // Same oracle ID
@@ -1853,7 +1848,7 @@ contract LedgerTests is Helpers {
         secondProposal.feePercent = 1300; // 13%
         secondProposal.feeRecipient = makeAddr("proposalRecipient2");
         secondProposal.ledger = address(flatFeeLedger); // Different ledger
-        
+
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory secondProposalConfigs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         secondProposalConfigs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
@@ -1863,7 +1858,7 @@ contract LedgerTests is Helpers {
             feeRecipient: secondProposal.feeRecipient,
             ledger: secondProposal.ledger
         });
-        
+
         vm.expectEmit(true, true, true, true);
         emit ISuperLedgerConfiguration.YieldSourceOracleConfigProposalSet(
             secondProposal.oracleId,
@@ -1874,16 +1869,16 @@ contract LedgerTests is Helpers {
             secondProposal.ledger
         );
         config.proposeYieldSourceOracleConfig(secondProposalConfigs);
-        
+
         // accept 2nd but fails
         bytes4[] memory oracleIdsToAccept = new bytes4[](1);
         oracleIdsToAccept[0] = secondProposal.oracleId;
         vm.expectRevert(ISuperLedgerConfiguration.CANNOT_ACCEPT_YET.selector);
         config.acceptYieldSourceOracleConfigProposal(oracleIdsToAccept);
-        
+
         vm.warp(block.timestamp + 7 days + 1);
 
-        // now works        
+        // now works
         vm.expectEmit(true, true, true, true);
         emit ISuperLedgerConfiguration.YieldSourceOracleConfigAccepted(
             secondProposal.oracleId,
@@ -1894,13 +1889,43 @@ contract LedgerTests is Helpers {
             secondProposal.ledger
         );
         config.acceptYieldSourceOracleConfigProposal(oracleIdsToAccept);
-        
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory finalConfig = 
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory finalConfig =
             config.getYieldSourceOracleConfig(secondProposal.oracleId);
         assertEq(finalConfig.yieldSourceOracle, secondProposal.oracle);
         assertEq(finalConfig.feePercent, secondProposal.feePercent);
         assertEq(finalConfig.feeRecipient, secondProposal.feeRecipient);
         assertEq(finalConfig.manager, address(this));
         assertEq(finalConfig.ledger, secondProposal.ledger);
+    }
+
+    function test_FrontRunning_SetYieldSourceOracles() public {
+        address[] memory executors = new address[](1);
+        executors[0] = address(exec);
+
+        config = new SuperLedgerConfiguration(address(this));
+        superLedger = new SuperLedger(address(config), executors);
+
+        bytes4 oracleId = bytes4(keccak256("test"));
+        address oracle = address(0x123);
+        uint256 feePercent = 1000; // 10%
+        address feeRecipient = address(this);
+        address ledger = address(superLedger);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+
+        address attacker = address(0xACD123);
+
+        vm.prank(attacker);
+        vm.expectRevert(ISuperLedgerConfiguration.NOT_DEPLOYER.selector);
+        config.setYieldSourceOracles(configs);
     }
 }
