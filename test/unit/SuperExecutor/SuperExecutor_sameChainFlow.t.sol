@@ -217,7 +217,7 @@ contract SuperExecutor_sameChainFlow is
             callData: abi.encodeCall(IERC4626.deposit, (amount, account))
         });
         _depositHook.setExecutions(depositExecutions);
-        _depositHook.setOutAmount(amount);
+        _depositHook.setOutAmount(amount, address(this));
 
         Execution[] memory redeemExecutions = new Execution[](1);
         redeemExecutions[0] = Execution({
@@ -227,7 +227,7 @@ contract SuperExecutor_sameChainFlow is
         });
         _redeemHook.setExecutions(redeemExecutions);
         _redeemHook.setUsedShares(amount);
-        _redeemHook.setOutAmount(amount * 2);
+        _redeemHook.setOutAmount(amount * 2, address(this));
         _redeemHook.setAsset(address(0));
 
         // it should execute all hooks
@@ -273,7 +273,7 @@ contract SuperExecutor_sameChainFlow is
             callData: abi.encodeCall(IERC4626.deposit, (amount, account))
         });
         _depositHook.setExecutions(depositExecutions);
-        _depositHook.setOutAmount(amount);
+        _depositHook.setOutAmount(amount, address(this));
 
         // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
@@ -305,7 +305,7 @@ contract SuperExecutor_sameChainFlow is
         });
         _redeemHook.setExecutions(redeemExecutions);
         _redeemHook.setUsedShares(amount);
-        _redeemHook.setOutAmount(amount * 2);
+        _redeemHook.setOutAmount(amount * 2, address(this));
         _redeemHook.setAsset(address(0));
 
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });

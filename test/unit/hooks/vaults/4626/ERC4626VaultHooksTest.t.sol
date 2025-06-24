@@ -1,20 +1,20 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {ApproveAndDeposit4626VaultHook} from
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { ApproveAndDeposit4626VaultHook } from
     "../../../../../src/core/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
-import {ApproveAndRedeem4626VaultHook} from
+import { ApproveAndRedeem4626VaultHook } from
     "../../../../../src/core/hooks/vaults/4626/ApproveAndRedeem4626VaultHook.sol";
-import {Deposit4626VaultHook} from "../../../../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
-import {Redeem4626VaultHook} from "../../../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
-import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
-import {MockERC20} from "../../../../mocks/MockERC20.sol";
-import {MockHook} from "../../../../mocks/MockHook.sol";
-import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
-import {Helpers} from "../../../../utils/Helpers.sol";
+import { Deposit4626VaultHook } from "../../../../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { Redeem4626VaultHook } from "../../../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { MockERC20 } from "../../../../mocks/MockERC20.sol";
+import { MockHook } from "../../../../mocks/MockHook.sol";
+import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
 contract ERC4626VaultHooksTest is Helpers {
     ApproveAndDeposit4626VaultHook public approveAndDepositHook;
@@ -206,7 +206,7 @@ contract ERC4626VaultHooksTest is Helpers {
     //////////////////////////////////////////////////////////////*/
     function test_ApproveAndDepositHook_PrevHookAmount() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, prevHookAmount, true);
         Execution[] memory executions = approveAndDepositHook.build(mockPrevHook, address(this), data);
@@ -234,7 +234,7 @@ contract ERC4626VaultHooksTest is Helpers {
 
     function test_ApproveAndRedeemHook_PrevHookAmount() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.OUTFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, address(this), shares, true);
         Execution[] memory executions = approveAndRedeemHook.build(mockPrevHook, address(this), data);
@@ -262,7 +262,7 @@ contract ERC4626VaultHooksTest is Helpers {
 
     function test_DepositHook_PrevHookAmount() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, true, address(0), uint256(0));
         Execution[] memory executions = depositHook.build(mockPrevHook, address(this), data);
@@ -278,7 +278,7 @@ contract ERC4626VaultHooksTest is Helpers {
 
     function test_RedeemHook_PrevHookAmount() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.OUTFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), amount, true);
         Execution[] memory executions = redeemHook.build(mockPrevHook, address(this), data);

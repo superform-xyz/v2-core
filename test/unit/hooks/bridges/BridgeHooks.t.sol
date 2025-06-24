@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {AcrossSendFundsAndExecuteOnDstHook} from
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { AcrossSendFundsAndExecuteOnDstHook } from
     "../../../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
-import {DeBridgeSendOrderAndExecuteOnDstHook} from
+import { DeBridgeSendOrderAndExecuteOnDstHook } from
     "../../../../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
-import {ISuperHook} from "../../../../src/core/interfaces/ISuperHook.sol";
-import {IAcrossSpokePoolV3} from "../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
-import {MockHook} from "../../../mocks/MockHook.sol";
-import {BaseHook} from "../../../../src/core/hooks/BaseHook.sol";
-import {Helpers} from "../../../utils/Helpers.sol";
-import {DlnExternalCallLib} from "../../../../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
+import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { IAcrossSpokePoolV3 } from "../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
+import { MockHook } from "../../../mocks/MockHook.sol";
+import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
+import { DlnExternalCallLib } from "../../../../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
 
 contract MockSignatureStorage {
     function retrieveSignatureData(address) external view returns (bytes memory) {
@@ -153,7 +153,7 @@ contract BridgeHooks is Helpers {
         );
 
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeAcrossData(true);
 
@@ -196,7 +196,7 @@ contract BridgeHooks is Helpers {
         );
 
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeAcrossData(true);
 
@@ -207,19 +207,19 @@ contract BridgeHooks is Helpers {
     function test_AcrossV3_Build_NoLengthCheck() public {
         // Create data shorter than required 217 bytes
         bytes memory malformedData = abi.encodePacked(
-            uint256(1 ether),          // value (32 bytes)
-            address(0x1),              // recipient (20 bytes)
-            address(0x2),              // inputToken (20 bytes)
-            address(0x3),              // outputToken (20 bytes)
-            uint256(1000),            // inputAmount (32 bytes)
-            uint256(900),             // outputAmount (32 bytes)
-            uint256(1)                // destinationChainId (32 bytes)
-        // Missing remaining required fields - total length = 188 bytes
+            uint256(1 ether), // value (32 bytes)
+            address(0x1), // recipient (20 bytes)
+            address(0x2), // inputToken (20 bytes)
+            address(0x3), // outputToken (20 bytes)
+            uint256(1000), // inputAmount (32 bytes)
+            uint256(900), // outputAmount (32 bytes)
+            uint256(1) // destinationChainId (32 bytes)
         );
+        // Missing remaining required fields - total length = 188 bytes
 
         // This should revert due to out of bounds read, but it doesn't
         // The build function will try to read past the end of the bytes array
-        vm.expectRevert();  // Any revert would prove length is checked
+        vm.expectRevert(); // Any revert would prove length is checked
         acrossV3hook.build(address(0), mockAccount, malformedData);
     }
 
@@ -233,7 +233,7 @@ contract BridgeHooks is Helpers {
         );
 
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeAcrossData(true);
 
@@ -299,7 +299,7 @@ contract BridgeHooks is Helpers {
 
     function test_Debrigdge_Build_UsePrevAmount() public {
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
-        MockHook(mockPrevHook).setOutAmount(100);
+        MockHook(mockPrevHook).setOutAmount(100, address(this));
 
         bytes memory data = _encodeDebridgeData(true, 100, 100, address(mockInputToken));
         Execution[] memory executions = deBridgehook.build(mockPrevHook, mockAccount, data);
@@ -308,7 +308,7 @@ contract BridgeHooks is Helpers {
 
     function test_Debrigdge_Build_UsePrevAmount_ETH() public {
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
-        MockHook(mockPrevHook).setOutAmount(100);
+        MockHook(mockPrevHook).setOutAmount(100, address(this));
 
         bytes memory data = _encodeDebridgeData(true, 100, 100, address(0));
         Execution[] memory executions = deBridgehook.build(mockPrevHook, mockAccount, data);
@@ -324,13 +324,12 @@ contract BridgeHooks is Helpers {
 
     function test_Debrigdge_Build_UsePrevAmount_ETH_Underflow() public {
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
-        MockHook(mockPrevHook).setOutAmount(100);
+        MockHook(mockPrevHook).setOutAmount(100, address(this));
 
         bytes memory data = _encodeDebridgeData(true, 100, 0, address(0));
         vm.expectRevert(DeBridgeSendOrderAndExecuteOnDstHook.AMOUNT_UNDERFLOW.selector);
         deBridgehook.build(mockPrevHook, mockAccount, data);
     }
-
 
     function test_subtype() public view {
         assertNotEq(BaseHook(address(deBridgehook)).subtype(), bytes32(0));
@@ -388,7 +387,12 @@ contract BridgeHooks is Helpers {
         uint32 referralCode;
     }
 
-    function _encodeDebridgeData(bool usePrevHookAmount, uint256 amount, uint256 value, address tokenIn)
+    function _encodeDebridgeData(
+        bool usePrevHookAmount,
+        uint256 amount,
+        uint256 value,
+        address tokenIn
+    )
         internal
         view
         returns (bytes memory hookData)
@@ -436,7 +440,11 @@ contract BridgeHooks is Helpers {
         bytes memory payload,
         bool allowDelayedExecution,
         bool requireSuccessfulExecution // Note: Keep typo from library 'requireSuccessfullExecution'
-    ) internal pure returns (bytes memory) {
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         DlnExternalCallLib.ExternalCallEnvelopV1 memory dataEnvelope = DlnExternalCallLib.ExternalCallEnvelopV1({
             executorAddress: executorAddress,
             executionFee: executionFee,

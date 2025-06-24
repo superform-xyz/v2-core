@@ -54,7 +54,7 @@ contract ApproveERC20HookTest is Helpers {
     function test_Build_WithPrevHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeData(true);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
@@ -92,7 +92,7 @@ contract ApproveERC20HookTest is Helpers {
     function test_PreAndPostExecute_WithPrevHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         hook.postExecute(mockPrevHook, address(this), _encodeData(true));
         assertEq(hook.outAmount(), 0);

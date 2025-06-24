@@ -1,23 +1,23 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {ApproveAndDeposit5115VaultHook} from
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { ApproveAndDeposit5115VaultHook } from
     "../../../../../src/core/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
-import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
-import {MockERC20} from "../../../../mocks/MockERC20.sol";
-import {MockHook} from "../../../../mocks/MockHook.sol";
-import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
-import {SuperExecutor} from "../../../../../src/core/executors/SuperExecutor.sol";
-import {Helpers} from "../../../../utils/Helpers.sol";
-import {InternalHelpers} from "../../../../utils/InternalHelpers.sol";
-import {ISuperExecutor} from "../../../../../src/core/interfaces/ISuperExecutor.sol";
-import {IStandardizedYield} from "../../../../../src/vendor/pendle/IStandardizedYield.sol";
-import {MockLedger, MockLedgerConfiguration} from "../../../../mocks/MockLedger.sol";
-import {RhinestoneModuleKit, AccountInstance, UserOpData, ModuleKitHelpers} from "modulekit/ModuleKit.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { MockERC20 } from "../../../../mocks/MockERC20.sol";
+import { MockHook } from "../../../../mocks/MockHook.sol";
+import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
+import { SuperExecutor } from "../../../../../src/core/executors/SuperExecutor.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
+import { InternalHelpers } from "../../../../utils/InternalHelpers.sol";
+import { ISuperExecutor } from "../../../../../src/core/interfaces/ISuperExecutor.sol";
+import { IStandardizedYield } from "../../../../../src/vendor/pendle/IStandardizedYield.sol";
+import { MockLedger, MockLedgerConfiguration } from "../../../../mocks/MockLedger.sol";
+import { RhinestoneModuleKit, AccountInstance, UserOpData, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
 
-import {MODULE_TYPE_EXECUTOR} from "modulekit/accounts/kernel/types/Constants.sol";
+import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 
 contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, InternalHelpers {
     ApproveAndDeposit5115VaultHook public hook;
@@ -58,7 +58,7 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
         ledgerConfig = new MockLedgerConfiguration(address(ledger), feeRecipient, address(token), 100, accountETH);
 
         superExecutorOnETH = new SuperExecutor(address(ledgerConfig));
-        instanceOnETH.installModule({moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorOnETH), data: ""});
+        instanceOnETH.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorOnETH), data: "" });
 
         yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
         yieldSource = address(this);
@@ -89,7 +89,7 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instanceOnETH, superExecutorOnETH, abi.encode(entry));
 
         vm.expectEmit(true, true, true, false);
@@ -131,7 +131,7 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
     function test_Build_WithPrevHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeData(true);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);

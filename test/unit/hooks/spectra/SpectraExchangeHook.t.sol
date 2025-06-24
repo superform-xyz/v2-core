@@ -215,7 +215,7 @@ contract SpectraExchangeHookTest is Helpers {
     }
 
     function test_Build_WithPrevHookAmount() public {
-        prevHook.setOutAmount(2e18);
+        prevHook.setOutAmount(2e18, address(this));
 
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
@@ -446,89 +446,88 @@ contract SpectraExchangeHookTest is Helpers {
 
     function test_Build_WithPrevHook_CallDataLength() public {
         CallDataTestVars memory vars;
-        
+
         // Create a custom mock hook with a fixed output amount
         vars.prevHookAmount = 5000e18;
         vars.mockPrevHook = address(new MockPrevHookWithFixedAmount(vars.prevHookAmount));
-        
+
         // Set up command data for DEPOSIT_ASSET_IN_PT
         vars.commandsData = new bytes(1);
         vars.commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
-        
+
         // Original amount in the input data
         vars.originalAmount = 1000e18;
-        
+
         // Set up input data with the original amount
         vars.inputs = new bytes[](1);
         vars.inputs[0] = abi.encode(address(token), vars.originalAmount, account, account, 1);
-        
+
         // Create original transaction data
-        vars.originalTxData = abi.encodeWithSelector(
-            bytes4(keccak256("execute(bytes,bytes[])")), 
-            vars.commandsData, 
-            vars.inputs
-        );
-        
+        vars.originalTxData =
+            abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), vars.commandsData, vars.inputs);
+
         // Get the length of the original transaction data
         vars.originalTxDataLength = vars.originalTxData.length;
 
         // Create hook data with usePrevHookAmount = true
         vars.data = abi.encodePacked(
             bytes4(bytes("")), // yieldSourceOracleId
-            address(token),    // yieldSource
-            true,              // usePrevHookAmount = true
-            uint256(0),        // value
+            address(token), // yieldSource
+            true, // usePrevHookAmount = true
+            uint256(0), // value
             vars.originalTxData // transaction data
         );
-        
+
         // Verify decodeUsePrevHookAmount is working as expected
         bool usePrevHookAmount = hook.decodeUsePrevHookAmount(vars.data);
         assertTrue(usePrevHookAmount, "usePrevHookAmount should be true");
-        
+
         // Execute build with the custom previous hook that always returns our fixed amount
         vars.executions = hook.build(vars.mockPrevHook, account, vars.data);
-        
+
         // Extract the updated callData from the execution
         vars.updatedTxData = vars.executions[1].callData;
-        
+
         // Verify the updated transaction data has the same length as the original
         assertEq(
             vars.updatedTxData.length,
             vars.originalTxDataLength,
             "Updated transaction data length should match original length"
         );
-        
+
         // Verify our mock hook is returning the correct amount
         assertEq(
             MockPrevHookWithFixedAmount(vars.mockPrevHook).outAmount(),
             vars.prevHookAmount,
             "Mock hook should return the fixed amount"
         );
-        
+
         // Decode the actual callData
         bytes4 selector = bytes4(BytesLib.slice(vars.updatedTxData, 0, 4));
         assertEq(selector, bytes4(keccak256("execute(bytes,bytes[])")), "Selector should match");
-        
-        (vars.updatedCommandsData, vars.updatedInputs) = 
+
+        (vars.updatedCommandsData, vars.updatedInputs) =
             abi.decode(BytesLib.slice(vars.updatedTxData, 4, vars.updatedTxData.length - 4), (bytes, bytes[]));
-        
+
         // Verify we have the right number of inputs
         assertEq(vars.updatedInputs.length, 1, "Should have one input");
-        
+
         // Decode the first input to get the updated amount
-        (vars.updatedPt, vars.updatedAmount, vars.updatedPtRecipient, vars.updatedYtRecipient, vars.updatedMinShares) = 
+        (vars.updatedPt, vars.updatedAmount, vars.updatedPtRecipient, vars.updatedYtRecipient, vars.updatedMinShares) =
             abi.decode(vars.updatedInputs[0], (address, uint256, address, address, uint256));
-        
+
         // Debug output
         console2.log("Original amount:", vars.originalAmount);
-        console2.log("Fixed prev hook amount:", vars.prevHookAmount); 
+        console2.log("Fixed prev hook amount:", vars.prevHookAmount);
         console2.log("Updated amount in callData:", vars.updatedAmount);
-        
+
         // Verify the amount was updated to use the previous hook amount
         assertEq(vars.updatedAmount, vars.prevHookAmount, "Amount should be updated to previous hook amount");
-        
+
         // Verify other parameters remained unchanged
-        assertEq(vars.updatedCommandsData.length, vars.commandsData.length, "Command data length should remain the same");
+        assertEq(
+            vars.updatedCommandsData.length, vars.commandsData.length, "Command data length should remain the same"
+        );
         assertEq(vars.updatedPt, address(token), "PT address should remain unchanged");
         assertEq(vars.updatedPtRecipient, account, "PT recipient should remain unchanged");
         assertEq(vars.updatedYtRecipient, account, "YT recipient should remain unchanged");

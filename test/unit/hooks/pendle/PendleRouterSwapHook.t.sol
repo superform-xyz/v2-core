@@ -268,14 +268,13 @@ contract PendleRouterSwapHookTest is Helpers {
 
         bytes memory data = abi.encodePacked(bytes4(bytes("")), market, bytes1(uint8(1)), uint256(0), txData);
 
-        prevHook.setOutAmount(2500);
+        prevHook.setOutAmount(2500, address(this));
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
 
         assertEq(executions.length, 3);
         assertEq(executions[1].target, address(pendleRouter));
         assertEq(executions[1].value, 2500);
-
     }
 
     function test_PreExecute() public {

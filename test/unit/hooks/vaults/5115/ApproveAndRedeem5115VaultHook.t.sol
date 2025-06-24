@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {ApproveAndRedeem5115VaultHook} from
+import { ApproveAndRedeem5115VaultHook } from
     "../../../../../src/core/hooks/vaults/5115/ApproveAndRedeem5115VaultHook.sol";
-import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
-import {MockERC20} from "../../../../mocks/MockERC20.sol";
-import {MockHook} from "../../../../mocks/MockHook.sol";
-import {Helpers} from "../../../../utils/Helpers.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
+import { MockERC20 } from "../../../../mocks/MockERC20.sol";
+import { MockHook } from "../../../../mocks/MockHook.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
 contract ApproveAndRedeem5115VaultHookTest is Helpers {
     ApproveAndRedeem5115VaultHook public hook;
@@ -79,7 +79,7 @@ contract ApproveAndRedeem5115VaultHookTest is Helpers {
     function test_Build_ApproveAndRedeem_WithPrevHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, tokenIn));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeData(true);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);

@@ -81,7 +81,7 @@ contract MockHook {
         loanToken = _loanToken;
     }
 
-    function setOutAmount(uint256 _outAmount) external {
+    function setOutAmount(uint256 _outAmount, address) external {
         outAmount = _outAmount;
     }
 }
@@ -141,7 +141,7 @@ contract MorphoLoanHooksTest is Helpers {
             irm: address(mockIRM),
             lltv: lltv
         });
-        
+
         Market memory market = Market({
             totalSupplyAssets: 100e18,
             totalSupplyShares: 10e18,
@@ -152,11 +152,11 @@ contract MorphoLoanHooksTest is Helpers {
         });
         mockMorpho.setMarket(marketParams.id(), market);
 
-        mockMorpho.setPosition(marketParams.id(), address(this), MockMorpho.Position({
-            supplyShares: 100e18,
-            borrowShares: 100e18,
-            collateral: 1e18
-        }));
+        mockMorpho.setPosition(
+            marketParams.id(),
+            address(this),
+            MockMorpho.Position({ supplyShares: 100e18, borrowShares: 100e18, collateral: 1e18 })
+        );
     }
 
     function test_Constructors() public view {
@@ -290,7 +290,7 @@ contract MorphoLoanHooksTest is Helpers {
     function test_BorrowHookB_BuildWithPreviousHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeBorrowOnlyData(true);
         Execution[] memory executions = borrowHookB.build(mockPrevHook, address(this), data);
@@ -660,7 +660,7 @@ contract MorphoLoanHooksTest is Helpers {
     function test_BorrowHook_BuildWithPreviousHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeBorrowData(true);
         Execution[] memory executions = borrowHook.build(mockPrevHook, address(this), data);
@@ -675,7 +675,7 @@ contract MorphoLoanHooksTest is Helpers {
     function test_RepayHook_BuildWithPreviousHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeRepayData(true, false);
         Execution[] memory executions = repayHook.build(mockPrevHook, address(this), data);
@@ -690,7 +690,7 @@ contract MorphoLoanHooksTest is Helpers {
     function test_RepayAndWithdrawHook_BuildWithPreviousHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeRepayAndWithdrawData(true, false);
         Execution[] memory executions = repayAndWithdrawHook.build(mockPrevHook, address(this), data);
@@ -1026,11 +1026,8 @@ contract MorphoLoanHooksTest is Helpers {
             fee: 0
         });
         mockMorpho.setMarket(id, newMarket);
-        MockMorpho.Position memory positionMock = MockMorpho.Position({
-            supplyShares: 0,
-            borrowShares: 10e18,
-            collateral: 0
-        });
+        MockMorpho.Position memory positionMock =
+            MockMorpho.Position({ supplyShares: 0, borrowShares: 10e18, collateral: 0 });
         mockMorpho.setPosition(id, account, positionMock); // User has 1% of total shares
         vm.warp(block.timestamp + 1 days); // Accrue interest for 1 day
 
@@ -1046,7 +1043,7 @@ contract MorphoLoanHooksTest is Helpers {
         );
 
         Execution[] memory executions = repayHook.build(address(0), account, data);
-        
+
         bytes memory approveCallData = executions[1].callData;
         bytes memory args = BytesLib.slice(approveCallData, 4, approveCallData.length - 4);
 
@@ -1070,7 +1067,7 @@ contract MorphoLoanHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                     REPAY AND WITHDRAW FULL REPAYMENT 
     //////////////////////////////////////////////////////////////*/
-    
+
     function test_RepayAndWithdrawHook_Build_FullRepayment() public view {
         bytes memory data = _encodeRepayAndWithdrawData(false, true);
         Execution[] memory executions = repayAndWithdrawHook.build(address(0), address(this), data);

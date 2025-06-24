@@ -1,18 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Helpers} from "../../../../utils/Helpers.sol";
-import {MockERC20} from "../../../../mocks/MockERC20.sol";
-import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
-import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
-import {MockHook} from "../../../../mocks/MockHook.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IStakedUSDeCooldown} from "../../../../../src/vendor/ethena/IStakedUSDeCooldown.sol";
-import {HookSubTypes} from "../../../../../src/core/libraries/HookSubTypes.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
+import { MockERC20 } from "../../../../mocks/MockERC20.sol";
+import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
+import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { MockHook } from "../../../../mocks/MockHook.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IStakedUSDeCooldown } from "../../../../../src/vendor/ethena/IStakedUSDeCooldown.sol";
+import { HookSubTypes } from "../../../../../src/core/libraries/HookSubTypes.sol";
 
 // Hooks
-import {EthenaCooldownSharesHook} from "../../../../../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
-import {EthenaUnstakeHook} from "../../../../../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
+import { EthenaCooldownSharesHook } from "../../../../../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
+import { EthenaUnstakeHook } from "../../../../../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
 
 contract EthenaHooksTests is Helpers {
     EthenaCooldownSharesHook cooldownSharesHook;
@@ -47,10 +47,7 @@ contract EthenaHooksTests is Helpers {
     }
 
     function test_EthenaCooldownSharesSubHookType_Constructor() public view {
-        assertEq(
-            cooldownSharesHook.subType(),
-            HookSubTypes.getHookSubType("Cooldown")
-        );
+        assertEq(cooldownSharesHook.subType(), HookSubTypes.getHookSubType("Cooldown"));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -108,7 +105,7 @@ contract EthenaHooksTests is Helpers {
     //////////////////////////////////////////////////////////////*/
     function test_EthenaCooldownSharesHook_BuildWithPrevHook() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, address(yieldSource)));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeCooldownData(true);
         Execution[] memory executions = cooldownSharesHook.build(mockPrevHook, address(this), data);
@@ -121,7 +118,7 @@ contract EthenaHooksTests is Helpers {
 
     function test_EthenaUnstakeHook_BuildWithPrevHook() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, address(yieldSource)));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeUnstakeData();
         Execution[] memory executions = unstakeHook.build(mockPrevHook, address(this), data);
@@ -195,24 +192,14 @@ contract EthenaHooksTests is Helpers {
     function test_EthenaUnstakeHook_PreExecute_VaultBankAndDstChainId() public {
         address testVaultBank = address(0xABCD);
         uint256 testDstChainId = 9876;
-        
-        bytes memory data = _encodeUnstakeDataWithCustomValues(
-            address(yieldSource), 
-            testVaultBank, 
-            testDstChainId
-        );
-        
+
+        bytes memory data = _encodeUnstakeDataWithCustomValues(address(yieldSource), testVaultBank, testDstChainId);
+
         unstakeHook.preExecute(address(0), address(this), data);
-        
-        assertEq(
-            unstakeHook.vaultBank(),
-            testVaultBank
-        );
-        
-        assertEq(
-            unstakeHook.dstChainId(),
-            testDstChainId
-        );
+
+        assertEq(unstakeHook.vaultBank(), testVaultBank);
+
+        assertEq(unstakeHook.dstChainId(), testDstChainId);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -222,12 +209,16 @@ contract EthenaHooksTests is Helpers {
         address _yieldSource,
         address _vaultBank,
         uint256 _dstChainId
-    ) internal view returns (bytes memory) {
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
         return abi.encodePacked(
-            yieldSourceOracleId,   // bytes4 placeholder
-            _yieldSource,          // address yieldSource
-            _vaultBank,            // address vaultBank
-            _dstChainId            // uint256 dstChainId
+            yieldSourceOracleId, // bytes4 placeholder
+            _yieldSource, // address yieldSource
+            _vaultBank, // address vaultBank
+            _dstChainId // uint256 dstChainId
         );
     }
 

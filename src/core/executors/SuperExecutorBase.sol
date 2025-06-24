@@ -45,7 +45,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
     /// @notice Tolerance for fee transfer verification (numerator)
     /// @dev Used to account for tokens with transfer fees or rounding errors
-    uint256 internal constant FEE_TOLERANCE = 1_000; //1%
+    uint256 internal constant FEE_TOLERANCE = 1000; //1%
 
     /// @notice Denominator for fee tolerance calculation
     /// @dev FEE_TOLERANCE/FEE_TOLERANCE_DENOMINATOR represents the maximum allowed deviation
@@ -172,7 +172,15 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     /// @param account The smart account executing the operation
     /// @param hook The hook that was just executed
     /// @param hookData The data provided to the hook for execution
-    function _updateAccounting(address account, address hook, bytes memory hookData) internal virtual returns (uint256 feeAmount) {
+    function _updateAccounting(
+        address account,
+        address hook,
+        bytes memory hookData
+    )
+        internal
+        virtual
+        returns (uint256 feeAmount)
+    {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             // Extract yield source information from the hook data
@@ -213,7 +221,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
                 }
 
                 // refresh `outAmount`
-                ISuperHookSetter(hook).setOutAmount(_outAmount - feeAmount);
+                ISuperHookSetter(hook).setOutAmount(_outAmount - feeAmount, account);
             }
         }
     }
@@ -298,7 +306,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         }
 
         // STEP 2: Build and execute (dual mutexes protect pre/post)
-        hook.setCaller();
+        hook.setExecutionContext(account);
         _execute(account, executions);
 
         // STEP 3: Update accounting (both mutexes active, preventing reentrancy)
@@ -308,7 +316,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         _checkAndLockForSuperPosition(account, address(hook));
 
         // STEP 5: Reset both mutexes after all processing complete
-        hook.resetExecutionState();
+        hook.resetExecutionState(account);
     }
 
     /// @notice Handles cross-chain asset locking for SuperPosition minting
