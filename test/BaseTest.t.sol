@@ -111,6 +111,9 @@ import { PendleRouterRedeemHook } from "../src/core/hooks/swappers/pendle/Pendle
 // --- Onramp
 import { BatchTransferFromHook } from "../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
 
+// --- Offramp
+import { OfframpTokensHook } from "../src/core/hooks/tokens/OfframpTokensHook.sol";
+
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
@@ -218,6 +221,7 @@ struct Addresses {
     EthenaCooldownSharesHook ethenaCooldownSharesHook;
     EthenaUnstakeHook ethenaUnstakeHook;
     BatchTransferFromHook batchTransferFromHook;
+    OfframpTokensHook offrampTokensHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     ERC7540YieldSourceOracle erc7540YieldSourceOracle;
@@ -496,7 +500,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             contractAddresses[chainIds[i]][SUPER_ORACLE_KEY] = address(A[i].oracleRegistry);
 
             A[i].superLedgerConfiguration =
-                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration{ salt: SALT }()));
+                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration{ salt: SALT }(address(this))));
             vm.label(address(A[i].superLedgerConfiguration), SUPER_LEDGER_CONFIGURATION_KEY);
             contractAddresses[chainIds[i]][SUPER_LEDGER_CONFIGURATION_KEY] = address(A[i].superLedgerConfiguration);
 
@@ -612,7 +616,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](46);
+            address[] memory hooksAddresses = new address[](47);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }();
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -1199,6 +1203,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hookAddresses[chainIds[i]][MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY] = address(A[i].morphoRepayAndWithdrawHook);
             hooksAddresses[45] = address(A[i].morphoRepayAndWithdrawHook);
 
+            A[i].offrampTokensHook = new OfframpTokensHook{ salt: SALT }();
+            vm.label(address(A[i].offrampTokensHook), OFFRAMP_TOKENS_HOOK_KEY);
+            hookAddresses[chainIds[i]][OFFRAMP_TOKENS_HOOK_KEY] = address(A[i].offrampTokensHook);
+            hooks[chainIds[i]][OFFRAMP_TOKENS_HOOK_KEY] = Hook(
+                OFFRAMP_TOKENS_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.None,
+                address(A[i].offrampTokensHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][OFFRAMP_TOKENS_HOOK_KEY]);
+            hooksAddresses[46] = address(A[i].offrampTokensHook);
+
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
 
@@ -1447,6 +1464,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             superGovernor.registerHook(address(A[i].morphoRepayHook), false);
             superGovernor.registerHook(address(A[i].morphoRepayAndWithdrawHook), false);
             superGovernor.registerHook(address(A[i].pendleRouterRedeemHook), false);
+            superGovernor.registerHook(address(A[i].offrampTokensHook), false);
         }
 
         return A;
@@ -1724,7 +1742,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.selectFork(FORKS[chainIds[i]]);
 
             vm.startPrank(MANAGER);
-
             SuperGovernor superGovernor = SuperGovernor(_getContract(chainIds[i], SUPER_GOVERNOR_KEY));
             ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
                 new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
@@ -1756,10 +1773,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
+            vm.stopPrank();
+
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
                 configs
             );
-            vm.stopPrank();
         }
     }
     /*//////////////////////////////////////////////////////////////
