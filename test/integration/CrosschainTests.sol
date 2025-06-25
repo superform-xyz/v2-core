@@ -18,6 +18,7 @@ import { MockRegistry } from "../mocks/MockRegistry.sol";
 // Vault Interfaces
 import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
 import { IDlnSource } from "../../src/vendor/bridges/debridge/IDlnSource.sol";
+import { IDlnDestination } from "../../src/vendor/debridge/IDlnDestination.sol";
 
 import { RestrictionManagerLike } from "../mocks/centrifuge/IRestrictionManagerLike.sol";
 import { IInvestmentManager } from "../mocks/centrifuge/IInvestmentManager.sol";
@@ -36,7 +37,7 @@ import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import { BootstrapConfig, INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
 import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
-import {ExecutionReturnData} from "modulekit/test/RhinestoneModuleKit.sol";
+import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 import { BaseHook } from "../../src/core/hooks/BaseHook.sol";
@@ -377,13 +378,14 @@ contract CrosschainTests is BaseTest {
                 allowedCancelBeneficiarySrc: "", //allowedCancelBeneficiarySrc
                 affiliateFee: "", //affiliateFee
                 referralCode: 0 //referralCode
-            })
+             })
         );
         srcHooksData[1] = debridgeData;
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
         // attacker changes the dstProof in signature to empty bytes32[]
         (
             bool validateDstProof,
@@ -396,7 +398,8 @@ contract CrosschainTests is BaseTest {
 
         bytes32[] memory emptyMerkleProofDst = new bytes32[](0);
 
-        bytes memory tamperedSig = abi.encode(validateDstProof, validUntil, merkleRoot, merkleProofSrc, emptyMerkleProofDst, signature);
+        bytes memory tamperedSig =
+            abi.encode(validateDstProof, validUntil, merkleRoot, merkleProofSrc, emptyMerkleProofDst, signature);
 
         srcUserOpData.userOp.signature = tamperedSig;
 
@@ -405,7 +408,6 @@ contract CrosschainTests is BaseTest {
         instanceOnETH.expect4337Revert();
         executeOp(srcUserOpData);
         // ^ this now fails
-        
 
         // EXECUTE BASE
         // execution fails on the call to SuperDestinationExecutor::processBridgedExecution
@@ -502,7 +504,8 @@ contract CrosschainTests is BaseTest {
         // Build userOp
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
         srcUserOpData.userOp.signature = signatureData;
 
         // 4. Trigger execution with low gas.
@@ -523,10 +526,11 @@ contract CrosschainTests is BaseTest {
             })
         );
         // the signatures don't match due to wrong decoding
-        (, , , , bytes memory destinationChainSignature) = abi.decode(signatureData, (bool, uint48, bytes32, bytes32[], bytes));
+        (,,,, bytes memory destinationChainSignature) =
+            abi.decode(signatureData, (bool, uint48, bytes32, bytes32[], bytes));
 
-
-        (, , , , , bytes memory sourceChainSignature) = abi.decode(signatureData, (bool, uint48, bytes32, bytes32[],  bytes32[], bytes));
+        (,,,,, bytes memory sourceChainSignature) =
+            abi.decode(signatureData, (bool, uint48, bytes32, bytes32[], bytes32[], bytes));
 
         assert(keccak256(destinationChainSignature) != keccak256(sourceChainSignature));
     }
@@ -697,7 +701,8 @@ contract CrosschainTests is BaseTest {
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE BASE
@@ -804,7 +809,8 @@ contract CrosschainTests is BaseTest {
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE BASE
@@ -901,7 +907,8 @@ contract CrosschainTests is BaseTest {
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE ETH
@@ -999,7 +1006,8 @@ contract CrosschainTests is BaseTest {
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
 
         console2.log(srcUserOpData.userOp.sender);
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE ETH
@@ -1081,7 +1089,8 @@ contract CrosschainTests is BaseTest {
         );
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE ETH
@@ -1190,7 +1199,8 @@ contract CrosschainTests is BaseTest {
 
         UserOpData memory ethUserOpData = _createUserOpData(ethHooksAddresses, ethHooksData, ETH, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, ethUserOpData.userOpHash, accountToUse, BASE);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, ethUserOpData.userOpHash, accountToUse, BASE);
         ethUserOpData.userOp.signature = signatureData;
 
         _processAcrossV3Message(
@@ -1398,7 +1408,8 @@ contract CrosschainTests is BaseTest {
         UserOpData memory srcUserOpData = _getExecOpsWithValidator(
             instanceOnETH, superExecutorOnETH, abi.encode(entry), address(sourceValidatorOnETH)
         );
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, BASE);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, BASE);
         srcUserOpData.userOp.signature = signatureData;
 
         _processAcrossV3Message(
@@ -1664,7 +1675,8 @@ contract CrosschainTests is BaseTest {
         UserOpData memory srcUserOpData = _getExecOpsWithValidator(
             instanceOnETH, superExecutorOnETH, abi.encode(entry), address(sourceValidatorOnETH)
         );
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, BASE);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, BASE);
         srcUserOpData.userOp.signature = signatureData;
 
         _processAcrossV3Message(
@@ -1704,13 +1716,14 @@ contract CrosschainTests is BaseTest {
             address(0),
             accountETH,
             address(0),
-            accountETH, // accountETH
+            accountETH, // ✅ Should match allowedCancelBeneficiarySrc from order creation (now accountETH)
             underlyingBase_USDC,
             underlyingETH_USDC,
             value,
             amountPerVault,
             amountPerVault,
-            uint256(ETH)
+            BASE, // giveChainId - the chain where the order was created
+            uint256(ETH) // takeChainId - the destination chain
         );
 
         UserOpData memory cancelOrderUserOpData = _createUserOpData(cancelOrderHooksAddresses, cancelData, ETH, false);
@@ -1738,7 +1751,8 @@ contract CrosschainTests is BaseTest {
     //     uint256 value = IDlnSource(DEBRIDGE_DLN_ADDRESSES[ETH]).globalFixedNativeFee();
 
     //     bytes[] memory cancelData = new bytes[](1);
-    //     //cancelData[0] = _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
+    //     //cancelData[0] = _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault,
+    // false);
     //     cancelData[0] = _createDebrigeCancelOrderData(
     //         accountBase,
     //         address(debridgeAdapterOnETH),
@@ -1757,7 +1771,7 @@ contract CrosschainTests is BaseTest {
     //     bytes memory innerExecutorPayload;
     //     TargetExecutorMessage memory messageData;
     //     address accountToUse;
-        
+
     //     messageData = TargetExecutorMessage({
     //         hooksAddresses: cancelOrderHooksAddresses,
     //         hooksData: cancelData,
@@ -1776,7 +1790,8 @@ contract CrosschainTests is BaseTest {
 
     //     (innerExecutorPayload, accountToUse) = _createTargetExecutorMessage(messageData);
 
-    //     // UserOpData memory cancelOrderUserOpData = _createUserOpData(cancelOrderHooksAddresses, cancelData, ETH, true);
+    //     // UserOpData memory cancelOrderUserOpData = _createUserOpData(cancelOrderHooksAddresses, cancelData, ETH,
+    // true);
 
     //     // executeOp(cancelOrderUserOpData);
 
@@ -1823,10 +1838,12 @@ contract CrosschainTests is BaseTest {
     //     // baseHooksData[1] = debridgeData;
 
     //     // console2.log("TRY CANCEL ORDER");
-        
-    //     // UserOpData memory cancelOrderUserOpData = _createUserOpData(baseHooksAddresses, baseHooksData, BASE, true);
 
-    //     // bytes memory signatureData = _createMerkleRootAndSignature(messageData, cancelOrderUserOpData.userOpHash, accountToUse, ETH);
+    //     // UserOpData memory cancelOrderUserOpData = _createUserOpData(baseHooksAddresses, baseHooksData, BASE,
+    // true);
+
+    //     // bytes memory signatureData = _createMerkleRootAndSignature(messageData, cancelOrderUserOpData.userOpHash,
+    // accountToUse, ETH);
     //     // cancelOrderUserOpData.userOp.signature = signatureData;
 
     //     // // EXECUTE BASE
@@ -1960,7 +1977,8 @@ contract CrosschainTests is BaseTest {
 
         UserOpData memory opUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, opUserOpData.userOpHash, accountToUse, BASE);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, opUserOpData.userOpHash, accountToUse, BASE);
         opUserOpData.userOp.signature = signatureData;
 
         _processAcrossV3Message(
@@ -2373,7 +2391,8 @@ contract CrosschainTests is BaseTest {
 
         UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, OP, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, src1UserOpData.userOpHash, accountToUse, BASE);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, src1UserOpData.userOpHash, accountToUse, BASE);
         src1UserOpData.userOp.signature = signatureData;
 
         console2.log("sending from op to base");
@@ -2477,7 +2496,8 @@ contract CrosschainTests is BaseTest {
         UserOpData memory src1UserOpData = _createUserOpData(src1HooksAddresses, src1HooksData, ETH, true);
         console2.log("sending from eth to base");
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, src1UserOpData.userOpHash, accountToUse, BASE);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, src1UserOpData.userOpHash, accountToUse, BASE);
         src1UserOpData.userOp.signature = signatureData;
 
         // enough balance is received
@@ -2531,7 +2551,7 @@ contract CrosschainTests is BaseTest {
         bytes memory innerExecutorPayload;
         TargetExecutorMessage memory messageData;
         address accountToUse;
-        
+
         messageData = TargetExecutorMessage({
             hooksAddresses: new address[](0),
             hooksData: new bytes[](0),
@@ -2577,13 +2597,107 @@ contract CrosschainTests is BaseTest {
              })
         );
         baseHooksData[1] = debridgeData;
-        
+
         UserOpData memory baseUserOpData = _createUserOpData(baseHooksAddresses, baseHooksData, BASE, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, baseUserOpData.userOpHash, accountToUse, ETH);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, baseUserOpData.userOpHash, accountToUse, ETH);
         baseUserOpData.userOp.signature = signatureData;
 
         executeOp(baseUserOpData);
+
+        // =============== MOCK THE ORDER REGISTRATION ON DESTINATION CHAIN ===============
+        // In real DeBridge, orders only get registered on destination when fulfilled
+        // But for cancellation to work, we need to simulate an order that exists but wasn't fulfilled
+        // This represents a failed fulfillment attempt that registered the order but didn't complete
+
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+
+        // The cancel hook now correctly includes giveChainId = BASE in cancel data
+        // We need to configure BASE chain as EVM in the DlnDestination contract
+        // Since setDlnSourceAddress is not in the public interface, we'll use storage manipulation
+        vm.store(
+            DEBRIDGE_DLN_ADDRESSES[ETH],
+            keccak256(abi.encode(uint256(BASE), uint256(2))), // chainEngines mapping at slot 2, key = BASE
+            bytes32(uint256(1)) // DlnOrderLib.ChainEngine.EVM = 1
+        );
+
+        // Create order ID that matches exactly what the cancel hook will generate
+        // The hook creates an order with specific structure - we need to calculate the same ID
+        bytes32 orderId;
+        {
+            // Calculate order ID using the EXACT same algorithm as DlnOrderLib.getOrderId
+            // This follows the exact encoding format from DlnOrderLib.encodeOrder
+            bytes memory encoded;
+
+            // Reconstruct the exact order parameters that the cancel hook creates
+            uint64 makerOrderNonce = 123_456;
+            bytes memory makerSrc = abi.encodePacked(accountBase);
+
+            // Step 1: makerOrderNonce (8 bytes) + makerSrc.length (1 byte) + makerSrc
+            encoded = abi.encodePacked(makerOrderNonce, uint8(makerSrc.length), makerSrc);
+        }
+
+        {
+            // Continue with remaining order fields
+            bytes memory giveTokenAddress = abi.encodePacked(underlyingBase_USDC);
+            uint256 giveAmount = amountPerVault;
+            uint256 takeChainId = ETH;
+            bytes memory takeTokenAddress = abi.encodePacked(underlyingETH_USDC);
+            uint256 takeAmount = amountPerVault;
+
+            // Get the existing encoded data and continue building
+            bytes memory encoded = abi.encodePacked(
+                uint64(123_456), // makerOrderNonce
+                uint8(20), // makerSrc.length (20 bytes for address)
+                accountBase, // makerSrc
+                uint256(BASE), // giveChainId - now correctly uses BASE
+                uint8(giveTokenAddress.length),
+                giveTokenAddress,
+                giveAmount,
+                takeChainId,
+                uint8(takeTokenAddress.length),
+                takeTokenAddress,
+                takeAmount
+            );
+
+            // Add receiver and authority fields
+            bytes memory receiverDst = abi.encodePacked(address(debridgeAdapterOnETH));
+            bytes memory orderAuthorityAddressDst = abi.encodePacked(accountETH);
+            bytes memory allowedCancelBeneficiarySrc = abi.encodePacked(accountETH); // ✅ Must match the account that
+                // will call sendEvmOrderCancel
+
+            encoded = abi.encodePacked(
+                encoded,
+                uint8(receiverDst.length),
+                receiverDst,
+                uint8(0), // givePatchAuthoritySrc.length (empty)
+                uint8(orderAuthorityAddressDst.length),
+                orderAuthorityAddressDst,
+                uint8(0), // allowedTakerDst.length (empty)
+                uint8(allowedCancelBeneficiarySrc.length),
+                allowedCancelBeneficiarySrc,
+                false // externalCall.length > 0 (false since empty)
+            );
+
+            // Finally calculate the order ID
+            orderId = keccak256(encoded);
+        }
+
+        // Manually insert the order into takeOrders mapping with NotSet status
+        // This simulates a failed fulfillment that registered the order but didn't complete
+        vm.store(
+            DEBRIDGE_DLN_ADDRESSES[ETH],
+            keccak256(abi.encode(orderId, uint256(1))), // takeOrders mapping at slot 1
+            bytes32(uint256(0)) // OrderTakeStatus.NotSet = 0
+        );
+
+        // Store the giveChainId (for validation in cancellation) - use BASE as that's what cancel hook now uses
+        vm.store(
+            DEBRIDGE_DLN_ADDRESSES[ETH],
+            bytes32(uint256(keccak256(abi.encode(orderId, uint256(1)))) + 2), // next slot for giveChainId
+            bytes32(uint256(BASE)) // giveChainId = BASE (what cancel hook now uses)
+        );
     }
 
     function _executeDeBridgeOrder() internal {
@@ -2658,7 +2772,8 @@ contract CrosschainTests is BaseTest {
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
 
-        bytes memory signatureData = _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
+        bytes memory signatureData =
+            _createMerkleRootAndSignature(messageData, srcUserOpData.userOpHash, accountToUse, ETH);
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE BASE

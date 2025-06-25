@@ -715,6 +715,7 @@ abstract contract InternalHelpers {
         uint256 value,
         uint256 inputAmount,
         uint256 outputAmount,
+        uint256 giveChainId,
         uint256 destinationChainId
     )
         internal
@@ -723,14 +724,10 @@ abstract contract InternalHelpers {
     {
         return _combineOrderCancellationData(
             _createOrderCancellationPart1(
-                account, inputToken, outputToken, value, inputAmount, outputAmount, destinationChainId
+                account, inputToken, outputToken, value, inputAmount, outputAmount, giveChainId, destinationChainId
             ),
             _createOrderCancellationPart2(
-                receiver,
-                givePatchAuthority,
-                orderAuthorityAddress,
-                allowedTaker,
-                allowedCancelBeneficiary
+                receiver, givePatchAuthority, orderAuthorityAddress, allowedTaker, allowedCancelBeneficiary
             )
         );
     }
@@ -743,6 +740,7 @@ abstract contract InternalHelpers {
         uint256 value,
         uint256 inputAmount,
         uint256 outputAmount,
+        uint256 giveChainId,
         uint256 destinationChainId
     )
         internal
@@ -765,6 +763,7 @@ abstract contract InternalHelpers {
             uint256(giveTokenAddress.length), // giveTokenAddress length
             giveTokenAddress, // giveTokenAddress
             giveAmount, // giveAmount
+            giveChainId, // giveChainId
             destinationChainId, // takeChainId
             uint256(takeTokenAddress.length), // takeTokenAddress length
             takeTokenAddress, // takeTokenAddress

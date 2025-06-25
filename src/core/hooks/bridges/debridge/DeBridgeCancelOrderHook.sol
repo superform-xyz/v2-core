@@ -2,14 +2,14 @@
 pragma solidity 0.8.30;
 
 // external
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {IDlnDestination, Order} from "../../../../vendor/debridge/IDlnDestination.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { IDlnDestination, Order } from "../../../../vendor/debridge/IDlnDestination.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title DeBridgeCancelOrderHook
 /// @author Superform Labs
@@ -21,21 +21,22 @@ import {ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
 /// @notice         uint256 giveTokenAddress_paramLength = BytesLib.toUint256(data, 72 + makerSrc_paramLength);
 /// @notice         bytes giveTokenAddress = BytesLib.slice(data, 104 + makerSrc_paramLength, giveTokenAddress_paramLength);
 /// @notice         uint256 giveAmount = BytesLib.toUint256(data, 104 + makerSrc_paramLength + giveTokenAddress_paramLength);
-/// @notice         uint256 takeChainId = BytesLib.toUint256(data, 136 + makerSrc_paramLength + giveTokenAddress_paramLength);
-/// @notice         uint256 takeTokenAddress_paramLength = BytesLib.toUint256(data, 168 + makerSrc_paramLength + giveTokenAddress_paramLength);
-/// @notice         bytes takeTokenAddress = BytesLib.slice(data, 200 + makerSrc_paramLength + giveTokenAddress_paramLength, takeTokenAddress_paramLength);
-/// @notice         uint256 takeAmount = BytesLib.toUint256(data, 200 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength);
-/// @notice         uint256 receiverDst_paramLength = BytesLib.toUint256(data, 232 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength);
-/// @notice         bytes receiverDst = BytesLib.slice(data, 264 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength, receiverDst_paramLength);
-/// @notice         uint256 givePatchAuthoritySrc_paramLength = BytesLib.toUint256(data, 264 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength);
-/// @notice         bytes givePatchAuthoritySrc = BytesLib.slice(data, 296 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength, givePatchAuthoritySrc_paramLength);
-/// @notice         uint256 orderAuthorityAddressDst_paramLength = BytesLib.toUint256(data, 296 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength);
-/// @notice         bytes orderAuthorityAddressDst = BytesLib.slice(data, 328 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength, orderAuthorityAddressDst_paramLength);
-/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 328 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength);
-/// @notice         bytes allowedTakerDst = BytesLib.slice(data, 360 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength, allowedTakerDst_paramLength);
-/// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 360 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength);
-/// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 392 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength, allowedCancelBeneficiarySrc_paramLength);
-/// @notice         uint256 executionFee = BytesLib.toUint256(data, 392 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength);
+/// @notice         uint256 giveChainId = BytesLib.toUint256(data, 136 + makerSrc_paramLength + giveTokenAddress_paramLength);
+/// @notice         uint256 takeChainId = BytesLib.toUint256(data, 168 + makerSrc_paramLength + giveTokenAddress_paramLength);
+/// @notice         uint256 takeTokenAddress_paramLength = BytesLib.toUint256(data, 200 + makerSrc_paramLength + giveTokenAddress_paramLength);
+/// @notice         bytes takeTokenAddress = BytesLib.slice(data, 232 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength);
+/// @notice         uint256 takeAmount = BytesLib.toUint256(data, 232 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength);
+/// @notice         uint256 receiverDst_paramLength = BytesLib.toUint256(data, 264 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength);
+/// @notice         bytes receiverDst = BytesLib.slice(data, 296 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength);
+/// @notice         uint256 givePatchAuthoritySrc_paramLength = BytesLib.toUint256(data, 296 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength);
+/// @notice         bytes givePatchAuthoritySrc = BytesLib.slice(data, 328 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength);
+/// @notice         uint256 orderAuthorityAddressDst_paramLength = BytesLib.toUint256(data, 328 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength);
+/// @notice         bytes orderAuthorityAddressDst = BytesLib.slice(data, 360 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength);
+/// @notice         uint256 allowedTakerDst_paramLength = BytesLib.toUint256(data, 360 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength);
+/// @notice         bytes allowedTakerDst = BytesLib.slice(data, 392 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength);
+/// @notice         uint256 allowedCancelBeneficiarySrc_paramLength = BytesLib.toUint256(data, 392 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength);
+/// @notice         bytes allowedCancelBeneficiarySrc = BytesLib.slice(data, 424 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength);
+/// @notice         uint256 executionFee = BytesLib.toUint256(data, 424 + makerSrc_paramLength + giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength + givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength);
 contract DeBridgeCancelOrderHook is BaseHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -50,7 +51,11 @@ contract DeBridgeCancelOrderHook is BaseHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function _buildHookExecutions(address, address account, bytes calldata data)
+    function _buildHookExecutions(
+        address,
+        address account,
+        bytes calldata data
+    )
         internal
         view
         override
@@ -87,11 +92,7 @@ contract DeBridgeCancelOrderHook is BaseHook, ISuperHookInspector {
     function _createOrder(bytes memory data)
         internal
         pure
-        returns (
-            Order memory vars,
-            uint256 value,
-            uint256 executionFee
-        )
+        returns (Order memory vars, uint256 value, uint256 executionFee)
     {
         uint256 offset = 0;
 
@@ -112,6 +113,9 @@ contract DeBridgeCancelOrderHook is BaseHook, ISuperHookInspector {
         offset += giveTokenAddressLen;
 
         vars.giveAmount = BytesLib.toUint256(data, offset);
+        offset += 32;
+
+        vars.giveChainId = BytesLib.toUint256(data, offset);
         offset += 32;
 
         vars.takeChainId = BytesLib.toUint256(data, offset);
@@ -155,7 +159,7 @@ contract DeBridgeCancelOrderHook is BaseHook, ISuperHookInspector {
         executionFee = BytesLib.toUint256(data, offset);
     }
 
-    function _preExecute(address, address, bytes calldata) internal override {}
+    function _preExecute(address, address, bytes calldata) internal override { }
 
-    function _postExecute(address, address, bytes calldata) internal override {}
+    function _postExecute(address, address, bytes calldata) internal override { }
 }
