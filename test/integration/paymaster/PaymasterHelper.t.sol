@@ -2,37 +2,37 @@
 pragma solidity 0.8.30;
 
 // external
-import {Execution} from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
+import { Execution } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import "modulekit/accounts/common/lib/ModeLib.sol";
-import {ExecutionLib} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
-import {Helpers} from "../../utils/Helpers.sol";
-import {MerkleTreeHelper} from "../../utils/MerkleTreeHelper.sol";
-import {InternalHelpers} from "../../utils/InternalHelpers.sol";
+import { Helpers } from "../../utils/Helpers.sol";
+import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
+import { InternalHelpers } from "../../utils/InternalHelpers.sol";
 
-import {INexus} from "../../../src/vendor/nexus/INexus.sol";
-import {INexusFactory} from "../../../src/vendor/nexus/INexusFactory.sol";
-import {BootstrapConfig, INexusBootstrap} from "../../../src/vendor/nexus/INexusBootstrap.sol";
-import {IERC7484} from "../../../src/vendor/nexus/IERC7484.sol";
+import { INexus } from "../../../src/vendor/nexus/INexus.sol";
+import { INexusFactory } from "../../../src/vendor/nexus/INexusFactory.sol";
+import { BootstrapConfig, INexusBootstrap } from "../../../src/vendor/nexus/INexusBootstrap.sol";
+import { IERC7484 } from "../../../src/vendor/nexus/IERC7484.sol";
 
 // Superform
-import {IEntryPoint} from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
-import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
-import {ISuperExecutor} from "../../../src/core/interfaces/ISuperExecutor.sol";
-import {SuperMerkleValidator} from "../../../src/core/validators/SuperMerkleValidator.sol";
-import {SuperLedgerConfiguration} from "../../../src/core/accounting/SuperLedgerConfiguration.sol";
-import {SuperExecutor} from "../../../src/core/executors/SuperExecutor.sol";
-import {ERC4626YieldSourceOracle} from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import {ERC5115YieldSourceOracle} from "../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import {ERC7540YieldSourceOracle} from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import {SuperLedger} from "../../../src/core/accounting/SuperLedger.sol";
-import {ERC5115Ledger} from "../../../src/core/accounting/ERC5115Ledger.sol";
-import {ISuperLedgerConfiguration} from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import {ISuperLedger} from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
-import {ApproveERC20Hook} from "../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
-import {Deposit4626VaultHook} from "../../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
-import {Redeem4626VaultHook} from "../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
+import { SuperMerkleValidator } from "../../../src/core/validators/SuperMerkleValidator.sol";
+import { SuperLedgerConfiguration } from "../../../src/core/accounting/SuperLedgerConfiguration.sol";
+import { SuperExecutor } from "../../../src/core/executors/SuperExecutor.sol";
+import { ERC4626YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC5115YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import { ERC7540YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { SuperLedger } from "../../../src/core/accounting/SuperLedger.sol";
+import { ERC5115Ledger } from "../../../src/core/accounting/ERC5115Ledger.sol";
+import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ApproveERC20Hook } from "../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { Deposit4626VaultHook } from "../../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { Redeem4626VaultHook } from "../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
 
 abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers {
     SuperMerkleValidator public superMerkleValidator;
@@ -69,7 +69,7 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         vm.label(address(nexusFactory), "NexusFactory");
         nexusBootstrap = INexusBootstrap(CHAIN_1_NEXUS_BOOTSTRAP);
         vm.label(address(nexusBootstrap), "NexusBootstrap");
-        ledgerConfig = ISuperLedgerConfiguration(new SuperLedgerConfiguration());
+        ledgerConfig = ISuperLedgerConfiguration(new SuperLedgerConfiguration(address(this)));
 
         superExecutorModule = new SuperExecutor(address(ledgerConfig));
 
@@ -115,34 +115,43 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
     /*//////////////////////////////////////////////////////////////
                                  ACCOUNT CREATION METHODS
     //////////////////////////////////////////////////////////////*/
-    function _createWithNexus(address registry, address[] memory attesters, uint8 threshold, uint256 value)
+    function _createWithNexus(
+        address registry,
+        address[] memory attesters,
+        uint8 threshold,
+        uint256 value
+    )
         internal
         returns (address)
     {
         bytes memory initData = _getNexusInitData(registry, attesters, threshold);
 
         address computedAddress = nexusFactory.computeAccountAddress(initData, initSalt);
-        address deployedAddress = nexusFactory.createAccount{value: value}(initData, initSalt);
+        address deployedAddress = nexusFactory.createAccount{ value: value }(initData, initSalt);
 
         if (deployedAddress != computedAddress) revert("Nexus SCA addresses mismatch");
         return computedAddress;
     }
 
-    function _getNexusInitData(address registry, address[] memory attesters, uint8 threshold)
+    function _getNexusInitData(
+        address registry,
+        address[] memory attesters,
+        uint8 threshold
+    )
         internal
         view
         returns (bytes memory)
     {
         // create validators
         BootstrapConfig[] memory validators = new BootstrapConfig[](1);
-        validators[0] = BootstrapConfig({module: address(superMerkleValidator), data: abi.encode(signer)});
+        validators[0] = BootstrapConfig({ module: address(superMerkleValidator), data: abi.encode(signer) });
 
         // create executors
         BootstrapConfig[] memory executors = new BootstrapConfig[](1);
-        executors[0] = BootstrapConfig({module: address(superExecutorModule), data: ""});
+        executors[0] = BootstrapConfig({ module: address(superExecutorModule), data: "" });
 
         // create hooks
-        BootstrapConfig memory hook = BootstrapConfig({module: address(0), data: ""});
+        BootstrapConfig memory hook = BootstrapConfig({ module: address(0), data: "" });
 
         // create fallbacks
         BootstrapConfig[] memory fallbacks = new BootstrapConfig[](0);
@@ -167,7 +176,15 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         nonce = IEntryPoint(ENTRYPOINT_ADDR).getNonce(account, nonceKey);
     }
 
-    function _createUserOpWithPaymaster(address account, ISuperExecutor.ExecutorEntry memory entry, bytes memory paymasterAndData) internal view returns (PackedUserOperation[] memory) {
+    function _createUserOpWithPaymaster(
+        address account,
+        ISuperExecutor.ExecutorEntry memory entry,
+        bytes memory paymasterAndData
+    )
+        internal
+        view
+        returns (PackedUserOperation[] memory)
+    {
         Execution[] memory executions = new Execution[](1);
         executions[0] = Execution({
             target: address(superExecutorModule),
@@ -177,12 +194,15 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
 
         bytes memory callData = _prepareExecutionCalldata(executions);
         uint256 nonce = _prepareNonce(account);
-        PackedUserOperation memory userOp = _createPackedUserOperationWithPaymaster(account, nonce, callData, paymasterAndData);
+        PackedUserOperation memory userOp =
+            _createPackedUserOperationWithPaymaster(account, nonce, callData, paymasterAndData);
 
         // create validator merkle tree & get signature data
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil);
+        leaves[0] = _createSourceValidatorLeaf(
+            IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false, address(superMerkleValidator)
+        );
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
         bytes memory sigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
@@ -194,7 +214,12 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         return userOps;
     }
 
-    function _createPackedUserOperationWithPaymaster(address account, uint256 nonce, bytes memory callData, bytes memory paymasterAndData)
+    function _createPackedUserOperationWithPaymaster(
+        address account,
+        uint256 nonce,
+        bytes memory callData,
+        bytes memory paymasterAndData
+    )
         internal
         pure
         returns (PackedUserOperation memory)
@@ -206,7 +231,8 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
             callData: callData,
             accountGasLimits: bytes32(abi.encodePacked(uint128(10e6), uint128(10e6))),
             preVerificationGas: 10e6,
-            gasFees: bytes32(abi.encodePacked(uint128(4e6), uint128(1e8))), //concatenation of maxPriorityFeePerGas (16 bytes) and maxFeePerGas (16 bytes)
+            gasFees: bytes32(abi.encodePacked(uint128(4e6), uint128(1e8))), //concatenation of maxPriorityFeePerGas (16
+                // bytes) and maxFeePerGas (16 bytes)
             paymasterAndData: paymasterAndData,
             signature: hex"1234"
         });
