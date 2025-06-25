@@ -79,6 +79,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
 
             // store signature in transient storage to be retrieved during bridge execution
             _storeSignature(uint256(uint160(_userOp.sender)), _userOp.signature);
+
         }
 
         return _packValidationData(!isValid, sigData.validUntil, 0);

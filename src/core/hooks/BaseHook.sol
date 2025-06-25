@@ -46,7 +46,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     bool public transient postExecuteMutex;
 
     /// @notice Execution nonce for creating unique contexts
-    uint256 private transient executionNonce;
+    uint256 public transient executionNonce;
 
     // Storage offsets for different state variables
     uint256 private constant OUT_AMOUNT_OFFSET = 1;
