@@ -250,4 +250,9 @@ interface ISuperHook {
     /// @dev Used for security validation between preExecute and postExecute calls
     /// @param caller The caller address for context identification
     function setExecutionContext(address caller) external;
+
+    /// @notice Returns the execution nonce for the current execution context
+    /// @dev Used to ensure unique execution contexts and prevent replay attacks
+    /// @return The execution nonce
+    function executionNonce() external view returns (uint256);
 }

@@ -131,4 +131,8 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     function setExecutionContext(address _caller) external {
         caller = _caller;
     }
+    
+    function executionNonce() external pure returns (uint256) {
+        return 1;
+    }
 }

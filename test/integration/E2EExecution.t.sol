@@ -11,6 +11,7 @@ import { MockRegistry } from "../mocks/MockRegistry.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import { ISuperValidator } from "../../src/core/interfaces/ISuperValidator.sol";
+import { ISuperHook } from "../../src/core/interfaces/ISuperHook.sol";
 import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { SuperValidatorBase } from "../../src/core/validators/SuperValidatorBase.sol";
@@ -883,6 +884,8 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         // Verify the normal execution worked correctly
         uint256 finalShares = IERC4626(morphoVault).balanceOf(nexusAccount);
         assertGt(finalShares, 0, "Normal execution should have succeeded despite poisoning attempt");
+
+        assertEq(ISuperHook(targetHook).executionNonce(), 2, "Nonce not right");
     }
 
     function test_HookPoisoning_DirectCall_DoesNotBreakNormalExecution() public {
