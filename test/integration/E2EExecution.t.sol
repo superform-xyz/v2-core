@@ -955,7 +955,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         _getTokens(underlyingToken, nexusAccount, amount * 2);
 
         // Create hook instance that we'll try to poison
-        address targetHook = deposit4626Hook;
+        address targetHook = approveHook;
 
         // Create malicious account that will try to poison the legitimate user's transaction
         // Use a different validator to completely bypass Superform core flow
