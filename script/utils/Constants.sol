@@ -103,13 +103,13 @@ abstract contract Constants {
     address internal constant PENDLE_ROUTER_OP_SEPOLIA = address(0x1);
 
     // Nexus Factory addresses per chain
-    address internal constant NEXUS_FACTORY_MAINNET = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
-    address internal constant NEXUS_FACTORY_BASE = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
-    address internal constant NEXUS_FACTORY_OPTIMISM = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
-    address internal constant NEXUS_FACTORY_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
-    address internal constant NEXUS_FACTORY_ARB_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
-    address internal constant NEXUS_FACTORY_BASE_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
-    address internal constant NEXUS_FACTORY_OP_SEPOLIA = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
+    address internal constant NEXUS_FACTORY_MAINNET = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
+    address internal constant NEXUS_FACTORY_BASE = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
+    address internal constant NEXUS_FACTORY_OPTIMISM = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
+    address internal constant NEXUS_FACTORY_SEPOLIA = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
+    address internal constant NEXUS_FACTORY_ARB_SEPOLIA = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
+    address internal constant NEXUS_FACTORY_BASE_SEPOLIA = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
+    address internal constant NEXUS_FACTORY_OP_SEPOLIA = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
 
     // Permit2 addresses per chain
     address internal constant PERMIT2_MAINNET = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
