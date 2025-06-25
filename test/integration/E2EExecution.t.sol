@@ -873,9 +873,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         testData.userOps[1] =
             _buildNormalExecutionUserOp(testData, nexusAccount, amount, underlyingToken, morphoVault, baseNonce + 1);
 
-        // Execute both operations - this should revert as we expect that only one userOp is passed
-        // through SuperForm
-        // sytem
+   
         IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(testData.userOps, payable(nexusAccount));
 
         // Verify the normal execution worked correctly
@@ -916,7 +914,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         uint256 legitimateNonce = _prepareNonce(nexusAccount);
 
         // Get base nonce for malicious account
-        uint256 maliciousNonce = _prepareNonce(maliciousAccount);
+        uint256 maliciousNonce = _prepareNonceWithValidator(maliciousAccount, address(mockValidator));
 
         // First userOp: Malicious account tries to poison hooks (attacker frontrunning)
         testData.userOps[0] = _buildDirectPoisoningUserOp(
