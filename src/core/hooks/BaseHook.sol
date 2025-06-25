@@ -279,35 +279,14 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     function _makeAccountContextKey(address account) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(ACCOUNT_CONTEXT_STORAGE, account));
     }
+    //
+    // deposit -> 1
+    // stake ->
 
     function _createExecutionContext(address caller, bytes calldata hookData) private returns (uint256) {
-        bytes32 key = _makeAccountContextKey(caller);
-
-        // Check if this hook should use previous execution context for chaining
-        bool shouldUsePreviousOutput;
-
-        // only grab usePrevHookAmount if hookData is not empty (used for when hooks are used standalone outside of
-        // 7579 execution and we always want new execution contexts)
-        if (hookData.length > 0) {
-            shouldUsePreviousOutput = _shouldUsePreviousOutput(hookData);
-        }
-
-        if (shouldUsePreviousOutput) {
-            // Get existing context for caller
-            uint256 existingContext;
-            assembly {
-                existingContext := tload(key)
-            }
-
-            // If we have an existing context, reuse it for chaining
-            if (existingContext != 0) {
-                return existingContext;
-            }
-            // If no existing context, fall through to create new one
-        }
-
         // Always increment nonce for new execution context
         executionNonce++;
+        bytes32 key = _makeAccountContextKey(caller);
 
         // Store this context for the current caller
         uint256 currentNonce = executionNonce; // Load into local variable for assembly
