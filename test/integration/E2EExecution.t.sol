@@ -872,7 +872,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         uint256 baseNonce = _prepareNonce(nexusAccount);
 
         // First userOp: Direct call to setExecutionContext (attempting to poison)
-        testData.userOps[0] = _buildPoisoningUserOp(nexusAccount, targetHook, baseNonce);
+        testData.userOps[0] = _buildPoisoningUserOp(nexusAccount, targetHook, baseNonce, "setExecutionContext(address)", nexusAccount);
 
         // Second userOp: Normal SuperExecutor execution with deposit and redeem hooks
         testData.userOps[1] =
@@ -888,7 +888,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         assertEq(ISuperHook(targetHook).executionNonce(), 2, "Nonce not right");
     }
 
-    function test_HookPoisoning_DirectCall_DoesNotBreakNormalExecution() public {
+    function test_HookPoisoning_DirectCall_SetExecutionContext_DoesNotBreakNormalExecution() public {
         TestData memory testData;
         testData.zero = 0;
         testData.ten = 10;
@@ -924,9 +924,8 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         uint256 maliciousNonce = _prepareNonceWithValidator(maliciousAccount, address(mockValidator));
 
         // First userOp: Malicious account tries to poison hooks (attacker frontrunning)
-        testData.userOps[0] = _buildDirectPoisoningUserOp(
-            maliciousAccount, targetHook, nexusAccount, "setExecutionContext", maliciousNonce
-        );
+        testData.userOps[0] = _buildPoisoningUserOp(maliciousAccount, targetHook, maliciousNonce, "setExecutionContext(address)", nexusAccount);
+
 
         // Second userOp: Legitimate user's normal SuperExecutor execution
         testData.userOps[1] =
@@ -940,48 +939,63 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         assertGt(finalShares, 0, "Normal execution should have succeeded despite poisoning attempt");
     }
 
-    function _buildDirectPoisoningUserOp(
-        address maliciousAccount,
-        address targetHook,
-        address victimAccount,
-        string memory functionName,
-        uint256 nonce
-    )
-        internal
-        pure
-        returns (PackedUserOperation memory userOp)
-    {
-        bytes memory hookCallData;
+    function test_HookPoisoning_DirectCall_SetAmount_DoesNotBreakNormalExecution() public {
+        TestData memory testData;
+        testData.zero = 0;
+        testData.ten = 10;
 
-        // Build callData for the hook function we want to poison with
-        if (keccak256(bytes(functionName)) == keccak256("setExecutionContext")) {
-            hookCallData = abi.encodeWithSignature("setExecutionContext(address)", victimAccount);
-        } else if (keccak256(bytes(functionName)) == keccak256("preExecute")) {
-            hookCallData =
-                abi.encodeWithSignature("preExecute(address,address,bytes)", address(0), victimAccount, hex"deadbeef");
-        } else if (keccak256(bytes(functionName)) == keccak256("postExecute")) {
-            hookCallData =
-                abi.encodeWithSignature("postExecute(address,address,bytes)", address(0), victimAccount, hex"deadbeef");
-        } else if (keccak256(bytes(functionName)) == keccak256("setOutAmount")) {
-            hookCallData = abi.encodeWithSignature("setOutAmount(uint256,address)", 12_345, victimAccount);
-        } else if (keccak256(bytes(functionName)) == keccak256("resetExecutionState")) {
-            hookCallData = abi.encodeWithSignature("resetExecutionState(address)", victimAccount);
-        } else {
-            revert("Unsupported poisoning function");
-        }
+        uint256 amount = 100e6;
+        address underlyingToken = CHAIN_1_USDC;
+        address morphoVault = CHAIN_1_MorphoVault;
 
-        // Create malicious userOp with direct hook function call as callData
-        // This simulates the attacker directly calling hook functions to poison them
-        userOp = _createPackedUserOperation(maliciousAccount, nonce, hookCallData);
+        // Create legitimate account
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
 
-        // MockValidator doesn't require real signature validation, use simple signature
-        userOp.signature = hex"1234567890"; // Dummy signature since MockValidator always returns valid
+        // Fund account with tokens
+        _getTokens(underlyingToken, nexusAccount, amount * 2);
+
+        // Create hook instance that we'll try to poison
+        address targetHook = deposit4626Hook;
+
+        // Create malicious account that will try to poison the legitimate user's transaction
+        // Use a different validator to completely bypass Superform core flow
+        address maliciousAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+
+        // Deploy and install MockValidator on malicious account to bypass normal validation
+        MockValidator mockValidator = new MockValidator();
+        _installValidatorOnAccount(maliciousAccount, address(mockValidator));
+
+        // Build two userOps with proper nonce ordering (simulating mempool attack)
+        testData.userOps = new PackedUserOperation[](2);
+
+        // Get base nonce for legitimate account
+        uint256 legitimateNonce = _prepareNonce(nexusAccount);
+
+        // Get base nonce for malicious account
+        uint256 maliciousNonce = _prepareNonceWithValidator(maliciousAccount, address(mockValidator));
+
+        // First userOp: Malicious account tries to poison hooks (attacker frontrunning)
+        testData.userOps[0] = _buildPoisoningUserOp(maliciousAccount, targetHook, maliciousNonce, "setOutAmount(uint256,address)", nexusAccount);
+
+
+        // Second userOp: Legitimate user's normal SuperExecutor execution
+        testData.userOps[1] =
+            _buildNormalExecutionUserOp(testData, nexusAccount, amount, underlyingToken, morphoVault, legitimateNonce);
+
+        // Execute both operations - legitimate execution should succeed despite poisoning attempt
+        IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(testData.userOps, payable(nexusAccount));
+
+        // Verify the normal execution worked correctly despite poisoning attempt
+        uint256 finalShares = IERC4626(morphoVault).balanceOf(nexusAccount);
+        assertGt(finalShares, 0, "Normal execution should have succeeded despite poisoning attempt");
     }
 
     function _buildPoisoningUserOp(
         address nexusAccount,
         address targetHook,
-        uint256 nonce
+        uint256 nonce,
+        string memory fnSig,
+        address victimAcc
     )
         internal
         view
@@ -992,7 +1006,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         executions[0] = Execution({
             target: targetHook,
             value: 0,
-            callData: abi.encodeWithSignature("setExecutionContext(address)", nexusAccount)
+            callData: _buildPoisoningCalldata(fnSig, victimAcc)
         });
 
         bytes memory callData = _prepareExecutionCalldata(executions);
@@ -1002,6 +1016,16 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         (bytes memory sigData,,,) = _getSameChainSignatureData(userOp, ENTRYPOINT_ADDR);
 
         userOp.signature = sigData;
+    }
+
+    function _buildPoisoningCalldata(string memory fnSig, address victimAcc) internal pure returns (bytes memory) {
+        if (keccak256(bytes(fnSig)) == keccak256("setExecutionContext(address)")) {
+            return abi.encodeWithSignature(fnSig, victimAcc);
+        } else if (keccak256(bytes(fnSig)) == keccak256("setOutAmount(uint256,address)")) {
+            return abi.encodeWithSignature(fnSig, 12_345, victimAcc);
+        } else {
+            revert("Unsupported poisoning function");
+        }
     }
 
     function _buildNormalExecutionUserOp(
