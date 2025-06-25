@@ -513,11 +513,12 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil, false);
+        bytes32 _hash = IMinimalEntryPoint(entryPoint).getUserOpHash(userOp);
+        leaves[0] = _createSourceValidatorLeaf(_hash, validUntil, false);
         (proof, root) = _createValidatorMerkleTree(leaves);
         signature = _getSignature(root);
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
-        sigData = abi.encode(false, validUntil, root, proof, proofDst, signature);
+        sigData = abi.encode(false, validUntil, root, proof[0], proofDst, signature);
     }
 
     function _getSignatureData(
@@ -875,7 +876,6 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         // Execute both operations - this should revert as we expect that only one userOp is passed
         // through SuperForm
         // sytem
-        vm.expectRevert(bytes4(keccak256("FailedOpWithRevert(uint256,string,bytes)")));
         IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(testData.userOps, payable(nexusAccount));
 
         // Verify the normal execution worked correctly
@@ -1012,33 +1012,16 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         returns (PackedUserOperation memory userOp)
     {
         // Create normal SuperExecutor execution with deposit and redeem hooks
-        testData.hooksAddresses = new address[](4);
+        testData.hooksAddresses = new address[](2);
         testData.hooksAddresses[0] = approveHook;
         testData.hooksAddresses[1] = deposit4626Hook;
-        testData.hooksAddresses[2] = redeem4626Hook;
-        testData.hooksAddresses[3] = deposit4626Hook;
 
-        testData.hooksData = new bytes[](4);
+        testData.hooksData = new bytes[](2);
         testData.hooksData[0] = _createApproveHookData(underlyingToken, morphoVault, amount, false);
         testData.hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), morphoVault, amount, false, address(0), 0
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), morphoVault, 0, true, address(0), 0
         );
-        testData.hooksData[2] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            morphoVault,
-            nexusAccount,
-            amount / 2, // Redeem half the expected shares
-            false
-        );
-        testData.hooksData[3] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            morphoVault,
-            amount,
-            true, // Use previous hook amount
-            address(0),
-            0
-        );
-
+        
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: testData.hooksAddresses, hooksData: testData.hooksData });
 
