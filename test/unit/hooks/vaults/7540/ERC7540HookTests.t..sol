@@ -195,7 +195,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     }
 
     function test_cancelRedeemHook_InspectorTests() public view {
-        bytes memory data = _encodeData(false);
+        bytes memory data = _encodeCancelRedeem();
         bytes memory argsEncoded = cancelRedeemHook.inspect(data);
         assertGt(argsEncoded.length, 0);
     }
@@ -738,13 +738,37 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         _getTokens(token, address(this), amount);
 
         bytes memory data =
-            abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), amount, false, address(this), uint256(1));
+            abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), address(this), uint256(1));
 
         claimCancelRedeemRequestHook.preExecute(address(0), address(this), data);
         assertEq(claimCancelRedeemRequestHook.getOutAmount(address(this)), 1_000_000_000);
 
         claimCancelRedeemRequestHook.postExecute(address(0), address(this), data);
         assertEq(claimCancelRedeemRequestHook.getOutAmount(address(this)), 0);
+
+        assertEq(claimCancelRedeemRequestHook.spToken(), token, "1");
+        assertEq(claimCancelRedeemRequestHook.vaultBank(), address(this), "2");
+        assertEq(claimCancelRedeemRequestHook.dstChainId(), 1, "3");
+    }
+
+    function test_ClaimCancelRedeemRequestHook_SpTokenAndDstChainId() public {
+        address receiver = address(0x123);
+        address vaultBank = address(0x456);
+        uint256 testDstChainId = 12345;
+        
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, receiver, vaultBank, testDstChainId);
+        
+        claimCancelRedeemRequestHook.preExecute(address(0), address(this), data);
+        
+        assertEq(
+            claimCancelRedeemRequestHook.spToken(), 
+            address(token)
+        );
+        
+        assertEq(
+            claimCancelRedeemRequestHook.dstChainId(), 
+            testDstChainId
+        );
     }
 
     function test_claimCancelDepositRequestHook_PreAndPostExecute() public {
@@ -823,7 +847,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     }
 
     function test_CancelRedeemHook_Build() public view {
-        bytes memory data = _encodeData();
+        bytes memory data = _encodeCancelRedeem();
         Execution[] memory executions = cancelRedeemHook.build(address(0), address(this), data);
         assertEq(executions.length, 3);
         assertEq(executions[1].target, yieldSource);
@@ -831,8 +855,31 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         assertGt(executions[1].callData.length, 0);
     }
 
+    function test_CancelRedeemHook_SpTokenAndDstChainId() public {
+        address vaultBank = address(0x456);
+        uint256 testDstChainId = 12345;
+
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, vaultBank, testDstChainId);
+
+        cancelRedeemHook.preExecute(address(0), address(this), data);
+
+        assertEq(
+            cancelRedeemHook.vaultBank(), 
+            vaultBank, "A"
+        );
+        assertEq(
+            cancelRedeemHook.dstChainId(), 
+            testDstChainId, "B"
+        );
+
+        assertEq(
+            cancelRedeemHook.spToken(), 
+            address(yieldSource), "C"
+        );
+    }
+
     function test_CancelRedeemHook_Build_Revert_ZeroAddress() public {
-        bytes memory data = _encodeData();
+        bytes memory data = _encodeCancelRedeem();
         vm.expectRevert();
         cancelRedeemHook.build(address(0), address(0), data);
     }
@@ -841,7 +888,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         yieldSource = token; // for the .balanceOf call
         _getTokens(token, address(this), amount);
 
-        bytes memory data = _encodeData();
+        bytes memory data = _encodeCancelRedeem();
         cancelRedeemHook.preExecute(address(0), address(this), data);
         assertEq(cancelRedeemHook.getOutAmount(address(this)), amount);
 
@@ -869,9 +916,14 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         );
     }
 
+    
+
     /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
+    function share() public view returns (address) {
+        return token;
+    }
     function _encodeData() internal view returns (bytes memory) {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, address(this));
     }
@@ -882,6 +934,10 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function _encodeData(bool usePrevHook, bool lockForSp) internal view returns (bytes memory) {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, usePrevHook, lockForSp);
+    }
+
+    function _encodeCancelRedeem() internal view returns (bytes memory) {
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), uint256(1));
     }
 
     function _encodeRedeemData(bool usePrevHook) internal view returns (bytes memory) {

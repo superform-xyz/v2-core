@@ -19,6 +19,8 @@ import { ISuperHookAsyncCancelations, ISuperHookInspector } from "../../../inter
 /// @dev data has the following structure
 /// @notice         bytes4 placeholder = BytesLib.toAddress(data, 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 4);
+/// @notice         address vaultBank = BytesLib.toAddress(data, 24);
+/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 44);
 contract CancelRedeemHook is BaseHook, ISuperHookAsyncCancelations, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
@@ -65,6 +67,9 @@ contract CancelRedeemHook is BaseHook, ISuperHookAsyncCancelations, ISuperHookIn
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         setOutAmount(_getBalance(account, data), account);
+        vaultBank = BytesLib.toAddress(data, 24);
+        dstChainId = BytesLib.toUint256(data, 44);
+        spToken = data.extractYieldSource();
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

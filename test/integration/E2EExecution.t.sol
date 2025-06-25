@@ -185,8 +185,12 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         // Create leaves
         testData.leaves = new bytes32[](3);
         // Leaf for source operation
-        testData.leaves[0] =
-            _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, true);
+        testData.leaves[0] = _createSourceValidatorLeaf(
+            IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp),
+            validUntil,
+            true,
+            address(superMerkleValidator)
+        );
 
         // Leaf for cross-chain USDC
         message.dstTokens = new address[](1);
@@ -514,7 +518,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
         bytes32 _hash = IMinimalEntryPoint(entryPoint).getUserOpHash(userOp);
-        leaves[0] = _createSourceValidatorLeaf(_hash, validUntil, false);
+        leaves[0] = _createSourceValidatorLeaf(_hash, validUntil, false, address(superMerkleValidator));
         (proof, root) = _createValidatorMerkleTree(leaves);
         signature = _getSignature(root);
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
@@ -534,7 +538,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
     {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](2);
-        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil, true);
+        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil, true, address(superMerkleValidator));
 
         leaves[1] = _createDestinationValidatorLeaf(
             dstMessage.executorCalldata,
