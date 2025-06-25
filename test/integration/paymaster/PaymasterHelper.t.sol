@@ -30,6 +30,7 @@ import { SuperLedger } from "../../../src/core/accounting/SuperLedger.sol";
 import { ERC5115Ledger } from "../../../src/core/accounting/ERC5115Ledger.sol";
 import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { ISuperValidator } from "../../../src/core/interfaces/ISuperValidator.sol";
 import { ApproveERC20Hook } from "../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { Deposit4626VaultHook } from "../../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
 import { Redeem4626VaultHook } from "../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
@@ -205,7 +206,8 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         );
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
-        bytes memory sigData = abi.encode(validUntil, root, proof[0], proof[0], signature);
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        bytes memory sigData = abi.encode(false, validUntil, root, proof[0], proofDst, signature);
         // -- replace signature with validator signature
         userOp.signature = sigData;
 
