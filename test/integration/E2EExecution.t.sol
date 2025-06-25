@@ -952,7 +952,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         // Build callData for the hook function we want to poison with
         if (keccak256(bytes(functionName)) == keccak256("setExecutionContext")) {
-            hookCallData = abi.encodeWithSignature("setExecutionContext(address,bytes)", victimAccount, hex"deadbeef");
+            hookCallData = abi.encodeWithSignature("setExecutionContext(address)", victimAccount);
         } else if (keccak256(bytes(functionName)) == keccak256("preExecute")) {
             hookCallData =
                 abi.encodeWithSignature("preExecute(address,address,bytes)", address(0), victimAccount, hex"deadbeef");
@@ -989,7 +989,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         executions[0] = Execution({
             target: targetHook,
             value: 0,
-            callData: abi.encodeWithSignature("setExecutionContext(address,bytes)", nexusAccount, hex"deadbeef")
+            callData: abi.encodeWithSignature("setExecutionContext(address)", nexusAccount)
         });
 
         bytes memory callData = _prepareExecutionCalldata(executions);

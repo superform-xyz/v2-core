@@ -59,7 +59,7 @@ contract MockSuperHook {
     /// @notice Resets execution state - ONLY callable by executor after accounting
     function resetExecutionState(address) external { }
 
-    function setExecutionContext(address _caller, bytes calldata) external {
+    function setExecutionContext(address _caller) external {
         caller = _caller;
     }
 }

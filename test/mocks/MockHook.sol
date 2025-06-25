@@ -128,7 +128,7 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         postExecuteMutex = false;
     }
 
-    function setExecutionContext(address _caller, bytes calldata) external {
+    function setExecutionContext(address _caller) external {
         caller = _caller;
     }
 }

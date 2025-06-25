@@ -5,7 +5,7 @@ pragma solidity 0.8.30;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { ISuperHook, ISuperHookSetter, ISuperHookContextAware, ISuperHookResult } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookSetter, ISuperHookResult } from "../interfaces/ISuperHook.sol";
 
 /// @title BaseHook
 /// @author Superform Labs
@@ -115,8 +115,8 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
                           EXECUTION SECURITY
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHook
-    function setExecutionContext(address caller, bytes calldata hookData) external {
-        _createExecutionContext(caller, hookData);
+    function setExecutionContext(address caller) external {
+        _createExecutionContext(caller);
     }
 
     /// @dev Standard build pattern - MUST include preExecute first, postExecute last
@@ -283,7 +283,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     // deposit -> 1
     // stake ->
 
-    function _createExecutionContext(address caller, bytes calldata hookData) private returns (uint256) {
+    function _createExecutionContext(address caller) private returns (uint256) {
         // Always increment nonce for new execution context
         executionNonce++;
         bytes32 key = _makeAccountContextKey(caller);
@@ -353,13 +353,5 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     function _clearExecutionState(uint256 context) private {
         _setPreExecuteMutex(context, false);
         _setPostExecuteMutex(context, false);
-    }
-
-    function _shouldUsePreviousOutput(bytes calldata hookData) private view returns (bool) {
-        try ISuperHookContextAware(address(this)).decodeUsePrevHookAmount(hookData) returns (bool usePrevHookAmount) {
-            return usePrevHookAmount;
-        } catch {
-            return false;
-        }
     }
 }

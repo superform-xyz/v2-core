@@ -13,7 +13,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookSetter } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookSetter, ISuperHookContextAware } from "../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 import { IVaultBank } from "../../periphery/interfaces/VaultBank/IVaultBank.sol";
 
@@ -157,6 +157,10 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         address currentHook;
         for (uint256 i; i < hooksLen; ++i) {
             currentHook = entry.hooksAddresses[i];
+            if (i == 0) {
+                bool usePrevHookAmount = _shouldUsePreviousOutput(currentHook, entry.hooksData[i]);
+                if (usePrevHookAmount) revert FIRST_HOOK_CANNOT_USE_PREVIOUS_AMOUNT();
+            }
             if (currentHook == address(0)) revert ADDRESS_NOT_VALID();
 
             _processHook(account, ISuperHook(currentHook), prevHook, entry.hooksData[i]);
@@ -306,7 +310,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         }
 
         // STEP 2: Build and execute (dual mutexes protect pre/post)
-        hook.setExecutionContext(account, hookData);
+        hook.setExecutionContext(account);
         _execute(account, executions);
 
         // STEP 3: Update accounting (both mutexes active, preventing reentrancy)
@@ -351,6 +355,14 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
             // Lock assets in the vault bank for cross-chain transfer
             IVaultBank(vaultBank).lockAsset(account, spToken, hook, amount, uint64(dstChainId));
+        }
+    }
+
+    function _shouldUsePreviousOutput(address hook, bytes memory hookData) private pure returns (bool) {
+        try ISuperHookContextAware(hook).decodeUsePrevHookAmount(hookData) returns (bool usePrevHookAmount) {
+            return usePrevHookAmount;
+        } catch {
+            return false;
         }
     }
 }
