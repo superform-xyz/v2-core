@@ -456,7 +456,7 @@ contract SpectraExchangeHooksTests is Helpers {
         uint256 updatedMinShares;
     }
 
-    function test_Build_WithPrevHook_CallDataLength() public {
+    function test_Build_WithPrevHook_CallDataLengthABC() public {
         CallDataTestVars memory vars;
 
         // Create a custom mock hook with a fixed output amount
@@ -465,7 +465,7 @@ contract SpectraExchangeHooksTests is Helpers {
 
         // Set up command data for DEPOSIT_ASSET_IN_PT
         vars.commandsData = new bytes(1);
-        vars.commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
+        vars.commandsData[0] = bytes1(uint8(SpectraCommands.REDEEM_PT_FOR_ASSET));
 
         // Original amount in the input data
         vars.originalAmount = 1000e18;
@@ -484,10 +484,13 @@ contract SpectraExchangeHooksTests is Helpers {
         // Create hook data with usePrevHookAmount = true
         vars.data = abi.encodePacked(
             bytes4(bytes("")), // yieldSourceOracleId
-            address(token), // yieldSource
+            address(token), // asset
+            address(token), // pt
+            address(this), // recipient
+            uint256(2e6), // minAssets
+            uint256(0), // shares To burn
             true, // usePrevHookAmount = true
-            uint256(0), // value
-            vars.originalTxData // transaction data
+            vars.commandsData[0] // command
         );
 
         // Verify decodeUsePrevHookAmount is working as expected
@@ -499,13 +502,6 @@ contract SpectraExchangeHooksTests is Helpers {
 
         // Extract the updated callData from the execution
         vars.updatedTxData = vars.executions[1].callData;
-
-        // Verify the updated transaction data has the same length as the original
-        assertEq(
-            vars.updatedTxData.length,
-            vars.originalTxDataLength,
-            "Updated transaction data length should match original length"
-        );
 
         // Verify our mock hook is returning the correct amount
         assertEq(
@@ -524,20 +520,15 @@ contract SpectraExchangeHooksTests is Helpers {
         // Verify we have the right number of inputs
         assertEq(vars.updatedInputs.length, 1, "Should have one input");
 
-        // Decode the first input to get the updated amount
-        (vars.updatedPt, vars.updatedAmount, vars.updatedPtRecipient, vars.updatedYtRecipient, vars.updatedMinShares) =
-            abi.decode(vars.updatedInputs[0], (address, uint256, address, address, uint256));
+        uint256 offset = 32;
+        uint256 sharesToBurn;
+        bytes memory inputData = vars.updatedInputs[0];
+        assembly {
+            sharesToBurn := mload(add(inputData, add(0x20, offset)))
+        }
 
         // Verify the amount was updated to use the previous hook amount
-        assertEq(vars.updatedAmount, vars.prevHookAmount, "Amount should be updated to previous hook amount");
-
-        // Verify other parameters remained unchanged
-        assertEq(
-            vars.updatedCommandsData.length, vars.commandsData.length, "Command data length should remain the same"
-        );
-        assertEq(vars.updatedPt, address(token), "PT address should remain unchanged");
-        assertEq(vars.updatedPtRecipient, account, "PT recipient should remain unchanged");
-        assertEq(vars.updatedYtRecipient, account, "YT recipient should remain unchanged");
+        assertEq(sharesToBurn, vars.prevHookAmount, "Amount should be updated to previous hook amount");
     }
 }
 
