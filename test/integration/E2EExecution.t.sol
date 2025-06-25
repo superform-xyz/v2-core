@@ -516,7 +516,8 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil, false);
         (proof, root) = _createValidatorMerkleTree(leaves);
         signature = _getSignature(root);
-        sigData = abi.encode(validUntil, root, proof[0], hex"1111", signature);
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        sigData = abi.encode(false, validUntil, root, proof, proofDst, signature);
     }
 
     function _getSignatureData(
@@ -874,7 +875,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         // Execute both operations - this should revert as we expect that only one userOp is passed
         // through SuperForm
         // sytem
-        vm.expectRevert();
+        vm.expectRevert(bytes4(keccak256("FailedOpWithRevert(uint256,string,bytes)")));
         IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(testData.userOps, payable(nexusAccount));
 
         // Verify the normal execution worked correctly
