@@ -17,6 +17,8 @@ import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookSetter
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 import { IVaultBank } from "../../periphery/interfaces/VaultBank/IVaultBank.sol";
 
+import "forge-std/console2.sol";
+
 /// @title SuperExecutorBase
 /// @author Superform Labs
 /// @notice Base contract for Superform executors that processes hook sequences
@@ -310,6 +312,13 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
             revert MALICIOUS_HOOK_DETECTED();
         }
 
+        console2.log("--------- this       ", address(this));
+        address _lastCaller = hook.lastCaller();
+        console2.log("--------- _lastCaller", _lastCaller);
+        if (_lastCaller != address(0) && _lastCaller != address(this)) {
+            revert INVALID_CALLER();
+        }
+        
         // STEP 2: Build and execute (dual mutexes protect pre/post)
         hook.setExecutionContext(account);
         _execute(account, executions);

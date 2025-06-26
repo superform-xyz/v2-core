@@ -255,4 +255,8 @@ interface ISuperHook {
     /// @dev Used to ensure unique execution contexts and prevent replay attacks
     /// @return The execution nonce
     function executionNonce() external view returns (uint256);
+
+    /// @notice Returns the last caller registered by `setExecutionContext`
+    /// @return The last caller address
+    function lastCaller() external view returns (address);
 }
