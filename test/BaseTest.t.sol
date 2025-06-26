@@ -1992,7 +1992,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         TargetExecutorMessage memory messageData,
         bytes32 userOpHash,
         address accountToUse,
-        uint64 dstChainId
+        uint64 dstChainId,
+        address srcValidator
     )
         internal
         view
@@ -2020,7 +2021,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             ctx.validUntil,
             messageData.validator
         );
-        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, true);
+        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, true, srcValidator);
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
 

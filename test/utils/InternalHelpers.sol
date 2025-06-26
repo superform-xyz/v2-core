@@ -61,8 +61,8 @@ abstract contract InternalHelpers {
         );
         uint128 paymasterVerificationGasLimit = 2e6;
         uint128 postOpGasLimit = 1e6;
-        bytes memory paymasterData = abi.encode(uint128(2e6), uint128(10)); // paymasterData {
-            // maxGasLimit = 200000, nodeOperatorPremium = 10 % }
+        bytes memory paymasterData = abi.encode(uint128(2e6), uint128(10), uint256(1e5)); // paymasterData {
+            // maxGasLimit = 200000, nodeOperatorPremium = 10 %, postOpGas = 100000 }
         userOpData.userOp.paymasterAndData =
             abi.encodePacked(paymaster, paymasterVerificationGasLimit, postOpGasLimit, paymasterData);
         return userOpData;

@@ -76,7 +76,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         uint256 finalShareBalance = vaultInstanceEth.balanceOf(accountEth);
         assertEq(finalShareBalance, 0);
         
-        uint256 expectedTokensReturned = IERC4626(yieldSourceAddressEth).convertToAssets(accSharesAfter);
+        IERC4626(yieldSourceAddressEth).convertToAssets(accSharesAfter);
         uint256 actualTokenBalance = IERC20(underlyingEth_USDC).balanceOf(accountEth);
         assertGt(actualTokenBalance, 0);
         

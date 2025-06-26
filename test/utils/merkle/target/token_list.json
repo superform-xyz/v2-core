@@ -62,7 +62,7 @@
     },
     {
       "symbol": "test_1_DynamicAllocation_MockVault",
-      "address": "0x8b26827CCA35B559599d64d7147badF7d9Dc291D"
+      "address": "0x273FcDE7FaE7aE912449B6c29E435EF2A09109F2"
     },
     {
       "symbol": "test_3_UnderlyingVaults_StressTest",
@@ -70,27 +70,27 @@
     },
     {
       "symbol": "test_6_yieldAccumulation_vault1",
-      "address": "0x36c03eD8648A943127886fB19175E5D6be819E87"
+      "address": "0x9F45e7Bd7c052EfA504F96D419DC0d8c4eAf4817"
     },
     {
       "symbol": "test_6_yieldAccumulation_vault2",
-      "address": "0x708fbB892c4bB273EC42e38987485C0D7C8136C3"
+      "address": "0x9aCd1932A27df607BEf0B189FE59ee5198c387cA"
     },
     {
       "symbol": "test_6_yieldAccumulation_vault3",
-      "address": "0x2377d4e22a9cA83691621d7c9E21B2a03501E389"
+      "address": "0x3F8E266097bD5e283415F9121072775eE7e515BA"
     },
     {
       "symbol": "test_6_yieldAccumulation_WithRebalancing_vault1",
-      "address": "0xF9C4948A0f34DC1014Fa3eD9f52c88EFE1E4FaF7"
+      "address": "0x97E8Ed255eC57395e49F232e351af77580c7b757"
     },
     {
       "symbol": "test_6_yieldAccumulation_WithRebalancing_vault2",
-      "address": "0x5685536cD8f1Ad725685D8EF9491453B6c3c3863"
+      "address": "0xf95f423d11dBf1d6562883F5CCc5870ef7FD80cF"
     },
     {
       "symbol": "test_6_yieldAccumulation_WithRebalancing_vault3",
-      "address": "0x61ECC2e7794a3D29e7346D5d2f942D67F4968902"
+      "address": "0x53A0fe9F918564556846A89cC7E4FCA39793A122"
     },
     {
       "symbol": "test_10_RuggableVault_Deposit",
@@ -106,7 +106,7 @@
     },
     {
       "symbol": "test_11_Allocate_NewYieldSource",
-      "address": "0x80e209Bf4A011b9CD30d4594994c81c88E7F1E62"
+      "address": "0x40C882E3a611C429EE43f2420a5047618f18c4AC"
     }
   ],
   "10": [

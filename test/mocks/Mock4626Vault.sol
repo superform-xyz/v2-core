@@ -31,6 +31,10 @@ contract Mock4626Vault is ERC4626 {
         _asset = address(asset_);
     }
 
+    function setAsset(address _a) external {
+        _asset = _a;
+    }
+
     function setYield(uint256 yield_) external {
         yield = yield_;
     }
