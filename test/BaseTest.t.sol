@@ -501,7 +501,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             contractAddresses[chainIds[i]][SUPER_ORACLE_KEY] = address(A[i].oracleRegistry);
 
             A[i].superLedgerConfiguration =
-                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration{ salt: SALT }(address(this))));
+                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration{ salt: SALT }()));
             vm.label(address(A[i].superLedgerConfiguration), SUPER_LEDGER_CONFIGURATION_KEY);
             contractAddresses[chainIds[i]][SUPER_LEDGER_CONFIGURATION_KEY] = address(A[i].superLedgerConfiguration);
 
@@ -1759,11 +1759,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
-            vm.stopPrank();
 
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
                 configs
             );
+            vm.stopPrank();
         }
     }
     /*//////////////////////////////////////////////////////////////
