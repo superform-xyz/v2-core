@@ -584,7 +584,7 @@ contract DeployV2 is Script, Configuration {
         );
         hooks[22] = HookDeployment(
             DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
-            abi.encodePacked(type(DeBridgeCancelOrderHook).creationCode, abi.encode(DEBRIDGE_DLN_SRC))
+            abi.encodePacked(type(DeBridgeCancelOrderHook).creationCode, abi.encode(DEBRIDGE_DLN_DST))
         );
 
         hooks[23] = HookDeployment(FLUID_CLAIM_REWARD_HOOK_KEY, type(FluidClaimRewardHook).creationCode);
