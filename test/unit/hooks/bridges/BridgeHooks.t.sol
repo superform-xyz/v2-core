@@ -571,6 +571,7 @@ contract BridgeHooks is Helpers {
             uint256(giveTokenAddress.length), // giveTokenAddress length
             giveTokenAddress, // giveTokenAddress
             giveAmount, // giveAmount
+            uint256(1), // giveChainId
             mockDestinationChainId, // takeChainId
             uint256(takeTokenAddress.length), // takeTokenAddress length
             takeTokenAddress, // takeTokenAddress
