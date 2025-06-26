@@ -2,15 +2,15 @@
 pragma solidity 0.8.30;
 
 // external
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {IDlnSource} from "../../../../vendor/bridges/debridge/IDlnSource.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { IDlnSource } from "../../../../vendor/bridges/debridge/IDlnSource.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {ISuperSignatureStorage} from "../../../interfaces/ISuperSignatureStorage.sol";
-import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title DeBridgeSendOrderAndExecuteOnDstHook
 /// @author Superform Labs
@@ -89,7 +89,11 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc BaseHook
-    function _buildHookExecutions(address prevHook, address account, bytes calldata data)
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
         internal
         view
         override
@@ -179,7 +183,10 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         uint8 version;
     }
 
-    function _createOrder(bytes memory data, bytes memory sigData)
+    function _createOrder(
+        bytes memory data,
+        bytes memory sigData
+    )
         internal
         pure
         returns (
@@ -313,7 +320,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
         return abi.encodePacked(params.version, abi.encode(envelope));
     }
 
-    function _preExecute(address, address, bytes calldata) internal override {}
+    function _preExecute(address, address, bytes calldata) internal override { }
 
-    function _postExecute(address, address, bytes calldata) internal override {}
+    function _postExecute(address, address, bytes calldata) internal override { }
 }
