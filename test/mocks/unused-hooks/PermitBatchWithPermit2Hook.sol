@@ -114,13 +114,13 @@ contract PermitBatchWithPermit2Hook is BaseHook {
         (,, uint256 indexOfAmount, IAllowanceTransfer.PermitBatch memory permitBatch,) =
             abi.decode(data, (address, bool, uint256, IAllowanceTransfer.PermitBatch, bytes));
 
-        setOutAmount(permitBatch.details[indexOfAmount].amount, account);
+        _setOutAmount(permitBatch.details[indexOfAmount].amount, account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         (,, uint256 indexOfAmount, IAllowanceTransfer.PermitBatch memory permitBatch,) =
             abi.decode(data, (address, bool, uint256, IAllowanceTransfer.PermitBatch, bytes));
 
-        setOutAmount(permitBatch.details[indexOfAmount].amount, account);
+        _setOutAmount(permitBatch.details[indexOfAmount].amount, account);
     }
 }

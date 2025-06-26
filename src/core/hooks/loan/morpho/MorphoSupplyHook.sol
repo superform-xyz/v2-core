@@ -138,10 +138,10 @@ contract MorphoSupplyHook is BaseMorphoLoanHook, ISuperHookInspector {
 
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
-        setOutAmount(getCollateralTokenBalance(account, data), account);
+        _setOutAmount(getCollateralTokenBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(getOutAmount(account) - getCollateralTokenBalance(account, data), account);
+        _setOutAmount(getOutAmount(account) - getCollateralTokenBalance(account, data), account);
     }
 }

@@ -70,10 +70,10 @@ contract ApproveWithPermit2Hook is BaseHook {
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0)), account);
+        _setOutAmount(uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0)), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0)), account);
+        _setOutAmount(uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0)), account);
     }
 }

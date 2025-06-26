@@ -81,11 +81,11 @@ contract GearboxUnstakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspe
         address yieldSource = data.extractYieldSource();
         /// @dev in Gearbox, the staking token is the asset
         asset = IGearboxFarmingPool(yieldSource).stakingToken();
-        setOutAmount(_getBalance(account, data), account);
+        _setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -82,12 +82,12 @@ contract PermitWithPermit2Hook is BaseHook {
     function _preExecute(address, address account, bytes calldata data) internal override {
         (,, IAllowanceTransfer.PermitSingle memory permitSingle,) =
             abi.decode(data, (address, bool, IAllowanceTransfer.PermitSingle, bytes));
-        setOutAmount(permitSingle.details.amount, account);
+        _setOutAmount(permitSingle.details.amount, account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         (,, IAllowanceTransfer.PermitSingle memory permitSingle,) =
             abi.decode(data, (address, bool, IAllowanceTransfer.PermitSingle, bytes));
-        setOutAmount(permitSingle.details.amount, account);
+        _setOutAmount(permitSingle.details.amount, account);
     }
 }

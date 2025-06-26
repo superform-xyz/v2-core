@@ -242,10 +242,10 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
         morphoInterface.accrueInterest(marketParams);
 
         // store current balance
-        setOutAmount(getCollateralTokenBalance(account, data), account);
+        _setOutAmount(getCollateralTokenBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(getCollateralTokenBalance(account, data) - getOutAmount(account), account);
+        _setOutAmount(getCollateralTokenBalance(account, data) - getOutAmount(account), account);
     }
 }

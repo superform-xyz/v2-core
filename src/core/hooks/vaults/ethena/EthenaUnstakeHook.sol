@@ -65,14 +65,14 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInspector {
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(_getBalance(account, data), account);
+        _setOutAmount(_getBalance(account, data), account);
         usedShares = _getSharesBalance(account, data);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         address yieldSource = data.extractYieldSource(); // sUSDE
         uint256 outAmount = getOutAmount(account);
-        setOutAmount(_getBalance(account, data) - outAmount, account);
+        _setOutAmount(_getBalance(account, data) - outAmount, account);
         // this is how cooldownShares converts the shares to underlying.
         // might not match the exact pps when cooldownShares was called.
         // will likely underestimate the actual shares burned

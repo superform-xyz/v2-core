@@ -102,6 +102,10 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     /// @dev Used to prevent incomplete hook execution
     error INCOMPLETE_HOOK_EXECUTION();
 
+    /// @notice Thrown when trying to set outAmount after preExecute or postExecute
+    /// @dev Used to prevent setting outAmount after preExecute or postExecute
+    error CANNOT_SET_OUT_AMOUNT();
+
     /// @notice Initializes the hook with its type and subtype
     /// @dev Sets immutable parameters that define the hook's behavior
     /// @param hookType_ The type classification for this hook (NONACCOUNTING, INFLOW, OUTFLOW)
@@ -178,6 +182,9 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     /// @inheritdoc ISuperHookSetter
     function setOutAmount(uint256 _outAmount, address caller) public {
         uint256 context = _getCurrentExecutionContext(caller);
+        if (_getPreExecuteMutex(context) || _getPostExecuteMutex(context)) {
+            revert CANNOT_SET_OUT_AMOUNT();
+        }
         _setOutAmount(context, _outAmount);
     }
 
@@ -187,6 +194,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
 
     /// @inheritdoc ISuperHook
     function resetExecutionState(address caller) external {
+
         uint256 context = _getCurrentExecutionContext(caller);
         if (!_getPreExecuteMutex(context) || !_getPostExecuteMutex(context)) {
             revert INCOMPLETE_HOOK_EXECUTION();
@@ -315,7 +323,15 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
         }
     }
 
-    function _setOutAmount(uint256 context, uint256 value) private {
+    function _setOutAmount(uint256 value, address caller) internal {
+        uint256 context = _getCurrentExecutionContext(caller);
+        bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
+        assembly {
+            tstore(key, value)
+        }
+    }
+
+    function _setOutAmount(uint256 context, uint256 value) internal {
         bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
         assembly {
             tstore(key, value)
