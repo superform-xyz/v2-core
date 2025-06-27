@@ -48,6 +48,9 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     /// @notice Execution nonce for creating unique contexts
     uint256 public transient executionNonce;
 
+    /// @notice Last execution context caller
+    address public transient lastCaller;
+
     // Storage offsets for different state variables
     uint256 private constant OUT_AMOUNT_OFFSET = 1;
     uint256 private constant PRE_EXECUTE_MUTEX_OFFSET = 2;
@@ -121,6 +124,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     /// @inheritdoc ISuperHook
     function setExecutionContext(address caller) external {
         _createExecutionContext(caller);
+        lastCaller = msg.sender;
     }
 
     /// @dev Standard build pattern - MUST include preExecute first, postExecute last
@@ -194,11 +198,11 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
 
     /// @inheritdoc ISuperHook
     function resetExecutionState(address caller) external {
-
         uint256 context = _getCurrentExecutionContext(caller);
         if (!_getPreExecuteMutex(context) || !_getPostExecuteMutex(context)) {
             revert INCOMPLETE_HOOK_EXECUTION();
         }
+
         _clearExecutionState(context);
     }
 
@@ -287,9 +291,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     function _makeAccountContextKey(address account) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(ACCOUNT_CONTEXT_STORAGE, account));
     }
-    //
-    // deposit -> 1
-    // stake ->
 
     function _createExecutionContext(address caller) private returns (uint256) {
         // Always increment nonce for new execution context

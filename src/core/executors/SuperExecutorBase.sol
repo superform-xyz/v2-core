@@ -314,13 +314,19 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         hook.setExecutionContext(account);
         _execute(account, executions);
 
-        // STEP 3: Update accounting (both mutexes active, preventing reentrancy)
+        // STEP 3: Validate hook's last caller
+        address _lastCaller = hook.lastCaller();
+        if (_lastCaller != address(this)) {
+            revert INVALID_CALLER();
+        }
+
+        // STEP 4: Update accounting (both mutexes active, preventing reentrancy)
         // we reset execution state here because `updateAccounting` might call `.setOutAmount`
         //  which requires the state to be clean
         hook.resetExecutionState(account);
         _updateAccounting(account, address(hook), hookData);
 
-        // STEP 4: Handle cross-chain operations
+        // STEP 5: Handle cross-chain operations
         _checkAndLockForSuperPosition(account, address(hook));
     }
 
