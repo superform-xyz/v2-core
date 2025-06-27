@@ -7,8 +7,6 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 // Superform
 import { ISuperHook, ISuperHookSetter, ISuperHookResult } from "../interfaces/ISuperHook.sol";
 
-import "forge-std/console2.sol";
-
 /// @title BaseHook
 /// @author Superform Labs
 /// @notice Base implementation for all hooks in the Superform system
@@ -111,10 +109,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     /// @dev Used to prevent setting outAmount after preExecute or postExecute
     error CANNOT_SET_OUT_AMOUNT();
 
-    /// @notice Thrown when `resetExecutionContext` is performed by a different caller
-    error INVALID_RESET_SENDER();
-
-
     /// @notice Initializes the hook with its type and subtype
     /// @dev Sets immutable parameters that define the hook's behavior
     /// @param hookType_ The type classification for this hook (NONACCOUNTING, INFLOW, OUTFLOW)
@@ -130,10 +124,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     /// @inheritdoc ISuperHook
     function setExecutionContext(address caller) external {
         _createExecutionContext(caller);
-        console2.log("------------lastCaller", lastCaller);
-        console2.log("------------caller", caller);
-        console2.log("------------");
-      
         lastCaller = msg.sender;
     }
 
@@ -212,11 +202,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
         if (!_getPreExecuteMutex(context) || !_getPostExecuteMutex(context)) {
             revert INCOMPLETE_HOOK_EXECUTION();
         }
-        if (lastCaller != msg.sender) {
-            revert INVALID_RESET_SENDER();
-        }
 
-        lastCaller = address(0);
         _clearExecutionState(context);
     }
 
@@ -305,9 +291,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     function _makeAccountContextKey(address account) private pure returns (bytes32) {
         return keccak256(abi.encodePacked(ACCOUNT_CONTEXT_STORAGE, account));
     }
-    //
-    // deposit -> 1
-    // stake ->
 
     function _createExecutionContext(address caller) private returns (uint256) {
         // Always increment nonce for new execution context
