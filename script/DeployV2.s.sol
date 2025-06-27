@@ -28,8 +28,8 @@ import { SuperNativePaymaster } from "../src/core/paymaster/SuperNativePaymaster
 // -- hooks
 // ---- | swappers
 import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
-import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
-import { ApproveAndSwapOdosHook } from "../src/core/hooks/swappers/odos/ApproveAndSwapOdosHook.sol";
+import { SwapOdosV2Hook } from "../src/core/hooks/swappers/odos/SwapOdosV2Hook.sol";
+import { ApproveAndSwapOdosV2Hook } from "../src/core/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol";
 
 // ---- | tokens
 import { ApproveERC20Hook } from "../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
@@ -560,12 +560,12 @@ contract DeployV2 is Script, Configuration {
             abi.encodePacked(type(Swap1InchHook).creationCode, abi.encode(configuration.aggregationRouters[chainId]))
         );
         hooks[18] = HookDeployment(
-            SWAP_ODOS_HOOK_KEY,
-            abi.encodePacked(type(SwapOdosHook).creationCode, abi.encode(configuration.odosRouters[chainId]))
+            SWAP_ODOSV2_HOOK_KEY,
+            abi.encodePacked(type(SwapOdosV2Hook).creationCode, abi.encode(configuration.odosRouters[chainId]))
         );
         hooks[19] = HookDeployment(
-            APPROVE_AND_SWAP_ODOS_HOOK_KEY,
-            abi.encodePacked(type(ApproveAndSwapOdosHook).creationCode, abi.encode(configuration.odosRouters[chainId]))
+            APPROVE_AND_SWAP_ODOSV2_HOOK_KEY,
+            abi.encodePacked(type(ApproveAndSwapOdosV2Hook).creationCode, abi.encode(configuration.odosRouters[chainId]))
         );
 
         hooks[20] = HookDeployment(
@@ -690,9 +690,9 @@ contract DeployV2 is Script, Configuration {
         hookAddresses.withdraw7540VaultHook =
             Strings.equal(hooks[16].name, WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[16] : address(0);
         hookAddresses.swap1InchHook = Strings.equal(hooks[17].name, SWAP_1INCH_HOOK_KEY) ? addresses[17] : address(0);
-        hookAddresses.swapOdosHook = Strings.equal(hooks[18].name, SWAP_ODOS_HOOK_KEY) ? addresses[18] : address(0);
+        hookAddresses.swapOdosHook = Strings.equal(hooks[18].name, SWAP_ODOSV2_HOOK_KEY) ? addresses[18] : address(0);
         hookAddresses.approveAndSwapOdosHook =
-            Strings.equal(hooks[19].name, APPROVE_AND_SWAP_ODOS_HOOK_KEY) ? addresses[19] : address(0);
+            Strings.equal(hooks[19].name, APPROVE_AND_SWAP_ODOSV2_HOOK_KEY) ? addresses[19] : address(0);
         hookAddresses.acrossSendFundsAndExecuteOnDstHook =
             Strings.equal(hooks[20].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[20] : address(0);
         hookAddresses.deBridgeSendOrderAndExecuteOnDstHook =
