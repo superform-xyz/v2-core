@@ -31,7 +31,7 @@ var (
 
 // AbstractYieldSourceOracleMetaData contains all meta data concerning the AbstractYieldSourceOracle contract.
 var AbstractYieldSourceOracleMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"function\",\"name\":\"decimals\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"uint8\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAssetOutput\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assetIn\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"sharesIn\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getBalanceOfOwner\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ownerOfShares\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPricePerShare\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPricePerShareMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"pricesPerShare\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getShareOutput\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assetIn\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assetsIn\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVL\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLByOwnerOfShares\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ownerOfShares\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLByOwnerOfSharesMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"ownersOfShares\",\"type\":\"address[][]\",\"internalType\":\"address[][]\"}],\"outputs\":[{\"name\":\"userTvls\",\"type\":\"uint256[][]\",\"internalType\":\"uint256[][]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"tvls\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isValidUnderlyingAsset\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"expectedUnderlying\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isValidUnderlyingAssets\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"expectedUnderlying\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool[]\",\"internalType\":\"bool[]\"}],\"stateMutability\":\"view\"},{\"type\":\"error\",\"name\":\"ARRAY_LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_BASE_ASSET\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"function\",\"name\":\"decimals\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint8\",\"internalType\":\"uint8\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getAssetOutput\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assetOut\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"sharesIn\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getBalanceOfOwner\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ownerOfShares\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPricePerShare\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPricePerShareMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"pricesPerShare\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getShareOutput\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assetIn\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"assetsIn\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVL\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLByOwnerOfShares\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ownerOfShares\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLByOwnerOfSharesMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"ownersOfShares\",\"type\":\"address[][]\",\"internalType\":\"address[][]\"}],\"outputs\":[{\"name\":\"userTvls\",\"type\":\"uint256[][]\",\"internalType\":\"uint256[][]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"tvls\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isValidUnderlyingAsset\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isValidUnderlyingAssets\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"expectedUnderlying\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"isValid\",\"type\":\"bool[]\",\"internalType\":\"bool[]\"}],\"stateMutability\":\"view\"},{\"type\":\"error\",\"name\":\"ARRAY_LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_BASE_ASSET\",\"inputs\":[]}]",
 }
 
 // AbstractYieldSourceOracleABI is the input ABI used to generate the binding from.
@@ -213,10 +213,10 @@ func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCallerSession) Decima
 
 // GetAssetOutput is a free data retrieval call binding the contract method 0xaa5815fd.
 //
-// Solidity: function getAssetOutput(address yieldSourceAddress, address assetIn, uint256 sharesIn) view returns(uint256)
-func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCaller) GetAssetOutput(opts *bind.CallOpts, yieldSourceAddress common.Address, assetIn common.Address, sharesIn *big.Int) (*big.Int, error) {
+// Solidity: function getAssetOutput(address yieldSourceAddress, address assetOut, uint256 sharesIn) view returns(uint256)
+func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCaller) GetAssetOutput(opts *bind.CallOpts, yieldSourceAddress common.Address, assetOut common.Address, sharesIn *big.Int) (*big.Int, error) {
 	var out []interface{}
-	err := _AbstractYieldSourceOracle.contract.Call(opts, &out, "getAssetOutput", yieldSourceAddress, assetIn, sharesIn)
+	err := _AbstractYieldSourceOracle.contract.Call(opts, &out, "getAssetOutput", yieldSourceAddress, assetOut, sharesIn)
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -230,16 +230,16 @@ func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCaller) GetAssetOutpu
 
 // GetAssetOutput is a free data retrieval call binding the contract method 0xaa5815fd.
 //
-// Solidity: function getAssetOutput(address yieldSourceAddress, address assetIn, uint256 sharesIn) view returns(uint256)
-func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleSession) GetAssetOutput(yieldSourceAddress common.Address, assetIn common.Address, sharesIn *big.Int) (*big.Int, error) {
-	return _AbstractYieldSourceOracle.Contract.GetAssetOutput(&_AbstractYieldSourceOracle.CallOpts, yieldSourceAddress, assetIn, sharesIn)
+// Solidity: function getAssetOutput(address yieldSourceAddress, address assetOut, uint256 sharesIn) view returns(uint256)
+func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleSession) GetAssetOutput(yieldSourceAddress common.Address, assetOut common.Address, sharesIn *big.Int) (*big.Int, error) {
+	return _AbstractYieldSourceOracle.Contract.GetAssetOutput(&_AbstractYieldSourceOracle.CallOpts, yieldSourceAddress, assetOut, sharesIn)
 }
 
 // GetAssetOutput is a free data retrieval call binding the contract method 0xaa5815fd.
 //
-// Solidity: function getAssetOutput(address yieldSourceAddress, address assetIn, uint256 sharesIn) view returns(uint256)
-func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCallerSession) GetAssetOutput(yieldSourceAddress common.Address, assetIn common.Address, sharesIn *big.Int) (*big.Int, error) {
-	return _AbstractYieldSourceOracle.Contract.GetAssetOutput(&_AbstractYieldSourceOracle.CallOpts, yieldSourceAddress, assetIn, sharesIn)
+// Solidity: function getAssetOutput(address yieldSourceAddress, address assetOut, uint256 sharesIn) view returns(uint256)
+func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCallerSession) GetAssetOutput(yieldSourceAddress common.Address, assetOut common.Address, sharesIn *big.Int) (*big.Int, error) {
+	return _AbstractYieldSourceOracle.Contract.GetAssetOutput(&_AbstractYieldSourceOracle.CallOpts, yieldSourceAddress, assetOut, sharesIn)
 }
 
 // GetBalanceOfOwner is a free data retrieval call binding the contract method 0xfea8af5f.
@@ -492,10 +492,10 @@ func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCallerSession) GetTVL
 
 // IsValidUnderlyingAsset is a free data retrieval call binding the contract method 0x6e7f28b2.
 //
-// Solidity: function isValidUnderlyingAsset(address yieldSourceAddress, address expectedUnderlying) view returns(bool)
-func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCaller) IsValidUnderlyingAsset(opts *bind.CallOpts, yieldSourceAddress common.Address, expectedUnderlying common.Address) (bool, error) {
+// Solidity: function isValidUnderlyingAsset(address , address ) view returns(bool)
+func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCaller) IsValidUnderlyingAsset(opts *bind.CallOpts, arg0 common.Address, arg1 common.Address) (bool, error) {
 	var out []interface{}
-	err := _AbstractYieldSourceOracle.contract.Call(opts, &out, "isValidUnderlyingAsset", yieldSourceAddress, expectedUnderlying)
+	err := _AbstractYieldSourceOracle.contract.Call(opts, &out, "isValidUnderlyingAsset", arg0, arg1)
 
 	if err != nil {
 		return *new(bool), err
@@ -509,21 +509,21 @@ func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCaller) IsValidUnderl
 
 // IsValidUnderlyingAsset is a free data retrieval call binding the contract method 0x6e7f28b2.
 //
-// Solidity: function isValidUnderlyingAsset(address yieldSourceAddress, address expectedUnderlying) view returns(bool)
-func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleSession) IsValidUnderlyingAsset(yieldSourceAddress common.Address, expectedUnderlying common.Address) (bool, error) {
-	return _AbstractYieldSourceOracle.Contract.IsValidUnderlyingAsset(&_AbstractYieldSourceOracle.CallOpts, yieldSourceAddress, expectedUnderlying)
+// Solidity: function isValidUnderlyingAsset(address , address ) view returns(bool)
+func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleSession) IsValidUnderlyingAsset(arg0 common.Address, arg1 common.Address) (bool, error) {
+	return _AbstractYieldSourceOracle.Contract.IsValidUnderlyingAsset(&_AbstractYieldSourceOracle.CallOpts, arg0, arg1)
 }
 
 // IsValidUnderlyingAsset is a free data retrieval call binding the contract method 0x6e7f28b2.
 //
-// Solidity: function isValidUnderlyingAsset(address yieldSourceAddress, address expectedUnderlying) view returns(bool)
-func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCallerSession) IsValidUnderlyingAsset(yieldSourceAddress common.Address, expectedUnderlying common.Address) (bool, error) {
-	return _AbstractYieldSourceOracle.Contract.IsValidUnderlyingAsset(&_AbstractYieldSourceOracle.CallOpts, yieldSourceAddress, expectedUnderlying)
+// Solidity: function isValidUnderlyingAsset(address , address ) view returns(bool)
+func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCallerSession) IsValidUnderlyingAsset(arg0 common.Address, arg1 common.Address) (bool, error) {
+	return _AbstractYieldSourceOracle.Contract.IsValidUnderlyingAsset(&_AbstractYieldSourceOracle.CallOpts, arg0, arg1)
 }
 
 // IsValidUnderlyingAssets is a free data retrieval call binding the contract method 0xb25736fc.
 //
-// Solidity: function isValidUnderlyingAssets(address[] yieldSourceAddresses, address[] expectedUnderlying) view returns(bool[])
+// Solidity: function isValidUnderlyingAssets(address[] yieldSourceAddresses, address[] expectedUnderlying) view returns(bool[] isValid)
 func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCaller) IsValidUnderlyingAssets(opts *bind.CallOpts, yieldSourceAddresses []common.Address, expectedUnderlying []common.Address) ([]bool, error) {
 	var out []interface{}
 	err := _AbstractYieldSourceOracle.contract.Call(opts, &out, "isValidUnderlyingAssets", yieldSourceAddresses, expectedUnderlying)
@@ -540,14 +540,14 @@ func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCaller) IsValidUnderl
 
 // IsValidUnderlyingAssets is a free data retrieval call binding the contract method 0xb25736fc.
 //
-// Solidity: function isValidUnderlyingAssets(address[] yieldSourceAddresses, address[] expectedUnderlying) view returns(bool[])
+// Solidity: function isValidUnderlyingAssets(address[] yieldSourceAddresses, address[] expectedUnderlying) view returns(bool[] isValid)
 func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleSession) IsValidUnderlyingAssets(yieldSourceAddresses []common.Address, expectedUnderlying []common.Address) ([]bool, error) {
 	return _AbstractYieldSourceOracle.Contract.IsValidUnderlyingAssets(&_AbstractYieldSourceOracle.CallOpts, yieldSourceAddresses, expectedUnderlying)
 }
 
 // IsValidUnderlyingAssets is a free data retrieval call binding the contract method 0xb25736fc.
 //
-// Solidity: function isValidUnderlyingAssets(address[] yieldSourceAddresses, address[] expectedUnderlying) view returns(bool[])
+// Solidity: function isValidUnderlyingAssets(address[] yieldSourceAddresses, address[] expectedUnderlying) view returns(bool[] isValid)
 func (_AbstractYieldSourceOracle *AbstractYieldSourceOracleCallerSession) IsValidUnderlyingAssets(yieldSourceAddresses []common.Address, expectedUnderlying []common.Address) ([]bool, error) {
 	return _AbstractYieldSourceOracle.Contract.IsValidUnderlyingAssets(&_AbstractYieldSourceOracle.CallOpts, yieldSourceAddresses, expectedUnderlying)
 }
