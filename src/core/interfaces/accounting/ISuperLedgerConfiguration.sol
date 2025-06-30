@@ -31,7 +31,7 @@ interface ISuperLedgerConfiguration {
     ///      The manager is either derived from existing config or set to msg.sender for new configs
     struct YieldSourceOracleConfigArgs {
         /// @notice Unique identifier for this yield source oracle configuration
-        bytes4 yieldSourceOracleId;
+        bytes32 yieldSourceOracleId;
         /// @notice Address of the oracle that provides price information
         address yieldSourceOracle;
         /// @notice Fee percentage charged on yield in basis points (0-10000, where 10000 = 100%)
@@ -93,7 +93,7 @@ interface ISuperLedgerConfiguration {
     /// @param feeRecipient Address that receives collected fees
     /// @param ledger Address of the ledger contract using this configuration
     event YieldSourceOracleConfigSet(
-        bytes4 indexed yieldSourceOracleId,
+        bytes32 indexed yieldSourceOracleId,
         address indexed yieldSourceOracle,
         uint256 feePercent,
         address feeRecipient,
@@ -109,7 +109,7 @@ interface ISuperLedgerConfiguration {
     /// @param feeRecipient Proposed fee recipient address
     /// @param ledger Proposed ledger contract address
     event YieldSourceOracleConfigProposalSet(
-        bytes4 indexed yieldSourceOracleId,
+        bytes32 indexed yieldSourceOracleId,
         address indexed yieldSourceOracle,
         uint256 feePercent,
         address feeRecipient,
@@ -125,7 +125,7 @@ interface ISuperLedgerConfiguration {
     /// @param feeRecipient New fee recipient address
     /// @param ledger New ledger contract address
     event YieldSourceOracleConfigAccepted(
-        bytes4 indexed yieldSourceOracleId,
+        bytes32 indexed yieldSourceOracleId,
         address indexed yieldSourceOracle,
         uint256 feePercent,
         address feeRecipient,
@@ -138,13 +138,13 @@ interface ISuperLedgerConfiguration {
     /// @param currentManager Address of the current manager
     /// @param newManager Address of the proposed new manager
     event ManagerRoleTransferStarted(
-        bytes4 indexed yieldSourceOracleId, address indexed currentManager, address indexed newManager
+        bytes32 indexed yieldSourceOracleId, address indexed currentManager, address indexed newManager
     );
 
     /// @notice Emitted when the transfer of manager role is completed
     /// @param yieldSourceOracleId Unique identifier for the yield source oracle
     /// @param newManager Address of the new manager who accepted the role
-    event ManagerRoleTransferAccepted(bytes4 indexed yieldSourceOracleId, address indexed newManager);
+    event ManagerRoleTransferAccepted(bytes32 indexed yieldSourceOracleId, address indexed newManager);
 
     /// @notice Emitted when a yield source oracle configuration proposal is cancelled.
     /// @param yieldSourceOracleId The identifier of the yield source oracle.
@@ -154,7 +154,7 @@ interface ISuperLedgerConfiguration {
     /// @param manager The manager who proposed the change.
     /// @param ledger The proposed ledger address.
     event YieldSourceOracleConfigProposalCancelled(
-        bytes4 indexed yieldSourceOracleId,
+        bytes32 indexed yieldSourceOracleId,
         address yieldSourceOracle,
         uint256 feePercent,
         address feeRecipient,
@@ -183,7 +183,7 @@ interface ISuperLedgerConfiguration {
     /// @dev Can only be called by the manager after the time-lock period has passed
     ///      Accepting the proposal replaces the current configuration with the proposed one
     /// @param yieldSourceOracleIds Array of yield source IDs with pending proposals to accept
-    function acceptYieldSourceOracleConfigProposal(bytes4[] calldata yieldSourceOracleIds) external;
+    function acceptYieldSourceOracleConfigProposal(bytes32[] calldata yieldSourceOracleIds) external;
 
     /// @notice Initiates the transfer of manager role to a new address
     /// @dev First step in a two-step process for transferring management rights
@@ -191,21 +191,21 @@ interface ISuperLedgerConfiguration {
     ///      The transfer must be accepted by the new manager to complete
     /// @param yieldSourceOracleId The yield source oracle ID to transfer management of
     /// @param newManager The address of the proposed new manager
-    function transferManagerRole(bytes4 yieldSourceOracleId, address newManager) external;
+    function transferManagerRole(bytes32 yieldSourceOracleId, address newManager) external;
 
     /// @notice Accepts the pending manager role transfer
     /// @dev Second step in the two-step process for transferring management rights
     ///      Can only be called by the address designated as the pending manager
     ///      Completes the transfer, giving the caller full management rights
     /// @param yieldSourceOracleId The yield source oracle ID to accept management of
-    function acceptManagerRole(bytes4 yieldSourceOracleId) external;
+    function acceptManagerRole(bytes32 yieldSourceOracleId) external;
 
     /// @notice Retrieves the current configuration for a yield source oracle
     /// @dev Used by components that need oracle and fee information
     ///      Returns the complete configuration structure including all parameters
     /// @param yieldSourceOracleId The unique identifier for the yield source oracle
     /// @return Complete configuration struct for the specified yield source oracle
-    function getYieldSourceOracleConfig(bytes4 yieldSourceOracleId)
+    function getYieldSourceOracleConfig(bytes32 yieldSourceOracleId)
         external
         view
         returns (YieldSourceOracleConfig memory);
@@ -215,7 +215,7 @@ interface ISuperLedgerConfiguration {
     ///      Returns an array of configurations in the same order as the input IDs
     /// @param yieldSourceOracleIds Array of yield source oracle IDs to retrieve
     /// @return configs Array of configuration structs for the specified yield source oracles
-    function getYieldSourceOracleConfigs(bytes4[] calldata yieldSourceOracleIds)
+    function getYieldSourceOracleConfigs(bytes32[] calldata yieldSourceOracleIds)
         external
         view
         returns (YieldSourceOracleConfig[] memory configs);

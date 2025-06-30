@@ -8,6 +8,7 @@ interface IVaultBankSource {
                                  EVENTS
     //////////////////////////////////////////////////////////////*/
     event SharesLocked(
+        bytes32 indexed yieldSourceOracleId,
         address indexed account,
         address indexed token,
         uint256 amount,
@@ -16,6 +17,7 @@ interface IVaultBankSource {
         uint256 nonce
     );
     event SharesUnlocked(
+        bytes32 indexed yieldSourceOracleId,
         address indexed account,
         address indexed token,
         uint256 amount,
@@ -34,6 +36,7 @@ interface IVaultBankSource {
     error TOKEN_NOT_FOUND();
     error NO_LOCKED_ASSETS();
     error INVALID_CLAIM_TARGET();
+    error INVALID_YIELD_SOURCE_ORACLE_ID();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -49,7 +52,7 @@ interface IVaultBankSource {
 interface IVaultBankDestination {
     struct SpAsset {
         bool wasCreated;
-        mapping(uint64 srcChainId => address srcTokenAddress) spToToken;
+        mapping(uint64 srcChainId => mapping(bytes32 yieldSourceOracleId => address srcTokenAddress)) spToToken;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -64,11 +67,13 @@ interface IVaultBankDestination {
     /// @notice Get the synthetic asset for a source asset
     /// @param srcChainId The source chain ID
     /// @param srcAsset The source asset
-    function getSuperPositionForAsset(uint64 srcChainId, address srcAsset) external view returns (address);
+    /// @param yieldSourceOracleId The yield source oracle ID
+    function getSuperPositionForAsset(uint64 srcChainId, address srcAsset, bytes32 yieldSourceOracleId) external view returns (address);
     /// @notice Get the source asset for a synthetic asset
     /// @param srcChainId The source chain ID
     /// @param superPosition The synthetic asset
-    function getAssetForSuperPosition(uint64 srcChainId, address superPosition) external view returns (address);
+    /// @param yieldSourceOracleId The yield source oracle ID
+    function getAssetForSuperPosition(uint64 srcChainId, address superPosition, bytes32 yieldSourceOracleId) external view returns (address);
     /// @notice Check if a synthetic asset exists
     /// @param superPosition The synthetic asset
     function isSuperPositionCreated(address superPosition) external view returns (bool);
@@ -79,6 +84,7 @@ interface IVaultBank is IHookExecutionData {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     struct SourceAssetInfo {
+        bytes32 yieldSourceOracleId;
         uint64 chainId;
         address asset;
         string name;
@@ -138,12 +144,15 @@ interface IVaultBank is IHookExecutionData {
     //////////////////////////////////////////////////////////////*/
     // ------------------ CREATE SYNTHETIC ASSETS ------------------
     /// @notice Lock an asset for an account
+    /// @dev This function is used to lock an asset for an account
+    /// @param yieldSourceOracleId The yield source oracle ID
     /// @param account The account to lock the asset for
     /// @param token The asset to lock
     /// @param hookAddress The hook address to lock the asset through
     /// @param amount The amount of the asset to lock
     /// @param toChainId The destination chain ID
     function lockAsset(
+        bytes32 yieldSourceOracleId,
         address account,
         address token,
         address hookAddress,
@@ -170,7 +179,8 @@ interface IVaultBank is IHookExecutionData {
     /// @param amount_ The amount of the asset to burn
     /// @param spAddress_ The synthetic asset address
     /// @param forChainId_ The destination chain ID
-    function burnSuperPosition(uint256 amount_, address spAddress_, uint64 forChainId_) external;
+    /// @param yieldSourceOracleId_ The yield source oracle ID
+    function burnSuperPosition(uint256 amount_, address spAddress_, uint64 forChainId_, bytes32 yieldSourceOracleId_) external;
 
     // ------------------ REMOVE SYNTHETIC ASSETS ------------------
     /// @notice Unlock an asset for an account
@@ -178,12 +188,14 @@ interface IVaultBank is IHookExecutionData {
     /// @param token The asset to unlock
     /// @param amount The amount of the asset to unlock
     /// @param fromChainId The `from` (destination) chain
+    /// @param yieldSourceOracleId The yield source oracle ID
     /// @param proof_ The proof of the `burnSuperPosition` event
     function unlockAsset(
         address account,
         address token,
         uint256 amount,
         uint64 fromChainId,
+        bytes32 yieldSourceOracleId,
         bytes calldata proof_
     )
         external;

@@ -20,17 +20,17 @@ import {
 /// @title Deposit4626VaultHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 24);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 57);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 77);
+/// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 52);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
+/// @notice         address vaultBank = BytesLib.toAddress(data, 85);
+/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 105);
 contract Deposit4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 24;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
+    uint256 private constant AMOUNT_POSITION = 52;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 84;
 
     constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC4626) { }
     /*//////////////////////////////////////////////////////////////
@@ -88,8 +88,8 @@ contract Deposit4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
         outAmount = _getBalance(account, data);
-        vaultBank = BytesLib.toAddress(data, 57);
-        dstChainId = BytesLib.toUint256(data, 77);
+        vaultBank = BytesLib.toAddress(data, 85);
+        dstChainId = BytesLib.toUint256(data, 105);
         spToken = data.extractYieldSource();
     }
 

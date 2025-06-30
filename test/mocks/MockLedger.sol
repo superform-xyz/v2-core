@@ -4,7 +4,7 @@ pragma solidity 0.8.30;
 contract MockLedger {
     uint256 public feeAmount;
 
-    function updateAccounting(address, address, bytes4, bool, uint256, uint256) external view returns (uint256) {
+    function updateAccounting(address, address, bytes32, bool, uint256, uint256) external view returns (uint256) {
         return feeAmount;
     }
 
@@ -34,7 +34,7 @@ contract MockLedgerConfiguration {
         manager = _manager;
     }
 
-    function getYieldSourceOracleConfig(bytes4) external view returns (YieldSourceOracleConfig memory) {
+    function getYieldSourceOracleConfig(bytes32) external view returns (YieldSourceOracleConfig memory) {
         return YieldSourceOracleConfig({
             yieldSourceOracle: yieldSourceOracle,
             feePercent: feePercent,

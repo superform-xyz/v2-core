@@ -22,13 +22,13 @@ import {
 /// @author Superform Labs
 /// @notice This hook does not support tokens reverting on 0 approval
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         address token = BytesLib.toAddress(data, 24);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 44);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 77);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 97);
+/// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         address token = BytesLib.toAddress(data, 52);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 72);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
+/// @notice         address vaultBank = BytesLib.toAddress(data, 105);
+/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 125);
 contract ApproveAndDeposit4626VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
@@ -37,8 +37,8 @@ contract ApproveAndDeposit4626VaultHook is
 {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 44;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 76;
+    uint256 private constant AMOUNT_POSITION = 72;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 104;
 
     constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC4626) { }
 
@@ -57,7 +57,7 @@ contract ApproveAndDeposit4626VaultHook is
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address token = BytesLib.toAddress(data, 24);
+        address token = BytesLib.toAddress(data, 52);
         uint256 amount = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
@@ -97,7 +97,7 @@ contract ApproveAndDeposit4626VaultHook is
     function inspect(bytes calldata data) external pure returns (bytes memory) {
         return abi.encodePacked(
             data.extractYieldSource(),
-            BytesLib.toAddress(data, 24) //token
+            BytesLib.toAddress(data, 52) //token
         );
     }
 
@@ -107,8 +107,8 @@ contract ApproveAndDeposit4626VaultHook is
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
         outAmount = _getBalance(account, data);
-        vaultBank = BytesLib.toAddress(data, 77);
-        dstChainId = BytesLib.toUint256(data, 97);
+        vaultBank = BytesLib.toAddress(data, 105);
+        dstChainId = BytesLib.toUint256(data, 125);
         spToken = data.extractYieldSource();
     }
 

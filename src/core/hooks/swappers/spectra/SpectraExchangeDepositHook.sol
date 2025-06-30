@@ -17,16 +17,16 @@ import { SpectraCommands } from "../../../../vendor/spectra/SpectraCommands.sol"
 /// @title SpectraExchangeDepositHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
-/// @notice         uint256 value = BytesLib.toUint256(data, 25);
-/// @notice         bytes txData_ = BytesLib.slice(data, 57, data.length - 57);
+/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
+/// @notice         uint256 value = BytesLib.toUint256(data, 53);
+/// @notice         bytes txData_ = BytesLib.slice(data, 85, data.length - 85);
 contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 24;
-    uint256 private constant TX_DATA_POSITION = 57;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
+    uint256 private constant TX_DATA_POSITION = 85;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -68,7 +68,7 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
     {
         address pt = data.extractYieldSource();
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 value = abi.decode(data[25:TX_DATA_POSITION], (uint256));
+        uint256 value = abi.decode(data[53:TX_DATA_POSITION], (uint256));
         bytes memory txData_ = data[TX_DATA_POSITION:];
 
         bytes memory updatedTxData = _validateTxData(data[TX_DATA_POSITION:], account, usePrevHookAmount, prevHook, pt);

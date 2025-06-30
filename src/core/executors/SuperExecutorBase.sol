@@ -17,6 +17,8 @@ import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookSetter
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 import { IVaultBank } from "../../periphery/interfaces/VaultBank/IVaultBank.sol";
 
+import "forge-std/console2.sol";
+
 /// @title SuperExecutorBase
 /// @author Superform Labs
 /// @notice Base contract for Superform executors that processes hook sequences
@@ -176,8 +178,11 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             // Extract yield source information from the hook data
-            bytes4 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
+            bytes32 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
             address yieldSource = hookData.extractYieldSource();
+
+            console2.log("--- yieldSourceOracleId");
+            console2.logBytes32(yieldSourceOracleId);
 
             // Get configuration for the yield source oracle
             ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
@@ -305,7 +310,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         _updateAccounting(account, address(hook), hookData);
 
         // STEP 4: Handle cross-chain operations
-        _checkAndLockForSuperPosition(account, address(hook));
+        _checkAndLockForSuperPosition(account, address(hook), hookData);
 
         // STEP 5: Reset both mutexes after all processing complete
         hook.resetExecutionState();
@@ -319,7 +324,8 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     ///      3. Emits an event to signal the cross-chain operation
     /// @param account The smart account executing the operation
     /// @param hook The hook that contains cross-chain operation details
-    function _checkAndLockForSuperPosition(address account, address hook) internal virtual {
+    /// @param hookData The data provided to the hook for execution
+    function _checkAndLockForSuperPosition(address account, address hook, bytes memory hookData) internal virtual {
         // Get cross-chain operation details from the hook
         address vaultBank = ISuperHookResult(address(hook)).vaultBank();
         uint256 dstChainId = ISuperHookResult(address(hook)).dstChainId();
@@ -342,7 +348,8 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
             if (dstChainId == block.chainid) revert INVALID_CHAIN_ID();
 
             // Lock assets in the vault bank for cross-chain transfer
-            IVaultBank(vaultBank).lockAsset(account, spToken, hook, amount, uint64(dstChainId));
+            bytes32 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
+            IVaultBank(vaultBank).lockAsset(yieldSourceOracleId, account, spToken, hook, amount, uint64(dstChainId));
         }
     }
 }

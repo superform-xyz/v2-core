@@ -69,13 +69,13 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
             false
         );
         hooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSource7540AddressUSDC,
             amount,
             true
         );
         hooksData[2] = abi.encodePacked(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSource7540AddressUSDC
         );
 
@@ -100,7 +100,7 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
 
         hooksData = new bytes[](1);
         hooksData[0] = abi.encodePacked(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSource7540AddressUSDC,
             receiver
         );
@@ -155,11 +155,11 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](4);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSource7540AddressUSDC, amountPerVault, false);
         hooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressUSDC, amountPerVault, true
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSource7540AddressUSDC, amountPerVault, true
         );
         hooksData[2] = _createApproveHookData(underlyingETH_sUSDe, yieldSource5115AddressSUSDe, amountPerVault, false);
         hooksData[3] = _createDeposit5115VaultHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSource5115AddressSUSDe,
             underlyingETH_sUSDe,
             amountPerVault,

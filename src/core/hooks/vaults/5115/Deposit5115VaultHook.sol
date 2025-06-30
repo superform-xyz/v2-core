@@ -21,19 +21,19 @@ import {
 /// @title Deposit5115VaultHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         address tokenIn = BytesLib.toAddress(data, 24);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 44);
-/// @notice         uint256 minSharesOut = BytesLib.toUint256(data, 76);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 108);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 109);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 129);
+/// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         address tokenIn = BytesLib.toAddress(data, 52);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 72);
+/// @notice         uint256 minSharesOut = BytesLib.toUint256(data, 104);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
+/// @notice         address vaultBank = BytesLib.toAddress(data, 137);
+/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 157);
 contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 44;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 108;
+    uint256 private constant AMOUNT_POSITION = 72;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 136;
 
     constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC5115) { }
 
@@ -52,9 +52,9 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address tokenIn = BytesLib.toAddress(data, 24);
-        uint256 amount = BytesLib.toUint256(data, 44);
-        uint256 minSharesOut = BytesLib.toUint256(data, 76);
+        address tokenIn = BytesLib.toAddress(data, 52);
+        uint256 amount = BytesLib.toUint256(data, AMOUNT_POSITION);
+        uint256 minSharesOut = BytesLib.toUint256(data, 104);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
@@ -90,7 +90,7 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     function inspect(bytes calldata data) external pure returns (bytes memory) {
         return abi.encodePacked(
             data.extractYieldSource(),
-            BytesLib.toAddress(data, 24) // tokenIn
+            BytesLib.toAddress(data, 52) // tokenIn
         );
     }
 
@@ -99,10 +99,10 @@ contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
-        vaultBank = BytesLib.toAddress(data, 109);
-        dstChainId = BytesLib.toUint256(data, 129);
+        vaultBank = BytesLib.toAddress(data, 137);
+        dstChainId = BytesLib.toUint256(data, 157);
         spToken = data.extractYieldSource();
-        asset = BytesLib.toAddress(data, 24);
+        asset = BytesLib.toAddress(data, 52);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {

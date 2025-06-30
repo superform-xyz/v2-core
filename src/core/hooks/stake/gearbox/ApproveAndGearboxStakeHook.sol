@@ -16,16 +16,16 @@ import {IGearboxFarmingPool} from "../../../../vendor/gearbox/IGearboxFarmingPoo
 /// @title ApproveAndGearboxStakeHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         address token = BytesLib.toAddress(data, 24);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 44);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
+/// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         address token = BytesLib.toAddress(data, 52);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 72);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 44;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 76;
+    uint256 private constant AMOUNT_POSITION = 72;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 104;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.STAKE) {}
 
@@ -41,7 +41,7 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware, ISuperH
     {
         address yieldSource = data.extractYieldSource();
         // yieldSource is spender for approval
-        address token = BytesLib.toAddress(data, 24);
+        address token = BytesLib.toAddress(data, 52);
         uint256 amount = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 

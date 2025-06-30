@@ -454,10 +454,10 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
         bytes[] memory fulfillHooksData = new bytes[](2);
         fulfillHooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), maxDeposit, false, false
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), maxDeposit, false, false
         );
         fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(fluidVault),
             address(asset),
             amountPerVault,
@@ -532,7 +532,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
         vars.fulfillHooksData = new bytes[](2);
         vars.fulfillHooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(fluidVault),
             address(strategy),
             vars.vault1Shares,
@@ -541,7 +541,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         );
 
         vars.fulfillHooksData[1] = _createRedeem7540VaultHookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(centrifugeVault),
             address(centrifugeVault.share()),
             vars.vault2Shares,
@@ -586,7 +586,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
         cancelHooksAddresses[0] = cancelDepositRequestHookAddress;
 
         bytes[] memory cancelHooksData = new bytes[](1);
-        cancelHooksData[0] = abi.encodePacked(bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault));
+        cancelHooksData[0] = abi.encodePacked(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault));
 
         vm.prank(STRATEGIST);
         strategy.executeHooks(
@@ -746,7 +746,7 @@ contract SuperVault7540UnderlyingTest is BaseSuperVaultTest {
 
         bytes[] memory requestHooksData = new bytes[](1);
         requestHooksData[0] = _createRequestRedeem7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), centrifugeRedeem, false
+            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(centrifugeVault), centrifugeRedeem, false
         );
 
         vm.prank(STRATEGIST);

@@ -497,7 +497,7 @@ contract SuperBankTest is Helpers, InternalHelpers, OdosAPIParser {
 
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createRedeem4626HookData(bytes4(0), address(vault), address(superBank), shares, false);
+        hooksData[0] = _createRedeem4626HookData(bytes32(0), address(vault), address(superBank), shares, false);
 
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(redeemHook);

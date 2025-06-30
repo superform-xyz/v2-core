@@ -51,7 +51,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(1), // usePrevHookAmount = true
             uint256(0), // value
@@ -75,7 +75,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
@@ -95,7 +95,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(1), // usePrevHookAmount = true
             uint256(0), // value
@@ -115,7 +115,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
@@ -140,7 +140,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
@@ -161,7 +161,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
@@ -185,7 +185,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
@@ -206,7 +206,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
@@ -230,7 +230,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(1), // usePrevHookAmount = true
             uint256(2e18), // value
@@ -254,7 +254,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
@@ -275,7 +275,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
@@ -298,7 +298,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
@@ -320,7 +320,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
@@ -341,7 +341,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
@@ -362,7 +362,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes memory txData = abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), commandsData, inputs);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
@@ -389,7 +389,7 @@ contract SpectraExchangeHooksTests is Helpers {
             abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[],uint256)")), commandsData, inputs, deadline);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0), // usePrevHookAmount = false
             uint256(0), // value
@@ -416,7 +416,7 @@ contract SpectraExchangeHooksTests is Helpers {
             abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[],uint256)")), commandsData, inputs, deadline);
 
         bytes memory data = abi.encodePacked(
-            bytes4(bytes("")), // yieldSourceOracleId
+            bytes32(bytes("")), // yieldSourceOracleId
             address(token), // yieldSource
             uint8(0),
             uint256(0),
@@ -517,7 +517,7 @@ contract SpectraExchangeHooksTests is Helpers {
         bytes1 command = redeemPtForAsset ? REDEEM_PT_FOR_ASSET : REDEEM_IBT_FOR_ASSET;
 
         return abi.encodePacked(
-            bytes4(bytes("")), asset, pt, recipient, minAssets, sharesToBurn, usePrevHookAmount, command
+            bytes32(bytes("")), asset, pt, recipient, minAssets, sharesToBurn, usePrevHookAmount, command
         );
     }
 }

@@ -46,6 +46,7 @@ abstract contract VaultBankSource is IVaultBankSource {
     //////////////////////////////////////////////////////////////*/
     // ------------------ SYNTHETIC ASSETS ------------------
     function _lockAssetForChain(
+        bytes32 yieldSourceOracleId,
         address account,
         address token,
         uint256 amount,
@@ -57,6 +58,7 @@ abstract contract VaultBankSource is IVaultBankSource {
         if (amount == 0) revert INVALID_AMOUNT();
         if (token == address(0)) revert INVALID_TOKEN();
         if (account == address(0)) revert INVALID_ACCOUNT();
+        if (yieldSourceOracleId == bytes32(0)) revert INVALID_YIELD_SOURCE_ORACLE_ID();
 
         if (!_lockedAssets.contains(token)) {
             _lockedAssets.add(token);
@@ -64,10 +66,11 @@ abstract contract VaultBankSource is IVaultBankSource {
         _lockedAmounts[token] += amount;
 
         IERC20(token).safeTransferFrom(account, address(this), amount);
-        emit SharesLocked(account, token, amount, _chainId, toChainId, nonce);
+        emit SharesLocked(yieldSourceOracleId, account, token, amount, _chainId, toChainId, nonce);
     }
 
     function _releaseAssetFromChain(
+        bytes32 yieldSourceOracleId,
         address account,
         address token,
         uint256 amount,
@@ -79,6 +82,7 @@ abstract contract VaultBankSource is IVaultBankSource {
         if (account == address(0)) revert INVALID_ACCOUNT();
         if (token == address(0)) revert INVALID_TOKEN();
         if (amount == 0 || amount > _lockedAmounts[token]) revert INVALID_AMOUNT();
+        if (yieldSourceOracleId == bytes32(0)) revert INVALID_YIELD_SOURCE_ORACLE_ID();
 
         _lockedAmounts[token] -= amount;
         if (_lockedAmounts[token] == 0) {
@@ -86,7 +90,7 @@ abstract contract VaultBankSource is IVaultBankSource {
         }
 
         IERC20(token).safeTransfer(account, amount);
-        emit SharesUnlocked(account, token, amount, _chainId, fromChainId, nonce);
+        emit SharesUnlocked(yieldSourceOracleId, account, token, amount, _chainId, fromChainId, nonce);
     }
     // ------------------ MANAGE REWARDS ------------------
 

@@ -317,7 +317,7 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER), yieldSource7540AddressETH_USDC, amountPerVault, true
             );
 
             messageData = TargetExecutorMessage({
@@ -435,7 +435,7 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault / 2, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault / 2, true
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER), yieldSource7540AddressETH_USDC, amountPerVault / 2, true
             );
 
             // Build the target executor message
@@ -631,7 +631,7 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER), yieldSource7540AddressETH_USDC, amountPerVault, true
             );
 
             messageData = TargetExecutorMessage({
@@ -842,7 +842,7 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault / 2, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(0), 0, false
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER), address(0), 0, false
             );
 
             messageData = TargetExecutorMessage({
@@ -939,7 +939,7 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault / 2, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault / 2, true
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER), yieldSource7540AddressETH_USDC, amountPerVault / 2, true
             );
 
             messageData = TargetExecutorMessage({
@@ -1043,7 +1043,7 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER), yieldSource7540AddressETH_USDC, amountPerVault, true
             );
 
             messageData = TargetExecutorMessage({
@@ -1237,7 +1237,7 @@ contract CrosschainTests is BaseTest {
             opHooksData[0] =
                 _createApproveHookData(underlyingOP_USDCe, yieldSource4626AddressOP_USDCe, amountPerVault, false);
             opHooksData[1] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
                 yieldSource4626AddressOP_USDCe,
                 amountPerVault,
                 true,
@@ -1334,7 +1334,7 @@ contract CrosschainTests is BaseTest {
                 underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, previewRedeemAmount, false
             );
             dstHooksData[1] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
                 yieldSourceMorphoUsdcAddressBase,
                 previewRedeemAmount,
                 false,
@@ -1373,7 +1373,7 @@ contract CrosschainTests is BaseTest {
         bytes[] memory srcHooksData = new bytes[](4);
         srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount, false);
         srcHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSourceMorphoUsdcAddressEth,
             amount,
             false,
@@ -1500,7 +1500,7 @@ contract CrosschainTests is BaseTest {
         bytes[] memory srcHooksData = new bytes[](6);
     srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount, false);
         srcHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSourceMorphoUsdcAddressEth,
             amount,
             false,
@@ -1600,7 +1600,7 @@ contract CrosschainTests is BaseTest {
 
             bytes[] memory dstHooksData = new bytes[](1);
             dstHooksData[0] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
                 yieldSourceMorphoUsdcAddressBase,
                 previewRedeemAmount,
                 false,
@@ -1639,7 +1639,7 @@ contract CrosschainTests is BaseTest {
         bytes[] memory srcHooksData = new bytes[](4);
         srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount, false);
         srcHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSourceMorphoUsdcAddressEth,
             amount,
             false,
@@ -1702,7 +1702,7 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory opHooksData = new bytes[](2);
         opHooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSource4626AddressOP_USDCe,
             accountOP,
             userBalanceSharesBefore,
@@ -1869,7 +1869,7 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSource7540AddressETH_USDC,
             maxDeposit,
             false,
@@ -1926,7 +1926,7 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, userExpectedAssets, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER), yieldSource7540AddressETH_USDC, userExpectedAssets, false
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -1978,7 +1978,7 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, userExpectedAssets, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER), yieldSource7540AddressETH_USDC, userExpectedAssets, false
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -2031,7 +2031,7 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, userExpectedAssets, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER), yieldSource7540AddressETH_USDC, userExpectedAssets, false
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -2070,7 +2070,7 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory opHooksData = new bytes[](1);
         opHooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSource4626AddressOP_USDCe,
             accountOP,
             userBalanceSharesBefore,
@@ -2166,7 +2166,7 @@ contract CrosschainTests is BaseTest {
             dstHooksData[0] =
                 _createApproveHookData(underlyingBase_USDC, yieldSource4626AddressBase_USDC, intentAmount / 2, false);
             dstHooksData[1] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
                 yieldSource4626AddressBase_USDC,
                 intentAmount / 2,
                 false,
@@ -2270,7 +2270,7 @@ contract CrosschainTests is BaseTest {
             dstHooksData[2] =
                 _createApproveHookData(underlyingBase_WETH, yieldSource4626AddressBase_WETH, intentAmount, true);
             dstHooksData[3] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
                 yieldSource4626AddressBase_WETH,
                 intentAmount,
                 true,

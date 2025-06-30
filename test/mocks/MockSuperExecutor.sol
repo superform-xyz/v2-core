@@ -105,7 +105,7 @@ contract MockSuperExecutor is ERC7579ExecutorBase, ISuperExecutor {
     function _updateAccounting(address account, address hook, bytes memory hookData) private {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
-            bytes4 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
+            bytes32 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
             address yieldSource = hookData.extractYieldSource();
 
             ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =

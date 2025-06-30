@@ -62,7 +62,6 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         blockNumber != 0
             ? vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), blockNumber)
             : vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
-        MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
 
         (signer, signerPrvKey) = makeAddrAndKey("signer");
 
@@ -89,14 +88,14 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         yieldSourceOracle5115 = address(new ERC5115YieldSourceOracle());
         yieldSourceOracle7540 = address(new ERC7540YieldSourceOracle());
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceOracleId: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle4626,
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(ledger)
         });
         configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceOracleId: bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle7540,
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
@@ -104,7 +103,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         });
 
         configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            yieldSourceOracleId: bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle5115,
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),

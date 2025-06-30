@@ -41,7 +41,7 @@ contract SuperPositionsFactoryTest is Helpers {
     // @dev test with 1M runs
     function testFuzz_SuperPositionFactory_SameSPId(
         address yieldSourceAddress,
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         uint64 chainId
     ) public view {
         uint256 spId1 = factory.getSPId(yieldSourceAddress, yieldSourceOracleId, chainId);

@@ -19,7 +19,7 @@ contract ERC4626VaultHooksTest is Helpers {
     Deposit4626VaultHook public depositHook;
     Redeem4626VaultHook public redeemHook;
 
-    bytes4 yieldSourceOracleId;
+    bytes32 yieldSourceOracleId;
     address yieldSource;
     address token;
 
@@ -28,7 +28,7 @@ contract ERC4626VaultHooksTest is Helpers {
     uint256 prevHookAmount;
 
     function setUp() public {
-        yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
+        yieldSourceOracleId = bytes32(keccak256("YIELD_SOURCE_ORACLE_ID"));
         yieldSource = address(this);
         token = address(new MockERC20("Token", "TKN", 18));
         amount = 1000;

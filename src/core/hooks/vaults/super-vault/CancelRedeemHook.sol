@@ -17,10 +17,10 @@ import { ISuperHookAsyncCancelations, ISuperHookInspector } from "../../../inter
 /// @title CancelRedeemHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 placeholder = BytesLib.toAddress(data, 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 24);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 44);
+/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         address vaultBank = BytesLib.toAddress(data, 52);
+/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 72);
 contract CancelRedeemHook is BaseHook, ISuperHookAsyncCancelations, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
@@ -67,8 +67,8 @@ contract CancelRedeemHook is BaseHook, ISuperHookAsyncCancelations, ISuperHookIn
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         outAmount = _getBalance(account, data);
-        vaultBank = BytesLib.toAddress(data, 24);
-        dstChainId = BytesLib.toUint256(data, 44);
+        vaultBank = BytesLib.toAddress(data, 52);
+        dstChainId = BytesLib.toUint256(data, 72);
         spToken = data.extractYieldSource();
     }
 

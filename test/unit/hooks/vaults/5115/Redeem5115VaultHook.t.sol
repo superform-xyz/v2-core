@@ -12,13 +12,13 @@ import {Helpers} from "../../../../utils/Helpers.sol";
 contract Redeem5115VaultHookTest is Helpers {
     Redeem5115VaultHook public hook;
 
-    bytes4 yieldSourceOracleId;
+    bytes32 yieldSourceOracleId;
     address yieldSource;
     address token;
     uint256 amount;
 
     function setUp() public {
-        yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
+        yieldSourceOracleId = bytes32(keccak256("YIELD_SOURCE_ORACLE_ID"));
         yieldSource = address(this);
         token = address(new MockERC20("Token", "TKN", 18));
         amount = 1000;

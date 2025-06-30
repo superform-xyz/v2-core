@@ -65,16 +65,6 @@ contract Swap1InchHookBugTest is Test {
         vm.mockCall(mockPair, abi.encodeWithSignature("token0()"), abi.encode(srcToken));
         vm.mockCall(mockPair, abi.encodeWithSignature("token1()"), abi.encode(dstToken));
         
-        // 1. First, build with usePrevHookAmount = false (normal case)
-        bytes memory normalHookData = _buildUnoswapData(
-            swap1Amount, 
-            swap1MinReturn,
-            false // usePrevHookAmount
-        );
-        
-        Execution[] memory executions = hook.build(address(0), address(this), normalHookData);
-        Execution memory execution = executions[0];
-        ExecData memory decodeData = decodeUnoswapData(bytes(execution.callData));
         
         // 2. Now, build with usePrevHookAmount = true (bug case)
         MockPrevHook prevHook = new MockPrevHook(prevHookAmount);
@@ -132,12 +122,6 @@ contract Swap1InchHookBugTest is Test {
     }
 
     function decodeUnoswapData(bytes memory data) public pure returns (ExecData memory rst) {
-        // Get the selector (first 4 bytes)
-        bytes4 selector = bytes4(BytesLib.slice(data, 0, 4));
-
-        // Check if this is a unoswapTo call
-        bool isUnoswapTo = (selector == I1InchAggregationRouterV6.unoswapTo.selector);
-
         // Skip the selector (4 bytes) and decode using abi.decode
         // This matches how the data is encoded in _validateUnoswap
         (
@@ -145,7 +129,6 @@ contract Swap1InchHookBugTest is Test {
             Address token, 
             uint256 amount, 
             uint256 minReturn, 
-            Address dex
         ) = abi.decode(BytesLib.slice(data, 4, data.length - 4), (Address, Address, uint256, uint256, Address));
         
         // Extract actual addresses from Address type using the unwrap pattern

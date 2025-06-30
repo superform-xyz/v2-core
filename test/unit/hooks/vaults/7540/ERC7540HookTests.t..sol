@@ -43,7 +43,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     ClaimCancelRedeemRequest7540Hook public claimCancelRedeemRequestHook;
     CancelRedeemHook public cancelRedeemHook;
 
-    bytes4 yieldSourceOracleId;
+    bytes32 yieldSourceOracleId;
     address yieldSource;
     address shareToken;
     address token;
@@ -62,7 +62,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
         yieldSource7540AddressUSDC = CHAIN_1_CentrifugeUSDC;
 
-        yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
+        yieldSourceOracleId = bytes32(keccak256("YIELD_SOURCE_ORACLE_ID"));
         yieldSource = address(this);
         shareToken = address(this);
         token = address(new MockERC20("Token", "TKN", 18));

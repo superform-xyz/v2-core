@@ -56,7 +56,7 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         hooksAddresses[1] = deposit4626Hook;
         hooksData[0] = _createApproveHookData(underlying, address(yearnVault), amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(yearnVault), amount, false, address(0), 0
         );
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
@@ -74,7 +74,7 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         uint256 amount = SMALL; // fixed amount to test the fee and consumed entries easily
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)));
         assertEq(config.feePercent, 100); //1%
 
         // create and fund
@@ -117,7 +117,7 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         uint256 amount = SMALL; // fixed amount to test the fee and consumed entries easily
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)));
         assertEq(config.feePercent, 100); //1%
 
         // create and fund
@@ -164,7 +164,7 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         uint256 amount = SMALL; // fixed amount to test the fee and consumed entries easily
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)));
         assertEq(config.feePercent, 100); //1%
 
         // create and fund
@@ -219,7 +219,7 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         hooksAddresses[1] = deposit4626Hook;
         hooksData[0] = _createApproveHookData(underlying, address(yearnVault), amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(yearnVault), amount, false, address(0), 0
         );
         entry = ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
     }
@@ -233,7 +233,7 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         bytes[] memory hooksData = new bytes[](1);
         hooksAddresses[0] = redeem4626Hook;
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), account, amount, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(yearnVault), account, amount, false
         );
         entry = ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
     }

@@ -633,7 +633,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingToken, morphoVault, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), morphoVault, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), morphoVault, amount, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -685,7 +685,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         bytes[] memory hooksData = new bytes[](1);
 
         hooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             morphoVault,
             amount,
             false,
@@ -717,7 +717,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             uint256 sharesToRedeem = IERC4626(morphoVault).convertToShares(amount);
 
             hooksData[0] = _createRedeem4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
                 morphoVault,
                 nexusAccount,
                 sharesToRedeem,
@@ -725,7 +725,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             );
 
             hooksData[1] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
                 morphoVault,
                 amount,
                 true, // use previous output amount set to true
@@ -792,10 +792,10 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         bytes[] memory hooksData = new bytes[](3);
         hooksData[0] = _createApproveHookData(underlyingToken, morphoVault, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), morphoVault, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), morphoVault, amount, false, address(0), 0
         );
         hooksData[2] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             morphoVault,
             nexusAccount,
             IERC4626(morphoVault).convertToShares(amount),

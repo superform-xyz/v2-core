@@ -58,7 +58,7 @@ abstract contract BaseLedger is ISuperLedger {
     function updateAccounting(
         address user,
         address yieldSource,
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         bool isInflow,
         uint256 amountSharesOrAssets,
         uint256 usedShares
@@ -210,7 +210,7 @@ abstract contract BaseLedger is ISuperLedger {
     function _updateAccounting(
         address user,
         address yieldSource,
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         bool isInflow,
         uint256 amountSharesOrAssets,
         uint256 usedShares

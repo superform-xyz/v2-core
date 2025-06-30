@@ -89,7 +89,7 @@ contract LedgerTests is Helpers {
 
         address user = makeAddr("user");
         address yieldSource = makeAddr("yieldSource");
-        bytes4 yieldSourceOracleId = bytes4(keccak256("TEST_ORACLE_ID"));
+        bytes32 yieldSourceOracleId = bytes32(keccak256("TEST_ORACLE_ID"));
 
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
@@ -116,7 +116,7 @@ contract LedgerTests is Helpers {
         flatFeeLedger.updateAccounting(
             user,
             yieldSource,
-            yieldSourceOracleId,
+            _getYieldSourceOracleId(yieldSourceOracleId, address(this)),
             false, // isInflow = false (outflow)
             outflowAssets, // amountSharesOrAssets (assets for outflow)
             outflowShares // usedShares (shares used for outflow)
@@ -146,7 +146,7 @@ contract LedgerTests is Helpers {
     //////////////////////////////////////////////////////////////*/
     function test_TransferManagerRole_ToZeroAddress_Vulnerability() public {
         // Setup a configuration first
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(0x456);
@@ -163,6 +163,7 @@ contract LedgerTests is Helpers {
         });
         config.setYieldSourceOracles(configs);
 
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
         // Initial verification
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory initialConfig =
             config.getYieldSourceOracleConfig(oracleId);
@@ -177,6 +178,7 @@ contract LedgerTests is Helpers {
 
         // Try to make a proposal as the current manager - should still work because the transfer isn't complete
         address newOracle = address(0x999);
+        configs[0].yieldSourceOracleId = oracleId;
         configs[0].yieldSourceOracle = newOracle;
         config.proposeYieldSourceOracleConfig(configs);
 
@@ -209,7 +211,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_AcceptManagerRole_PendingProposal() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -226,6 +228,8 @@ contract LedgerTests is Helpers {
             ledger: ledger
         });
         config.setYieldSourceOracles(configs);
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
+        configs[0].yieldSourceOracleId = oracleId;
 
         // Propose new config
         config.proposeYieldSourceOracleConfig(configs);
@@ -233,7 +237,7 @@ contract LedgerTests is Helpers {
         // Fast forward past proposal expiration
         vm.warp(block.timestamp + 1 weeks + 1);
 
-        bytes4[] memory oracleIds = new bytes4[](1);
+        bytes32[] memory oracleIds = new bytes32[](1);
         oracleIds[0] = oracleId;
 
         config.transferManagerRole(oracleId, newManager);
@@ -257,7 +261,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_SetYieldSourceOracles() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(this);
@@ -275,9 +279,11 @@ contract LedgerTests is Helpers {
 
         vm.expectEmit(true, true, false, true);
         emit ISuperLedgerConfiguration.YieldSourceOracleConfigSet(
-            oracleId, oracle, feePercent, feeRecipient, address(this), ledger
+            _getYieldSourceOracleId(oracleId, address(this)), oracle, feePercent, feeRecipient, address(this), ledger
         );
         config.setYieldSourceOracles(configs);
+
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory storedConfig =
             config.getYieldSourceOracleConfig(oracleId);
@@ -297,7 +303,7 @@ contract LedgerTests is Helpers {
 
     function test_ProposeConfig() public {
         // First set initial config
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(0x456);
@@ -319,6 +325,7 @@ contract LedgerTests is Helpers {
         uint256 newFeePercent = 1500; // 15%
         address newFeeRecipient = address(0xabc);
         address newLedger = address(flatFeeLedger);
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: oracleId,
@@ -343,7 +350,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_ProposeConfig_NotFound_Revert() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
@@ -353,6 +360,7 @@ contract LedgerTests is Helpers {
             feeRecipient: address(0x456),
             ledger: address(superLedger)
         });
+        configs[0].yieldSourceOracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         vm.expectRevert(ISuperLedgerConfiguration.CONFIG_NOT_FOUND.selector);
         config.proposeYieldSourceOracleConfig(configs);
@@ -360,7 +368,7 @@ contract LedgerTests is Helpers {
 
     function test_ProposeConfig_NotManager_Revert() public {
         // First set initial config
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -378,14 +386,16 @@ contract LedgerTests is Helpers {
         config.setYieldSourceOracles(configs);
 
         // Try to propose as different address
-        vm.prank(address(0x999));
+        vm.startPrank(address(0x999));
+        configs[0].yieldSourceOracleId = _getYieldSourceOracleId(oracleId, address(this));
         vm.expectRevert(ISuperLedgerConfiguration.NOT_MANAGER.selector);
         config.proposeYieldSourceOracleConfig(configs);
+        vm.stopPrank();
     }
 
     function test_ProposeConfig_AlreadyProposed_Revert() public {
         // First set initial config
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -402,6 +412,7 @@ contract LedgerTests is Helpers {
         });
         config.setYieldSourceOracles(configs);
 
+        configs[0].yieldSourceOracleId = _getYieldSourceOracleId(oracleId, address(this));
         // Propose first time
         config.proposeYieldSourceOracleConfig(configs);
 
@@ -412,7 +423,7 @@ contract LedgerTests is Helpers {
 
     function test_ProposeConfig_InvalidFeePercent_Revert() public {
         // First set initial config
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -428,6 +439,7 @@ contract LedgerTests is Helpers {
             ledger: ledger
         });
         config.setYieldSourceOracles(configs);
+        configs[0].yieldSourceOracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         // Try to propose with invalid fee percent (more than 50% change)
         configs[0].feePercent = 2000; // 20% (more than 50% change from 10%)
@@ -436,7 +448,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_ProposeConfig_Event_Emission() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -458,6 +470,7 @@ contract LedgerTests is Helpers {
         uint256 newFeePercent = 1500;
         address newFeeRecipient = address(0xabc);
         address newLedger = address(flatFeeLedger);
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: oracleId,
@@ -476,7 +489,7 @@ contract LedgerTests is Helpers {
 
     function test_AcceptConfigPropsal() public {
         // First set initial config
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -500,7 +513,7 @@ contract LedgerTests is Helpers {
         address newLedger = address(flatFeeLedger);
 
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            yieldSourceOracleId: _getYieldSourceOracleId(oracleId, address(this)),
             yieldSourceOracle: newOracle,
             feePercent: newFeePercent,
             feeRecipient: newFeeRecipient,
@@ -512,18 +525,18 @@ contract LedgerTests is Helpers {
         vm.warp(block.timestamp + 1 weeks + 1);
 
         // Accept proposal
-        bytes4[] memory oracleIds = new bytes4[](1);
-        oracleIds[0] = oracleId;
+        bytes32[] memory oracleIds = new bytes32[](1);
+        oracleIds[0] = _getYieldSourceOracleId(oracleId, address(this));
 
         vm.expectEmit(true, true, false, true);
         emit ISuperLedgerConfiguration.YieldSourceOracleConfigAccepted(
-            oracleId, newOracle, newFeePercent, newFeeRecipient, address(this), newLedger
+            _getYieldSourceOracleId(oracleId, address(this)), newOracle, newFeePercent, newFeeRecipient, address(this), newLedger
         );
         config.acceptYieldSourceOracleConfigProposal(oracleIds);
 
         // Verify new config
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory storedConfig =
-            config.getYieldSourceOracleConfig(oracleId);
+            config.getYieldSourceOracleConfig(_getYieldSourceOracleId(oracleId, address(this)));
         assertEq(storedConfig.yieldSourceOracle, newOracle);
         assertEq(storedConfig.feePercent, newFeePercent);
         assertEq(storedConfig.feeRecipient, newFeeRecipient);
@@ -531,14 +544,14 @@ contract LedgerTests is Helpers {
     }
 
     function test_AcceptConfigPropsal_ZeroLength_Revert() public {
-        bytes4[] memory oracleIds = new bytes4[](0);
+        bytes32[] memory oracleIds = new bytes32[](0);
         vm.expectRevert(ISuperLedgerConfiguration.ZERO_LENGTH.selector);
         config.acceptYieldSourceOracleConfigProposal(oracleIds);
     }
 
     function test_AcceptConfigPropsal_NotManager_Revert() public {
         // First set initial config
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -555,6 +568,7 @@ contract LedgerTests is Helpers {
         });
         config.setYieldSourceOracles(configs);
 
+        configs[0].yieldSourceOracleId = _getYieldSourceOracleId(oracleId, address(this));
         // Propose new config
         config.proposeYieldSourceOracleConfig(configs);
 
@@ -562,8 +576,8 @@ contract LedgerTests is Helpers {
         vm.warp(block.timestamp + 1 weeks + 1);
 
         // Try to accept as different address
-        bytes4[] memory oracleIds = new bytes4[](1);
-        oracleIds[0] = oracleId;
+        bytes32[] memory oracleIds = new bytes32[](1);
+        oracleIds[0] = _getYieldSourceOracleId(oracleId, address(this));
 
         vm.prank(address(0x999));
         vm.expectRevert(ISuperLedgerConfiguration.NOT_MANAGER.selector);
@@ -572,7 +586,7 @@ contract LedgerTests is Helpers {
 
     function test_AcceptConfigPropsal_InvalidTime_Revert() public {
         // First set initial config
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -589,12 +603,13 @@ contract LedgerTests is Helpers {
         });
         config.setYieldSourceOracles(configs);
 
+        configs[0].yieldSourceOracleId = _getYieldSourceOracleId(oracleId, address(this));
         // Propose new config
         config.proposeYieldSourceOracleConfig(configs);
 
         // Try to accept before expiration
-        bytes4[] memory oracleIds = new bytes4[](1);
-        oracleIds[0] = oracleId;
+        bytes32[] memory oracleIds = new bytes32[](1);
+        oracleIds[0] = _getYieldSourceOracleId(oracleId, address(this));
 
         vm.expectRevert(ISuperLedgerConfiguration.CANNOT_ACCEPT_YET.selector);
         config.acceptYieldSourceOracleConfigProposal(oracleIds);
@@ -602,7 +617,7 @@ contract LedgerTests is Helpers {
 
     function test_AcceptConfigPropsal_Event_Emission() public {
         // First set initial config
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -626,7 +641,7 @@ contract LedgerTests is Helpers {
         address newLedger = address(flatFeeLedger);
 
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            yieldSourceOracleId: _getYieldSourceOracleId(oracleId, address(this)),
             yieldSourceOracle: newOracle,
             feePercent: newFeePercent,
             feeRecipient: newFeeRecipient,
@@ -638,18 +653,18 @@ contract LedgerTests is Helpers {
         vm.warp(block.timestamp + 1 weeks + 1);
 
         // Accept proposal
-        bytes4[] memory oracleIds = new bytes4[](1);
-        oracleIds[0] = oracleId;
+        bytes32[] memory oracleIds = new bytes32[](1);
+        oracleIds[0] = _getYieldSourceOracleId(oracleId, address(this));
 
         vm.expectEmit(true, true, false, true);
         emit ISuperLedgerConfiguration.YieldSourceOracleConfigAccepted(
-            oracleId, newOracle, newFeePercent, newFeeRecipient, address(this), newLedger
+            _getYieldSourceOracleId(oracleId, address(this)), newOracle, newFeePercent, newFeeRecipient, address(this), newLedger
         );
         config.acceptYieldSourceOracleConfigProposal(oracleIds);
     }
 
     function test_GetYieldSourceConfig() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -667,7 +682,7 @@ contract LedgerTests is Helpers {
         config.setYieldSourceOracles(configs);
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory storedConfig =
-            config.getYieldSourceOracleConfig(oracleId);
+            config.getYieldSourceOracleConfig(_getYieldSourceOracleId(oracleId, address(this)));
         assertEq(storedConfig.yieldSourceOracle, oracle);
         assertEq(storedConfig.feePercent, feePercent);
         assertEq(storedConfig.feeRecipient, feeRecipient);
@@ -676,8 +691,8 @@ contract LedgerTests is Helpers {
     }
 
     function test_GetYieldSourceConfigs() public {
-        bytes4 oracleId1 = bytes4(keccak256("test1"));
-        bytes4 oracleId2 = bytes4(keccak256("test2"));
+        bytes32 oracleId1 = bytes32(keccak256("test1"));
+        bytes32 oracleId2 = bytes32(keccak256("test2"));
         address oracle1 = address(0x123);
         address oracle2 = address(0x456);
         uint256 feePercent = 1000;
@@ -702,9 +717,9 @@ contract LedgerTests is Helpers {
         });
         config.setYieldSourceOracles(configs);
 
-        bytes4[] memory oracleIds = new bytes4[](2);
-        oracleIds[0] = oracleId1;
-        oracleIds[1] = oracleId2;
+        bytes32[] memory oracleIds = new bytes32[](2);
+        oracleIds[0] = _getYieldSourceOracleId(oracleId1, address(this));
+        oracleIds[1] = _getYieldSourceOracleId(oracleId2, address(this));
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig[] memory storedConfigs =
             config.getYieldSourceOracleConfigs(oracleIds);
@@ -714,7 +729,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_TransferManagerRole() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -731,6 +746,7 @@ contract LedgerTests is Helpers {
             ledger: ledger
         });
         config.setYieldSourceOracles(configs);
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         vm.expectEmit(true, true, true, false);
         emit ISuperLedgerConfiguration.ManagerRoleTransferStarted(oracleId, address(this), newManager);
@@ -738,7 +754,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_TransferManagerRole_NotManager() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -761,7 +777,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_TransferManagerRole_Event_Emission() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -779,13 +795,14 @@ contract LedgerTests is Helpers {
         });
         config.setYieldSourceOracles(configs);
 
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
         vm.expectEmit(true, true, true, false);
         emit ISuperLedgerConfiguration.ManagerRoleTransferStarted(oracleId, address(this), newManager);
         config.transferManagerRole(oracleId, newManager);
     }
 
     function test_AcceptManagerRole() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -803,6 +820,7 @@ contract LedgerTests is Helpers {
         });
         config.setYieldSourceOracles(configs);
 
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
         config.transferManagerRole(oracleId, newManager);
 
         vm.prank(newManager);
@@ -816,13 +834,13 @@ contract LedgerTests is Helpers {
     }
 
     function test_AcceptManagerRole_NotPending() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         vm.expectRevert(ISuperLedgerConfiguration.NOT_PENDING_MANAGER.selector);
         config.acceptManagerRole(oracleId);
     }
 
     function test_AcceptManagerRole_Event_Emission() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -840,6 +858,7 @@ contract LedgerTests is Helpers {
         });
         config.setYieldSourceOracles(configs);
 
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
         config.transferManagerRole(oracleId, newManager);
 
         vm.prank(newManager);
@@ -849,7 +868,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_validateConfig_ZeroAddress_Oracle() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -870,7 +889,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_validateConfig_ZeroAddress_FeeRecipient() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0);
@@ -891,7 +910,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_validateConfig_ZeroAddress_Ledger() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -912,7 +931,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_validateConfig_InvalidFeePercent() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 5001; // More than MAX_FEE_PERCENT (5000)
         address feeRecipient = address(0x456);
@@ -933,7 +952,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_validateConfig_ZeroId() public {
-        bytes4 oracleId = bytes4(0);
+        bytes32 oracleId = bytes32(0);
         address oracle = address(0x123);
         uint256 feePercent = 1000;
         address feeRecipient = address(0x456);
@@ -953,6 +972,105 @@ contract LedgerTests is Helpers {
         config.setYieldSourceOracles(configs);
     }
 
+    function test_setYieldSourceOracles_LedgerCollision_DoS() public {
+        // Honest user setup
+        address honestUser = makeAddr("honestUser");
+
+        bytes32 oracleId = bytes32(keccak256("test"));
+        address oracle = address(0x123);
+        uint256 feePercent = 1000; // 10%
+        address feeRecipient = honestUser;
+        address honestLedger = address(0xA1);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory honestConfigs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        honestConfigs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: honestLedger
+        });
+
+        // Malicious user uses same oracleId but different ledger address
+        address maliciousUser = makeAddr("maliciousUser");
+        address fakeLedger = address(0xA2);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory maliciousConfigs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        maliciousConfigs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: 3000,
+            feeRecipient: maliciousUser,
+            ledger: fakeLedger
+        });
+
+        // Malicious config is front-run
+        vm.prank(maliciousUser);
+        config.setYieldSourceOracles(maliciousConfigs);
+
+        // Honest user now attempts to set original config
+        vm.startPrank(honestUser);
+        config.setYieldSourceOracles(honestConfigs);
+
+        // Verify that the malicious configuration did NOT persist
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory storedConfig =
+            config.getYieldSourceOracleConfig(_getYieldSourceOracleId(oracleId, honestUser));
+
+        assertEq(storedConfig.feePercent, feePercent);
+        assertEq(storedConfig.feeRecipient, feeRecipient);
+        assertEq(storedConfig.ledger, honestLedger);
+    }
+
+
+    function testOrion_setYieldSourceOracles_Invalid_Id_DoS_works() public {
+        // Step 1: Honest user sets up oracle configuration
+        address honestUser = makeAddr("honestUser");
+
+        bytes32 oracleId = bytes32(keccak256("test"));
+        address oracle = address(0x123);
+        uint256 feePercent = 1000; // 10%
+        address feeRecipient = address(this);
+        address ledger = address(superLedger);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+
+        // Step 2: Malicious user frontruns honest user, changing parameters forcing the call to revert
+        address maliciousUser = makeAddr("maliciousUser");
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory maliciousConfigs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        maliciousConfigs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracleId: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: 5000, // 50% fee instead of 10% fee
+            feeRecipient: maliciousUser, // fee recipient is now set to malicious user
+            ledger: ledger
+        });
+
+        // Frontrunning transaction
+        vm.prank(maliciousUser);
+        config.setYieldSourceOracles(maliciousConfigs);
+
+        // Actual transaction from honest user, which reverts
+        vm.startPrank(honestUser);
+        //vm.expectRevert("CONFIG_EXISTS()");
+        // ^ this doesn't revert anymore
+        config.setYieldSourceOracles(configs);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory storedConfig =
+            config.getYieldSourceOracleConfig(_getYieldSourceOracleId(oracleId, honestUser));
+        assertEq(storedConfig.feeRecipient, feeRecipient);
+    }
+
     /*//////////////////////////////////////////////////////////////
                           BASE LEDGER TESTS
     //////////////////////////////////////////////////////////////*/
@@ -966,7 +1084,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_BaseLedger_OnlyExecutor() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address user = address(0x456);
         address yieldSource = address(0x789);
         uint256 amountAssets = 1000e18;
@@ -979,7 +1097,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_BaseLedger_UpdateAccountValidation() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(this);
@@ -1002,6 +1120,7 @@ contract LedgerTests is Helpers {
         uint256 amountAssets = 1000e18;
         uint256 usedShares = 1000e18;
 
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
         vm.prank(address(exec));
         uint256 feeAmount =
             mockBaseLedger.updateAccounting(user, yieldSource, oracleId, false, amountAssets, usedShares);
@@ -1010,7 +1129,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_BaseLedger_UpdateAccountingEvent() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(this);
@@ -1033,6 +1152,7 @@ contract LedgerTests is Helpers {
         uint256 amountAssets = 1000e18;
         uint256 usedShares = 1000e18;
         uint256 expectedFee = (amountAssets * feePercent) / 10_000;
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         vm.prank(address(exec));
         vm.expectEmit(true, true, true, true);
@@ -1044,7 +1164,7 @@ contract LedgerTests is Helpers {
                         FLAT FEE LEDGER TESTS
     //////////////////////////////////////////////////////////////*/
     function test_FlatFeeLedger_ProcessOutflow() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(this);
@@ -1061,6 +1181,8 @@ contract LedgerTests is Helpers {
             ledger: ledger
         });
         config.setYieldSourceOracles(configs);
+
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         // Test flat fee calculation
         address user = address(0x456);
@@ -1086,7 +1208,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_FlatFeeLedger_ProcessOutflow_ZeroFee() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 0; // 0%
         address feeRecipient = address(this);
@@ -1109,6 +1231,7 @@ contract LedgerTests is Helpers {
         address yieldSource = address(0x789);
         uint256 amountAssets = 1000e18; // 1000 tokens
         uint256 usedShares = 1000e18; // 1000 shares
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         // Call updateAccounting through the executor
         vm.prank(address(exec));
@@ -1125,7 +1248,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_FlatFeeLedger_ProcessOutflow_MaxFee() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 5000; // 50% (max allowed)
         address feeRecipient = address(this);
@@ -1148,6 +1271,7 @@ contract LedgerTests is Helpers {
         address yieldSource = address(0x789);
         uint256 amountAssets = 1000e18; // 1000 tokens
         uint256 usedShares = 1000e18; // 1000 shares
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         // Calculate expected fee (50% of amountAssets)
         uint256 expectedFee = (amountAssets * feePercent) / 10_000;
@@ -1167,7 +1291,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_FlatFeeLedger_ProcessOutflow_NotExecutor() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(this);
@@ -1197,7 +1321,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_FlatFeeLedger_ProcessOutflow_InvalidLedger() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(this);
@@ -1220,6 +1344,7 @@ contract LedgerTests is Helpers {
         address yieldSource = address(0x789);
         uint256 amountAssets = 1000e18;
         uint256 usedShares = 1000e18;
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         vm.prank(address(exec));
         vm.expectRevert(ISuperLedgerData.INVALID_LEDGER.selector);
@@ -1230,7 +1355,7 @@ contract LedgerTests is Helpers {
                         PREVIEW FEES TESTS
     //////////////////////////////////////////////////////////////*/
     function test_PreviewFees_NormalCase() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(this);
@@ -1253,6 +1378,7 @@ contract LedgerTests is Helpers {
         address yieldSource = address(0x789);
         uint256 amountAssets = 1000e18;
         uint256 usedShares = 1000e18;
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         // First do an inflow to set up shares
         vm.prank(address(exec));
@@ -1280,7 +1406,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_PreviewFees_NoProfit() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(this);
@@ -1303,6 +1429,7 @@ contract LedgerTests is Helpers {
         address yieldSource = address(0x789);
         uint256 amountAssets = 1000e18;
         uint256 usedShares = 1000e18;
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         // First do an inflow to set up shares
         vm.prank(address(exec));
@@ -1328,7 +1455,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_PreviewFees_ZeroFeePercent() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 0; // 0%
         address feeRecipient = address(this);
@@ -1351,6 +1478,7 @@ contract LedgerTests is Helpers {
         address yieldSource = address(0x789);
         uint256 amountAssets = 1000e18;
         uint256 usedShares = 1000e18;
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         // First do an inflow to set up shares
         vm.prank(address(exec));
@@ -1364,6 +1492,7 @@ contract LedgerTests is Helpers {
         );
 
         // Test preview fees with zero fee percent
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
         vm.expectRevert(ISuperLedgerData.FEE_NOT_SET.selector);
         uint256 previewFee = mockBaseLedger.previewFees(
             user,
@@ -1377,7 +1506,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_PreviewFees_MaxFeePercent() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 5000; // 50% (max allowed)
         address feeRecipient = address(this);
@@ -1400,6 +1529,7 @@ contract LedgerTests is Helpers {
         address yieldSource = address(0x789);
         uint256 amountAssets = 1000e18;
         uint256 usedShares = 1000e18;
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         // First do an inflow to set up shares
         vm.prank(address(exec));
@@ -1430,7 +1560,7 @@ contract LedgerTests is Helpers {
                     CALCULATE COST BASIS VIEW TESTS
     //////////////////////////////////////////////////////////////*/
     function test_CalculateCostBasisView_NormalCase() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(this);
@@ -1453,6 +1583,7 @@ contract LedgerTests is Helpers {
         address yieldSource = address(0x789);
         uint256 amountAssets = 1000e18;
         uint256 usedShares = 1000e18;
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         // First do an inflow to set up shares
         vm.prank(address(exec));
@@ -1473,7 +1604,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_CalculateCostBasisView_ZeroShares() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(this);
@@ -1495,6 +1626,8 @@ contract LedgerTests is Helpers {
         address user = address(0x456);
         address yieldSource = address(0x789);
         uint256 usedShares = 1000e18;
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
+
 
         // First do an inflow to set up shares
         vm.prank(address(exec));
@@ -1514,7 +1647,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_CalculateCostBasisView_AllShares() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(this);
@@ -1538,6 +1671,8 @@ contract LedgerTests is Helpers {
         uint256 amountAssets = 1000e18;
         uint256 usedShares = 1000e18;
 
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
+
         // First do an inflow to set up shares
         vm.prank(address(exec));
         mockBaseLedger.updateAccounting(
@@ -1556,7 +1691,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_CalculateCostBasisView_MultipleInflows() public {
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(mockOracle);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(this);
@@ -1581,6 +1716,8 @@ contract LedgerTests is Helpers {
         uint256 amountAssets2 = 2000e18;
         uint256 usedShares1 = 1000e18;
         uint256 usedShares2 = 2000e18;
+
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         // First inflow
         vm.prank(address(exec));
@@ -1615,7 +1752,7 @@ contract LedgerTests is Helpers {
 
     function test_CancelConfigProposal() public {
         // First set initial config
-        bytes4 oracleId = bytes4(keccak256("test"));
+        bytes32 oracleId = bytes32(keccak256("test"));
         address oracle = address(0x123);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(0x456);
@@ -1637,6 +1774,7 @@ contract LedgerTests is Helpers {
         uint256 newFeePercent = 1500; // 15%
         address newFeeRecipient = address(0xabc);
         address newLedger = address(flatFeeLedger);
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: oracleId,
@@ -1650,7 +1788,7 @@ contract LedgerTests is Helpers {
         config.proposeYieldSourceOracleConfig(configs);
 
         // Check proposal exists by attempting to accept before expiration (should revert)
-        bytes4[] memory ids = new bytes4[](1);
+        bytes32[] memory ids = new bytes32[](1);
         ids[0] = oracleId;
         vm.expectRevert(ISuperLedgerConfiguration.CANNOT_ACCEPT_YET.selector);
         config.acceptYieldSourceOracleConfigProposal(ids);
@@ -1669,7 +1807,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_YieldSourceOracleConfigSet_EventFields() public {
-        bytes4 oracleId = bytes4(keccak256("testFieldOrder"));
+        bytes32 oracleId = bytes32(keccak256("testFieldOrder"));
         address oracle = address(0xABCD);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(0xDEF0);
@@ -1687,13 +1825,13 @@ contract LedgerTests is Helpers {
 
         vm.expectEmit(true, true, true, true);
         emit ISuperLedgerConfiguration.YieldSourceOracleConfigSet(
-            oracleId, oracle, feePercent, feeRecipient, address(this), ledger
+            _getYieldSourceOracleId(oracleId, address(this)), oracle, feePercent, feeRecipient, address(this), ledger
         );
         config.setYieldSourceOracles(configs);
     }
 
     function test_YieldSourceOracleConfigProposalSet_EventFields() public {
-        bytes4 oracleId = bytes4(keccak256("testFieldOrder"));
+        bytes32 oracleId = bytes32(keccak256("testFieldOrder"));
         address oracle = address(0xABCD);
         uint256 feePercent = 1000;
         address feeRecipient = address(0xDEF0);
@@ -1715,6 +1853,8 @@ contract LedgerTests is Helpers {
         address newFeeRecipient = address(0x5678);
         address newLedger = address(flatFeeLedger);
 
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
+
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: oracleId,
             yieldSourceOracle: newOracle,
@@ -1731,7 +1871,7 @@ contract LedgerTests is Helpers {
     }
 
     function test_YieldSourceOracleConfigAccepted_EventFields() public {
-        bytes4 oracleId = bytes4(keccak256("testFieldOrder"));
+        bytes32 oracleId = bytes32(keccak256("testFieldOrder"));
         address oracle = address(0xABCD);
         uint256 feePercent = 1000; // 10%
         address feeRecipient = address(0xDEF0);
@@ -1752,6 +1892,7 @@ contract LedgerTests is Helpers {
         uint256 newFeePercent = 1500;
         address newFeeRecipient = address(0x5678);
         address newLedger = address(flatFeeLedger);
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: oracleId,
@@ -1764,7 +1905,7 @@ contract LedgerTests is Helpers {
 
         vm.warp(block.timestamp + 1 weeks + 1);
 
-        bytes4[] memory oracleIds = new bytes4[](1);
+        bytes32[] memory oracleIds = new bytes32[](1);
         oracleIds[0] = oracleId;
 
         vm.expectEmit(true, true, true, true);
@@ -1775,7 +1916,7 @@ contract LedgerTests is Helpers {
     }
 
     struct ConfigTestData {
-        bytes4 oracleId;
+        bytes32 oracleId;
         address oracle;
         uint256 feePercent;
         address feeRecipient;
@@ -1784,7 +1925,7 @@ contract LedgerTests is Helpers {
 
     function test_ProposeYieldSourceOracleConfig_NewProposalAfterExpiration() public {
         ConfigTestData memory initialConfig;
-        initialConfig.oracleId = bytes4(keccak256("test"));
+        initialConfig.oracleId = bytes32(keccak256("test"));
         initialConfig.oracle = address(mockOracle);
         initialConfig.feePercent = 1000; // 10%
         initialConfig.feeRecipient = makeAddr("initialRecipient");
@@ -1801,6 +1942,8 @@ contract LedgerTests is Helpers {
         });
 
         config.setYieldSourceOracles(initialConfigs);
+
+        initialConfig.oracleId = _getYieldSourceOracleId(initialConfig.oracleId, address(this));
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory existingConfig =
             config.getYieldSourceOracleConfig(initialConfig.oracleId);
@@ -1871,7 +2014,7 @@ contract LedgerTests is Helpers {
         config.proposeYieldSourceOracleConfig(secondProposalConfigs);
 
         // accept 2nd but fails
-        bytes4[] memory oracleIdsToAccept = new bytes4[](1);
+        bytes32[] memory oracleIdsToAccept = new bytes32[](1);
         oracleIdsToAccept[0] = secondProposal.oracleId;
         vm.expectRevert(ISuperLedgerConfiguration.CANNOT_ACCEPT_YET.selector);
         config.acceptYieldSourceOracleConfigProposal(oracleIdsToAccept);
@@ -1899,33 +2042,8 @@ contract LedgerTests is Helpers {
         assertEq(finalConfig.ledger, secondProposal.ledger);
     }
 
-    function test_FrontRunning_SetYieldSourceOracles() public {
-        address[] memory executors = new address[](1);
-        executors[0] = address(exec);
-
-        config = new SuperLedgerConfiguration();
-        superLedger = new SuperLedger(address(config), executors);
-
-        bytes4 oracleId = bytes4(keccak256("test"));
-        address oracle = address(0x123);
-        uint256 feePercent = 1000; // 10%
-        address feeRecipient = address(this);
-        address ledger = address(superLedger);
-
-        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
-        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
-            yieldSourceOracle: oracle,
-            feePercent: feePercent,
-            feeRecipient: feeRecipient,
-            ledger: ledger
-        });
-
-        address attacker = address(0xACD123);
-
-        //vm.prank(attacker);
-        //vm.expectRevert(ISuperLedgerConfiguration.NOT_DEPLOYER.selector);
-        //config.setYieldSourceOracles(configs);
+    function _getYieldSourceOracleId(bytes32 id, address sender) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(id, sender));
     }
+
 }

@@ -17,8 +17,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title EthenaUnstakeHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
+/// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 contract EthenaUnstakeHook is BaseHook, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
