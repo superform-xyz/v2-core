@@ -77,9 +77,9 @@ import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.so
 // --- Odos
 import { OdosAPIParser } from "./utils/parsers/OdosAPIParser.sol";
 import { IOdosRouterV2 } from "../src/vendor/odos/IOdosRouterV2.sol";
-import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
+import { SwapOdosV2Hook } from "../src/core/hooks/swappers/odos/SwapOdosV2Hook.sol";
 import { MockApproveAndSwapOdosHook } from "../test/mocks/unused-hooks/MockApproveAndSwapOdosHook.sol";
-import { ApproveAndSwapOdosHook } from "../src/core/hooks/swappers/odos/ApproveAndSwapOdosHook.sol";
+import { ApproveAndSwapOdosV2Hook } from "../src/core/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol";
 import { MockSwapOdosHook } from "../test/mocks/unused-hooks/MockSwapOdosHook.sol";
 
 // Stake hooks
@@ -183,7 +183,7 @@ struct Addresses {
     MorphoRepayAndWithdrawHook morphoRepayAndWithdrawHook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
-    ApproveAndSwapOdosHook approveAndSwapOdosHook;
+    ApproveAndSwapOdosV2Hook approveAndSwapOdosHook;
     ApproveAndFluidStakeHook approveAndFluidStakeHook;
     ApproveAndDeposit4626VaultHook approveAndDeposit4626VaultHook;
     ApproveAndDeposit5115VaultHook approveAndDeposit5115VaultHook;
@@ -206,7 +206,7 @@ struct Addresses {
     DeBridgeSendOrderAndExecuteOnDstHook deBridgeSendOrderAndExecuteOnDstHook;
     DeBridgeCancelOrderHook deBridgeCancelOrderHook;
     Swap1InchHook swap1InchHook;
-    SwapOdosHook swapOdosHook;
+    SwapOdosV2Hook swapOdosHook;
     MockSwapOdosHook mockSwapOdosHook;
     MockApproveAndSwapOdosHook mockApproveAndSwapOdosHook;
     GearboxStakeHook gearboxStakeHook;
@@ -879,26 +879,26 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][MOCK_SWAP_ODOS_HOOK_KEY]);
             hooksAddresses[17] = address(A[i].mockSwapOdosHook);
 
-            A[i].approveAndSwapOdosHook = new ApproveAndSwapOdosHook{ salt: SALT }(ODOS_ROUTER[chainIds[i]]);
-            vm.label(address(A[i].approveAndSwapOdosHook), APPROVE_AND_SWAP_ODOS_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY] = address(A[i].approveAndSwapOdosHook);
-            hooks[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY] = Hook(
-                APPROVE_AND_SWAP_ODOS_HOOK_KEY,
+            A[i].approveAndSwapOdosHook = new ApproveAndSwapOdosV2Hook{ salt: SALT }(ODOS_ROUTER[chainIds[i]]);
+            vm.label(address(A[i].approveAndSwapOdosHook), APPROVE_AND_SWAP_ODOSV2_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_SWAP_ODOSV2_HOOK_KEY] = address(A[i].approveAndSwapOdosHook);
+            hooks[chainIds[i]][APPROVE_AND_SWAP_ODOSV2_HOOK_KEY] = Hook(
+                APPROVE_AND_SWAP_ODOSV2_HOOK_KEY,
                 HookCategory.TokenApprovals,
                 HookCategory.Swaps,
                 address(A[i].approveAndSwapOdosHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][APPROVE_AND_SWAP_ODOSV2_HOOK_KEY]);
             hooksAddresses[18] = address(A[i].approveAndSwapOdosHook);
 
-            A[i].swapOdosHook = new SwapOdosHook{ salt: SALT }(ODOS_ROUTER[chainIds[i]]);
-            vm.label(address(A[i].swapOdosHook), SWAP_ODOS_HOOK_KEY);
-            hookAddresses[chainIds[i]][SWAP_ODOS_HOOK_KEY] = address(A[i].swapOdosHook);
-            hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY] = Hook(
-                SWAP_ODOS_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(A[i].swapOdosHook), ""
+            A[i].swapOdosHook = new SwapOdosV2Hook{ salt: SALT }(ODOS_ROUTER[chainIds[i]]);
+            vm.label(address(A[i].swapOdosHook), SWAP_ODOSV2_HOOK_KEY);
+            hookAddresses[chainIds[i]][SWAP_ODOSV2_HOOK_KEY] = address(A[i].swapOdosHook);
+            hooks[chainIds[i]][SWAP_ODOSV2_HOOK_KEY] = Hook(
+                SWAP_ODOSV2_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(A[i].swapOdosHook), ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOSV2_HOOK_KEY]);
             hooksAddresses[19] = address(A[i].swapOdosHook);
 
             A[i].acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook{ salt: SALT }(
