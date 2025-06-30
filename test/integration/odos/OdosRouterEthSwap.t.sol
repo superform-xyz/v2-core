@@ -13,7 +13,7 @@ import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol"
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
 import { OdosAPIParser } from "../../utils/parsers/OdosAPIParser.sol";
-import { SwapOdosHook } from "../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
+import { SwapOdosV2Hook } from "../../../src/core/hooks/swappers/odos/SwapOdosV2Hook.sol";
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { MockOdosRouterV2 } from "../../mocks/MockOdosRouterV2.sol";
 
@@ -61,7 +61,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
         if (useRealOdosRouter) {
             address[] memory hookAddresses_ = new address[](2);
             hookAddresses_[0] = approveHook;
-            hookAddresses_[1] = address(new SwapOdosHook(CHAIN_1_ODOS_ROUTER));
+            hookAddresses_[1] = address(new SwapOdosV2Hook(CHAIN_1_ODOS_ROUTER));
 
             bytes[] memory hookData = new bytes[](2);
             hookData[0] = _createApproveHookData(token, CHAIN_1_ODOS_ROUTER, amount, false);
@@ -105,7 +105,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
 
             address[] memory hookAddresses_ = new address[](2);
             hookAddresses_[0] = approveHook;
-            hookAddresses_[1] = address(new SwapOdosHook(address(odosRouter)));
+            hookAddresses_[1] = address(new SwapOdosV2Hook(address(odosRouter)));
 
             bytes[] memory hookData = new bytes[](2);
             hookData[0] = _createApproveHookData(token, address(odosRouter), amount, false);
@@ -151,7 +151,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
         if (useRealOdosRouter) {
             address[] memory hookAddresses_ = new address[](2);
             hookAddresses_[0] = approveHook;
-            hookAddresses_[1] = address(new SwapOdosHook(CHAIN_1_ODOS_ROUTER));
+            hookAddresses_[1] = address(new SwapOdosV2Hook(CHAIN_1_ODOS_ROUTER));
 
             bytes[] memory hookData = new bytes[](2);
             hookData[0] = _createApproveHookData(token, CHAIN_1_ODOS_ROUTER, amount, false);
@@ -206,7 +206,7 @@ contract OdosRouterEthSwap is MinimalBaseIntegrationTest, OdosAPIParser {
 
             address[] memory hookAddresses_ = new address[](2);
             hookAddresses_[0] = approveHook;
-            hookAddresses_[1] = address(new SwapOdosHook(address(odosRouter)));
+            hookAddresses_[1] = address(new SwapOdosV2Hook(address(odosRouter)));
 
             bytes[] memory hookData = new bytes[](2);
             hookData[0] = _createApproveHookData(token, address(odosRouter), amount, false);

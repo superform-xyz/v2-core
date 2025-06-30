@@ -65,7 +65,6 @@ contract Swap1InchHookBugTest is Test {
         vm.mockCall(mockPair, abi.encodeWithSignature("token0()"), abi.encode(srcToken));
         vm.mockCall(mockPair, abi.encodeWithSignature("token1()"), abi.encode(dstToken));
         
-        
         // 2. Now, build with usePrevHookAmount = true (bug case)
         MockPrevHook prevHook = new MockPrevHook(prevHookAmount);
         
