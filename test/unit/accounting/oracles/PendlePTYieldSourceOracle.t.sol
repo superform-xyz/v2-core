@@ -1,21 +1,27 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {InternalHelpers} from "../../../utils/InternalHelpers.sol";
-import {Helpers} from "../../../utils/Helpers.sol";
-import {PendlePTYieldSourceOracle} from "../../../../src/core/accounting/oracles/PendlePTYieldSourceOracle.sol";
-import {IYieldSourceOracle} from "../../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
-import {MockStandardizedYield} from "../../../mocks/MockStandardizedYield.sol";
-import {MockPendleMarket} from "../../../mocks/MockPendleMarket.sol";
-import {MockERC20} from "../../../mocks/MockERC20.sol";
+import { InternalHelpers } from "../../../utils/InternalHelpers.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
+import { PendlePTYieldSourceOracle } from "../../../../src/core/accounting/oracles/PendlePTYieldSourceOracle.sol";
+import { IYieldSourceOracle } from "../../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
+import { MockStandardizedYield } from "../../../mocks/MockStandardizedYield.sol";
+import { MockPendleMarket } from "../../../mocks/MockPendleMarket.sol";
+import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import "forge-std/console.sol";
+import { SuperLedgerConfiguration } from "../../../../src/core/accounting/SuperLedgerConfiguration.sol";
+import { ISuperLedgerConfiguration } from "../../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperLedger } from "../../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { SuperLedger } from "../../../../src/core/accounting/SuperLedger.sol";
 
 interface iPendleMarket {
-  function readTokens() external view returns (address sy, address pt, address yt);
+    function readTokens() external view returns (address sy, address pt, address yt);
 }
 
-
 contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
+    ISuperLedgerConfiguration public ledgerConfig;
+    ISuperLedger public ledger;
+
     PendlePTYieldSourceOracle public oracle;
     MockPendleMarket public mockPendleMarket;
 
@@ -36,7 +42,12 @@ contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
         assetPt = new MockERC20("Mock PT", "MPT", 18);
         assetYt = new MockERC20("Mock YT", "MYT", 18);
 
-        oracle = new PendlePTYieldSourceOracle();
+        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(this))));
+        address[] memory allowedExecutors = new address[](1);
+        allowedExecutors[0] = address(0x777);
+        ledger = ISuperLedger(address(new SuperLedger(address(ledgerConfig), allowedExecutors)));
+
+        oracle = new PendlePTYieldSourceOracle(address(ledgerConfig));
         sy = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
         pt = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
         yt = new MockStandardizedYield(address(assetSy), address(assetPt), address(assetYt));
@@ -44,28 +55,29 @@ contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
     }
 
     function test_PendlePtOracle_takeSnapshot() public {
-        uint256 ethFork = vm.createFork(vm.envString(ETHEREUM_RPC_URL_KEY), 22579300);
+        uint256 ethFork = vm.createFork(vm.envString(ETHEREUM_RPC_URL_KEY), 22_579_300);
         vm.selectFork(ethFork);
         account = address(this);
 
-      // aUSDC market https://app.pendle.finance/trade/markets?utm_source=landing&utm_medium=landing&chains=ethereum&search=USDC
-      address market = address(0x8539B41CA14148d1F7400d399723827a80579414);
-      (address _sy, address _pt, address _yt) = iPendleMarket(market).readTokens();
-      console.log("sy %x", uint256(uint160(_sy)));
-      console.log("pt %x", uint256(uint160(_pt)));
-      console.log("yt %x", uint256(uint160(_yt)));
+        // aUSDC market
+        // https://app.pendle.finance/trade/markets?utm_source=landing&utm_medium=landing&chains=ethereum&search=USDC
+        address market = address(0x8539B41CA14148d1F7400d399723827a80579414);
+        (address _sy, address _pt, address _yt) = iPendleMarket(market).readTokens();
+        console.log("sy %x", uint256(uint160(_sy)));
+        console.log("pt %x", uint256(uint160(_pt)));
+        console.log("yt %x", uint256(uint160(_yt)));
 
-      oracle = new PendlePTYieldSourceOracle();
+        PendlePTYieldSourceOracle tempOracle = new PendlePTYieldSourceOracle(address(ledgerConfig));
 
-      uint256 ptIn = 1e6;
-      uint256 decimals = oracle.decimals(market);
-      console.log("oracle decimals %s", decimals);
-      uint256 pps = oracle.getPricePerShare(market);
-      uint256 costBasis = ptIn * pps / (10** decimals);
-      console.log("pps %18ee18", pps);
+        uint256 ptIn = 1e6;
+        uint256 decimals = tempOracle.decimals(market);
+        console.log("oracle decimals %s", decimals);
+        uint256 pps = tempOracle.getPricePerShare(market);
+        uint256 costBasis = ptIn * pps / (10 ** decimals);
+        console.log("pps %18ee18", pps);
 
-      uint256 assetsOut = oracle.getAssetOutput(market, address(0), ptIn);
-      assertEq(assetsOut, costBasis, "assetsOut != costBasis");
+        uint256 assetsOut = tempOracle.getAssetOutput(market, address(0), ptIn);
+        assertEq(assetsOut, costBasis, "assetsOut != costBasis");
     }
 
     function test_decimals() public view {

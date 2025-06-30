@@ -85,9 +85,9 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
 
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
-        yieldSourceOracle4626 = address(new ERC4626YieldSourceOracle());
-        yieldSourceOracle5115 = address(new ERC5115YieldSourceOracle());
-        yieldSourceOracle7540 = address(new ERC7540YieldSourceOracle());
+        yieldSourceOracle4626 = address(new ERC4626YieldSourceOracle(address(ledgerConfig)));
+        yieldSourceOracle5115 = address(new ERC5115YieldSourceOracle(address(ledgerConfig)));
+        yieldSourceOracle7540 = address(new ERC7540YieldSourceOracle(address(ledgerConfig)));
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle4626,
@@ -184,11 +184,14 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         // create validator merkle tree & get signature data
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false, address(superMerkleValidator));
+        leaves[0] = _createSourceValidatorLeaf(
+            IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false, address(superMerkleValidator)
+        );
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
 
-        bytes memory sigData = abi.encode(false, validUntil, root, proof[0], new ISuperValidator.DstProof[](0), signature);
+        bytes memory sigData =
+            abi.encode(false, validUntil, root, proof[0], new ISuperValidator.DstProof[](0), signature);
         // -- replace signature with validator signature
         userOp.signature = sigData;
 
@@ -222,7 +225,9 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         // create validator merkle tree & get signature data
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
-        leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false, address(superMerkleValidator));
+        leaves[0] = _createSourceValidatorLeaf(
+            IMinimalEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false, address(superMerkleValidator)
+        );
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(root);
         bytes memory sigData = abi.encode(false, validUntil, root, proof[0], proof[0], signature);

@@ -168,4 +168,24 @@ interface IYieldSourceOracle {
     /// @param yieldSourceAddresses Array of yield-bearing token addresses
     /// @return tvls Array containing the total TVL for each yield source
     function getTVLMultiple(address[] memory yieldSourceAddresses) external view returns (uint256[] memory tvls);
+
+    /// @notice Calculates the asset output with fees added for an outflow operation
+    /// @dev Gets the asset output from the oracle and adds any applicable fees
+    ///      Uses try/catch to handle cases where oracle configuration doesn't exist
+    /// @param yieldSourceOracleId Identifier for the yield source oracle configuration
+    /// @param yieldSourceAddress Address of the yield-bearing asset
+    /// @param assetOut Address of the output asset
+    /// @param user Address of the user performing the outflow
+    /// @param usedShares Amount of shares being withdrawn
+    /// @return Total asset amount including fees
+    function getAssetOutputWithFees(
+        bytes4 yieldSourceOracleId,
+        address yieldSourceAddress,
+        address assetOut,
+        address user,
+        uint256 usedShares
+    )
+        external
+        view
+        returns (uint256);
 }

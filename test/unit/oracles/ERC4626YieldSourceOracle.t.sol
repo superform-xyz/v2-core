@@ -1,19 +1,30 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {MockERC20} from "../../mocks/MockERC20.sol";
-import {Mock4626Vault} from "../../mocks/Mock4626Vault.sol";
-import {ERC4626YieldSourceOracle} from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {Helpers} from "../../utils/Helpers.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
+import { ERC4626YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { Helpers } from "../../utils/Helpers.sol";
+import { SuperLedgerConfiguration } from "../../../src/core/accounting/SuperLedgerConfiguration.sol";
+import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { SuperLedger } from "../../../src/core/accounting/SuperLedger.sol";
 
 contract ERC4626YieldSourceOracleTest is Helpers {
+    ISuperLedgerConfiguration public ledgerConfig;
+    ISuperLedger public ledger;
     ERC4626YieldSourceOracle public oracle;
     MockERC20 public underlying;
     Mock4626Vault public vault;
 
     function setUp() public {
-        oracle = new ERC4626YieldSourceOracle();
+        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(this))));
+        address[] memory allowedExecutors = new address[](1);
+        allowedExecutors[0] = address(0x777);
+        ledger = ISuperLedger(address(new SuperLedger(address(ledgerConfig), allowedExecutors)));
+
+        oracle = new ERC4626YieldSourceOracle(address(ledgerConfig));
         underlying = new MockERC20("Underlying", "UND", 18);
         vault = new Mock4626Vault(address(underlying), "Vault", "VAULT");
     }

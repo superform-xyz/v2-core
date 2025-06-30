@@ -154,27 +154,6 @@ interface ISuperLedger is ISuperLedgerData {
         view
         returns (uint256 feeAmount);
 
-    /// @notice Previews the net asset amount after fees for an outflow operation
-    /// @dev Calculates asset equivalent of shares and deducts fees to show net outflow
-    /// @param yieldSourceOracleId Identifier for the yield source oracle
-    /// @param yieldSourceAddress Address of the yield-bearing asset
-    /// @param assetOut Address of the output asset (used in ERC-5115 implementation)
-    /// @param user Address of the user performing the outflow
-    /// @param usedShares Amount of shares being withdrawn
-    /// @param feePercent Fee percentage in basis points
-    /// @return Net asset amount after fees are deducted
-    function previewOutflowWithoutFees(
-        bytes4 yieldSourceOracleId,
-        address yieldSourceAddress,
-        address assetOut,
-        address user,
-        uint256 usedShares,
-        uint256 feePercent
-    )
-        external
-        view
-        returns (uint256);
-
     /// @notice Calculates the cost basis for a given user and amount of shares without modifying state
     /// @dev Cost basis represents the original asset value of the shares when they were acquired
     ///      This is calculated proportionally based on the shares being consumed

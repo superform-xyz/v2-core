@@ -878,23 +878,31 @@ contract DeployV2 is Script, Configuration {
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         oracleAddresses = new address[](len);
 
+        address superLedgerConfig = _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY);
+
         oracles[0] = OracleDeployment(
-            ERC4626_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(ERC4626YieldSourceOracle).creationCode)
+            ERC4626_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(ERC4626YieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
         );
         oracles[1] = OracleDeployment(
-            ERC5115_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(ERC5115YieldSourceOracle).creationCode)
+            ERC5115_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(ERC5115YieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
         );
         oracles[2] = OracleDeployment(
-            ERC7540_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(ERC7540YieldSourceOracle).creationCode)
+            ERC7540_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(ERC7540YieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
         );
         oracles[3] = OracleDeployment(
-            PENDLE_PT_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(PendlePTYieldSourceOracle).creationCode)
+            PENDLE_PT_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(PendlePTYieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
         );
         oracles[4] = OracleDeployment(
-            SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(SpectraPTYieldSourceOracle).creationCode)
+            SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(SpectraPTYieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
         );
         oracles[5] = OracleDeployment(
-            STAKING_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(StakingYieldSourceOracle).creationCode)
+            STAKING_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(StakingYieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
         );
 
         for (uint256 i = 0; i < len; ++i) {
@@ -934,6 +942,7 @@ contract DeployV2 is Script, Configuration {
             feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
             ledger: _getContract(chainId, ERC1155_LEDGER_KEY)
         });
+        /// !! TODO wrong ledger (should be flat fee)
         configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracleId: bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, STAKING_YIELD_SOURCE_ORACLE_KEY),

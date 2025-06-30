@@ -107,36 +107,6 @@ abstract contract BaseLedger is ISuperLedger {
         feeAmount = _calculateFees(costBasis, amountAssets, feePercent);
     }
 
-    /// @inheritdoc ISuperLedger
-    function previewOutflowWithoutFees(
-        bytes4 yieldSourceOracleId,
-        address yieldSourceAddress,
-        address,
-        address user,
-        uint256 usedShares,
-        uint256 feePercent
-    )
-        external
-        view
-        virtual
-        returns (uint256)
-    {
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
-
-        if (config.yieldSourceOracle == address(0)) revert MANAGER_NOT_SET();
-
-        // Get asset output from oracle
-        uint256 amountAssets =
-            IYieldSourceOracle(config.yieldSourceOracle).getAssetOutput(yieldSourceAddress, address(0), usedShares);
-
-        // Calculate fees
-        uint256 feeAmount = previewFees(user, yieldSourceAddress, amountAssets, usedShares, feePercent);
-
-        // Return assets minus fees
-        return amountAssets - feeAmount;
-    }
-
     /*//////////////////////////////////////////////////////////////
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/

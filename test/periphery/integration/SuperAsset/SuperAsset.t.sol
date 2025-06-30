@@ -20,6 +20,8 @@ import { SuperBank } from "../../../../src/periphery/SuperBank.sol";
 import { SuperVault } from "../../../../src/periphery/SuperVault/SuperVault.sol";
 import { SuperVaultStrategy } from "../../../../src/periphery/SuperVault/SuperVaultStrategy.sol";
 import { SuperVaultEscrow } from "../../../../src/periphery/SuperVault/SuperVaultEscrow.sol";
+import { SuperLedgerConfiguration } from "../../../../src/core/accounting/SuperLedgerConfiguration.sol";
+import { ISuperLedgerConfiguration } from "../../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 contract SuperAssetTest is Helpers {
     // --- Constants ---
@@ -66,6 +68,7 @@ contract SuperAssetTest is Helpers {
     SuperVaultAggregator public aggregator;
     SuperGovernor public superGovernor;
     SuperBank public superBank;
+    ISuperLedgerConfiguration public ledgerConfig;
     address public admin;
     address public manager;
     address public user;
@@ -246,7 +249,9 @@ contract SuperAssetTest is Helpers {
             tokenOutIncentive: address(tokenOut)
         });
 
-        yieldSourceOracle = new ERC4626YieldSourceOracle();
+        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(this))));
+
+        yieldSourceOracle = new ERC4626YieldSourceOracle(address(ledgerConfig));
 
         // NOTE: Whitelisting ICC so that's possible to instantiate SuperAsset using it
         superGovernor.addICCToWhitelist(address(icc));

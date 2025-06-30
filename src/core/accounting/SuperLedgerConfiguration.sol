@@ -63,8 +63,6 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
 
         uint256 length = configs.length;
         if (length == 0) revert ZERO_LENGTH();
-        if (_initialized) revert ALREADY_INITIALIZED();
-        _initialized = true;
 
         for (uint256 i; i < length; ++i) {
             YieldSourceOracleConfigArgs calldata config = configs[i];

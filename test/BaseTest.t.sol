@@ -576,19 +576,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             contractAddresses[chainIds[i]][ERC1155_LEDGER_KEY] = address(A[i].erc1155Ledger);
 
             /// @dev action oracles
-            A[i].erc4626YieldSourceOracle = new ERC4626YieldSourceOracle();
+            A[i].erc4626YieldSourceOracle = new ERC4626YieldSourceOracle(address(A[i].superLedgerConfiguration));
             vm.label(address(A[i].erc4626YieldSourceOracle), ERC4626_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][ERC4626_YIELD_SOURCE_ORACLE_KEY] = address(A[i].erc4626YieldSourceOracle);
 
-            A[i].erc5115YieldSourceOracle = new ERC5115YieldSourceOracle();
+            A[i].erc5115YieldSourceOracle = new ERC5115YieldSourceOracle(address(A[i].superLedgerConfiguration));
             vm.label(address(A[i].erc5115YieldSourceOracle), ERC5115_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][ERC5115_YIELD_SOURCE_ORACLE_KEY] = address(A[i].erc5115YieldSourceOracle);
 
-            A[i].erc7540YieldSourceOracle = new ERC7540YieldSourceOracle();
+            A[i].erc7540YieldSourceOracle = new ERC7540YieldSourceOracle(address(A[i].superLedgerConfiguration));
             vm.label(address(A[i].erc7540YieldSourceOracle), ERC7540_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][ERC7540_YIELD_SOURCE_ORACLE_KEY] = address(A[i].erc7540YieldSourceOracle);
 
-            A[i].stakingYieldSourceOracle = new StakingYieldSourceOracle();
+            A[i].stakingYieldSourceOracle = new StakingYieldSourceOracle(address(A[i].superLedgerConfiguration));
             vm.label(address(A[i].stakingYieldSourceOracle), STAKING_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][STAKING_YIELD_SOURCE_ORACLE_KEY] = address(A[i].stakingYieldSourceOracle);
 
@@ -1986,10 +1986,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         MerkleContext memory ctx;
 
         ctx.validUntil = uint48(block.timestamp + 100 days);
-        ctx.executionData = _createCrosschainExecutionData_DestinationExecutor(
-            messageData.hooksAddresses,
-            messageData.hooksData
-        );
+        ctx.executionData =
+            _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
 
         ctx.leaves = new bytes32[](2);
         ctx.dstTokens = new address[](1);
@@ -2027,16 +2025,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             account: accountToUse,
             validator: messageData.validator
         });
-        proofDst[0] = ISuperValidator.DstProof({proof: ctx.merkleProof[0], dstChainId: dstChainId, info: dstInfo});
+        proofDst[0] = ISuperValidator.DstProof({ proof: ctx.merkleProof[0], dstChainId: dstChainId, info: dstInfo });
 
         console2.logBytes32(ctx.merkleRoot);
         sig = _createSignatureData_DestinationExecutor(
-            true,
-            ctx.validUntil,
-            ctx.merkleRoot,
-            ctx.merkleProof[1],
-            proofDst,
-            ctx.signature
+            true, ctx.validUntil, ctx.merkleRoot, ctx.merkleProof[1], proofDst, ctx.signature
         );
     }
 

@@ -5,9 +5,6 @@ pragma solidity 0.8.30;
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 // superform
 import { BaseLedger } from "./BaseLedger.sol";
-import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { IYieldSourceOracle } from "../interfaces/accounting/IYieldSourceOracle.sol";
-import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 
 /// @title ERC5115Ledger
 /// @author Superform Labs
@@ -45,35 +42,5 @@ contract ERC5115Ledger is BaseLedger {
         returns (uint256)
     {
         return Math.mulDiv(usedShares, pps, 10 ** decimals);
-    }
-
-    /// @inheritdoc ISuperLedger
-    function previewOutflowWithoutFees(
-        bytes4 yieldSourceOracleId,
-        address yieldSourceAddress,
-        address assetOut,
-        address user,
-        uint256 usedShares,
-        uint256 feePercent
-    )
-        external
-        view
-        override
-        returns (uint256)
-    {
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            superLedgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
-
-        if (config.yieldSourceOracle == address(0)) revert MANAGER_NOT_SET();
-
-        // Get asset output from oracle
-        uint256 amountAssets =
-            IYieldSourceOracle(config.yieldSourceOracle).getAssetOutput(yieldSourceAddress, assetOut, usedShares);
-
-        // Calculate fees
-        uint256 feeAmount = previewFees(user, yieldSourceAddress, amountAssets, usedShares, feePercent);
-
-        // Return assets minus fees
-        return amountAssets - feeAmount;
     }
 }
