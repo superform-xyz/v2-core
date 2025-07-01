@@ -5,6 +5,7 @@ pragma solidity 0.8.30;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import "../../../../vendor/1inch/I1InchAggregationRouterV6.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -22,6 +23,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using AddressLib for Address;
     using ProtocolLib for Address;
+    using SafeCast for uint256;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -195,11 +197,11 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
             if (selectorOffset == 0) {
                 dstToken = ICurvePool(dex.get()).base_coins(dstTokenIndex);
             } else if (selectorOffset == 4) {
-                dstToken = ICurvePool(dex.get()).coins(int128(uint128(dstTokenIndex)));
+                dstToken = ICurvePool(dex.get()).coins(int128(dstTokenIndex.toUint128()));
             } else if (selectorOffset == 8) {
                 dstToken = ICurvePool(dex.get()).coins(dstTokenIndex);
             } else if (selectorOffset == 12) {
-                dstToken = ICurvePool(dex.get()).underlying_coins(int128(uint128(dstTokenIndex)));
+                dstToken = ICurvePool(dex.get()).underlying_coins(int128(dstTokenIndex.toUint128()));
             } else if (selectorOffset == 16) {
                 dstToken = ICurvePool(dex.get()).underlying_coins(dstTokenIndex);
             } else {

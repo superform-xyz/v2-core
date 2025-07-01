@@ -192,7 +192,7 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
                 from: from,
                 to: account,
                 token: token,
-                amount: uint160(amount)
+                amount: amount.toUint160()
             });
         }
         return details;

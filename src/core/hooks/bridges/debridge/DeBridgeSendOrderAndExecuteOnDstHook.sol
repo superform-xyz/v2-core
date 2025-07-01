@@ -5,6 +5,7 @@ pragma solidity 0.8.30;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
 import { IDlnSource } from "../../../../vendor/bridges/debridge/IDlnSource.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -70,6 +71,8 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
 contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+    using SafeCast for uint256;
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -312,7 +315,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
             payload: abi.encode(initData, executorCalldata, account, dstTokens, intentAmounts, params.sigData),
             fallbackAddress: params.fallbackAddress,
             executorAddress: params.executorAddress,
-            executionFee: uint160(params.executionFee),
+            executionFee: params.executionFee.toUint160(),
             allowDelayedExecution: params.allowDelayedExecution,
             requireSuccessfullExecution: params.requireSuccessfulExecution
         });
