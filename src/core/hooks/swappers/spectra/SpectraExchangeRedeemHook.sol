@@ -71,7 +71,7 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
     /// @inheritdoc BaseHook
     function _buildHookExecutions(
         address prevHook,
-        address,
+        address account,
         bytes calldata data
     )
         internal
@@ -85,7 +85,7 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
         if (params.command != REDEEM_IBT_FOR_ASSET && params.command != REDEEM_PT_FOR_ASSET) revert INVALID_COMMAND();
 
         if (params.usePrevHookAmount) {
-            params.sharesToBurn = ISuperHookResult(prevHook).outAmount();
+            params.sharesToBurn = ISuperHookResult(prevHook).getOutAmount(account);
         }
         if (params.sharesToBurn == 0) revert AMOUNT_NOT_VALID();
 
@@ -129,11 +129,11 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(data, account);
+        _setOutAmount(_getBalance(data, account), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(data, account) - outAmount;
+        _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

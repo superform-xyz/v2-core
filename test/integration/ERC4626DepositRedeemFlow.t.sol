@@ -36,7 +36,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         vm.expectEmit(true, true, true, false);
@@ -53,15 +53,11 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         hooksAddresses[0] = redeem4626Hook;
         hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            yieldSourceAddressEth,
-            accountEth,
-            accSharesAfter,
-            false
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, accountEth, accSharesAfter, false
         );
 
         ISuperExecutor.ExecutorEntry memory entryWithdraw =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryWithdraw));
 
@@ -70,17 +66,13 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
 
         executeOp(userOpData);
         // ^ does not revert anymore
-        
+
         // ASSERTIONS
-        
+
         uint256 finalShareBalance = vaultInstanceEth.balanceOf(accountEth);
         assertEq(finalShareBalance, 0);
-        
-        IERC4626(yieldSourceAddressEth).convertToAssets(accSharesAfter);
         uint256 actualTokenBalance = IERC20(underlyingEth_USDC).balanceOf(accountEth);
         assertGt(actualTokenBalance, 0);
-        
-
     }
 
     function test_Deposit_4626_Mainnet_Flow() public {
@@ -183,11 +175,17 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
-        uint256 expectedFee = ledger.previewFees(accountEth, yieldSourceAddressEth, IERC4626(yieldSourceAddressEth).convertToAssets(yieldSourceBal), yieldSourceBal, 100);
+        uint256 expectedFee = ledger.previewFees(
+            accountEth,
+            yieldSourceAddressEth,
+            IERC4626(yieldSourceAddressEth).convertToAssets(yieldSourceBal),
+            yieldSourceBal,
+            100
+        );
 
         executeOp(userOpData);
 
-        uint256 outAmount = Redeem4626VaultHook(redeem4626Hook).outAmount();
+        uint256 outAmount = Redeem4626VaultHook(redeem4626Hook).getOutAmount(instanceOnEth.account);
         uint256 usedShares = Redeem4626VaultHook(redeem4626Hook).usedShares();
         vm.assertGt(usedShares, 0);
         vm.assertGt(outAmount, 0);

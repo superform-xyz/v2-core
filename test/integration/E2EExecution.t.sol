@@ -9,14 +9,19 @@ import { MinimalBaseNexusIntegrationTest } from "./MinimalBaseNexusIntegrationTe
 import { INexus } from "../../src/vendor/nexus/INexus.sol";
 import { MockRegistry } from "../mocks/MockRegistry.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import { ISuperValidator } from "../../src/core/interfaces/ISuperValidator.sol";
+import { ISuperHook } from "../../src/core/interfaces/ISuperHook.sol";
 import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { SuperValidatorBase } from "../../src/core/validators/SuperValidatorBase.sol";
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 
+import { MaliciousHookBypassFees } from "../mocks/MaliciousHookBypassFees.sol";
 import { ISuperSignatureStorage } from "../../src/core/interfaces/ISuperSignatureStorage.sol";
+import { MockValidator } from "../../lib/modulekit/src/module-bases/mocks/MockValidator.sol";
+import "forge-std/console.sol";
 import "forge-std/Test.sol";
 
 contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
@@ -37,21 +42,95 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         mockSignature = abi.encodePacked(hex"41414141");
     }
 
+    function test_feeBypassMaliciousHook() public {
+        uint256 amount = 10_000e6;
+        address underlyingToken = CHAIN_1_USDC;
+        address morphoVault = CHAIN_1_MorphoVault;
+
+        MaliciousHookBypassFees maliciousHookBypassFees = new MaliciousHookBypassFees();
+
+        // Step 1: Create account and install custom malicious hook
+        address nexusAccount = _createWithNexusWithMaliciousHook(
+            address(nexusRegistry),
+            attesters,
+            threshold,
+            1e18,
+            address(maliciousHookBypassFees)
+        );
+
+        maliciousHookBypassFees.setAccountAndTargetHook(
+            nexusAccount,
+            redeem4626Hook
+        );
+
+        // add tokens to account
+        _getTokens(underlyingToken, nexusAccount, amount);
+
+        // Step 2. Create SuperExecutor data, with:
+        // - approval
+        // - deposit
+        // - redemption, whose amount should be charged
+        address[] memory hooksAddresses = new address[](3);
+        hooksAddresses[0] = approveHook;
+        hooksAddresses[1] = deposit4626Hook;
+        hooksAddresses[2] = redeem4626Hook;
+
+        bytes[] memory hooksData = new bytes[](3);
+        hooksData[0] = _createApproveHookData(
+            underlyingToken,
+            morphoVault,
+            amount,
+            false
+        );
+        hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            morphoVault,
+            amount,
+            false,
+            address(0),
+            0
+        );
+        hooksData[2] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            morphoVault,
+            nexusAccount,
+            IERC4626(morphoVault).convertToShares(amount),
+            false
+        );
+
+        // Step 3. Prepare data and execute through entry point
+        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor
+            .ExecutorEntry({
+                hooksAddresses: hooksAddresses,
+                hooksData: hooksData
+            });
+
+        address feeRecipient = makeAddr("feeRecipient"); // this is the recipient configured in base tests.
+
+        // Fetch the fee recipient balance before execution
+        uint256 feeReceiverBalanceBefore = IERC4626(CHAIN_1_USDC).balanceOf(
+            feeRecipient
+        );
+
+        _executeThroughEntrypoint(nexusAccount, entry);
+
+        // Ensure fee is not 0
+        assertGt(
+            IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient) -
+                feeReceiverBalanceBefore,
+            0
+        );
+    }
+
     function testOrion_multipleCrossChainTransactionsCanBeSent() public {
         TestData memory testData;
 
         AcrossSendFundsAndExecuteOnDstHook acrossHook = new AcrossSendFundsAndExecuteOnDstHook(
-                0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5,
-                address(superMerkleValidator)
-            );
+            0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5, address(superMerkleValidator)
+        );
 
         // Step 1: Create account
-        address nexusAccount = _createWithNexus(
-            address(nexusRegistry),
-            attesters,
-            threshold,
-            1e18
-        );
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
 
         // 2. Add tokens to account
         _getTokens(CHAIN_1_USDC, nexusAccount, 100e6);
@@ -72,18 +151,10 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
             testData.hooksData = new bytes[](4);
             // Build approval data
-            testData.hooksData[0] = _createApproveHookData(
-                CHAIN_1_USDC,
-                0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5,
-                100e6,
-                false
-            );
-            testData.hooksData[1] = _createApproveHookData(
-                CHAIN_1_WETH,
-                0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5,
-                100e6,
-                false
-            );
+            testData.hooksData[0] =
+                _createApproveHookData(CHAIN_1_USDC, 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5, 100e6, false);
+            testData.hooksData[1] =
+                _createApproveHookData(CHAIN_1_WETH, 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5, 100e6, false);
 
             message.initData = hex"aaaaaaaa"; // not important for the test
             message.executorCalldata = hex"eeeeeeee";
@@ -93,33 +164,45 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             message.intentAmounts[0] = uint256(100e6);
 
             testData.ten = 10;
-            // NOTE: 
+            // NOTE:
             // Test execution will fail because `executionData` is not valid
             //   but test demonstrates you can now pass 2 different proofs
             //   for 2 different chains
             // Build across data.
             testData.hooksData[2] = abi.encodePacked(
-                testData.zero, /// uint256 value = BytesLib.toUint256(data, 0);
-                nexusAccount, /// address recipient = BytesLib.toAddress(data, 32);
-                CHAIN_1_USDC, /// address inputToken = BytesLib.toAddress(data, 52);
-                CHAIN_1_USDC, /// address outputToken = BytesLib.toAddress(data, 72);
-                uint256(100e6), /// uint256 inputAmount = BytesLib.toUint256(data, 92);
-                uint256(100e6), /// uint256 outputAmount = BytesLib.toUint256(data, 124);
-                testData.ten, /// uint256 destinationChainId = BytesLib.toUint256(data, 156);
-                address(0), /// address exclusiveRelayer = BytesLib.toAddress(data, 188);
-                uint32(testData.zero), /// uint32 fillDeadlineOffset = BytesLib.toUint32(data, 208);
-                uint32(testData.zero), /// uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
-                false, /// bool usePrevHookAmount = _decodeBool(data, 216);
+                testData.zero,
+                /// uint256 value = BytesLib.toUint256(data, 0);
+                nexusAccount,
+                /// address recipient = BytesLib.toAddress(data, 32);
+                CHAIN_1_USDC,
+                /// address inputToken = BytesLib.toAddress(data, 52);
+                CHAIN_1_USDC,
+                /// address outputToken = BytesLib.toAddress(data, 72);
+                uint256(100e6),
+                /// uint256 inputAmount = BytesLib.toUint256(data, 92);
+                uint256(100e6),
+                /// uint256 outputAmount = BytesLib.toUint256(data, 124);
+                testData.ten,
+                /// uint256 destinationChainId = BytesLib.toUint256(data, 156);
+                address(0),
+                /// address exclusiveRelayer = BytesLib.toAddress(data, 188);
+                uint32(testData.zero),
+                /// uint32 fillDeadlineOffset = BytesLib.toUint32(data, 208);
+                uint32(testData.zero),
+                /// uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
+                false,
+                /// bool usePrevHookAmount = _decodeBool(data, 216);
                 abi.encode(
                     message.initData,
                     message.executorCalldata,
                     message._account,
                     message.dstTokens,
                     message.intentAmounts
-                ) /// bytes destinationMessage = BytesLib.slice(data, 217, data.length - 217);
+                )
             );
+            /// bytes destinationMessage = BytesLib.slice(data, 217, data.length - 217);
         }
-        
+
         {
             message.dstTokens = new address[](1);
             message.dstTokens[0] = CHAIN_1_WETH;
@@ -127,27 +210,39 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
             testData.ten = 11;
             testData.hooksData[3] = abi.encodePacked(
-                testData.zero, /// uint256 value = BytesLib.toUint256(data, 0);
-                nexusAccount, /// address recipient = BytesLib.toAddress(data, 32);
-                CHAIN_1_WETH, /// address inputToken = BytesLib.toAddress(data, 52);
-                CHAIN_1_WETH, /// address outputToken = BytesLib.toAddress(data, 72);
-                uint256(100e6), /// uint256 inputAmount = BytesLib.toUint256(data, 92);
-                uint256(100e6), /// uint256 outputAmount = BytesLib.toUint256(data, 124);
-                testData.ten, /// uint256 destinationChainId = BytesLib.toUint256(data, 156);
-                address(0), /// address exclusiveRelayer = BytesLib.toAddress(data, 188);
-                uint32(testData.zero), /// uint32 fillDeadlineOffset = BytesLib.toUint32(data, 208);
-                uint32(testData.zero), /// uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
-                false, /// bool usePrevHookAmount = _decodeBool(data, 216);
+                testData.zero,
+                /// uint256 value = BytesLib.toUint256(data, 0);
+                nexusAccount,
+                /// address recipient = BytesLib.toAddress(data, 32);
+                CHAIN_1_WETH,
+                /// address inputToken = BytesLib.toAddress(data, 52);
+                CHAIN_1_WETH,
+                /// address outputToken = BytesLib.toAddress(data, 72);
+                uint256(100e6),
+                /// uint256 inputAmount = BytesLib.toUint256(data, 92);
+                uint256(100e6),
+                /// uint256 outputAmount = BytesLib.toUint256(data, 124);
+                testData.ten,
+                /// uint256 destinationChainId = BytesLib.toUint256(data, 156);
+                address(0),
+                /// address exclusiveRelayer = BytesLib.toAddress(data, 188);
+                uint32(testData.zero),
+                /// uint32 fillDeadlineOffset = BytesLib.toUint32(data, 208);
+                uint32(testData.zero),
+                /// uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
+                false,
+                /// bool usePrevHookAmount = _decodeBool(data, 216);
                 abi.encode(
                     message.initData,
                     message.executorCalldata,
                     message._account,
                     message.dstTokens,
                     message.intentAmounts
-                ) /// bytes destinationMessage = BytesLib.slice(data, 217, data.length - 217);
+                )
             );
+            /// bytes destinationMessage = BytesLib.slice(data, 217, data.length - 217);
         }
-        
+
         // prepare data & execute through entry point
         Execution[] memory executions = new Execution[](1);
         executions[0] = Execution({
@@ -156,10 +251,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             callData: abi.encodeWithSelector(
                 ISuperExecutor.execute.selector,
                 abi.encode(
-                    ISuperExecutor.ExecutorEntry({
-                        hooksAddresses: testData.hooksAddresses,
-                        hooksData: testData.hooksData
-                    })
+                    ISuperExecutor.ExecutorEntry({ hooksAddresses: testData.hooksAddresses, hooksData: testData.hooksData })
                 )
             )
         });
@@ -167,11 +259,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         // Nexus.execute()
         bytes memory callData = _prepareExecutionCalldata(executions);
         uint256 nonce = _prepareNonce(nexusAccount);
-        PackedUserOperation memory userOp = _createPackedUserOperation(
-            nexusAccount,
-            nonce,
-            callData
-        );
+        PackedUserOperation memory userOp = _createPackedUserOperation(nexusAccount, nonce, callData);
 
         // create validator merkle tree & get signature data
         uint48 validUntil = uint48(block.timestamp + 1 hours);
@@ -214,11 +302,8 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             validUntil,
             address(this)
         );
- 
 
-        (testData.proof, testData.root) = _createValidatorMerkleTree(
-            testData.leaves
-        );
+        (testData.proof, testData.root) = _createValidatorMerkleTree(testData.leaves);
 
         // Sign root
         testData.signature = _getSignature(testData.root);
@@ -266,7 +351,6 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
                 })
             });
 
-            
             testData.sigData = _encodeSigData(proofDst, testData, validUntil);
         }
 
@@ -278,7 +362,16 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         _assertAndExecuteMultileProofs(testData, nexusAccount);
         // This demonstrates that multiple cross-chain transactions CAN be sent in the same tx
     }
-    function _encodeSigData(ISuperValidator.DstProof[] memory proofDst, TestData memory testData, uint48 validUntil) internal pure returns (bytes memory) {
+
+    function _encodeSigData(
+        ISuperValidator.DstProof[] memory proofDst,
+        TestData memory testData,
+        uint48 validUntil
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         return abi.encode(
             true,
             validUntil,
@@ -288,13 +381,11 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             testData.signature
         );
     }
+
     function _assertAndExecuteMultileProofs(TestData memory testData, address nexusAccount) internal {
         // Record logs
         vm.recordLogs();
-        IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(
-            testData.userOps,
-            payable(nexusAccount)
-        );
+        IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(testData.userOps, payable(nexusAccount));
 
         bytes32 FundsDeposited = keccak256(
             "FundsDeposited(bytes32,bytes32,uint256,uint256,uint256,uint256,uint32,uint32,uint32,bytes32,bytes32,bytes32,bytes)"
@@ -309,8 +400,8 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             }
         }
 
-       // found means multiple proofs passed validation 
-       assertTrue(found);
+        // found means multiple proofs passed validation
+        assertTrue(found);
     }
 
     function test_AccountCreation_WithNexus() public {
@@ -498,6 +589,24 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         );
     }
 
+    function _getSameChainSignatureData(
+        PackedUserOperation memory userOp,
+        address entryPoint
+    )
+        internal
+        view
+        returns (bytes memory sigData, bytes32[][] memory proof, bytes32 root, bytes memory signature)
+    {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+        bytes32[] memory leaves = new bytes32[](1);
+        bytes32 _hash = IMinimalEntryPoint(entryPoint).getUserOpHash(userOp);
+        leaves[0] = _createSourceValidatorLeaf(_hash, validUntil, false, address(superMerkleValidator));
+        (proof, root) = _createValidatorMerkleTree(leaves);
+        signature = _getSignature(root);
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+        sigData = abi.encode(false, validUntil, root, proof[0], proofDst, signature);
+    }
+
     function _getSignatureData(
         address acc,
         PackedUserOperation memory userOp,
@@ -513,11 +622,20 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         bytes32[] memory leaves = new bytes32[](2);
         leaves[0] = _createSourceValidatorLeaf(IMinimalEntryPoint(entryPoint).getUserOpHash(userOp), validUntil, true, address(superMerkleValidator));
 
-        leaves[1] = _createDestinationValidatorLeaf(dstMessage.executorCalldata, uint64(block.chainid), acc, targetExecutor, dstMessage.dstTokens, dstMessage.intentAmounts, validUntil, address(this));
+        leaves[1] = _createDestinationValidatorLeaf(
+            dstMessage.executorCalldata,
+            uint64(block.chainid),
+            acc,
+            targetExecutor,
+            dstMessage.dstTokens,
+            dstMessage.intentAmounts,
+            validUntil,
+            address(this)
+        );
         (proof, root) = _createValidatorMerkleTree(leaves);
         signature = _getSignature(root);
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
-        
+
         ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
             data: dstMessage.executorCalldata,
             executor: targetExecutor,
@@ -526,8 +644,8 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             account: acc,
             validator: address(this)
         });
-        proofDst[0] = ISuperValidator.DstProof({proof: proof[1], dstChainId: uint64(block.chainid), info: dstInfo});
-         
+        proofDst[0] = ISuperValidator.DstProof({ proof: proof[1], dstChainId: uint64(block.chainid), info: dstInfo });
+
         sigData = abi.encode(true, validUntil, root, proof[0], proofDst, signature);
     }
 
@@ -536,9 +654,20 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             return _prepareNonce(nexusAccount);
         }
 
+        return _prepareUserOpNonceWithCustomBatchId(nexusAccount, bytes3(0));
+    }
+
+    function _prepareUserOpNonceWithCustomBatchId(
+        address nexusAccount,
+        bytes3 customBatchId
+    )
+        internal
+        view
+        returns (uint256 nonce)
+    {
         uint192 nonceKey;
         address validator = address(superMerkleValidator);
-        bytes32 batchId = bytes3(0);
+        bytes32 batchId = customBatchId;
         bytes1 vMode = MODE_VALIDATION;
         assembly {
             nonceKey := or(shr(88, vMode), validator)
@@ -660,12 +789,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         address morphoVault = CHAIN_1_MorphoVault;
 
         // 1. Create account
-        address nexusAccount = _createWithNexus(
-            address(nexusRegistry),
-            attesters,
-            threshold,
-            1e18
-        );
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
 
         // add tokens to account
         _getTokens(underlyingToken, nexusAccount, amount);
@@ -685,19 +809,11 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         bytes[] memory hooksData = new bytes[](1);
 
         hooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            morphoVault,
-            amount,
-            false,
-            address(0),
-            0
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), morphoVault, amount, false, address(0), 0
         );
 
-        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor
-            .ExecutorEntry({
-                hooksAddresses: hooksAddresses,
-                hooksData: hooksData
-            });
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // prepare data & execute through entry point
         _executeThroughEntrypoint(nexusAccount, entry);
@@ -717,11 +833,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             uint256 sharesToRedeem = IERC4626(morphoVault).convertToShares(amount);
 
             hooksData[0] = _createRedeem4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-                morphoVault,
-                nexusAccount,
-                sharesToRedeem,
-                false
+                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), morphoVault, nexusAccount, sharesToRedeem, false
             );
 
             hooksData[1] = _createDeposit4626HookData(
@@ -733,23 +845,20 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
                 0
             );
 
-            entry = ISuperExecutor.ExecutorEntry({
-                hooksAddresses: hooksAddresses,
-                hooksData: hooksData
-            });
+            entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
             // prepare data & execute through entry point
             _executeThroughEntrypoint(nexusAccount, entry);
-            
+
             uint256 finalShares = IERC4626(morphoVault).balanceOf(nexusAccount);
             uint256 tokenBalanceAfter = IERC20(underlyingToken).balanceOf(nexusAccount);
-            
+
             assertLt(finalShares, initialShares);
-            
+
             uint256 redeemedAmount = IERC4626(morphoVault).convertToAssets(initialShares - finalShares);
             assertGt(redeemedAmount, 0);
             assertLt(redeemedAmount, amount);
-            
+
             if (tokenBalanceAfter > 0) {
                 assertLt(tokenBalanceAfter, amount);
             }
@@ -805,7 +914,8 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
-        address feeRecipient = makeAddr("feeRecipient"); // this is the recipient configured in base tests.
+        address feeRecipient = makeAddr("feeRecipient"); // this is the recipient configured in base
+            // tests.
 
         // Fetch the fee recipient balance before execution
         uint256 feeReceiverBalanceBefore = IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient);
@@ -815,6 +925,230 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         // Ensure fee obtained is 0
         assertEq(IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient) - feeReceiverBalanceBefore, 0);
+    }
+
+    function test_HookPoisoning_SetExecutionContext_DoesNotBreakNormalExecution() public {
+        TestData memory testData;
+        testData.zero = 0;
+        testData.ten = 10;
+
+        uint256 amount = 100e6;
+        address underlyingToken = CHAIN_1_USDC;
+        address morphoVault = CHAIN_1_MorphoVault;
+
+        // Create account
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+
+        // Fund account with tokens
+        _getTokens(underlyingToken, nexusAccount, amount * 2); // Double amount to handle both
+            // operations
+
+        // Create hook instance that we'll try to poison
+        address targetHook = deposit4626Hook;
+
+        // Build two userOps with proper nonce ordering
+        testData.userOps = new PackedUserOperation[](2);
+
+        // Get base nonce for proper sequencing
+        uint256 baseNonce = _prepareNonce(nexusAccount);
+
+        // First userOp: Direct call to setExecutionContext (attempting to poison)
+        testData.userOps[0] = _buildPoisoningUserOp(nexusAccount, targetHook, baseNonce, "setExecutionContext(address)", nexusAccount);
+
+        // Second userOp: Normal SuperExecutor execution with deposit and redeem hooks
+        testData.userOps[1] =
+            _buildNormalExecutionUserOp(testData, nexusAccount, amount, underlyingToken, morphoVault, baseNonce + 1);
+
+   
+        IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(testData.userOps, payable(nexusAccount));
+
+        // Verify the normal execution worked correctly
+        uint256 finalShares = IERC4626(morphoVault).balanceOf(nexusAccount);
+        assertGt(finalShares, 0, "Normal execution should have succeeded despite poisoning attempt");
+
+        assertEq(ISuperHook(targetHook).executionNonce(), 2, "Nonce not right");
+    }
+
+    function test_HookPoisoning_DirectCall_SetExecutionContext_DoesNotBreakNormalExecution() public {
+        TestData memory testData;
+        testData.zero = 0;
+        testData.ten = 10;
+
+        uint256 amount = 100e6;
+        address underlyingToken = CHAIN_1_USDC;
+        address morphoVault = CHAIN_1_MorphoVault;
+
+        // Create legitimate account
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+
+        // Fund account with tokens
+        _getTokens(underlyingToken, nexusAccount, amount * 2);
+
+        // Create hook instance that we'll try to poison
+        address targetHook = deposit4626Hook;
+
+        // Create malicious account that will try to poison the legitimate user's transaction
+        // Use a different validator to completely bypass Superform core flow
+        address maliciousAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+
+        // Deploy and install MockValidator on malicious account to bypass normal validation
+        MockValidator mockValidator = new MockValidator();
+        _installValidatorOnAccount(maliciousAccount, address(mockValidator));
+
+        // Build two userOps with proper nonce ordering (simulating mempool attack)
+        testData.userOps = new PackedUserOperation[](2);
+
+        // Get base nonce for legitimate account
+        uint256 legitimateNonce = _prepareNonce(nexusAccount);
+
+        // Get base nonce for malicious account
+        uint256 maliciousNonce = _prepareNonceWithValidator(maliciousAccount, address(mockValidator));
+
+        // First userOp: Malicious account tries to poison hooks (attacker frontrunning)
+        testData.userOps[0] = _buildPoisoningUserOp(maliciousAccount, targetHook, maliciousNonce, "setExecutionContext(address)", nexusAccount);
+
+
+        // Second userOp: Legitimate user's normal SuperExecutor execution
+        testData.userOps[1] =
+            _buildNormalExecutionUserOp(testData, nexusAccount, amount, underlyingToken, morphoVault, legitimateNonce);
+
+        // Execute both operations - legitimate execution should succeed despite poisoning attempt
+        IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(testData.userOps, payable(nexusAccount));
+
+        // Verify the normal execution worked correctly despite poisoning attempt
+        uint256 finalShares = IERC4626(morphoVault).balanceOf(nexusAccount);
+        assertGt(finalShares, 0, "Normal execution should have succeeded despite poisoning attempt");
+    }
+
+    function test_HookPoisoning_DirectCall_SetAmount_DoesNotBreakNormalExecution() public {
+        TestData memory testData;
+        testData.zero = 0;
+        testData.ten = 10;
+
+        uint256 amount = 100e6;
+        address underlyingToken = CHAIN_1_USDC;
+        address morphoVault = CHAIN_1_MorphoVault;
+
+        // Create legitimate account
+        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+
+        // Fund account with tokens
+        _getTokens(underlyingToken, nexusAccount, amount * 2);
+
+        // Create hook instance that we'll try to poison
+        address targetHook = approveHook;
+
+        // Create malicious account that will try to poison the legitimate user's transaction
+        // Use a different validator to completely bypass Superform core flow
+        address maliciousAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+
+        // Deploy and install MockValidator on malicious account to bypass normal validation
+        MockValidator mockValidator = new MockValidator();
+        _installValidatorOnAccount(maliciousAccount, address(mockValidator));
+
+        // Build two userOps with proper nonce ordering (simulating mempool attack)
+        testData.userOps = new PackedUserOperation[](2);
+
+        // Get base nonce for legitimate account
+        uint256 legitimateNonce = _prepareNonce(nexusAccount);
+
+        // Get base nonce for malicious account
+        uint256 maliciousNonce = _prepareNonceWithValidator(maliciousAccount, address(mockValidator));
+
+        // First userOp: Malicious account tries to poison hooks (attacker frontrunning)
+        testData.userOps[0] = _buildPoisoningUserOp(maliciousAccount, targetHook, maliciousNonce, "setOutAmount(uint256,address)", nexusAccount);
+
+
+        // Second userOp: Legitimate user's normal SuperExecutor execution
+        testData.userOps[1] =
+            _buildNormalExecutionUserOp(testData, nexusAccount, amount, underlyingToken, morphoVault, legitimateNonce);
+
+        // Execute both operations - legitimate execution should succeed despite poisoning attempt
+        IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(testData.userOps, payable(nexusAccount));
+
+        // Verify the normal execution worked correctly despite poisoning attempt
+        uint256 finalShares = IERC4626(morphoVault).balanceOf(nexusAccount);
+        assertGt(finalShares, 0, "Normal execution should have succeeded despite poisoning attempt");
+    }
+
+    function _buildPoisoningUserOp(
+        address nexusAccount,
+        address targetHook,
+        uint256 nonce,
+        string memory fnSig,
+        address victimAcc
+    )
+        internal
+        view
+        returns (PackedUserOperation memory userOp)
+    {
+        // Create a single execution that calls setExecutionContext on the hook directly
+        Execution[] memory executions = new Execution[](1);
+        executions[0] = Execution({
+            target: targetHook,
+            value: 0,
+            callData: _buildPoisoningCalldata(fnSig, victimAcc)
+        });
+
+        bytes memory callData = _prepareExecutionCalldata(executions);
+
+        userOp = _createPackedUserOperation(nexusAccount, nonce, callData);
+
+        (bytes memory sigData,,,) = _getSameChainSignatureData(userOp, ENTRYPOINT_ADDR);
+
+        userOp.signature = sigData;
+    }
+
+    function _buildPoisoningCalldata(string memory fnSig, address victimAcc) internal pure returns (bytes memory) {
+        if (keccak256(bytes(fnSig)) == keccak256("setExecutionContext(address)")) {
+            return abi.encodeWithSignature(fnSig, victimAcc);
+        } else if (keccak256(bytes(fnSig)) == keccak256("setOutAmount(uint256,address)")) {
+            return abi.encodeWithSignature(fnSig, 12_345, victimAcc);
+        } else {
+            revert("Unsupported poisoning function");
+        }
+    }
+
+    function _buildNormalExecutionUserOp(
+        TestData memory testData,
+        address nexusAccount,
+        uint256 amount,
+        address underlyingToken,
+        address morphoVault,
+        uint256 nonce
+    )
+        internal
+        view
+        returns (PackedUserOperation memory userOp)
+    {
+        // Create normal SuperExecutor execution with deposit and redeem hooks
+        testData.hooksAddresses = new address[](2);
+        testData.hooksAddresses[0] = approveHook;
+        testData.hooksAddresses[1] = deposit4626Hook;
+
+        testData.hooksData = new bytes[](2);
+        testData.hooksData[0] = _createApproveHookData(underlyingToken, morphoVault, amount, false);
+        testData.hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), morphoVault, 0, true, address(0), 0
+        );
+        
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: testData.hooksAddresses, hooksData: testData.hooksData });
+
+        Execution[] memory executions = new Execution[](1);
+        executions[0] = Execution({
+            target: address(superExecutorModule),
+            value: 0,
+            callData: abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entry))
+        });
+
+        bytes memory callData = _prepareExecutionCalldata(executions);
+
+        userOp = _createPackedUserOperation(nexusAccount, nonce, callData);
+
+        (bytes memory sigData,,,) = _getSameChainSignatureData(userOp, ENTRYPOINT_ADDR);
+
+        userOp.signature = sigData;
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -830,6 +1164,27 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         string memory accountId = INexus(nexusAccount).accountId();
         assertGt(bytes(accountId).length, 0);
         assertEq(accountId, NEXUS_ACCOUNT_IMPLEMENTATION_ID);
+    }
+
+    function _installValidatorOnAccount(address account, address validator) internal {
+        bytes memory initData = "";
+        bytes memory callData = abi.encodeWithSelector(
+            IERC7579Account.installModule.selector,
+            uint256(1), // TYPE_VALIDATOR
+            validator,
+            initData
+        );
+
+        uint256 nonce = _prepareNonce(account);
+
+        PackedUserOperation memory userOp = _createPackedUserOperation(account, nonce, callData);
+
+        (bytes memory sigData,,,) = _getSameChainSignatureData(userOp, ENTRYPOINT_ADDR);
+        userOp.signature = sigData;
+
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = userOp;
+        IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(userOps, payable(address(0x69)));
     }
 }
 
@@ -862,14 +1217,17 @@ contract MaliciousHook {
 
     function postCheck(bytes calldata /*hookData*/ ) external {
         // This check isn't really necessary. However in our poc we batch
-        // the approve, deposit and redeem calls in the same execution. Because of this, this postCheck
-        // is called three times, after approving, after depositing and after redeeming, so we only want to call this
+        // the approve, deposit and redeem calls in the same execution. Because of this, this
+        // postCheck
+        // is called three times, after approving, after depositing and after redeeming, so we only
+        // want to call this
         // after redeeming. We limit it with a simple, unoptimized solution.
         if (count < 2) {
             count++;
             return;
         }
-        // We directly transfer our balance. This will set `outAmount` to 0 in Superform's postExecute call to
+        // We directly transfer our balance. This will set `outAmount` to 0 in Superform's
+        // postExecute call to
         // ERC4626 redeem hook, instead of the actual redeemed amount.
         IERC4626(underlying).transferFrom(account, owner, IERC4626(underlying).balanceOf(account));
     }

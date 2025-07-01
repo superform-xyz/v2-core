@@ -83,10 +83,10 @@ contract YearnClaimOneRewardHook is
         asset = BytesLib.toAddress(data, 24);
         if (asset == address(0)) revert ASSET_ZERO_ADDRESS();
 
-        outAmount = _getBalance(data, account);
+        _setOutAmount(_getBalance(data, account), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(data, account) - outAmount;
+        _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
     }
 }

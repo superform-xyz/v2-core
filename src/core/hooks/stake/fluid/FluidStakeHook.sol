@@ -2,15 +2,15 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IFluidLendingStakingRewards} from "../../../../vendor/fluid/IFluidLendingStakingRewards.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLendingStakingRewards.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
-import {ISuperHookContextAware, ISuperHookResult, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperHookContextAware, ISuperHookResult, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title FluidStakeHook
 /// @author Superform Labs
@@ -25,13 +25,17 @@ contract FluidStakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector
     uint256 private constant AMOUNT_POSITION = 24;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
 
-    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.STAKE) {}
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.STAKE) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc BaseHook
-    function _buildHookExecutions(address prevHook, address, bytes calldata data)
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
         internal
         view
         override
@@ -44,7 +48,7 @@ contract FluidStakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).getOutAmount(account);
         }
         if (amount == 0) revert AMOUNT_NOT_VALID();
 
@@ -74,12 +78,12 @@ contract FluidStakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+        _setOutAmount(_getBalance(account, data), account);
         /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

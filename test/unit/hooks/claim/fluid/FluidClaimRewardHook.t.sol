@@ -67,15 +67,19 @@ contract FluidClaimRewardHookTest is Helpers {
     function test_PreAndPostExecuteA() public {
         _getTokens(rewardToken, account, amount);
 
-        vm.mockCall(stakingRewards, abi.encodeWithSelector(IFluidLendingStakingRewards.rewardsToken.selector), abi.encode(rewardToken));
+        vm.mockCall(
+            stakingRewards,
+            abi.encodeWithSelector(IFluidLendingStakingRewards.rewardsToken.selector),
+            abi.encode(rewardToken)
+        );
 
         vm.prank(account);
         hook.preExecute(address(0), account, _encodeData());
-        assertEq(hook.outAmount(), amount);
+        assertEq(hook.getOutAmount(address(this)), amount);
 
         vm.prank(account);
         hook.postExecute(address(0), account, _encodeData());
-        assertEq(hook.outAmount(), 0);
+        assertEq(hook.getOutAmount(address(this)), 0);
     }
 
     function test_Inspector() public view {

@@ -167,7 +167,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_SourceExecutor_UpdateAccounting_Inflow() public {
-        inflowHook.setOutAmount(1000);
+        inflowHook.setOutAmount(1000, address(this));
 
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(inflowHook);
@@ -189,7 +189,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     function test_SourceExecutor_UpdateAccounting_Outflow_WithFee() public {
         vm.startPrank(account);
 
-        outflowHook.setOutAmount(1000);
+        outflowHook.setOutAmount(1000, address(this));
         outflowHook.setUsedShares(500);
         ledger.setFeeAmount(100);
 
@@ -216,7 +216,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
     function test_SourceExecutor_UpdateAccounting_Outflow_RevertIf_InvalidAsset() public {
         MockHook invalidHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(0));
-        invalidHook.setOutAmount(1000);
+        invalidHook.setOutAmount(1000, address(this));
         ledger.setFeeAmount(100);
 
         address[] memory hooksAddresses = new address[](1);
@@ -238,7 +238,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_SourceExecutor_UpdateAccounting_Outflow_RevertIf_InsufficientBalance() public {
-        outflowHook.setOutAmount(1000);
+        outflowHook.setOutAmount(1000, address(this));
         ledger.setFeeAmount(100);
 
         address[] memory hooksAddresses = new address[](1);
@@ -281,14 +281,13 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         console2.logBytes(fullData);
     }
 
-
     function test_SourceExecutor_UpdateAccounting_Outflow_RevertIf_FeeNotTransferred() public {
         MaliciousToken maliciousToken = new MaliciousToken();
 
         maliciousToken.blacklist(feeRecipient);
 
         MockHook maliciousHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(maliciousToken));
-        maliciousHook.setOutAmount(910);
+        maliciousHook.setOutAmount(910, address(this));
         maliciousHook.setUsedShares(500);
 
         ledger.setFeeAmount(100);
@@ -323,7 +322,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     function test_SourceExecutor_UpdateAccounting_Outflow_WithFee_NativeToken() public {
         // Create a new native token hook
         MockHook nativeHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(0));
-        nativeHook.setOutAmount(1000);
+        nativeHook.setOutAmount(1000, address(this));
         nativeHook.setUsedShares(500);
         ledger.setFeeAmount(100);
 
@@ -367,7 +366,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         // Create a hook that uses NATIVE_TOKEN_SENTINEL
         MockHook nativeSentinelHook =
             new MockHook(ISuperHook.HookType.OUTFLOW, address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE));
-        nativeSentinelHook.setOutAmount(1000);
+        nativeSentinelHook.setOutAmount(1000, address(this));
         nativeSentinelHook.setUsedShares(500);
         ledger.setFeeAmount(100);
 
@@ -410,7 +409,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     function test_SourceExecutor_UpdateAccounting_Outflow_WithFee_NativeToken_InsufficientBalance() public {
         // Create a hook for native token
         MockHook nativeHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(0));
-        nativeHook.setOutAmount(1000);
+        nativeHook.setOutAmount(1000, address(this));
         nativeHook.setUsedShares(500);
         ledger.setFeeAmount(100);
 
@@ -437,7 +436,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_SourceExecutor_VaultBank() public {
-        inflowHook.setOutAmount(1000);
+        inflowHook.setOutAmount(1000, address(this));
 
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(inflowHook);
@@ -466,7 +465,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_SourceExecutor_VaultBank_InvalidDestinationChainId() public {
-        inflowHook.setOutAmount(1000);
+        inflowHook.setOutAmount(1000, address(this));
 
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(inflowHook);
@@ -782,7 +781,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         // Create a mock hook for outflow operations
         MockHook outflowTestHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(feeToken));
-        outflowTestHook.setOutAmount(1000 * 10 ** 18);
+        outflowTestHook.setOutAmount(1000 * 10 ** 18, address(this));
         outflowTestHook.setUsedShares(500);
 
         // Set up executor with new ledger configuration
@@ -865,7 +864,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         // Create a mock hook for outflow operations
         MockHook outflowTestHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(feeToken));
-        outflowTestHook.setOutAmount(1000 * 10 ** 18);
+        outflowTestHook.setOutAmount(1000 * 10 ** 18, address(this));
         outflowTestHook.setUsedShares(500);
 
         // Set up executor with new ledger configuration
@@ -1005,13 +1004,13 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function execute(bytes calldata data) external pure {
-      ISuperExecutor.ExecutorEntry memory e = abi.decode(data, (ISuperExecutor.ExecutorEntry));
-      console2.log("hooksAddresses.length", e.hooksAddresses.length);
-      console2.log("hooksData.length", e.hooksData.length);
+        ISuperExecutor.ExecutorEntry memory e = abi.decode(data, (ISuperExecutor.ExecutorEntry));
+        console2.log("hooksAddresses.length", e.hooksAddresses.length);
+        console2.log("hooksData.length", e.hooksData.length);
 
-      for(uint i = 0; i < e.hooksAddresses.length; i++) {
-        console2.logAddress(e.hooksAddresses[i]);
-        console2.logBytes(e.hooksData[i]);
-      }
+        for (uint256 i = 0; i < e.hooksAddresses.length; i++) {
+            console2.logAddress(e.hooksAddresses[i]);
+            console2.logBytes(e.hooksData[i]);
+        }
     }
 }

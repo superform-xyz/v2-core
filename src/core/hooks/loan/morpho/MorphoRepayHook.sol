@@ -101,7 +101,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
              });
         } else {
             if (vars.usePrevHookAmount) {
-                vars.amount = ISuperHookResult(prevHook).outAmount();
+                vars.amount = ISuperHookResult(prevHook).getOutAmount(account);
             }
             if (vars.amount == 0) revert AMOUNT_NOT_VALID();
 
@@ -143,7 +143,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     function sharesToAssets(MarketParams memory marketParams, address account) public view returns (uint256 assets) {
         Id id = marketParams.id();
         uint256 shareBalance = deriveShareBalance(id, account);
-        
+
         Market memory market = morphoInterface.market(id);
         assets = shareBalance.toAssetsUp(market.totalBorrowAssets, market.totalBorrowShares);
     }
@@ -158,7 +158,5 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
         morphoInterface.accrueInterest(marketParams);
     }
 
-    function _postExecute(address, address, bytes calldata) internal override {
-        outAmount = 0;
-    }
+    function _postExecute(address, address, bytes calldata) internal override { }
 }

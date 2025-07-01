@@ -9,12 +9,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IStakedUSDeCooldown } from "../../../../vendor/ethena/IStakedUSDeCooldown.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import {
-    ISuperHookResult,
-    ISuperHookInflowOutflow,
-    ISuperHookAsync,
-    ISuperHookInspector
-} from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
@@ -25,7 +20,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
 /// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHookAsync, ISuperHookInspector {
+contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 24;
@@ -51,7 +46,7 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
         bool usePrevHookAmount = _decodeBool(data, 56);
 
         if (usePrevHookAmount) {
-            shares = ISuperHookResult(prevHook).outAmount();
+            shares = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
@@ -63,11 +58,6 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
             value: 0,
             callData: abi.encodeCall(IStakedUSDeCooldown.cooldownShares, (shares))
         });
-    }
-
-    /// @inheritdoc ISuperHookAsync
-    function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
-        return (usedShares, true);
     }
 
     /// @inheritdoc ISuperHookInspector

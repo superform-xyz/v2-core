@@ -105,7 +105,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         if (usePrevHookAmount) {
-            uint256 outAmount = ISuperHookResult(prevHook).outAmount();
+            uint256 outAmount = ISuperHookResult(prevHook).getOutAmount(account);
             uint256 _oldGiveAmount = orderCreation.giveAmount;
             orderCreation.giveAmount = outAmount;
             if (orderCreation.giveTokenAddress == address(0)) {

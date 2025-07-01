@@ -13,7 +13,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookSetter } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookSetter, ISuperHookContextAware } from "../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 import { IVaultBank } from "../../periphery/interfaces/VaultBank/IVaultBank.sol";
 
@@ -45,7 +45,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
     /// @notice Tolerance for fee transfer verification (numerator)
     /// @dev Used to account for tokens with transfer fees or rounding errors
-    uint256 internal constant FEE_TOLERANCE = 1_000; //1%
+    uint256 internal constant FEE_TOLERANCE = 1000; //1%
 
     /// @notice Denominator for fee tolerance calculation
     /// @dev FEE_TOLERANCE/FEE_TOLERANCE_DENOMINATOR represents the maximum allowed deviation
@@ -157,6 +157,10 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         address currentHook;
         for (uint256 i; i < hooksLen; ++i) {
             currentHook = entry.hooksAddresses[i];
+            if (i == 0) {
+                bool usePrevHookAmount = _shouldUsePreviousOutput(currentHook, entry.hooksData[i]);
+                if (usePrevHookAmount) revert FIRST_HOOK_CANNOT_USE_PREVIOUS_AMOUNT();
+            }
             if (currentHook == address(0)) revert ADDRESS_NOT_VALID();
 
             _processHook(account, ISuperHook(currentHook), prevHook, entry.hooksData[i]);
@@ -172,7 +176,15 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     /// @param account The smart account executing the operation
     /// @param hook The hook that was just executed
     /// @param hookData The data provided to the hook for execution
-    function _updateAccounting(address account, address hook, bytes memory hookData) internal virtual returns (uint256 feeAmount) {
+    function _updateAccounting(
+        address account,
+        address hook,
+        bytes memory hookData
+    )
+        internal
+        virtual
+        returns (uint256 feeAmount)
+    {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             // Extract yield source information from the hook data
@@ -184,7 +196,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
                 ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
             if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
-            uint256 _outAmount = ISuperHookResult(address(hook)).outAmount(); // Amount of shares or assets processed
+            uint256 _outAmount = ISuperHookResult(address(hook)).getOutAmount(account); // Amount of shares or assets processed
             // Update accounting records and calculate any fees
             feeAmount = ISuperLedger(config.ledger).updateAccounting(
                 account,
@@ -211,9 +223,10 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
                     if (IERC20(assetToken).balanceOf(account) < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
                     _performErc20FeeTransfer(account, assetToken, config.feeRecipient, feeAmount);
                 }
+                
 
                 // refresh `outAmount`
-                ISuperHookSetter(hook).setOutAmount(_outAmount - feeAmount);
+                ISuperHookSetter(hook).setOutAmount(_outAmount - feeAmount, account);
             }
         }
     }
@@ -298,17 +311,23 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         }
 
         // STEP 2: Build and execute (dual mutexes protect pre/post)
-        hook.setCaller();
+        hook.setExecutionContext(account);
         _execute(account, executions);
 
-        // STEP 3: Update accounting (both mutexes active, preventing reentrancy)
+        // STEP 3: Validate hook's last caller
+        address _lastCaller = hook.lastCaller();
+        if (_lastCaller != address(this)) {
+            revert INVALID_CALLER();
+        }
+
+        // STEP 4: Update accounting (both mutexes active, preventing reentrancy)
+        // we reset execution state here because `updateAccounting` might call `.setOutAmount`
+        //  which requires the state to be clean
+        hook.resetExecutionState(account);
         _updateAccounting(account, address(hook), hookData);
 
-        // STEP 4: Handle cross-chain operations
+        // STEP 5: Handle cross-chain operations
         _checkAndLockForSuperPosition(account, address(hook));
-
-        // STEP 5: Reset both mutexes after all processing complete
-        hook.resetExecutionState();
     }
 
     /// @notice Handles cross-chain asset locking for SuperPosition minting
@@ -327,7 +346,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         // Process cross-chain operation if a vault bank is specified
         if (vaultBank != address(0)) {
             address spToken = ISuperHookResult(hook).spToken();
-            uint256 amount = ISuperHookResult(hook).outAmount();
+            uint256 amount = ISuperHookResult(hook).getOutAmount(account);
 
             // Create and execute approval for the vault bank to access tokens
             Execution[] memory execs = new Execution[](1);
@@ -343,6 +362,14 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
             // Lock assets in the vault bank for cross-chain transfer
             IVaultBank(vaultBank).lockAsset(account, spToken, hook, amount, uint64(dstChainId));
+        }
+    }
+
+    function _shouldUsePreviousOutput(address hook, bytes memory hookData) private pure returns (bool) {
+        try ISuperHookContextAware(hook).decodeUsePrevHookAmount(hookData) returns (bool usePrevHookAmount) {
+            return usePrevHookAmount;
+        } catch {
+            return false;
         }
     }
 }

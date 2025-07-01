@@ -2,17 +2,17 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IERC7540CancelDeposit} from "../../../../vendor/standards/ERC7540/IERC7540Vault.sol";
-import {IERC7540} from "../../../../vendor/vaults/7540/IERC7540.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC7540CancelDeposit } from "../../../../vendor/standards/ERC7540/IERC7540Vault.sol";
+import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
-import {ISuperHookAsyncCancelations, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperHookAsyncCancelations, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title ClaimCancelDepositRequest7540Hook
 /// @author Superform Labs
@@ -23,13 +23,17 @@ import {ISuperHookAsyncCancelations, ISuperHookInspector} from "../../../interfa
 contract ClaimCancelDepositRequest7540Hook is BaseHook, ISuperHookAsyncCancelations, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM_CANCEL_DEPOSIT_REQUEST) {}
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM_CANCEL_DEPOSIT_REQUEST) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc BaseHook
-    function _buildHookExecutions(address, address account, bytes calldata data)
+    function _buildHookExecutions(
+        address,
+        address account,
+        bytes calldata data
+    )
         internal
         pure
         override
@@ -68,17 +72,18 @@ contract ClaimCancelDepositRequest7540Hook is BaseHook, ISuperHookAsyncCancelati
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
+    function _preExecute(address, address account, bytes calldata data) internal override {
         address yieldSource = data.extractYieldSource();
         address receiver = BytesLib.toAddress(data, 24);
         asset = IERC7540(yieldSource).asset();
         // store current balance
-        outAmount = _getBalance(receiver, data);
+        _setOutAmount(_getBalance(receiver, data), account);
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
+    function _postExecute(address, address account, bytes calldata data) internal override {
         address receiver = BytesLib.toAddress(data, 24);
-        outAmount = _getBalance(receiver, data) - outAmount;
+
+        _setOutAmount(_getBalance(receiver, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

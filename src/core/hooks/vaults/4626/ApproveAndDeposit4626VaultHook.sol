@@ -62,7 +62,7 @@ contract ApproveAndDeposit4626VaultHook is
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
@@ -106,14 +106,14 @@ contract ApproveAndDeposit4626VaultHook is
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
-        outAmount = _getBalance(account, data);
+        _setOutAmount(_getBalance(account, data), account);
         vaultBank = BytesLib.toAddress(data, 77);
         dstChainId = BytesLib.toUint256(data, 97);
         spToken = data.extractYieldSource();
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

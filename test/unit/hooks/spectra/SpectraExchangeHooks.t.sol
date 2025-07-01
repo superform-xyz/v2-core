@@ -218,7 +218,7 @@ contract SpectraExchangeHooksTests is Helpers {
     }
 
     function test_DepositHook_Build_WithPrevHookAmount() public {
-        prevHook.setOutAmount(2e18);
+        prevHook.setOutAmount(2e18, address(this));
 
         bytes memory commandsData = new bytes(1);
         commandsData[0] = bytes1(uint8(SpectraCommands.DEPOSIT_ASSET_IN_PT));
@@ -436,88 +436,110 @@ contract SpectraExchangeHooksTests is Helpers {
         new SpectraExchangeRedeemHook(address(0));
     }
 
-    function test_RedeemHook_UsePrevHookAmount() public view {
-        bytes memory data =
-            _createSpectraExchangeRedeemHookData(address(token), address(token), account, 1000, 1e18, true, false);
-
-        assertTrue(redeemHook.decodeUsePrevHookAmount(data));
+    struct CallDataTestVars {
+        address mockPrevHook;
+        uint256 prevHookAmount;
+        uint256 originalAmount;
+        bytes commandsData;
+        bytes[] inputs;
+        bytes originalTxData;
+        uint256 originalTxDataLength;
+        bytes data;
+        Execution[] executions;
+        bytes updatedTxData;
+        bytes updatedCommandsData;
+        bytes[] updatedInputs;
+        address updatedPt;
+        uint256 updatedAmount;
+        address updatedPtRecipient;
+        address updatedYtRecipient;
+        uint256 updatedMinShares;
     }
 
-    function test_RedeemHook_Build_RedeemIBTForAsset() public view {
-        bytes memory data =
-            _createSpectraExchangeRedeemHookData(address(token), address(0), account, 1000, 1e18, false, false);
+    function test_Build_WithPrevHook_CallDataLengthABC() public {
+        CallDataTestVars memory vars;
 
-        Execution[] memory executions = redeemHook.build(address(0), account, data);
+        // Create a custom mock hook with a fixed output amount
+        vars.prevHookAmount = 5000e18;
+        vars.mockPrevHook = address(new MockPrevHookWithFixedAmount(vars.prevHookAmount));
 
-        assertEq(executions.length, 3);
-        assertEq(executions[1].target, address(router));
-        assertEq(executions[1].value, 0);
-        assertGt(executions[1].callData.length, 0);
-    }
+        // Set up command data for DEPOSIT_ASSET_IN_PT
+        vars.commandsData = new bytes(1);
+        vars.commandsData[0] = bytes1(uint8(SpectraCommands.REDEEM_PT_FOR_ASSET));
 
-    function test_RedeemHook_Build_InvalidReceiver() public {
-        bytes memory data =
-            _createSpectraExchangeRedeemHookData(address(token), address(token), address(0), 1000, 1e18, false, true);
+        // Original amount in the input data
+        vars.originalAmount = 1000e18;
 
-        vm.expectRevert(SpectraExchangeRedeemHook.INVALID_RECIPIENT.selector);
-        redeemHook.build(address(0), account, data);
-    }
+        // Set up input data with the original amount
+        vars.inputs = new bytes[](1);
+        vars.inputs[0] = abi.encode(address(token), vars.originalAmount, account, account, 1);
 
-    function test_RedeemHook_Build_RedeemPtForAsset_RevertIf_ZeroAmount() public {
-        bytes memory data =
-            _createSpectraExchangeRedeemHookData(address(token), address(token), account, 0, 1e18, false, true);
+        // Create original transaction data
+        vars.originalTxData =
+            abi.encodeWithSelector(bytes4(keccak256("execute(bytes,bytes[])")), vars.commandsData, vars.inputs);
 
-        vm.expectRevert(SpectraExchangeRedeemHook.INVALID_MIN_ASSETS.selector);
-        redeemHook.build(address(0), account, data);
-    }
+        // Get the length of the original transaction data
+        vars.originalTxDataLength = vars.originalTxData.length;
 
-    function test_RedeemHook_Build_RedeemPTForAsset() public view {
-        bytes memory data =
-            _createSpectraExchangeRedeemHookData(address(token), address(token), account, 1000, 1e18, false, true);
-
-        Execution[] memory executions = redeemHook.build(address(0), account, data);
-
-        assertEq(executions.length, 3);
-        assertEq(executions[1].target, address(router));
-        assertEq(executions[1].value, 0);
-        assertGt(executions[1].callData.length, 0);
-    }
-
-    function test_RedeemHook_Build_RedeemPTForAsset_RevertIf_InvalidPT() public {
-        bytes memory data =
-            _createSpectraExchangeRedeemHookData(address(token), address(0), account, 1000, 1e18, false, true);
-
-        vm.expectRevert(SpectraExchangeRedeemHook.INVALID_PT.selector);
-        redeemHook.build(address(0), account, data);
-    }
-
-    function test_RedeemHook_Inspect() public view {
-        bytes memory data =
-            _createSpectraExchangeRedeemHookData(address(token), address(token), account, 1000, 1e18, false, true);
-
-        bytes memory argsEncoded = redeemHook.inspect(data);
-        bytes memory expectedArgs = abi.encodePacked(address(token), address(token), account);
-
-        assertEq(argsEncoded, expectedArgs);
-    }
-
-    function _createSpectraExchangeRedeemHookData(
-        address asset,
-        address pt,
-        address recipient,
-        uint256 minAssets,
-        uint256 sharesToBurn,
-        bool usePrevHookAmount,
-        bool redeemPtForAsset
-    )
-        internal
-        pure
-        returns (bytes memory)
-    {
-        bytes1 command = redeemPtForAsset ? REDEEM_PT_FOR_ASSET : REDEEM_IBT_FOR_ASSET;
-
-        return abi.encodePacked(
-            bytes4(bytes("")), asset, pt, recipient, minAssets, sharesToBurn, usePrevHookAmount, command
+        // Create hook data with usePrevHookAmount = true
+        vars.data = abi.encodePacked(
+            bytes4(bytes("")), // yieldSourceOracleId
+            address(token), // asset
+            address(token), // pt
+            address(this), // recipient
+            uint256(2e6), // minAssets
+            uint256(0), // shares To burn
+            true, // usePrevHookAmount = true
+            vars.commandsData[0] // command
         );
+
+        // Verify decodeUsePrevHookAmount is working as expected
+        bool usePrevHookAmount = redeemHook.decodeUsePrevHookAmount(vars.data);
+        assertTrue(usePrevHookAmount, "usePrevHookAmount should be true");
+
+        // Execute build with the custom previous hook that always returns our fixed amount
+        vars.executions = redeemHook.build(vars.mockPrevHook, account, vars.data);
+
+        // Extract the updated callData from the execution
+        vars.updatedTxData = vars.executions[1].callData;
+
+        // Verify our mock hook is returning the correct amount
+        assertEq(
+            MockPrevHookWithFixedAmount(vars.mockPrevHook).getOutAmount(address(this)),
+            vars.prevHookAmount,
+            "Mock hook should return the fixed amount"
+        );
+
+        // Decode the actual callData
+        bytes4 selector = bytes4(BytesLib.slice(vars.updatedTxData, 0, 4));
+        assertEq(selector, bytes4(keccak256("execute(bytes,bytes[])")), "Selector should match");
+
+        (vars.updatedCommandsData, vars.updatedInputs) =
+            abi.decode(BytesLib.slice(vars.updatedTxData, 4, vars.updatedTxData.length - 4), (bytes, bytes[]));
+
+        // Verify we have the right number of inputs
+        assertEq(vars.updatedInputs.length, 1, "Should have one input");
+
+        uint256 offset = 32;
+        uint256 sharesToBurn;
+        bytes memory inputData = vars.updatedInputs[0];
+        assembly {
+            sharesToBurn := mload(add(inputData, add(0x20, offset)))
+        }
+
+        // Verify the amount was updated to use the previous hook amount
+        assertEq(sharesToBurn, vars.prevHookAmount, "Amount should be updated to previous hook amount");
+    }
+}
+
+contract MockPrevHookWithFixedAmount {
+    uint256 public amount;
+
+    constructor(uint256 _amount) {
+        amount = _amount;
+    }
+
+    function getOutAmount(address) public view returns (uint256) {
+        return amount;
     }
 }

@@ -14,8 +14,7 @@ import {
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware,
-    ISuperHookInspector,
-    ISuperHookAsync
+    ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -33,8 +32,7 @@ contract Redeem7540VaultHook is
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware,
-    ISuperHookInspector,
-    ISuperHookAsync
+    ISuperHookInspector
 {
     using HookDataDecoder for bytes;
 
@@ -62,7 +60,7 @@ contract Redeem7540VaultHook is
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            shares = ISuperHookResultOutflow(prevHook).outAmount();
+            shares = ISuperHookResultOutflow(prevHook).getOutAmount(account);
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
@@ -79,11 +77,6 @@ contract Redeem7540VaultHook is
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHookAsync
-    function getUsedAssetsOrShares() external view returns (uint256 amount, bool isShares) {
-        return (usedShares, true);
-    }
-
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
         return _decodeAmount(data);
@@ -113,13 +106,13 @@ contract Redeem7540VaultHook is
     function _preExecute(address, address account, bytes calldata data) internal override {
         address yieldSource = data.extractYieldSource();
         asset = IERC7540(yieldSource).asset();
-        outAmount = _getBalance(account, data);
+        _setOutAmount(_getBalance(account, data), account);
         usedShares = _getSharesBalance(account, data);
         spToken = IERC7540(yieldSource).share();
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
         usedShares = usedShares - _getSharesBalance(account, data);
     }
 

@@ -6,13 +6,13 @@ import { AcrossSendFundsAndExecuteOnDstHook } from
     "../../../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { DeBridgeSendOrderAndExecuteOnDstHook } from
     "../../../../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
+
 import { DeBridgeCancelOrderHook } from "../../../../src/core/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
 import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
 import { ISuperValidator } from "../../../../src/core/interfaces/ISuperValidator.sol";
 import { IAcrossSpokePoolV3 } from "../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
-import { SuperValidatorBase } from "../../../../src/core/validators/SuperValidatorBase.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 import { DlnExternalCallLib } from "../../../../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
 
@@ -161,7 +161,7 @@ contract BridgeHooks is Helpers {
         );
 
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeAcrossData(true);
 
@@ -204,7 +204,7 @@ contract BridgeHooks is Helpers {
         );
 
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeAcrossData(true);
 
@@ -241,7 +241,7 @@ contract BridgeHooks is Helpers {
         );
 
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeAcrossData(true);
 
@@ -307,7 +307,7 @@ contract BridgeHooks is Helpers {
 
     function test_Debrigdge_Build_UsePrevAmount() public {
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
-        MockHook(mockPrevHook).setOutAmount(100);
+        MockHook(mockPrevHook).setOutAmount(100, address(this));
 
         bytes memory data = _encodeDebridgeData(true, 100, 100, address(mockInputToken));
         Execution[] memory executions = deBridgehook.build(mockPrevHook, mockAccount, data);
@@ -316,7 +316,7 @@ contract BridgeHooks is Helpers {
 
     function test_Debrigdge_Build_UsePrevAmount_ETH() public {
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
-        MockHook(mockPrevHook).setOutAmount(100);
+        MockHook(mockPrevHook).setOutAmount(100, address(this));
 
         bytes memory data = _encodeDebridgeData(true, 100, 100, address(0));
         Execution[] memory executions = deBridgehook.build(mockPrevHook, mockAccount, data);
@@ -332,7 +332,7 @@ contract BridgeHooks is Helpers {
 
     function test_Debrigdge_Build_UsePrevAmount_ETH_Underflow() public {
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
-        MockHook(mockPrevHook).setOutAmount(100);
+        MockHook(mockPrevHook).setOutAmount(100, address(this));
 
         bytes memory data = _encodeDebridgeData(true, 100, 0, address(0));
         vm.expectRevert(DeBridgeSendOrderAndExecuteOnDstHook.AMOUNT_UNDERFLOW.selector);
