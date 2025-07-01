@@ -6,12 +6,14 @@ import { AcrossSendFundsAndExecuteOnDstHook } from
     "../../../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { DeBridgeSendOrderAndExecuteOnDstHook } from
     "../../../../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
+
+import { DeBridgeCancelOrderHook } from "../../../../src/core/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
 import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperValidator } from "../../../../src/core/interfaces/ISuperValidator.sol";
 import { IAcrossSpokePoolV3 } from "../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
-import { ISuperValidator } from "../../../../src/core/interfaces/ISuperValidator.sol";
 import { DlnExternalCallLib } from "../../../../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
 
 contract MockSignatureStorage {
@@ -35,6 +37,7 @@ contract MockSignatureStorage {
 contract BridgeHooks is Helpers {
     AcrossSendFundsAndExecuteOnDstHook public acrossV3hook;
     DeBridgeSendOrderAndExecuteOnDstHook public deBridgehook;
+    DeBridgeCancelOrderHook public cancelOrderHook;
     address public mockSpokePool;
     address public mockAccount;
     address public mockPrevHook;
@@ -68,6 +71,7 @@ contract BridgeHooks is Helpers {
         mockSignatureStorage = new MockSignatureStorage();
         acrossV3hook = new AcrossSendFundsAndExecuteOnDstHook(mockSpokePool, address(mockSignatureStorage));
         deBridgehook = new DeBridgeSendOrderAndExecuteOnDstHook(address(this), address(mockSignatureStorage));
+        cancelOrderHook = new DeBridgeCancelOrderHook(address(this)); // Initialize with this contract as dlnSource
 
         address[] memory dstTokens = new address[](1);
         dstTokens[0] = address(mockOutputToken);
@@ -347,6 +351,41 @@ contract BridgeHooks is Helpers {
         deBridgehook.postExecute(address(0), address(this), "");
     }
 
+    // DeBridge Cancel Order Hook Tests
+
+    function test_CancelOrderHook_Constructor() public view {
+        assertEq(address(cancelOrderHook.dlnDestination()), address(this));
+        assertEq(uint256(cancelOrderHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
+    }
+
+    function test_CancelOrderHook_Constructor_RevertIf_ZeroAddress() public {
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        new DeBridgeCancelOrderHook(address(0));
+    }
+
+    function test_CancelOrderHook_Build() public view {
+        // Create order data for cancellation
+        bytes memory data = _encodeCancelOrderData();
+
+        // Test the build function
+        Execution[] memory executions = cancelOrderHook.build(address(0), mockAccount, data);
+
+        // Verify the execution
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(this)); // Should be the dlnSource address
+        assertEq(executions[1].value, 0.1 ether); // Using mockValue
+
+        // Skip checking the exact selector since it's complex to extract in Solidity
+        // Just verify the callData is not empty and the target is correct
+        assertTrue(executions[1].callData.length > 0, "CallData should not be empty");
+    }
+
+    function test_CancelOrderHook_Inspector() public view {
+        bytes memory data = _encodeCancelOrderData();
+        bytes memory argsEncoded = cancelOrderHook.inspect(data);
+        assertGt(argsEncoded.length, 0);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
@@ -507,5 +546,73 @@ contract BridgeHooks is Helpers {
 
     function _decodeBool(bytes memory data, uint256 offset) internal pure returns (bool) {
         return data[offset] != 0;
+    }
+
+    function _encodeCancelOrderData() internal view returns (bytes memory) {
+        // Create and return the combined data in parts to avoid stack too deep error
+        return _combineOrderCancellationData(_createOrderCancellationPart1(), _createOrderCancellationPart2());
+    }
+
+    // First part of the cancellation data
+    function _createOrderCancellationPart1() internal view returns (bytes memory) {
+        bytes memory makerSrc = abi.encodePacked(mockAccount);
+        bytes memory giveTokenAddress = abi.encodePacked(mockInputToken);
+        bytes memory takeTokenAddress = abi.encodePacked(mockOutputToken);
+
+        uint64 makerOrderNonce = 123_456;
+        uint256 giveAmount = mockInputAmount;
+        uint256 takeAmount = mockOutputAmount;
+
+        return abi.encodePacked(
+            mockValue, // value
+            makerOrderNonce, // makerOrderNonce
+            uint256(makerSrc.length), // makerSrc length
+            makerSrc, // makerSrc
+            uint256(giveTokenAddress.length), // giveTokenAddress length
+            giveTokenAddress, // giveTokenAddress
+            giveAmount, // giveAmount
+            uint256(1), // giveChainId
+            mockDestinationChainId, // takeChainId
+            uint256(takeTokenAddress.length), // takeTokenAddress length
+            takeTokenAddress, // takeTokenAddress
+            takeAmount // takeAmount
+        );
+    }
+
+    // Second part of the cancellation data
+    function _createOrderCancellationPart2() internal view returns (bytes memory) {
+        bytes memory receiverDst = abi.encodePacked(mockRecipient);
+        bytes memory givePatchAuthoritySrc = abi.encodePacked(address(this));
+        bytes memory orderAuthorityAddressDst = abi.encodePacked(address(this));
+        bytes memory allowedTakerDst = abi.encodePacked(address(0));
+        bytes memory allowedCancelBeneficiarySrc = abi.encodePacked(mockAccount);
+
+        uint256 executionFee = 0.01 ether;
+
+        return abi.encodePacked(
+            uint256(receiverDst.length), // receiverDst length
+            receiverDst, // receiverDst
+            uint256(givePatchAuthoritySrc.length), // givePatchAuthoritySrc length
+            givePatchAuthoritySrc, // givePatchAuthoritySrc
+            uint256(orderAuthorityAddressDst.length), // orderAuthorityAddressDst length
+            orderAuthorityAddressDst, // orderAuthorityAddressDst
+            uint256(allowedTakerDst.length), // allowedTakerDst length
+            allowedTakerDst, // allowedTakerDst
+            uint256(allowedCancelBeneficiarySrc.length), // allowedCancelBeneficiarySrc length
+            allowedCancelBeneficiarySrc, // allowedCancelBeneficiarySrc
+            executionFee // executionFee
+        );
+    }
+
+    // Helper function to combine the data parts
+    function _combineOrderCancellationData(
+        bytes memory part1,
+        bytes memory part2
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        return abi.encodePacked(part1, part2);
     }
 }

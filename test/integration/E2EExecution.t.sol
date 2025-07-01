@@ -47,7 +47,6 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         address underlyingToken = CHAIN_1_USDC;
         address morphoVault = CHAIN_1_MorphoVault;
 
-        address accountOwner = makeAddr("owner");
         MaliciousHookBypassFees maliciousHookBypassFees = new MaliciousHookBypassFees();
 
         // Step 1: Create account and install custom malicious hook
