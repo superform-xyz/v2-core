@@ -30,6 +30,10 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     mapping(bytes32 yieldSourceOracleId => uint256 proposalExpirationTime) private
         yieldSourceOracleConfigProposalGracePeriod;
 
+    /// @notice Maps original owners to their yield source oracle IDs
+    /// @dev Used to track yield source oracle IDs by their original owners
+    mapping(address originalOwner => bytes32[] yieldSourceOracleIds) private yieldSourceOracleIdsByOwner;
+
     /// @notice Addresses nominated to receive manager role transfers
     /// @dev Used in the two-step process for transferring management rights
     mapping(bytes32 => address) private pendingManager;
@@ -202,6 +206,11 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperLedgerConfiguration
+    function getAllYieldSourceOracleIdsByOwner(address owner) external view virtual returns (bytes32[] memory) {
+        return yieldSourceOracleIdsByOwner[owner];
+    }
+    
+    /// @inheritdoc ISuperLedgerConfiguration
     function getYieldSourceOracleConfig(bytes32 yieldSourceOracleId)
         external
         view
@@ -265,6 +274,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
 
         // re-create id with sender address
         bytes32 yieldSourceOracleId = _deriveWithSender(salt, msg.sender);
+        yieldSourceOracleIdsByOwner[msg.sender].push(yieldSourceOracleId);
 
         YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[yieldSourceOracleId];
         if (existingConfig.manager != address(0) && existingConfig.ledger != address(0)) revert CONFIG_EXISTS();

@@ -221,4 +221,9 @@ interface ISuperLedgerConfiguration {
         external
         view
         returns (YieldSourceOracleConfig[] memory configs);
+
+    /// @notice Retrieves all yield source oracle IDs owned by a specific address
+    /// @param owner The address to query for owned yield source oracle IDs
+    /// @return Array of yield source oracle IDs owned by the specified address
+    function getAllYieldSourceOracleIdsByOwner(address owner) external view returns (bytes32[] memory);
 }

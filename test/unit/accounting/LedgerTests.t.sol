@@ -615,6 +615,32 @@ contract LedgerTests is Helpers {
         config.acceptYieldSourceOracleConfigProposal(oracleIds);
     }
 
+    function test_GetAllCreatedIds() public {
+        bytes32 oracleId = bytes32(keccak256("test"));
+        address oracle = address(0x123);
+        uint256 feePercent = 1000;
+        address feeRecipient = address(0x456);
+        address ledger = address(superLedger);
+
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            uniqueIdentifier: oracleId,
+            yieldSourceOracle: oracle,
+            feePercent: feePercent,
+            feeRecipient: feeRecipient,
+            ledger: ledger
+        });
+        config.setYieldSourceOracles(configs);
+
+        bytes32[] memory oracleIds = config.getAllYieldSourceOracleIdsByOwner(address(this));
+        assertEq(oracleIds.length, 1);
+        assertEq(oracleIds[0], _getYieldSourceOracleId(oracleId, address(this)));
+
+        oracleIds = config.getAllYieldSourceOracleIdsByOwner(address(0x1));
+        assertEq(oracleIds.length, 0);
+    }
+
     function test_AcceptConfigPropsal_Event_Emission() public {
         // First set initial config
         bytes32 oracleId = bytes32(keccak256("test"));
