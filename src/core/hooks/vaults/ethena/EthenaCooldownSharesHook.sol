@@ -9,23 +9,19 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IStakedUSDeCooldown } from "../../../../vendor/ethena/IStakedUSDeCooldown.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import {
-    ISuperHookResult,
-    ISuperHookInflowOutflow,
-    ISuperHookAsync,
-    ISuperHookInspector
-} from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title EthenaCooldownSharesHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
-/// @notice         uint256 shares = BytesLib.toUint256(data, 52);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHookAsync, ISuperHookInspector {
+
+/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
+/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
+contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;
@@ -52,7 +48,7 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            shares = ISuperHookResult(prevHook).outAmount();
+            shares = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
@@ -64,11 +60,6 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
             value: 0,
             callData: abi.encodeCall(IStakedUSDeCooldown.cooldownShares, (shares))
         });
-    }
-
-    /// @inheritdoc ISuperHookAsync
-    function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
-        return (usedShares, true);
     }
 
     /// @inheritdoc ISuperHookInspector

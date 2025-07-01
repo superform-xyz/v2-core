@@ -12,8 +12,8 @@ import {IStakedUSDeCooldown} from "../../../../../src/vendor/ethena/IStakedUSDeC
 import {HookSubTypes} from "../../../../../src/core/libraries/HookSubTypes.sol";
 
 // Hooks
-import {EthenaCooldownSharesHook} from "../../../../../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
-import {EthenaUnstakeHook} from "../../../../../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
+import { EthenaCooldownSharesHook } from "../../../../../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
+import { EthenaUnstakeHook } from "../../../../../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
 
 contract EthenaHooksTests is Helpers {
     EthenaCooldownSharesHook cooldownSharesHook;
@@ -48,10 +48,7 @@ contract EthenaHooksTests is Helpers {
     }
 
     function test_EthenaCooldownSharesSubHookType_Constructor() public view {
-        assertEq(
-            cooldownSharesHook.subType(),
-            HookSubTypes.getHookSubType("Cooldown")
-        );
+        assertEq(cooldownSharesHook.subType(), HookSubTypes.getHookSubType("Cooldown"));
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -109,7 +106,7 @@ contract EthenaHooksTests is Helpers {
     //////////////////////////////////////////////////////////////*/
     function test_EthenaCooldownSharesHook_BuildWithPrevHook() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, address(yieldSource)));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeCooldownData(true);
         Execution[] memory executions = cooldownSharesHook.build(mockPrevHook, address(this), data);
@@ -122,7 +119,7 @@ contract EthenaHooksTests is Helpers {
 
     function test_EthenaUnstakeHook_BuildWithPrevHook() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, address(yieldSource)));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeUnstakeData();
         Execution[] memory executions = unstakeHook.build(mockPrevHook, address(this), data);
@@ -159,16 +156,6 @@ contract EthenaHooksTests is Helpers {
     /*//////////////////////////////////////////////////////////////
                      GET USED ASSETS OR SHARES TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_EthenaCooldownSharesHook_GetUsedAssetsOrShares() public {
-        _getTokens(address(yieldSource), address(this), amount);
-
-        bytes memory data = _encodeCooldownData(false);
-        cooldownSharesHook.preExecute(address(0), address(this), data);
-
-        (uint256 usedAssets, bool isShares) = cooldownSharesHook.getUsedAssetsOrShares();
-        assertEq(usedAssets, amount);
-        assertEq(isShares, true);
-    }
 
     function test_cooldownSharesHook_Inspector() public view {
         bytes memory data = _encodeCooldownData(false);
@@ -189,12 +176,16 @@ contract EthenaHooksTests is Helpers {
         address _yieldSource,
         address _vaultBank,
         uint256 _dstChainId
-    ) internal view returns (bytes memory) {
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
         return abi.encodePacked(
-            yieldSourceOracleId,   // bytes4 placeholder
-            _yieldSource,          // address yieldSource
-            _vaultBank,            // address vaultBank
-            _dstChainId            // uint256 dstChainId
+            yieldSourceOracleId, // bytes4 placeholder
+            _yieldSource, // address yieldSource
+            _vaultBank, // address vaultBank
+            _dstChainId // uint256 dstChainId
         );
     }
 

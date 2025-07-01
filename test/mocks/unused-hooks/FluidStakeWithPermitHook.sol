@@ -2,16 +2,16 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../src/vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import {BaseHook} from "../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
 
-import {ISuperHookResult, ISuperHookInflowOutflow} from "../../../src/core/interfaces/ISuperHook.sol";
-import {IFluidLendingStakingRewards} from "../../../src/vendor/fluid/IFluidLendingStakingRewards.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
+import { IFluidLendingStakingRewards } from "../../../src/vendor/fluid/IFluidLendingStakingRewards.sol";
 
-import {HookDataDecoder} from "../../../src/core/libraries/HookDataDecoder.sol";
+import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol";
 
 /// @title FluidStakeWithPermitHook
 /// @author Superform Labs
@@ -29,12 +29,16 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHookInflowOutflow {
 
     uint256 private constant AMOUNT_POSITION = 52;
 
-    constructor() BaseHook(HookType.INFLOW, "Stake") {}
+    constructor() BaseHook(HookType.INFLOW, "Stake") { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function _buildHookExecutions(address prevHook, address, bytes calldata data)
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
         internal
         view
         override
@@ -51,7 +55,7 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHookInflowOutflow {
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         executions = new Execution[](1);
@@ -75,12 +79,12 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHookInflowOutflow {
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+        _setOutAmount(_getBalance(account, data), account);
         /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

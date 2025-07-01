@@ -84,10 +84,10 @@ contract GearboxClaimRewardHook is
         address expectedToken = IGearboxFarmingPool(farmingPool).rewardsToken();
         if (asset != expectedToken) revert INVALID_REWARD_TOKEN();
 
-        outAmount = _getBalance(data, account);
+        _setOutAmount(_getBalance(data, account), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(data, account) - outAmount;
+        _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
     }
 }

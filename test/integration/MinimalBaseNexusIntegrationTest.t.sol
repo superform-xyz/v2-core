@@ -275,6 +275,17 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         nonce = IMinimalEntryPoint(ENTRYPOINT_ADDR).getNonce(account, nonceKey);
     }
 
+    function _prepareNonceWithValidator(address account, address validator) internal view returns (uint256 nonce) {
+        uint192 nonceKey;
+        bytes32 batchId = bytes3(0);
+        bytes1 vMode = MODE_VALIDATION;
+        assembly {
+            nonceKey := or(shr(88, vMode), validator)
+            nonceKey := or(shr(64, batchId), nonceKey)
+        }
+        nonce = IMinimalEntryPoint(ENTRYPOINT_ADDR).getNonce(account, nonceKey);
+    }
+
     function _createPackedUserOperation(
         address account,
         uint256 nonce,

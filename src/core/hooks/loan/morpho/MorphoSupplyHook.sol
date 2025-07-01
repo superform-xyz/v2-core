@@ -72,7 +72,7 @@ contract MorphoSupplyHook is BaseMorphoLoanHook, ISuperHookInspector {
         SupplyHookLocalVars memory vars = _decodeSupplyHookData(data);
 
         if (vars.usePrevHookAmount) {
-            vars.amount = ISuperHookResult(prevHook).outAmount();
+            vars.amount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         if (vars.amount == 0) revert AMOUNT_NOT_VALID();
@@ -99,10 +99,6 @@ contract MorphoSupplyHook is BaseMorphoLoanHook, ISuperHookInspector {
             value: 0,
             callData: abi.encodeCall(IMorphoBase.supplyCollateral, (marketParams, vars.amount, account, ""))
         });
-    }
-
-    function getUsedAssets(address, bytes memory) external view returns (uint256) {
-        return outAmount;
     }
 
     /// @inheritdoc ISuperHookInspector
@@ -142,10 +138,10 @@ contract MorphoSupplyHook is BaseMorphoLoanHook, ISuperHookInspector {
 
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
-        outAmount = getCollateralTokenBalance(account, data);
+        _setOutAmount(getCollateralTokenBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = outAmount - getCollateralTokenBalance(account, data);
+        _setOutAmount(getOutAmount(account) - getCollateralTokenBalance(account, data), account);
     }
 }

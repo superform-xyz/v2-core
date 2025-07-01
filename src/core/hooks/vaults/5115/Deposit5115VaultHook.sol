@@ -59,7 +59,7 @@ contract Deposit5115VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInfl
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
@@ -68,7 +68,7 @@ contract Deposit5115VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInfl
         executions = new Execution[](1);
         executions[0] = Execution({
             target: yieldSource,
-            value: tokenIn == address(0) ? amount: 0,
+            value: tokenIn == address(0) ? amount : 0,
             callData: abi.encodeCall(IStandardizedYield.deposit, (account, tokenIn, amount, minSharesOut))
         });
     }
@@ -99,7 +99,7 @@ contract Deposit5115VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInfl
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+        _setOutAmount(_getBalance(account, data), account);
         vaultBank = BytesLib.toAddress(data, 137);
         dstChainId = BytesLib.toUint256(data, 157);
         spToken = data.extractYieldSource();
@@ -107,7 +107,7 @@ contract Deposit5115VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInfl
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -268,14 +268,13 @@ contract PendleRouterSwapHookTest is Helpers {
 
         bytes memory data = abi.encodePacked(bytes32(bytes("")), market, bytes1(uint8(1)), uint256(0), txData);
 
-        prevHook.setOutAmount(2500);
+        prevHook.setOutAmount(2500, address(this));
 
         Execution[] memory executions = hook.build(address(prevHook), account, data);
 
         assertEq(executions.length, 3);
         assertEq(executions[1].target, address(pendleRouter));
         assertEq(executions[1].value, 2500);
-
     }
 
     function test_PreExecute() public {
@@ -307,7 +306,7 @@ contract PendleRouterSwapHookTest is Helpers {
         ptToken.mint(receiver, 500);
         vm.prank(receiver);
         hook.preExecute(address(0), receiver, data);
-        assertEq(hook.outAmount(), 500);
+        assertEq(hook.getOutAmount(address(this)), 500);
     }
 
     function test_PostExecute() public {
@@ -341,7 +340,7 @@ contract PendleRouterSwapHookTest is Helpers {
 
         ptToken.mint(receiver, 300);
         hook.postExecute(address(0), receiver, data);
-        assertEq(hook.outAmount(), 300);
+        assertEq(hook.getOutAmount(address(this)), 300);
     }
 
     function test_Build_RevertIf_InvalidReceiver() public {

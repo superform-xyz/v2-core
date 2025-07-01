@@ -70,7 +70,7 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHoo
 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         if (usePrevHookAmount) {
-            params.inputAmount = ISuperHookResult(prevHook).outAmount();
+            params.inputAmount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         params.approveSpender = address(odosRouterV2);
@@ -131,11 +131,11 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHoo
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+        _setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -169,7 +169,7 @@ contract ApproveAndSwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHoo
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            inputAmount = ISuperHookResult(prevHook).outAmount();
+            inputAmount = ISuperHookResult(prevHook).getOutAmount(account);
         }
         return IOdosRouterV2.swapTokenInfo(
             inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, account

@@ -2,11 +2,11 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IERC7540CancelRedeem} from "../../../../vendor/standards/ERC7540/IERC7540Vault.sol";
-import {IERC7540} from "../../../../vendor/vaults/7540/IERC7540.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC7540CancelRedeem } from "../../../../vendor/standards/ERC7540/IERC7540Vault.sol";
+import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // Superform
 import {BaseHook} from "../../BaseHook.sol";
 import {VaultBankLockableHook} from "../../VaultBankLockableHook.sol";
@@ -25,13 +25,17 @@ import {ISuperHookAsyncCancelations, ISuperHookInspector} from "../../../interfa
 contract ClaimCancelRedeemRequest7540Hook is BaseHook, VaultBankLockableHook, ISuperHookAsyncCancelations, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM_CANCEL_REDEEM_REQUEST) {}
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM_CANCEL_REDEEM_REQUEST) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc BaseHook
-    function _buildHookExecutions(address, address account, bytes calldata data)
+    function _buildHookExecutions(
+        address,
+        address account,
+        bytes calldata data
+    )
         internal
         pure
         override
@@ -71,15 +75,15 @@ contract ClaimCancelRedeemRequest7540Hook is BaseHook, VaultBankLockableHook, IS
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+        _setOutAmount(_getBalance(account, data), account);
         vaultBank = BytesLib.toAddress(data, 72);
         dstChainId = BytesLib.toUint256(data, 92);
         spToken = IERC7540(data.extractYieldSource()).share();
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
+    function _postExecute(address, address account, bytes calldata data) internal override {
         address receiver = BytesLib.toAddress(data, 52);
-        outAmount = _getBalance(receiver, data) - outAmount;
+        _setOutAmount(_getBalance(receiver, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

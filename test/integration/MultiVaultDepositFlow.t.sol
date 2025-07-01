@@ -1,17 +1,18 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {ISuperExecutor} from "../../src/core/interfaces/ISuperExecutor.sol";
-import {IStandardizedYield} from "../../src/vendor/pendle/IStandardizedYield.sol";
-import {IERC7540} from "../../src/vendor/vaults/7540/IERC7540.sol";
-import {UserOpData} from "modulekit/ModuleKit.sol";
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {MinimalBaseIntegrationTest} from "./MinimalBaseIntegrationTest.t.sol";
-import {Deposit5115VaultHook} from "../../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
-import {RequestDeposit7540VaultHook} from "../../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
-import {CancelDepositRequest7540Hook} from "../../src/core/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
-import {ClaimCancelDepositRequest7540Hook} from "../../src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
-import {Mock7540Hook} from "../mocks/Mock7540Hook.sol";
+import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { IStandardizedYield } from "../../src/vendor/pendle/IStandardizedYield.sol";
+import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
+import { UserOpData } from "modulekit/ModuleKit.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
+import { Deposit5115VaultHook } from "../../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
+import { RequestDeposit7540VaultHook } from "../../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
+import { CancelDepositRequest7540Hook } from "../../src/core/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
+import { ClaimCancelDepositRequest7540Hook } from
+    "../../src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
+import { Mock7540Hook } from "../mocks/Mock7540Hook.sol";
 
 interface IRoot {
     function endorsed(address user) external view returns (bool);
@@ -43,7 +44,7 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
 
     function test_ClaimCancelDepositRequest7540Hook_WrongReceiver() public {
         yieldSource7540AddressUSDC = address(new Mock7540Hook(underlyingEth_USDC));
-        address receiver = address(1271927);
+        address receiver = address(1_271_927);
         uint256 amount = 100e6;
 
         vm.mockCall(
@@ -62,12 +63,7 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
         hooksAddresses[2] = address(cancelDepositRequest7540Hook);
 
         bytes[] memory hooksData = new bytes[](3);
-        hooksData[0] = _createApproveHookData(
-            underlyingEth_USDC,
-            yieldSource7540AddressUSDC,
-            amount,
-            false
-        );
+        hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSource7540AddressUSDC, amount, false);
         hooksData[1] = _createRequestDeposit7540VaultHookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSource7540AddressUSDC,
@@ -86,12 +82,7 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
             _getExecOps(
                 instanceOnEth,
                 superExecutorOnEth,
-                abi.encode(
-                    ISuperExecutor.ExecutorEntry({
-                        hooksAddresses: hooksAddresses,
-                        hooksData: hooksData
-                    })
-                )
+                abi.encode(ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData }))
             )
         );
 
@@ -112,28 +103,17 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
             _getExecOps(
                 instanceOnEth,
                 superExecutorOnEth,
-                abi.encode(
-                    ISuperExecutor.ExecutorEntry({
-                        hooksAddresses: hooksAddresses,
-                        hooksData: hooksData
-                    })
-                )
+                abi.encode(ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData }))
             )
         );
 
         // amount is transferred correctly
-        assertEq(
-            IERC20(underlyingEth_USDC).balanceOf(receiver) - receiverBalanceBefore,
-            amount,
-            "A"
-        );
-        
+        assertEq(IERC20(underlyingEth_USDC).balanceOf(receiver) - receiverBalanceBefore, amount, "A");
+
         // claimCancelDepositRequest7540Hook's outAmount is 0 => incorrect
-        //assertEq(claimCancelDepositRequest7540Hook.outAmount(), 0, "B");
+        //assertEq(claimCancelDepositRequest7540Hook.getOutAmount(address(this)), 0, "B");
         // ^ fixed
     }
-
-
 
     function test_MultiVault_Deposit_Flow() public {
         uint256 amount = 1e8;
@@ -170,7 +150,7 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
         vm.expectEmit(true, true, true, false);

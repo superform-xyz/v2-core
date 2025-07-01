@@ -38,6 +38,7 @@ contract Deposit4626VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInfl
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc BaseHook
+
     function _buildHookExecutions(
         address prevHook,
         address account,
@@ -53,7 +54,7 @@ contract Deposit4626VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInfl
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
@@ -88,14 +89,14 @@ contract Deposit4626VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInfl
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
-        outAmount = _getBalance(account, data);
+        _setOutAmount(_getBalance(account, data), account);
         vaultBank = BytesLib.toAddress(data, 85);
         dstChainId = BytesLib.toUint256(data, 105);
         spToken = data.extractYieldSource();
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////
