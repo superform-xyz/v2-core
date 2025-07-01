@@ -476,9 +476,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(token), 1, false, address(0), 0
         );
 
-        vm.mockCall(address(inflowHook), abi.encodeWithSignature("vaultBank()"), abi.encode(address(this)));
         vm.mockCall(address(inflowHook), abi.encodeWithSignature("spToken()"), abi.encode(address(token)));
-        vm.mockCall(address(inflowHook), abi.encodeWithSignature("dstChainId()"), abi.encode(uint64(block.chainid)));
+        vm.mockCall(address(inflowHook), abi.encodeWithSignature("extractLockDetails()"), abi.encode(address(this), uint64(block.chainid)));
         vm.mockCall(
             address(this),
             abi.encodeWithSignature("lockAsset(bytes32,address,address,address,uint256,uint64)"),

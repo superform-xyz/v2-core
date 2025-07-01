@@ -9,6 +9,7 @@ import { IStandardizedYield } from "../../../../vendor/pendle/IStandardizedYield
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { VaultBankLockableHook } from "../../VaultBankLockableHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import {
@@ -29,7 +30,7 @@ import {
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
 /// @notice         address vaultBank = BytesLib.toAddress(data, 137);
 /// @notice         uint256 dstChainId = BytesLib.toUint256(data, 157);
-contract Deposit5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector {
+contract Deposit5115VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 72;

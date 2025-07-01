@@ -31,7 +31,9 @@ interface ISuperLedgerConfiguration {
     ///      The manager is either derived from existing config or set to msg.sender for new configs
     struct YieldSourceOracleConfigArgs {
         /// @notice Unique identifier for this yield source oracle configuration
-        bytes32 yieldSourceOracleId;
+        /// @dev `yieldSourceOracleId` is created out of `uniqueIdentifier` and `msg.sender`
+        /// @dev when using `proposeYieldSourceOracleConfig`, the `uniqueIdentifier` is actually a valid `yieldSourceOracleId` 
+        bytes32 uniqueIdentifier;
         /// @notice Address of the oracle that provides price information
         address yieldSourceOracle;
         /// @notice Fee percentage charged on yield in basis points (0-10000, where 10000 = 100%)

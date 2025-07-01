@@ -10,6 +10,7 @@ import { IStandardizedYield } from "../../../../vendor/pendle/IStandardizedYield
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { VaultBankLockableHook } from "../../VaultBankLockableHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import {
@@ -33,6 +34,7 @@ import {
 /// @notice         uint256 dstChainId = BytesLib.toUint256(data, 157);
 contract ApproveAndDeposit5115VaultHook is
     BaseHook,
+    VaultBankLockableHook,
     ISuperHookInflowOutflow,
     ISuperHookContextAware,
     ISuperHookInspector

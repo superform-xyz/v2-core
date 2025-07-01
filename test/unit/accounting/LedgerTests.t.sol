@@ -94,7 +94,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: yieldSourceOracleId,
+            uniqueIdentifier: yieldSourceOracleId,
             yieldSourceOracle: yieldSource,
             feePercent: 0,
             feeRecipient: address(this),
@@ -155,7 +155,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -178,7 +178,7 @@ contract LedgerTests is Helpers {
 
         // Try to make a proposal as the current manager - should still work because the transfer isn't complete
         address newOracle = address(0x999);
-        configs[0].yieldSourceOracleId = oracleId;
+        configs[0].uniqueIdentifier = oracleId;
         configs[0].yieldSourceOracle = newOracle;
         config.proposeYieldSourceOracleConfig(configs);
 
@@ -221,7 +221,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -229,7 +229,7 @@ contract LedgerTests is Helpers {
         });
         config.setYieldSourceOracles(configs);
         oracleId = _getYieldSourceOracleId(oracleId, address(this));
-        configs[0].yieldSourceOracleId = oracleId;
+        configs[0].uniqueIdentifier = oracleId;
 
         // Propose new config
         config.proposeYieldSourceOracleConfig(configs);
@@ -270,7 +270,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -312,7 +312,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -328,7 +328,7 @@ contract LedgerTests is Helpers {
         oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: newOracle,
             feePercent: newFeePercent,
             feeRecipient: newFeeRecipient,
@@ -354,13 +354,13 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: address(0x123),
             feePercent: 1000,
             feeRecipient: address(0x456),
             ledger: address(superLedger)
         });
-        configs[0].yieldSourceOracleId = _getYieldSourceOracleId(oracleId, address(this));
+        configs[0].uniqueIdentifier = _getYieldSourceOracleId(oracleId, address(this));
 
         vm.expectRevert(ISuperLedgerConfiguration.CONFIG_NOT_FOUND.selector);
         config.proposeYieldSourceOracleConfig(configs);
@@ -377,7 +377,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -387,7 +387,7 @@ contract LedgerTests is Helpers {
 
         // Try to propose as different address
         vm.startPrank(address(0x999));
-        configs[0].yieldSourceOracleId = _getYieldSourceOracleId(oracleId, address(this));
+        configs[0].uniqueIdentifier = _getYieldSourceOracleId(oracleId, address(this));
         vm.expectRevert(ISuperLedgerConfiguration.NOT_MANAGER.selector);
         config.proposeYieldSourceOracleConfig(configs);
         vm.stopPrank();
@@ -404,7 +404,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -412,7 +412,7 @@ contract LedgerTests is Helpers {
         });
         config.setYieldSourceOracles(configs);
 
-        configs[0].yieldSourceOracleId = _getYieldSourceOracleId(oracleId, address(this));
+        configs[0].uniqueIdentifier = _getYieldSourceOracleId(oracleId, address(this));
         // Propose first time
         config.proposeYieldSourceOracleConfig(configs);
 
@@ -432,14 +432,14 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
             ledger: ledger
         });
         config.setYieldSourceOracles(configs);
-        configs[0].yieldSourceOracleId = _getYieldSourceOracleId(oracleId, address(this));
+        configs[0].uniqueIdentifier = _getYieldSourceOracleId(oracleId, address(this));
 
         // Try to propose with invalid fee percent (more than 50% change)
         configs[0].feePercent = 2000; // 20% (more than 50% change from 10%)
@@ -457,7 +457,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -473,7 +473,7 @@ contract LedgerTests is Helpers {
         oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: newOracle,
             feePercent: newFeePercent,
             feeRecipient: newFeeRecipient,
@@ -498,7 +498,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -513,7 +513,7 @@ contract LedgerTests is Helpers {
         address newLedger = address(flatFeeLedger);
 
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: _getYieldSourceOracleId(oracleId, address(this)),
+            uniqueIdentifier: _getYieldSourceOracleId(oracleId, address(this)),
             yieldSourceOracle: newOracle,
             feePercent: newFeePercent,
             feeRecipient: newFeeRecipient,
@@ -560,7 +560,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -568,7 +568,7 @@ contract LedgerTests is Helpers {
         });
         config.setYieldSourceOracles(configs);
 
-        configs[0].yieldSourceOracleId = _getYieldSourceOracleId(oracleId, address(this));
+        configs[0].uniqueIdentifier = _getYieldSourceOracleId(oracleId, address(this));
         // Propose new config
         config.proposeYieldSourceOracleConfig(configs);
 
@@ -595,7 +595,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -603,7 +603,7 @@ contract LedgerTests is Helpers {
         });
         config.setYieldSourceOracles(configs);
 
-        configs[0].yieldSourceOracleId = _getYieldSourceOracleId(oracleId, address(this));
+        configs[0].uniqueIdentifier = _getYieldSourceOracleId(oracleId, address(this));
         // Propose new config
         config.proposeYieldSourceOracleConfig(configs);
 
@@ -626,7 +626,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -641,7 +641,7 @@ contract LedgerTests is Helpers {
         address newLedger = address(flatFeeLedger);
 
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: _getYieldSourceOracleId(oracleId, address(this)),
+            uniqueIdentifier: _getYieldSourceOracleId(oracleId, address(this)),
             yieldSourceOracle: newOracle,
             feePercent: newFeePercent,
             feeRecipient: newFeeRecipient,
@@ -673,7 +673,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -702,14 +702,14 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](2);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId1,
+            uniqueIdentifier: oracleId1,
             yieldSourceOracle: oracle1,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
             ledger: ledger
         });
         configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId2,
+            uniqueIdentifier: oracleId2,
             yieldSourceOracle: oracle2,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -739,7 +739,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -763,7 +763,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -787,7 +787,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -812,7 +812,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -850,7 +850,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -877,7 +877,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -898,7 +898,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -919,7 +919,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -940,7 +940,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -961,7 +961,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -985,7 +985,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory honestConfigs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         honestConfigs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -999,7 +999,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory maliciousConfigs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         maliciousConfigs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: 3000,
             feeRecipient: maliciousUser,
@@ -1037,7 +1037,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1049,7 +1049,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory maliciousConfigs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         maliciousConfigs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: 5000, // 50% fee instead of 10% fee
             feeRecipient: maliciousUser, // fee recipient is now set to malicious user
@@ -1107,7 +1107,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1139,7 +1139,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1174,7 +1174,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1218,7 +1218,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1258,7 +1258,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1301,7 +1301,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1331,7 +1331,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1365,7 +1365,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1416,7 +1416,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1465,7 +1465,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1516,7 +1516,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1570,7 +1570,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1614,7 +1614,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1657,7 +1657,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1701,7 +1701,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1761,7 +1761,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1777,7 +1777,7 @@ contract LedgerTests is Helpers {
         oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: newOracle,
             feePercent: newFeePercent,
             feeRecipient: newFeeRecipient,
@@ -1816,7 +1816,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1840,7 +1840,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1856,7 +1856,7 @@ contract LedgerTests is Helpers {
         oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: newOracle,
             feePercent: newFeePercent,
             feeRecipient: newFeeRecipient,
@@ -1880,7 +1880,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: oracle,
             feePercent: feePercent,
             feeRecipient: feeRecipient,
@@ -1895,7 +1895,7 @@ contract LedgerTests is Helpers {
         oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: oracleId,
+            uniqueIdentifier: oracleId,
             yieldSourceOracle: newOracle,
             feePercent: newFeePercent,
             feeRecipient: newFeeRecipient,
@@ -1934,7 +1934,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory initialConfigs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         initialConfigs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: initialConfig.oracleId,
+            uniqueIdentifier: initialConfig.oracleId,
             yieldSourceOracle: initialConfig.oracle,
             feePercent: initialConfig.feePercent,
             feeRecipient: initialConfig.feeRecipient,
@@ -1964,7 +1964,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory firstProposalConfigs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         firstProposalConfigs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: firstProposal.oracleId,
+            uniqueIdentifier: firstProposal.oracleId,
             yieldSourceOracle: firstProposal.oracle,
             feePercent: firstProposal.feePercent,
             feeRecipient: firstProposal.feeRecipient,
@@ -1995,7 +1995,7 @@ contract LedgerTests is Helpers {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory secondProposalConfigs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         secondProposalConfigs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: secondProposal.oracleId,
+            uniqueIdentifier: secondProposal.oracleId,
             yieldSourceOracle: secondProposal.oracle,
             feePercent: secondProposal.feePercent,
             feeRecipient: secondProposal.feeRecipient,

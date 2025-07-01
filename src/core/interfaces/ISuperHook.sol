@@ -20,6 +20,13 @@ import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
  *      - OUTFLOW: Hooks that process withdrawals or reductions to positions
  */
 
+interface ISuperLockableHook {
+    /// @notice Extracts the vault bank and destination chain ID
+    /// @dev Used to retrieve lock details for cross-chain operations
+    /// @return vaultBank The vault bank address
+    /// @return dstChainId The destination chain ID
+    function extractLockDetails() external view returns (address, uint256);
+}
 
 interface ISuperHookSetter {
     /// @notice Sets the output amount for the hook

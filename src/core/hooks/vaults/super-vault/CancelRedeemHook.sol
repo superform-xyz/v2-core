@@ -9,6 +9,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { VaultBankLockableHook } from "../../VaultBankLockableHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperVault } from "../../../../periphery/interfaces/SuperVault/ISuperVault.sol";
@@ -21,7 +22,7 @@ import { ISuperHookAsyncCancelations, ISuperHookInspector } from "../../../inter
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         address vaultBank = BytesLib.toAddress(data, 52);
 /// @notice         uint256 dstChainId = BytesLib.toUint256(data, 72);
-contract CancelRedeemHook is BaseHook, ISuperHookAsyncCancelations, ISuperHookInspector {
+contract CancelRedeemHook is BaseHook, VaultBankLockableHook, ISuperHookAsyncCancelations, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CANCEL_REDEEM) { }

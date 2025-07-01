@@ -7,8 +7,6 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 // Superform
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
 
-import "forge-std/console2.sol";
-
 /// @title SuperLedgerConfiguration
 /// @author Superform Labs
 /// @notice Configuration management contract for yield source oracles and ledgers
@@ -49,8 +47,6 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     /// @dev After this period elapses, proposals can be accepted
     uint256 internal constant PROPOSAL_EXPIRATION_TIME = 1 weeks;
 
-    constructor() {}
-
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -63,7 +59,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         for (uint256 i; i < length; ++i) {
             YieldSourceOracleConfigArgs calldata config = configs[i];
             _setInitialYieldSourceOracleConfig(
-                config.yieldSourceOracleId,
+                config.uniqueIdentifier,
                 config.yieldSourceOracle,
                 config.feePercent,
                 config.feeRecipient,
@@ -73,6 +69,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     }
 
     /// @inheritdoc ISuperLedgerConfiguration
+    /// @dev `config.uniqueIdentifier` represents the `yieldSourceOracleId` (salt + msg.sender)
     function proposeYieldSourceOracleConfig(YieldSourceOracleConfigArgs[] calldata configs) external virtual {
         uint256 length = configs.length;
         if (length == 0) revert ZERO_LENGTH();
@@ -80,12 +77,12 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         for (uint256 i; i < length; ++i) {
             YieldSourceOracleConfigArgs calldata config = configs[i];
 
-            YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[config.yieldSourceOracleId];
+            YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[config.uniqueIdentifier];
             if (existingConfig.ledger == address(0) || existingConfig.manager == address(0)) revert CONFIG_NOT_FOUND();
 
             if (existingConfig.manager != msg.sender) revert NOT_MANAGER();
 
-            if (yieldSourceOracleConfigProposalGracePeriod[config.yieldSourceOracleId] > block.timestamp) {
+            if (yieldSourceOracleConfigProposalGracePeriod[config.uniqueIdentifier] > block.timestamp) {
                 revert CHANGE_ALREADY_PROPOSED();
             }
 
@@ -99,25 +96,25 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
             }
 
             _validateYieldSourceOracleConfig(
-                config.yieldSourceOracleId,
+                config.uniqueIdentifier,
                 config.yieldSourceOracle,
                 config.feePercent,
                 config.feeRecipient,
                 config.ledger
             );
 
-            yieldSourceOracleConfigProposals[config.yieldSourceOracleId] = YieldSourceOracleConfig({
+            yieldSourceOracleConfigProposals[config.uniqueIdentifier] = YieldSourceOracleConfig({
                 yieldSourceOracle: config.yieldSourceOracle,
                 feePercent: config.feePercent,
                 feeRecipient: config.feeRecipient,
                 manager: existingConfig.manager,
                 ledger: config.ledger
             });
-            yieldSourceOracleConfigProposalGracePeriod[config.yieldSourceOracleId] =
+            yieldSourceOracleConfigProposalGracePeriod[config.uniqueIdentifier] =
                 block.timestamp + PROPOSAL_EXPIRATION_TIME;
 
             emit YieldSourceOracleConfigProposalSet(
-                config.yieldSourceOracleId,
+                config.uniqueIdentifier,
                 config.yieldSourceOracle,
                 config.feePercent,
                 config.feeRecipient,
@@ -253,7 +250,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     //////////////////////////////////////////////////////////////*/
 
     function _setInitialYieldSourceOracleConfig(
-        bytes32 yieldSourceOracleId,
+        bytes32 salt,
         address yieldSourceOracle,
         uint256 feePercent,
         address feeRecipient,
@@ -263,13 +260,11 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         virtual
     {
         _validateYieldSourceOracleConfig(
-            yieldSourceOracleId, yieldSourceOracle, feePercent, feeRecipient, ledgerContract
+            salt, yieldSourceOracle, feePercent, feeRecipient, ledgerContract
         );
 
         // re-create id with sender address
-        yieldSourceOracleId = _deriveWithSender(yieldSourceOracleId, msg.sender);
-        console2.log("--- set yieldSourceOracleId sender", msg.sender);
-        console2.logBytes32(yieldSourceOracleId);
+        bytes32 yieldSourceOracleId = _deriveWithSender(salt, msg.sender);
 
         YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[yieldSourceOracleId];
         if (existingConfig.manager != address(0) && existingConfig.ledger != address(0)) revert CONFIG_EXISTS();
@@ -280,7 +275,10 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
             feeRecipient: feeRecipient,
             manager: msg.sender,
             ledger: ledgerContract
+            // originalOwner: msg.sender
         });
+
+        
 
         emit YieldSourceOracleConfigSet(
             yieldSourceOracleId, yieldSourceOracle, feePercent, feeRecipient, msg.sender, ledgerContract
@@ -288,7 +286,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     }
 
     function _validateYieldSourceOracleConfig(
-        bytes32 yieldSourceOracleId,
+        bytes32 salt,
         address yieldSourceOracle,
         uint256 feePercent,
         address feeRecipient,
@@ -302,7 +300,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         if (feeRecipient == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (ledgerContract == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
         if (feePercent > MAX_FEE_PERCENT) revert INVALID_FEE_PERCENT();
-        if (yieldSourceOracleId == bytes32(0)) revert ZERO_ID_NOT_ALLOWED();
+        if (salt == bytes32(0)) revert ZERO_ID_NOT_ALLOWED();
     }
 
     function _deriveWithSender(bytes32 id, address sender) internal pure returns (bytes32) {

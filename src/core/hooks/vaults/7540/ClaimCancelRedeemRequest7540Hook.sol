@@ -9,6 +9,7 @@ import {IERC7540} from "../../../../vendor/vaults/7540/IERC7540.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // Superform
 import {BaseHook} from "../../BaseHook.sol";
+import {VaultBankLockableHook} from "../../VaultBankLockableHook.sol";
 import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
 import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
 import {ISuperHookAsyncCancelations, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
@@ -21,7 +22,7 @@ import {ISuperHookAsyncCancelations, ISuperHookInspector} from "../../../interfa
 /// @notice         address receiver = BytesLib.toAddress(data, 52);
 /// @notice         address vaultBank = BytesLib.toAddress(data, 72);
 /// @notice         uint256 dstChainId = BytesLib.toUint256(data, 92);
-contract ClaimCancelRedeemRequest7540Hook is BaseHook, ISuperHookAsyncCancelations, ISuperHookInspector {
+contract ClaimCancelRedeemRequest7540Hook is BaseHook, VaultBankLockableHook, ISuperHookAsyncCancelations, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM_CANCEL_REDEEM_REQUEST) {}

@@ -34,14 +34,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter {
     /// @notice The primary asset address this hook operates on
     /// @dev Typically the base token or asset being processed
     address public transient asset;
-    
-    /// @notice The vault bank address (if applicable) for cross-chain operations
-    /// @dev Used primarily in bridge hooks to track source/destination vault banks
-    address public transient vaultBank;
-    
-    /// @notice The destination chain ID for cross-chain operations
-    /// @dev Used primarily in bridge hooks to track target chain
-    uint256 public transient dstChainId;
 
     /// @notice PreExecute protection: false=callable, true=already_called
     bool public transient preExecuteMutex;

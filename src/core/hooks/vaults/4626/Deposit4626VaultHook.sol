@@ -8,6 +8,7 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { VaultBankLockableHook } from "../../VaultBankLockableHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import {
@@ -26,7 +27,7 @@ import {
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
 /// @notice         address vaultBank = BytesLib.toAddress(data, 85);
 /// @notice         uint256 dstChainId = BytesLib.toUint256(data, 105);
-contract Deposit4626VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector {
+contract Deposit4626VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;

@@ -107,11 +107,11 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         return address(0);
     }
 
-    function vaultBank() external pure override returns (address) {
+    function vaultBank() public pure override returns (address) {
         return address(0);
     }
 
-    function dstChainId() external pure override returns (uint256) {
+    function dstChainId() public pure override returns (uint256) {
         return 0;
     }
 
@@ -125,4 +125,8 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     function setCaller() external {
         caller = msg.sender;
     }
+
+    function extractLockDetails() external pure returns (address, uint256) {
+        return (vaultBank(), dstChainId());
+    }   
 }
