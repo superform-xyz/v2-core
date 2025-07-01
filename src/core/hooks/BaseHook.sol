@@ -184,12 +184,16 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     }
 
     /// @inheritdoc ISuperHookSetter
-    function setOutAmount(uint256 _outAmount, address caller) public {
+    function setOutAmount(uint256 _outAmount, address caller) external {
         uint256 context = _getCurrentExecutionContext(caller);
         if (_getPreExecuteMutex(context) || _getPostExecuteMutex(context)) {
             revert CANNOT_SET_OUT_AMOUNT();
         }
-        _setOutAmount(context, _outAmount);
+
+        bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
+        assembly {
+            tstore(key, _outAmount)
+        }
     }
 
     function getOutAmount(address caller) public view returns (uint256) {
@@ -326,13 +330,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
 
     function _setOutAmount(uint256 value, address caller) internal {
         uint256 context = _getCurrentExecutionContext(caller);
-        bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
-        assembly {
-            tstore(key, value)
-        }
-    }
-
-    function _setOutAmount(uint256 context, uint256 value) internal {
         bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
         assembly {
             tstore(key, value)

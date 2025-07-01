@@ -115,7 +115,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         _executeThroughEntrypoint(nexusAccount, entry);
 
-        // Ensure fee obtained is 0
+        // Ensure fee is not 0
         assertGt(
             IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient) -
                 feeReceiverBalanceBefore,
