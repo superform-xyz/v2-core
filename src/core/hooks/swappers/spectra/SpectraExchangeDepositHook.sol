@@ -134,11 +134,11 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(_getBalance(data, account), account);
+        _setOutAmount(_getBalance(data, account), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
+        _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
     }
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS

@@ -135,4 +135,8 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     function executionNonce() external pure returns (uint256) {
         return 1;
     }
+
+    function lastCaller() external view returns (address) {
+        return msg.sender;
+    }
 }

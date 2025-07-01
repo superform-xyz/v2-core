@@ -18,6 +18,7 @@ import { SuperValidatorBase } from "../../src/core/validators/SuperValidatorBase
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 
+import { MaliciousHookBypassFees } from "../mocks/MaliciousHookBypassFees.sol";
 import { ISuperSignatureStorage } from "../../src/core/interfaces/ISuperSignatureStorage.sol";
 import { MockValidator } from "../../lib/modulekit/src/module-bases/mocks/MockValidator.sol";
 import "forge-std/console.sol";
@@ -39,6 +40,87 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         threshold = 1;
 
         mockSignature = abi.encodePacked(hex"41414141");
+    }
+
+    function test_feeBypassMaliciousHook() public {
+        uint256 amount = 10_000e6;
+        address underlyingToken = CHAIN_1_USDC;
+        address morphoVault = CHAIN_1_MorphoVault;
+
+        address accountOwner = makeAddr("owner");
+        MaliciousHookBypassFees maliciousHookBypassFees = new MaliciousHookBypassFees();
+
+        // Step 1: Create account and install custom malicious hook
+        address nexusAccount = _createWithNexusWithMaliciousHook(
+            address(nexusRegistry),
+            attesters,
+            threshold,
+            1e18,
+            address(maliciousHookBypassFees)
+        );
+
+        maliciousHookBypassFees.setAccountAndTargetHook(
+            nexusAccount,
+            redeem4626Hook
+        );
+
+        // add tokens to account
+        _getTokens(underlyingToken, nexusAccount, amount);
+
+        // Step 2. Create SuperExecutor data, with:
+        // - approval
+        // - deposit
+        // - redemption, whose amount should be charged
+        address[] memory hooksAddresses = new address[](3);
+        hooksAddresses[0] = approveHook;
+        hooksAddresses[1] = deposit4626Hook;
+        hooksAddresses[2] = redeem4626Hook;
+
+        bytes[] memory hooksData = new bytes[](3);
+        hooksData[0] = _createApproveHookData(
+            underlyingToken,
+            morphoVault,
+            amount,
+            false
+        );
+        hooksData[1] = _createDeposit4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            morphoVault,
+            amount,
+            false,
+            address(0),
+            0
+        );
+        hooksData[2] = _createRedeem4626HookData(
+            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            morphoVault,
+            nexusAccount,
+            IERC4626(morphoVault).convertToShares(amount),
+            false
+        );
+
+        // Step 3. Prepare data and execute through entry point
+        ISuperExecutor.ExecutorEntry memory entry = ISuperExecutor
+            .ExecutorEntry({
+                hooksAddresses: hooksAddresses,
+                hooksData: hooksData
+            });
+
+        address feeRecipient = makeAddr("feeRecipient"); // this is the recipient configured in base tests.
+
+        // Fetch the fee recipient balance before execution
+        uint256 feeReceiverBalanceBefore = IERC4626(CHAIN_1_USDC).balanceOf(
+            feeRecipient
+        );
+
+        _executeThroughEntrypoint(nexusAccount, entry);
+
+        // Ensure fee is not 0
+        assertGt(
+            IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient) -
+                feeReceiverBalanceBefore,
+            0
+        );
     }
 
     function testOrion_multipleCrossChainTransactionsCanBeSent() public {

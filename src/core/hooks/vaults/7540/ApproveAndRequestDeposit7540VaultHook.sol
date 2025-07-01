@@ -113,11 +113,11 @@ contract ApproveAndRequestDeposit7540VaultHook is
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(_getBalance(account, data), account);
+        _setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(getOutAmount(account) - _getBalance(account, data), account);
+        _setOutAmount(getOutAmount(account) - _getBalance(account, data), account);
     }
 
     /*//////////////////////////////////////////////////////////////

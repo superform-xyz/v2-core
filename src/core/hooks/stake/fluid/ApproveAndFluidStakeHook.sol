@@ -90,12 +90,12 @@ contract ApproveAndFluidStakeHook is BaseHook, ISuperHookContextAware, ISuperHoo
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(_getBalance(account, data), account);
+        _setOutAmount(_getBalance(account, data), account);
         /// @dev in Fluid, the share token doesn't exist because no shares are minted so we don't assign a spToken
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

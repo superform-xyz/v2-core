@@ -83,6 +83,6 @@ contract ApproveERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspect
     function _postExecute(address, address account, bytes calldata data) internal override {
         address token = BytesLib.toAddress(data, 0);
         address spender = BytesLib.toAddress(data, 20);
-        setOutAmount(IERC20(token).allowance(account, spender), account);
+        _setOutAmount(IERC20(token).allowance(account, spender), account);
     }
 }

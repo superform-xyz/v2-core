@@ -111,7 +111,7 @@ contract ApproveAndDeposit5115VaultHook is
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(_getBalance(account, data), account);
+        _setOutAmount(_getBalance(account, data), account);
         vaultBank = BytesLib.toAddress(data, 109);
         dstChainId = BytesLib.toUint256(data, 129);
         spToken = data.extractYieldSource();
@@ -119,7 +119,7 @@ contract ApproveAndDeposit5115VaultHook is
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

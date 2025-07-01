@@ -108,13 +108,13 @@ contract Redeem4626VaultHook is
     function _preExecute(address, address account, bytes calldata data) internal override {
         address yieldSource = data.extractYieldSource();
         asset = IERC4626(yieldSource).asset();
-        setOutAmount(_getBalance(account, data), account);
+        _setOutAmount(_getBalance(account, data), account);
         usedShares = _getSharesBalance(account, data);
         spToken = yieldSource;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
         usedShares = usedShares - _getSharesBalance(account, data);
     }
 

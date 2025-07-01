@@ -106,13 +106,13 @@ contract Redeem7540VaultHook is
     function _preExecute(address, address account, bytes calldata data) internal override {
         address yieldSource = data.extractYieldSource();
         asset = IERC7540(yieldSource).asset();
-        setOutAmount(_getBalance(account, data), account);
+        _setOutAmount(_getBalance(account, data), account);
         usedShares = _getSharesBalance(account, data);
         spToken = IERC7540(yieldSource).share();
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
         usedShares = usedShares - _getSharesBalance(account, data);
     }
 

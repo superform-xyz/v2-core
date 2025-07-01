@@ -74,7 +74,7 @@ contract ClaimCancelRedeemRequest7540Hook is BaseHook, ISuperHookAsyncCancelatio
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        setOutAmount(_getBalance(account, data), account);
+        _setOutAmount(_getBalance(account, data), account);
         vaultBank = BytesLib.toAddress(data, 44);
         dstChainId = BytesLib.toUint256(data, 64);
         spToken = IERC7540(data.extractYieldSource()).share();
@@ -82,7 +82,7 @@ contract ClaimCancelRedeemRequest7540Hook is BaseHook, ISuperHookAsyncCancelatio
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         address receiver = BytesLib.toAddress(data, 24);
-        setOutAmount(_getBalance(receiver, data) - getOutAmount(account), account);
+        _setOutAmount(_getBalance(receiver, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////
