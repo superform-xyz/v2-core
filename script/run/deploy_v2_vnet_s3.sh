@@ -1,10 +1,10 @@
 #!/bin/bash
 
 ###################################################################################
-# Superform V2 Deployment Script
+# Superform V2 Core Deployment Script
 ###################################################################################
 # Description:
-#   This script manages the deployment of Superform V2 contracts to multiple networks
+#   This script manages the deployment of Superform V2 CORE contracts to multiple networks
 #   using Tenderly Virtual Networks (VNETs). It includes functionality for:
 #   - Creating and managing VNETs for multiple chains
 #   - Maintaining deployment salt counters for deterministic addresses
@@ -788,11 +788,11 @@ deploy_error_handler() {
 # Set trap to ensure S3 files are preserved on any unexpected error
 trap 'log "ERROR" "Unexpected error occurred, preserving S3 file"; exit 1' ERR
 
-# Deploy all networks
+# Deploy all networks - Core contracts only
 deploy_contracts() {
-    # Deploy on Ethereum Mainnet
-    log "INFO" "Deploying on Ethereum Mainnet..."
-    if ! forge script script/DeployV2.s.sol:DeployV2 \
+    # Deploy Core contracts on Ethereum Mainnet
+    log "INFO" "Deploying V2 Core on Ethereum Mainnet..."
+    if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(uint256,uint64,string)' $FORGE_ENV $ETH_CHAIN_ID "$ETH_SALT" \
         --verify \
         --verifier-url $ETH_MAINNET_VERIFIER_URL \
@@ -806,9 +806,9 @@ deploy_contracts() {
     fi
     wait
     
-    # Deploy on Base Mainnet
-    log "INFO" "Deploying on Base Mainnet..."
-    if ! forge script script/DeployV2.s.sol:DeployV2 \
+    # Deploy Core contracts on Base Mainnet
+    log "INFO" "Deploying V2 Core on Base Mainnet..."
+    if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(uint256,uint64,string)' $FORGE_ENV $BASE_CHAIN_ID "$BASE_SALT" \
         --verify \
         --verifier-url $BASE_MAINNET_VERIFIER_URL \
@@ -822,9 +822,9 @@ deploy_contracts() {
     fi
     wait
     
-    # Deploy on Optimism Mainnet
-    log "INFO" "Deploying on Optimism Mainnet..."
-    if ! forge script script/DeployV2.s.sol:DeployV2 \
+    # Deploy Core contracts on Optimism Mainnet
+    log "INFO" "Deploying V2 Core on Optimism Mainnet..."
+    if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(uint256,uint64,string)' $FORGE_ENV $OPTIMISM_CHAIN_ID "$OPTIMISM_SALT" \
         --verify \
         --verifier-url $OPTIMISM_MAINNET_VERIFIER_URL \
@@ -838,7 +838,8 @@ deploy_contracts() {
     fi
     wait
     
-    # If we reach here, all deployments were successful
+    # If we reach here, all core deployments were successful
+    log "INFO" "All V2 Core deployments completed successfully!"
     return 0
 }
 
@@ -1028,4 +1029,4 @@ fi
 # Since we're using S3 for everything now, no need to pass parameters
 update_latest_file
 
-log "SUCCESS" "All deployments completed successfully!"
+log "SUCCESS" "All V2 Core deployments completed successfully!"

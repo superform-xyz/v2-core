@@ -313,21 +313,18 @@ contract DeployV2 is Script, Configuration {
         );
 
         // Deploy DebridgeAdapter
-        if (configuration.debridgeDstDln[chainId] == address(0)) {
-            console2.log("Deploying DebridgeAdapter");
-            console2.log("Debridge Dln is not available");
-        } else {
-            deployedContracts.debridgeAdapter = __deployContract(
-                deployer,
-                DEBRIDGE_ADAPTER_KEY,
-                chainId,
-                __getSalt(configuration.owner, configuration.deployer, DEBRIDGE_ADAPTER_KEY),
-                abi.encodePacked(
-                    type(DebridgeAdapter).creationCode,
-                    abi.encode(configuration.debridgeDstDln[chainId], deployedContracts.superDestinationExecutor)
-                )
-            );
-        }
+        if (configuration.debridgeDstDln[chainId] == address(0)) revert("DEBRIDGE DLN NOT AVAILABLE");
+
+        deployedContracts.debridgeAdapter = __deployContract(
+            deployer,
+            DEBRIDGE_ADAPTER_KEY,
+            chainId,
+            __getSalt(configuration.owner, configuration.deployer, DEBRIDGE_ADAPTER_KEY),
+            abi.encodePacked(
+                type(DebridgeAdapter).creationCode,
+                abi.encode(configuration.debridgeDstDln[chainId], deployedContracts.superDestinationExecutor)
+            )
+        );
 
         address[] memory allowedExecutors = new address[](2);
         allowedExecutors[0] = address(deployedContracts.superExecutor);
@@ -568,7 +565,9 @@ contract DeployV2 is Script, Configuration {
         );
         hooks[19] = HookDeployment(
             APPROVE_AND_SWAP_ODOSV2_HOOK_KEY,
-            abi.encodePacked(type(ApproveAndSwapOdosV2Hook).creationCode, abi.encode(configuration.odosRouters[chainId]))
+            abi.encodePacked(
+                type(ApproveAndSwapOdosV2Hook).creationCode, abi.encode(configuration.odosRouters[chainId])
+            )
         );
 
         hooks[20] = HookDeployment(
@@ -609,7 +608,9 @@ contract DeployV2 is Script, Configuration {
         );
         hooks[35] = HookDeployment(
             SPECTRA_EXCHANGE_REDEEM_HOOK_KEY,
-            abi.encodePacked(type(SpectraExchangeRedeemHook).creationCode, abi.encode(configuration.spectraRouters[chainId]))
+            abi.encodePacked(
+                type(SpectraExchangeRedeemHook).creationCode, abi.encode(configuration.spectraRouters[chainId])
+            )
         );
         hooks[36] = HookDeployment(
             PENDLE_ROUTER_SWAP_HOOK_KEY,
@@ -738,7 +739,7 @@ contract DeployV2 is Script, Configuration {
         hookAddresses.cancelRedeemRequest7540Hook =
             Strings.equal(hooks[39].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[39] : address(0);
         hookAddresses.claimCancelDepositRequest7540Hook =
-        Strings.equal(hooks[40].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[40] : address(0);
+            Strings.equal(hooks[40].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[40] : address(0);
         hookAddresses.claimCancelRedeemRequest7540Hook =
             Strings.equal(hooks[41].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[41] : address(0);
         hookAddresses.cancelRedeemHook =
@@ -751,7 +752,8 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[45].name, MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY) ? addresses[45] : address(0);
         hookAddresses.morphoBorrowHook =
             Strings.equal(hooks[46].name, MORPHO_BORROW_ONLY_HOOK_KEY) ? addresses[46] : address(0);
-        hookAddresses.offrampTokensHook = Strings.equal(hooks[47].name, OFFRAMP_TOKENS_HOOK_KEY) ? addresses[47] : address(0);
+        hookAddresses.offrampTokensHook =
+            Strings.equal(hooks[47].name, OFFRAMP_TOKENS_HOOK_KEY) ? addresses[47] : address(0);
 
         // Verify no hooks were assigned address(0) (excluding experimental placeholders)
         require(hookAddresses.approveErc20Hook != address(0), "approveErc20Hook not assigned");
@@ -957,7 +959,9 @@ contract DeployV2 is Script, Configuration {
         salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
         salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY));
         salts[3] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY));
-        ISuperLedgerConfiguration(_getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(salts, configs);
+        ISuperLedgerConfiguration(_getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
+            salts, configs
+        );
     }
 
     // Add a mapping to track exported contracts per chain
