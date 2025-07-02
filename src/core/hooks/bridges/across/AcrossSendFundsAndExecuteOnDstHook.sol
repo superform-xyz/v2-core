@@ -2,9 +2,10 @@
 pragma solidity 0.8.30;
 
 // external
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { BytesLib } from "../../../../vendor/BytesLib.sol";
-import { IAcrossSpokePoolV3 } from "../../../../vendor/bridges/across/IAcrossSpokePoolV3.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {BytesLib} from "../../../../vendor/BytesLib.sol";
+import {IAcrossSpokePoolV3} from "../../../../vendor/bridges/across/IAcrossSpokePoolV3.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -98,6 +99,17 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
 
         if (acrossV3DepositAndExecuteData.usePrevHookAmount) {
             uint256 outAmount = ISuperHookResult(prevHook).getOutAmount(account);
+
+            // update `outputAmount` with the % `inputAmount` was updated by
+            if ( acrossV3DepositAndExecuteData.inputAmount > 0 && acrossV3DepositAndExecuteData.outputAmount > 0) {
+                // outputAmount *= outAmount / inputAmount
+                acrossV3DepositAndExecuteData.outputAmount = Math.mulDiv(
+                    acrossV3DepositAndExecuteData.outputAmount,
+                    outAmount,
+                    acrossV3DepositAndExecuteData.inputAmount
+                );
+            }
+
             acrossV3DepositAndExecuteData.inputAmount = outAmount;
             if (
                 acrossV3DepositAndExecuteData.inputToken

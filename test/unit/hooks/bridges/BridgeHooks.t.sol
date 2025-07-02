@@ -6,15 +6,15 @@ import { AcrossSendFundsAndExecuteOnDstHook } from
     "../../../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { DeBridgeSendOrderAndExecuteOnDstHook } from
     "../../../../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
-
-import { DeBridgeCancelOrderHook } from "../../../../src/core/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
-import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
-import { ISuperValidator } from "../../../../src/core/interfaces/ISuperValidator.sol";
-import { IAcrossSpokePoolV3 } from "../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
-import { MockHook } from "../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
-import { Helpers } from "../../../utils/Helpers.sol";
-import { DlnExternalCallLib } from "../../../../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
+import {DeBridgeCancelOrderHook} from "../../../../src/core/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
+import {ISuperValidator} from "../../../../src/core/interfaces/ISuperValidator.sol";
+import {ISuperHook, ISuperHookResult} from "../../../../src/core/interfaces/ISuperHook.sol";
+import {IAcrossSpokePoolV3} from "../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
+import {MockHook} from "../../../mocks/MockHook.sol";
+import {BaseHook} from "../../../../src/core/hooks/BaseHook.sol";
+import {Helpers} from "../../../utils/Helpers.sol";
+import {DlnExternalCallLib} from "../../../../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
+import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract MockSignatureStorage {
     function retrieveSignatureData(address) external view returns (bytes memory) {
@@ -151,9 +151,8 @@ contract BridgeHooks is Helpers {
         acrossV3hook.build(address(0), mockAccount, data);
     }
 
-    function test_AcrossV3_Build_WithPrevHookAmount() public {
+    function test_AcrossV3_Build_WithPrevHookAmountABC() public {
         uint256 prevHookAmount = 2000;
-
         vm.mockCall(
             mockSpokePool,
             abi.encodeWithSelector(IAcrossSpokePoolV3.wrappedNativeToken.selector),
@@ -162,6 +161,13 @@ contract BridgeHooks is Helpers {
 
         mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, mockInputToken));
         MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
+        assertEq(MockHook(mockPrevHook).getOutAmount(address(this)), prevHookAmount);
+
+        vm.mockCall(
+            mockPrevHook,
+            abi.encodeWithSelector(ISuperHookResult.getOutAmount.selector),
+            abi.encode(prevHookAmount)
+        );
 
         bytes memory data = _encodeAcrossData(true);
 
@@ -176,6 +182,11 @@ contract BridgeHooks is Helpers {
         bytes memory sigData = mockSignatureStorage.retrieveSignatureData(address(0));
         mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), dstTokens, intentAmounts, sigData);
 
+        uint256 finalOutputAmount = Math.mulDiv(
+            mockOutputAmount,
+            prevHookAmount,
+            mockInputAmount
+        );
         bytes memory expectedCallData = abi.encodeCall(
             IAcrossSpokePoolV3.depositV3Now,
             (
@@ -184,7 +195,7 @@ contract BridgeHooks is Helpers {
                 mockInputToken,
                 mockOutputToken,
                 prevHookAmount,
-                mockOutputAmount,
+                finalOutputAmount,
                 mockDestinationChainId,
                 mockExclusiveRelayer,
                 mockFillDeadlineOffset,
