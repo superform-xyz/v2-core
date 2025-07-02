@@ -74,7 +74,6 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     }
 
     /// @inheritdoc ISuperLedgerConfiguration
-    /// @dev `config.uniqueIdentifier` represents the `yieldSourceOracleId` (salt + msg.sender)
     function proposeYieldSourceOracleConfig(bytes32[] calldata yieldSourceOracleIds, YieldSourceOracleConfigArgs[] calldata configs) external virtual {
         uint256 length = configs.length;
         if (length == 0) revert ZERO_LENGTH();
