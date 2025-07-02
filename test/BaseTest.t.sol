@@ -570,19 +570,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             contractAddresses[chainIds[i]][ERC1155_LEDGER_KEY] = address(A[i].erc1155Ledger);
 
             /// @dev action oracles
-            A[i].erc4626YieldSourceOracle = new ERC4626YieldSourceOracle();
+            A[i].erc4626YieldSourceOracle = new ERC4626YieldSourceOracle(address(A[i].superLedgerConfiguration));
             vm.label(address(A[i].erc4626YieldSourceOracle), ERC4626_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][ERC4626_YIELD_SOURCE_ORACLE_KEY] = address(A[i].erc4626YieldSourceOracle);
 
-            A[i].erc5115YieldSourceOracle = new ERC5115YieldSourceOracle();
+            A[i].erc5115YieldSourceOracle = new ERC5115YieldSourceOracle(address(A[i].superLedgerConfiguration));
             vm.label(address(A[i].erc5115YieldSourceOracle), ERC5115_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][ERC5115_YIELD_SOURCE_ORACLE_KEY] = address(A[i].erc5115YieldSourceOracle);
 
-            A[i].erc7540YieldSourceOracle = new ERC7540YieldSourceOracle();
+            A[i].erc7540YieldSourceOracle = new ERC7540YieldSourceOracle(address(A[i].superLedgerConfiguration));
             vm.label(address(A[i].erc7540YieldSourceOracle), ERC7540_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][ERC7540_YIELD_SOURCE_ORACLE_KEY] = address(A[i].erc7540YieldSourceOracle);
 
-            A[i].stakingYieldSourceOracle = new StakingYieldSourceOracle();
+            A[i].stakingYieldSourceOracle = new StakingYieldSourceOracle(address(A[i].superLedgerConfiguration));
             vm.label(address(A[i].stakingYieldSourceOracle), STAKING_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][STAKING_YIELD_SOURCE_ORACLE_KEY] = address(A[i].stakingYieldSourceOracle);
 

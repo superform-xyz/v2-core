@@ -2,16 +2,16 @@
 pragma solidity 0.8.30;
 
 // external
-import {IStandardizedYield} from "../../../vendor/pendle/IStandardizedYield.sol";
+import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.sol";
 
 // Superform
-import {AbstractYieldSourceOracle} from "./AbstractYieldSourceOracle.sol";
+import { AbstractYieldSourceOracle } from "./AbstractYieldSourceOracle.sol";
 
 /// @title ERC5115YieldSourceOracle
 /// @author Superform Labs
 /// @notice Oracle for 5115 Vaults
 contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
-    constructor() AbstractYieldSourceOracle() {}
+    constructor(address superLedgerConfiguration_) AbstractYieldSourceOracle(superLedgerConfiguration_) { }
 
     /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
@@ -22,7 +22,11 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getShareOutput(address yieldSourceAddress, address assetIn, uint256 assetsIn)
+    function getShareOutput(
+        address yieldSourceAddress,
+        address assetIn,
+        uint256 assetsIn
+    )
         external
         view
         override
@@ -32,8 +36,12 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getAssetOutput(address yieldSourceAddress, address assetOut, uint256 sharesIn)
-        external
+    function getAssetOutput(
+        address yieldSourceAddress,
+        address assetOut,
+        uint256 sharesIn
+    )
+        public
         view
         override
         returns (uint256)
@@ -47,7 +55,10 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getBalanceOfOwner(address yieldSourceAddress, address ownerOfShares)
+    function getBalanceOfOwner(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
         public
         view
         override
@@ -57,7 +68,10 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function getTVLByOwnerOfShares(address yieldSourceAddress, address ownerOfShares)
+    function getTVLByOwnerOfShares(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
         public
         view
         override
@@ -78,7 +92,10 @@ contract ERC5115YieldSourceOracle is AbstractYieldSourceOracle {
     }
 
     /// @inheritdoc AbstractYieldSourceOracle
-    function isValidUnderlyingAsset(address yieldSourceAddress, address expectedUnderlying)
+    function isValidUnderlyingAsset(
+        address yieldSourceAddress,
+        address expectedUnderlying
+    )
         public
         view
         override

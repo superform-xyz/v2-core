@@ -56,15 +56,14 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
 
         underlyingEth_USDC = CHAIN_1_USDC;
         yieldSourceAddressEth = CHAIN_1_MorphoVault;
+        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
 
-        yieldSourceOracle = address(new ERC4626YieldSourceOracle());
+        yieldSourceOracle = address(new ERC4626YieldSourceOracle(address(ledgerConfig)));
         vaultInstanceEth = IERC4626(yieldSourceAddressEth);
         instanceOnEth = makeAccountInstance(keccak256(abi.encode("acc1")));
         instanceOnEth2 = makeAccountInstance(keccak256(abi.encode("acc2")));
         accountEth = instanceOnEth.account;
         _getTokens(underlyingEth_USDC, accountEth, 1e18);
-
-        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
 
         superExecutorOnEth = ISuperExecutor(new SuperExecutor(address(ledgerConfig)));
         instanceOnEth.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorOnEth), data: "" });
@@ -83,13 +82,13 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
             ledger: address(ledger)
         });
         configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracle: address(new ERC7540YieldSourceOracle()),
+            yieldSourceOracle: address(new ERC7540YieldSourceOracle(address(ledgerConfig))),
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(ledger)
         });
         configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracle: address(new ERC5115YieldSourceOracle()),
+            yieldSourceOracle: address(new ERC5115YieldSourceOracle(address(ledgerConfig))),
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(new ERC5115Ledger(address(ledgerConfig), allowedExecutors))

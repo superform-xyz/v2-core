@@ -2,7 +2,9 @@
 pragma solidity 0.8.30;
 
 // Superform
-import {IYieldSourceOracle} from "../../interfaces/accounting/IYieldSourceOracle.sol";
+import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
+import { ISuperLedgerConfiguration } from "../../interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperLedger } from "../../interfaces/accounting/ISuperLedger.sol";
 
 /// @title AbstractYieldSourceOracle
 /// @author Superform Labs
@@ -12,6 +14,23 @@ import {IYieldSourceOracle} from "../../interfaces/accounting/IYieldSourceOracle
 ///      The oracle pattern separates price/yield discovery from the core accounting system
 abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     /*//////////////////////////////////////////////////////////////
+                                STATE VARIABLES
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Immutable address of the SuperLedgerConfiguration contract
+    address public immutable superLedgerConfiguration;
+
+    /*//////////////////////////////////////////////////////////////
+                                CONSTRUCTOR
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Constructor to set the SuperLedgerConfiguration address
+    /// @param superLedgerConfiguration_ Address of the SuperLedgerConfiguration contract
+    constructor(address superLedgerConfiguration_) {
+        superLedgerConfiguration = superLedgerConfiguration_;
+    }
+
+    /*//////////////////////////////////////////////////////////////
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
@@ -19,15 +38,23 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     function decimals(address yieldSourceAddress) external view virtual returns (uint8);
 
     /// @inheritdoc IYieldSourceOracle
-    function getShareOutput(address yieldSourceAddress, address assetIn, uint256 assetsIn)
+    function getShareOutput(
+        address yieldSourceAddress,
+        address assetIn,
+        uint256 assetsIn
+    )
         external
         view
         virtual
         returns (uint256);
 
     /// @inheritdoc IYieldSourceOracle
-    function getAssetOutput(address yieldSourceAddress, address assetOut, uint256 sharesIn)
-        external
+    function getAssetOutput(
+        address yieldSourceAddress,
+        address assetOut,
+        uint256 sharesIn
+    )
+        public
         view
         virtual
         returns (uint256);
@@ -36,7 +63,10 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     function getPricePerShare(address yieldSourceAddress) public view virtual returns (uint256);
 
     /// @inheritdoc IYieldSourceOracle
-    function getTVLByOwnerOfShares(address yieldSourceAddress, address ownerOfShares)
+    function getTVLByOwnerOfShares(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
         public
         view
         virtual
@@ -44,6 +74,43 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
 
     /// @inheritdoc IYieldSourceOracle
     function getTVL(address yieldSourceAddress) public view virtual returns (uint256);
+
+    /// @inheritdoc IYieldSourceOracle
+    function getAssetOutputWithFees(
+        bytes32 yieldSourceOracleId,
+        address yieldSourceAddress,
+        address assetOut,
+        address user,
+        uint256 usedShares
+    )
+        external
+        view
+        virtual
+        returns (uint256)
+    {
+        // Get base asset output without fees
+        uint256 assetOutput = getAssetOutput(yieldSourceAddress, assetOut, usedShares);
+
+        try ISuperLedgerConfiguration(superLedgerConfiguration).getYieldSourceOracleConfig(yieldSourceOracleId)
+        returns (ISuperLedgerConfiguration.YieldSourceOracleConfig memory config) {
+            // Configuration found, calculate fees if applicable
+            if (config.feePercent > 0 && config.ledger != address(0)) {
+                // Calculate fees using the associated ledger
+                uint256 feeAmount = ISuperLedger(config.ledger).previewFees(
+                    user, yieldSourceAddress, assetOutput, usedShares, config.feePercent
+                );
+
+                // Add fees to the asset output (opposite of BaseLedger which subtracted)
+                return assetOutput + feeAmount;
+            }
+
+            // Valid config but no fees, return base asset output
+            return assetOutput;
+        } catch {
+            // Configuration not found or invalid, return asset output without fees
+            return assetOutput;
+        }
+    }
 
     /// @inheritdoc IYieldSourceOracle
     function getPricePerShareMultiple(address[] memory yieldSourceAddresses)
@@ -61,14 +128,20 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     }
 
     /// @inheritdoc IYieldSourceOracle
-    function getBalanceOfOwner(address yieldSourceAddress, address ownerOfShares)
+    function getBalanceOfOwner(
+        address yieldSourceAddress,
+        address ownerOfShares
+    )
         external
         view
         virtual
         returns (uint256);
 
     /// @inheritdoc IYieldSourceOracle
-    function getTVLByOwnerOfSharesMultiple(address[] memory yieldSourceAddresses, address[][] memory ownersOfShares)
+    function getTVLByOwnerOfSharesMultiple(
+        address[] memory yieldSourceAddresses,
+        address[][] memory ownersOfShares
+    )
         external
         view
         returns (uint256[][] memory userTvls)
@@ -106,17 +179,29 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
     }
 
     /// @inheritdoc IYieldSourceOracle
-    function isValidUnderlyingAsset(address /** yieldSourceAddress */, address /** expectedUnderlying */)
+    function isValidUnderlyingAsset(
+        address,
+        /**
+         * yieldSourceAddress
+         */
+        address
+    )
+        /**
+         * expectedUnderlying
+         */
         public
         view
         virtual
-        returns (bool) 
+        returns (bool)
     {
         return true;
     }
 
     /// @inheritdoc IYieldSourceOracle
-    function isValidUnderlyingAssets(address[] memory yieldSourceAddresses, address[] memory expectedUnderlying)
+    function isValidUnderlyingAssets(
+        address[] memory yieldSourceAddresses,
+        address[] memory expectedUnderlying
+    )
         external
         view
         virtual

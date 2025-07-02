@@ -58,7 +58,7 @@ interface ISuperLedgerData {
         uint256 amount,
         uint256 feeAmount
     );
-    
+
     /// @notice Emitted when the amount of shares used is capped due to insufficient shares
     /// @param originalVal The original amount of shares used
     /// @param cappedVal The capped amount of shares used
@@ -129,7 +129,9 @@ interface ISuperLedger is ISuperLedgerData {
         bool isInflow,
         uint256 amountSharesOrAssets,
         uint256 usedShares
-    ) external returns (uint256 feeAmount);
+    )
+        external
+        returns (uint256 feeAmount);
 
     /// @notice Previews fees for a given amount of assets obtained from shares without modifying state
     /// @dev Used to estimate fees before executing a transaction
@@ -147,7 +149,10 @@ interface ISuperLedger is ISuperLedgerData {
         uint256 amountAssets,
         uint256 usedShares,
         uint256 feePercent
-    ) external view returns (uint256 feeAmount);
+    )
+        external
+        view
+        returns (uint256 feeAmount);
 
     /// @notice Calculates the cost basis for a given user and amount of shares without modifying state
     /// @dev Cost basis represents the original asset value of the shares when they were acquired
@@ -158,7 +163,11 @@ interface ISuperLedger is ISuperLedgerData {
     /// @param usedShares The amount of shares to calculate cost basis for
     /// @return costBasis The original asset value of the specified shares
     /// @return updatedUsedShares The amount of shares that will be consumed
-    function calculateCostBasisView(address user, address yieldSource, uint256 usedShares)
+    function calculateCostBasisView(
+        address user,
+        address yieldSource,
+        uint256 usedShares
+    )
         external
         view
         returns (uint256 costBasis, uint256 updatedUsedShares);

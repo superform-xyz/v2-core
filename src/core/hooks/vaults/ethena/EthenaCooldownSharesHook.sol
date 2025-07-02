@@ -17,10 +17,10 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
+/// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         uint256 shares = BytesLib.toUint256(data, 52);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
 contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHookInspector {
     using HookDataDecoder for bytes;
 

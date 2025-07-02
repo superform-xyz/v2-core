@@ -217,6 +217,9 @@ contract DeployV2 is Script, Configuration {
 
         // Setup SuperLedger
         _setupSuperLedgerConfiguration(chainId);
+
+        // Write all exported contracts for this chain
+        _writeExportedContracts(chainId);
     }
 
     function _deployDeployer() internal {
@@ -506,7 +509,7 @@ contract DeployV2 is Script, Configuration {
         address deployedAddr = deployer.deploy(salt, creationCode);
         console2.log("  [+] %s deployed at:", contractName, deployedAddr);
         contractAddresses[chainId][contractName] = deployedAddr;
-        _exportContract(chainNames[chainId], contractName, deployedAddr, chainId);
+        _exportContract(contractName, deployedAddr, chainId);
 
         return deployedAddr;
     }
@@ -600,7 +603,9 @@ contract DeployV2 is Script, Configuration {
         hooks[33] = HookDeployment(ETHENA_UNSTAKE_HOOK_KEY, type(EthenaUnstakeHook).creationCode);
         hooks[34] = HookDeployment(
             SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY,
-            abi.encodePacked(type(SpectraExchangeDepositHook).creationCode, abi.encode(configuration.spectraRouters[chainId]))
+            abi.encodePacked(
+                type(SpectraExchangeDepositHook).creationCode, abi.encode(configuration.spectraRouters[chainId])
+            )
         );
         hooks[35] = HookDeployment(
             SPECTRA_EXCHANGE_REDEEM_HOOK_KEY,
@@ -879,23 +884,31 @@ contract DeployV2 is Script, Configuration {
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         oracleAddresses = new address[](len);
 
+        address superLedgerConfig = _getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY);
+
         oracles[0] = OracleDeployment(
-            ERC4626_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(ERC4626YieldSourceOracle).creationCode)
+            ERC4626_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(ERC4626YieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
         );
         oracles[1] = OracleDeployment(
-            ERC5115_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(ERC5115YieldSourceOracle).creationCode)
+            ERC5115_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(ERC5115YieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
         );
         oracles[2] = OracleDeployment(
-            ERC7540_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(ERC7540YieldSourceOracle).creationCode)
+            ERC7540_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(ERC7540YieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
         );
         oracles[3] = OracleDeployment(
-            PENDLE_PT_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(PendlePTYieldSourceOracle).creationCode)
+            PENDLE_PT_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(PendlePTYieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
         );
         oracles[4] = OracleDeployment(
-            SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(SpectraPTYieldSourceOracle).creationCode)
+            SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(SpectraPTYieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
         );
         oracles[5] = OracleDeployment(
-            STAKING_YIELD_SOURCE_ORACLE_KEY, abi.encodePacked(type(StakingYieldSourceOracle).creationCode)
+            STAKING_YIELD_SOURCE_ORACLE_KEY,
+            abi.encodePacked(type(StakingYieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
         );
 
         for (uint256 i = 0; i < len; ++i) {
@@ -916,25 +929,26 @@ contract DeployV2 is Script, Configuration {
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY),
-            feePercent: 100,
+            feePercent: 0,
             feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
             ledger: _getContract(chainId, SUPER_LEDGER_KEY)
         });
         configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: _getContract(chainId, ERC7540_YIELD_SOURCE_ORACLE_KEY),
-            feePercent: 100,
+            feePercent: 0,
             feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
             ledger: _getContract(chainId, SUPER_LEDGER_KEY)
         });
         configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: _getContract(chainId, ERC5115_YIELD_SOURCE_ORACLE_KEY),
-            feePercent: 100,
+            feePercent: 0,
             feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
             ledger: _getContract(chainId, ERC1155_LEDGER_KEY)
         });
+        /// !! TODO wrong ledger (should be flat fee)
         configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: _getContract(chainId, STAKING_YIELD_SOURCE_ORACLE_KEY),
-            feePercent: 100,
+            feePercent: 0,
             feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
             ledger: _getContract(chainId, SUPER_LEDGER_KEY)
         });
@@ -946,15 +960,21 @@ contract DeployV2 is Script, Configuration {
         ISuperLedgerConfiguration(_getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(salts, configs);
     }
 
-    function _exportContract(
-        string memory chainName,
-        string memory contractName,
-        address addr,
-        uint64 chainId
-    )
-        private
-    {
-        string memory json = vm.serializeAddress("EXPORTS", contractName, addr);
+    // Add a mapping to track exported contracts per chain
+    mapping(uint64 => string) private exportedContracts;
+    mapping(uint64 => uint256) private contractCount;
+
+    function _exportContract(string memory contractName, address addr, uint64 chainId) private {
+        // Accumulate contracts for this chain
+        contractCount[chainId]++;
+        string memory objectKey = string(abi.encodePacked("EXPORTS_", vm.toString(uint256(chainId))));
+        exportedContracts[chainId] = vm.serializeAddress(objectKey, contractName, addr);
+    }
+
+    function _writeExportedContracts(uint64 chainId) private {
+        if (contractCount[chainId] == 0) return;
+
+        string memory chainName = chainNames[chainId];
         string memory root = vm.projectRoot();
         string memory chainOutputFolder = string(abi.encodePacked("/script/output/"));
 
@@ -975,6 +995,8 @@ contract DeployV2 is Script, Configuration {
 
         // Write to {ChainName}-latest.json
         string memory outputPath = string(abi.encodePacked(root, chainOutputFolder, chainName, "-latest.json"));
-        vm.writeJson(json, outputPath);
+        vm.writeJson(exportedContracts[chainId], outputPath);
+
+        console2.log("Exported", contractCount[chainId], "contracts to:", outputPath);
     }
 }

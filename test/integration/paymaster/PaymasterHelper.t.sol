@@ -80,9 +80,9 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
 
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
-        yieldSourceOracle4626 = address(new ERC4626YieldSourceOracle());
-        yieldSourceOracle5115 = address(new ERC5115YieldSourceOracle());
-        yieldSourceOracle7540 = address(new ERC7540YieldSourceOracle());
+        yieldSourceOracle4626 = address(new ERC4626YieldSourceOracle(address(ledgerConfig)));
+        yieldSourceOracle5115 = address(new ERC5115YieldSourceOracle(address(ledgerConfig)));
+        yieldSourceOracle7540 = address(new ERC7540YieldSourceOracle(address(ledgerConfig)));
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: yieldSourceOracle4626,
             feePercent: 100,

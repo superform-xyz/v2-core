@@ -55,26 +55,34 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperLedgerConfiguration
-    function setYieldSourceOracles(bytes32[] calldata salts, YieldSourceOracleConfigArgs[] calldata configs) external virtual {
-        
+    function setYieldSourceOracles(
+        bytes32[] calldata salts,
+        YieldSourceOracleConfigArgs[] calldata configs
+    )
+        external
+        virtual
+    {
         uint256 length = configs.length;
         if (length == 0) revert ZERO_LENGTH();
+
         if (length != salts.length) revert LENGTH_MISMATCH();
 
         for (uint256 i; i < length; ++i) {
             YieldSourceOracleConfigArgs calldata config = configs[i];
             _setInitialYieldSourceOracleConfig(
-                salts[i],
-                config.yieldSourceOracle,
-                config.feePercent,
-                config.feeRecipient,
-                config.ledger
+                salts[i], config.yieldSourceOracle, config.feePercent, config.feeRecipient, config.ledger
             );
         }
     }
 
     /// @inheritdoc ISuperLedgerConfiguration
-    function proposeYieldSourceOracleConfig(bytes32[] calldata yieldSourceOracleIds, YieldSourceOracleConfigArgs[] calldata configs) external virtual {
+    function proposeYieldSourceOracleConfig(
+        bytes32[] calldata yieldSourceOracleIds,
+        YieldSourceOracleConfigArgs[] calldata configs
+    )
+        external
+        virtual
+    {
         uint256 length = configs.length;
         if (length == 0) revert ZERO_LENGTH();
         if (length != yieldSourceOracleIds.length) revert LENGTH_MISMATCH();
@@ -101,11 +109,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
             }
 
             _validateYieldSourceOracleConfig(
-                yieldSourceOracleIds[i],
-                config.yieldSourceOracle,
-                config.feePercent,
-                config.feeRecipient,
-                config.ledger
+                yieldSourceOracleIds[i], config.yieldSourceOracle, config.feePercent, config.feeRecipient, config.ledger
             );
 
             yieldSourceOracleConfigProposals[yieldSourceOracleIds[i]] = YieldSourceOracleConfig({
@@ -210,7 +214,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     function getAllYieldSourceOracleIdsByOwner(address owner) external view virtual returns (bytes32[] memory) {
         return yieldSourceOracleIdsByOwner[owner];
     }
-    
+
     /// @inheritdoc ISuperLedgerConfiguration
     function getYieldSourceOracleConfig(bytes32 yieldSourceOracleId)
         external
@@ -269,9 +273,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         internal
         virtual
     {
-        _validateYieldSourceOracleConfig(
-            salt, yieldSourceOracle, feePercent, feeRecipient, ledgerContract
-        );
+        _validateYieldSourceOracleConfig(salt, yieldSourceOracle, feePercent, feeRecipient, ledgerContract);
 
         // re-create id with sender address
         bytes32 yieldSourceOracleId = _deriveWithSender(salt, msg.sender);
@@ -314,5 +316,4 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
     function _deriveWithSender(bytes32 id, address sender) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(id, sender));
     }
-
 }

@@ -38,7 +38,7 @@ type Execution struct {
 
 // SuperDestinationExecutorMetaData contains all meta data concerning the SuperDestinationExecutor contract.
 var SuperDestinationExecutorMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"ledgerConfiguration_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"superDestinationValidator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nexusFactory_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"NEXUS_FACTORY\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractINexusFactory\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SUPER_DESTINATION_VALIDATOR\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"execute\",\"inputs\":[{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isInitialized\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isMerkleRootUsed\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"merkleRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isModuleType\",\"inputs\":[{\"name\":\"typeID\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"ledgerConfiguration\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperLedgerConfiguration\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"name\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"onInstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"onUninstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"processBridgedExecution\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"dstTokens\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"intentAmounts\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"initData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"executorCalldata\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"userSignatureData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"usedMerkleRoots\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"merkleRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"used\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"validateHookCompliance\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"prevHook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"hookData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple[]\",\"internalType\":\"structExecution[]\",\"components\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"version\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"event\",\"name\":\"AccountCreated\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"salt\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorExecuted\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorFailed\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"reason\",\"type\":\"string\",\"indexed\":false,\"internalType\":\"string\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorFailedLowLevel\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"lowLevelData\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorPanicFailed\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"errorCode\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorReceivedButNoHooks\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorReceivedButNotEnoughBalance\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"intentAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"available\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperPositionMintRequested\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"spToken\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"dstChainId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ACCOUNT_NOT_CREATED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_ACCOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FEE_NOT_TRANSFERRED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE_FOR_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ACCOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_CHAIN_ID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_SIGNATURE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MALICIOUS_HOOK_DETECTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MANAGER_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MERKLE_ROOT_ALREADY_USED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ModuleAlreadyInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_HOOKS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"ledgerConfiguration_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"superDestinationValidator_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nexusFactory_\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"NEXUS_FACTORY\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractINexusFactory\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"SUPER_DESTINATION_VALIDATOR\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"execute\",\"inputs\":[{\"name\":\"data\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"isInitialized\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isMerkleRootUsed\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"merkleRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"isModuleType\",\"inputs\":[{\"name\":\"typeID\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"ledgerConfiguration\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractISuperLedgerConfiguration\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"name\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"onInstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"onUninstall\",\"inputs\":[{\"name\":\"\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"processBridgedExecution\",\"inputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"dstTokens\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"intentAmounts\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"},{\"name\":\"initData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"executorCalldata\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"userSignatureData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"usedMerkleRoots\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"merkleRoot\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"used\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"validateHookCompliance\",\"inputs\":[{\"name\":\"hook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"prevHook\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"hookData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple[]\",\"internalType\":\"structExecution[]\",\"components\":[{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"value\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"version\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"string\",\"internalType\":\"string\"}],\"stateMutability\":\"pure\"},{\"type\":\"event\",\"name\":\"AccountCreated\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"salt\",\"type\":\"bytes32\",\"indexed\":false,\"internalType\":\"bytes32\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorExecuted\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorInvalidIntentAmount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"intentAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorReceivedButNoHooks\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperDestinationExecutorReceivedButNotEnoughBalance\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"token\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"intentAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"available\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperPositionMintRequested\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"spToken\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"dstChainId\",\"type\":\"uint256\",\"indexed\":true,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ACCOUNT_NOT_CREATED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_ACCOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ADDRESS_NOT_VALID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ARRAY_LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"FEE_NOT_TRANSFERRED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE_FOR_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_ACCOUNT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_CHAIN_ID\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_SIGNATURE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MALICIOUS_HOOK_DETECTED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MANAGER_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MERKLE_ROOT_ALREADY_USED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ModuleAlreadyInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_HOOKS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NotInitialized\",\"inputs\":[{\"name\":\"smartAccount\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ReentrancyGuardReentrantCall\",\"inputs\":[]}]",
 }
 
 // SuperDestinationExecutorABI is the input ABI used to generate the binding from.
@@ -870,9 +870,9 @@ func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) ParseSuperDes
 	return event, nil
 }
 
-// SuperDestinationExecutorSuperDestinationExecutorFailedIterator is returned from FilterSuperDestinationExecutorFailed and is used to iterate over the raw logs and unpacked data for SuperDestinationExecutorFailed events raised by the SuperDestinationExecutor contract.
-type SuperDestinationExecutorSuperDestinationExecutorFailedIterator struct {
-	Event *SuperDestinationExecutorSuperDestinationExecutorFailed // Event containing the contract specifics and raw log
+// SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmountIterator is returned from FilterSuperDestinationExecutorInvalidIntentAmount and is used to iterate over the raw logs and unpacked data for SuperDestinationExecutorInvalidIntentAmount events raised by the SuperDestinationExecutor contract.
+type SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmountIterator struct {
+	Event *SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmount // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -886,7 +886,7 @@ type SuperDestinationExecutorSuperDestinationExecutorFailedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *SuperDestinationExecutorSuperDestinationExecutorFailedIterator) Next() bool {
+func (it *SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmountIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -895,7 +895,7 @@ func (it *SuperDestinationExecutorSuperDestinationExecutorFailedIterator) Next()
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(SuperDestinationExecutorSuperDestinationExecutorFailed)
+			it.Event = new(SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmount)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -910,7 +910,7 @@ func (it *SuperDestinationExecutorSuperDestinationExecutorFailedIterator) Next()
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(SuperDestinationExecutorSuperDestinationExecutorFailed)
+		it.Event = new(SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmount)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -926,197 +926,61 @@ func (it *SuperDestinationExecutorSuperDestinationExecutorFailedIterator) Next()
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperDestinationExecutorSuperDestinationExecutorFailedIterator) Error() error {
+func (it *SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmountIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *SuperDestinationExecutorSuperDestinationExecutorFailedIterator) Close() error {
+func (it *SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmountIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// SuperDestinationExecutorSuperDestinationExecutorFailed represents a SuperDestinationExecutorFailed event raised by the SuperDestinationExecutor contract.
-type SuperDestinationExecutorSuperDestinationExecutorFailed struct {
-	Account common.Address
-	Reason  string
-	Raw     types.Log // Blockchain specific contextual infos
-}
-
-// FilterSuperDestinationExecutorFailed is a free log retrieval operation binding the contract event 0xc743761b057969e0f19b0fd09905de355f91c90cb064de9c7fce1ae6c9bad1e0.
-//
-// Solidity: event SuperDestinationExecutorFailed(address indexed account, string reason)
-func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) FilterSuperDestinationExecutorFailed(opts *bind.FilterOpts, account []common.Address) (*SuperDestinationExecutorSuperDestinationExecutorFailedIterator, error) {
-
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-
-	logs, sub, err := _SuperDestinationExecutor.contract.FilterLogs(opts, "SuperDestinationExecutorFailed", accountRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperDestinationExecutorSuperDestinationExecutorFailedIterator{contract: _SuperDestinationExecutor.contract, event: "SuperDestinationExecutorFailed", logs: logs, sub: sub}, nil
-}
-
-// WatchSuperDestinationExecutorFailed is a free log subscription operation binding the contract event 0xc743761b057969e0f19b0fd09905de355f91c90cb064de9c7fce1ae6c9bad1e0.
-//
-// Solidity: event SuperDestinationExecutorFailed(address indexed account, string reason)
-func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperDestinationExecutorFailed(opts *bind.WatchOpts, sink chan<- *SuperDestinationExecutorSuperDestinationExecutorFailed, account []common.Address) (event.Subscription, error) {
-
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-
-	logs, sub, err := _SuperDestinationExecutor.contract.WatchLogs(opts, "SuperDestinationExecutorFailed", accountRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperDestinationExecutorSuperDestinationExecutorFailed)
-				if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperDestinationExecutorFailed", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseSuperDestinationExecutorFailed is a log parse operation binding the contract event 0xc743761b057969e0f19b0fd09905de355f91c90cb064de9c7fce1ae6c9bad1e0.
-//
-// Solidity: event SuperDestinationExecutorFailed(address indexed account, string reason)
-func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) ParseSuperDestinationExecutorFailed(log types.Log) (*SuperDestinationExecutorSuperDestinationExecutorFailed, error) {
-	event := new(SuperDestinationExecutorSuperDestinationExecutorFailed)
-	if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperDestinationExecutorFailed", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperDestinationExecutorSuperDestinationExecutorFailedLowLevelIterator is returned from FilterSuperDestinationExecutorFailedLowLevel and is used to iterate over the raw logs and unpacked data for SuperDestinationExecutorFailedLowLevel events raised by the SuperDestinationExecutor contract.
-type SuperDestinationExecutorSuperDestinationExecutorFailedLowLevelIterator struct {
-	Event *SuperDestinationExecutorSuperDestinationExecutorFailedLowLevel // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperDestinationExecutorSuperDestinationExecutorFailedLowLevelIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperDestinationExecutorSuperDestinationExecutorFailedLowLevel)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperDestinationExecutorSuperDestinationExecutorFailedLowLevel)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperDestinationExecutorSuperDestinationExecutorFailedLowLevelIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperDestinationExecutorSuperDestinationExecutorFailedLowLevelIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperDestinationExecutorSuperDestinationExecutorFailedLowLevel represents a SuperDestinationExecutorFailedLowLevel event raised by the SuperDestinationExecutor contract.
-type SuperDestinationExecutorSuperDestinationExecutorFailedLowLevel struct {
+// SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmount represents a SuperDestinationExecutorInvalidIntentAmount event raised by the SuperDestinationExecutor contract.
+type SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmount struct {
 	Account      common.Address
-	LowLevelData []byte
+	Token        common.Address
+	IntentAmount *big.Int
 	Raw          types.Log // Blockchain specific contextual infos
 }
 
-// FilterSuperDestinationExecutorFailedLowLevel is a free log retrieval operation binding the contract event 0x3ff63825b56f7ba8ea5c2124521d193e47f139521577e08ef7848d20ec9027a5.
+// FilterSuperDestinationExecutorInvalidIntentAmount is a free log retrieval operation binding the contract event 0xfe3e30b591c8199a91f575b16b49e2d2b7d947c4e1490f570b41f1aa448decb8.
 //
-// Solidity: event SuperDestinationExecutorFailedLowLevel(address indexed account, bytes lowLevelData)
-func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) FilterSuperDestinationExecutorFailedLowLevel(opts *bind.FilterOpts, account []common.Address) (*SuperDestinationExecutorSuperDestinationExecutorFailedLowLevelIterator, error) {
+// Solidity: event SuperDestinationExecutorInvalidIntentAmount(address indexed account, address indexed token, uint256 intentAmount)
+func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) FilterSuperDestinationExecutorInvalidIntentAmount(opts *bind.FilterOpts, account []common.Address, token []common.Address) (*SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmountIterator, error) {
 
 	var accountRule []interface{}
 	for _, accountItem := range account {
 		accountRule = append(accountRule, accountItem)
 	}
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
 
-	logs, sub, err := _SuperDestinationExecutor.contract.FilterLogs(opts, "SuperDestinationExecutorFailedLowLevel", accountRule)
+	logs, sub, err := _SuperDestinationExecutor.contract.FilterLogs(opts, "SuperDestinationExecutorInvalidIntentAmount", accountRule, tokenRule)
 	if err != nil {
 		return nil, err
 	}
-	return &SuperDestinationExecutorSuperDestinationExecutorFailedLowLevelIterator{contract: _SuperDestinationExecutor.contract, event: "SuperDestinationExecutorFailedLowLevel", logs: logs, sub: sub}, nil
+	return &SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmountIterator{contract: _SuperDestinationExecutor.contract, event: "SuperDestinationExecutorInvalidIntentAmount", logs: logs, sub: sub}, nil
 }
 
-// WatchSuperDestinationExecutorFailedLowLevel is a free log subscription operation binding the contract event 0x3ff63825b56f7ba8ea5c2124521d193e47f139521577e08ef7848d20ec9027a5.
+// WatchSuperDestinationExecutorInvalidIntentAmount is a free log subscription operation binding the contract event 0xfe3e30b591c8199a91f575b16b49e2d2b7d947c4e1490f570b41f1aa448decb8.
 //
-// Solidity: event SuperDestinationExecutorFailedLowLevel(address indexed account, bytes lowLevelData)
-func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperDestinationExecutorFailedLowLevel(opts *bind.WatchOpts, sink chan<- *SuperDestinationExecutorSuperDestinationExecutorFailedLowLevel, account []common.Address) (event.Subscription, error) {
+// Solidity: event SuperDestinationExecutorInvalidIntentAmount(address indexed account, address indexed token, uint256 intentAmount)
+func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperDestinationExecutorInvalidIntentAmount(opts *bind.WatchOpts, sink chan<- *SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmount, account []common.Address, token []common.Address) (event.Subscription, error) {
 
 	var accountRule []interface{}
 	for _, accountItem := range account {
 		accountRule = append(accountRule, accountItem)
 	}
+	var tokenRule []interface{}
+	for _, tokenItem := range token {
+		tokenRule = append(tokenRule, tokenItem)
+	}
 
-	logs, sub, err := _SuperDestinationExecutor.contract.WatchLogs(opts, "SuperDestinationExecutorFailedLowLevel", accountRule)
+	logs, sub, err := _SuperDestinationExecutor.contract.WatchLogs(opts, "SuperDestinationExecutorInvalidIntentAmount", accountRule, tokenRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1126,8 +990,8 @@ func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperDes
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(SuperDestinationExecutorSuperDestinationExecutorFailedLowLevel)
-				if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperDestinationExecutorFailedLowLevel", log); err != nil {
+				event := new(SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmount)
+				if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperDestinationExecutorInvalidIntentAmount", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1148,157 +1012,12 @@ func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperDes
 	}), nil
 }
 
-// ParseSuperDestinationExecutorFailedLowLevel is a log parse operation binding the contract event 0x3ff63825b56f7ba8ea5c2124521d193e47f139521577e08ef7848d20ec9027a5.
+// ParseSuperDestinationExecutorInvalidIntentAmount is a log parse operation binding the contract event 0xfe3e30b591c8199a91f575b16b49e2d2b7d947c4e1490f570b41f1aa448decb8.
 //
-// Solidity: event SuperDestinationExecutorFailedLowLevel(address indexed account, bytes lowLevelData)
-func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) ParseSuperDestinationExecutorFailedLowLevel(log types.Log) (*SuperDestinationExecutorSuperDestinationExecutorFailedLowLevel, error) {
-	event := new(SuperDestinationExecutorSuperDestinationExecutorFailedLowLevel)
-	if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperDestinationExecutorFailedLowLevel", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperDestinationExecutorSuperDestinationExecutorPanicFailedIterator is returned from FilterSuperDestinationExecutorPanicFailed and is used to iterate over the raw logs and unpacked data for SuperDestinationExecutorPanicFailed events raised by the SuperDestinationExecutor contract.
-type SuperDestinationExecutorSuperDestinationExecutorPanicFailedIterator struct {
-	Event *SuperDestinationExecutorSuperDestinationExecutorPanicFailed // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperDestinationExecutorSuperDestinationExecutorPanicFailedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperDestinationExecutorSuperDestinationExecutorPanicFailed)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperDestinationExecutorSuperDestinationExecutorPanicFailed)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperDestinationExecutorSuperDestinationExecutorPanicFailedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperDestinationExecutorSuperDestinationExecutorPanicFailedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperDestinationExecutorSuperDestinationExecutorPanicFailed represents a SuperDestinationExecutorPanicFailed event raised by the SuperDestinationExecutor contract.
-type SuperDestinationExecutorSuperDestinationExecutorPanicFailed struct {
-	Account   common.Address
-	ErrorCode *big.Int
-	Raw       types.Log // Blockchain specific contextual infos
-}
-
-// FilterSuperDestinationExecutorPanicFailed is a free log retrieval operation binding the contract event 0xf9b853e18a6d52ca98e46ca25384c2727ee43983a623a5caae5188247cce5bda.
-//
-// Solidity: event SuperDestinationExecutorPanicFailed(address indexed account, uint256 errorCode)
-func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) FilterSuperDestinationExecutorPanicFailed(opts *bind.FilterOpts, account []common.Address) (*SuperDestinationExecutorSuperDestinationExecutorPanicFailedIterator, error) {
-
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-
-	logs, sub, err := _SuperDestinationExecutor.contract.FilterLogs(opts, "SuperDestinationExecutorPanicFailed", accountRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperDestinationExecutorSuperDestinationExecutorPanicFailedIterator{contract: _SuperDestinationExecutor.contract, event: "SuperDestinationExecutorPanicFailed", logs: logs, sub: sub}, nil
-}
-
-// WatchSuperDestinationExecutorPanicFailed is a free log subscription operation binding the contract event 0xf9b853e18a6d52ca98e46ca25384c2727ee43983a623a5caae5188247cce5bda.
-//
-// Solidity: event SuperDestinationExecutorPanicFailed(address indexed account, uint256 errorCode)
-func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) WatchSuperDestinationExecutorPanicFailed(opts *bind.WatchOpts, sink chan<- *SuperDestinationExecutorSuperDestinationExecutorPanicFailed, account []common.Address) (event.Subscription, error) {
-
-	var accountRule []interface{}
-	for _, accountItem := range account {
-		accountRule = append(accountRule, accountItem)
-	}
-
-	logs, sub, err := _SuperDestinationExecutor.contract.WatchLogs(opts, "SuperDestinationExecutorPanicFailed", accountRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperDestinationExecutorSuperDestinationExecutorPanicFailed)
-				if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperDestinationExecutorPanicFailed", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseSuperDestinationExecutorPanicFailed is a log parse operation binding the contract event 0xf9b853e18a6d52ca98e46ca25384c2727ee43983a623a5caae5188247cce5bda.
-//
-// Solidity: event SuperDestinationExecutorPanicFailed(address indexed account, uint256 errorCode)
-func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) ParseSuperDestinationExecutorPanicFailed(log types.Log) (*SuperDestinationExecutorSuperDestinationExecutorPanicFailed, error) {
-	event := new(SuperDestinationExecutorSuperDestinationExecutorPanicFailed)
-	if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperDestinationExecutorPanicFailed", log); err != nil {
+// Solidity: event SuperDestinationExecutorInvalidIntentAmount(address indexed account, address indexed token, uint256 intentAmount)
+func (_SuperDestinationExecutor *SuperDestinationExecutorFilterer) ParseSuperDestinationExecutorInvalidIntentAmount(log types.Log) (*SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmount, error) {
+	event := new(SuperDestinationExecutorSuperDestinationExecutorInvalidIntentAmount)
+	if err := _SuperDestinationExecutor.contract.UnpackLog(event, "SuperDestinationExecutorInvalidIntentAmount", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

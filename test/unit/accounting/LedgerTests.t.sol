@@ -30,6 +30,11 @@ contract MockYieldSourceOracle {
     function decimals(address) external pure returns (uint8) {
         return DECIMALS;
     }
+
+    function getAssetOutput(address, address, uint256 shares) external view returns (uint256) {
+        // Simple implementation: multiply shares by price per share
+        return (shares * pricePerShare) / (10 ** DECIMALS);
+    }
 }
 
 // Mock BaseLedger for testing abstract contract functionality

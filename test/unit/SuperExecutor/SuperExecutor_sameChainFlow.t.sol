@@ -106,9 +106,10 @@ contract SuperExecutor_sameChainFlow is
     function setUp() public {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), ETH_BLOCK);
         underlying = CHAIN_1_USDC;
+        ledgerConfig = address(new SuperLedgerConfiguration());
 
         yieldSourceAddress = CHAIN_1_MorphoVault;
-        yieldSourceOracle = address(new ERC4626YieldSourceOracle());
+        yieldSourceOracle = address(new ERC4626YieldSourceOracle(address(ledgerConfig)));
         vaultInstance = IERC4626(yieldSourceAddress);
         instance = makeAccountInstance(keccak256(abi.encode("acc1")));
         account = instance.account;
@@ -119,8 +120,6 @@ contract SuperExecutor_sameChainFlow is
         _getTokens(underlying, account, 1e18);
 
         (signer, signerPrvKey) = makeAddrAndKey("signer");
-
-        ledgerConfig = address(new SuperLedgerConfiguration());
 
         superExecutor = ISuperExecutor(new SuperExecutor(address(ledgerConfig)));
         newSuperExecutor = ISuperExecutor(new SuperExecutor(address(ledgerConfig)));
