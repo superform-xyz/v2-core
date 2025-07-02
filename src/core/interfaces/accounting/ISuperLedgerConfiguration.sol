@@ -30,10 +30,6 @@ interface ISuperLedgerConfiguration {
     /// @dev Similar to YieldSourceOracleConfig but includes the ID and excludes the manager
     ///      The manager is either derived from existing config or set to msg.sender for new configs
     struct YieldSourceOracleConfigArgs {
-        /// @notice Unique identifier for this yield source oracle configuration
-        /// @dev `yieldSourceOracleId` is created out of `uniqueIdentifier` and `msg.sender`
-        /// @dev when using `proposeYieldSourceOracleConfig`, the `uniqueIdentifier` is actually a valid `yieldSourceOracleId` 
-        bytes32 uniqueIdentifier;
         /// @notice Address of the oracle that provides price information
         address yieldSourceOracle;
         /// @notice Fee percentage charged on yield in basis points (0-10000, where 10000 = 100%)
@@ -82,6 +78,9 @@ interface ISuperLedgerConfiguration {
 
     /// @notice Thrown when a critical address parameter is set to the zero address
     error ZERO_ADDRESS_NOT_ALLOWED();
+    
+    /// @notice Thrown when the length of input arrays do not match
+    error LENGTH_MISMATCH();
 
 
     /*//////////////////////////////////////////////////////////////
@@ -171,15 +170,17 @@ interface ISuperLedgerConfiguration {
     /// @dev This function can only be used for first-time configuration setup
     ///      For existing configurations, use proposeYieldSourceOracleConfig instead
     ///      The caller becomes the manager for each new configuration
+    /// @param salts Array of salt values to generate unique identifiers
     /// @param configs Array of initial oracle configurations to be created
-    function setYieldSourceOracles(YieldSourceOracleConfigArgs[] calldata configs) external;
+    function setYieldSourceOracles(bytes32[] calldata salts, YieldSourceOracleConfigArgs[] calldata configs) external;
 
     /// @notice Proposes changes to existing yield source oracle configurations
     /// @dev Only the current manager of a configuration can propose changes
     ///      Proposals are subject to a time-lock before they can be accepted
     ///      Fee percentage changes are limited to a maximum percentage change
+    /// @param yieldSourceOracleIds Array of yield source IDs to propose changes for
     /// @param configs Array of proposed configuration changes
-    function proposeYieldSourceOracleConfig(YieldSourceOracleConfigArgs[] calldata configs) external;
+    function proposeYieldSourceOracleConfig(bytes32[] calldata yieldSourceOracleIds, YieldSourceOracleConfigArgs[] calldata configs) external;
 
     /// @notice Accepts previously proposed changes to yield source oracle configurations
     /// @dev Can only be called by the manager after the time-lock period has passed

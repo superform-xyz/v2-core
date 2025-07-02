@@ -25,7 +25,8 @@ interface ISuperLockableHook {
     /// @dev Used to retrieve lock details for cross-chain operations
     /// @return vaultBank The vault bank address
     /// @return dstChainId The destination chain ID
-    function extractLockDetails() external view returns (address, uint256);
+    /// @return yieldSourceOracleId The yield source oracle ID
+    function extractLockDetails(bytes memory hookData) external view returns (address, uint256, bytes32);
 
     /// @notice The vault bank address used to lock SuperPositions
     /// @dev Only relevant for cross-chain operations where positions are locked

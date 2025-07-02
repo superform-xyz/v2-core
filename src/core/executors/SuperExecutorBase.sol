@@ -342,12 +342,14 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     function _checkAndLockForSuperPosition(address account, address hook, bytes memory hookData) internal virtual {
         // Get cross-chain operation details from the hook
         bytes4 selector = ISuperLockableHook.extractLockDetails.selector;
-        (bool success, bytes memory result) = hook.staticcall(abi.encodeWithSelector(selector));
+        (bool success, bytes memory result) = hook.staticcall(abi.encodeWithSelector(selector, hookData));
         if (success) {
-            (address vaultBank, uint256 dstChainId) = abi.decode(result, (address, uint256));
+            (address vaultBank, uint256 dstChainId, bytes32 yieldSourceOracleId) = abi.decode(result, (address, uint256, bytes32));
 
             // Process cross-chain operation if a vault bank is specified
             if (vaultBank != address(0)) {
+                if (yieldSourceOracleId == bytes32(0)) revert INVALID_YIELD_SOURCE_ORACLE_ID();
+
                 // Ensure destination chain is different from current chain
                 if (dstChainId == block.chainid) revert INVALID_CHAIN_ID(); 
                 
@@ -363,11 +365,8 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
                 });
                 _execute(account, execs);
 
-              
 
                 // Lock assets in the vault bank for cross-chain transfer
-                bytes32 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
-                if (yieldSourceOracleId == bytes32(0)) revert INVALID_YIELD_SOURCE_ORACLE_ID();
                 IVaultBank(vaultBank).lockAsset(yieldSourceOracleId, account, spToken, hook, amount, uint64(dstChainId));
             }
         }

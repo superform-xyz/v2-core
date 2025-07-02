@@ -476,7 +476,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         );
 
         vm.mockCall(address(inflowHook), abi.encodeWithSignature("spToken()"), abi.encode(address(token)));
-        vm.mockCall(address(inflowHook), abi.encodeWithSignature("extractLockDetails()"), abi.encode(address(this), uint64(block.chainid)));
+        vm.mockCall(address(inflowHook), abi.encodeWithSignature("extractLockDetails(bytes)"), abi.encode(address(this), uint64(block.chainid), bytes32(bytes("1"))));
         vm.mockCall(
             address(this),
             abi.encodeWithSignature("lockAsset(bytes32,address,address,address,uint256,uint64)"),

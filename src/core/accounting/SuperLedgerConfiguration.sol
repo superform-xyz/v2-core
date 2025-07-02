@@ -55,15 +55,16 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
                             EXTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperLedgerConfiguration
-    function setYieldSourceOracles(YieldSourceOracleConfigArgs[] calldata configs) external virtual {
+    function setYieldSourceOracles(bytes32[] calldata salts, YieldSourceOracleConfigArgs[] calldata configs) external virtual {
         
         uint256 length = configs.length;
         if (length == 0) revert ZERO_LENGTH();
+        if (length != salts.length) revert LENGTH_MISMATCH();
 
         for (uint256 i; i < length; ++i) {
             YieldSourceOracleConfigArgs calldata config = configs[i];
             _setInitialYieldSourceOracleConfig(
-                config.uniqueIdentifier,
+                salts[i],
                 config.yieldSourceOracle,
                 config.feePercent,
                 config.feeRecipient,
@@ -74,19 +75,20 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
 
     /// @inheritdoc ISuperLedgerConfiguration
     /// @dev `config.uniqueIdentifier` represents the `yieldSourceOracleId` (salt + msg.sender)
-    function proposeYieldSourceOracleConfig(YieldSourceOracleConfigArgs[] calldata configs) external virtual {
+    function proposeYieldSourceOracleConfig(bytes32[] calldata yieldSourceOracleIds, YieldSourceOracleConfigArgs[] calldata configs) external virtual {
         uint256 length = configs.length;
         if (length == 0) revert ZERO_LENGTH();
+        if (length != yieldSourceOracleIds.length) revert LENGTH_MISMATCH();
 
         for (uint256 i; i < length; ++i) {
             YieldSourceOracleConfigArgs calldata config = configs[i];
 
-            YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[config.uniqueIdentifier];
+            YieldSourceOracleConfig memory existingConfig = yieldSourceOracleConfig[yieldSourceOracleIds[i]];
             if (existingConfig.ledger == address(0) || existingConfig.manager == address(0)) revert CONFIG_NOT_FOUND();
 
             if (existingConfig.manager != msg.sender) revert NOT_MANAGER();
 
-            if (yieldSourceOracleConfigProposalGracePeriod[config.uniqueIdentifier] > block.timestamp) {
+            if (yieldSourceOracleConfigProposalGracePeriod[yieldSourceOracleIds[i]] > block.timestamp) {
                 revert CHANGE_ALREADY_PROPOSED();
             }
 
@@ -100,25 +102,25 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
             }
 
             _validateYieldSourceOracleConfig(
-                config.uniqueIdentifier,
+                yieldSourceOracleIds[i],
                 config.yieldSourceOracle,
                 config.feePercent,
                 config.feeRecipient,
                 config.ledger
             );
 
-            yieldSourceOracleConfigProposals[config.uniqueIdentifier] = YieldSourceOracleConfig({
+            yieldSourceOracleConfigProposals[yieldSourceOracleIds[i]] = YieldSourceOracleConfig({
                 yieldSourceOracle: config.yieldSourceOracle,
                 feePercent: config.feePercent,
                 feeRecipient: config.feeRecipient,
                 manager: existingConfig.manager,
                 ledger: config.ledger
             });
-            yieldSourceOracleConfigProposalGracePeriod[config.uniqueIdentifier] =
+            yieldSourceOracleConfigProposalGracePeriod[yieldSourceOracleIds[i]] =
                 block.timestamp + PROPOSAL_EXPIRATION_TIME;
 
             emit YieldSourceOracleConfigProposalSet(
-                config.uniqueIdentifier,
+                yieldSourceOracleIds[i],
                 config.yieldSourceOracle,
                 config.feePercent,
                 config.feeRecipient,
@@ -285,10 +287,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
             feeRecipient: feeRecipient,
             manager: msg.sender,
             ledger: ledgerContract
-            // originalOwner: msg.sender
         });
-
-        
 
         emit YieldSourceOracleConfigSet(
             yieldSourceOracleId, yieldSourceOracle, feePercent, feeRecipient, msg.sender, ledgerContract

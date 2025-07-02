@@ -140,13 +140,14 @@ contract SuperExecutor_sameChainFlow is
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            uniqueIdentifier: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle,
             feePercent: 100,
             feeRecipient: feeRecipient,
             ledger: address(ledger)
         });
-        ISuperLedgerConfiguration(ledgerConfig).setYieldSourceOracles(configs);
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        ISuperLedgerConfiguration(ledgerConfig).setYieldSourceOracles(salts, configs);
 
         eoaKey = uint256(8);
         account7702 = vm.addr(eoaKey);

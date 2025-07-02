@@ -84,14 +84,12 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         yieldSourceOracle5115 = address(new ERC5115YieldSourceOracle());
         yieldSourceOracle7540 = address(new ERC7540YieldSourceOracle());
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            uniqueIdentifier: bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle4626,
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(ledger)
         });
         configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            uniqueIdentifier: bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle7540,
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
@@ -99,13 +97,16 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         });
 
         configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            uniqueIdentifier: bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle5115,
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(new ERC5115Ledger(address(ledgerConfig), allowedExecutors))
         });
-        ledgerConfig.setYieldSourceOracles(configs);
+        bytes32[] memory salts = new bytes32[](3);
+        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
+        salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY));
+        ledgerConfig.setYieldSourceOracles(salts, configs);
 
         approveHook = address(new ApproveERC20Hook());
         deposit4626Hook = address(new Deposit4626VaultHook());
