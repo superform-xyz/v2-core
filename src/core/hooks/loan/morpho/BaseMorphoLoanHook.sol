@@ -14,9 +14,6 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
 
-    error INVALID_TIMESTAMP();
-    error TOKEN_DECIMALS_NOT_SUPPORTED();
-
     IMorpho public morphoInterface;
 
     uint256 private constant AMOUNT_POSITION = 80;
@@ -37,7 +34,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
     constructor(address morpho_, bytes32 hookSubtype_) BaseLoanHook(hookSubtype_) {
-        if (morpho_ == address(0)) revert ZERO_ADDRESS();
+        if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morphoInterface = IMorpho(morpho_);
     }
 
