@@ -2,14 +2,16 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IERC7540} from "../../../../vendor/vaults/7540/IERC7540.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC7540 } from "../../../../vendor/vaults/7540/IERC7540.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // Superform
 import {BaseHook} from "../../BaseHook.sol";
+import {VaultBankLockableHook} from "../../VaultBankLockableHook.sol";
 import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
 import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
@@ -20,25 +22,30 @@ import {
 /// @title Deposit7540VaultHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 24);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 57);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 77);
-contract Deposit7540VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector {
+/// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 52);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
+/// @notice         address vaultBank = BytesLib.toAddress(data, 85);
+/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 105);
+contract Deposit7540VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInflowOutflow, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 24;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
+    uint256 private constant AMOUNT_POSITION = 52;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 84;
 
-    constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC7540) {}
+    constructor() BaseHook(HookType.INFLOW, HookSubTypes.ERC7540) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address account, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -48,7 +55,7 @@ contract Deposit7540VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount();
+            amount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         if (amount == 0) revert AMOUNT_NOT_VALID();
@@ -86,14 +93,14 @@ contract Deposit7540VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookCo
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
-        outAmount = _getBalance(account, data);
-        vaultBank = BytesLib.toAddress(data, 57);
-        dstChainId = BytesLib.toUint256(data, 77);
+        _setOutAmount(_getBalance(account, data), account);
+        vaultBank = BytesLib.toAddress(data, 85);
+        dstChainId = BytesLib.toUint256(data, 105);
         spToken = IERC7540(data.extractYieldSource()).share();
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

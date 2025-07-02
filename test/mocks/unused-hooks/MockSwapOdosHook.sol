@@ -2,16 +2,16 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../src/vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IOdosRouterV2} from "../../../src/vendor/odos/IOdosRouterV2.sol";
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IOdosRouterV2 } from "../../../src/vendor/odos/IOdosRouterV2.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import {BaseHook} from "../../../src/core/hooks/BaseHook.sol";
-import {HookSubTypes} from "../../../src/core/libraries/HookSubTypes.sol";
-import {HookDataDecoder} from "../../../src/core/libraries/HookDataDecoder.sol";
-import {ISuperHookResult, ISuperHookContextAware} from "../../../src/core/interfaces/ISuperHook.sol";
+import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
+import { HookSubTypes } from "../../../src/core/libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol";
+import { ISuperHookResult, ISuperHookContextAware } from "../../../src/core/interfaces/ISuperHook.sol";
 
 /// @title MockSwapOdosHook
 /// @author Superform Labs
@@ -40,8 +40,12 @@ contract MockSwapOdosHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address account, bytes memory data)
-        external
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -55,7 +59,7 @@ contract MockSwapOdosHook is BaseHook, ISuperHookContextAware {
 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         if (usePrevHookAmount) {
-            inputAmount = ISuperHookResult(prevHook).outAmount();
+            inputAmount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         executions = new Execution[](1);
@@ -81,11 +85,11 @@ contract MockSwapOdosHook is BaseHook, ISuperHookContextAware {
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+        _setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -101,7 +105,11 @@ contract MockSwapOdosHook is BaseHook, ISuperHookContextAware {
         return IERC20(outputToken).balanceOf(account);
     }
 
-    function _getSwapInfo(address account, address prevHook, bytes memory data)
+    function _getSwapInfo(
+        address account,
+        address prevHook,
+        bytes memory data
+    )
         private
         view
         returns (IOdosRouterV2.swapTokenInfo memory)
@@ -115,7 +123,7 @@ contract MockSwapOdosHook is BaseHook, ISuperHookContextAware {
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            inputAmount = ISuperHookResult(prevHook).outAmount();
+            inputAmount = ISuperHookResult(prevHook).getOutAmount(account);
         }
         return IOdosRouterV2.swapTokenInfo(
             inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, account

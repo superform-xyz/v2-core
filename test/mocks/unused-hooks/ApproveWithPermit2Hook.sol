@@ -2,16 +2,16 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../src/vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // Superform
-import {BaseHook} from "../../../src//core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../src//core/hooks/BaseHook.sol";
 
-import {ISuperHookResult} from "../../../src//core/interfaces/ISuperHook.sol";
+import { ISuperHookResult } from "../../../src//core/interfaces/ISuperHook.sol";
 
-import {IAllowanceTransfer} from "../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import { IAllowanceTransfer } from "../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
 
 /// @title ApproveWithPermit2Hook
 /// @dev data has the following structure
@@ -36,8 +36,12 @@ contract ApproveWithPermit2Hook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address, bytes memory data)
-        external
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -49,7 +53,7 @@ contract ApproveWithPermit2Hook is BaseHook {
         bool usePrevHookAmount = _decodeBool(data, 66);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount().toUint160();
+            amount = ISuperHookResult(prevHook).getOutAmount(account).toUint160();
         }
 
         if (token == address(0) || spender == address(0)) revert ADDRESS_NOT_VALID();
@@ -65,11 +69,11 @@ contract ApproveWithPermit2Hook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
-        outAmount = uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0));
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        _setOutAmount(uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0)), account);
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
-        outAmount = uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0));
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        _setOutAmount(uint160(BytesLib.toUint256(BytesLib.slice(data, 40, 20), 0)), account);
     }
 }

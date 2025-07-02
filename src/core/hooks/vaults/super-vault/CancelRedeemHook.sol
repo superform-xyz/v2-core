@@ -9,6 +9,7 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
+import { VaultBankLockableHook } from "../../VaultBankLockableHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import { ISuperVault } from "../../../../periphery/interfaces/SuperVault/ISuperVault.sol";
@@ -17,9 +18,11 @@ import { ISuperHookAsyncCancelations, ISuperHookInspector } from "../../../inter
 /// @title CancelRedeemHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 placeholder = BytesLib.toAddress(data, 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-contract CancelRedeemHook is BaseHook, ISuperHookAsyncCancelations, ISuperHookInspector {
+/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         address vaultBank = BytesLib.toAddress(data, 52);
+/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 72);
+contract CancelRedeemHook is BaseHook, VaultBankLockableHook, ISuperHookAsyncCancelations, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CANCEL_REDEEM) { }
@@ -27,12 +30,12 @@ contract CancelRedeemHook is BaseHook, ISuperHookAsyncCancelations, ISuperHookIn
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(
+    function _buildHookExecutions(
         address,
         address account,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         pure
         override
         returns (Execution[] memory executions)
@@ -64,11 +67,14 @@ contract CancelRedeemHook is BaseHook, ISuperHookAsyncCancelations, ISuperHookIn
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+        _setOutAmount(_getBalance(account, data), account);
+        vaultBank = BytesLib.toAddress(data, 52);
+        dstChainId = BytesLib.toUint256(data, 72);
+        spToken = data.extractYieldSource();
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS

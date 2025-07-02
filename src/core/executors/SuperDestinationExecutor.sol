@@ -2,25 +2,20 @@
 pragma solidity 0.8.30;
 
 // external
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {SafeERC20} from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import {INexusFactory} from "../../vendor/nexus/INexusFactory.sol";
-import {Execution, ExecutionLib as ERC7579ExecutionLib} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IERC7579Account} from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
-import {
-    ModeCode,
-    ModeLib as ERC7579ModeLib,
-    EXECTYPE_DEFAULT,
-    CALLTYPE_BATCH,
-    MODE_DEFAULT,
-    ModePayload
-} from "modulekit/accounts/common/lib/ModeLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { INexusFactory } from "../../vendor/nexus/INexusFactory.sol";
+
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 
 // Superform
-import {SuperExecutorBase} from "./SuperExecutorBase.sol";
-import {ISuperExecutor} from "../interfaces/ISuperExecutor.sol";
-import {ISuperDestinationExecutor} from "../interfaces/ISuperDestinationExecutor.sol";
-import {ISuperDestinationValidator} from "../interfaces/ISuperDestinationValidator.sol";
+import { SuperExecutorBase } from "./SuperExecutorBase.sol";
+import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
+import { ISuperDestinationExecutor } from "../interfaces/ISuperDestinationExecutor.sol";
+import { ISuperDestinationValidator } from "../interfaces/ISuperDestinationValidator.sol";
+import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
+import {BytesLib} from "../../vendor/BytesLib.sol";
 
 /// @title SuperDestinationExecutor
 /// @author Superform Labs
@@ -49,7 +44,9 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /// @notice Magic value returned by ERC-1271 contracts when a signature is valid
     /// @dev From EIP-1271 standard:
     /// https://docs.uniswap.org/contracts/v3/reference/periphery/interfaces/external/IERC1271
-    bytes4 internal constant SIGNATURE_MAGIC_VALUE = bytes4(0x1626ba7e);
+    /// @dev From `SuperDestinationValidator`:
+    /// `bytes4(keccak256("isValidDestinationSignature(address,bytes)")) = 0x5c2ec0f3`
+    bytes4 internal constant SIGNATURE_MAGIC_VALUE = bytes4(0x5c2ec0f3);
 
     /// @notice Length of an empty execution data structure
     /// @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays
@@ -58,22 +55,17 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     uint256 internal constant EMPTY_EXECUTION_LENGTH = 228;
 
     /*//////////////////////////////////////////////////////////////
-                                 ERRORS
-    //////////////////////////////////////////////////////////////*/
-    error INVALID_ACCOUNT();
-    error INVALID_SIGNATURE();
-    error ADDRESS_NOT_ACCOUNT();
-    error ACCOUNT_NOT_CREATED();
-    error MERKLE_ROOT_ALREADY_USED();
-
-    /*//////////////////////////////////////////////////////////////
                                 CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
     /// @notice Initializes the SuperDestinationExecutor with required references
     /// @param ledgerConfiguration_ Address of the ledger configuration contract for fee calculations
     /// @param superDestinationValidator_ Address of the validator contract used to verify cross-chain messages
     /// @param nexusFactory_ Address of the account factory used to create new smart accounts
-    constructor(address ledgerConfiguration_, address superDestinationValidator_, address nexusFactory_)
+    constructor(
+        address ledgerConfiguration_,
+        address superDestinationValidator_,
+        address nexusFactory_
+    )
         SuperExecutorBase(ledgerConfiguration_)
     {
         // Validate critical contract references
@@ -116,15 +108,20 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         bytes memory initData,
         bytes memory executorCalldata,
         bytes memory userSignatureData
-    ) external override {
+    )
+        external
+        override
+    {
+        uint256 dstTokensLen = dstTokens.length;
+        if (dstTokensLen != intentAmounts.length) revert ARRAY_LENGTH_MISMATCH();
+
         account = _validateOrCreateAccount(account, initData);
 
         bytes32 merkleRoot = _decodeMerkleRoot(userSignatureData);
 
         // --- Signature Validation ---
-        // DestinationData encodes both the adapter (msg.sender) and the executor (address(this))
-        //  this is useful to avoid replay attacks on a different group of executor <> sender (adapter)
-        // Note: the msgs.sender doesn't necessarily match an adapter address
+        // DestinationData encodes executor calldata, current chain id, account, current executor, destination tokens
+        // and intent amounts
         bytes memory destinationData =
             abi.encode(executorCalldata, uint64(block.chainid), account, address(this), dstTokens, intentAmounts);
 
@@ -140,31 +137,23 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         if (usedMerkleRoots[account][merkleRoot]) revert MERKLE_ROOT_ALREADY_USED();
         usedMerkleRoots[account][merkleRoot] = true;
 
-        if (executorCalldata.length <= EMPTY_EXECUTION_LENGTH) {
+        if (_shouldSkipCalldata(executorCalldata)) {
             emit SuperDestinationExecutorReceivedButNoHooks(account);
             return;
         }
 
         Execution[] memory execs = new Execution[](1);
-        execs[0] = Execution({target: address(this), value: 0, callData: executorCalldata});
+        execs[0] = Execution({ target: address(this), value: 0, callData: executorCalldata });
 
-        ModeCode modeCode = ERC7579ModeLib.encode({
-            callType: CALLTYPE_BATCH,
-            execType: EXECTYPE_DEFAULT,
-            mode: MODE_DEFAULT,
-            payload: ModePayload.wrap(bytes22(0))
-        });
-
-        try IERC7579Account(account).executeFromExecutor(modeCode, ERC7579ExecutionLib.encodeBatch(execs)) {
-            emit SuperDestinationExecutorExecuted(account);
-        } catch Panic(uint256 errorCode) {
-            emit SuperDestinationExecutorPanicFailed(account, errorCode);
-        } catch Error(string memory reason) {
-            emit SuperDestinationExecutorFailed(account, reason);
-        } catch (bytes memory lowLevelData) {
-            emit SuperDestinationExecutorFailedLowLevel(account, lowLevelData);
-        }
+        _execute(account, execs);
+        emit SuperDestinationExecutorExecuted(account);
     }
+
+    function _shouldSkipCalldata(bytes memory executorCalldata) internal pure returns (bool) {
+        bytes4 selector = bytes4(BytesLib.slice(executorCalldata, 0, 4));
+        if (selector != ISuperExecutor.execute.selector) return true;
+        return executorCalldata.length <= EMPTY_EXECUTION_LENGTH;
+    }   
 
     function _validateOrCreateAccount(address account, bytes memory initData) internal returns (address) {
         if (account.code.length > 0) {
@@ -184,11 +173,15 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     }
 
     function _decodeMerkleRoot(bytes memory userSignatureData) private pure returns (bytes32) {
-        (, bytes32 merkleRoot,,) = abi.decode(userSignatureData, (uint48, bytes32, bytes32[], bytes));
+        (,, bytes32 merkleRoot,,,) = abi.decode(userSignatureData, (bool, uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes));
         return merkleRoot;
     }
 
-    function _validateBalances(address account, address[] memory dstTokens, uint256[] memory intentAmounts)
+    function _validateBalances(
+        address account,
+        address[] memory dstTokens,
+        uint256[] memory intentAmounts
+    )
         private
         returns (bool)
     {
@@ -196,6 +189,11 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         for (uint256 i; i < len; i++) {
             address _token = dstTokens[i];
             uint256 _intentAmount = intentAmounts[i];
+
+            if (_intentAmount == 0) {
+                emit SuperDestinationExecutorInvalidIntentAmount(account, _token, _intentAmount);
+                return false;
+            }
 
             if (_token == address(0)) {
                 if (_intentAmount != 0 && account.balance < _intentAmount) {

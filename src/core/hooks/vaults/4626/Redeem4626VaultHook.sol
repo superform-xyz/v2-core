@@ -22,11 +22,11 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title Redeem4626VaultHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         address owner = BytesLib.toAddress(data, 24);
-/// @notice         uint256 shares = BytesLib.toUint256(data, 44);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 76);
+/// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         address owner = BytesLib.toAddress(data, 52);
+/// @notice         uint256 shares = BytesLib.toUint256(data, 72);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
 contract Redeem4626VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
@@ -36,32 +36,32 @@ contract Redeem4626VaultHook is
 {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 44;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 76;
+    uint256 private constant AMOUNT_POSITION = 72;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 104;
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC4626) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address account,
-        bytes memory data
+        bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address owner = BytesLib.toAddress(data, 24);
+        address owner = BytesLib.toAddress(data, 52);
         uint256 shares = _decodeAmount(data);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            shares = ISuperHookResultOutflow(prevHook).outAmount();
+            shares = ISuperHookResultOutflow(prevHook).getOutAmount(account);
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
@@ -98,7 +98,7 @@ contract Redeem4626VaultHook is
     function inspect(bytes calldata data) external pure returns (bytes memory) {
         return abi.encodePacked(
             data.extractYieldSource(),
-            BytesLib.toAddress(data, 24) // owner
+            BytesLib.toAddress(data, 52) // owner
         );
     }
 
@@ -108,13 +108,13 @@ contract Redeem4626VaultHook is
     function _preExecute(address, address account, bytes calldata data) internal override {
         address yieldSource = data.extractYieldSource();
         asset = IERC4626(yieldSource).asset();
-        outAmount = _getBalance(account, data);
+        _setOutAmount(_getBalance(account, data), account);
         usedShares = _getSharesBalance(account, data);
         spToken = yieldSource;
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
         usedShares = usedShares - _getSharesBalance(account, data);
     }
 
@@ -131,6 +131,10 @@ contract Redeem4626VaultHook is
 
     function _getSharesBalance(address account, bytes memory data) private view returns (uint256) {
         address yieldSource = data.extractYieldSource();
-        return IERC4626(yieldSource).balanceOf(account);
+        address owner = BytesLib.toAddress(data, 52);
+        if (owner == address(0)) {
+            owner = account;
+        }
+        return IERC4626(yieldSource).balanceOf(owner);
     }
 }

@@ -4,29 +4,15 @@ pragma solidity 0.8.30;
 // external
 import {ERC7579ValidatorBase} from "modulekit/Modules.sol";
 import {ISuperSignatureStorage} from "../interfaces/ISuperSignatureStorage.sol";
+import {ISuperValidator} from "../interfaces/ISuperValidator.sol";
 
 /// @title SuperValidatorBase
 /// @author Superform Labs
 /// @notice A base contract for all Superform validators
-abstract contract SuperValidatorBase is ERC7579ValidatorBase {
+abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    /// @notice Structure holding signature data used across validator implementations
-    /// @dev Contains all components needed for merkle proof verification and signature validation
-    struct SignatureData {
-        /// @notice Timestamp after which the signature is no longer valid
-        uint48 validUntil;
-        /// @notice Root of the merkle tree containing operation leaves
-        bytes32 merkleRoot;
-        /// @notice Merkle proof for the source chain operation
-        bytes32[] proofSrc;
-        /// @notice Merkle proof for the destination chain operation
-        bytes32[] proofDst;
-        /// @notice Raw ECDSA signature bytes
-        bytes signature;
-    }
-
     /// @notice Tracks which accounts have initialized this validator
     /// @dev Used to prevent unauthorized use of the validator
     mapping(address account => bool initialized) internal _initialized;
@@ -41,6 +27,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     error ZERO_ADDRESS();
     error INVALID_PROOF();
     error ALREADY_INITIALIZED();
+    error INVALID_DESTINATION_PROOF(); // thrown on source 
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -66,14 +53,14 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     //////////////////////////////////////////////////////////////*/
     function onInstall(bytes calldata data) external {
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
-        _initialized[msg.sender] = true;
         address owner = abi.decode(data, (address));
         if (owner == address(0)) revert ZERO_ADDRESS();
+        _initialized[msg.sender] = true;
         _accountOwners[msg.sender] = owner;
     }
 
     function onUninstall(bytes calldata) external {
-        if (!_initialized[msg.sender]) revert ISuperSignatureStorage.NOT_INITIALIZED();
+        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
         _initialized[msg.sender] = false;
         delete _accountOwners[msg.sender];
     }
@@ -88,7 +75,30 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
         return "SuperValidator";
     }
 
-    function _createLeaf(bytes memory data, uint48 validUntil) internal view virtual returns (bytes32);
+    function _createLeaf(bytes memory data, uint48 validUntil, bool checkCrossChainExecution) internal view virtual returns (bytes32);
+
+    function _createDestinationLeaf(DestinationData memory destinationData, uint48 validUntil, address validator) internal view virtual returns (bytes32) {
+        // Note: destinationData.initData is not included because it is not needed for the leaf.
+        // If precomputed account is != than the executing account, the entire execution reverts
+        // before this method is called. Check SuperDestinationExecutor for more details.
+        return keccak256(
+            bytes.concat(
+                keccak256(
+                    abi.encode(
+                        destinationData.callData,
+                        destinationData.chainId,
+                        destinationData.sender,
+                        destinationData.executor,
+                        destinationData.dstTokens,
+                        destinationData.intentAmounts,
+                        validUntil,
+                        validator
+                    )
+                )
+            )
+        );
+    }
+
 
     /// @notice Decodes raw signature data into a structured SignatureData object
     /// @dev Handles ABI decoding of all signature components
@@ -96,13 +106,14 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
     /// @return Structured SignatureData for further processing
     function _decodeSignatureData(bytes memory sigDataRaw) internal pure virtual returns (SignatureData memory) {
         (
+            bool validateDstProof,
             uint48 validUntil,
             bytes32 merkleRoot,
             bytes32[] memory proofSrc,
-            bytes32[] memory proofDst,
+            DstProof[] memory proofDst,
             bytes memory signature
-        ) = abi.decode(sigDataRaw, (uint48, bytes32, bytes32[], bytes32[], bytes));
-        return SignatureData(validUntil, merkleRoot, proofSrc, proofDst, signature);
+        ) = abi.decode(sigDataRaw, (bool, uint48, bytes32, bytes32[], DstProof[], bytes));
+        return SignatureData(validateDstProof, validUntil, merkleRoot, proofSrc, proofDst, signature);
     }
 
     /// @notice Creates a message hash from a merkle root for signature verification
@@ -127,6 +138,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase {
         returns (bool)
     {
         /// @dev block.timestamp could vary between chains
-        return signer == _accountOwners[sender] && validUntil >= block.timestamp;
+        /// @dev validUntil = 0 means infinite validity
+        return signer == _accountOwners[sender] && (validUntil == 0 || validUntil >= block.timestamp);
     }
 }

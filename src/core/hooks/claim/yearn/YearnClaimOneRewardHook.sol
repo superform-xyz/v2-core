@@ -18,12 +18,15 @@ import {
     ISuperHookContextAware,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
+import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
 
 /// @title YearnClaimOneRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address rewardToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
+/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         address rewardToken = BytesLib.toAddress(data, 52);
+/// @notice         address account = BytesLib.toAddress(data, 72);
 contract YearnClaimOneRewardHook is
     BaseHook,
     BaseClaimRewardHook,
@@ -32,19 +35,22 @@ contract YearnClaimOneRewardHook is
     ISuperHookContextAware,
     ISuperHookInspector
 {
+    using HookDataDecoder for bytes;
+
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) {}
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address, address, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(address, address, bytes calldata data)
+        internal
         pure
         override
         returns (Execution[] memory executions)
     {
-        address yieldSource = BytesLib.toAddress(data, 0);
-        address rewardToken = BytesLib.toAddress(data, 20);
+        address yieldSource = data.extractYieldSource();
+        address rewardToken = BytesLib.toAddress(data, 52);
         if (yieldSource == address(0) || rewardToken == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(yieldSource, abi.encodeCall(IYearnStakingRewardsMulti.getOneReward, (rewardToken)));
@@ -67,23 +73,20 @@ contract YearnClaimOneRewardHook is
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
-        return abi.encodePacked(
-            BytesLib.toAddress(data, 0), // yieldSource
-            BytesLib.toAddress(data, 20) // rewardToken
-        );
+        return abi.encodePacked(data.extractYieldSource(), BytesLib.toAddress(data, 52));
     }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
-        asset = BytesLib.toAddress(data, 20);
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        asset = BytesLib.toAddress(data, 52);
         if (asset == address(0)) revert ASSET_ZERO_ADDRESS();
 
-        outAmount = _getBalance(data);
+        _setOutAmount(_getBalance(data, account), account);
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data) - outAmount;
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
     }
 }

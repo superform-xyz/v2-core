@@ -5,7 +5,7 @@ pragma solidity 0.8.30;
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { ISuperHook } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookSetter, ISuperHookResult } from "../interfaces/ISuperHook.sol";
 
 /// @title BaseHook
 /// @author Superform Labs
@@ -14,45 +14,50 @@ import { ISuperHook } from "../interfaces/ISuperHook.sol";
 ///      All specialized hooks should inherit from this base contract
 ///      Implements the ISuperHook interface defined lifecycle methods
 ///      Uses a transient storage pattern for stateful execution context
-abstract contract BaseHook is ISuperHook {
+abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    // forgefmt: disable-start
-    /// @notice The output amount produced by this hook's execution
-    /// @dev Set during postExecute, used by subsequent hooks in the chain
-    uint256 public transient outAmount;
-    
+
     /// @notice The number of shares used by this hook's operation
     /// @dev Used for accounting and tracking consumption of position shares
     uint256 public transient usedShares;
-    
+
     /// @notice The special token address (if any) associated with this hook's operation
     /// @dev May be used to track token addresses for various operations
     address public transient spToken;
-    
+
     /// @notice The primary asset address this hook operates on
     /// @dev Typically the base token or asset being processed
     address public transient asset;
-    
-    /// @notice The address that initiated the first execution in the hook chain
-    /// @dev Used for security validation between preExecute and postExecute calls
-    address public transient lastExecutionCaller;
 
-    /// @notice The vault bank address (if applicable) for cross-chain operations
-    /// @dev Used primarily in bridge hooks to track source/destination vault banks
-    address public transient vaultBank;
-    
-    /// @notice The destination chain ID for cross-chain operations
-    /// @dev Used primarily in bridge hooks to track target chain
-    uint256 public transient dstChainId;
+    /// @notice PreExecute protection: false=callable, true=already_called
+    bool public transient preExecuteMutex;
 
-    // forgefmt: disable-end
+    /// @notice PostExecute protection: false=callable, true=already_called
+    bool public transient postExecuteMutex;
+
+    /// @notice Execution nonce for creating unique contexts
+    uint256 public transient executionNonce;
+
+    /// @notice Last execution context caller
+    address public transient lastCaller;
+
+    // Storage offsets for different state variables
+    uint256 private constant OUT_AMOUNT_OFFSET = 1;
+    uint256 private constant PRE_EXECUTE_MUTEX_OFFSET = 2;
+    uint256 private constant POST_EXECUTE_MUTEX_OFFSET = 3;
+
+    /// @notice Base storage key for hook execution state
+    bytes32 private constant HOOK_EXECUTION_STORAGE = keccak256("hook.execution.state");
+
+    /// @notice Storage key for account context mapping
+    bytes32 private constant ACCOUNT_CONTEXT_STORAGE = keccak256("hook.account.context");
 
     /// @notice The specific subtype identifier for this hook
     /// @dev Used to identify specialized hook types beyond the basic HookType enum
     bytes32 public immutable subType;
-    
+
     /// @notice The type of hook (NONACCOUNTING, INFLOW, OUTFLOW)
     /// @dev Determines how the hook impacts accounting in the system
     ISuperHook.HookType public hookType;
@@ -63,18 +68,38 @@ abstract contract BaseHook is ISuperHook {
     /// @notice Thrown when a caller attempts to execute hook methods without proper authorization
     /// @dev Used by security validation to prevent unauthorized hook execution
     error NOT_AUTHORIZED();
-    
+
     /// @notice Thrown when an amount parameter is invalid (e.g., zero or overflow)
     /// @dev Used in validation checks for asset amounts and share values
     error AMOUNT_NOT_VALID();
-    
+
     /// @notice Thrown when an address parameter is invalid (e.g., zero address)
     /// @dev Used in validation checks for tokens, accounts, and other addresses
     error ADDRESS_NOT_VALID();
-    
+
     /// @notice Thrown when the provided data payload is too short for decoding
     /// @dev Used when validating and parsing hook-specific data parameters
     error DATA_LENGTH_INSUFFICIENT();
+
+    /// @notice Thrown when a caller is not authorized to execute hook methods
+    /// @dev Used by security validation to prevent unauthorized hook execution
+    error UNAUTHORIZED_CALLER();
+
+    /// @notice Thrown when preExecute is called more than once
+    /// @dev Used to prevent reentrancy attacks and ensure proper execution flow
+    error PRE_EXECUTE_ALREADY_CALLED();
+
+    /// @notice Thrown when postExecute is called more than once
+    /// @dev Used to prevent reentrancy attacks and ensure proper execution flow
+    error POST_EXECUTE_ALREADY_CALLED();
+
+    /// @notice Thrown when a hook execution is incomplete
+    /// @dev Used to prevent incomplete hook execution
+    error INCOMPLETE_HOOK_EXECUTION();
+
+    /// @notice Thrown when trying to set outAmount after preExecute or postExecute
+    /// @dev Used to prevent setting outAmount after preExecute or postExecute
+    error CANNOT_SET_OUT_AMOUNT();
 
     /// @notice Initializes the hook with its type and subtype
     /// @dev Sets immutable parameters that define the hook's behavior
@@ -88,28 +113,93 @@ abstract contract BaseHook is ISuperHook {
     /*//////////////////////////////////////////////////////////////
                           EXECUTION SECURITY
     //////////////////////////////////////////////////////////////*/
+    /// @inheritdoc ISuperHook
+    function setExecutionContext(address caller) external {
+        _createExecutionContext(caller);
+        lastCaller = msg.sender;
+    }
 
-    /// @notice Retrieves the address that initiated the current execution context
-    /// @dev Implemented as an external view function to allow for test mocking
-    ///      Used by the security validation system to enforce caller consistency
-    /// @return The address stored as the lastExecutionCaller
-    function getExecutionCaller() public view returns (address) {
-        return lastExecutionCaller;
+    /// @dev Standard build pattern - MUST include preExecute first, postExecute last
+    /// @inheritdoc ISuperHook
+    function build(
+        address prevHook,
+        address account,
+        bytes calldata hookData
+    )
+        external
+        view
+        virtual
+        returns (Execution[] memory executions)
+    {
+        // Get hook-specific executions
+        Execution[] memory hookExecutions = _buildHookExecutions(prevHook, account, hookData);
+
+        // Always include pre + hook + post
+        executions = new Execution[](hookExecutions.length + 2);
+
+        // FIRST: preExecute
+        executions[0] = Execution({
+            target: address(this),
+            value: 0,
+            callData: abi.encodeCall(this.preExecute, (prevHook, account, hookData))
+        });
+
+        // MIDDLE: hook-specific operations
+        for (uint256 i = 0; i < hookExecutions.length; i++) {
+            executions[i + 1] = hookExecutions[i];
+        }
+
+        // LAST: postExecute
+        executions[executions.length - 1] = Execution({
+            target: address(this),
+            value: 0,
+            callData: abi.encodeCall(this.postExecute, (prevHook, account, hookData))
+        });
     }
 
     /// @inheritdoc ISuperHook
-    function build(address prevHook, address account, bytes calldata data) external view virtual returns (Execution[] memory executions) {}
-    
-    /// @inheritdoc ISuperHook
-    function preExecute(address prevHook, address account, bytes calldata data) external  {
-        _validateCaller();
+    function preExecute(address prevHook, address account, bytes calldata data) external {
+        if (msg.sender != account) revert UNAUTHORIZED_CALLER();
+        uint256 context = _getCurrentExecutionContext(account);
+        if (_getPreExecuteMutex(context)) revert PRE_EXECUTE_ALREADY_CALLED();
+        _setPreExecuteMutex(context, true);
         _preExecute(prevHook, account, data);
     }
-    
+
     /// @inheritdoc ISuperHook
-    function postExecute(address prevHook, address account, bytes calldata data) external  {
-        _validateCaller();
+    function postExecute(address prevHook, address account, bytes calldata data) external {
+        if (msg.sender != account) revert UNAUTHORIZED_CALLER();
+        uint256 context = _getCurrentExecutionContext(account);
+        if (_getPostExecuteMutex(context)) revert POST_EXECUTE_ALREADY_CALLED();
+        _setPostExecuteMutex(context, true);
         _postExecute(prevHook, account, data);
+    }
+
+    /// @inheritdoc ISuperHookSetter
+    function setOutAmount(uint256 _outAmount, address caller) external {
+        uint256 context = _getCurrentExecutionContext(caller);
+        if (_getPreExecuteMutex(context) || _getPostExecuteMutex(context)) {
+            revert CANNOT_SET_OUT_AMOUNT();
+        }
+
+        bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
+        assembly {
+            tstore(key, _outAmount)
+        }
+    }
+
+    function getOutAmount(address caller) public view returns (uint256) {
+        return _getOutAmount(_getCurrentExecutionContext(caller));
+    }
+
+    /// @inheritdoc ISuperHook
+    function resetExecutionState(address caller) external {
+        uint256 context = _getCurrentExecutionContext(caller);
+        if (!_getPreExecuteMutex(context) || !_getPostExecuteMutex(context)) {
+            revert INCOMPLETE_HOOK_EXECUTION();
+        }
+
+        _clearExecutionState(context);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -123,29 +213,22 @@ abstract contract BaseHook is ISuperHook {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice Validates that the caller has permission to execute hook methods
-    /// @dev Implements a security pattern to ensure consistent caller identity throughout execution
-    ///      On first call (when lastExecutionCaller is unset), records the caller identity
-    ///      On subsequent calls, enforces that the same address is calling
-    ///      This prevents unauthorized addresses from interfering with ongoing hook execution
-    function _validateCaller() internal {
-        // Get the current execution context caller (via the external function for test mockability)
-        address caller = this.getExecutionCaller();
-
-        // First call in this transaction - allow it and set the caller
-        if (caller == address(0)) {
-            lastExecutionCaller = msg.sender;
-            return;
-        }
-        
-        // Subsequent calls must be from the same caller that initiated execution
-        if (msg.sender == caller) {
-            return;
-        }
-        
-        // If we already had a different caller and now we're trying to call from another address, reject
-        revert NOT_AUTHORIZED();
-    }
+    /// @notice Internal implementation of build
+    /// @dev Abstract function to be implemented by derived hooks
+    ///      Called during build to generate hook-specific execution sequences
+    /// @param prevHook The previous hook in the chain, or address(0) if first hook
+    /// @param account The account that operations will be performed for
+    /// @param data Hook-specific parameters and configuration data
+    /// @return executions Array of execution objects containing target, value, and callData
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
+        view
+        virtual
+        returns (Execution[] memory executions);
 
     /// @notice Internal implementation of preExecute
     /// @dev Abstract function to be implemented by derived hooks
@@ -156,7 +239,7 @@ abstract contract BaseHook is ISuperHook {
     /// @param account The account that operations will be performed for
     /// @param data Hook-specific parameters and configuration data
     function _preExecute(address prevHook, address account, bytes calldata data) internal virtual;
-    
+
     /// @notice Internal implementation of postExecute
     /// @dev Abstract function to be implemented by derived hooks
     ///      Called after execution to finalize the hook's state and set output values
@@ -185,11 +268,96 @@ abstract contract BaseHook is ISuperHook {
     /// @param amount The new amount value to insert
     /// @param offset The position in the array where the amount starts
     /// @return The modified byte array with the replaced amount
-    function _replaceCalldataAmount(bytes memory data, uint256 amount, uint256 offset) internal pure returns (bytes memory) {
+    function _replaceCalldataAmount(
+        bytes memory data,
+        uint256 amount,
+        uint256 offset
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         bytes memory newAmountEncoded = abi.encodePacked(amount);
         for (uint256 i; i < 32; ++i) {
             data[offset + i] = newAmountEncoded[i];
         }
         return data;
-    }   
+    }
+
+    function _makeAccountContextKey(address account) private pure returns (bytes32) {
+        return keccak256(abi.encodePacked(ACCOUNT_CONTEXT_STORAGE, account));
+    }
+
+    function _createExecutionContext(address caller) private returns (uint256) {
+        // Always increment nonce for new execution context
+        executionNonce++;
+        bytes32 key = _makeAccountContextKey(caller);
+
+        // Store this context for the current caller
+        uint256 currentNonce = executionNonce; // Load into local variable for assembly
+        assembly {
+            tstore(key, currentNonce)
+        }
+
+        return executionNonce;
+    }
+
+    function _getCurrentExecutionContext(address caller) private view returns (uint256 context) {
+        bytes32 key = _makeAccountContextKey(caller);
+        assembly {
+            context := tload(key)
+        }
+    }
+
+    function _makeKey(uint256 context, uint256 offset) private pure returns (bytes32) {
+        return keccak256(abi.encodePacked(HOOK_EXECUTION_STORAGE, context, offset));
+    }
+
+    function _getOutAmount(uint256 context) private view returns (uint256 value) {
+        bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
+        assembly {
+            value := tload(key)
+        }
+    }
+
+    function _setOutAmount(uint256 value, address caller) internal {
+        uint256 context = _getCurrentExecutionContext(caller);
+        bytes32 key = _makeKey(context, OUT_AMOUNT_OFFSET);
+        assembly {
+            tstore(key, value)
+        }
+    }
+
+    function _getPreExecuteMutex(uint256 context) private view returns (bool value) {
+        bytes32 key = _makeKey(context, PRE_EXECUTE_MUTEX_OFFSET);
+        assembly {
+            value := tload(key)
+        }
+    }
+
+    function _setPreExecuteMutex(uint256 context, bool value) private {
+        bytes32 key = _makeKey(context, PRE_EXECUTE_MUTEX_OFFSET);
+        assembly {
+            tstore(key, value)
+        }
+    }
+
+    function _getPostExecuteMutex(uint256 context) private view returns (bool value) {
+        bytes32 key = _makeKey(context, POST_EXECUTE_MUTEX_OFFSET);
+        assembly {
+            value := tload(key)
+        }
+    }
+
+    function _setPostExecuteMutex(uint256 context, bool value) private {
+        bytes32 key = _makeKey(context, POST_EXECUTE_MUTEX_OFFSET);
+        assembly {
+            tstore(key, value)
+        }
+    }
+
+    function _clearExecutionState(uint256 context) private {
+        _setPreExecuteMutex(context, false);
+        _setPostExecuteMutex(context, false);
+    }
 }

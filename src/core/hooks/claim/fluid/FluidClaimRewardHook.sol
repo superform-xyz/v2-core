@@ -2,9 +2,9 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IFluidLendingStakingRewards} from "../../../../vendor/fluid/IFluidLendingStakingRewards.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLendingStakingRewards.sol";
 
 // Superform
 import {
@@ -14,14 +14,18 @@ import {
     ISuperHookContextAware,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {BaseClaimRewardHook} from "../BaseClaimRewardHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title FluidClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address stakingRewards = BytesLib.toAddress(data, 0);
+/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address stakingRewards = BytesLib.toAddress(data, 32);
+/// @notice         address rewardToken = BytesLib.toAddress(data, 52);
+/// @notice         address account = BytesLib.toAddress(data, 72);
 contract FluidClaimRewardHook is
     BaseHook,
     BaseClaimRewardHook,
@@ -30,18 +34,25 @@ contract FluidClaimRewardHook is
     ISuperHookContextAware,
     ISuperHookInspector
 {
-    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) {}
+    using HookDataDecoder for bytes;
+
+    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address, address, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
+        address,
+        address,
+        bytes calldata data
+    )
+        internal
         pure
         override
         returns (Execution[] memory executions)
     {
-        address stakingRewards = BytesLib.toAddress(data, 0);
+        address stakingRewards = data.extractYieldSource();
         if (stakingRewards == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(stakingRewards, abi.encodeCall(IFluidLendingStakingRewards.getReward, ()));
@@ -64,20 +75,24 @@ contract FluidClaimRewardHook is
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
-        return abi.encodePacked(BytesLib.toAddress(data, 0));
+        return abi.encodePacked(data.extractYieldSource());
     }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
-        asset = BytesLib.toAddress(data, 20);
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        address stakingRewards = BytesLib.toAddress(data, 32);
+        asset = BytesLib.toAddress(data, 52);
         if (asset == address(0)) revert ASSET_ZERO_ADDRESS();
 
-        outAmount = _getBalance(data);
+        address rewardsToken = IFluidLendingStakingRewards(stakingRewards).rewardsToken();
+        if (asset != rewardsToken) revert INVALID_REWARD_TOKEN();
+
+        _setOutAmount(_getBalance(data, account), account);
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data) - outAmount;
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
     }
 }

@@ -3,22 +3,24 @@ pragma solidity 0.8.30;
 
 import {Helpers} from "../../../../utils/Helpers.sol";
 import {MockERC20} from "../../../../mocks/MockERC20.sol";
+import {Mock4626Vault} from "../../../../mocks/Mock4626Vault.sol";
 import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
 import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
 import {MockHook} from "../../../../mocks/MockHook.sol";
 import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import {IStakedUSDeCooldown} from "../../../../../src/vendor/ethena/IStakedUSDeCooldown.sol";
+import {HookSubTypes} from "../../../../../src/core/libraries/HookSubTypes.sol";
 
 // Hooks
-import {EthenaCooldownSharesHook} from "../../../../../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
-import {EthenaUnstakeHook} from "../../../../../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
+import { EthenaCooldownSharesHook } from "../../../../../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
+import { EthenaUnstakeHook } from "../../../../../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
 
 contract EthenaHooksTests is Helpers {
     EthenaCooldownSharesHook cooldownSharesHook;
     EthenaUnstakeHook unstakeHook;
 
     MockERC20 yieldSource;
-    bytes4 yieldSourceOracleId;
+    bytes32 yieldSourceOracleId;
     uint256 amount;
     uint256 prevHookAmount;
     address receiver;
@@ -28,7 +30,7 @@ contract EthenaHooksTests is Helpers {
         unstakeHook = new EthenaUnstakeHook();
 
         yieldSource = new MockERC20("Yield Source", "YS", 18);
-        yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
+        yieldSourceOracleId = bytes32(keccak256("YIELD_SOURCE_ORACLE_ID"));
         amount = 1000e18;
         prevHookAmount = 2000e18;
         receiver = address(this);
@@ -45,6 +47,10 @@ contract EthenaHooksTests is Helpers {
         assertEq(uint256(unstakeHook.hookType()), uint256(ISuperHook.HookType.OUTFLOW));
     }
 
+    function test_EthenaCooldownSharesSubHookType_Constructor() public view {
+        assertEq(cooldownSharesHook.subType(), HookSubTypes.getHookSubType("Cooldown"));
+    }
+
     /*//////////////////////////////////////////////////////////////
                             BUILD TESTS
     //////////////////////////////////////////////////////////////*/
@@ -52,20 +58,20 @@ contract EthenaHooksTests is Helpers {
         bytes memory data = _encodeCooldownData(false);
         Execution[] memory executions = cooldownSharesHook.build(address(0), address(this), data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(yieldSource));
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(yieldSource));
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
     }
 
     function test_EthenaUnstakeHook_build() public view {
         bytes memory data = _encodeUnstakeData();
         Execution[] memory executions = unstakeHook.build(address(0), address(this), data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(yieldSource));
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(yieldSource));
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -100,28 +106,28 @@ contract EthenaHooksTests is Helpers {
     //////////////////////////////////////////////////////////////*/
     function test_EthenaCooldownSharesHook_BuildWithPrevHook() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, address(yieldSource)));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeCooldownData(true);
         Execution[] memory executions = cooldownSharesHook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(yieldSource));
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(yieldSource));
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
     }
 
     function test_EthenaUnstakeHook_BuildWithPrevHook() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, address(yieldSource)));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeUnstakeData();
         Execution[] memory executions = unstakeHook.build(mockPrevHook, address(this), data);
 
-        assertEq(executions.length, 1);
-        assertEq(executions[0].target, address(yieldSource));
-        assertEq(executions[0].value, 0);
-        assertGt(executions[0].callData.length, 0);
+        assertEq(executions.length, 3);
+        assertEq(executions[1].target, address(yieldSource));
+        assertEq(executions[1].value, 0);
+        assertGt(executions[1].callData.length, 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -133,27 +139,6 @@ contract EthenaHooksTests is Helpers {
         assertEq(decodedAmount, amount);
     }
 
-    function test_EthenaUnstakeHook_DecodeAmount() public view {
-        bytes memory data = _encodeUnstakeData();
-        uint256 decodedAmount = unstakeHook.decodeAmount(data);
-        assertEq(decodedAmount, amount);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                       REPLACE CALLDATA AMOUNT TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_EthenaUnstakeHook_ReplaceCalldataAmount() public view {
-        bytes memory data = _encodeUnstakeData();
-        bytes memory replacedData = unstakeHook.replaceCalldataAmount(data, prevHookAmount);
-
-        // Verify the length is the same
-        assertEq(replacedData.length, data.length);
-
-        // Verify the amount was replaced
-        uint256 replacedAmount = unstakeHook.decodeAmount(replacedData);
-        assertEq(replacedAmount, prevHookAmount);
-    }
-
     /*//////////////////////////////////////////////////////////////
                           PRE/POST EXECUTE TESTS
     //////////////////////////////////////////////////////////////*/
@@ -162,36 +147,15 @@ contract EthenaHooksTests is Helpers {
 
         bytes memory data = _encodeCooldownData(false);
         cooldownSharesHook.preExecute(address(0), address(this), data);
-        assertEq(cooldownSharesHook.outAmount(), amount);
+        assertEq(cooldownSharesHook.usedShares(), amount, "A");
 
         cooldownSharesHook.postExecute(address(0), address(this), data);
-        assertEq(cooldownSharesHook.outAmount(), 0);
-    }
-
-    function test_EthenaUnstakeHook_PrePostExecute() public {
-        _getTokens(address(yieldSource), address(this), amount);
-
-        bytes memory data = _encodeUnstakeData();
-        unstakeHook.preExecute(address(0), address(this), data);
-        assertEq(unstakeHook.outAmount(), amount);
-
-        unstakeHook.postExecute(address(0), address(this), data);
-        assertEq(unstakeHook.outAmount(), 0);
+        assertEq(cooldownSharesHook.usedShares(), 0, "B");
     }
 
     /*//////////////////////////////////////////////////////////////
                      GET USED ASSETS OR SHARES TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_EthenaCooldownSharesHook_GetUsedAssetsOrShares() public {
-        _getTokens(address(yieldSource), address(this), amount);
-
-        bytes memory data = _encodeCooldownData(false);
-        cooldownSharesHook.preExecute(address(0), address(this), data);
-
-        (uint256 usedAssets, bool isShares) = cooldownSharesHook.getUsedAssetsOrShares();
-        assertEq(usedAssets, amount);
-        assertEq(isShares, true);
-    }
 
     function test_cooldownSharesHook_Inspector() public view {
         bytes memory data = _encodeCooldownData(false);
@@ -208,6 +172,23 @@ contract EthenaHooksTests is Helpers {
     /*//////////////////////////////////////////////////////////////
                               HELPERS
     //////////////////////////////////////////////////////////////*/
+    function _encodeUnstakeDataWithCustomValues(
+        address _yieldSource,
+        address _vaultBank,
+        uint256 _dstChainId
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
+        return abi.encodePacked(
+            yieldSourceOracleId, // bytes4 placeholder
+            _yieldSource, // address yieldSource
+            _vaultBank, // address vaultBank
+            _dstChainId // uint256 dstChainId
+        );
+    }
+
     function _encodeCooldownData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(yieldSourceOracleId, address(yieldSource), amount, usePrevHook);
     }
@@ -221,10 +202,14 @@ contract EthenaHooksTests is Helpers {
     }
 
     function _encodeUnstakeData() internal view returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, address(yieldSource), amount, false, address(0), uint256(1));
+        return abi.encodePacked(yieldSourceOracleId, address(yieldSource), amount);
+    }
+
+    function _encodeUnstakeData(address customYieldSource) internal view returns (bytes memory) {
+        return abi.encodePacked(yieldSourceOracleId, customYieldSource, amount, false);
     }
 
     function _encodeUnstakeDataWithZeroYieldSource() internal view returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, address(0), amount, false, address(0), uint256(1));
+        return abi.encodePacked(yieldSourceOracleId, address(0), amount);
     }
 }

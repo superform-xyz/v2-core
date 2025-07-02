@@ -31,6 +31,54 @@
     {
       "symbol": "GearboxVault",
       "address": "0xda00000035fef4082F78dEF6A8903bee419FbF8E"
+    },
+    {
+      "symbol": "test_1_DynamicAllocation_MockVault",
+      "address": "0x273FcDE7FaE7aE912449B6c29E435EF2A09109F2"
+    },
+    {
+      "symbol": "test_3_UnderlyingVaults_StressTest",
+      "address": "0xE811B64ec8155Fd09A6a41Aec6304eea65abA489"
+    },
+    {
+      "symbol": "test_6_yieldAccumulation_vault1",
+      "address": "0x9F45e7Bd7c052EfA504F96D419DC0d8c4eAf4817"
+    },
+    {
+      "symbol": "test_6_yieldAccumulation_vault2",
+      "address": "0x9aCd1932A27df607BEf0B189FE59ee5198c387cA"
+    },
+    {
+      "symbol": "test_6_yieldAccumulation_vault3",
+      "address": "0x3F8E266097bD5e283415F9121072775eE7e515BA"
+    },
+    {
+      "symbol": "test_6_yieldAccumulation_WithRebalancing_vault1",
+      "address": "0x97E8Ed255eC57395e49F232e351af77580c7b757"
+    },
+    {
+      "symbol": "test_6_yieldAccumulation_WithRebalancing_vault2",
+      "address": "0xf95f423d11dBf1d6562883F5CCc5870ef7FD80cF"
+    },
+    {
+      "symbol": "test_6_yieldAccumulation_WithRebalancing_vault3",
+      "address": "0x53A0fe9F918564556846A89cC7E4FCA39793A122"
+    },
+    {
+      "symbol": "test_10_RuggableVault_Deposit",
+      "address": "0x82304f7b5E252Ce000992b606a6d74BcE0Dde1C2"
+    },
+    {
+      "symbol": "test_10_RuggableVault_Withdraw",
+      "address": "0xf9622ef687564AfF6EE6F4CB08e9c8914303D17D"
+    },
+    {
+      "symbol": "test_10_RuggableVault_Withdraw_ConvertDistortion",
+      "address": "0xCCD1275961A2f604CAe254D891D29fb7B43ACF0b"
+    },
+    {
+      "symbol": "test_11_Allocate_NewYieldSource",
+      "address": "0x40C882E3a611C429EE43f2420a5047618f18c4AC"
     }
   ],
   "10": [

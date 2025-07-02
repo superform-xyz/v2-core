@@ -186,7 +186,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
 
         bytes[] memory hookCalldata = new bytes[](1);
         hookCalldata[0] = _createApproveAndDeposit5115VaultHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             pendleEthenaAddress,
             address(asset),
             amount,
@@ -238,7 +238,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
 
         bytes[] memory hookCalldata = new bytes[](2);
         hookCalldata[0] = _createApproveAndRedeem5115VaultHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             pendleEthenaAddress,
             pendleEthena.yieldToken(),
             tokenOut,
@@ -250,7 +250,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
         );
 
         hookCalldata[1] =
-            abi.encodePacked(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), tokenOut, underlyingAssetsOut, false);
+            abi.encodePacked(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), tokenOut, underlyingAssetsOut, false);
 
         vm.startPrank(STRATEGIST);
         strategy.executeHooks(
@@ -284,7 +284,7 @@ contract SuperVault5115Underlying is BaseSuperVaultTest {
 
         bytes[] memory fulfillHooksData = new bytes[](1);
         fulfillHooksData[0] =
-            abi.encodePacked(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), tokenOut, shares, address(strategy), false);
+            abi.encodePacked(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), tokenOut, shares, address(strategy), false);
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
         expectedAssetsOrSharesOut[0] = underlyingAssetsOut;

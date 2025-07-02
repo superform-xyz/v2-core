@@ -14,8 +14,8 @@ import {ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
 /// @title CancelRedeemRequest7540Hook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
+/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 contract CancelRedeemRequest7540Hook is BaseHook, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
@@ -24,8 +24,9 @@ contract CancelRedeemRequest7540Hook is BaseHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address, address account, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(address, address account, bytes calldata data)
+        internal
         pure
         override
         returns (Execution[] memory executions)

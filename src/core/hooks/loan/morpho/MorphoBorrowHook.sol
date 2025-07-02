@@ -2,20 +2,19 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {IOracle} from "../../../../vendor/morpho/IOracle.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IMorphoBase, MarketParams} from "../../../../vendor/morpho/IMorpho.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { IOracle } from "../../../../vendor/morpho/IOracle.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IMorphoBase, MarketParams } from "../../../../vendor/morpho/IMorpho.sol";
 
 // Superform
-import {BaseMorphoLoanHook} from "./BaseMorphoLoanHook.sol";
-import {ISuperHook, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {ISuperHookLoans} from "../../../interfaces/ISuperHook.sol";
-import {ISuperHookResult} from "../../../interfaces/ISuperHook.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoBorrowHook
 /// @author Superform Labs
@@ -68,9 +67,12 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function build(address prevHook, address account, bytes memory data)
-        external
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -78,40 +80,26 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
         BorrowHookLocalVars memory vars = _decodeBorrowHookData(data);
 
         if (vars.usePrevHookAmount) {
-            vars.amount = ISuperHookResult(prevHook).outAmount();
+            vars.amount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         if (vars.amount == 0) revert AMOUNT_NOT_VALID();
-        if (vars.loanToken == address(0) || vars.collateralToken == address(0)) revert ADDRESS_NOT_VALID();
+        if (
+            vars.loanToken == address(0) || vars.collateralToken == address(0) || vars.oracle == address(0)
+                || vars.irm == address(0)
+        ) {
+            revert ADDRESS_NOT_VALID();
+        }
 
         MarketParams memory marketParams =
             _generateMarketParams(vars.loanToken, vars.collateralToken, vars.oracle, vars.irm, vars.lltv);
 
-        uint256 loanAmount = deriveLoanAmount(vars.amount, vars.ltvRatio, vars.lltv, vars.oracle);
-
-        executions = new Execution[](4);
-        executions[0] =
-            Execution({target: vars.collateralToken, value: 0, callData: abi.encodeCall(IERC20.approve, (morpho, 0))});
-        executions[1] = Execution({
-            target: vars.collateralToken,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (morpho, vars.amount))
-        });
-        executions[2] = Execution({
+        executions = new Execution[](1);
+        executions[0] = Execution({
             target: morpho,
             value: 0,
-            callData: abi.encodeCall(IMorphoBase.supplyCollateral, (marketParams, vars.amount, account, ""))
+            callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, vars.amount, 0, account, account))
         });
-        executions[3] = Execution({
-            target: morpho,
-            value: 0,
-            callData: abi.encodeCall(IMorphoBase.borrow, (marketParams, loanAmount, 0, account, account))
-        });
-    }
-
-    /// @inheritdoc ISuperHookLoans
-    function getUsedAssets(address, bytes memory) external view returns (uint256) {
-        return outAmount;
     }
 
     /// @inheritdoc ISuperHookInspector
@@ -124,27 +112,6 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
         return abi.encodePacked(
             marketParams.loanToken, marketParams.collateralToken, marketParams.oracle, marketParams.irm
         );
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                            PUBLIC METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @dev This function returns the loan amount required for a given collateral amount.
-    /// @dev It corresponds to the price of 10**(collateral token decimals) assets of collateral token quoted in
-    /// 10**(loan token decimals) assets of loan token with `36 + loan token decimals - collateral token decimals`
-    /// decimals of precision.
-    function deriveLoanAmount(uint256 collateralAmount, uint256 ltvRatio, uint256 lltv, address oracle)
-        public
-        view
-        returns (uint256 loanAmount)
-    {
-        IOracle oracleInstance = IOracle(oracle);
-        uint256 price = oracleInstance.price();
-
-        if (ltvRatio >= lltv) revert LTV_RATIO_NOT_VALID();
-
-        uint256 fullAmount = Math.mulDiv(collateralAmount, price, PRICE_SCALING_FACTOR);
-        loanAmount = Math.mulDiv(fullAmount, ltvRatio, PERCENTAGE_SCALING_FACTOR);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -174,10 +141,10 @@ contract MorphoBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
 
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
-        outAmount = getCollateralTokenBalance(account, data);
+        _setOutAmount(getLoanTokenBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = outAmount - getCollateralTokenBalance(account, data);
+        _setOutAmount(getLoanTokenBalance(account, data) - getOutAmount(account), account);
     }
 }

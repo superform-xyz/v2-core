@@ -32,7 +32,7 @@ import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounti
 import { MorphoRepayAndWithdrawHook } from "../../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
 import { ISuperVaultStrategy } from "../../../src/periphery/interfaces/ISuperVaultStrategy.sol";
 import { ISuperVaultFactory } from "../../../src/periphery/interfaces/ISuperVaultFactory.sol";
-import { MorphoBorrowHook } from "../../../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoSupplyAndBorrowHook } from "../../../src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
 import { MorphoRepayHook } from "../../../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
 import { SuperVaultFactory } from "../../../src/periphery/SuperVaultFactory.sol";
 import { SuperVaultStrategy } from "../../../src/periphery/SuperVaultStrategy.sol";
@@ -76,7 +76,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
     ISuperExecutor public superExecutorOnBase;
 
     MorphoRepayAndWithdrawHook public withdrawHook;
-    MorphoBorrowHook public borrowHook;
+    MorphoSupplyAndBorrowHook public borrowHook;
     MorphoRepayHook public repayHook;
 
     MarketParams public marketParams;
@@ -195,7 +195,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         deal(address(loanToken), swapRouter, 1e18);
 
         withdrawHook = new MorphoRepayAndWithdrawHook(MORPHO);
-        borrowHook = new MorphoBorrowHook(MORPHO);
+        borrowHook = new MorphoSupplyAndBorrowHook(MORPHO);
         repayHook = new MorphoRepayHook(MORPHO);
 
         ltvRatio = 0.75e18;
@@ -387,7 +387,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         hooks[0] = hook;
 
         bytes memory hookData =
-            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, ltvRatio, false, lltv);
+            _createMorphoSupplyAndBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, ltvRatio, false, lltv);
         bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;
 
@@ -424,7 +424,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         hooks[0] = hook;
 
         bytes memory hookData =
-            _createMorphoBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, ltvRatio, false, lltv);
+            _createMorphoSupplyAndBorrowHookData(loanToken, collateralToken, oracleAddress, irm, amount, ltvRatio, false, lltv);
 
         bytes[] memory hookDataArray = new bytes[](1);
         hookDataArray[0] = hookData;
@@ -455,7 +455,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         bytes[] memory depositHookDataArray = new bytes[](1);
         depositHookDataArray[0] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), morphoVault, collateralToken, amount, false, false
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), morphoVault, collateralToken, amount, false, false
         );
 
         uint256[] memory expectedAssetsOrSharesOut = new uint256[](1);
@@ -479,7 +479,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), depositAmount, false, false
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), depositAmount, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
@@ -495,7 +495,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createRequestRedeem7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), redeemShares, false
+            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), redeemShares, false
         );
 
         ISuperExecutor.ExecutorEntry memory redeemEntry =
@@ -510,7 +510,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         address[] memory requestingUsers = new address[](1);
         requestingUsers[0] = accountBase;
 
-        address redeemHook = _getHookAddress(BASE, APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
+        address redeemHook = _getHookAddress(BASE, REDEEM_4626_VAULT_HOOK_KEY);
 
         address[] memory redeemHooks = new address[](1);
         redeemHooks[0] = redeemHook;
@@ -518,9 +518,8 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
         uint256 redeemShares = strategy.pendingRedeemRequest(accountBase);
 
         bytes[] memory redeemHookData = new bytes[](1);
-        redeemHookData[0] = _createApproveAndRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
-            address(morphoVaultInstance),
+        redeemHookData[0] = _createRedeem4626HookData(
+            bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             address(morphoVaultInstance),
             address(strategy),
             redeemShares,
@@ -552,7 +551,7 @@ contract SuperVaultLoanDepositTest is BaseSuperVaultTest {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), withdrawAssets, false, false
+            bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(vault), withdrawAssets, false, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =

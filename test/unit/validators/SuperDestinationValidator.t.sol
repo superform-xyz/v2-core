@@ -12,7 +12,7 @@ import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProo
 // Superform
 import {SuperDestinationValidator} from "../../../src/core/validators/SuperDestinationValidator.sol";
 import {SuperValidatorBase} from "../../../src/core/validators/SuperValidatorBase.sol";
-import {ISuperSignatureStorage} from "../../../src/core/interfaces/ISuperSignatureStorage.sol";
+import {ISuperValidator} from "../../../src/core/interfaces/ISuperValidator.sol";
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MerkleTreeHelper} from "../../utils/MerkleTreeHelper.sol";
@@ -59,7 +59,7 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
 
     uint256 executorNonce;
 
-    bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
+    bytes4 constant VALID_SIGNATURE = bytes4(0x5c2ec0f3);
 
     function setUp() public {
         validator = new SuperDestinationValidator();
@@ -125,18 +125,18 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             abi.encodeWithSelector(IERC20.approve.selector, address(this), 1e18),
             address(instance.defaultValidator)
         );
-        vm.expectRevert(SuperDestinationValidator.NOT_IMPLEMENTED.selector);
+        vm.expectRevert(ISuperValidator.NOT_IMPLEMENTED.selector);
         validator.validateUserOp(userOpData.userOp, bytes32(0));
     }
 
     function test_DestinationValidator_isValidSignatureWithSender_NotImplemented() public {
-        vm.expectRevert(SuperDestinationValidator.NOT_IMPLEMENTED.selector);
+        vm.expectRevert(ISuperValidator.NOT_IMPLEMENTED.selector);
         validator.isValidSignatureWithSender(account, bytes32(0), "");
     }
 
     function test_DestinationValidator_OnUninstall_RevertIf_NotInitialized() public {
         vm.startPrank(makeAddr("account"));
-        vm.expectRevert(ISuperSignatureStorage.NOT_INITIALIZED.selector);
+        vm.expectRevert(ISuperValidator.NOT_INITIALIZED.selector);
         validator.onUninstall("");
         vm.stopPrank();
     }
@@ -177,7 +177,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             approveDestinationData.executor,
             approveDestinationData.dstTokens,
             approveDestinationData.intentAmounts,
-            validUntil
+            validUntil,
+            address(validator)
         );
         leaves[1] = _createDestinationValidatorLeaf(
             transferDestinationData.callData,
@@ -186,7 +187,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             transferDestinationData.executor,
             transferDestinationData.dstTokens,
             transferDestinationData.intentAmounts,
-            validUntil
+            validUntil,
+            address(validator)
         );
         leaves[2] = _createDestinationValidatorLeaf(
             depositDestinationData.callData,
@@ -195,7 +197,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             depositDestinationData.executor,
             depositDestinationData.dstTokens,
             depositDestinationData.intentAmounts,
-            validUntil
+            validUntil,
+            address(validator)
         );
         leaves[3] = _createDestinationValidatorLeaf(
             withdrawDestinationData.callData,
@@ -204,7 +207,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             withdrawDestinationData.executor,
             withdrawDestinationData.dstTokens,
             withdrawDestinationData.intentAmounts,
-            validUntil
+            validUntil,
+            address(validator)
         );
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
@@ -226,7 +230,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             approveDestinationData.executor,
             approveDestinationData.dstTokens,
             approveDestinationData.intentAmounts,
-            validUntil
+            validUntil,
+            address(validator)
         );
         leaves[1] = _createDestinationValidatorLeaf(
             transferDestinationData.callData,
@@ -235,7 +240,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             transferDestinationData.executor,
             transferDestinationData.dstTokens,
             transferDestinationData.intentAmounts,
-            validUntil
+            validUntil,
+            address(validator)
         );
         leaves[2] = _createDestinationValidatorLeaf(
             depositDestinationData.callData,
@@ -244,7 +250,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             depositDestinationData.executor,
             depositDestinationData.dstTokens,
             depositDestinationData.intentAmounts,
-            validUntil
+            validUntil,
+            address(validator)
         );
         leaves[3] = _createDestinationValidatorLeaf(
             withdrawDestinationData.callData,
@@ -253,7 +260,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             withdrawDestinationData.executor,
             withdrawDestinationData.dstTokens,
             withdrawDestinationData.intentAmounts,
-            validUntil
+            validUntil,
+            address(validator)
         );
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
@@ -291,7 +299,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             approveDestinationData.executor,
             approveDestinationData.dstTokens,
             approveDestinationData.intentAmounts,
-            validUntil
+            validUntil,
+            address(validator)
         );
         leaves[1] = _createDestinationValidatorLeaf(
             transferDestinationData.callData,
@@ -300,7 +309,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             transferDestinationData.executor,
             transferDestinationData.dstTokens,
             transferDestinationData.intentAmounts,
-            validUntil
+            validUntil,
+            address(validator)
         );
         leaves[2] = _createDestinationValidatorLeaf(
             depositDestinationData.callData,
@@ -309,7 +319,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             depositDestinationData.executor,
             depositDestinationData.dstTokens,
             depositDestinationData.intentAmounts,
-            validUntil
+            validUntil,
+            address(validator)
         );
         leaves[3] = _createDestinationValidatorLeaf(
             withdrawDestinationData.callData,
@@ -318,14 +329,27 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
             withdrawDestinationData.executor,
             withdrawDestinationData.dstTokens,
             withdrawDestinationData.intentAmounts,
-            validUntil
+            validUntil,
+            address(validator)
         );
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
         bytes memory signature = _getSignature(root);
 
-        bytes memory sigDataRaw = abi.encode(validUntil, root, proof[0], proof[0], signature);
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+
+        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
+            data: approveDestinationData.callData,
+            executor: approveDestinationData.executor,
+            dstTokens: approveDestinationData.dstTokens,
+            intentAmounts: approveDestinationData.intentAmounts,
+            account: approveDestinationData.sender,
+            validator: address(validator)
+        });
+        proofDst[0] = ISuperValidator.DstProof({proof: proof[0], dstChainId: uint64(block.chainid), info: dstInfo});
+
+        bytes memory sigDataRaw = abi.encode(false, validUntil, root, proof, proofDst, signature);
 
         bytes memory destinationDataRaw = abi.encode(
             approveDestinationData.callData,
@@ -367,7 +391,19 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
         bytes memory signature,
         DestinationData memory destinationData
     ) private view {
-        bytes memory sigDataRaw = abi.encode(validUntil, root, proof, proof, signature);
+
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+
+        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
+            data: destinationData.callData,
+            executor: destinationData.executor,
+            dstTokens: destinationData.dstTokens,
+            intentAmounts: destinationData.intentAmounts,
+            account: destinationData.sender,
+            validator: address(validator)
+        });
+        proofDst[0] = ISuperValidator.DstProof({proof: proof, dstChainId: uint64(block.chainid), info: dstInfo});
+        bytes memory sigDataRaw = abi.encode(false, validUntil, root, proof, proofDst, signature);
 
         bytes memory destinationDataRaw = abi.encode(
             destinationData.callData,
@@ -383,7 +419,7 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
         assertEq(validationResult, VALID_SIGNATURE, "Sig should be valid");
     }
 
-    function _createValidatorLeaf(DestinationData memory destinationData, uint48 validUntil)
+    function _createValidatorLeaf(DestinationData memory destinationData, uint48 validUntil, address _validator)
         private
         view
         returns (bytes32)
@@ -399,7 +435,8 @@ contract SuperDestinationValidatorTest is MerkleTreeHelper, RhinestoneModuleKit 
                         destinationData.executor,
                         destinationData.dstTokens,
                         destinationData.intentAmounts,
-                        validUntil
+                        validUntil,
+                        _validator
                     )
                 )
             )

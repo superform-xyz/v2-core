@@ -8,10 +8,10 @@ import {IAcrossSpokePoolV3} from "../../../../vendor/bridges/across/IAcrossSpoke
 import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {ISuperSignatureStorage} from "../../../interfaces/ISuperSignatureStorage.sol";
-import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
@@ -56,6 +56,11 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
         bytes destinationMessage;
     }
 
+    /*//////////////////////////////////////////////////////////////
+                                 ERRORS
+    //////////////////////////////////////////////////////////////*/
+    error DATA_NOT_VALID();
+
     constructor(address spokePoolV3_, address validator_) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
         if (spokePoolV3_ == address(0) || validator_ == address(0)) revert ADDRESS_NOT_VALID();
         spokePoolV3 = spokePoolV3_;
@@ -65,12 +70,19 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address account, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
         view
         override
         returns (Execution[] memory executions)
     {
+        if (data.length < 217) revert DATA_NOT_VALID();
+
         AcrossV3DepositAndExecuteData memory acrossV3DepositAndExecuteData;
         acrossV3DepositAndExecuteData.value = BytesLib.toUint256(data, 0);
         acrossV3DepositAndExecuteData.recipient = BytesLib.toAddress(data, 32);
@@ -86,7 +98,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
         acrossV3DepositAndExecuteData.destinationMessage = BytesLib.slice(data, 217, data.length - 217);
 
         if (acrossV3DepositAndExecuteData.usePrevHookAmount) {
-            uint256 outAmount = ISuperHookResult(prevHook).outAmount();
+            uint256 outAmount = ISuperHookResult(prevHook).getOutAmount(account);
 
             // update `outputAmount` with the % `inputAmount` was updated by
             if ( acrossV3DepositAndExecuteData.inputAmount > 0 && acrossV3DepositAndExecuteData.outputAmount > 0) {
@@ -176,7 +188,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata) internal override {}
+    function _preExecute(address, address, bytes calldata) internal override { }
 
-    function _postExecute(address, address, bytes calldata) internal override {}
+    function _postExecute(address, address, bytes calldata) internal override { }
 }

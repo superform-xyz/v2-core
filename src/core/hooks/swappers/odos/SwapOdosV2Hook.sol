@@ -2,17 +2,17 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IOdosRouterV2} from "../../../../vendor/odos/IOdosRouterV2.sol";
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IOdosRouterV2 } from "../../../../vendor/odos/IOdosRouterV2.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
-/// @title SwapOdosHook
+/// @title SwapOdosV2Hook
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         address inputToken = BytesLib.toAddress(data, 0);
@@ -26,7 +26,7 @@ import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../
 /// @notice         bytes pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
 /// @notice         address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
 /// @notice         uint32 referralCode = BytesLib.toUint32(data, 189 + pathDefinition_paramLength + 20);
-contract SwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract SwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     IOdosRouterV2 public immutable odosRouterV2;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
@@ -39,8 +39,13 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function build(address prevHook, address account, bytes memory data)
-        external
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
+        internal
         view
         override
         returns (Execution[] memory executions)
@@ -54,7 +59,7 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
 
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
         if (usePrevHookAmount) {
-            inputAmount = ISuperHookResult(prevHook).outAmount();
+            inputAmount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
         executions = new Execution[](1);
@@ -93,11 +98,11 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+        _setOutAmount(_getBalance(account, data), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        _setOutAmount(_getBalance(account, data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -113,7 +118,11 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
         return IERC20(outputToken).balanceOf(account);
     }
 
-    function _getSwapInfo(address account, address prevHook, bytes memory data)
+    function _getSwapInfo(
+        address account,
+        address prevHook,
+        bytes memory data
+    )
         private
         view
         returns (IOdosRouterV2.swapTokenInfo memory)
@@ -127,7 +136,7 @@ contract SwapOdosHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            inputAmount = ISuperHookResult(prevHook).outAmount();
+            inputAmount = ISuperHookResult(prevHook).getOutAmount(account);
         }
         return IOdosRouterV2.swapTokenInfo(
             inputToken, inputAmount, inputReceiver, outputToken, outputQuote, outputMin, account

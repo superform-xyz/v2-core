@@ -10,7 +10,7 @@ abstract contract VaultBankDestination is IVaultBankDestination {
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
     // synthetic assets
-    mapping(uint64 srcChainId => mapping(address srcTokenAddress => address superPositions)) internal
+    mapping(uint64 srcChainId => mapping(bytes32 yieldSourceOracleId => mapping(address srcTokenAddress => address superPositions))) internal
         _tokenToSuperPosition;
     mapping(address spToken => SpAsset) internal _spAssetsInfo;
 
@@ -18,13 +18,13 @@ abstract contract VaultBankDestination is IVaultBankDestination {
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc IVaultBankDestination
-    function getSuperPositionForAsset(uint64 srcChainId, address srcAsset) external view returns (address) {
-        return _tokenToSuperPosition[srcChainId][srcAsset];
+    function getSuperPositionForAsset(uint64 srcChainId, address srcAsset, bytes32 yieldSourceOracleId) external view returns (address) {
+        return _tokenToSuperPosition[srcChainId][yieldSourceOracleId][srcAsset];
     }
 
     /// @inheritdoc IVaultBankDestination
-    function getAssetForSuperPosition(uint64 srcChainId, address superPosition) external view returns (address) {
-        return _spAssetsInfo[superPosition].spToToken[srcChainId];
+    function getAssetForSuperPosition(uint64 srcChainId, address superPosition, bytes32 yieldSourceOracleId) external view returns (address) {
+        return _spAssetsInfo[superPosition].spToToken[srcChainId][yieldSourceOracleId];
     }
 
     /// @inheritdoc IVaultBankDestination
@@ -33,9 +33,10 @@ abstract contract VaultBankDestination is IVaultBankDestination {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
+                            PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _retrieveSuperPosition(
+        bytes32 yieldSourceOracleId,
         uint64 srcChainId,
         address srcAsset,
         string calldata _srcName,
@@ -45,12 +46,12 @@ abstract contract VaultBankDestination is IVaultBankDestination {
         internal
         returns (address)
     {
-        address _created = _tokenToSuperPosition[srcChainId][srcAsset];
+        address _created = _tokenToSuperPosition[srcChainId][yieldSourceOracleId][srcAsset];
         if (_created != address(0)) return _created;
 
-        _created = address(new VaultBankSuperPosition(_srcName, _srcSymbol, _srcDecimals));
-        _tokenToSuperPosition[srcChainId][srcAsset] = _created;
-        _spAssetsInfo[_created].spToToken[srcChainId] = srcAsset;
+        _created = address(new VaultBankSuperPosition(_srcName, _srcSymbol, _srcDecimals, yieldSourceOracleId));
+        _tokenToSuperPosition[srcChainId][yieldSourceOracleId][srcAsset] = _created;
+        _spAssetsInfo[_created].spToToken[srcChainId][yieldSourceOracleId] = srcAsset;
         _spAssetsInfo[_created].wasCreated = true;
         return _created;
     }

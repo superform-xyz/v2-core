@@ -73,20 +73,20 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHook
-    function build(
+    /// @inheritdoc BaseHook
+    function _buildHookExecutions(
         address prevHook,
         address account,
         bytes calldata data
     )
-        external
+        internal
         view
         override
         returns (Execution[] memory executions)
     {
         DecodedParams memory params = _decodeAndValidateData(data);
 
-        uint256 finalAmount = _determineFinalAmount(params.amountFromData, params.usePrevHookAmount, prevHook);
+        uint256 finalAmount = _determineFinalAmount(params.amountFromData, params.usePrevHookAmount, prevHook, account);
 
         executions = new Execution[](3);
         executions[0] = Execution({
@@ -128,11 +128,11 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(data, account);
+        _setOutAmount(_getBalance(data, account), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(data, account) - outAmount;
+        _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -169,14 +169,15 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
     function _determineFinalAmount(
         uint256 amountFromData,
         bool usePrevHookAmount,
-        address prevHook
+        address prevHook,
+        address account
     )
         private
         view
         returns (uint256 finalAmount)
     {
         if (usePrevHookAmount) {
-            finalAmount = ISuperHookResult(prevHook).outAmount();
+            finalAmount = ISuperHookResult(prevHook).getOutAmount(account);
             if (finalAmount == 0) revert AMOUNT_NOT_VALID(); // Amount from prevHook must be > 0
         } else {
             if (amountFromData == 0) revert AMOUNT_NOT_VALID(); // Amount from data must be > 0

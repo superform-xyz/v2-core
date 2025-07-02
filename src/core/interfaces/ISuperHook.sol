@@ -2,7 +2,7 @@
 pragma solidity 0.8.30;
 
 // external
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 /**
  * @title SuperHook System
@@ -20,9 +20,36 @@ import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
  *      - OUTFLOW: Hooks that process withdrawals or reductions to positions
  */
 
+interface ISuperLockableHook {
+    /// @notice Extracts the vault bank and destination chain ID
+    /// @dev Used to retrieve lock details for cross-chain operations
+    /// @return vaultBank The vault bank address
+    /// @return dstChainId The destination chain ID
+    /// @return yieldSourceOracleId The yield source oracle ID
+    function extractLockDetails(bytes memory hookData) external view returns (address, uint256, bytes32);
+
+    /// @notice The vault bank address used to lock SuperPositions
+    /// @dev Only relevant for cross-chain operations where positions are locked
+    /// @return The vault bank address, or address(0) if not applicable
+    function vaultBank() external view returns (address);
+
+    /// @notice The destination chain ID for cross-chain operations
+    /// @dev Used to identify the target chain for cross-chain position transfers
+    /// @return The destination chain ID, or 0 if not a cross-chain operation
+    function dstChainId() external view returns (uint256);
+}
+
+interface ISuperHookSetter {
+    /// @notice Sets the output amount for the hook
+    /// @dev Used for updating `outAmount` when fees were deducted
+    /// @param outAmount The amount of tokens processed by the hook
+    /// @param caller The caller address for context identification
+    function setOutAmount(uint256 outAmount, address caller) external;
+}
 /// @title ISuperHookInspector
 /// @author Superform Labs
 /// @notice Interface for the SuperHookInspector contract that manages hook inspection
+
 interface ISuperHookInspector {
     /// @notice Inspect the hook
     /// @param data The hook data to inspect
@@ -39,10 +66,6 @@ interface ISuperHookResult {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @notice The amount of tokens processed by the hook
-    /// @dev This is the primary output value used by subsequent hooks and for accounting
-    /// @return The amount of tokens (assets or shares) processed
-    function outAmount() external view returns (uint256);
 
     /// @notice The type of hook
     /// @dev Used to determine how accounting should process this hook's results
@@ -59,15 +82,11 @@ interface ISuperHookResult {
     /// @return The address of the asset token, or address(0) for native assets
     function asset() external view returns (address);
 
-    /// @notice The vault bank address used to lock SuperPositions
-    /// @dev Only relevant for cross-chain operations where positions are locked
-    /// @return The vault bank address, or address(0) if not applicable
-    function vaultBank() external view returns (address);
-
-    /// @notice The destination chain ID for cross-chain operations
-    /// @dev Used to identify the target chain for cross-chain position transfers
-    /// @return The destination chain ID, or 0 if not a cross-chain operation
-    function dstChainId() external view returns (uint256);
+    /// @notice The amount of tokens processed by the hook in a given caller context, subject to fees after update
+    /// @dev This is the primary output value used by subsequent hooks
+    /// @param caller The caller address for context identification
+    /// @return The amount of tokens (assets or shares) processed
+    function getOutAmount(address caller) external view returns (uint256);
 }
 
 /// @title ISuperHookContextAware
@@ -117,18 +136,6 @@ interface ISuperHookResultOutflow is ISuperHookResult {
     function usedShares() external view returns (uint256);
 }
 
-/// @title ISuperHookAsync
-/// @author Superform Labs
-/// @notice Interface for hooks that perform asynchronous operations
-/// @dev Used for operations that may complete in a separate transaction
-interface ISuperHookAsync {
-    /// @notice Retrieves the amount of assets or shares processed asynchronously
-    /// @dev Used to track the quantities involved in pending async operations
-    /// @return amount The amount of tokens processed
-    /// @return isShares True if the amount represents shares, false if it represents assets
-    function getUsedAssetsOrShares() external view returns (uint256 amount, bool isShares);
-}
-
 /// @title ISuperHookLoans
 /// @author Superform Labs
 /// @notice Interface for hooks that interact with lending protocols
@@ -159,13 +166,6 @@ interface ISuperHookLoans is ISuperHookContextAware {
     /// @param data The hook-specific data containing collateral parameters
     /// @return The amount of tokens currently used as collateral
     function getCollateralTokenBalance(address account, bytes memory data) external view returns (uint256);
-
-    /// @notice Gets the amount of assets used in the loan operation
-    /// @dev Used for accounting and tracking of asset usage
-    /// @param account The account to check
-    /// @param data The hook-specific data
-    /// @return The amount of assets used
-    function getUsedAssets(address account, bytes memory data) external view returns (uint256);
 }
 
 /// @title ISuperHookAsyncCancelations
@@ -218,7 +218,11 @@ interface ISuperHook {
     /// @param account The account to perform executions for (usually an ERC7579 account)
     /// @param data The hook-specific parameters and configuration data
     /// @return executions Array of Execution structs defining calls to make
-    function build(address prevHook, address account, bytes memory data)
+    function build(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
         external
         view
         returns (Execution[] memory executions);
@@ -247,4 +251,22 @@ interface ISuperHook {
     ///      For example, a hook might be of type INFLOW but subtype VAULT_DEPOSIT
     /// @return A bytes32 identifier for the specific hook functionality
     function subtype() external view returns (bytes32);
+
+    /// @notice Resets hook mutexes
+    /// @param caller The caller address for context identification
+    function resetExecutionState(address caller) external;
+
+    /// @notice Sets the caller address that initiated the execution
+    /// @dev Used for security validation between preExecute and postExecute calls
+    /// @param caller The caller address for context identification
+    function setExecutionContext(address caller) external;
+
+    /// @notice Returns the execution nonce for the current execution context
+    /// @dev Used to ensure unique execution contexts and prevent replay attacks
+    /// @return The execution nonce
+    function executionNonce() external view returns (uint256);
+
+    /// @notice Returns the last caller registered by `setExecutionContext`
+    /// @return The last caller address
+    function lastCaller() external view returns (address);
 }

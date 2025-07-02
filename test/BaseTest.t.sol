@@ -14,6 +14,7 @@ import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperDestinationExecutor } from "../src/core/interfaces/ISuperDestinationExecutor.sol";
+import { ISuperValidator } from "../src/core/interfaces/ISuperValidator.sol";
 
 // Superform contracts coded
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
@@ -34,7 +35,7 @@ import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20H
 
 // loan hooks
 import { MorphoRepayAndWithdrawHook } from "../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
-import { MorphoBorrowHook } from "../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoSupplyAndBorrowHook } from "../src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
 import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
 
 // vault hooks
@@ -42,12 +43,10 @@ import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.s
 import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
 import { ApproveAndDeposit5115VaultHook } from "../src/core/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
 import { Redeem5115VaultHook } from "../src/core/hooks/vaults/5115/Redeem5115VaultHook.sol";
-import { ApproveAndRedeem5115VaultHook } from "../src/core/hooks/vaults/5115/ApproveAndRedeem5115VaultHook.sol";
 // --- erc4626
 import { Deposit4626VaultHook } from "../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
 import { ApproveAndDeposit4626VaultHook } from "../src/core/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
 import { Redeem4626VaultHook } from "../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
-import { ApproveAndRedeem4626VaultHook } from "../src/core/hooks/vaults/4626/ApproveAndRedeem4626VaultHook.sol";
 // -- erc7540
 import { Deposit7540VaultHook } from "../src/core/hooks/vaults/7540/Deposit7540VaultHook.sol";
 import { RequestDeposit7540VaultHook } from "../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
@@ -59,15 +58,17 @@ import { ClaimCancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/
 import { CancelRedeemHook } from "../src/core/hooks/vaults/super-vault/CancelRedeemHook.sol";
 import { ApproveAndRequestDeposit7540VaultHook } from
     "../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
+import { Redeem7540VaultHook } from "../src/core/hooks/vaults/7540/Redeem7540VaultHook.sol";
 import { RequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
-import { ApproveAndWithdraw7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndWithdraw7540VaultHook.sol";
-import { ApproveAndRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/ApproveAndRedeem7540VaultHook.sol";
+import { ApproveAndRequestRedeem7540VaultHook } from
+    "../src/core/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
 // bridges hooks
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { DeBridgeSendOrderAndExecuteOnDstHook } from
     "../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
+import { DeBridgeCancelOrderHook } from "../src/core/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
 
 // Swap hooks
 // --- 1inch
@@ -76,9 +77,9 @@ import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.so
 // --- Odos
 import { OdosAPIParser } from "./utils/parsers/OdosAPIParser.sol";
 import { IOdosRouterV2 } from "../src/vendor/odos/IOdosRouterV2.sol";
-import { SwapOdosHook } from "../src/core/hooks/swappers/odos/SwapOdosHook.sol";
+import { SwapOdosV2Hook } from "../src/core/hooks/swappers/odos/SwapOdosV2Hook.sol";
 import { MockApproveAndSwapOdosHook } from "../test/mocks/unused-hooks/MockApproveAndSwapOdosHook.sol";
-import { ApproveAndSwapOdosHook } from "../src/core/hooks/swappers/odos/ApproveAndSwapOdosHook.sol";
+import { ApproveAndSwapOdosV2Hook } from "../src/core/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol";
 import { MockSwapOdosHook } from "../test/mocks/unused-hooks/MockSwapOdosHook.sol";
 
 // Stake hooks
@@ -104,12 +105,16 @@ import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClai
 // --- Ethena
 import { EthenaCooldownSharesHook } from "../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
 import { EthenaUnstakeHook } from "../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
-import { SpectraExchangeHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeHook.sol";
+import { SpectraExchangeDepositHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
+import { SpectraExchangeRedeemHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
 import { PendleRouterSwapHook } from "../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
 import { PendleRouterRedeemHook } from "../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
 
 // --- Onramp
 import { BatchTransferFromHook } from "../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
+
+// --- Offramp
+import { OfframpTokensHook } from "../src/core/hooks/tokens/OfframpTokensHook.sol";
 
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -148,6 +153,9 @@ import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "./mocks/MockRegistry.sol";
 
 import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
+import { SuperVault } from "../src/periphery/SuperVault/SuperVault.sol";
+import { SuperVaultStrategy } from "../src/periphery/SuperVault/SuperVaultStrategy.sol";
+import { SuperVaultEscrow } from "../src/periphery/SuperVault/SuperVaultEscrow.sol";
 import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 
 import { BaseHook } from "../src/core/hooks/BaseHook.sol";
@@ -170,27 +178,25 @@ struct Addresses {
     AcrossV3Adapter acrossV3Adapter;
     DebridgeAdapter debridgeAdapter;
     ApproveERC20Hook approveErc20Hook;
-    MorphoBorrowHook morphoBorrowHook;
+    MorphoSupplyAndBorrowHook MorphoSupplyAndBorrowHook;
     MorphoRepayHook morphoRepayHook;
     MorphoRepayAndWithdrawHook morphoRepayAndWithdrawHook;
     TransferERC20Hook transferErc20Hook;
     Deposit4626VaultHook deposit4626VaultHook;
-    ApproveAndSwapOdosHook approveAndSwapOdosHook;
+    ApproveAndSwapOdosV2Hook approveAndSwapOdosHook;
     ApproveAndFluidStakeHook approveAndFluidStakeHook;
     ApproveAndDeposit4626VaultHook approveAndDeposit4626VaultHook;
     ApproveAndDeposit5115VaultHook approveAndDeposit5115VaultHook;
     ApproveAndRequestDeposit7540VaultHook approveAndRequestDeposit7540VaultHook;
     Redeem4626VaultHook redeem4626VaultHook;
-    ApproveAndRedeem4626VaultHook approveAndRedeem4626VaultHook;
     Deposit5115VaultHook deposit5115VaultHook;
-    ApproveAndRedeem5115VaultHook approveAndRedeem5115VaultHook;
     Redeem5115VaultHook redeem5115VaultHook;
     Deposit7540VaultHook deposit7540VaultHook;
     RequestDeposit7540VaultHook requestDeposit7540VaultHook;
+    Redeem7540VaultHook redeem7540VaultHook;
     RequestRedeem7540VaultHook requestRedeem7540VaultHook;
     Withdraw7540VaultHook withdraw7540VaultHook;
-    ApproveAndWithdraw7540VaultHook approveAndWithdraw7540VaultHook;
-    ApproveAndRedeem7540VaultHook approveAndRedeem7540VaultHook;
+    ApproveAndRequestRedeem7540VaultHook approveAndRequestRedeem7540VaultHook;
     CancelDepositRequest7540Hook cancelDepositRequest7540Hook;
     CancelRedeemRequest7540Hook cancelRedeemRequest7540Hook;
     ClaimCancelDepositRequest7540Hook claimCancelDepositRequest7540Hook;
@@ -198,8 +204,9 @@ struct Addresses {
     CancelRedeemHook cancelRedeemHook;
     AcrossSendFundsAndExecuteOnDstHook acrossSendFundsAndExecuteOnDstHook;
     DeBridgeSendOrderAndExecuteOnDstHook deBridgeSendOrderAndExecuteOnDstHook;
+    DeBridgeCancelOrderHook deBridgeCancelOrderHook;
     Swap1InchHook swap1InchHook;
-    SwapOdosHook swapOdosHook;
+    SwapOdosV2Hook swapOdosHook;
     MockSwapOdosHook mockSwapOdosHook;
     MockApproveAndSwapOdosHook mockApproveAndSwapOdosHook;
     GearboxStakeHook gearboxStakeHook;
@@ -207,7 +214,8 @@ struct Addresses {
     ApproveAndGearboxStakeHook approveAndGearboxStakeHook;
     FluidStakeHook fluidStakeHook;
     FluidUnstakeHook fluidUnstakeHook;
-    SpectraExchangeHook spectraExchangeHook;
+    SpectraExchangeDepositHook spectraExchangeDepositHook;
+    SpectraExchangeRedeemHook spectraExchangeRedeemHook;
     PendleRouterSwapHook pendleRouterSwapHook;
     PendleRouterRedeemHook pendleRouterRedeemHook;
     FluidClaimRewardHook fluidClaimRewardHook;
@@ -216,6 +224,7 @@ struct Addresses {
     EthenaCooldownSharesHook ethenaCooldownSharesHook;
     EthenaUnstakeHook ethenaUnstakeHook;
     BatchTransferFromHook batchTransferFromHook;
+    OfframpTokensHook offrampTokensHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     ERC7540YieldSourceOracle erc7540YieldSourceOracle;
@@ -229,8 +238,6 @@ struct Addresses {
     ECDSAPPSOracle ecdsappsOracle;
     ISuperExecutor superExecutorWithSPLock;
     MockTargetExecutor mockTargetExecutor;
-    MockBaseHook mockBaseHook; // this is needed for all tests which we need to use executeWithoutHookRestrictions
-
     SuperBank superBank;
 }
 
@@ -328,24 +335,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     bool public useLatestFork = false;
     bool public useRealOdosRouter = false;
     address[] public globalMerkleHooks;
-    address globalSVStrategy;
-    address globalSVGearStrategy;
+    string[] public globalMerkleHookNames;
+    address public globalSVStrategy;
+    address public globalSVGearStrategy;
+    address public globalRuggableVault;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public virtual {
-        // deploy accounts
-        MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
-        TREASURY = _deployAccount(TREASURY_KEY, "TREASURY");
-        SUPER_BUNDLER = _deployAccount(SUPER_BUNDLER_KEY, "SUPER_BUNDLER");
-        ACROSS_RELAYER = _deployAccount(ACROSS_RELAYER_KEY, "ACROSS_RELAYER");
-        SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
-        STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
-        EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
-        VALIDATOR = _deployAccount(VALIDATOR_KEY, "VALIDATOR");
-
+        deployAccounts();
+      
         // Setup forks
         _preDeploymentSetup();
 
@@ -460,8 +461,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     function _deployContracts(Addresses[] memory A) internal returns (Addresses[] memory) {
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
-            mockBaseHook = address(new MockBaseHook());
-            vm.makePersistent(mockBaseHook);
             address acrossV3Helper = address(new AcrossV3Helper());
             vm.allowCheatcodes(acrossV3Helper);
             vm.makePersistent(acrossV3Helper);
@@ -587,13 +586,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.label(address(A[i].stakingYieldSourceOracle), STAKING_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][STAKING_YIELD_SOURCE_ORACLE_KEY] = address(A[i].stakingYieldSourceOracle);
 
-            A[i].superVaultAggregator = new SuperVaultAggregator(address(A[i].superGovernor));
-            vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
-            contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
-
             A[i].ecdsappsOracle = new ECDSAPPSOracle(address(A[i].superGovernor));
             vm.label(address(A[i].ecdsappsOracle), ECDSAPPS_ORACLE_KEY);
             contractAddresses[chainIds[i]][ECDSAPPS_ORACLE_KEY] = address(A[i].ecdsappsOracle);
+
+            // Deploy implementation contracts first
+            address vaultImpl = address(new SuperVault());
+            address strategyImpl = address(new SuperVaultStrategy());
+            address escrowImpl = address(new SuperVaultEscrow());
+
+            A[i].superVaultAggregator =
+                new SuperVaultAggregator(address(A[i].superGovernor), vaultImpl, strategyImpl, escrowImpl);
+            vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
 
             A[i].superGovernor.setActivePPSOracle(address(A[i].ecdsappsOracle));
             A[i].superGovernor.addValidator(VALIDATOR);
@@ -606,7 +611,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](47);
+            address[] memory hooksAddresses = new address[](48);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }();
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -680,22 +685,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksAddresses[4] = address(A[i].redeem4626VaultHook);
 
-            A[i].approveAndRedeem4626VaultHook = new ApproveAndRedeem4626VaultHook{ salt: SALT }();
-            vm.label(address(A[i].approveAndRedeem4626VaultHook), APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY] =
-                address(A[i].approveAndRedeem4626VaultHook);
-            hooks[chainIds[i]][APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY] = Hook(
-                APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY,
-                HookCategory.TokenApprovals,
-                HookCategory.VaultWithdrawals,
-                address(A[i].approveAndRedeem4626VaultHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]][APPROVE_AND_REDEEM_4626_VAULT_HOOK_KEY]
-            );
-            hooksAddresses[5] = address(A[i].approveAndRedeem4626VaultHook);
-
             A[i].deposit5115VaultHook = new Deposit5115VaultHook{ salt: SALT }();
             vm.label(address(A[i].deposit5115VaultHook), DEPOSIT_5115_VAULT_HOOK_KEY);
             hookAddresses[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY] = address(A[i].deposit5115VaultHook);
@@ -709,7 +698,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][DEPOSIT_5115_VAULT_HOOK_KEY]
             );
-            hooksAddresses[6] = address(A[i].deposit5115VaultHook);
+            hooksAddresses[5] = address(A[i].deposit5115VaultHook);
 
             A[i].approveAndDeposit5115VaultHook = new ApproveAndDeposit5115VaultHook{ salt: SALT }();
             vm.label(address(A[i].approveAndDeposit5115VaultHook), APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY);
@@ -725,7 +714,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY]
             );
-            hooksAddresses[7] = address(A[i].approveAndDeposit5115VaultHook);
+            hooksAddresses[6] = address(A[i].approveAndDeposit5115VaultHook);
 
             A[i].redeem5115VaultHook = new Redeem5115VaultHook{ salt: SALT }();
             vm.label(address(A[i].redeem5115VaultHook), REDEEM_5115_VAULT_HOOK_KEY);
@@ -740,23 +729,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][REDEEM_5115_VAULT_HOOK_KEY]
             );
-            hooksAddresses[8] = address(A[i].redeem5115VaultHook);
-
-            A[i].approveAndRedeem5115VaultHook = new ApproveAndRedeem5115VaultHook{ salt: SALT }();
-            vm.label(address(A[i].approveAndRedeem5115VaultHook), APPROVE_AND_REDEEM_5115_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_REDEEM_5115_VAULT_HOOK_KEY] =
-                address(A[i].approveAndRedeem5115VaultHook);
-            hooks[chainIds[i]][APPROVE_AND_REDEEM_5115_VAULT_HOOK_KEY] = Hook(
-                APPROVE_AND_REDEEM_5115_VAULT_HOOK_KEY,
-                HookCategory.TokenApprovals,
-                HookCategory.VaultWithdrawals,
-                address(A[i].approveAndRedeem5115VaultHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]][APPROVE_AND_REDEEM_5115_VAULT_HOOK_KEY]
-            );
-            hooksAddresses[9] = address(A[i].approveAndRedeem5115VaultHook);
+            hooksAddresses[7] = address(A[i].redeem5115VaultHook);
 
             A[i].requestDeposit7540VaultHook = new RequestDeposit7540VaultHook{ salt: SALT }();
             vm.label(address(A[i].requestDeposit7540VaultHook), REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
@@ -771,7 +744,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY]
             );
-            hooksAddresses[10] = address(A[i].requestDeposit7540VaultHook);
+            hooksAddresses[8] = address(A[i].requestDeposit7540VaultHook);
 
             A[i].approveAndRequestDeposit7540VaultHook = new ApproveAndRequestDeposit7540VaultHook{ salt: SALT }();
             vm.label(
@@ -789,7 +762,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY]
             );
-            hooksAddresses[11] = address(A[i].approveAndRequestDeposit7540VaultHook);
+            hooksAddresses[9] = address(A[i].approveAndRequestDeposit7540VaultHook);
 
             A[i].requestRedeem7540VaultHook = new RequestRedeem7540VaultHook{ salt: SALT }();
             vm.label(address(A[i].requestRedeem7540VaultHook), REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
@@ -804,7 +777,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][REQUEST_REDEEM_7540_VAULT_HOOK_KEY]
             );
-            hooksAddresses[12] = address(A[i].requestRedeem7540VaultHook);
+            hooksAddresses[10] = address(A[i].requestRedeem7540VaultHook);
 
             A[i].deposit7540VaultHook = new Deposit7540VaultHook{ salt: SALT }();
             vm.label(address(A[i].deposit7540VaultHook), DEPOSIT_7540_VAULT_HOOK_KEY);
@@ -819,7 +792,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
                 hooks[chainIds[i]][DEPOSIT_7540_VAULT_HOOK_KEY]
             );
-            hooksAddresses[13] = address(A[i].deposit7540VaultHook);
+            hooksAddresses[11] = address(A[i].deposit7540VaultHook);
 
             A[i].withdraw7540VaultHook = new Withdraw7540VaultHook{ salt: SALT }();
             vm.label(address(A[i].withdraw7540VaultHook), WITHDRAW_7540_VAULT_HOOK_KEY);
@@ -834,38 +807,28 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
                 hooks[chainIds[i]][WITHDRAW_7540_VAULT_HOOK_KEY]
             );
-            hooksAddresses[14] = address(A[i].withdraw7540VaultHook);
-            A[i].approveAndWithdraw7540VaultHook = new ApproveAndWithdraw7540VaultHook{ salt: SALT }();
-            vm.label(address(A[i].approveAndWithdraw7540VaultHook), APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY] =
-                address(A[i].approveAndWithdraw7540VaultHook);
-            hooks[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY] = Hook(
-                APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY,
-                HookCategory.TokenApprovals,
-                HookCategory.VaultWithdrawals,
-                address(A[i].approveAndWithdraw7540VaultHook),
-                ""
-            );
-            hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]][APPROVE_AND_WITHDRAW_7540_VAULT_HOOK_KEY]
-            );
-            hooksAddresses[15] = address(A[i].approveAndWithdraw7540VaultHook);
+            hooksAddresses[12] = address(A[i].withdraw7540VaultHook);
 
-            A[i].approveAndRedeem7540VaultHook = new ApproveAndRedeem7540VaultHook{ salt: SALT }();
-            vm.label(address(A[i].approveAndRedeem7540VaultHook), APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY] =
-                address(A[i].approveAndRedeem7540VaultHook);
-            hooks[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY] = Hook(
-                APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY,
-                HookCategory.TokenApprovals,
+            A[i].redeem7540VaultHook = new Redeem7540VaultHook{ salt: SALT }();
+            vm.label(address(A[i].redeem7540VaultHook), REDEEM_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][REDEEM_7540_VAULT_HOOK_KEY] = address(A[i].redeem7540VaultHook);
+            hooks[chainIds[i]][REDEEM_7540_VAULT_HOOK_KEY] = Hook(
+                REDEEM_7540_VAULT_HOOK_KEY,
                 HookCategory.VaultWithdrawals,
-                address(A[i].approveAndRedeem7540VaultHook),
+                HookCategory.VaultDeposits,
+                address(A[i].redeem7540VaultHook),
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(
-                hooks[chainIds[i]][APPROVE_AND_REDEEM_7540_VAULT_HOOK_KEY]
+                hooks[chainIds[i]][REDEEM_7540_VAULT_HOOK_KEY]
             );
-            hooksAddresses[16] = address(A[i].approveAndRedeem7540VaultHook);
+            hooksAddresses[13] = address(A[i].redeem7540VaultHook);
+
+            A[i].approveAndRequestRedeem7540VaultHook = new ApproveAndRequestRedeem7540VaultHook{ salt: SALT }();
+            vm.label(address(A[i].approveAndRequestRedeem7540VaultHook), APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY] =
+                address(A[i].approveAndRequestRedeem7540VaultHook);
+            hooksAddresses[14] = address(A[i].approveAndRequestRedeem7540VaultHook);
 
             A[i].swap1InchHook = new Swap1InchHook{ salt: SALT }(ONE_INCH_ROUTER);
             vm.label(address(A[i].swap1InchHook), SWAP_1INCH_HOOK_KEY);
@@ -874,7 +837,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 SWAP_1INCH_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(A[i].swap1InchHook), ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_1INCH_HOOK_KEY]);
-            hooksAddresses[17] = address(A[i].swap1InchHook);
+            hooksAddresses[15] = address(A[i].swap1InchHook);
 
             MockOdosRouterV2 odosRouter = new MockOdosRouterV2{ salt: SALT }();
             mockOdosRouters[chainIds[i]] = address(odosRouter);
@@ -893,7 +856,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(
                 hooks[chainIds[i]][MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY]
             );
-            hooksAddresses[18] = address(A[i].mockApproveAndSwapOdosHook);
+            hooksAddresses[16] = address(A[i].mockApproveAndSwapOdosHook);
 
             A[i].mockSwapOdosHook = new MockSwapOdosHook{ salt: SALT }(address(odosRouter));
             vm.label(address(A[i].mockSwapOdosHook), MOCK_SWAP_ODOS_HOOK_KEY);
@@ -906,29 +869,29 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][MOCK_SWAP_ODOS_HOOK_KEY]);
-            hooksAddresses[19] = address(A[i].mockSwapOdosHook);
+            hooksAddresses[17] = address(A[i].mockSwapOdosHook);
 
-            A[i].approveAndSwapOdosHook = new ApproveAndSwapOdosHook{ salt: SALT }(ODOS_ROUTER[chainIds[i]]);
-            vm.label(address(A[i].approveAndSwapOdosHook), APPROVE_AND_SWAP_ODOS_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY] = address(A[i].approveAndSwapOdosHook);
-            hooks[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY] = Hook(
-                APPROVE_AND_SWAP_ODOS_HOOK_KEY,
+            A[i].approveAndSwapOdosHook = new ApproveAndSwapOdosV2Hook{ salt: SALT }(ODOS_ROUTER[chainIds[i]]);
+            vm.label(address(A[i].approveAndSwapOdosHook), APPROVE_AND_SWAP_ODOSV2_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_SWAP_ODOSV2_HOOK_KEY] = address(A[i].approveAndSwapOdosHook);
+            hooks[chainIds[i]][APPROVE_AND_SWAP_ODOSV2_HOOK_KEY] = Hook(
+                APPROVE_AND_SWAP_ODOSV2_HOOK_KEY,
                 HookCategory.TokenApprovals,
                 HookCategory.Swaps,
                 address(A[i].approveAndSwapOdosHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][APPROVE_AND_SWAP_ODOS_HOOK_KEY]);
-            hooksAddresses[20] = address(A[i].approveAndSwapOdosHook);
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][APPROVE_AND_SWAP_ODOSV2_HOOK_KEY]);
+            hooksAddresses[18] = address(A[i].approveAndSwapOdosHook);
 
-            A[i].swapOdosHook = new SwapOdosHook{ salt: SALT }(ODOS_ROUTER[chainIds[i]]);
-            vm.label(address(A[i].swapOdosHook), SWAP_ODOS_HOOK_KEY);
-            hookAddresses[chainIds[i]][SWAP_ODOS_HOOK_KEY] = address(A[i].swapOdosHook);
-            hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY] = Hook(
-                SWAP_ODOS_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(A[i].swapOdosHook), ""
+            A[i].swapOdosHook = new SwapOdosV2Hook{ salt: SALT }(ODOS_ROUTER[chainIds[i]]);
+            vm.label(address(A[i].swapOdosHook), SWAP_ODOSV2_HOOK_KEY);
+            hookAddresses[chainIds[i]][SWAP_ODOSV2_HOOK_KEY] = address(A[i].swapOdosHook);
+            hooks[chainIds[i]][SWAP_ODOSV2_HOOK_KEY] = Hook(
+                SWAP_ODOSV2_HOOK_KEY, HookCategory.Swaps, HookCategory.TokenApprovals, address(A[i].swapOdosHook), ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOS_HOOK_KEY]);
-            hooksAddresses[21] = address(A[i].swapOdosHook);
+            hooksByCategory[chainIds[i]][HookCategory.Swaps].push(hooks[chainIds[i]][SWAP_ODOSV2_HOOK_KEY]);
+            hooksAddresses[19] = address(A[i].swapOdosHook);
 
             A[i].acrossSendFundsAndExecuteOnDstHook = new AcrossSendFundsAndExecuteOnDstHook{ salt: SALT }(
                 SPOKE_POOL_V3_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY)
@@ -946,7 +909,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.Bridges].push(
                 hooks[chainIds[i]][ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY]
             );
-            hooksAddresses[22] = address(A[i].acrossSendFundsAndExecuteOnDstHook);
+            hooksAddresses[20] = address(A[i].acrossSendFundsAndExecuteOnDstHook);
 
             A[i].deBridgeSendOrderAndExecuteOnDstHook = new DeBridgeSendOrderAndExecuteOnDstHook{ salt: SALT }(
                 DEBRIDGE_DLN_ADDRESSES[chainIds[i]], _getContract(chainIds[i], SUPER_MERKLE_VALIDATOR_KEY)
@@ -966,7 +929,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.Bridges].push(
                 hooks[chainIds[i]][DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY]
             );
-            hooksAddresses[23] = address(A[i].deBridgeSendOrderAndExecuteOnDstHook);
+            hooksAddresses[21] = address(A[i].deBridgeSendOrderAndExecuteOnDstHook);
+
+            A[i].deBridgeCancelOrderHook =
+                new DeBridgeCancelOrderHook{ salt: SALT }(DEBRIDGE_DLN_ADDRESSES_DST[chainIds[i]]);
+            vm.label(address(A[i].deBridgeCancelOrderHook), DEBRIDGE_CANCEL_ORDER_HOOK_KEY);
+            hookAddresses[chainIds[i]][DEBRIDGE_CANCEL_ORDER_HOOK_KEY] = address(A[i].deBridgeCancelOrderHook);
+            hooks[chainIds[i]][DEBRIDGE_CANCEL_ORDER_HOOK_KEY] = Hook(
+                DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
+                HookCategory.Bridges,
+                HookCategory.TokenApprovals,
+                address(A[i].deBridgeCancelOrderHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Bridges].push(hooks[chainIds[i]][DEBRIDGE_CANCEL_ORDER_HOOK_KEY]);
+            hooksAddresses[22] = address(A[i].deBridgeCancelOrderHook);
 
             A[i].fluidClaimRewardHook = new FluidClaimRewardHook{ salt: SALT }();
             vm.label(address(A[i].fluidClaimRewardHook), FLUID_CLAIM_REWARD_HOOK_KEY);
@@ -978,14 +955,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 address(A[i].fluidClaimRewardHook),
                 ""
             );
-            hooksAddresses[24] = address(A[i].fluidClaimRewardHook);
+            hooksAddresses[23] = address(A[i].fluidClaimRewardHook);
 
             A[i].fluidStakeHook = new FluidStakeHook{ salt: SALT }();
             vm.label(address(A[i].fluidStakeHook), FLUID_STAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][FLUID_STAKE_HOOK_KEY] = address(A[i].fluidStakeHook);
             hooks[chainIds[i]][FLUID_STAKE_HOOK_KEY] =
                 Hook(FLUID_STAKE_HOOK_KEY, HookCategory.Stakes, HookCategory.None, address(A[i].fluidStakeHook), "");
-            hooksAddresses[25] = address(A[i].fluidStakeHook);
+            hooksAddresses[24] = address(A[i].fluidStakeHook);
 
             A[i].approveAndFluidStakeHook = new ApproveAndFluidStakeHook{ salt: SALT }();
             vm.label(address(A[i].approveAndFluidStakeHook), APPROVE_AND_FLUID_STAKE_HOOK_KEY);
@@ -998,14 +975,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][APPROVE_AND_FLUID_STAKE_HOOK_KEY]);
-            hooksAddresses[26] = address(A[i].approveAndFluidStakeHook);
+            hooksAddresses[25] = address(A[i].approveAndFluidStakeHook);
 
             A[i].fluidUnstakeHook = new FluidUnstakeHook{ salt: SALT }();
             vm.label(address(A[i].fluidUnstakeHook), FLUID_UNSTAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][FLUID_UNSTAKE_HOOK_KEY] = address(A[i].fluidUnstakeHook);
             hooks[chainIds[i]][FLUID_UNSTAKE_HOOK_KEY] =
                 Hook(FLUID_UNSTAKE_HOOK_KEY, HookCategory.Stakes, HookCategory.None, address(A[i].fluidUnstakeHook), "");
-            hooksAddresses[27] = address(A[i].fluidUnstakeHook);
+            hooksAddresses[26] = address(A[i].fluidUnstakeHook);
 
             A[i].gearboxClaimRewardHook = new GearboxClaimRewardHook{ salt: SALT }();
             vm.label(address(A[i].gearboxClaimRewardHook), GEARBOX_CLAIM_REWARD_HOOK_KEY);
@@ -1017,7 +994,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 address(A[i].gearboxClaimRewardHook),
                 ""
             );
-            hooksAddresses[28] = address(A[i].gearboxClaimRewardHook);
+            hooksAddresses[27] = address(A[i].gearboxClaimRewardHook);
 
             A[i].gearboxStakeHook = new GearboxStakeHook{ salt: SALT }();
             vm.label(address(A[i].gearboxStakeHook), GEARBOX_STAKE_HOOK_KEY);
@@ -1030,7 +1007,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Stakes].push(hooks[chainIds[i]][GEARBOX_STAKE_HOOK_KEY]);
-            hooksAddresses[29] = address(A[i].gearboxStakeHook);
+            hooksAddresses[28] = address(A[i].gearboxStakeHook);
 
             A[i].approveAndGearboxStakeHook = new ApproveAndGearboxStakeHook{ salt: SALT }();
             vm.label(address(A[i].approveAndGearboxStakeHook), GEARBOX_APPROVE_AND_STAKE_HOOK_KEY);
@@ -1045,7 +1022,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.Stakes].push(
                 hooks[chainIds[i]][GEARBOX_APPROVE_AND_STAKE_HOOK_KEY]
             );
-            hooksAddresses[30] = address(A[i].approveAndGearboxStakeHook);
+            hooksAddresses[29] = address(A[i].approveAndGearboxStakeHook);
 
             A[i].gearboxUnstakeHook = new GearboxUnstakeHook{ salt: SALT }();
             vm.label(address(A[i].gearboxUnstakeHook), GEARBOX_UNSTAKE_HOOK_KEY);
@@ -1054,7 +1031,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 GEARBOX_UNSTAKE_HOOK_KEY, HookCategory.Claims, HookCategory.Stakes, address(A[i].gearboxUnstakeHook), ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][GEARBOX_UNSTAKE_HOOK_KEY]);
-            hooksAddresses[31] = address(A[i].gearboxUnstakeHook);
+            hooksAddresses[30] = address(A[i].gearboxUnstakeHook);
 
             A[i].yearnClaimOneRewardHook = new YearnClaimOneRewardHook{ salt: SALT }();
             vm.label(address(A[i].yearnClaimOneRewardHook), YEARN_CLAIM_ONE_REWARD_HOOK_KEY);
@@ -1066,7 +1043,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 ""
             );
             hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY]);
-            hooksAddresses[32] = address(A[i].yearnClaimOneRewardHook);
+            hooksAddresses[31] = address(A[i].yearnClaimOneRewardHook);
 
             A[i].batchTransferFromHook = new BatchTransferFromHook{ salt: SALT }(PERMIT2);
             vm.label(address(A[i].batchTransferFromHook), BATCH_TRANSFER_FROM_HOOK_KEY);
@@ -1081,23 +1058,28 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(
                 hooks[chainIds[i]][BATCH_TRANSFER_FROM_HOOK_KEY]
             );
-            hooksAddresses[33] = address(A[i].batchTransferFromHook);
+            hooksAddresses[32] = address(A[i].batchTransferFromHook);
 
             /// @dev EXPERIMENTAL HOOKS FROM HERE ONWARDS
             A[i].ethenaCooldownSharesHook = new EthenaCooldownSharesHook{ salt: SALT }();
             vm.label(address(A[i].ethenaCooldownSharesHook), ETHENA_COOLDOWN_SHARES_HOOK_KEY);
             hookAddresses[chainIds[i]][ETHENA_COOLDOWN_SHARES_HOOK_KEY] = address(A[i].ethenaCooldownSharesHook);
-            hooksAddresses[34] = address(A[i].ethenaCooldownSharesHook);
+            hooksAddresses[33] = address(A[i].ethenaCooldownSharesHook);
 
             A[i].ethenaUnstakeHook = new EthenaUnstakeHook{ salt: SALT }();
             vm.label(address(A[i].ethenaUnstakeHook), ETHENA_UNSTAKE_HOOK_KEY);
             hookAddresses[chainIds[i]][ETHENA_UNSTAKE_HOOK_KEY] = address(A[i].ethenaUnstakeHook);
-            hooksAddresses[35] = address(A[i].ethenaUnstakeHook);
+            hooksAddresses[34] = address(A[i].ethenaUnstakeHook);
 
-            A[i].spectraExchangeHook = new SpectraExchangeHook{ salt: SALT }(SPECTRA_ROUTERS[chainIds[i]]);
-            vm.label(address(A[i].spectraExchangeHook), SPECTRA_EXCHANGE_HOOK_KEY);
-            hookAddresses[chainIds[i]][SPECTRA_EXCHANGE_HOOK_KEY] = address(A[i].spectraExchangeHook);
-            hooksAddresses[36] = address(A[i].spectraExchangeHook);
+            A[i].spectraExchangeDepositHook = new SpectraExchangeDepositHook{ salt: SALT }(SPECTRA_ROUTERS[chainIds[i]]);
+            vm.label(address(A[i].spectraExchangeDepositHook), SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY);
+            hookAddresses[chainIds[i]][SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY] = address(A[i].spectraExchangeDepositHook);
+            hooksAddresses[35] = address(A[i].spectraExchangeDepositHook);
+
+            A[i].spectraExchangeRedeemHook = new SpectraExchangeRedeemHook{ salt: SALT }(SPECTRA_ROUTERS[chainIds[i]]);
+            vm.label(address(A[i].spectraExchangeRedeemHook), SPECTRA_EXCHANGE_REDEEM_HOOK_KEY);
+            hookAddresses[chainIds[i]][SPECTRA_EXCHANGE_REDEEM_HOOK_KEY] = address(A[i].spectraExchangeRedeemHook);
+            hooksAddresses[36] = address(A[i].spectraExchangeRedeemHook);
 
             A[i].pendleRouterSwapHook = new PendleRouterSwapHook{ salt: SALT }(PENDLE_ROUTERS[chainIds[i]]);
             vm.label(address(A[i].pendleRouterSwapHook), PENDLE_ROUTER_SWAP_HOOK_KEY);
@@ -1193,13 +1175,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.VaultWithdrawals].push(hooks[chainIds[i]][CANCEL_REDEEM_HOOK_KEY]);
             hooksAddresses[43] = address(A[i].cancelRedeemHook);
 
-            A[i].morphoBorrowHook = new MorphoBorrowHook{ salt: SALT }(MORPHO);
-            vm.label(address(A[i].morphoBorrowHook), MORPHO_BORROW_HOOK_KEY);
-            hookAddresses[chainIds[i]][MORPHO_BORROW_HOOK_KEY] = address(A[i].morphoBorrowHook);
-            hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY] =
-                Hook(MORPHO_BORROW_HOOK_KEY, HookCategory.Loans, HookCategory.None, address(A[i].morphoBorrowHook), "");
+            A[i].MorphoSupplyAndBorrowHook = new MorphoSupplyAndBorrowHook{ salt: SALT }(MORPHO);
+            vm.label(address(A[i].MorphoSupplyAndBorrowHook), MORPHO_BORROW_HOOK_KEY);
+            hookAddresses[chainIds[i]][MORPHO_BORROW_HOOK_KEY] = address(A[i].MorphoSupplyAndBorrowHook);
+            hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY] = Hook(
+                MORPHO_BORROW_HOOK_KEY,
+                HookCategory.Loans,
+                HookCategory.None,
+                address(A[i].MorphoSupplyAndBorrowHook),
+                ""
+            );
             hooksByCategory[chainIds[i]][HookCategory.Loans].push(hooks[chainIds[i]][MORPHO_BORROW_HOOK_KEY]);
-            hooksAddresses[44] = address(A[i].morphoBorrowHook);
+            hooksAddresses[44] = address(A[i].MorphoSupplyAndBorrowHook);
 
             A[i].morphoRepayHook = new MorphoRepayHook{ salt: SALT }(MORPHO);
             vm.label(address(A[i].morphoRepayHook), MORPHO_REPAY_HOOK_KEY);
@@ -1214,16 +1201,35 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hookAddresses[chainIds[i]][MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY] = address(A[i].morphoRepayAndWithdrawHook);
             hooksAddresses[46] = address(A[i].morphoRepayAndWithdrawHook);
 
+            A[i].offrampTokensHook = new OfframpTokensHook{ salt: SALT }();
+            vm.label(address(A[i].offrampTokensHook), OFFRAMP_TOKENS_HOOK_KEY);
+            hookAddresses[chainIds[i]][OFFRAMP_TOKENS_HOOK_KEY] = address(A[i].offrampTokensHook);
+            hooks[chainIds[i]][OFFRAMP_TOKENS_HOOK_KEY] = Hook(
+                OFFRAMP_TOKENS_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.None,
+                address(A[i].offrampTokensHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][OFFRAMP_TOKENS_HOOK_KEY]);
+            hooksAddresses[47] = address(A[i].offrampTokensHook);
+
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
 
             // Initialize global Merkle hook addresses for later use
-            globalMerkleHooks = new address[](5);
-            globalMerkleHooks[0] = address(A[i].approveAndRedeem4626VaultHook);
-            globalMerkleHooks[1] = address(A[i].approveAndDeposit4626VaultHook);
-            globalMerkleHooks[2] = address(A[i].redeem4626VaultHook);
-            globalMerkleHooks[3] = address(A[i].approveAndGearboxStakeHook);
-            globalMerkleHooks[4] = address(A[i].gearboxUnstakeHook);
+            globalMerkleHooks = new address[](4);
+            globalMerkleHooks[0] = address(A[i].approveAndDeposit4626VaultHook);
+            globalMerkleHooks[1] = address(A[i].redeem4626VaultHook);
+            globalMerkleHooks[2] = address(A[i].approveAndGearboxStakeHook);
+            globalMerkleHooks[3] = address(A[i].gearboxUnstakeHook);
+
+            // Initialize corresponding hook names for scalability
+            globalMerkleHookNames = new string[](4);
+            globalMerkleHookNames[0] = "APPROVE_AND_DEPOSIT_4626_VAULT_HOOK";
+            globalMerkleHookNames[1] = "REDEEM_4626_VAULT_HOOK";
+            globalMerkleHookNames[2] = "APPROVE_AND_GEARBOX_STAKE_HOOK";
+            globalMerkleHookNames[3] = "GEARBOX_UNSTAKE_HOOK";
 
             if (chainIds[i] == ETH) {
                 /// @dev set any new sv addresses here
@@ -1242,76 +1248,107 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                     ),
                     aggregator
                 );
-                _generateMerkleTree(ETH);
+
+                globalRuggableVault = SuperVaultAggregator(aggregator).STRATEGY_IMPLEMENTATION()
+                    .predictDeterministicAddress(
+                    keccak256(
+                        abi.encodePacked(
+                            existingUnderlyingTokens[ETH][USDC_KEY], "SuperVault", "SV_USDC_RUG", uint256(1)
+                        )
+                    ),
+                    aggregator
+                );
             }
         }
 
         return A;
     }
 
-    /**
-     * @notice Generate Merkle tree with the global hook addresses and optional strategy addresses
-     */
-    function _generateMerkleTree(uint64 chainid) internal {
-        console2.log("\n[DEBUG] Starting _generateMerkleTree for chainid:", chainid);
+    /*
+    
+    
+    function _updateAndRegenerateMerkleTree(
+        string memory vaultName_,
+        address vaultAddress_,
+        uint64 chainId_
+    )
+        internal
+    {
+        string memory vaultAddressStr = vm.toString(vaultAddress_);
+        string memory chainIdStr = vm.toString(chainId_);
 
-        // Read current owner_list.json content
-        string memory ownerListPath = string.concat(vm.projectRoot(), "/test/utils/merkle/target/owner_list.json");
-        string memory currentOwnerList = "";
-        try vm.readFile(ownerListPath) returns (string memory content) {
-            currentOwnerList = content;
-            console2.log("[DEBUG] Current owner_list.json content:", currentOwnerList);
-        } catch {
-            console2.log("[DEBUG] Could not read owner_list.json or file is empty");
-        }
-
-        console2.log("[DEBUG] Predicted strategy addresses:");
-        console2.log("  - globalSVStrategy:", globalSVStrategy);
-        console2.log("  - globalSVGearStrategy:", globalSVGearStrategy);
-
-        address[] memory globalTreeOwnerAddresses = new address[](2);
-        globalTreeOwnerAddresses[0] = globalSVStrategy;
-        globalTreeOwnerAddresses[1] = globalSVGearStrategy;
-
-        string[] memory cmd = new string[](globalTreeOwnerAddresses.length > 0 ? 4 : 3);
+        string[] memory cmd = new string[](5);
         cmd[0] = "node";
-        cmd[1] = "test/utils/merkle/merkle-js/build-hook-merkle-trees.js";
+        cmd[1] = "test/utils/merkle/merkle-js/update-lists.js";
+        cmd[2] = vaultName_; // Single vault name (not a number, signals single mode to script)
+        cmd[3] = vaultAddressStr;
+        cmd[4] = chainIdStr;
 
-        // Build comma-separated list of hook addresses from globalMerkleHooks
-        string memory hooksString = "";
-        for (uint256 i = 0; i < globalMerkleHooks.length; i++) {
-            if (i > 0) hooksString = string.concat(hooksString, ",");
-            hooksString = string.concat(hooksString, vm.toString(globalMerkleHooks[i]));
+        _executeVaultListUpdateScript(cmd, chainId_);
+    }
+
+
+    function _updateAndRegenerateMerkleTreeBatch(
+        string[] memory vaultNames_,
+        address[] memory vaultAddresses_,
+        uint64 chainId_
+    )
+        internal
+    {
+    require(vaultNames_.length == vaultAddresses_.length, "Vault names and addresses array lengths must match.");
+
+        uint256 numVaults = vaultNames_.length;
+        string memory chainIdStr = vm.toString(chainId_);
+
+        // cmd: node <script_path> <numVaults> <name1> <name2> ... <addr1_str> <addr2_str> ... <chainId_str>
+        string[] memory cmd = new string[](3 + numVaults * 2 + 1);
+        cmd[0] = "node";
+        cmd[1] = "test/utils/merkle/merkle-js/update-lists.js";
+        cmd[2] = vm.toString(numVaults); // This signals batch mode to the script
+
+        for (uint256 i = 0; i < numVaults; i++) {
+            cmd[3 + i] = vaultNames_[i];
+            cmd[3 + numVaults + i] = vm.toString(vaultAddresses_[i]);
         }
-        cmd[2] = hooksString;
+        cmd[3 + numVaults * 2] = chainIdStr;
 
-        string memory strategiesString = "";
-        for (uint256 i = 0; i < globalTreeOwnerAddresses.length; i++) {
-            if (i > 0) strategiesString = string.concat(strategiesString, ",");
-            strategiesString = string.concat(strategiesString, vm.toString(globalTreeOwnerAddresses[i]));
-        }
-        cmd[3] = strategiesString;
+        _executeVaultListUpdateScript(cmd, chainId_);
+    }
 
-        console2.log("[DEBUG] Running FFI command with parameters:");
-        console2.log("  - cmd[0]:", cmd[0]);
-        console2.log("  - cmd[1]:", cmd[1]);
-        console2.log("  - cmd[2]:", cmd[2]);
-        console2.log("  - cmd[3]:", cmd[3]);
+       function _executeVaultListUpdateScript(string[] memory cmd_, uint64 chainId_) internal {
+        bytes memory output = vm.ffi(cmd_);
+        string memory outputStr = string(output);
+        // Note: _trim was removed. JS script now outputs "true\n" or "false\n".
 
-        console2.log("[DEBUG] Executing FFI command...");
-        vm.ffi(cmd);
-        console2.log("[DEBUG] FFI command completed");
-
-        // Check if owner_list.json was updated
-        try vm.readFile(ownerListPath) returns (string memory content) {
-            console2.log("[DEBUG] Updated owner_list.json content:", content);
-            if (keccak256(bytes(content)) == keccak256(bytes(currentOwnerList))) {
-                console2.log("[DEBUG] WARNING: owner_list.json content did not change!");
+        bool wasSuccessful = false;
+        if (bytes(outputStr).length > 0) {
+            // Check if the script output starts with 't', indicating "true\n"
+            if (bytes(outputStr)[0] == "t") {
+                wasSuccessful = true;
             }
-        } catch {
-            console2.log("[DEBUG] ERROR: Could not read owner_list.json after update");
+        }
+
+        if (wasSuccessful) {
+            console2.log(
+                "[DEBUG] update-lists.js executed successfully. Regenerating Merkle tree for chainId:", chainId_
+            );
+            _generateMerkleTree(chainId_);
+        } else {
+            // Log details to stderr from the script will provide more context on failure.
+            console2.log(
+    "[WARN] update-lists.js indicated failure or no changes made. Merkle tree not regenerated. Check stderr for details
+    from script."
+            );
+            if (bytes(outputStr).length == 0) {
+                console2.log(
+    "[WARN] update-lists.js produced empty output (FFI call might have failed before script execution)."
+                );
+            }
+            // revert("Failed to update token/yield lists.");
         }
     }
+
+    */
 
     function _configureGovernor() internal {
         for (uint256 i = 0; i < chainIds.length; ++i) {
@@ -1343,14 +1380,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             if (DEBUG) {
                 console2.log("deposit4626VaultHook", address(A[i].deposit4626VaultHook));
                 console2.log("redeem4626VaultHook", address(A[i].redeem4626VaultHook));
-                console2.log("approveAndRedeem4626VaultHook", address(A[i].approveAndRedeem4626VaultHook));
                 console2.log("deposit5115VaultHook", address(A[i].deposit5115VaultHook));
                 console2.log("redeem5115VaultHook", address(A[i].redeem5115VaultHook));
                 console2.log("requestDeposit7540VaultHook", address(A[i].requestDeposit7540VaultHook));
                 console2.log("requestRedeem7540VaultHook", address(A[i].requestRedeem7540VaultHook));
                 console2.log("approveAndDeposit4626VaultHook", address(A[i].approveAndDeposit4626VaultHook));
                 console2.log("approveAndDeposit5115VaultHook", address(A[i].approveAndDeposit5115VaultHook));
-                console2.log("approveAndRedeem5115VaultHook", address(A[i].approveAndRedeem5115VaultHook));
                 console2.log(
                     "approveAndRequestDeposit7540VaultHook", address(A[i].approveAndRequestDeposit7540VaultHook)
                 );
@@ -1358,7 +1393,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 console2.log("transferErc20Hook", address(A[i].transferErc20Hook));
                 console2.log("deposit7540VaultHook", address(A[i].deposit7540VaultHook));
                 console2.log("withdraw7540VaultHook", address(A[i].withdraw7540VaultHook));
-                console2.log("approveAndRedeem7540VaultHook", address(A[i].approveAndRedeem7540VaultHook));
+                console2.log("approveAndRequestRedeem7540VaultHook", address(A[i].approveAndRequestRedeem7540VaultHook));
                 console2.log("swap1InchHook", address(A[i].swap1InchHook));
                 console2.log("swapOdosHook", address(A[i].swapOdosHook));
                 console2.log("approveAndSwapOdosHook", address(A[i].approveAndSwapOdosHook));
@@ -1384,7 +1419,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             // Register fulfillRequests hooks
             superGovernor.registerHook(address(A[i].deposit4626VaultHook), true);
             superGovernor.registerHook(address(A[i].redeem4626VaultHook), true);
-            superGovernor.registerHook(address(A[i].approveAndRedeem4626VaultHook), true);
             superGovernor.registerHook(address(A[i].deposit5115VaultHook), true);
             superGovernor.registerHook(address(A[i].redeem5115VaultHook), true);
             superGovernor.registerHook(address(A[i].requestDeposit7540VaultHook), false);
@@ -1393,13 +1427,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             // Register remaining hooks
             superGovernor.registerHook(address(A[i].approveAndDeposit4626VaultHook), true);
             superGovernor.registerHook(address(A[i].approveAndDeposit5115VaultHook), true);
-            superGovernor.registerHook(address(A[i].approveAndRedeem5115VaultHook), true);
             superGovernor.registerHook(address(A[i].approveAndRequestDeposit7540VaultHook), true);
             superGovernor.registerHook(address(A[i].approveErc20Hook), false);
             superGovernor.registerHook(address(A[i].transferErc20Hook), false);
             superGovernor.registerHook(address(A[i].deposit7540VaultHook), true);
             superGovernor.registerHook(address(A[i].withdraw7540VaultHook), false);
-            superGovernor.registerHook(address(A[i].approveAndRedeem7540VaultHook), true);
+            superGovernor.registerHook(address(A[i].approveAndRequestRedeem7540VaultHook), true);
             superGovernor.registerHook(address(A[i].swap1InchHook), false);
             superGovernor.registerHook(address(A[i].swapOdosHook), false);
             superGovernor.registerHook(address(A[i].approveAndSwapOdosHook), false);
@@ -1421,26 +1454,17 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             // EXPERIMENTAL HOOKS FROM HERE ONWARDS
             superGovernor.registerHook(address(A[i].ethenaCooldownSharesHook), false);
             superGovernor.registerHook(address(A[i].ethenaUnstakeHook), true);
-            superGovernor.registerHook(address(A[i].morphoBorrowHook), false);
+            superGovernor.registerHook(address(A[i].MorphoSupplyAndBorrowHook), false);
             superGovernor.registerHook(address(A[i].morphoRepayHook), false);
             superGovernor.registerHook(address(A[i].morphoRepayAndWithdrawHook), false);
             superGovernor.registerHook(address(A[i].pendleRouterRedeemHook), false);
+            superGovernor.registerHook(address(A[i].offrampTokensHook), false);
         }
 
         return A;
     }
 
     // Hook mocking helpers
-
-    /**
-     * @notice Setup hook mocks to clear execution context
-     * @param hooks_ Array of hook addresses to mock
-     */
-    function _setupHookMocks(address[] memory hooks_) internal {
-        for (uint256 i = 0; i < hooks_.length; i++) {
-            vm.mockCall(hooks_[i], abi.encodeWithSignature("getExecutionCaller()"), abi.encode(address(0)));
-        }
-    }
 
     /**
      * @notice Helper to get all hooks for all chains
@@ -1468,29 +1492,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         }
 
         return allHooks;
-    }
-
-    /**
-     * @notice Modifier to mock hook execution context, allowing the same hook to be used multiple times in a test
-     */
-    modifier executeWithoutHookRestrictions() {
-        // Get all hooks for current chain
-        address[] memory hooks_ = _getAllHooksForTest();
-
-        // Setup mocks for all hooks
-        for (uint256 i = 0; i < hooks_.length; i++) {
-            if (hooks_[i] != address(0)) {
-                vm.mockFunction(
-                    hooks_[i], address(mockBaseHook), abi.encodeWithSelector(BaseHook.getExecutionCaller.selector)
-                );
-            }
-        }
-
-        // Run the test
-        _;
-
-        // Clear all mocks
-        vm.clearMockedCalls();
     }
 
     function _initializeAccounts(uint256 count) internal {
@@ -1731,44 +1732,46 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     }
 
     function _setupSuperLedger() internal {
+            console2.log("------ base test MANAGER", MANAGER);
         for (uint256 i; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
             vm.startPrank(MANAGER);
-
+            console2.log("------ A", MANAGER);
             SuperGovernor superGovernor = SuperGovernor(_getContract(chainIds[i], SUPER_GOVERNOR_KEY));
             ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
                 new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
             configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
                 feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
                 feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
                 feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
                 ledger: _getContract(chainIds[i], ERC1155_LEDGER_KEY)
             });
             configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], STAKING_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
                 feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
+            bytes32[] memory salts = new bytes32[](4);
+            salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+            salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
+            salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY));
+            salts[3] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY));
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
-                configs
+                salts, configs
             );
             vm.stopPrank();
         }
@@ -1809,48 +1812,64 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         NOT_ENOUGH_BALANCE,
         ENOUGH_BALANCE,
         NO_HOOKS,
-        LOW_LEVEL_FAILED,
-        FAILED
+        REVERT
     }
 
-    function _processAcrossV3Message(
-        uint64 srcChainId,
-        uint64 dstChainId,
-        uint256 warpTimestamp,
-        ExecutionReturnData memory executionData,
-        RELAYER_TYPE relayerType,
-        address account
-    )
-        internal
-    {
-        if (relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
+    struct ProcessAcrossV3MessageParams {
+        uint64 srcChainId;
+        uint64 dstChainId;
+        uint256 warpTimestamp;
+        ExecutionReturnData executionData;
+        RELAYER_TYPE relayerType;
+        bytes4 errorMessage;
+        string errorReason;
+        address account;
+        uint256 relayerGas;
+    }
+
+    function _processAcrossV3Message(ProcessAcrossV3MessageParams memory params) internal {
+        if (params.relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
             vm.expectEmit(true, false, false, false);
             emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNotEnoughBalance(
-                account, address(0), 0, 0
+                params.account, address(0), 0, 0
             );
-        } else if (relayerType == RELAYER_TYPE.ENOUGH_BALANCE) {
+        } else if (params.relayerType == RELAYER_TYPE.ENOUGH_BALANCE) {
             vm.expectEmit(true, true, true, true);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorExecuted(account);
-        } else if (relayerType == RELAYER_TYPE.NO_HOOKS) {
+            emit ISuperDestinationExecutor.SuperDestinationExecutorExecuted(params.account);
+        } else if (params.relayerType == RELAYER_TYPE.NO_HOOKS) {
             vm.expectEmit(true, true, true, true);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNoHooks(account);
-        } else if (relayerType == RELAYER_TYPE.LOW_LEVEL_FAILED) {
-            vm.expectEmit(true, false, false, false);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorFailedLowLevel(account, "");
-        } else if (relayerType == RELAYER_TYPE.FAILED) {
-            vm.expectEmit(true, false, false, false);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorFailed(account, "");
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNoHooks(params.account);
+        } else if (params.relayerType == RELAYER_TYPE.REVERT) {
+            if (params.errorMessage != bytes4(0)) {
+                vm.expectRevert(params.errorMessage);
+            } else {
+                vm.expectRevert(bytes(params.errorReason));
+            }
         }
-        AcrossV3Helper(_getContract(srcChainId, ACROSS_V3_HELPER_KEY)).help(
-            SPOKE_POOL_V3_ADDRESSES[srcChainId],
-            SPOKE_POOL_V3_ADDRESSES[dstChainId],
-            ACROSS_RELAYER,
-            warpTimestamp,
-            FORKS[dstChainId],
-            dstChainId,
-            srcChainId,
-            executionData.logs
-        );
+        if (params.relayerGas == 0) {
+            AcrossV3Helper(_getContract(params.srcChainId, ACROSS_V3_HELPER_KEY)).help(
+                SPOKE_POOL_V3_ADDRESSES[params.srcChainId],
+                SPOKE_POOL_V3_ADDRESSES[params.dstChainId],
+                ACROSS_RELAYER,
+                params.warpTimestamp,
+                FORKS[params.dstChainId],
+                params.dstChainId,
+                params.srcChainId,
+                params.executionData.logs
+            );
+        } else {
+            AcrossV3Helper(_getContract(params.srcChainId, ACROSS_V3_HELPER_KEY)).help(
+                SPOKE_POOL_V3_ADDRESSES[params.srcChainId],
+                SPOKE_POOL_V3_ADDRESSES[params.dstChainId],
+                ACROSS_RELAYER,
+                params.warpTimestamp,
+                FORKS[params.dstChainId],
+                params.dstChainId,
+                params.srcChainId,
+                params.executionData.logs,
+                params.relayerGas
+            );
+        }
     }
 
     function _processAcrossV3MessageWithoutDestinationAccount(
@@ -1952,57 +1971,91 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
     }
 
+    struct MerkleContext {
+        uint48 validUntil;
+        bytes executionData;
+        bytes32[] leaves;
+        address[] dstTokens;
+        uint256[] intentAmounts;
+        bytes32[][] merkleProof;
+        bytes32 merkleRoot;
+        bytes signature;
+    }
+
     function _createMerkleRootAndSignature(
         TargetExecutorMessage memory messageData,
         bytes32 userOpHash,
-        address accountToUse
+        address accountToUse,
+        uint64 dstChainId,
+        address srcValidator
     )
         internal
         view
         returns (bytes memory sig)
     {
-        uint48 validUntil = uint48(block.timestamp + 100 days);
-        bytes memory executionData =
+        MerkleContext memory ctx;
+
+        ctx.validUntil = uint48(block.timestamp + 100 days);
+        ctx.executionData =
             _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
 
-        bytes32[] memory leaves = new bytes32[](2);
-        address[] memory dstTokens = new address[](1);
-        dstTokens[0] = messageData.tokenSent;
-        uint256[] memory intentAmounts = new uint256[](1);
-        intentAmounts[0] = messageData.amount;
-        leaves[0] = _createDestinationValidatorLeaf(
-            executionData,
+        ctx.leaves = new bytes32[](2);
+        ctx.dstTokens = new address[](1);
+        ctx.dstTokens[0] = messageData.tokenSent;
+        ctx.intentAmounts = new uint256[](1);
+        ctx.intentAmounts[0] = messageData.amount;
+
+        ctx.leaves[0] = _createDestinationValidatorLeaf(
+            ctx.executionData,
             messageData.chainId,
             accountToUse,
             messageData.targetExecutor,
-            dstTokens,
-            intentAmounts,
-            validUntil
+            ctx.dstTokens,
+            ctx.intentAmounts,
+            ctx.validUntil,
+            messageData.validator
         );
-        leaves[1] = _createSourceValidatorLeaf(userOpHash, validUntil);
-        (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
-        bytes memory signature = _createSignature(
+        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, true, srcValidator);
+
+        (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
+
+        ctx.signature = _createSignature(
             SuperValidatorBase(address(messageData.validator)).namespace(),
-            merkleRoot,
+            ctx.merkleRoot,
             messageData.signer,
             messageData.signerPrivateKey
         );
-        sig =
-            _createSignatureData_DestinationExecutor(validUntil, merkleRoot, merkleProof[1], merkleProof[0], signature);
+
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
+            data: ctx.executionData,
+            executor: messageData.targetExecutor,
+            dstTokens: ctx.dstTokens,
+            intentAmounts: ctx.intentAmounts,
+            account: accountToUse,
+            validator: messageData.validator
+        });
+        proofDst[0] = ISuperValidator.DstProof({ proof: ctx.merkleProof[0], dstChainId: dstChainId, info: dstInfo });
+
+        console2.logBytes32(ctx.merkleRoot);
+        sig = _createSignatureData_DestinationExecutor(
+            true, ctx.validUntil, ctx.merkleRoot, ctx.merkleProof[1], proofDst, ctx.signature
+        );
     }
 
     function _createSignatureData_DestinationExecutor(
+        bool validateDstProof,
         uint48 validUntil,
         bytes32 merkleRoot,
         bytes32[] memory merkleProofSrc,
-        bytes32[] memory merkleProofDst,
+        ISuperValidator.DstProof[] memory merkleProofDst,
         bytes memory signature
     )
         internal
         pure
         returns (bytes memory)
     {
-        return abi.encode(validUntil, merkleRoot, merkleProofSrc, merkleProofDst, signature);
+        return abi.encode(validateDstProof, validUntil, merkleRoot, merkleProofSrc, merkleProofDst, signature);
     }
 
     function _createCrosschainExecutionData_DestinationExecutor(

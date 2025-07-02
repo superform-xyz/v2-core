@@ -58,7 +58,7 @@ abstract contract BaseLedger is ISuperLedger {
     function updateAccounting(
         address user,
         address yieldSource,
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         bool isInflow,
         uint256 amountSharesOrAssets,
         uint256 usedShares
@@ -70,14 +70,18 @@ abstract contract BaseLedger is ISuperLedger {
     function calculateCostBasisView(address user, address yieldSource, uint256 usedShares)
         public
         view
-        returns (uint256 costBasis)
+        returns (uint256 costBasis, uint256 shares)
     {
         uint256 accumulatorShares = usersAccumulatorShares[user][yieldSource];
         uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user][yieldSource];
 
-        if (usedShares > accumulatorShares) revert INSUFFICIENT_SHARES();
-
+        if (usedShares > accumulatorShares) {
+            // take fees only for used shares
+            usedShares = accumulatorShares;
+        }
+        
         costBasis = Math.mulDiv(accumulatorCostBasis, usedShares, accumulatorShares);
+        shares = usedShares;
     }
 
     /// @inheritdoc ISuperLedger
@@ -88,7 +92,7 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 usedShares,
         uint256 feePercent
     ) public view returns (uint256 feeAmount) {
-        uint256 costBasis = calculateCostBasisView(user, yieldSourceAddress, usedShares);
+        (uint256 costBasis, ) = calculateCostBasisView(user, yieldSourceAddress, usedShares);
         feeAmount = _calculateFees(costBasis, amountAssets, feePercent);
     }
 
@@ -136,10 +140,14 @@ abstract contract BaseLedger is ISuperLedger {
     function _calculateCostBasis(address user, address yieldSource, uint256 usedShares)
         internal
         returns (uint256 costBasis)
-    {
-        costBasis = calculateCostBasisView(user, yieldSource, usedShares);
+    {   
+        uint256 updatedUsedShares;
+        (costBasis, updatedUsedShares) = calculateCostBasisView(user, yieldSource, usedShares);
+        if (updatedUsedShares != usedShares) {
+            emit UsedSharesCapped(usedShares, updatedUsedShares);
+        }
 
-        usersAccumulatorShares[user][yieldSource] -= usedShares;
+        usersAccumulatorShares[user][yieldSource] -= updatedUsedShares;
         usersAccumulatorCostBasis[user][yieldSource] -= costBasis;
     }
 
@@ -160,7 +168,9 @@ abstract contract BaseLedger is ISuperLedger {
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
     ) internal virtual returns (uint256 feeAmount) {
         uint256 costBasis = _calculateCostBasis(user, yieldSource, usedShares);
-        feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
+        if (config.feePercent > 0) {
+            feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
+        } 
     }
 
     /// @notice Calculates performance fees based on realized profit
@@ -200,7 +210,7 @@ abstract contract BaseLedger is ISuperLedger {
     function _updateAccounting(
         address user,
         address yieldSource,
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         bool isInflow,
         uint256 amountSharesOrAssets,
         uint256 usedShares
@@ -227,23 +237,17 @@ abstract contract BaseLedger is ISuperLedger {
             emit AccountingInflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, pps);
             return 0;
         } else {
-            // Only process outflow if feePercent is not set to 0
-            if (config.feePercent != 0) {
-                uint256 amountAssets = _getOutflowProcessVolume(
-                    amountSharesOrAssets,
-                    usedShares,
-                    pps,
-                    IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
-                );
+            uint256 amountAssets = _getOutflowProcessVolume(
+                amountSharesOrAssets,
+                usedShares,
+                pps,
+                IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
+            );
 
-                feeAmount = _processOutflow(user, yieldSource, amountAssets, usedShares, config);
+            feeAmount = _processOutflow(user, yieldSource, amountAssets, usedShares, config);
 
-                emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
-                return feeAmount;
-            } else {
-                emit AccountingOutflowSkipped(user, yieldSource, yieldSourceOracleId, amountSharesOrAssets);
-                return 0;
-            }
+            emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
+            return feeAmount;
         }
     }
 

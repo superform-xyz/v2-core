@@ -18,7 +18,6 @@ import {ISuperNativePaymaster} from "../interfaces/ISuperNativePaymaster.sol";
 contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     using UserOperationLib for PackedUserOperation;
 
-    uint256 internal constant UINT128_BYTES = 16;
     uint256 internal constant MAX_NODE_OPERATOR_PREMIUM = 10_000;
 
     /*//////////////////////////////////////////////////////////////
@@ -62,7 +61,10 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         // note: msg.sender is the SuperBundler on same chain, or a cross-chain Gateway contract on the destination
         // chain
         entryPoint.handleOps(ops, payable(msg.sender));
-        entryPoint.withdrawTo(payable(msg.sender), entryPoint.getDepositInfo(address(this)).deposit);
+        uint256 withdrawnAmount = entryPoint.getDepositInfo(address(this)).deposit;
+        entryPoint.withdrawTo(payable(msg.sender), withdrawnAmount);
+
+        emit UserOperationsHandled(msg.sender, ops.length, balance, withdrawnAmount);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -74,13 +76,13 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         override
         returns (bytes memory context, uint256 validationData)
     {
-        (uint256 maxGasLimit, uint256 nodeOperatorPremium) =
-            abi.decode(userOp.paymasterAndData[PAYMASTER_DATA_OFFSET:], (uint256, uint256));
+        (uint256 maxGasLimit, uint256 nodeOperatorPremium, uint256 postOpGas) =
+            abi.decode(userOp.paymasterAndData[PAYMASTER_DATA_OFFSET:], (uint256, uint256, uint256));
 
         if (nodeOperatorPremium > MAX_NODE_OPERATOR_PREMIUM) {
             revert INVALID_NODE_OPERATOR_PREMIUM();
         }
-        return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), maxGasLimit, nodeOperatorPremium), 0);
+        return (abi.encode(userOp.sender, userOp.unpackMaxFeePerGas(), maxGasLimit, nodeOperatorPremium, postOpGas), 0);
     }
 
     /// @notice Handle the post-operation logic.
@@ -98,9 +100,11 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
         virtual
         override
     {
-        (address sender, uint256 maxFeePerGas, uint256 maxGasLimit, uint256 nodeOperatorPremium) =
-            abi.decode(context, (address, uint256, uint256, uint256));
+        (address sender, uint256 maxFeePerGas, uint256 maxGasLimit, uint256 nodeOperatorPremium, uint256 postOpGas) =
+            abi.decode(context, (address, uint256, uint256, uint256, uint256));
 
+        // add postOpGas
+        actualGasCost += postOpGas;
         uint256 refund = calculateRefund(maxGasLimit, maxFeePerGas, actualGasCost, nodeOperatorPremium);
         if (refund > 0) {
             entryPoint.withdrawTo(payable(sender), refund);
