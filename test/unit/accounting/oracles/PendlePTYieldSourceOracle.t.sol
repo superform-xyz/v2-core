@@ -42,7 +42,7 @@ contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
         assetPt = new MockERC20("Mock PT", "MPT", 18);
         assetYt = new MockERC20("Mock YT", "MYT", 18);
 
-        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(this))));
+        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
         address[] memory allowedExecutors = new address[](1);
         allowedExecutors[0] = address(0x777);
         ledger = ISuperLedger(address(new SuperLedger(address(ledgerConfig), allowedExecutors)));

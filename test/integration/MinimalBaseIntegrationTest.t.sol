@@ -56,7 +56,7 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
 
         underlyingEth_USDC = CHAIN_1_USDC;
         yieldSourceAddressEth = CHAIN_1_MorphoVault;
-        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(this))));
+        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
 
         yieldSourceOracle = address(new ERC4626YieldSourceOracle(address(ledgerConfig)));
         vaultInstanceEth = IERC4626(yieldSourceAddressEth);

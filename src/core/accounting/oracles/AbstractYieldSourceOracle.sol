@@ -77,7 +77,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
 
     /// @inheritdoc IYieldSourceOracle
     function getAssetOutputWithFees(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address yieldSourceAddress,
         address assetOut,
         address user,

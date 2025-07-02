@@ -106,7 +106,7 @@ contract SuperExecutor_sameChainFlow is
     function setUp() public {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), ETH_BLOCK);
         underlying = CHAIN_1_USDC;
-        ledgerConfig = address(new SuperLedgerConfiguration(address(this)));
+        ledgerConfig = address(new SuperLedgerConfiguration());
 
         yieldSourceAddress = CHAIN_1_MorphoVault;
         yieldSourceOracle = address(new ERC4626YieldSourceOracle(address(ledgerConfig)));

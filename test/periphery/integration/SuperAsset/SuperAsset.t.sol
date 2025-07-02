@@ -249,7 +249,7 @@ contract SuperAssetTest is Helpers {
             tokenOutIncentive: address(tokenOut)
         });
 
-        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(this))));
+        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
 
         yieldSourceOracle = new ERC4626YieldSourceOracle(address(ledgerConfig));
 

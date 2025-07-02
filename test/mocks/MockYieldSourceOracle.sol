@@ -51,7 +51,7 @@ contract MockYieldSourceOracle is IYieldSourceOracle {
     }
 
     function getAssetOutputWithFees(
-        bytes4,
+        bytes32,
         address,
         address,
         address,

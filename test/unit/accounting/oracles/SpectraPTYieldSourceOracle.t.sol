@@ -31,7 +31,7 @@ contract SpectraPTYieldSourceOracleTest is InternalHelpers, Helpers {
         ibt = new MockERC20("Mock IBT", "MOIBT", 18);
         yt = new MockERC20("Mock YT", "MOYT", 18);
 
-        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(this))));
+        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
         address[] memory allowedExecutors = new address[](1);
         allowedExecutors[0] = address(0x777);
         ledger = ISuperLedger(address(new SuperLedger(address(ledgerConfig), allowedExecutors)));

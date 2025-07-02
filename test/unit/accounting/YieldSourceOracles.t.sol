@@ -43,7 +43,7 @@ contract YieldSourceOraclesTest is Helpers {
     function setUp() public {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
 
-        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(this))));
+        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
         /// @dev with random allowed executor
         address[] memory allowedExecutors = new address[](1);
         allowedExecutors[0] = address(0x777);
@@ -415,11 +415,12 @@ contract YieldSourceOraclesTest is Helpers {
     //////////////////////////////////////////////////////////////*/
 
     function test_ERC4626_getAssetOutputWithFees_WithValidConfig() public {
-        bytes4 oracleId = bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        bytes32 oracleId = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
         address user = makeAddr("testUser");
         uint256 initialShares = 1000e18;
         uint256 usedShares = 500e18; // Half of the shares
         uint256 assetOutput = 1100e18; // 10% profit over cost basis
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         // First do an inflow to set up shares (cost basis = 1000e18)
         vm.prank(address(0x777)); // allowed executor
@@ -454,11 +455,12 @@ contract YieldSourceOraclesTest is Helpers {
     }
 
     function test_ERC4626_getAssetOutputWithFees_NoProfit() public {
-        bytes4 oracleId = bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        bytes32 oracleId = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
         address user = makeAddr("testUser");
         uint256 initialShares = 1000e18;
         uint256 usedShares = 500e18; // Half of the shares
         uint256 assetOutput = 500e18; // No profit, equals cost basis for half shares
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         // First do an inflow to set up shares (cost basis = 1000e18)
         vm.prank(address(0x777)); // allowed executor
@@ -478,7 +480,7 @@ contract YieldSourceOraclesTest is Helpers {
 
         // Get asset output with fees
         uint256 assetOutputWithFees = erc4626YieldSourceOracle.getAssetOutputWithFees(
-            oracleId, address(erc4626), address(asset), user, usedShares
+             oracleId, address(erc4626), address(asset), user, usedShares
         );
 
         // No profit means no fees, so output should equal base output
@@ -506,6 +508,7 @@ contract YieldSourceOraclesTest is Helpers {
         uint256 initialShares = 1000e18;
         uint256 usedShares = 500e18;
         uint256 assetOutput = 1100e18; // 10% profit
+        zeroFeeOracleId = _getYieldSourceOracleId(zeroFeeOracleId, address(this));
 
         // First do an inflow to set up shares
         vm.prank(address(0x777)); // allowed executor
@@ -552,6 +555,7 @@ contract YieldSourceOraclesTest is Helpers {
         uint256 initialShares = 1000e18;
         uint256 usedShares = 1000e18; // Use all shares
         uint256 assetOutput = 2000e18; // 100% profit
+        maxFeeOracleId = _getYieldSourceOracleId(maxFeeOracleId, address(this));
 
         // First do an inflow to set up shares
         vm.prank(address(0x777)); // allowed executor
@@ -585,7 +589,7 @@ contract YieldSourceOraclesTest is Helpers {
     }
 
     function test_ERC4626_getAssetOutputWithFees_WithInvalidOracleId() public {
-        bytes4 invalidOracleId = bytes4(keccak256("invalidOracle"));
+        bytes32 invalidOracleId = bytes32(keccak256("invalidOracle"));
         address user = makeAddr("testUser");
         uint256 usedShares = 1000e18;
         uint256 assetOutput = 1100e18;
@@ -594,6 +598,7 @@ contract YieldSourceOraclesTest is Helpers {
         vm.mockCall(
             address(erc4626), abi.encodeWithSignature("previewRedeem(uint256)", usedShares), abi.encode(assetOutput)
         );
+        invalidOracleId = _getYieldSourceOracleId(invalidOracleId, address(this));
 
         // Get asset output with fees using invalid oracle ID
         // Should fall back to base output (zero fees) due to try/catch
@@ -606,10 +611,11 @@ contract YieldSourceOraclesTest is Helpers {
     }
 
     function test_ERC4626_getAssetOutputWithFees_WithDifferentProfitLevels() public {
-        bytes4 oracleId = bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        bytes32 oracleId = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
         address user = makeAddr("testUser");
         uint256 initialShares = 1000e18;
         uint256 usedShares = 500e18; // Half shares, so cost basis = 500e18
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         // First do an inflow to set up shares
         vm.prank(address(0x777)); // allowed executor
@@ -660,7 +666,7 @@ contract YieldSourceOraclesTest is Helpers {
     }
 
     function test_ERC4626_getAssetOutputWithFees_WithMultipleUsers() public {
-        bytes4 oracleId = bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        bytes32 oracleId = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
         uint256 initialShares = 1000e18;
         uint256 usedShares = 500e18;
         uint256 assetOutput = 1100e18; // 10% profit
@@ -669,6 +675,7 @@ contract YieldSourceOraclesTest is Helpers {
         users[0] = makeAddr("user1");
         users[1] = makeAddr("user2");
         users[2] = makeAddr("user3");
+        oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
         // Set up inflows for each user
         for (uint256 i = 0; i < users.length; i++) {
@@ -701,4 +708,10 @@ contract YieldSourceOraclesTest is Helpers {
             assertEq(assetOutputWithFees, expectedTotal, "Asset output with fees should be consistent across users");
         }
     }
+
+    
+    function _getYieldSourceOracleId(bytes32 id, address sender) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(id, sender));
+    }
+
 }

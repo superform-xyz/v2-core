@@ -19,7 +19,7 @@ contract ERC4626YieldSourceOracleTest is Helpers {
     Mock4626Vault public vault;
 
     function setUp() public {
-        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration(address(this))));
+        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
         address[] memory allowedExecutors = new address[](1);
         allowedExecutors[0] = address(0x777);
         ledger = ISuperLedger(address(new SuperLedger(address(ledgerConfig), allowedExecutors)));
