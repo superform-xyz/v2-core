@@ -40,7 +40,7 @@ import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.s
 
 // vault hooks
 // -- vault bank
-import {ApproveAndLockVaultBankHook} from "../src/core/hooks/vaults/vault-bank/ApproveAndLockVaultBankHook.sol";
+import {MintSuperPositionsHook} from "../src/core/hooks/vaults/vault-bank/MintSuperPositionsHook.sol";
 
 // --- erc5115
 import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
@@ -228,7 +228,7 @@ struct Addresses {
     EthenaUnstakeHook ethenaUnstakeHook;
     BatchTransferFromHook batchTransferFromHook;
     OfframpTokensHook offrampTokensHook;
-    ApproveAndLockVaultBankHook approveAndLockVaultBankHook;
+    MintSuperPositionsHook mintSuperPositionsHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     ERC7540YieldSourceOracle erc7540YieldSourceOracle;
@@ -1218,18 +1218,18 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][OFFRAMP_TOKENS_HOOK_KEY]);
             hooksAddresses[47] = address(A[i].offrampTokensHook);
 
-            A[i].approveAndLockVaultBankHook = new ApproveAndLockVaultBankHook{ salt: SALT }();
-            vm.label(address(A[i].approveAndLockVaultBankHook), APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY] = address(A[i].approveAndLockVaultBankHook);
+            A[i].mintSuperPositionsHook = new MintSuperPositionsHook{ salt: SALT }();
+            vm.label(address(A[i].mintSuperPositionsHook), APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY] = address(A[i].mintSuperPositionsHook);
             hooks[chainIds[i]][APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY] = Hook(
                 APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY,
                 HookCategory.TokenApprovals,
                 HookCategory.None,
-                address(A[i].approveAndLockVaultBankHook),
+                address(A[i].mintSuperPositionsHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY]);
-            hooksAddresses[48] = address(A[i].approveAndLockVaultBankHook);
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]][APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY]);
+            hooksAddresses[48] = address(A[i].mintSuperPositionsHook);
 
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
@@ -1468,6 +1468,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             superGovernor.registerHook(address(A[i].claimCancelDepositRequest7540Hook), false);
             superGovernor.registerHook(address(A[i].claimCancelRedeemRequest7540Hook), false);
             superGovernor.registerHook(address(A[i].cancelRedeemHook), false);
+            superGovernor.registerHook(address(A[i].mintSuperPositionsHook), false);
+
             // EXPERIMENTAL HOOKS FROM HERE ONWARDS
             superGovernor.registerHook(address(A[i].ethenaCooldownSharesHook), false);
             superGovernor.registerHook(address(A[i].ethenaUnstakeHook), true);

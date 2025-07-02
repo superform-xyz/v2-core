@@ -302,15 +302,21 @@ abstract contract InternalHelpers {
         hookData = abi.encodePacked(token, spender, amount, usePrevHookAmount);
     }
 
+
+
     function _createApproveAndLockVaultBankHookData(
         bytes32 yieldSourceOracleId,
-        address spToken
+        address spToken,
+        uint256 amount,
+        bool usePrevHookAmount,
+        address vaultBank,
+        uint256 dstChainId
     )
         internal
         pure
         returns (bytes memory hookData)
     {
-        hookData = abi.encodePacked(yieldSourceOracleId, spToken);
+        hookData = abi.encodePacked(yieldSourceOracleId, spToken, amount, usePrevHookAmount, vaultBank, dstChainId);
     }
 
     function _createDeposit4626HookData(

@@ -13,9 +13,8 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookSetter, ISuperLockableHook, ISuperHookContextAware } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookSetter, ISuperHookContextAware } from "../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
-import { IVaultBank } from "../../periphery/interfaces/VaultBank/IVaultBank.sol";
 
 /// @title SuperExecutorBase
 /// @author Superform Labs

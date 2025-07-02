@@ -139,8 +139,4 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     function lastCaller() external view returns (address) {
         return msg.sender;
     }
-
-    function extractLockDetails(bytes memory) external pure returns (address, uint256, bytes32) {
-        return (vaultBank(), dstChainId(), bytes32(0));
-    }   
 }

@@ -57,19 +57,6 @@ contract MockLockableHook {
     }
 
     /**
-     * @notice Extract lock details from hook data
-     * @param hookData_ The hook data (unused in this mock)
-     * @return vaultBank The vault bank address
-     * @return dstChainId The destination chain ID
-     * @return yieldSourceOracleId The yield source oracle ID
-     */
-    function extractLockDetails(
-        bytes memory hookData_
-    ) external view returns (address, uint256, bytes32) {
-        return (_vaultBank, _dstChainId, _yieldSourceOracleId);
-    }
-
-    /**
      * @notice Returns the vault bank address
      * @return The vault bank address
      */

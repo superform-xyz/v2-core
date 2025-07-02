@@ -27,7 +27,7 @@ import { SuperNativePaymaster } from "../src/core/paymaster/SuperNativePaymaster
 
 // -- hooks
 // ---- | vault bank
-import {ApproveAndLockVaultBankHook} from "../src/core/hooks/vaults/vault-bank/ApproveAndLockVaultBankHook.sol";
+import {MintSuperPositionsHook} from "../src/core/hooks/vaults/vault-bank/MintSuperPositionsHook.sol";
 
 // ---- | swappers
 import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
@@ -653,7 +653,7 @@ contract DeployV2 is Script, Configuration {
 
         hooks[47] = HookDeployment(OFFRAMP_TOKENS_HOOK_KEY, type(OfframpTokensHook).creationCode);
 
-        hooks[48] = HookDeployment(APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY, type(ApproveAndLockVaultBankHook).creationCode);
+        hooks[48] = HookDeployment(APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY, type(MintSuperPositionsHook).creationCode);
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
