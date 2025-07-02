@@ -48,6 +48,7 @@ import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounti
 import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ApproveERC20Hook } from "../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { Deposit4626VaultHook } from "../../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { ApproveAndLockVaultBankHook } from "../../../src/core/hooks/vaults/vault-bank/ApproveAndLockVaultBankHook.sol";
 import { Redeem4626VaultHook } from "../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
 import { SuperLedger } from "../../../src/core/accounting/SuperLedger.sol";
 import { MockSwapOdosHook } from "../../mocks/unused-hooks/MockSwapOdosHook.sol";
@@ -95,7 +96,7 @@ contract SuperExecutor_sameChainFlow is
     address redeem4626Hook;
     address mockSwapOdosHook;
     address mockOdosRouter;
-
+    address approveAndLockVaultBankHook;
     SuperMerkleValidator public validator;
 
     address public signer;
@@ -164,6 +165,7 @@ contract SuperExecutor_sameChainFlow is
         approveHook = address(new ApproveERC20Hook());
         deposit4626Hook = address(new Deposit4626VaultHook());
         redeem4626Hook = address(new Redeem4626VaultHook());
+        approveAndLockVaultBankHook = address(new ApproveAndLockVaultBankHook());
 
         // mocks
         mockSuperPositionFactory = new MockSuperPositionFactory(address(this));
@@ -336,14 +338,18 @@ contract SuperExecutor_sameChainFlow is
 
         _getTokens(underlying, testAccount, amount);
 
-        address[] memory hooksAddresses = new address[](2);
+        address[] memory hooksAddresses = new address[](3);
         hooksAddresses[0] = address(approveHook);
         hooksAddresses[1] = address(deposit4626Hook);
+        hooksAddresses[2] = address(approveAndLockVaultBankHook);
 
-        bytes[] memory hooksData = new bytes[](2);
+        bytes[] memory hooksData = new bytes[](3);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, amount, false, address(vaultBank), 8453
+        );
+        hooksData[2] = _createApproveAndLockVaultBankHookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress
         );
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 

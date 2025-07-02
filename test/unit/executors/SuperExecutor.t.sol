@@ -46,6 +46,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     MockERC20 public token;
     MockHook public inflowHook;
     MockHook public outflowHook;
+    MockHook public approveAndLockVaultBankHook;
     MockLedger public ledger;
     MockNexusFactory public nexusFactory;
     MockLedgerConfiguration public ledgerConfig;
@@ -460,35 +461,6 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
-        superSourceExecutor.execute(abi.encode(entry));
-        vm.stopPrank();
-    }
-
-    function test_SourceExecutor_VaultBank_InvalidDestinationChainId() public {
-        inflowHook.setOutAmount(1000, address(this));
-
-        address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = address(inflowHook);
-
-        bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createDeposit4626HookData(
-            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(token), 1, false, address(0), 0
-        );
-
-        vm.mockCall(address(inflowHook), abi.encodeWithSignature("spToken()"), abi.encode(address(token)));
-        vm.mockCall(address(inflowHook), abi.encodeWithSignature("extractLockDetails(bytes)"), abi.encode(address(this), uint64(block.chainid), bytes32(bytes("1"))));
-        vm.mockCall(
-            address(this),
-            abi.encodeWithSignature("lockAsset(bytes32,address,address,address,uint256,uint64)"),
-            abi.encode(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(account), address(token), address(inflowHook), 1000, uint64(block.chainid))
-        );
-
-        vm.startPrank(account);
-
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-
-        vm.expectRevert(ISuperExecutor.INVALID_CHAIN_ID.selector);
         superSourceExecutor.execute(abi.encode(entry));
         vm.stopPrank();
     }

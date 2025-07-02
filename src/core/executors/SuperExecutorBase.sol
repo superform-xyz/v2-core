@@ -325,51 +325,6 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         //  which requires the state to be clean
         hook.resetExecutionState(account);
         _updateAccounting(account, address(hook), hookData);
-
-        // STEP 5: Handle cross-chain operations
-        _checkAndLockForSuperPosition(account, address(hook), hookData);
-    }
-
-    /// @notice Handles cross-chain asset locking for SuperPosition minting
-    /// @dev Checks if the hook specifies a vault bank and destination chain
-    ///      If cross-chain operation is needed:
-    ///      1. Creates approval for the vault bank to access tokens
-    ///      2. Locks the assets in the vault bank for the destination chain
-    ///      3. Emits an event to signal the cross-chain operation
-    /// @param account The smart account executing the operation
-    /// @param hook The hook that contains cross-chain operation details
-    /// @param hookData The data provided to the hook for execution
-    function _checkAndLockForSuperPosition(address account, address hook, bytes memory hookData) internal virtual {
-        // Get cross-chain operation details from the hook
-        bytes4 selector = ISuperLockableHook.extractLockDetails.selector;
-        (bool success, bytes memory result) = hook.staticcall(abi.encodeWithSelector(selector, hookData));
-        if (success) {
-            (address vaultBank, uint256 dstChainId, bytes32 yieldSourceOracleId) = abi.decode(result, (address, uint256, bytes32));
-
-            // Process cross-chain operation if a vault bank is specified
-            if (vaultBank != address(0)) {
-                if (yieldSourceOracleId == bytes32(0)) revert INVALID_YIELD_SOURCE_ORACLE_ID();
-
-                // Ensure destination chain is different from current chain
-                if (dstChainId == block.chainid) revert INVALID_CHAIN_ID(); 
-                
-                address spToken = ISuperHookResult(hook).spToken();
-                uint256 amount = ISuperHookResult(hook).getOutAmount(account);
-
-                // Create and execute approval for the vault bank to access tokens
-                Execution[] memory execs = new Execution[](1);
-                execs[0] = Execution({
-                    target: spToken,
-                    value: 0,
-                    callData: abi.encodeCall(IERC20.approve, (address(vaultBank), amount))
-                });
-                _execute(account, execs);
-
-
-                // Lock assets in the vault bank for cross-chain transfer
-                IVaultBank(vaultBank).lockAsset(yieldSourceOracleId, account, spToken, hook, amount, uint64(dstChainId));
-            }
-        }
     }
 
     function _shouldUsePreviousOutput(address hook, bytes memory hookData) private pure returns (bool) {

@@ -39,6 +39,9 @@ import { MorphoSupplyAndBorrowHook } from "../src/core/hooks/loan/morpho/MorphoS
 import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
 
 // vault hooks
+// -- vault bank
+import {ApproveAndLockVaultBankHook} from "../src/core/hooks/vaults/vault-bank/ApproveAndLockVaultBankHook.sol";
+
 // --- erc5115
 import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
 import { ApproveAndDeposit5115VaultHook } from "../src/core/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
@@ -225,6 +228,7 @@ struct Addresses {
     EthenaUnstakeHook ethenaUnstakeHook;
     BatchTransferFromHook batchTransferFromHook;
     OfframpTokensHook offrampTokensHook;
+    ApproveAndLockVaultBankHook approveAndLockVaultBankHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     ERC7540YieldSourceOracle erc7540YieldSourceOracle;
@@ -611,7 +615,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](48);
+            address[] memory hooksAddresses = new address[](49);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }();
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -1213,6 +1217,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][OFFRAMP_TOKENS_HOOK_KEY]);
             hooksAddresses[47] = address(A[i].offrampTokensHook);
+
+            A[i].approveAndLockVaultBankHook = new ApproveAndLockVaultBankHook{ salt: SALT }();
+            vm.label(address(A[i].approveAndLockVaultBankHook), APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY);
+            hookAddresses[chainIds[i]][APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY] = address(A[i].approveAndLockVaultBankHook);
+            hooks[chainIds[i]][APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY] = Hook(
+                APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.None,
+                address(A[i].approveAndLockVaultBankHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY]);
+            hooksAddresses[48] = address(A[i].approveAndLockVaultBankHook);
 
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);

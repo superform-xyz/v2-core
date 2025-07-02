@@ -36,11 +36,6 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         SUPER_GOVERNOR = ISuperGovernor(governor_);
     }
 
-    modifier onlyExecutor() {
-        if (!SUPER_GOVERNOR.isExecutor(msg.sender)) revert INVALID_EXECUTOR();
-        _;
-    }
-
     modifier onlyRelayer() {
         if (!SUPER_GOVERNOR.isRelayer(msg.sender)) revert INVALID_RELAYER();
         _;
@@ -70,7 +65,6 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         uint64 toChainId
     )
         external
-        onlyExecutor
     {
         address vaultBank = SUPER_GOVERNOR.getVaultBank(toChainId);
 
