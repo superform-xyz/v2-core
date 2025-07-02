@@ -20,7 +20,7 @@ contract EthenaHooksTests is Helpers {
     EthenaUnstakeHook unstakeHook;
 
     MockERC20 yieldSource;
-    bytes4 yieldSourceOracleId;
+    bytes32 yieldSourceOracleId;
     uint256 amount;
     uint256 prevHookAmount;
     address receiver;
@@ -30,7 +30,7 @@ contract EthenaHooksTests is Helpers {
         unstakeHook = new EthenaUnstakeHook();
 
         yieldSource = new MockERC20("Yield Source", "YS", 18);
-        yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
+        yieldSourceOracleId = bytes32(keccak256("YIELD_SOURCE_ORACLE_ID"));
         amount = 1000e18;
         prevHookAmount = 2000e18;
         receiver = address(this);

@@ -19,6 +19,26 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
  *      - INFLOW: Hooks that process deposits or additions to positions
  *      - OUTFLOW: Hooks that process withdrawals or reductions to positions
  */
+
+interface ISuperLockableHook {
+    /// @notice Extracts the vault bank and destination chain ID
+    /// @dev Used to retrieve lock details for cross-chain operations
+    /// @return vaultBank The vault bank address
+    /// @return dstChainId The destination chain ID
+    /// @return yieldSourceOracleId The yield source oracle ID
+    function extractLockDetails(bytes memory hookData) external view returns (address, uint256, bytes32);
+
+    /// @notice The vault bank address used to lock SuperPositions
+    /// @dev Only relevant for cross-chain operations where positions are locked
+    /// @return The vault bank address, or address(0) if not applicable
+    function vaultBank() external view returns (address);
+
+    /// @notice The destination chain ID for cross-chain operations
+    /// @dev Used to identify the target chain for cross-chain position transfers
+    /// @return The destination chain ID, or 0 if not a cross-chain operation
+    function dstChainId() external view returns (uint256);
+}
+
 interface ISuperHookSetter {
     /// @notice Sets the output amount for the hook
     /// @dev Used for updating `outAmount` when fees were deducted
@@ -61,16 +81,6 @@ interface ISuperHookResult {
     /// @dev For most hooks, this is the actual token being deposited or withdrawn
     /// @return The address of the asset token, or address(0) for native assets
     function asset() external view returns (address);
-
-    /// @notice The vault bank address used to lock SuperPositions
-    /// @dev Only relevant for cross-chain operations where positions are locked
-    /// @return The vault bank address, or address(0) if not applicable
-    function vaultBank() external view returns (address);
-
-    /// @notice The destination chain ID for cross-chain operations
-    /// @dev Used to identify the target chain for cross-chain position transfers
-    /// @return The destination chain ID, or 0 if not a cross-chain operation
-    function dstChainId() external view returns (uint256);
 
     /// @notice The amount of tokens processed by the hook in a given caller context, subject to fees after update
     /// @dev This is the primary output value used by subsequent hooks

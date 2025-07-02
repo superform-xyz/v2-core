@@ -1606,7 +1606,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         bytes[] memory hooksData = new bytes[](3);
         // redeem from FluidVault
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(fluidVault),
             address(strategy),
             vars.amountToReallocateFluidVault,
@@ -1614,7 +1614,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
         // redeem from AaveVault
         hooksData[1] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(aaveVault),
             address(strategy),
             vars.amountToReallocateAaveVault,
@@ -1622,7 +1622,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
         // deposit to PendleVault
         hooksData[2] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(vars.newVault),
             address(asset),
             vars.assetAmountToReallocateToPendleVault,
@@ -2374,7 +2374,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         bytes[] memory fulfillHooksData = new bytes[](1);
 
         fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(gearboxVault),
             address(asset),
             depositAmount,
@@ -2413,7 +2413,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createApproveAndGearboxStakeHookData(
-            bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(gearboxFarmingPool),
             address(gearboxVault),
             amountToStake,
@@ -2441,7 +2441,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createGearboxUnstakeHookData(
-            bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)), address(gearboxFarmingPool), amountToUnStake, false
+            _getYieldSourceOracleId(bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)), MANAGER), address(gearboxFarmingPool), amountToUnStake, false
         );
 
         bytes[] memory argsForProofs = new bytes[](1);
@@ -2472,7 +2472,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         bytes[] memory fulfillHooksData = new bytes[](1);
         fulfillHooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             address(gearboxVault),
             address(strategyGearSuperVault),
             shares,
@@ -2506,7 +2506,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
         bytes[] memory claimHooksData = new bytes[](1);
         claimHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(gearSuperVault), assets, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER), address(gearSuperVault), assets, false
         );
 
         ISuperExecutor.ExecutorEntry memory claimEntry =
@@ -2814,7 +2814,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         bytes[] memory hooksData = new bytes[](3);
         // redeem from FluidVault
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             address(fluidVault),
             address(strategy),
             amountToReallocateFluidVault,
@@ -2822,7 +2822,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
         // redeem from AaveVault
         hooksData[1] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             address(aaveVault),
             address(strategy),
             amountToReallocateAaveVault,
@@ -2830,7 +2830,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
         // deposit to NewVault
         hooksData[2] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             address(newVault),
             address(asset),
             assetAmountToReallocateToNewVault,
@@ -3330,7 +3330,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         hooksAddresses[2] = depositHookAddress;
 
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(fluidVault),
             address(strategy),
             vars.amountToReallocateFluidVault,
@@ -3338,7 +3338,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
 
         hooksData[1] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(aaveVault),
             address(strategy),
             vars.amountToReallocateAaveVault,
@@ -3346,7 +3346,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
 
         hooksData[2] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(newVault),
             address(asset),
             vars.assetAmountToReallocateToNewVault,
@@ -3427,7 +3427,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         hooksAddresses[2] = depositHookAddress;
 
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(newVault),
             address(strategy),
             vars.assetAmountToReallocateToNewVault,
@@ -3435,7 +3435,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
 
         hooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(fluidVault),
             address(asset),
             vars.assetAmountToReallocateFromFluidVault,
@@ -3445,7 +3445,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
 
         hooksData[2] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(aaveVault),
             address(asset),
             vars.assetAmountToReallocateFromAaveVault,
@@ -4007,7 +4007,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         bytes[] memory fulfillHooksData = new bytes[](3);
         // allocate up to the max allocation rate in the two Vaults
         fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(vars.vault1),
             address(asset),
             vars.depositAmount,
@@ -4016,7 +4016,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             0
         );
         fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(vars.vault2),
             address(asset),
             vars.depositAmount,
@@ -4025,7 +4025,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             0
         );
         fulfillHooksData[2] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(vars.vault3),
             address(asset),
             vars.depositAmount,
@@ -4165,7 +4165,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
             bytes[] memory fulfillHooksData = new bytes[](3);
             // allocate up to the max allocation rate in the two Vaults
             fulfillHooksData[0] = _createApproveAndDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
                 address(vars.vault1),
                 address(asset),
                 vars.depositAmount,
@@ -4174,7 +4174,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
                 0
             );
             fulfillHooksData[1] = _createApproveAndDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
                 address(vars.vault2),
                 address(asset),
                 vars.depositAmount,
@@ -4183,7 +4183,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
                 0
             );
             fulfillHooksData[2] = _createApproveAndDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
                 address(vars.vault3),
                 address(asset),
                 vars.depositAmount,
@@ -4347,7 +4347,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         bytes[] memory hooksData = new bytes[](2);
         // redeem from fluid entirely
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(fluidVault),
             address(strategy),
             vars.amountToReallocateFluidVault,
@@ -4355,7 +4355,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
         // deposit to aave
         hooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(aaveVault),
             address(asset),
             vars.assetAmountToReallocateFromFluidVault,
@@ -4403,7 +4403,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vars.assetAmountToReallocateFromAaveVault = aaveVault.convertToAssets(vars.amountToReallocateAaveVault);
         // re-allocate back to fluid; withdraw from aave (20%)
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(aaveVault),
             address(strategy),
             vars.amountToReallocateAaveVault,
@@ -4411,7 +4411,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
         // deposit to fluid
         hooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(fluidVault),
             address(asset),
             vars.assetAmountToReallocateFromAaveVault,
@@ -4554,7 +4554,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         bytes[] memory hooksData = new bytes[](2);
         // redeem from fluid entirely
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(fluidVault),
             address(strategy),
             vars.amountToReallocateFluidVault,
@@ -4562,7 +4562,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
         // deposit to aave
         hooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(aaveVault),
             address(asset),
             vars.assetAmountToReallocateFromFluidVault,
@@ -4616,7 +4616,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         vars.assetAmountToReallocateFromAaveVault = aaveVault.convertToAssets(vars.amountToReallocateAaveVault);
         // re-allocate back to fluid; withdraw from aave (20%)
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(aaveVault),
             address(strategy),
             vars.amountToReallocateAaveVault,
@@ -4624,7 +4624,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
         // deposit to fluid
         hooksData[1] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(fluidVault),
             address(asset),
             vars.assetAmountToReallocateFromAaveVault,
@@ -4963,7 +4963,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         bytes[] memory hooksData = new bytes[](3);
         // redeem from FluidVault
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(fluidVault),
             address(strategy),
             vars.amountToReallocateFluidVault,
@@ -4971,7 +4971,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
         // redeem from AaveVault
         hooksData[1] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(aaveVault),
             address(strategy),
             vars.amountToReallocateAaveVault,
@@ -4979,7 +4979,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
         );
         // deposit to NewVault
         hooksData[2] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(newVault),
             address(asset),
             vars.assetAmountToReallocateToNewVault,
@@ -5654,7 +5654,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
             // Redeem from Ruggable Vault
             hooksData[0] = _createRedeem4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
                 vars.ruggableVault,
                 address(strategy),
                 vars.amountToReallocate,
@@ -5663,7 +5663,7 @@ contract SuperVaultTest is BaseSuperVaultTest {
 
             // Deposit to Fluid Vault
             hooksData[1] = _createApproveAndDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
                 address(fluidVault),
                 address(asset),
                 vars.assetAmountToReallocate,

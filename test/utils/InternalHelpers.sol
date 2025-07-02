@@ -68,6 +68,10 @@ abstract contract InternalHelpers {
         return userOpData;
     }
 
+    function _getYieldSourceOracleId(bytes32 id, address sender) internal pure returns (bytes32) {
+        return keccak256(abi.encodePacked(id, sender));
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  SWAPPERS
     //////////////////////////////////////////////////////////////*/
@@ -192,7 +196,7 @@ abstract contract InternalHelpers {
             /**
              * yieldSourceOracleId
              */
-            bytes4(bytes("")),
+            bytes32(bytes("")),
             /**
              * yieldSource
              */
@@ -246,7 +250,7 @@ abstract contract InternalHelpers {
         bytes1 command = redeemPtForAsset ? REDEEM_PT_FOR_ASSET : REDEEM_IBT_FOR_ASSET;
 
         return abi.encodePacked(
-            bytes4(bytes("")), asset, pt, recipient, minAssets, sharesToBurn, usePrevHookAmount, command
+            bytes32(bytes("")), asset, pt, recipient, minAssets, sharesToBurn, usePrevHookAmount, command
         );
     }
 
@@ -299,7 +303,7 @@ abstract contract InternalHelpers {
     }
 
     function _createDeposit4626HookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address vault,
         uint256 amount,
         bool usePrevHookAmount,
@@ -314,7 +318,7 @@ abstract contract InternalHelpers {
     }
 
     function _createApproveAndDeposit4626HookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address vault,
         address token,
         uint256 amount,
@@ -330,7 +334,7 @@ abstract contract InternalHelpers {
     }
 
     function _create5115DepositHookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address vault,
         address tokenIn,
         uint256 amount,
@@ -349,7 +353,7 @@ abstract contract InternalHelpers {
     }
 
     function _createRedeem4626HookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address vault,
         address owner,
         uint256 shares,
@@ -363,7 +367,7 @@ abstract contract InternalHelpers {
     }
 
     function _create5115RedeemHookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address vault,
         address tokenOut,
         uint256 shares,
@@ -378,7 +382,7 @@ abstract contract InternalHelpers {
     }
 
     function _createRequestDeposit7540VaultHookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address yieldSource,
         uint256 amount,
         bool usePrevHookAmount
@@ -391,7 +395,7 @@ abstract contract InternalHelpers {
     }
 
     function _createDeposit7540VaultHookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address yieldSource,
         uint256 amount,
         bool usePrevHookAmount,
@@ -406,7 +410,7 @@ abstract contract InternalHelpers {
     }
 
     function _createRequestRedeem7540VaultHookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address yieldSource,
         uint256 amount,
         bool usePrevHookAmount
@@ -419,7 +423,7 @@ abstract contract InternalHelpers {
     }
 
     function _createWithdraw7540VaultHookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address yieldSource,
         uint256 amount,
         bool usePrevHookAmount
@@ -432,7 +436,7 @@ abstract contract InternalHelpers {
     }
 
     function _createRedeem7540VaultHookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address yieldSource,
         uint256 amount,
         bool usePrevHookAmount
@@ -445,7 +449,7 @@ abstract contract InternalHelpers {
     }
 
     function _createApproveAndRequestRedeem7540VaultHookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address yieldSource,
         uint256 shares,
         bool usePrevHookAmount
@@ -458,7 +462,7 @@ abstract contract InternalHelpers {
     }
 
     function _createDeposit5115VaultHookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address yieldSource,
         address tokenIn,
         uint256 amount,
@@ -477,7 +481,7 @@ abstract contract InternalHelpers {
     }
 
     function _createApproveAndGearboxStakeHookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address yieldSource,
         address token,
         uint256 amount,
@@ -491,7 +495,7 @@ abstract contract InternalHelpers {
     }
 
     function _createGearboxStakeHookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address yieldSource,
         uint256 amount,
         bool usePrevHookAmount
@@ -504,7 +508,7 @@ abstract contract InternalHelpers {
     }
 
     function _createGearboxUnstakeHookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address yieldSource,
         uint256 amount,
         bool usePrevHookAmount
@@ -517,7 +521,7 @@ abstract contract InternalHelpers {
     }
 
     function _createApproveAndDeposit5115VaultHookData(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address yieldSource,
         address tokenIn,
         uint256 amount,
@@ -545,15 +549,15 @@ abstract contract InternalHelpers {
         pure
         returns (bytes memory)
     {
-        return abi.encodePacked(bytes4(bytes("")), yieldSource, token, amount, usePrevHookAmount);
+        return abi.encodePacked(bytes32(bytes("")), yieldSource, token, amount, usePrevHookAmount);
     }
 
     function _createCancelHookData(address yieldSource) internal pure returns (bytes memory) {
-        return abi.encodePacked(bytes4(bytes("")), yieldSource);
+        return abi.encodePacked(bytes32(bytes("")), yieldSource);
     }
 
     function _createClaimCancelHookData(address yieldSource, address receiver) internal pure returns (bytes memory) {
-        return abi.encodePacked(bytes4(bytes("")), yieldSource, receiver);
+        return abi.encodePacked(bytes32(bytes("")), yieldSource, receiver);
     }
 
     function _createMorphoSupplyAndBorrowHookData(

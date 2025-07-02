@@ -22,12 +22,12 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title Redeem5115VaultHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         address tokenOut = BytesLib.toAddress(data, 24);
-/// @notice         uint256 shares = BytesLib.toUint256(data, 44);
-/// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 76);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 108);
+/// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         address tokenOut = BytesLib.toAddress(data, 52);
+/// @notice         uint256 shares = BytesLib.toUint256(data, 72);
+/// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 104);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
 contract Redeem5115VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
@@ -37,8 +37,8 @@ contract Redeem5115VaultHook is
 {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 44;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 108;
+    uint256 private constant AMOUNT_POSITION = 72;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 136;
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC5115) { }
 
@@ -57,9 +57,9 @@ contract Redeem5115VaultHook is
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address tokenOut = BytesLib.toAddress(data, 24);
+        address tokenOut = BytesLib.toAddress(data, 52);
         uint256 shares = _decodeAmount(data);
-        uint256 minTokenOut = BytesLib.toUint256(data, 76);
+        uint256 minTokenOut = BytesLib.toUint256(data, 104);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
@@ -100,7 +100,7 @@ contract Redeem5115VaultHook is
     function inspect(bytes calldata data) external pure returns (bytes memory) {
         return abi.encodePacked(
             data.extractYieldSource(),
-            BytesLib.toAddress(data, 24) // tokenOut
+            BytesLib.toAddress(data, 52) // tokenOut
         );
     }
 
@@ -108,7 +108,7 @@ contract Redeem5115VaultHook is
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        asset = BytesLib.toAddress(data, 24); // tokenOut from data
+        asset = BytesLib.toAddress(data, 52); // tokenOut from data
         _setOutAmount(_getBalance(account, data), account);
         usedShares = _getSharesBalance(account, data);
         spToken = data.extractYieldSource();

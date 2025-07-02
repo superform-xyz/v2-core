@@ -22,7 +22,7 @@ abstract contract BaseClaimRewardHook {
     }
 
     function _getBalance(bytes memory data, address account) internal view returns (uint256) {
-        address rewardToken = BytesLib.toAddress(data, 24);
+        address rewardToken = BytesLib.toAddress(data, 52);
         if (rewardToken == address(0)) revert REWARD_TOKEN_ZERO_ADDRESS();
 
         return IERC20(rewardToken).balanceOf(account);

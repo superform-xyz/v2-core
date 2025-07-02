@@ -32,7 +32,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddressEth, amount, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -53,7 +53,11 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         hooksAddresses[0] = redeem4626Hook;
         hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, accountEth, accSharesAfter, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            yieldSourceAddressEth,
+            accountEth,
+            accSharesAfter,
+            false
         );
 
         ISuperExecutor.ExecutorEntry memory entryWithdraw =
@@ -84,7 +88,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddressEth, amount, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -101,7 +105,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddressEth, amount, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -119,7 +123,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         hooksAddresses[0] = redeem4626Hook;
         hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSourceAddressEth,
             accountEth,
             accSharesAfter / 2, // temporary
@@ -143,7 +147,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         hooksAddresses[0] = approveAndDeposit4626Hook;
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSourceAddressEth,
             underlyingEth_USDC,
             amount,
@@ -170,7 +174,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
 
         hooksAddresses[0] = redeem4626Hook;
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, accountEth2, yieldSourceBal, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddressEth, accountEth2, yieldSourceBal, false
         );
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));

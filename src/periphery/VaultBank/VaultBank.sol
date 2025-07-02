@@ -62,6 +62,7 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
     // ------------------ SOURCE VAULTBANK METHODS ------------------
     /// @inheritdoc IVaultBank
     function lockAsset(
+        bytes32 yieldSourceOracleId,
         address account,
         address token,
         address hookAddress,
@@ -78,7 +79,7 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
 
         uint256 _nonce = nonces[toChainId];
         nonces[toChainId]++;
-        _lockAssetForChain(account, token, amount, toChainId, _nonce);
+        _lockAssetForChain(yieldSourceOracleId, account, token, amount, toChainId, _nonce);
     }
 
     /// @inheritdoc IVaultBank
@@ -87,6 +88,7 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         address token,
         uint256 amount,
         uint64 fromChainId,
+        bytes32 yieldSourceOracleId,
         bytes calldata proof
     )
         external
@@ -97,7 +99,7 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         //`toChainId` is current chain
         uint256 _nonce = nonces[uint64(_chainId)];
         nonces[uint64(_chainId)]++;
-        _releaseAssetFromChain(account, token, amount, fromChainId, _nonce);
+        _releaseAssetFromChain(yieldSourceOracleId, account, token, amount, fromChainId, _nonce);
     }
 
     /// @inheritdoc IVaultBank
@@ -136,7 +138,7 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
         _validateDistributeSPProof(sourceAsset_.asset, amount_, sourceAsset_.chainId, proof_);
 
         address spAddress = _retrieveSuperPosition(
-            sourceAsset_.chainId, sourceAsset_.asset, sourceAsset_.name, sourceAsset_.symbol, sourceAsset_.decimals
+            sourceAsset_.yieldSourceOracleId, sourceAsset_.chainId, sourceAsset_.asset, sourceAsset_.name, sourceAsset_.symbol, sourceAsset_.decimals
         );
         _mintSP(account_, spAddress, amount_);
 
@@ -148,12 +150,12 @@ contract VaultBank is IVaultBank, VaultBankSource, VaultBankDestination, Bank {
     }
 
     /// @inheritdoc IVaultBank
-    function burnSuperPosition(uint256 amount_, address spAddress_, uint64 forChainId_) external override {
+    function burnSuperPosition(uint256 amount_, address spAddress_, uint64 forChainId_, bytes32 yieldSourceOracleId_) external override {
         _burnSP(msg.sender, spAddress_, amount_);
         uint256 _nonce = nonces[forChainId_];
         nonces[forChainId_]++;
         emit SuperpositionsBurned(
-            msg.sender, spAddress_, _spAssetsInfo[spAddress_].spToToken[forChainId_], amount_, forChainId_, _nonce
+            msg.sender, spAddress_, _spAssetsInfo[spAddress_].spToToken[forChainId_][yieldSourceOracleId_], amount_, forChainId_, _nonce
         );
     }
 

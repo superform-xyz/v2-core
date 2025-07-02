@@ -16,18 +16,18 @@ import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol
 /// @title FluidStakeWithPermitHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 4, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 24, 32), 0);
-/// @notice         uint256 deadline = BytesLib.toUint256(BytesLib.slice(data, 56, 32), 0);
-/// @notice         uint8 v = BytesLib.toUint8(BytesLib.slice(data, 88, 1), 0);
-/// @notice         bytes32 r = BytesLib.toBytes32(BytesLib.slice(data, 89, 32), 0);
-/// @notice         bytes32 s = BytesLib.toBytes32(BytesLib.slice(data, 121, 32), 0);
+/// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(BytesLib.slice(data, 32, 20), 0);
+/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 52, 32), 0);
+/// @notice         uint256 deadline = BytesLib.toUint256(BytesLib.slice(data, 84, 32), 0);
+/// @notice         uint8 v = BytesLib.toUint8(BytesLib.slice(data, 116, 1), 0);
+/// @notice         bytes32 r = BytesLib.toBytes32(BytesLib.slice(data, 117, 32), 0);
+/// @notice         bytes32 s = BytesLib.toBytes32(BytesLib.slice(data, 149, 32), 0);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 153);
 contract FluidStakeWithPermitHook is BaseHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 24;
+    uint256 private constant AMOUNT_POSITION = 52;
 
     constructor() BaseHook(HookType.INFLOW, "Stake") { }
 
@@ -46,10 +46,10 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHookInflowOutflow {
     {
         address yieldSource = data.extractYieldSource();
         uint256 amount = _decodeAmount(data);
-        uint256 deadline = BytesLib.toUint256(BytesLib.slice(data, 56, 32), 0);
-        uint8 v = BytesLib.toUint8(BytesLib.slice(data, 88, 1), 0);
-        bytes32 r = BytesLib.toBytes32(BytesLib.slice(data, 89, 32), 0);
-        bytes32 s = BytesLib.toBytes32(BytesLib.slice(data, 121, 32), 0);
+        uint256 deadline = BytesLib.toUint256(data, 84);
+        uint8 v = BytesLib.toUint8(BytesLib.slice(data, 116, 1), 0);
+        bytes32 r = BytesLib.toBytes32(data, 117);
+        bytes32 s = BytesLib.toBytes32(data, 149);
         bool usePrevHookAmount = _decodeBool(data, 153);
 
         if (yieldSource == address(0)) revert ADDRESS_NOT_VALID();
@@ -91,7 +91,7 @@ contract FluidStakeWithPermitHook is BaseHook, ISuperHookInflowOutflow {
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _decodeAmount(bytes memory data) private pure returns (uint256) {
-        return BytesLib.toUint256(BytesLib.slice(data, AMOUNT_POSITION, 32), 0);
+        return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 
     function _getBalance(address account, bytes memory data) private view returns (uint256) {

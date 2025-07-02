@@ -65,9 +65,15 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](3);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSource7540AddressUSDC, amount, false);
         hooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressUSDC, amount, true
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            yieldSource7540AddressUSDC,
+            amount,
+            true
         );
-        hooksData[2] = abi.encodePacked(bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressUSDC);
+        hooksData[2] = abi.encodePacked(
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            yieldSource7540AddressUSDC
+        );
 
         // 1. Approve USDC
         // 2. Request deposit
@@ -84,8 +90,11 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
         hooksAddresses[0] = address(claimCancelDepositRequest7540Hook);
 
         hooksData = new bytes[](1);
-        hooksData[0] =
-            abi.encodePacked(bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressUSDC, receiver);
+        hooksData[0] = abi.encodePacked(
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(this)),
+            yieldSource7540AddressUSDC,
+            receiver
+        );
 
         uint256 receiverBalanceBefore = IERC20(underlyingEth_USDC).balanceOf(receiver);
 
@@ -126,11 +135,11 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](4);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSource7540AddressUSDC, amountPerVault, false);
         hooksData[1] = _createRequestDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressUSDC, amountPerVault, true
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSource7540AddressUSDC, amountPerVault, true
         );
         hooksData[2] = _createApproveHookData(underlyingETH_sUSDe, yieldSource5115AddressSUSDe, amountPerVault, false);
         hooksData[3] = _createDeposit5115VaultHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSource5115AddressSUSDe,
             underlyingETH_sUSDe,
             amountPerVault,

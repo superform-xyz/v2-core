@@ -12,7 +12,7 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperHook, ISuperHookResult } from "../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperLockableHook } from "../../src/core/interfaces/ISuperHook.sol";
 import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
 
 import { HookDataDecoder } from "../../src/core/libraries/HookDataDecoder.sol";
@@ -105,7 +105,7 @@ contract MockSuperExecutor is ERC7579ExecutorBase, ISuperExecutor {
     function _updateAccounting(address account, address hook, bytes memory hookData) private {
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
-            bytes4 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
+            bytes32 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
             address yieldSource = hookData.extractYieldSource();
 
             ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
@@ -122,7 +122,7 @@ contract MockSuperExecutor is ERC7579ExecutorBase, ISuperExecutor {
     }
 
     function _lockForSuperPositions(address account, address hook) private {
-        bool lockForSP = ISuperHookResult(address(hook)).vaultBank() != address(0);
+        bool lockForSP = ISuperLockableHook(address(hook)).vaultBank() != address(0);
         if (lockForSP) {
             address spToken = ISuperHookResult(hook).spToken();
             uint256 amount = ISuperHookResult(hook).getOutAmount(account);

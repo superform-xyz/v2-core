@@ -169,7 +169,7 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
             );
 
             hookData[1] =
-                abi.encodePacked(bytes4(bytes("")), address(pendleMarketMock), bytes1(uint8(0)), uint256(0), txData);
+                abi.encodePacked(bytes32(bytes("")), address(pendleMarketMock), bytes1(uint8(0)), uint256(0), txData);
 
             ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses_, hooksData: hookData });
@@ -424,7 +424,7 @@ contract PendleRouterHookTests is MinimalBaseIntegrationTest, OdosAPIParser {
             /**
              * yieldSourceOracleId
              */
-            bytes4(bytes("")),
+            bytes32(bytes("")),
             /**
              * yieldSource
              */

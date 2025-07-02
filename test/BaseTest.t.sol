@@ -345,16 +345,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public virtual {
-        // deploy accounts
-        MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
-        TREASURY = _deployAccount(TREASURY_KEY, "TREASURY");
-        SUPER_BUNDLER = _deployAccount(SUPER_BUNDLER_KEY, "SUPER_BUNDLER");
-        ACROSS_RELAYER = _deployAccount(ACROSS_RELAYER_KEY, "ACROSS_RELAYER");
-        SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
-        STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
-        EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
-        VALIDATOR = _deployAccount(VALIDATOR_KEY, "VALIDATOR");
-
+        deployAccounts();
+      
         // Setup forks
         _preDeploymentSetup();
 
@@ -503,7 +495,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             contractAddresses[chainIds[i]][SUPER_ORACLE_KEY] = address(A[i].oracleRegistry);
 
             A[i].superLedgerConfiguration =
-                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration{ salt: SALT }(address(this))));
+                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration{ salt: SALT }()));
             vm.label(address(A[i].superLedgerConfiguration), SUPER_LEDGER_CONFIGURATION_KEY);
             contractAddresses[chainIds[i]][SUPER_LEDGER_CONFIGURATION_KEY] = address(A[i].superLedgerConfiguration);
 
@@ -1740,46 +1732,48 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     }
 
     function _setupSuperLedger() internal {
+            console2.log("------ base test MANAGER", MANAGER);
         for (uint256 i; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
             vm.startPrank(MANAGER);
+            console2.log("------ A", MANAGER);
             SuperGovernor superGovernor = SuperGovernor(_getContract(chainIds[i], SUPER_GOVERNOR_KEY));
             ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
                 new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
             configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
                 feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
                 feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
                 feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
                 ledger: _getContract(chainIds[i], ERC1155_LEDGER_KEY)
             });
             configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], STAKING_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
                 feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
-            vm.stopPrank();
-
+            bytes32[] memory salts = new bytes32[](4);
+            salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+            salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
+            salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY));
+            salts[3] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY));
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
-                configs
+                salts, configs
             );
+            vm.stopPrank();
         }
     }
     /*//////////////////////////////////////////////////////////////

@@ -14,8 +14,8 @@ import {ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
 /// @title CancelDepositRequest7540Hook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
+/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 contract CancelDepositRequest7540Hook is BaseHook, ISuperHookInspector {
     using HookDataDecoder for bytes;
 

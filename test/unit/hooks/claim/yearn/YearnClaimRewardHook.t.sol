@@ -90,14 +90,14 @@ contract YearnClaimOneRewardHookTest is Helpers {
 
         // Encode data according to the NatSpec format:
         // bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
-        // address yieldSource = BytesLib.toAddress(data, 4);
-        // address rewardToken = BytesLib.toAddress(data, 24);
-        // address account = BytesLib.toAddress(data, 44);
+        // address yieldSource = BytesLib.toAddress(data, 32);
+        // address rewardToken = BytesLib.toAddress(data, 52);
+        // address account = BytesLib.toAddress(data, 72);
         bytes memory data = abi.encodePacked(
-            bytes4(0), // placeholder
-            testYieldSource, // yieldSource at offset 4
-            testRewardToken, // rewardToken at offset 24
-            testAccount // account at offset 44
+            bytes32(0), // placeholder
+            testYieldSource, // yieldSource at offset 32
+            testRewardToken, // rewardToken at offset 52
+            testAccount // account at offset 72
         );
 
         // Verify the build function extracts yieldSource and rewardToken correctly
@@ -118,11 +118,11 @@ contract YearnClaimOneRewardHookTest is Helpers {
             "Calldata doesn't contain the correct rewardToken"
         );
 
-        // Verify data length is as expected (4 + 20 + 20 + 20 = 64 bytes)
-        assertEq(data.length, 64, "Calldata length is incorrect");
+        // Verify data length is as expected (32 + 20 + 20 + 20 = 92 bytes)
+        assertEq(data.length, 92, "Calldata length is incorrect");
     }
 
     function _encodeData() internal view returns (bytes memory) {
-        return abi.encodePacked(bytes4(0), mockYieldSource, mockRewardToken, mockAccount);
+        return abi.encodePacked(bytes32(0), mockYieldSource, mockRewardToken, mockAccount);
     }
 }

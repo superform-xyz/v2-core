@@ -22,10 +22,10 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title RequestDeposit7540VaultHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         uint256 amount = BytesLib.toUint256(data, 24);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
+/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 52);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
 contract RequestDeposit7540VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
@@ -35,8 +35,8 @@ contract RequestDeposit7540VaultHook is
 {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 24;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
+    uint256 private constant AMOUNT_POSITION = 52;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 84;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.ERC7540) { }
 

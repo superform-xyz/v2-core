@@ -23,10 +23,10 @@ import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
 /// @title YearnClaimOneRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         address rewardToken = BytesLib.toAddress(data, 24);
-/// @notice         address account = BytesLib.toAddress(data, 44);
+/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         address rewardToken = BytesLib.toAddress(data, 52);
+/// @notice         address account = BytesLib.toAddress(data, 72);
 contract YearnClaimOneRewardHook is
     BaseHook,
     BaseClaimRewardHook,
@@ -50,7 +50,7 @@ contract YearnClaimOneRewardHook is
         returns (Execution[] memory executions)
     {
         address yieldSource = data.extractYieldSource();
-        address rewardToken = BytesLib.toAddress(data, 24);
+        address rewardToken = BytesLib.toAddress(data, 52);
         if (yieldSource == address(0) || rewardToken == address(0)) revert ADDRESS_NOT_VALID();
 
         return _build(yieldSource, abi.encodeCall(IYearnStakingRewardsMulti.getOneReward, (rewardToken)));
@@ -73,14 +73,14 @@ contract YearnClaimOneRewardHook is
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
-        return abi.encodePacked(data.extractYieldSource(), BytesLib.toAddress(data, 24));
+        return abi.encodePacked(data.extractYieldSource(), BytesLib.toAddress(data, 52));
     }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        asset = BytesLib.toAddress(data, 24);
+        asset = BytesLib.toAddress(data, 52);
         if (asset == address(0)) revert ASSET_ZERO_ADDRESS();
 
         _setOutAmount(_getBalance(data, account), account);

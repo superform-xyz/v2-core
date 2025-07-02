@@ -915,34 +915,35 @@ contract DeployV2 is Script, Configuration {
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
             feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
             ledger: _getContract(chainId, SUPER_LEDGER_KEY)
         });
         configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, ERC7540_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
             feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
             ledger: _getContract(chainId, SUPER_LEDGER_KEY)
         });
         configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, ERC5115_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
             feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
             ledger: _getContract(chainId, ERC1155_LEDGER_KEY)
         });
         configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: _getContract(chainId, STAKING_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
             feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
             ledger: _getContract(chainId, SUPER_LEDGER_KEY)
         });
-        ISuperLedgerConfiguration(_getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(configs);
+        bytes32[] memory salts = new bytes32[](4);
+        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
+        salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY));
+        salts[3] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY));
+        ISuperLedgerConfiguration(_getContract(chainId, SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(salts, configs);
     }
 
     function _exportContract(

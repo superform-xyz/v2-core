@@ -79,6 +79,10 @@ interface ISuperExecutor {
     /// @dev Used to prevent unauthorized or malicious hooks from compromising the system
     error MALICIOUS_HOOK_DETECTED();
 
+    /// @notice Thrown when an invalid yield source oracle ID is provided
+    /// @dev Used to prevent operations with problematic yield source oracle IDs
+    error INVALID_YIELD_SOURCE_ORACLE_ID();
+    
     /// @notice Thrown when first hook is trying to use previous' hook's amount
     error FIRST_HOOK_CANNOT_USE_PREVIOUS_AMOUNT();
 

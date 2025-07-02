@@ -12,7 +12,7 @@ import { Helpers } from "../../../../utils/Helpers.sol";
 contract ApproveAndGearboxStakeHookTest is Helpers {
     ApproveAndGearboxStakeHook public hook;
 
-    bytes4 yieldSourceOracleId;
+    bytes32 yieldSourceOracleId;
     address yieldSource;
     address token;
     uint256 amount;
@@ -21,7 +21,7 @@ contract ApproveAndGearboxStakeHookTest is Helpers {
         MockERC20 _mockToken = new MockERC20("Mock Token", "MTK", 18);
         token = address(_mockToken);
 
-        yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
+        yieldSourceOracleId = bytes32(keccak256("YIELD_SOURCE_ORACLE_ID"));
         yieldSource = makeAddr("yieldSource");
         amount = 1000;
 

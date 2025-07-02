@@ -24,7 +24,7 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
 
     using ModuleKitHelpers for *;
 
-    bytes4 yieldSourceOracleId;
+    bytes32 yieldSourceOracleId;
     address yieldSource;
     address token;
     uint256 amount;
@@ -60,7 +60,7 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
         superExecutorOnETH = new SuperExecutor(address(ledgerConfig));
         instanceOnETH.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorOnETH), data: "" });
 
-        yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
+        yieldSourceOracleId = bytes32(keccak256("YIELD_SOURCE_ORACLE_ID"));
         yieldSource = address(this);
         token = address(new MockERC20("Token", "TKN", 18));
         amount = 1000;
@@ -78,7 +78,7 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createApproveAndDeposit5115VaultHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSource5115AddressSUSDe,
             underlyingETH_sUSDe,
             amount,

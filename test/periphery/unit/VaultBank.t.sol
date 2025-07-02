@@ -29,12 +29,12 @@ contract TestVaultBank is VaultBank {
         _spAssetsInfo[spToken].wasCreated = true;
     }
 
-    function exposed_setSuperPositionToToken(address spToken, uint64 srcChainId, address srcTokenAddress) external {
-        _spAssetsInfo[spToken].spToToken[srcChainId] = srcTokenAddress;
+    function exposed_setSuperPositionToToken(address spToken, uint64 srcChainId, address srcTokenAddress, bytes32 yieldSourceOracleId) external {
+        _spAssetsInfo[spToken].spToToken[srcChainId][yieldSourceOracleId] = srcTokenAddress;
     }
 
-    function exposed_setTokenToSuperPosition(uint64 srcChainId, address srcTokenAddress, address spToken) external {
-        _tokenToSuperPosition[srcChainId][srcTokenAddress] = spToken;
+    function exposed_setTokenToSuperPosition(uint64 srcChainId, address srcTokenAddress, address spToken, bytes32 yieldSourceOracleId) external {
+        _tokenToSuperPosition[srcChainId][yieldSourceOracleId][srcTokenAddress] = spToken;
     }
 
     function exposed_burnSP(address account, address superPosition, uint256 amount) external {
@@ -55,6 +55,7 @@ contract TestVaultBank is VaultBank {
     }
 
     function exposed_retrieveSuperPosition(
+        bytes32 yieldSourceOracleId,
         uint64 srcChainId,
         address srcTokenAddress,
         string calldata name,
@@ -64,7 +65,7 @@ contract TestVaultBank is VaultBank {
         external
         returns (address)
     {
-        return _retrieveSuperPosition(srcChainId, srcTokenAddress, name, symbol, decimals);
+        return _retrieveSuperPosition(yieldSourceOracleId, srcChainId, srcTokenAddress, name, symbol, decimals);
     }
 }
 
@@ -96,6 +97,7 @@ contract VaultBankTest is Helpers {
     address internal strategy1;
     address internal newStrategist;
     address internal admin;
+    bytes32 internal yieldSourceOracleId;
 
     function setUp() public {
         sGovernor = _deployAccount(0x1, "SuperGovernor");
@@ -112,7 +114,7 @@ contract VaultBankTest is Helpers {
         ppsOracle2 = _deployAccount(0xC, "PPSOracle2");
         newStrategist = _deployAccount(0xF, "NewStrategist");
         admin = _deployAccount(0xD, "Admin");
-
+        yieldSourceOracleId = bytes32(keccak256(abi.encodePacked("YieldSourceOracleId", address(this))));
         vm.chainId(CURRENT_CHAIN_ID);
 
         mockProver = new MockCrossL2ProverV2();
@@ -143,7 +145,7 @@ contract VaultBankTest is Helpers {
         token = new MockERC20("Token", "TKN", 18);
         otherToken = new MockERC20("OtherToken", "OTH", 18);
 
-        vaultBankSp = new VaultBankSuperPosition("VaultBankSuperPosition", "VBS", 18);
+        vaultBankSp = new VaultBankSuperPosition("VaultBankSuperPosition", "VBS", 18, yieldSourceOracleId);
 
         mockHook = new MockHook(ISuperHook.HookType.NONACCOUNTING, address(token));
         vm.prank(governor);
@@ -158,22 +160,22 @@ contract VaultBankTest is Helpers {
         vm.stopPrank();
 
         vm.expectRevert(IVaultBankSource.INVALID_AMOUNT.selector);
-        vaultBank.lockAsset(user, address(token), address(mockHook), 0, 1);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), 0, 1);
     }
 
     function test_lockAsset_TokenAddress0() public {
         vm.expectRevert(IVaultBankSource.INVALID_TOKEN.selector);
-        vaultBank.lockAsset(user, address(0), address(mockHook), 100 ether, 1);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(0), address(mockHook), 100 ether, 1);
     }
 
     function test_lockAsset_AccountAddress0() public {
         vm.expectRevert(IVaultBankSource.INVALID_ACCOUNT.selector);
-        vaultBank.lockAsset(address(0), address(token), address(mockHook), 100 ether, 1);
+        vaultBank.lockAsset(yieldSourceOracleId, address(0), address(token), address(mockHook), 100 ether, 1);
     }
 
     function test_lockAsset_InvalidHook() public {
         vm.expectRevert();
-        vaultBank.lockAsset(user, address(token), address(0), 100 ether, 1);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(0), 100 ether, 1);
     }
 
     function test_lockAsset_TokensNotAvailable() public {
@@ -181,7 +183,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), 50 ether);
 
         vm.expectRevert();
-        vaultBank.lockAsset(address(this), address(token), address(mockHook), 100 ether, 1);
+        vaultBank.lockAsset(yieldSourceOracleId, address(this), address(token), address(mockHook), 100 ether, 1);
     }
 
     function test_lockAsset_Success() public {
@@ -198,10 +200,10 @@ contract VaultBankTest is Helpers {
 
         vm.expectEmit(true, true, false, true);
         emit IVaultBankSource.SharesLocked(
-            user, address(token), lockAmount, uint64(block.chainid), destinationChainId, expectedNonce
+            yieldSourceOracleId, user, address(token), lockAmount, uint64(block.chainid), destinationChainId, expectedNonce
         );
 
-        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, destinationChainId);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), lockAmount, destinationChainId);
 
         assertEq(vaultBank.nonces(destinationChainId), expectedNonce + 1, "Nonce not incremented");
         assertEq(vaultBank.viewTotalLockedAsset(address(token)), lockAmount, "Total locked amount incorrect");
@@ -219,7 +221,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setValidateEventReturn(
             uint32(DST_CHAIN_ID + 1), // Invalid chain ID
@@ -231,7 +233,7 @@ contract VaultBankTest is Helpers {
         bytes memory mockProof = new bytes(0);
 
         vm.expectRevert(IVaultBank.INVALID_PROOF_CHAIN.selector);
-        vaultBank.unlockAsset(user, address(token), lockAmount, DST_CHAIN_ID, mockProof);
+        vaultBank.unlockAsset(user, address(token), lockAmount, DST_CHAIN_ID, yieldSourceOracleId, mockProof);
     }
 
     function test_unlockAsset_InvalidProofEmitter() public {
@@ -242,14 +244,14 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setValidateEventReturn(uint32(DST_CHAIN_ID), address(0xdead), new bytes(0), new bytes(0));
 
         bytes memory mockProof = new bytes(0);
 
         vm.expectRevert(IVaultBank.INVALID_PROOF_EMITTER.selector);
-        vaultBank.unlockAsset(user, address(token), lockAmount, DST_CHAIN_ID, mockProof);
+        vaultBank.unlockAsset(user, address(token), lockAmount, DST_CHAIN_ID, yieldSourceOracleId, mockProof);
     }
 
     function test_unlockAsset_InvalidProofEvent() public {
@@ -260,7 +262,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         bytes memory invalidTopics = new bytes(128);
         bytes32 invalidEventSelector = bytes32(uint256(0x12345678));
@@ -273,7 +275,7 @@ contract VaultBankTest is Helpers {
         bytes memory mockProof = new bytes(0);
 
         vm.expectRevert(IVaultBank.INVALID_PROOF_EVENT.selector);
-        vaultBank.unlockAsset(user, address(token), lockAmount, DST_CHAIN_ID, mockProof);
+        vaultBank.unlockAsset(user, address(token), lockAmount, DST_CHAIN_ID, yieldSourceOracleId, mockProof);
     }
 
     function test_unlockAsset_InvalidProofToken() public {
@@ -284,7 +286,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         MockERC20 token2 = new MockERC20("Token2", "TKN2", 18);
 
@@ -301,7 +303,7 @@ contract VaultBankTest is Helpers {
         bytes memory mockProof = new bytes(0);
 
         vm.expectRevert(IVaultBank.INVALID_PROOF_TOKEN.selector);
-        vaultBank.unlockAsset(user, address(token), lockAmount, DST_CHAIN_ID, mockProof);
+        vaultBank.unlockAsset(user, address(token), lockAmount, DST_CHAIN_ID, yieldSourceOracleId, mockProof);
     }
 
     function test_unlockAsset_InvalidProofAmount() public {
@@ -312,7 +314,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setValidateEventReturn(
             uint32(DST_CHAIN_ID), address(vaultBank), new bytes(128), abi.encode(lockAmount - 1, CURRENT_CHAIN_ID, 0)
@@ -326,7 +328,7 @@ contract VaultBankTest is Helpers {
         bytes memory mockProof = new bytes(0);
 
         vm.expectRevert(IVaultBank.INVALID_PROOF_AMOUNT.selector);
-        vaultBank.unlockAsset(user, address(token), lockAmount, DST_CHAIN_ID, mockProof);
+        vaultBank.unlockAsset(user, address(token), lockAmount, DST_CHAIN_ID, yieldSourceOracleId, mockProof);
     }
 
     function test_unlockAsset_InvalidProofTargetedChain() public {
@@ -337,7 +339,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setValidateEventReturn(
             uint32(DST_CHAIN_ID), address(vaultBank), new bytes(128), abi.encode(lockAmount, CURRENT_CHAIN_ID + 1, 0)
@@ -351,7 +353,7 @@ contract VaultBankTest is Helpers {
         bytes memory mockProof = new bytes(0);
 
         vm.expectRevert(IVaultBank.INVALID_PROOF_TARGETED_CHAIN.selector);
-        vaultBank.unlockAsset(user, address(token), lockAmount, DST_CHAIN_ID, mockProof);
+        vaultBank.unlockAsset(user, address(token), lockAmount, DST_CHAIN_ID, yieldSourceOracleId, mockProof);
     }
 
     function test_unlockAsset_InvalidProofNonce() public {
@@ -362,7 +364,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setEmittingContract(address(vaultBank));
         mockProver.mockSuperpositionsBurnedEvent(
@@ -371,10 +373,10 @@ contract VaultBankTest is Helpers {
 
         bytes memory mockProof = new bytes(0);
 
-        vaultBank.unlockAsset(user, address(token), lockAmount / 2, DST_CHAIN_ID, mockProof);
+        vaultBank.unlockAsset(user, address(token), lockAmount / 2, DST_CHAIN_ID, yieldSourceOracleId, mockProof);
 
         vm.expectRevert(IVaultBank.NONCE_ALREADY_USED.selector);
-        vaultBank.unlockAsset(user, address(token), lockAmount / 2, DST_CHAIN_ID, mockProof);
+        vaultBank.unlockAsset(user, address(token), lockAmount / 2, DST_CHAIN_ID, yieldSourceOracleId, mockProof);
     }
 
     function test_unlockAsset_InvalidAccount() public {
@@ -385,7 +387,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setEmittingContract(address(vaultBank));
         mockProver.mockSuperpositionsBurnedEvent(
@@ -395,7 +397,7 @@ contract VaultBankTest is Helpers {
         bytes memory mockProof = new bytes(0);
 
         vm.expectRevert(IVaultBankSource.INVALID_ACCOUNT.selector);
-        vaultBank.unlockAsset(address(0), address(token), lockAmount, DST_CHAIN_ID, mockProof);
+        vaultBank.unlockAsset(address(0), address(token), lockAmount, DST_CHAIN_ID, yieldSourceOracleId, mockProof);
     }
 
     function test_unlockAsset_InvalidToken() public {
@@ -406,7 +408,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setEmittingContract(address(vaultBank));
         mockProver.mockSuperpositionsBurnedEvent(
@@ -416,7 +418,7 @@ contract VaultBankTest is Helpers {
         bytes memory mockProof = new bytes(0);
 
         vm.expectRevert(IVaultBankSource.INVALID_TOKEN.selector);
-        vaultBank.unlockAsset(user, address(0), lockAmount, DST_CHAIN_ID, mockProof);
+        vaultBank.unlockAsset(user, address(0), lockAmount, DST_CHAIN_ID, yieldSourceOracleId, mockProof);
     }
 
     function test_unlockAsset_InvalidAmount() public {
@@ -427,7 +429,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         mockProver.setEmittingContract(address(vaultBank));
         mockProver.mockSuperpositionsBurnedEvent(user, address(token), 0, CURRENT_CHAIN_ID, 0, uint32(DST_CHAIN_ID));
@@ -435,7 +437,7 @@ contract VaultBankTest is Helpers {
         bytes memory mockProof = new bytes(0);
 
         vm.expectRevert(IVaultBankSource.INVALID_AMOUNT.selector);
-        vaultBank.unlockAsset(user, address(token), 0, DST_CHAIN_ID, mockProof);
+        vaultBank.unlockAsset(user, address(token), 0, DST_CHAIN_ID, yieldSourceOracleId, mockProof);
 
         mockProver.setEmittingContract(address(vaultBank));
         mockProver.mockSuperpositionsBurnedEvent(
@@ -443,7 +445,7 @@ contract VaultBankTest is Helpers {
         );
 
         vm.expectRevert(IVaultBankSource.INVALID_AMOUNT.selector);
-        vaultBank.unlockAsset(user, address(token), lockAmount * 2, DST_CHAIN_ID, mockProof);
+        vaultBank.unlockAsset(user, address(token), lockAmount * 2, DST_CHAIN_ID, yieldSourceOracleId, mockProof);
     }
 
     function test_unlockAsset_Success() public {
@@ -454,7 +456,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         assertEq(token.balanceOf(user), 0, "Initial user balance incorrect");
         assertEq(token.balanceOf(address(vaultBank)), lockAmount, "Initial vault balance incorrect");
@@ -471,10 +473,11 @@ contract VaultBankTest is Helpers {
 
         vm.expectEmit(true, true, false, true);
         emit IVaultBankSource.SharesUnlocked(
+            yieldSourceOracleId,
             user, address(token), unlockAmount, CURRENT_CHAIN_ID, DST_CHAIN_ID, expectedNonce
         );
 
-        vaultBank.unlockAsset(user, address(token), unlockAmount, DST_CHAIN_ID, mockProof);
+        vaultBank.unlockAsset(user, address(token), unlockAmount, DST_CHAIN_ID, yieldSourceOracleId, mockProof);
 
         assertEq(vaultBank.nonces(CURRENT_CHAIN_ID), expectedNonce + 1, "Nonce not incremented");
         assertEq(token.balanceOf(user), unlockAmount, "User balance after unlock incorrect");
@@ -494,7 +497,8 @@ contract VaultBankTest is Helpers {
             name: "Test Token",
             symbol: "TT",
             decimals: 18,
-            chainId: DST_CHAIN_ID
+            chainId: DST_CHAIN_ID,
+            yieldSourceOracleId: yieldSourceOracleId
         });
 
         bytes memory mockTopics = abi.encodePacked(
@@ -557,7 +561,7 @@ contract VaultBankTest is Helpers {
         token.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user2, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user2, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         assertEq(token.balanceOf(user2), 0, "Initial user balance incorrect");
         assertEq(token.balanceOf(address(vaultBank)), lockAmount, "Initial vault balance incorrect");
@@ -569,9 +573,9 @@ contract VaultBankTest is Helpers {
         );
 
         vm.expectEmit(true, true, false, true);
-        emit IVaultBankSource.SharesUnlocked(user2, address(token), unlockAmount, CURRENT_CHAIN_ID, DST_CHAIN_ID, 1);
+        emit IVaultBankSource.SharesUnlocked(yieldSourceOracleId, user2, address(token), unlockAmount, CURRENT_CHAIN_ID, DST_CHAIN_ID, 1);
 
-        vaultBank.unlockAsset(user2, address(token), unlockAmount, DST_CHAIN_ID, mockProof);
+        vaultBank.unlockAsset(user2, address(token), unlockAmount, DST_CHAIN_ID, yieldSourceOracleId, mockProof);
 
         assertEq(vaultBank.nonces(CURRENT_CHAIN_ID), 2, "Nonce not incremented");
         assertEq(token.balanceOf(user2), unlockAmount, "User balance after unlock incorrect");
@@ -591,7 +595,8 @@ contract VaultBankTest is Helpers {
             name: "Test Token",
             symbol: "TT",
             decimals: 18,
-            chainId: DST_CHAIN_ID
+            chainId: DST_CHAIN_ID,
+            yieldSourceOracleId: yieldSourceOracleId
         });
 
         bytes memory mockTopics = abi.encodePacked(
@@ -624,7 +629,8 @@ contract VaultBankTest is Helpers {
             name: "Test Token",
             symbol: "TT",
             decimals: 18,
-            chainId: DST_CHAIN_ID
+            chainId: DST_CHAIN_ID,
+            yieldSourceOracleId: yieldSourceOracleId
         });
 
         bytes32 invalidEventSelector = bytes32(uint256(0x12345678));
@@ -657,7 +663,8 @@ contract VaultBankTest is Helpers {
             name: "Test Token",
             symbol: "TT",
             decimals: 18,
-            chainId: DST_CHAIN_ID
+            chainId: DST_CHAIN_ID,
+            yieldSourceOracleId: yieldSourceOracleId
         });
 
         address wrongToken = address(0x0000000000000000000000000000000000BaD123);
@@ -691,7 +698,8 @@ contract VaultBankTest is Helpers {
             name: "Test Token",
             symbol: "TT",
             decimals: 18,
-            chainId: DST_CHAIN_ID
+            chainId: DST_CHAIN_ID,
+            yieldSourceOracleId: yieldSourceOracleId
         });
 
         bytes memory mockTopics = abi.encodePacked(
@@ -723,7 +731,8 @@ contract VaultBankTest is Helpers {
             name: "Test Token",
             symbol: "TT",
             decimals: 18,
-            chainId: DST_CHAIN_ID
+            chainId: DST_CHAIN_ID,
+            yieldSourceOracleId: yieldSourceOracleId
         });
 
         bytes memory mockTopics = abi.encodePacked(
@@ -777,7 +786,8 @@ contract VaultBankTest is Helpers {
             name: "Test Token",
             symbol: "TT",
             decimals: 18,
-            chainId: DST_CHAIN_ID
+            chainId: DST_CHAIN_ID,
+            yieldSourceOracleId: yieldSourceOracleId
         });
 
         bytes memory mockTopics = abi.encodePacked(
@@ -810,7 +820,8 @@ contract VaultBankTest is Helpers {
             name: "Test Token",
             symbol: "TT",
             decimals: 18,
-            chainId: DST_CHAIN_ID
+            chainId: DST_CHAIN_ID,
+            yieldSourceOracleId: yieldSourceOracleId
         });
 
         bytes memory mockTopics = abi.encodePacked(
@@ -844,7 +855,8 @@ contract VaultBankTest is Helpers {
             name: "Test Token",
             symbol: "TT",
             decimals: 18,
-            chainId: DST_CHAIN_ID
+            chainId: DST_CHAIN_ID,
+            yieldSourceOracleId: yieldSourceOracleId
         });
 
         bytes memory mockTopics = abi.encodePacked(
@@ -900,7 +912,8 @@ contract VaultBankTest is Helpers {
             name: "Test Token",
             symbol: "TT",
             decimals: 18,
-            chainId: DST_CHAIN_ID
+            chainId: DST_CHAIN_ID,
+            yieldSourceOracleId: yieldSourceOracleId
         });
 
         bytes memory mockTopics = abi.encodePacked(
@@ -954,7 +967,8 @@ contract VaultBankTest is Helpers {
             name: "Test Token",
             symbol: "TT",
             decimals: 18,
-            chainId: DST_CHAIN_ID
+            chainId: DST_CHAIN_ID,
+            yieldSourceOracleId: yieldSourceOracleId
         });
 
         bytes memory mockTopics = abi.encodePacked(
@@ -1009,7 +1023,7 @@ contract VaultBankTest is Helpers {
         vm.mockCall(address(vaultBank), abi.encodeWithSignature("_spAssets(address)", nonExistentSP), abi.encode(false));
 
         vm.expectRevert(IVaultBankDestination.SUPERPOSITION_ASSET_NOT_FOUND.selector);
-        vaultBank.burnSuperPosition(amount, nonExistentSP, forChainId);
+        vaultBank.burnSuperPosition(amount, nonExistentSP, forChainId, yieldSourceOracleId);
     }
 
     function test_burnSuperPositions_InvalidBurnAmount() public {
@@ -1023,13 +1037,13 @@ contract VaultBankTest is Helpers {
 
         vaultBank.exposed_markAsSyntheticAsset(validSP);
 
-        vaultBank.exposed_setSuperPositionToToken(validSP, forChainId, underlyingToken);
-        vaultBank.exposed_setTokenToSuperPosition(forChainId, underlyingToken, validSP);
+        vaultBank.exposed_setSuperPositionToToken(validSP, forChainId, underlyingToken, yieldSourceOracleId);
+        vaultBank.exposed_setTokenToSuperPosition(forChainId, underlyingToken, validSP, yieldSourceOracleId);
 
         vm.mockCall(validSP, abi.encodeWithSignature("balanceOf(address)", address(this)), abi.encode(userBalance));
 
         vm.expectRevert(IVaultBankDestination.INVALID_BURN_AMOUNT.selector);
-        vaultBank.burnSuperPosition(burnAmount, validSP, forChainId);
+        vaultBank.burnSuperPosition(burnAmount, validSP, forChainId, yieldSourceOracleId);
     }
 
     function test_burnSuperPositions_Success() public {
@@ -1043,8 +1057,8 @@ contract VaultBankTest is Helpers {
 
         vaultBank.exposed_markAsSyntheticAsset(validSP);
 
-        vaultBank.exposed_setSuperPositionToToken(validSP, forChainId, underlyingToken);
-        vaultBank.exposed_setTokenToSuperPosition(forChainId, underlyingToken, validSP);
+        vaultBank.exposed_setSuperPositionToToken(validSP, forChainId, underlyingToken, yieldSourceOracleId);
+        vaultBank.exposed_setTokenToSuperPosition(forChainId, underlyingToken, validSP, yieldSourceOracleId);
 
         vm.mockCall(validSP, abi.encodeWithSignature("balanceOf(address)", address(this)), abi.encode(userBalance));
 
@@ -1063,7 +1077,7 @@ contract VaultBankTest is Helpers {
             0 // nonce
         );
 
-        vaultBank.burnSuperPosition(burnAmount, validSP, forChainId);
+        vaultBank.burnSuperPosition(burnAmount, validSP, forChainId, yieldSourceOracleId);
 
         assertEq(vaultBank.nonces(forChainId), 1, "Nonce should be incremented");
     }
@@ -1282,7 +1296,7 @@ contract VaultBankTest is Helpers {
 
         assertEq(vaultBank.viewTotalLockedAsset(address(token)), 0, "Initial total locked amount should be 0");
 
-        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount1, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), lockAmount1, DST_CHAIN_ID);
 
         assertEq(
             vaultBank.viewTotalLockedAsset(address(token)),
@@ -1302,7 +1316,7 @@ contract VaultBankTest is Helpers {
         address[] memory initialAssets = vaultBank.viewAllLockedAssets();
         assertEq(initialAssets.length, 0, "Initial locked assets array should be empty");
 
-        vaultBank.lockAsset(user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         address[] memory assets = vaultBank.viewAllLockedAssets();
         assertEq(assets.length, 1, "Locked assets array should have one entry");
@@ -1315,7 +1329,7 @@ contract VaultBankTest is Helpers {
         token2.approve(address(vaultBank), lockAmount);
         vm.stopPrank();
 
-        vaultBank.lockAsset(user, address(token2), address(mockHook), lockAmount, DST_CHAIN_ID);
+        vaultBank.lockAsset(yieldSourceOracleId, user, address(token2), address(mockHook), lockAmount, DST_CHAIN_ID);
 
         address[] memory assetsAfterSecondLock = vaultBank.viewAllLockedAssets();
         assertEq(assetsAfterSecondLock.length, 2, "Locked assets array should have two entries");
@@ -1357,15 +1371,15 @@ contract VaultBankTest is Helpers {
         uint64 mockChainId = 5;
 
         assertEq(
-            vaultBank.getSuperPositionForAsset(mockChainId, mockToken),
+            vaultBank.getSuperPositionForAsset(mockChainId, mockToken, yieldSourceOracleId),
             address(0),
             "Should return zero address initially"
         );
 
-        vaultBank.exposed_setTokenToSuperPosition(mockChainId, mockToken, mockSuperPosition);
+        vaultBank.exposed_setTokenToSuperPosition(mockChainId, mockToken, mockSuperPosition, yieldSourceOracleId);
 
         assertEq(
-            vaultBank.getSuperPositionForAsset(mockChainId, mockToken),
+            vaultBank.getSuperPositionForAsset(mockChainId, mockToken, yieldSourceOracleId),
             mockSuperPosition,
             "Should return correct super position address"
         );
@@ -1377,15 +1391,15 @@ contract VaultBankTest is Helpers {
         uint64 mockChainId = 5;
 
         assertEq(
-            vaultBank.getAssetForSuperPosition(mockChainId, mockSuperPosition),
+            vaultBank.getAssetForSuperPosition(mockChainId, mockSuperPosition, yieldSourceOracleId),
             address(0),
             "Should return zero address initially"
         );
 
-        vaultBank.exposed_setSuperPositionToToken(mockSuperPosition, mockChainId, mockToken);
+        vaultBank.exposed_setSuperPositionToToken(mockSuperPosition, mockChainId, mockToken, yieldSourceOracleId);
 
         assertEq(
-            vaultBank.getAssetForSuperPosition(mockChainId, mockSuperPosition),
+            vaultBank.getAssetForSuperPosition(mockChainId, mockSuperPosition, yieldSourceOracleId),
             mockToken,
             "Should return correct token address"
         );
@@ -1454,9 +1468,9 @@ contract VaultBankTest is Helpers {
         address mockToken = address(0x5678);
         uint64 mockChainId = 5;
 
-        vaultBank.exposed_setTokenToSuperPosition(mockChainId, mockToken, existingSPAddress);
+        vaultBank.exposed_setTokenToSuperPosition(mockChainId, mockToken, existingSPAddress, yieldSourceOracleId);
 
-        address retrievedSP = vaultBank.exposed_retrieveSuperPosition(mockChainId, mockToken, "Token", "TKN", 18);
+        address retrievedSP = vaultBank.exposed_retrieveSuperPosition(yieldSourceOracleId, mockChainId, mockToken, "Token", "TKN", 18);
 
         assertEq(retrievedSP, existingSPAddress, "Should return existing super position address");
     }
@@ -1468,15 +1482,15 @@ contract VaultBankTest is Helpers {
         string memory symbol = "NTKN";
         uint8 decimals = 18;
 
-        address retrievedSP = vaultBank.exposed_retrieveSuperPosition(mockChainId, mockToken, name, symbol, decimals);
+        address retrievedSP = vaultBank.exposed_retrieveSuperPosition(yieldSourceOracleId, mockChainId, mockToken, name, symbol, decimals);
 
         assertFalse(retrievedSP == address(0), "Should not return zero address");
         assertTrue(vaultBank.isSuperPositionCreated(retrievedSP), "Should mark new SP as created");
         assertEq(
-            vaultBank.getSuperPositionForAsset(mockChainId, mockToken), retrievedSP, "Should set token to SP mapping"
+            vaultBank.getSuperPositionForAsset(mockChainId, mockToken, yieldSourceOracleId), retrievedSP, "Should set token to SP mapping"
         );
         assertEq(
-            vaultBank.getAssetForSuperPosition(mockChainId, retrievedSP), mockToken, "Should set SP to token mapping"
+            vaultBank.getAssetForSuperPosition(mockChainId, retrievedSP, yieldSourceOracleId), mockToken, "Should set SP to token mapping"
         );
     }
 
@@ -1543,7 +1557,7 @@ contract VaultBankTest is Helpers {
 
     function test_transferSuperPositionOwnership_OnlyBankManager() public {
         // Test that only bank manager can call this function
-        VaultBankSuperPosition testSP = new VaultBankSuperPosition("TestSP", "TSP", 18);
+        VaultBankSuperPosition testSP = new VaultBankSuperPosition("TestSP", "TSP", 18, yieldSourceOracleId);
         address newOwner = address(0x9999);
 
         // Verify current owner
@@ -1567,7 +1581,7 @@ contract VaultBankTest is Helpers {
         string memory symbol = "NTKN";
         uint8 decimals = 18;
 
-        address testSP = vaultBank.exposed_retrieveSuperPosition(mockChainId, mockToken, name, symbol, decimals);
+        address testSP = vaultBank.exposed_retrieveSuperPosition(yieldSourceOracleId, mockChainId, mockToken, name, symbol, decimals);
         address newOwner = address(0x9999);
 
         // Call from bank manager (address(this) has BANK_MANAGER_ROLE)
@@ -1582,7 +1596,7 @@ contract VaultBankTest is Helpers {
 
     function test_transferSuperPositionOwnership_ZeroAddress() public {
         // Test with zero address as new owner
-        VaultBankSuperPosition testSP = new VaultBankSuperPosition("TestSP", "TSP", 18);
+        VaultBankSuperPosition testSP = new VaultBankSuperPosition("TestSP", "TSP", 18, yieldSourceOracleId);
 
         // This should revert due to OpenZeppelin's Ownable constraints
         vm.expectRevert();

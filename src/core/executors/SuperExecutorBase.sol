@@ -13,7 +13,7 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookSetter, ISuperHookContextAware } from "../interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookSetter, ISuperLockableHook, ISuperHookContextAware } from "../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 import { IVaultBank } from "../../periphery/interfaces/VaultBank/IVaultBank.sol";
 
@@ -188,7 +188,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             // Extract yield source information from the hook data
-            bytes4 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
+            bytes32 yieldSourceOracleId = hookData.extractYieldSourceOracleId();
             address yieldSource = hookData.extractYieldSource();
 
             // Get configuration for the yield source oracle
@@ -327,7 +327,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         _updateAccounting(account, address(hook), hookData);
 
         // STEP 5: Handle cross-chain operations
-        _checkAndLockForSuperPosition(account, address(hook));
+        _checkAndLockForSuperPosition(account, address(hook), hookData);
     }
 
     /// @notice Handles cross-chain asset locking for SuperPosition minting
@@ -338,30 +338,37 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     ///      3. Emits an event to signal the cross-chain operation
     /// @param account The smart account executing the operation
     /// @param hook The hook that contains cross-chain operation details
-    function _checkAndLockForSuperPosition(address account, address hook) internal virtual {
+    /// @param hookData The data provided to the hook for execution
+    function _checkAndLockForSuperPosition(address account, address hook, bytes memory hookData) internal virtual {
         // Get cross-chain operation details from the hook
-        address vaultBank = ISuperHookResult(address(hook)).vaultBank();
-        uint256 dstChainId = ISuperHookResult(address(hook)).dstChainId();
+        bytes4 selector = ISuperLockableHook.extractLockDetails.selector;
+        (bool success, bytes memory result) = hook.staticcall(abi.encodeWithSelector(selector, hookData));
+        if (success) {
+            (address vaultBank, uint256 dstChainId, bytes32 yieldSourceOracleId) = abi.decode(result, (address, uint256, bytes32));
 
-        // Process cross-chain operation if a vault bank is specified
-        if (vaultBank != address(0)) {
-            address spToken = ISuperHookResult(hook).spToken();
-            uint256 amount = ISuperHookResult(hook).getOutAmount(account);
+            // Process cross-chain operation if a vault bank is specified
+            if (vaultBank != address(0)) {
+                if (yieldSourceOracleId == bytes32(0)) revert INVALID_YIELD_SOURCE_ORACLE_ID();
 
-            // Create and execute approval for the vault bank to access tokens
-            Execution[] memory execs = new Execution[](1);
-            execs[0] = Execution({
-                target: spToken,
-                value: 0,
-                callData: abi.encodeCall(IERC20.approve, (address(vaultBank), amount))
-            });
-            _execute(account, execs);
+                // Ensure destination chain is different from current chain
+                if (dstChainId == block.chainid) revert INVALID_CHAIN_ID(); 
+                
+                address spToken = ISuperHookResult(hook).spToken();
+                uint256 amount = ISuperHookResult(hook).getOutAmount(account);
 
-            // Ensure destination chain is different from current chain
-            if (dstChainId == block.chainid) revert INVALID_CHAIN_ID();
+                // Create and execute approval for the vault bank to access tokens
+                Execution[] memory execs = new Execution[](1);
+                execs[0] = Execution({
+                    target: spToken,
+                    value: 0,
+                    callData: abi.encodeCall(IERC20.approve, (address(vaultBank), amount))
+                });
+                _execute(account, execs);
 
-            // Lock assets in the vault bank for cross-chain transfer
-            IVaultBank(vaultBank).lockAsset(account, spToken, hook, amount, uint64(dstChainId));
+
+                // Lock assets in the vault bank for cross-chain transfer
+                IVaultBank(vaultBank).lockAsset(yieldSourceOracleId, account, spToken, hook, amount, uint64(dstChainId));
+            }
         }
     }
 
