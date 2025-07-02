@@ -17,16 +17,16 @@ import { SpectraCommands } from "../../../../vendor/spectra/SpectraCommands.sol"
 /// @title SpectraExchangeDepositHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 24);
-/// @notice         uint256 value = BytesLib.toUint256(data, 25);
-/// @notice         bytes txData_ = BytesLib.slice(data, 57, data.length - 57);
+/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
+/// @notice         uint256 value = BytesLib.toUint256(data, 53);
+/// @notice         bytes txData_ = BytesLib.slice(data, 85, data.length - 85);
 contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 24;
-    uint256 private constant TX_DATA_POSITION = 57;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
+    uint256 private constant TX_DATA_POSITION = 85;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -68,7 +68,7 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
     {
         address pt = data.extractYieldSource();
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        uint256 value = abi.decode(data[25:TX_DATA_POSITION], (uint256));
+        uint256 value = abi.decode(data[53:TX_DATA_POSITION], (uint256));
         bytes memory txData_ = data[TX_DATA_POSITION:];
 
         bytes memory updatedTxData = _validateTxData(data[TX_DATA_POSITION:], account, usePrevHookAmount, prevHook, pt);
@@ -76,7 +76,7 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
         executions = new Execution[](1);
         executions[0] = Execution({
             target: address(router),
-            value: usePrevHookAmount && value > 0 ? ISuperHookResult(prevHook).outAmount() : value,
+            value: usePrevHookAmount && value > 0 ? ISuperHookResult(prevHook).getOutAmount(account) : value,
             callData: usePrevHookAmount ? updatedTxData : txData_
         });
     }
@@ -134,11 +134,11 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(data, account);
+        _setOutAmount(_getBalance(data, account), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(data, account) - outAmount;
+        _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
     }
     /*//////////////////////////////////////////////////////////////
                                  PRIVATE METHODS
@@ -212,11 +212,12 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
                 if (params.ptRecipient != account || params.ytRecipient != account) revert INVALID_RECIPIENT();
 
                 if (usePrevHookAmount) {
-                    params.assets = ISuperHookResult(prevHook).outAmount();
+                    params.assets = ISuperHookResult(prevHook).getOutAmount(account);
                 }
                 if (params.assets == 0) revert AMOUNT_NOT_VALID();
 
-                params.updatedInputs[i] = abi.encode(params.pt, params.assets, params.ptRecipient, params.ytRecipient, params.minShares);
+                params.updatedInputs[i] =
+                    abi.encode(params.pt, params.assets, params.ptRecipient, params.ytRecipient, params.minShares);
             } else if (command == SpectraCommands.DEPOSIT_ASSET_IN_IBT) {
                 // https://dev.spectra.finance/technical-reference/contract-functions/router#deposit_asset_in_ibt-command
 
@@ -225,7 +226,7 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
                 if (params.recipient != account) revert INVALID_RECIPIENT();
 
                 if (usePrevHookAmount) {
-                    params.assets = ISuperHookResult(prevHook).outAmount();
+                    params.assets = ISuperHookResult(prevHook).getOutAmount(account);
                 }
                 if (params.assets == 0) revert AMOUNT_NOT_VALID();
 
@@ -237,7 +238,7 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
                 if (params.transferToken == address(0)) revert INVALID_TRANSFER_TOKEN();
 
                 if (usePrevHookAmount) {
-                    params.assets = ISuperHookResult(prevHook).outAmount();
+                    params.assets = ISuperHookResult(prevHook).getOutAmount(account);
                 }
                 if (params.assets == 0) revert AMOUNT_NOT_VALID();
                 params.updatedInputs[i] = abi.encode(params.transferToken, params.assets);

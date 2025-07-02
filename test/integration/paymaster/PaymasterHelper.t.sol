@@ -58,7 +58,6 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         blockNumber != 0
             ? vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), blockNumber)
             : vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
-        MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
 
         (signer, signerPrvKey) = makeAddrAndKey("signer");
 
@@ -70,7 +69,7 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         vm.label(address(nexusFactory), "NexusFactory");
         nexusBootstrap = INexusBootstrap(CHAIN_1_NEXUS_BOOTSTRAP);
         vm.label(address(nexusBootstrap), "NexusBootstrap");
-        ledgerConfig = ISuperLedgerConfiguration(new SuperLedgerConfiguration(address(this)));
+        ledgerConfig = ISuperLedgerConfiguration(new SuperLedgerConfiguration());
 
         superExecutorModule = new SuperExecutor(address(ledgerConfig));
 
@@ -85,14 +84,12 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         yieldSourceOracle5115 = address(new ERC5115YieldSourceOracle(address(ledgerConfig)));
         yieldSourceOracle7540 = address(new ERC7540YieldSourceOracle(address(ledgerConfig)));
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle4626,
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(ledger)
         });
         configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle7540,
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
@@ -100,13 +97,16 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         });
 
         configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle5115,
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(new ERC5115Ledger(address(ledgerConfig), allowedExecutors))
         });
-        ledgerConfig.setYieldSourceOracles(configs);
+        bytes32[] memory salts = new bytes32[](3);
+        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
+        salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY));
+        ledgerConfig.setYieldSourceOracles(salts, configs);
 
         approveHook = address(new ApproveERC20Hook());
         deposit4626Hook = address(new Deposit4626VaultHook());

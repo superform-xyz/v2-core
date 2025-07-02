@@ -62,7 +62,7 @@ contract MockSuperPositionFactory {
     event SuperPositionCreated(
         uint64 indexed chainId,
         address indexed yieldSourceAddress,
-        bytes4 indexed yieldSourceOracleId,
+        bytes32 indexed yieldSourceOracleId,
         address asset,
         address superPosition
     );
@@ -86,7 +86,7 @@ contract MockSuperPositionFactory {
         return allSuperPositions.length;
     }
 
-    function getSPId(address yieldSourceAddress, bytes4 yieldSourceOracleId, uint64 chainId)
+    function getSPId(address yieldSourceAddress, bytes32 yieldSourceOracleId, uint64 chainId)
         external
         pure
         returns (uint256)
@@ -98,7 +98,7 @@ contract MockSuperPositionFactory {
     function mintSuperPosition(
         uint64 chainId,
         address yieldSourceAddress,
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address asset,
         address to,
         uint256 amount
@@ -110,7 +110,7 @@ contract MockSuperPositionFactory {
         return _sp;
     }
 
-    function burnSuperPosition(uint256 spId, address from, uint256 amount) external returns (address) {
+    function burnSuperPosition(uint256 spId, address from, uint256 amount, bytes32 ) external returns (address) {
         if (msg.sender != bundler) revert INVALID_BUNDLER();
 
         if (createdSPs[spId] == address(0)) revert INVALID_SP_ID();
@@ -129,7 +129,7 @@ contract MockSuperPositionFactory {
         MockSuperPosition(sp).burn(from, amount);
     }
 
-    function _createSP(address asset, address yieldSourceAddress, bytes4 yieldSourceOracleId, uint64 chainId)
+    function _createSP(address asset, address yieldSourceAddress, bytes32 yieldSourceOracleId, uint64 chainId)
         private
         returns (address)
     {
@@ -144,14 +144,14 @@ contract MockSuperPositionFactory {
         return _sp;
     }
 
-    function _getSPId(address yieldSourceAddress, bytes4 yieldSourceOracleId, uint64 chainId)
+    function _getSPId(address yieldSourceAddress, bytes32 yieldSourceOracleId, uint64 chainId)
         private
         pure
         returns (uint256)
     {
         /**
          * address yieldSourceAddress (20 bytes)
-         *         bytes4 yieldSourceOracleId (4 bytes)
+         *         bytes32 yieldSourceOracleId (4 bytes)
          *         uint64 chainId (8 bytes)
          *         ----
          *         32 bytes

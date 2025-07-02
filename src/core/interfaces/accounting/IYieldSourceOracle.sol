@@ -179,7 +179,7 @@ interface IYieldSourceOracle {
     /// @param usedShares Amount of shares being withdrawn
     /// @return Total asset amount including fees
     function getAssetOutputWithFees(
-        bytes4 yieldSourceOracleId,
+        bytes32 yieldSourceOracleId,
         address yieldSourceAddress,
         address assetOut,
         address user,

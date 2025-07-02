@@ -50,7 +50,7 @@ abstract contract Constants {
     string public constant ONE_INCH_API_KEY = "ONE_INCH_API_KEY";
 
     // hooks
-    string public constant SWAP_ODOS_HOOK_KEY = "SwapOdosHook";
+    string public constant SWAP_ODOSV2_HOOK_KEY = "SwapOdosV2Hook";
     string public constant MOCK_SWAP_ODOS_HOOK_KEY = "MockSwapOdosHook";
     string public constant MOCK_APPROVE_AND_SWAP_ODOS_HOOK_KEY = "MockApproveAndSwapOdosHook";
     string public constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
@@ -92,7 +92,7 @@ abstract contract Constants {
     string public constant YEARN_CLAIM_ONE_REWARD_HOOK_KEY = "YearnClaimOneRewardHook";
     string public constant YEARN_CLAIM_ALL_REWARDS_HOOK_KEY = "YearnClaimAllRewardsHook";
     string public constant GEARBOX_APPROVE_AND_STAKE_HOOK_KEY = "GearboxApproveAndStakeHook";
-    string public constant APPROVE_AND_SWAP_ODOS_HOOK_KEY = "ApproveAndSwapOdosHook";
+    string public constant APPROVE_AND_SWAP_ODOSV2_HOOK_KEY = "ApproveAndSwapOdosV2Hook";
     string public constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";
     string public constant APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "ApproveAndRequestDeposit7540VaultHook";
     string public constant ETHENA_COOLDOWN_SHARES_HOOK_KEY = "EthenaCooldownSharesHook";
@@ -110,6 +110,7 @@ abstract contract Constants {
     string public constant DEBRIDGE_HELPER_KEY = "DebridgeHelper";
     string public constant DEBRIDGE_DLN_HELPER_KEY = "DebridgeDlnHelper";
     string public constant DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendOrderAndExecuteOnDstHook";
+    string public constant DEBRIDGE_CANCEL_ORDER_HOOK_KEY = "DeBridgeCancelOrderHook";
     string public constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string public constant SUPER_LEDGER_KEY = "SuperLedger";
     string public constant ERC1155_LEDGER_KEY = "ERC5115Ledger";

@@ -43,7 +43,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     ClaimCancelRedeemRequest7540Hook public claimCancelRedeemRequestHook;
     CancelRedeemHook public cancelRedeemHook;
 
-    bytes4 yieldSourceOracleId;
+    bytes32 yieldSourceOracleId;
     address yieldSource;
     address shareToken;
     address token;
@@ -62,7 +62,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
         yieldSource7540AddressUSDC = CHAIN_1_CentrifugeUSDC;
 
-        yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
+        yieldSourceOracleId = bytes32(keccak256("YIELD_SOURCE_ORACLE_ID"));
         yieldSource = address(this);
         shareToken = address(this);
         token = address(new MockERC20("Token", "TKN", 18));
@@ -326,7 +326,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     //////////////////////////////////////////////////////////////*/
     function test_ApproveAndRequestDepositHook_Build_WithPrevHook() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeData(true);
         Execution[] memory executions = approveAndRequestDepositHook.build(mockPrevHook, address(this), data);
@@ -354,7 +354,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_RequestDepositHook_Build_WithPrevHook() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeRequestData(true);
         Execution[] memory executions = requestDepositHook.build(mockPrevHook, address(this), data);
@@ -371,7 +371,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_DepositHook_Build_WithPrevHook() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeData(true, false);
         Execution[] memory executions = depositHook.build(mockPrevHook, address(this), data);
@@ -387,7 +387,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_RequestRedeemHook_Build_WithPrevHook() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeRequestData(true);
         Execution[] memory executions = reqRedeemHook.build(mockPrevHook, address(this), data);
@@ -404,7 +404,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_RedeemHook_Build_WithPrevHook() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeApproveAndRequestRedeemData(true, 1000, false);
         Execution[] memory executions = redeemHook.build(mockPrevHook, address(this), data);
@@ -420,7 +420,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_WithdrawHook_Build_WithPrevHook() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeData(true, false);
         Execution[] memory executions = withdrawHook.build(mockPrevHook, address(this), data);
@@ -442,7 +442,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     // --- ZERO ADDRESS TESTS ---
     function test_ApproveAndRequestDepositHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeData(true);
         vm.expectRevert();
@@ -451,7 +451,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_RequestDepositHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeRequestData(true);
         vm.expectRevert();
@@ -460,7 +460,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_DepositHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeData(true, false);
         vm.expectRevert();
@@ -469,7 +469,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_RequestRedeemHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeRequestData(true);
         vm.expectRevert();
@@ -478,7 +478,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_ApproveAndRedeemHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeApproveAndRequestRedeemData(true, 1000, false);
         vm.expectRevert();
@@ -487,7 +487,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_WithdrawHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeData(true, false);
         vm.expectRevert();
@@ -496,7 +496,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_CancelDepositRequestHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeCancelDepositRequestZeroAddressData();
         vm.expectRevert();
@@ -505,7 +505,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_CancelRedeemRequestHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeCancelRedeemRequestZeroAddressData();
         vm.expectRevert();
@@ -514,7 +514,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_ClaimCancelDepositRequestHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeClaimCancelDepositRequestZeroAddressData();
         vm.expectRevert();
@@ -523,7 +523,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_ClaimCancelRedeemRequestHook_Build_Revert_ZeroAddress() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeClaimCancelRedeemRequestZeroAddressData();
         vm.expectRevert();
@@ -534,7 +534,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_ApproveAndRequestDepositHook_Build_Revert_AmountZero() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, uint256(0), false);
         vm.expectRevert();
@@ -543,7 +543,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_RequestDepositHook_Build_Revert_AmountZero() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, uint256(0), false);
         vm.expectRevert();
@@ -552,7 +552,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_DepositHook_Build_Revert_AmountZero() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, uint256(0), false);
         vm.expectRevert();
@@ -561,7 +561,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_RequestRedeemHook_Build_Revert_AmountZero() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, uint256(0), false);
         vm.expectRevert();
@@ -570,7 +570,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_ApproveAndRedeemHook_Build_Revert_AmountZero() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, uint256(0), false);
         vm.expectRevert();
@@ -579,7 +579,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_WithdrawHook_Build_Revert_AmountZero() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.NONACCOUNTING, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, uint256(0), false);
         vm.expectRevert();
@@ -659,39 +659,6 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     }
 
     /*//////////////////////////////////////////////////////////////
-                      USED ASSETS OR SHARES TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_ApproveAndRequestDepositHook_UsedAssetsOrShares() public view {
-        (uint256 usedAssets, bool isShares) = approveAndRequestDepositHook.getUsedAssetsOrShares();
-        assertEq(usedAssets, 0);
-        assertEq(isShares, false);
-    }
-
-    function test_RequestDepositHook_UsedAssetsOrShares() public view {
-        (uint256 usedAssets, bool isShares) = requestDepositHook.getUsedAssetsOrShares();
-        assertEq(usedAssets, 0);
-        assertEq(isShares, false);
-    }
-
-    function test_RequestRedeemHook_UsedAssetsOrShares() public view {
-        (uint256 usedAssets, bool isShares) = reqRedeemHook.getUsedAssetsOrShares();
-        assertEq(usedAssets, 0);
-        assertEq(isShares, true);
-    }
-
-    function test_RedeemHook_UsedAssetsOrShares() public view {
-        (uint256 usedAssets, bool isShares) = redeemHook.getUsedAssetsOrShares();
-        assertEq(usedAssets, 0);
-        assertEq(isShares, true);
-    }
-
-    function test_ApproveAndRequestRedeemHook_UsedAssetsOrShares() public view {
-        (uint256 usedAssets, bool isShares) = approveAndReqRedeemHook.getUsedAssetsOrShares();
-        assertEq(usedAssets, 0);
-        assertEq(isShares, true);
-    }
-
-    /*//////////////////////////////////////////////////////////////
                       PRE/POST EXECUTE TESTS
     //////////////////////////////////////////////////////////////*/
     function test_ApproveAndRequestDepositHook_PreAndPostExecute() public {
@@ -700,10 +667,10 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
         bytes memory data = _encodeData(false);
         approveAndRequestDepositHook.preExecute(address(0), address(this), data);
-        assertEq(approveAndRequestDepositHook.outAmount(), amount);
+        assertEq(approveAndRequestDepositHook.getOutAmount(address(this)), amount);
 
         approveAndRequestDepositHook.postExecute(address(0), address(this), data);
-        assertEq(approveAndRequestDepositHook.outAmount(), 0);
+        assertEq(approveAndRequestDepositHook.getOutAmount(address(this)), 0);
     }
 
     function test_RequestDepositHook_PreAndPostExecute() public {
@@ -712,10 +679,10 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
         bytes memory data = _encodeRequestData(false);
         requestDepositHook.preExecute(address(0), address(this), data);
-        assertEq(requestDepositHook.outAmount(), amount);
+        assertEq(requestDepositHook.getOutAmount(address(this)), amount);
 
         requestDepositHook.postExecute(address(0), address(this), data);
-        assertEq(requestDepositHook.outAmount(), 0);
+        assertEq(requestDepositHook.getOutAmount(address(this)), 0);
     }
 
     function test_DepositHook_PreAndPostExecute() public {
@@ -724,10 +691,10 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false, address(this), uint256(1));
         depositHook.preExecute(address(0), address(this), data);
-        assertEq(depositHook.outAmount(), amount);
+        assertEq(depositHook.getOutAmount(address(this)), amount);
 
         depositHook.postExecute(address(0), address(this), data);
-        assertEq(depositHook.outAmount(), 0);
+        assertEq(depositHook.getOutAmount(address(this)), 0);
     }
 
     function test_RequestRedeemHook_PreAndPostExecute() public {
@@ -736,10 +703,10 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
         bytes memory data = _encodeRequestData(false);
         reqRedeemHook.preExecute(address(0), address(this), data);
-        assertEq(reqRedeemHook.outAmount(), amount);
+        assertEq(reqRedeemHook.getOutAmount(address(this)), amount);
 
         reqRedeemHook.postExecute(address(0), address(this), data);
-        assertEq(reqRedeemHook.outAmount(), 0);
+        assertEq(reqRedeemHook.getOutAmount(address(this)), 0);
     }
 
     function test_ApproveAndRedeemHook_PreAndPostExecute() public {
@@ -748,10 +715,10 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
         bytes memory data = _encodeApproveAndRequestRedeemData(false, 1000, false);
         redeemHook.preExecute(address(0), address(this), data);
-        assertEq(redeemHook.outAmount(), 1_000_000_000);
+        assertEq(redeemHook.getOutAmount(address(this)), 1_000_000_000);
 
         redeemHook.postExecute(address(0), address(this), data);
-        assertEq(redeemHook.outAmount(), 0);
+        assertEq(redeemHook.getOutAmount(address(this)), 0);
     }
 
     function test_WithdrawHook_PreAndPostExecute() public {
@@ -760,10 +727,10 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
         bytes memory data = _encodeData(false, false);
         withdrawHook.preExecute(address(0), address(this), data);
-        assertEq(withdrawHook.outAmount(), amount);
+        assertEq(withdrawHook.getOutAmount(address(this)), amount);
 
         withdrawHook.postExecute(address(0), address(this), data);
-        assertEq(withdrawHook.outAmount(), 0);
+        assertEq(withdrawHook.getOutAmount(address(this)), 0);
     }
 
     function test_claimCancelRedeemRequestHook_PreAndPostExecute() public {
@@ -774,10 +741,10 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
             abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), address(this), uint256(1));
 
         claimCancelRedeemRequestHook.preExecute(address(0), address(this), data);
-        assertEq(claimCancelRedeemRequestHook.outAmount(), 1_000_000_000);
+        assertEq(claimCancelRedeemRequestHook.getOutAmount(address(this)), 1_000_000_000);
 
         claimCancelRedeemRequestHook.postExecute(address(0), address(this), data);
-        assertEq(claimCancelRedeemRequestHook.outAmount(), 0);
+        assertEq(claimCancelRedeemRequestHook.getOutAmount(address(this)), 0);
 
         assertEq(claimCancelRedeemRequestHook.spToken(), token, "1");
         assertEq(claimCancelRedeemRequestHook.vaultBank(), address(this), "2");
@@ -812,10 +779,10 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
             abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), amount, false, address(this), uint256(1));
 
         claimCancelDepositRequestHook.preExecute(address(0), address(this), data);
-        assertEq(claimCancelDepositRequestHook.outAmount(), 1_000_000_000);
+        assertEq(claimCancelDepositRequestHook.getOutAmount(address(this)), 1_000_000_000);
 
         claimCancelDepositRequestHook.postExecute(address(0), address(this), data);
-        assertEq(claimCancelDepositRequestHook.outAmount(), 0);
+        assertEq(claimCancelDepositRequestHook.getOutAmount(address(this)), 0);
     }
 
     function test_cancelRedeemRequest_PreAndPostExecute() public {
@@ -834,10 +801,10 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
         bytes memory data = _encodeApproveAndRequestRedeemData(false, 1000, false);
         redeemHook.preExecute(address(0), address(this), data);
-        assertEq(redeemHook.outAmount(), 1_000_000_000);
+        assertEq(redeemHook.getOutAmount(address(this)), 1_000_000_000);
 
         redeemHook.postExecute(address(0), address(this), data);
-        assertEq(redeemHook.outAmount(), 0);
+        assertEq(redeemHook.getOutAmount(address(this)), 0);
     }
 
     function test_ApproveAndRequestRedeemHook_PreAndPostExecute() public {
@@ -846,10 +813,10 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
         bytes memory data = _encodeApproveAndRequestRedeemData(false, 1000, false);
         approveAndReqRedeemHook.preExecute(address(0), address(this), data);
-        assertEq(approveAndReqRedeemHook.outAmount(), 1_000_000_000);
+        assertEq(approveAndReqRedeemHook.getOutAmount(address(this)), 1_000_000_000);
 
         approveAndReqRedeemHook.postExecute(address(0), address(this), data);
-        assertEq(approveAndReqRedeemHook.outAmount(), 0);
+        assertEq(approveAndReqRedeemHook.getOutAmount(address(this)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -923,10 +890,10 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
         bytes memory data = _encodeCancelRedeem();
         cancelRedeemHook.preExecute(address(0), address(this), data);
-        assertEq(cancelRedeemHook.outAmount(), amount);
+        assertEq(cancelRedeemHook.getOutAmount(address(this)), amount);
 
         cancelRedeemHook.postExecute(address(0), address(this), data);
-        assertEq(cancelRedeemHook.outAmount(), 0);
+        assertEq(cancelRedeemHook.getOutAmount(address(this)), 0);
     }
 
     function test_CancelRedeemHook_IsAsyncCancelHook() public view {

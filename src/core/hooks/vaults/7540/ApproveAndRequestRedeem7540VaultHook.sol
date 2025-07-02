@@ -14,8 +14,7 @@ import {
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware,
-    ISuperHookInspector,
-    ISuperHookAsync
+    ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -24,22 +23,21 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @author Superform Labs
 /// @notice This hook does not support tokens reverting on 0 approval
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
-/// @notice         uint256 shares = BytesLib.toUint256(data, 24);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 56);
+/// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
+/// @notice         uint256 shares = BytesLib.toUint256(data, 52);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
 contract ApproveAndRequestRedeem7540VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware,
-    ISuperHookInspector,
-    ISuperHookAsync
+    ISuperHookInspector
 {
     using HookDataDecoder for bytes;
 
-    uint256 private constant AMOUNT_POSITION = 24;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 56;
+    uint256 private constant AMOUNT_POSITION = 52;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 84;
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ERC7540) { }
 
@@ -63,7 +61,7 @@ contract ApproveAndRequestRedeem7540VaultHook is
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
         if (usePrevHookAmount) {
-            shares = ISuperHookResultOutflow(prevHook).outAmount();
+            shares = ISuperHookResultOutflow(prevHook).getOutAmount(account);
         }
 
         if (shares == 0) revert AMOUNT_NOT_VALID();
@@ -86,10 +84,6 @@ contract ApproveAndRequestRedeem7540VaultHook is
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    /// @inheritdoc ISuperHookAsync
-    function getUsedAssetsOrShares() external view returns (uint256, bool isShares) {
-        return (outAmount, true);
-    }
 
     /// @inheritdoc ISuperHookInflowOutflow
     function decodeAmount(bytes memory data) external pure returns (uint256) {
@@ -110,7 +104,7 @@ contract ApproveAndRequestRedeem7540VaultHook is
     function inspect(bytes calldata data) external pure returns (bytes memory) {
         return abi.encodePacked(
             data.extractYieldSource(),
-            BytesLib.toAddress(data, 24) //token
+            BytesLib.toAddress(data, 52) //token
         );
     }
 
@@ -120,13 +114,13 @@ contract ApproveAndRequestRedeem7540VaultHook is
     function _preExecute(address, address account, bytes calldata data) internal override {
         address yieldSource = data.extractYieldSource();
         asset = IERC7540(yieldSource).asset();
-        outAmount = _getBalance(account, data);
+        _setOutAmount(_getBalance(account, data), account);
         usedShares = _getSharesBalance(account, data);
         spToken = IERC7540(yieldSource).share();
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data) - outAmount;
+        _setOutAmount(getOutAmount(account) - _getBalance(account, data), account);
         usedShares = usedShares - _getSharesBalance(account, data);
     }
 

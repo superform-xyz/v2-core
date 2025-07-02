@@ -431,17 +431,17 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
                 revert MINIMUM_PREVIOUS_HOOK_OUT_AMOUNT_NOT_MET();
             }
         }
-        
-        ISuperHook(address(vars.hookContract)).setCaller();
+
+        ISuperHook(address(vars.hookContract)).setExecutionContext(address(this));
         vars.executions = vars.hookContract.build(prevHook, address(this), hookCalldata);
         for (uint256 j; j < vars.executions.length; ++j) {
             (vars.success,) =
                 vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
             if (!vars.success) revert OPERATION_FAILED();
         }
-        ISuperHook(address(vars.hookContract)).resetExecutionState();
+        ISuperHook(address(vars.hookContract)).resetExecutionState(address(this));
 
-        uint256 actualOutput = ISuperHookResult(hook).outAmount();
+        uint256 actualOutput = ISuperHookResult(hook).getOutAmount(address(this));
         if (actualOutput == 0) revert ZERO_OUTPUT_AMOUNT();
 
         uint256 minExpectedOut = expectedAssetsOrSharesOut * (BPS_PRECISION - _getSlippageTolerance()) / BPS_PRECISION;
@@ -490,7 +490,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
 
         vars.balanceAssetBefore = _getTokenBalance(vars.svAsset, address(this));
 
-        ISuperHook(address(vars.hookContract)).setCaller();
+        ISuperHook(address(vars.hookContract)).setExecutionContext(address(this));
 
         vars.executions = vars.hookContract.build(address(0), address(this), hookCalldata);
         for (uint256 j; j < vars.executions.length; ++j) {
@@ -498,7 +498,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
                 vars.executions[j].target.call{ value: vars.executions[j].value }(vars.executions[j].callData);
             if (!vars.success) revert OPERATION_FAILED();
         }
-        ISuperHook(address(vars.hookContract)).resetExecutionState();
+        ISuperHook(address(vars.hookContract)).resetExecutionState(address(this));
 
         vars.outAmount = _getTokenBalance(vars.svAsset, address(this)) - vars.balanceAssetBefore;
 
@@ -863,7 +863,7 @@ contract SuperVaultStrategy is ISuperVaultStrategy, ReentrancyGuard {
     /// @param prevHook Address of the previous hook
     /// @return Output amount of the previous hook
     function _getPreviousHookOutAmount(address prevHook) private view returns (uint256) {
-        return ISuperHookResultOutflow(prevHook).outAmount();
+        return ISuperHookResultOutflow(prevHook).getOutAmount(address(this));
     }
 
     /// @notice Internal function to handle a redeem claimable

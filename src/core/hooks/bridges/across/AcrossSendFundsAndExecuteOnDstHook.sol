@@ -2,15 +2,15 @@
 pragma solidity 0.8.30;
 
 // external
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {IAcrossSpokePoolV3} from "../../../../vendor/bridges/across/IAcrossSpokePoolV3.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { IAcrossSpokePoolV3 } from "../../../../vendor/bridges/across/IAcrossSpokePoolV3.sol";
 
 // Superform
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {ISuperSignatureStorage} from "../../../interfaces/ISuperSignatureStorage.sol";
-import {ISuperHookResult, ISuperHookContextAware, ISuperHookInspector} from "../../../interfaces/ISuperHook.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperSignatureStorage } from "../../../interfaces/ISuperSignatureStorage.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title AcrossSendFundsAndExecuteOnDstHook
 /// @author Superform Labs
@@ -70,7 +70,11 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc BaseHook
-    function _buildHookExecutions(address prevHook, address account, bytes calldata data)
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
         internal
         view
         override
@@ -93,7 +97,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
         acrossV3DepositAndExecuteData.destinationMessage = BytesLib.slice(data, 217, data.length - 217);
 
         if (acrossV3DepositAndExecuteData.usePrevHookAmount) {
-            uint256 outAmount = ISuperHookResult(prevHook).outAmount();
+            uint256 outAmount = ISuperHookResult(prevHook).getOutAmount(account);
             acrossV3DepositAndExecuteData.inputAmount = outAmount;
             if (
                 acrossV3DepositAndExecuteData.inputToken
@@ -172,7 +176,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware,
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata) internal override {}
+    function _preExecute(address, address, bytes calldata) internal override { }
 
-    function _postExecute(address, address, bytes calldata) internal override {}
+    function _postExecute(address, address, bytes calldata) internal override { }
 }

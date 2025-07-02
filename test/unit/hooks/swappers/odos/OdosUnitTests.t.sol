@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
+
 import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {SwapOdosHook} from "../../../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
-import {ApproveAndSwapOdosHook} from "../../../../../src/core/hooks/swappers/odos/ApproveAndSwapOdosHook.sol";
+import {SwapOdosV2Hook} from "../../../../../src/core/hooks/swappers/odos/SwapOdosV2Hook.sol";
+import {ApproveAndSwapOdosV2Hook} from "../../../../../src/core/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol";
 import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
 import {MockERC20} from "../../../../mocks/MockERC20.sol";
 import {MockHook} from "../../../../mocks/MockHook.sol";
@@ -12,7 +13,12 @@ import {IOdosRouterV2} from "../../../../../src/vendor/odos/IOdosRouterV2.sol";
 import {Helpers} from "../../../../utils/Helpers.sol";
 
 contract MockOdosRouter is IOdosRouterV2 {
-    function swap(swapTokenInfo calldata, bytes calldata, address, uint32)
+    function swap(
+        swapTokenInfo calldata,
+        bytes calldata,
+        address,
+        uint32
+    )
         external
         payable
         override
@@ -21,7 +27,13 @@ contract MockOdosRouter is IOdosRouterV2 {
         return 0;
     }
 
-    function swapPermit2(permit2Info memory, swapTokenInfo memory, bytes calldata, address, uint32)
+    function swapPermit2(
+        permit2Info memory,
+        swapTokenInfo memory,
+        bytes calldata,
+        address,
+        uint32
+    )
         external
         pure
         override
@@ -36,8 +48,8 @@ contract MockOdosRouter is IOdosRouterV2 {
 }
 
 contract ApproveAndSwapOdosHookTest is Helpers {
-    ApproveAndSwapOdosHook public approveAndSwapOdosHook;
-    SwapOdosHook public swapOdosHook;
+    ApproveAndSwapOdosV2Hook public approveAndSwapOdosHook;
+    SwapOdosV2Hook public swapOdosHook;
     MockOdosRouter public odosRouter;
     MockHook public prevHook;
 
@@ -54,7 +66,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     uint32 referralCode = 123;
     bool usePrevHookAmount;
 
-    receive() external payable {}
+    receive() external payable { }
 
     function setUp() public {
         account = address(this);
@@ -73,11 +85,11 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         prevHook = new MockHook(ISuperHook.HookType.INFLOW, inputToken);
 
-        approveAndSwapOdosHook = new ApproveAndSwapOdosHook(address(odosRouter));
-        swapOdosHook = new SwapOdosHook(address(odosRouter));
+        approveAndSwapOdosHook = new ApproveAndSwapOdosV2Hook(address(odosRouter));
+        swapOdosHook = new SwapOdosV2Hook(address(odosRouter));
     }
 
-    // ------------ ApproveAndSwapOdosHook --------------
+    // ------------ ApproveAndSwapOdosV2Hook --------------
     function test_Constructor() public view {
         assertEq(uint256(approveAndSwapOdosHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
         assertEq(address(approveAndSwapOdosHook.odosRouterV2()), address(odosRouter));
@@ -85,7 +97,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
     function test_Constructor_RevertIf_AddressZero() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new ApproveAndSwapOdosHook(address(0));
+        new ApproveAndSwapOdosV2Hook(address(0));
     }
 
     function test_DecodeUsePrevHookAmount() public view {
@@ -133,7 +145,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         bytes memory data = _buildApproveAndSwapOdosData(true);
 
         uint256 prevHookAmount = 2000;
-        prevHook.setOutAmount(prevHookAmount);
+        prevHook.setOutAmount(prevHookAmount, address(this));
 
         Execution[] memory executions = approveAndSwapOdosHook.build(address(prevHook), account, data);
 
@@ -156,7 +168,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         approveAndSwapOdosHook.preExecute(address(0), account, data);
 
-        assertEq(approveAndSwapOdosHook.outAmount(), 500);
+        assertEq(approveAndSwapOdosHook.getOutAmount(address(this)), 500);
     }
 
     function test_PostExecute() public {
@@ -171,7 +183,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         approveAndSwapOdosHook.postExecute(address(0), account, data);
 
-        assertEq(approveAndSwapOdosHook.outAmount(), 300);
+        assertEq(approveAndSwapOdosHook.getOutAmount(address(this)), 300);
     }
 
     function test_BytesLengthDecoding() public view {
@@ -200,7 +212,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     function test_BooleanDecoding_True() public {
         bytes memory data = _buildApproveAndSwapOdosData(true);
 
-        prevHook.setOutAmount(2000);
+        prevHook.setOutAmount(2000, address(this));
 
         Execution[] memory executions = approveAndSwapOdosHook.build(address(prevHook), account, data);
 
@@ -261,7 +273,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         return data;
     }
 
-    // ------------ SwapOdosHook --------------
+    // ------------ SwapOdosV2Hook --------------
     function test_SwapOdosHook_Constructor() public view {
         assertEq(uint256(swapOdosHook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
         assertEq(address(swapOdosHook.odosRouterV2()), address(odosRouter));
@@ -269,7 +281,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
     function test_SwapOdosHook_Constructor_RevertIf_AddressZero() public {
         vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        new SwapOdosHook(address(0));
+        new SwapOdosV2Hook(address(0));
     }
 
     function test_SwapOdosHook_decodeUsePrevHookAmount() public view {
@@ -294,7 +306,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
         bytes memory data = _buildSwapOdosData(true);
 
         uint256 prevHookAmount = 2000;
-        prevHook.setOutAmount(prevHookAmount);
+        prevHook.setOutAmount(prevHookAmount, address(this));
 
         Execution[] memory executions = swapOdosHook.build(address(prevHook), account, data);
 
@@ -311,7 +323,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         approveAndSwapOdosHook.preExecute(address(0), account, data);
 
-        assertEq(approveAndSwapOdosHook.outAmount(), 500);
+        assertEq(approveAndSwapOdosHook.getOutAmount(address(this)), 500);
     }
 
     function test_SwapOdosHook_PostExecute() public {
@@ -326,7 +338,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
 
         swapOdosHook.postExecute(address(0), account, data);
 
-        assertEq(swapOdosHook.outAmount(), 300);
+        assertEq(swapOdosHook.getOutAmount(address(this)), 300);
     }
 
     function test_SwapOdosHook_BytesLengthDecoding() public view {
@@ -354,7 +366,7 @@ contract ApproveAndSwapOdosHookTest is Helpers {
     function test_SwapOdosHook_BooleanDecoding_True() public {
         bytes memory data = _buildSwapOdosData(true);
 
-        prevHook.setOutAmount(2000);
+        prevHook.setOutAmount(2000, address(this));
 
         Execution[] memory executions = swapOdosHook.build(address(prevHook), account, data);
 

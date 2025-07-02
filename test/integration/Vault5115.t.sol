@@ -59,7 +59,7 @@ contract Redeem5115VaultBugTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingETH_sUSDe, yieldSource5115AddressSUSDe, amountPerVault, false);
         hooksData[1] = _createDeposit5115VaultHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSource5115AddressSUSDe,
             underlyingETH_sUSDe,
             amountPerVault,
@@ -87,7 +87,7 @@ contract Redeem5115VaultBugTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksDataRedeem = new bytes[](1);
         hooksAddressesRedeem[0] = address(new Redeem5115VaultHook());
         hooksDataRedeem[0] = _create5115RedeemHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(vaultInstance5115ETH),
             underlyingETH_sUSDe,
             amountPerVault,

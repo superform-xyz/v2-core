@@ -157,9 +157,9 @@ abstract contract Constants {
     string internal constant FLUID_UNSTAKE_HOOK_KEY = "FluidUnstakeHook";
     string internal constant SWAP_OKX_HOOK_KEY = "SwapOkxHook";
     string internal constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
-    string internal constant SWAP_ODOS_HOOK_KEY = "SwapOdosHook";
+    string internal constant SWAP_ODOSV2_HOOK_KEY = "SwapOdosV2Hook";
     string internal constant APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY = "ApproveAndDeposit4626VaultHook";
-    string internal constant APPROVE_AND_SWAP_ODOS_HOOK_KEY = "ApproveAndSwapOdosHook";
+    string internal constant APPROVE_AND_SWAP_ODOSV2_HOOK_KEY = "ApproveAndSwapOdosV2Hook";
     string internal constant APPROVE_AND_FLUID_STAKE_HOOK_KEY = "ApproveAndFluidStakeHook";
     string internal constant APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY = "ApproveAndRequestDeposit7540VaultHook";
     string internal constant APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY = "ApproveAndDeposit5115VaultHook";
@@ -168,6 +168,7 @@ abstract contract Constants {
     string internal constant WITHDRAW_7540_VAULT_HOOK_KEY = "Withdraw7540VaultHook";
     string internal constant APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY = "ApproveAndRequestRedeem7540VaultHook";
     string internal constant DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendOrderAndExecuteOnDstHook";
+    string public constant DEBRIDGE_CANCEL_ORDER_HOOK_KEY = "DeBridgeCancelOrderHook";
     string internal constant ETHENA_COOLDOWN_SHARES_HOOK_KEY = "EthenaCooldownSharesHook";
     string internal constant ETHENA_UNSTAKE_HOOK_KEY = "EthenaUnstakeHook";
     string internal constant SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY = "SpectraExchangeDepositHook";

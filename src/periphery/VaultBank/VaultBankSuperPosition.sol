@@ -4,20 +4,26 @@ pragma solidity 0.8.30;
 import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { Ownable2Step } from "@openzeppelin/contracts/access/Ownable2Step.sol";
+import { ISuperPositions } from "../interfaces/VaultBank/ISuperPositions.sol";
 
-contract VaultBankSuperPosition is ERC20, Ownable2Step {
+contract VaultBankSuperPosition is ERC20, Ownable2Step, ISuperPositions {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
+    bytes32 public yieldSourceOracleId;
     uint8 private _decimals;
 
     /// @dev `msg.sender` is VaultBank
     constructor(
         string memory name,
         string memory symbol,
-        uint8 decimals_
+        uint8 decimals_,
+        bytes32 yieldSourceOracleId_
     ) ERC20(name, symbol) Ownable(msg.sender) {
+        if (decimals_ == 0) revert INVALID_DECIMALS();
+        if (yieldSourceOracleId_ == bytes32(0)) revert INVALID_YIELD_SOURCE_ORACLE_ID();
         _decimals = decimals_;
+        yieldSourceOracleId = yieldSourceOracleId_;
     }
 
     /*//////////////////////////////////////////////////////////////

@@ -20,7 +20,7 @@ import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 import { MockHook } from "../../mocks/MockHook.sol";
 import { MockSuperPositionFactory } from "../../mocks/MockSuperPositionFactory.sol";
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import { ModeLib } from "modulekit/accounts/common/lib/ModeLib.sol";
@@ -139,13 +139,14 @@ contract SuperExecutor_sameChainFlow is
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle,
             feePercent: 100,
             feeRecipient: feeRecipient,
             ledger: address(ledger)
         });
-        ISuperLedgerConfiguration(ledgerConfig).setYieldSourceOracles(configs);
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        ISuperLedgerConfiguration(ledgerConfig).setYieldSourceOracles(salts, configs);
 
         eoaKey = uint256(8);
         account7702 = vm.addr(eoaKey);
@@ -202,10 +203,10 @@ contract SuperExecutor_sameChainFlow is
         bytes[] memory hooksData = new bytes[](3);
         hooksData[0] = _createApproveHookData(underlying, address(vault), amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(vault), amount, false, address(0), 0
         );
         hooksData[2] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), account, amount, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(vault), account, amount, false
         );
         // assure account has tokens
         _getTokens(underlying, account, amount);
@@ -217,7 +218,7 @@ contract SuperExecutor_sameChainFlow is
             callData: abi.encodeCall(IERC4626.deposit, (amount, account))
         });
         _depositHook.setExecutions(depositExecutions);
-        _depositHook.setOutAmount(amount);
+        _depositHook.setOutAmount(amount, address(this));
 
         Execution[] memory redeemExecutions = new Execution[](1);
         redeemExecutions[0] = Execution({
@@ -227,7 +228,7 @@ contract SuperExecutor_sameChainFlow is
         });
         _redeemHook.setExecutions(redeemExecutions);
         _redeemHook.setUsedShares(amount);
-        _redeemHook.setOutAmount(amount * 2);
+        _redeemHook.setOutAmount(amount * 2, address(this));
         _redeemHook.setAsset(address(0));
 
         // it should execute all hooks
@@ -261,7 +262,7 @@ contract SuperExecutor_sameChainFlow is
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, address(vault), amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(vault), amount, false, address(0), 0
         );
         // assure account has tokens
         _getTokens(underlying, account, amount);
@@ -273,7 +274,7 @@ contract SuperExecutor_sameChainFlow is
             callData: abi.encodeCall(IERC4626.deposit, (amount, account))
         });
         _depositHook.setExecutions(depositExecutions);
-        _depositHook.setOutAmount(amount);
+        _depositHook.setOutAmount(amount, address(this));
 
         // it should execute all hooks
         ISuperExecutor.ExecutorEntry memory entry =
@@ -294,7 +295,7 @@ contract SuperExecutor_sameChainFlow is
 
         hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(vault), account, amount, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(vault), account, amount, false
         );
 
         Execution[] memory redeemExecutions = new Execution[](1);
@@ -305,7 +306,7 @@ contract SuperExecutor_sameChainFlow is
         });
         _redeemHook.setExecutions(redeemExecutions);
         _redeemHook.setUsedShares(amount);
-        _redeemHook.setOutAmount(amount * 2);
+        _redeemHook.setOutAmount(amount * 2, address(this));
         _redeemHook.setAsset(address(0));
 
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
@@ -342,7 +343,7 @@ contract SuperExecutor_sameChainFlow is
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(vaultBank), 8453
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, amount, false, address(vaultBank), 8453
         );
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
@@ -382,7 +383,7 @@ contract SuperExecutor_sameChainFlow is
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, amount, false, address(0), 0
         );
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
@@ -409,13 +410,14 @@ contract SuperExecutor_sameChainFlow is
         hooksAddresses[1] = address(deposit4626Hook);
         hooksAddresses[2] = address(redeem4626Hook);
 
+        console2.log("--- setter", address(this));
         bytes[] memory hooksData = new bytes[](3);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, amount, false, address(0), 0
         );
         hooksData[2] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, account, amount, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, account, amount, false
         );
         // assure account has tokens
         _getTokens(underlying, account, amount);
@@ -612,7 +614,7 @@ contract SuperExecutor_sameChainFlow is
         );
         hooksData[1] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[2] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, amount, false, address(0), 0
         );
         uint256 routerEthBalanceBefore = address(mockOdosRouter).balance;
         _getTokens(address(underlying), mockOdosRouter, amount);
@@ -676,7 +678,7 @@ contract SuperExecutor_sameChainFlow is
         );
         hooksData[3] = _createApproveHookData(underlying, yieldSourceAddress, amount, true);
         hooksData[4] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, true, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, amount, true, address(0), 0
         );
 
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
@@ -728,7 +730,7 @@ contract SuperExecutor_sameChainFlow is
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, amount, false, address(0), 0
         );
 
         // assure account has tokens

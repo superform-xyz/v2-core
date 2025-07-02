@@ -58,14 +58,15 @@ contract YieldSourceOraclesTest is Helpers {
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
 
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: address(erc4626YieldSourceOracle),
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(ledger)
         });
 
-        ledgerConfig.setYieldSourceOracles(configs);
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        ledgerConfig.setYieldSourceOracles(salts, configs);
 
         asset = new MockERC20("MockAsset", "MA", 18);
 
@@ -486,19 +487,20 @@ contract YieldSourceOraclesTest is Helpers {
 
     function test_ERC4626_getAssetOutputWithFees_WithZeroFees() public {
         // Set up a configuration with zero fees using a unique oracle ID
-        bytes4 zeroFeeOracleId = bytes4(keccak256("uniqueZeroFeeOracle_test_2024_v1"));
+        bytes32 zeroFeeOracleId = bytes32(keccak256("uniqueZeroFeeOracle_test_2024_v1"));
 
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: zeroFeeOracleId,
             yieldSourceOracle: address(erc4626YieldSourceOracle),
             feePercent: 0, // 0% fees
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(ledger)
         });
 
-        ledgerConfig.setYieldSourceOracles(configs);
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = zeroFeeOracleId;
+        ledgerConfig.setYieldSourceOracles(salts, configs);
 
         address user = makeAddr("testUser");
         uint256 initialShares = 1000e18;
@@ -531,19 +533,20 @@ contract YieldSourceOraclesTest is Helpers {
 
     function test_ERC4626_getAssetOutputWithFees_WithMaxFees() public {
         // Set up a configuration with max fees (50%) using a unique oracle ID
-        bytes4 maxFeeOracleId = bytes4(keccak256("uniqueMaxFeeOracle_test_2024_v1"));
+        bytes32 maxFeeOracleId = bytes32(keccak256("uniqueMaxFeeOracle_test_2024_v1"));
 
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: maxFeeOracleId,
             yieldSourceOracle: address(erc4626YieldSourceOracle),
             feePercent: 5000, // 50% fees (max allowed)
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(ledger)
         });
 
-        ledgerConfig.setYieldSourceOracles(configs);
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = maxFeeOracleId;
+        ledgerConfig.setYieldSourceOracles(salts, configs);
 
         address user = makeAddr("testUser");
         uint256 initialShares = 1000e18;

@@ -76,27 +76,28 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle,
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(ledger)
         });
         configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: address(new ERC7540YieldSourceOracle(address(ledgerConfig))),
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(ledger)
         });
         configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: address(new ERC5115YieldSourceOracle(address(ledgerConfig))),
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(new ERC5115Ledger(address(ledgerConfig), allowedExecutors))
         });
-        ledgerConfig.setYieldSourceOracles(configs);
+        bytes32[] memory salts = new bytes32[](3);
+        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
+        salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY));
+        ledgerConfig.setYieldSourceOracles(salts, configs);
 
         approveHook = address(new ApproveERC20Hook());
         deposit4626Hook = address(new Deposit4626VaultHook());

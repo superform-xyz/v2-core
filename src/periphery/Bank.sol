@@ -5,8 +5,8 @@ pragma solidity 0.8.30;
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
-import {IHookExecutionData} from "./interfaces/IHookExecutionData.sol";
-import {ISuperHook, Execution} from "../core/interfaces/ISuperHook.sol";
+import { IHookExecutionData } from "./interfaces/IHookExecutionData.sol";
+import { ISuperHook, Execution } from "../core/interfaces/ISuperHook.sol";
 
 abstract contract Bank {
     /*//////////////////////////////////////////////////////////////
@@ -61,7 +61,7 @@ abstract contract Bank {
             // 1. Get the Merkle root specific to this hook
             merkleRoot = _getMerkleRootForHook(hookAddress);
 
-            ISuperHook(hookAddress).setCaller();
+            ISuperHook(hookAddress).setExecutionContext(address(this));
 
             // 2. Build Execution Steps
             executions = hook.build(prevHook, address(this), hookData);
@@ -70,7 +70,7 @@ abstract contract Bank {
             for (uint256 j; j < executions.length; ++j) {
                 executionStep = executions[j];
 
-                // valid hooks encapsulate execution between a `.preExecute` and ` .postExecute` 
+                // valid hooks encapsulate execution between a `.preExecute` and ` .postExecute`
                 // target for preExecute and postExecute is the hook address
                 // keep the original behavior for validating the tree against the actual execution steps
                 if (executionStep.target != hookAddress) {
@@ -91,7 +91,7 @@ abstract contract Bank {
             }
 
             // Reset execution state after each hook
-            ISuperHook(hookAddress).resetExecutionState();
+            ISuperHook(hookAddress).resetExecutionState(address(this));
 
             prevHook = hookAddress;
         }

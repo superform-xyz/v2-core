@@ -16,19 +16,19 @@ import { SpectraCommands } from "../../../../vendor/spectra/SpectraCommands.sol"
 /// @title SpectraExchangeRedeemHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address asset = BytesLib.toAddress(data, 4);
-/// @notice         address pt = BytesLib.toAddress(data, 24);
-/// @notice         address recipient = BytesLib.toAddress(data, 44);
-/// @notice         uint256 minAssets = BytesLib.toUint256(data, 64);
-/// @notice         uint256 sharesToBurn = BytesLib.toUint256(data, 96);
-/// @notice         bool usePrevHookAmount = _decodeBool(data, 128);
-/// @notice         bytes1 command = BytesLib.slice(data, 129, 1);
+/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address asset = BytesLib.toAddress(data, 32);
+/// @notice         address pt = BytesLib.toAddress(data, 52);
+/// @notice         address recipient = BytesLib.toAddress(data, 72);
+/// @notice         uint256 minAssets = BytesLib.toUint256(data, 92);
+/// @notice         uint256 sharesToBurn = BytesLib.toUint256(data, 124);
+/// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
+/// @notice         bytes1 command = BytesLib.slice(data, 157, 1);
 contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 128;
-    uint256 private constant SHARES_POSITION = 96;
+    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
+    uint256 private constant SHARES_POSITION = 124;
 
     bytes1 public constant REDEEM_IBT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_IBT_FOR_ASSET));
     bytes1 public constant REDEEM_PT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_PT_FOR_ASSET));
@@ -71,7 +71,7 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
     /// @inheritdoc BaseHook
     function _buildHookExecutions(
         address prevHook,
-        address,
+        address account,
         bytes calldata data
     )
         internal
@@ -85,7 +85,7 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
         if (params.command != REDEEM_IBT_FOR_ASSET && params.command != REDEEM_PT_FOR_ASSET) revert INVALID_COMMAND();
 
         if (params.usePrevHookAmount) {
-            params.sharesToBurn = ISuperHookResult(prevHook).outAmount();
+            params.sharesToBurn = ISuperHookResult(prevHook).getOutAmount(account);
         }
         if (params.sharesToBurn == 0) revert AMOUNT_NOT_VALID();
 
@@ -129,24 +129,24 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(data, account);
+        _setOutAmount(_getBalance(data, account), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(data, account) - outAmount;
+        _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////
                             PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _decodeRedeemParams(bytes calldata data) private pure returns (RedeemParams memory params) {
-        address asset = BytesLib.toAddress(data, 4);
-        address pt = BytesLib.toAddress(data, 24);
-        address recipient = BytesLib.toAddress(data, 44);
-        uint256 minAssets = BytesLib.toUint256(data, 64);
-        uint256 sharesToBurn = BytesLib.toUint256(data, 96);
-        bool usePrevHookAmount = _decodeBool(data, 128);
-        bytes memory encodedCommand = BytesLib.slice(data, 129, 1);
+        address asset = BytesLib.toAddress(data, 32);
+        address pt = BytesLib.toAddress(data, 52);
+        address recipient = BytesLib.toAddress(data, 72);
+        uint256 minAssets = BytesLib.toUint256(data, 92);
+        uint256 sharesToBurn = BytesLib.toUint256(data, 124);
+        bool usePrevHookAmount = _decodeBool(data, 156);
+        bytes memory encodedCommand = BytesLib.slice(data, 157, 1);
         bytes1 command = encodedCommand[0];
 
         return RedeemParams({
@@ -198,8 +198,8 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
     }
 
     function _getBalance(bytes calldata data, address) private view returns (uint256) {
-        address asset = BytesLib.toAddress(data, 4);
-        address recipient = BytesLib.toAddress(data, 44);
+        address asset = BytesLib.toAddress(data, 32);
+        address recipient = BytesLib.toAddress(data, 72);
 
         return IERC20(asset).balanceOf(recipient);
     }

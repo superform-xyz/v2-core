@@ -147,10 +147,10 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), 1, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(token), 1, false, address(0), 0
         );
         hooksData[1] =
-            _createRedeem4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false);
+            _createRedeem4626HookData(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(token), account, 1, false);
 
         vm.startPrank(account);
 
@@ -167,14 +167,14 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_SourceExecutor_UpdateAccounting_Inflow() public {
-        inflowHook.setOutAmount(1000);
+        inflowHook.setOutAmount(1000, address(this));
 
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(inflowHook);
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), 1, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(token), 1, false, address(0), 0
         );
 
         vm.startPrank(account);
@@ -189,7 +189,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     function test_SourceExecutor_UpdateAccounting_Outflow_WithFee() public {
         vm.startPrank(account);
 
-        outflowHook.setOutAmount(1000);
+        outflowHook.setOutAmount(1000, address(this));
         outflowHook.setUsedShares(500);
         ledger.setFeeAmount(100);
 
@@ -198,7 +198,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] =
-            _createRedeem4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false);
+            _createRedeem4626HookData(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(token), account, 1, false);
 
         _getTokens(address(token), account, 1000);
 
@@ -216,7 +216,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
     function test_SourceExecutor_UpdateAccounting_Outflow_RevertIf_InvalidAsset() public {
         MockHook invalidHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(0));
-        invalidHook.setOutAmount(1000);
+        invalidHook.setOutAmount(1000, address(this));
         ledger.setFeeAmount(100);
 
         address[] memory hooksAddresses = new address[](1);
@@ -224,7 +224,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] =
-            _createRedeem4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false);
+            _createRedeem4626HookData(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(token), account, 1, false);
 
         vm.startPrank(makeAddr("account"));
         superSourceExecutor.onInstall("");
@@ -238,7 +238,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_SourceExecutor_UpdateAccounting_Outflow_RevertIf_InsufficientBalance() public {
-        outflowHook.setOutAmount(1000);
+        outflowHook.setOutAmount(1000, address(this));
         ledger.setFeeAmount(100);
 
         address[] memory hooksAddresses = new address[](1);
@@ -246,7 +246,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] =
-            _createRedeem4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false);
+            _createRedeem4626HookData(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(token), account, 1, false);
 
         vm.startPrank(account);
 
@@ -281,14 +281,13 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         console2.logBytes(fullData);
     }
 
-
     function test_SourceExecutor_UpdateAccounting_Outflow_RevertIf_FeeNotTransferred() public {
         MaliciousToken maliciousToken = new MaliciousToken();
 
         maliciousToken.blacklist(feeRecipient);
 
         MockHook maliciousHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(maliciousToken));
-        maliciousHook.setOutAmount(910);
+        maliciousHook.setOutAmount(910, address(this));
         maliciousHook.setUsedShares(500);
 
         ledger.setFeeAmount(100);
@@ -303,7 +302,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] =
-            _createRedeem4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), account, 1, false);
+            _createRedeem4626HookData(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(token), account, 1, false);
 
         vm.startPrank(address(this));
         maliciousToken.transfer(account, 1000);
@@ -323,7 +322,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     function test_SourceExecutor_UpdateAccounting_Outflow_WithFee_NativeToken() public {
         // Create a new native token hook
         MockHook nativeHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(0));
-        nativeHook.setOutAmount(1000);
+        nativeHook.setOutAmount(1000, address(this));
         nativeHook.setUsedShares(500);
         ledger.setFeeAmount(100);
 
@@ -333,7 +332,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(0), // Native token as address(0)
             account,
             1,
@@ -367,7 +366,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         // Create a hook that uses NATIVE_TOKEN_SENTINEL
         MockHook nativeSentinelHook =
             new MockHook(ISuperHook.HookType.OUTFLOW, address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE));
-        nativeSentinelHook.setOutAmount(1000);
+        nativeSentinelHook.setOutAmount(1000, address(this));
         nativeSentinelHook.setUsedShares(500);
         ledger.setFeeAmount(100);
 
@@ -377,7 +376,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE),
             account,
             1,
@@ -410,7 +409,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     function test_SourceExecutor_UpdateAccounting_Outflow_WithFee_NativeToken_InsufficientBalance() public {
         // Create a hook for native token
         MockHook nativeHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(0));
-        nativeHook.setOutAmount(1000);
+        nativeHook.setOutAmount(1000, address(this));
         nativeHook.setUsedShares(500);
         ledger.setFeeAmount(100);
 
@@ -420,7 +419,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] =
-            _createRedeem4626HookData(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(0), account, 1, false);
+            _createRedeem4626HookData(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(0), account, 1, false);
 
         // Don't fund the account - should have 0 ETH
         vm.deal(account, 0);
@@ -437,14 +436,14 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_SourceExecutor_VaultBank() public {
-        inflowHook.setOutAmount(1000);
+        inflowHook.setOutAmount(1000, address(this));
 
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(inflowHook);
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), 1, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(token), 1, false, address(0), 0
         );
 
         vm.mockCall(address(inflowHook), abi.encodeWithSignature("vaultBank()"), abi.encode(address(this)));
@@ -452,8 +451,8 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.mockCall(address(inflowHook), abi.encodeWithSignature("dstChainId()"), abi.encode(1));
         vm.mockCall(
             address(this),
-            abi.encodeWithSignature("lockAsset(address,address,address,uint256,uint64)"),
-            abi.encode(address(account), address(token), address(inflowHook), 1000, 1)
+            abi.encodeWithSignature("lockAsset(bytes32,address,address,address,uint256,uint64)"),
+            abi.encode(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(account), address(token), address(inflowHook), 1000, 1)
         );
 
         vm.startPrank(account);
@@ -466,23 +465,22 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function test_SourceExecutor_VaultBank_InvalidDestinationChainId() public {
-        inflowHook.setOutAmount(1000);
+        inflowHook.setOutAmount(1000, address(this));
 
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(inflowHook);
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(token), 1, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(token), 1, false, address(0), 0
         );
 
-        vm.mockCall(address(inflowHook), abi.encodeWithSignature("vaultBank()"), abi.encode(address(this)));
         vm.mockCall(address(inflowHook), abi.encodeWithSignature("spToken()"), abi.encode(address(token)));
-        vm.mockCall(address(inflowHook), abi.encodeWithSignature("dstChainId()"), abi.encode(uint64(block.chainid)));
+        vm.mockCall(address(inflowHook), abi.encodeWithSignature("extractLockDetails(bytes)"), abi.encode(address(this), uint64(block.chainid), bytes32(bytes("1"))));
         vm.mockCall(
             address(this),
-            abi.encodeWithSignature("lockAsset(address,address,uint256,uint64)"),
-            abi.encode(address(account), address(token), 1000, uint64(block.chainid))
+            abi.encodeWithSignature("lockAsset(bytes32,address,address,address,uint256,uint64)"),
+            abi.encode(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(account), address(token), address(inflowHook), 1000, uint64(block.chainid))
         );
 
         vm.startPrank(account);
@@ -510,7 +508,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         address wrong_RewardToken = address(new MockERC20("Wrong Token", "FRT", 18));
 
         hooksAddresses[0] = address(hook);
-        hooksData[0] = abi.encodePacked(bytes4(0), stakingRewards, wrong_RewardToken, account);
+        hooksData[0] = abi.encodePacked(bytes32(0), stakingRewards, wrong_RewardToken, account);
 
         vm.mockCall(address(stakingRewards), abi.encodeWithSignature("rewardsToken()"), abi.encode(rewardToken));
         vm.startPrank(account);
@@ -782,7 +780,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         // Create a mock hook for outflow operations
         MockHook outflowTestHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(feeToken));
-        outflowTestHook.setOutAmount(1000 * 10 ** 18);
+        outflowTestHook.setOutAmount(1000 * 10 ** 18, address(this));
         outflowTestHook.setUsedShares(500);
 
         // Set up executor with new ledger configuration
@@ -821,7 +819,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(feeToken),
             account,
             1000, // Amount
@@ -865,7 +863,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         // Create a mock hook for outflow operations
         MockHook outflowTestHook = new MockHook(ISuperHook.HookType.OUTFLOW, address(feeToken));
-        outflowTestHook.setOutAmount(1000 * 10 ** 18);
+        outflowTestHook.setOutAmount(1000 * 10 ** 18, address(this));
         outflowTestHook.setUsedShares(500);
 
         // Set up executor with new ledger configuration
@@ -906,7 +904,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(feeToken),
             account,
             1000, // Amount
@@ -1005,13 +1003,13 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     }
 
     function execute(bytes calldata data) external pure {
-      ISuperExecutor.ExecutorEntry memory e = abi.decode(data, (ISuperExecutor.ExecutorEntry));
-      console2.log("hooksAddresses.length", e.hooksAddresses.length);
-      console2.log("hooksData.length", e.hooksData.length);
+        ISuperExecutor.ExecutorEntry memory e = abi.decode(data, (ISuperExecutor.ExecutorEntry));
+        console2.log("hooksAddresses.length", e.hooksAddresses.length);
+        console2.log("hooksData.length", e.hooksData.length);
 
-      for(uint i = 0; i < e.hooksAddresses.length; i++) {
-        console2.logAddress(e.hooksAddresses[i]);
-        console2.logBytes(e.hooksData[i]);
-      }
+        for (uint256 i = 0; i < e.hooksAddresses.length; i++) {
+            console2.logAddress(e.hooksAddresses[i]);
+            console2.logBytes(e.hooksData[i]);
+        }
     }
 }

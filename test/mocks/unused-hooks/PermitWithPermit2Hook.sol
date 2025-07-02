@@ -2,16 +2,16 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../src/vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // Superform
-import {BaseHook} from "../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
 
-import {ISuperHookResult} from "../../../src/core/interfaces/ISuperHook.sol";
-import {IPermit2Single} from "../../../src/vendor/uniswap/permit2/IPermit2Single.sol";
-import {IAllowanceTransfer} from "../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import { ISuperHookResult } from "../../../src/core/interfaces/ISuperHook.sol";
+import { IPermit2Single } from "../../../src/vendor/uniswap/permit2/IPermit2Single.sol";
+import { IAllowanceTransfer } from "../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
 
 /// @title PermitWithPermit2Hook
 /// @dev data has the following structure
@@ -38,7 +38,11 @@ contract PermitWithPermit2Hook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function _buildHookExecutions(address prevHook, address account, bytes calldata data)
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
         internal
         view
         override
@@ -59,7 +63,7 @@ contract PermitWithPermit2Hook is BaseHook {
         bytes memory signature = BytesLib.slice(data, signatureOffset, data.length - signatureOffset);
 
         if (usePrevHookAmount) {
-            permitSingle.details.amount = ISuperHookResult(prevHook).outAmount().toUint160();
+            permitSingle.details.amount = ISuperHookResult(prevHook).getOutAmount(account).toUint160();
         }
 
         if (permitSingle.details.token == address(0) || permitSingle.spender == address(0)) revert ADDRESS_NOT_VALID();
@@ -75,15 +79,15 @@ contract PermitWithPermit2Hook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
+    function _preExecute(address, address account, bytes calldata data) internal override {
         (,, IAllowanceTransfer.PermitSingle memory permitSingle,) =
             abi.decode(data, (address, bool, IAllowanceTransfer.PermitSingle, bytes));
-        outAmount = permitSingle.details.amount;
+        _setOutAmount(permitSingle.details.amount, account);
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
+    function _postExecute(address, address account, bytes calldata data) internal override {
         (,, IAllowanceTransfer.PermitSingle memory permitSingle,) =
             abi.decode(data, (address, bool, IAllowanceTransfer.PermitSingle, bytes));
-        outAmount = permitSingle.details.amount;
+        _setOutAmount(permitSingle.details.amount, account);
     }
 }

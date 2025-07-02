@@ -5,7 +5,7 @@ import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ApproveERC20Hook } from "../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { Redeem4626VaultHook } from "../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
 import { AcrossSendFundsAndExecuteOnDstHook } from "../../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
-import { SwapOdosHook } from "../../../src/core/hooks/swappers/odos/SwapOdosHook.sol";
+import { SwapOdosV2Hook } from "../../../src/core/hooks/swappers/odos/SwapOdosV2Hook.sol";
 import { Bank } from "../../../src/periphery/Bank.sol";
 import { SuperBank } from "../../../src/periphery/SuperBank.sol";
 import { ISuperBank } from "../../../src/periphery/interfaces/ISuperBank.sol";
@@ -405,7 +405,7 @@ contract SuperBankTest is Helpers, InternalHelpers, OdosAPIParser {
         vm.stopPrank();
 
         ApproveERC20Hook approveHook = new ApproveERC20Hook();
-        SwapOdosHook odosHook = new SwapOdosHook(address(odosRouter));
+        SwapOdosV2Hook odosHook = new SwapOdosV2Hook(address(odosRouter));
 
         _getTokens(address(token), address(superBank), amount);
 
@@ -497,7 +497,7 @@ contract SuperBankTest is Helpers, InternalHelpers, OdosAPIParser {
 
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createRedeem4626HookData(bytes4(0), address(vault), address(superBank), shares, false);
+        hooksData[0] = _createRedeem4626HookData(bytes32(0), address(vault), address(superBank), shares, false);
 
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(redeemHook);

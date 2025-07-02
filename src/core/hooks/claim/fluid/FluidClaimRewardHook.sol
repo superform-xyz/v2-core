@@ -2,9 +2,9 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../../vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {IFluidLendingStakingRewards} from "../../../../vendor/fluid/IFluidLendingStakingRewards.sol";
+import { BytesLib } from "../../../../vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IFluidLendingStakingRewards } from "../../../../vendor/fluid/IFluidLendingStakingRewards.sol";
 
 // Superform
 import {
@@ -14,18 +14,18 @@ import {
     ISuperHookContextAware,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
-import {BaseHook} from "../../BaseHook.sol";
-import {HookSubTypes} from "../../../libraries/HookSubTypes.sol";
-import {BaseClaimRewardHook} from "../BaseClaimRewardHook.sol";
-import {HookDataDecoder} from "../../../libraries/HookDataDecoder.sol";
+import { BaseHook } from "../../BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
+import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title FluidClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 placeholder = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address stakingRewards = BytesLib.toAddress(data, 4);
-/// @notice         address rewardToken = BytesLib.toAddress(data, 24);
-/// @notice         address account = BytesLib.toAddress(data, 44);
+/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address stakingRewards = BytesLib.toAddress(data, 32);
+/// @notice         address rewardToken = BytesLib.toAddress(data, 52);
+/// @notice         address account = BytesLib.toAddress(data, 72);
 contract FluidClaimRewardHook is
     BaseHook,
     BaseClaimRewardHook,
@@ -35,14 +35,18 @@ contract FluidClaimRewardHook is
     ISuperHookInspector
 {
     using HookDataDecoder for bytes;
-    
-    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) {}
+
+    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) { }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc BaseHook
-    function _buildHookExecutions(address, address, bytes calldata data)
+    function _buildHookExecutions(
+        address,
+        address,
+        bytes calldata data
+    )
         internal
         pure
         override
@@ -78,17 +82,17 @@ contract FluidClaimRewardHook is
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        address stakingRewards = BytesLib.toAddress(data, 4);
-        asset = BytesLib.toAddress(data, 24);
+        address stakingRewards = BytesLib.toAddress(data, 32);
+        asset = BytesLib.toAddress(data, 52);
         if (asset == address(0)) revert ASSET_ZERO_ADDRESS();
 
         address rewardsToken = IFluidLendingStakingRewards(stakingRewards).rewardsToken();
         if (asset != rewardsToken) revert INVALID_REWARD_TOKEN();
 
-        outAmount = _getBalance(data, account);
+        _setOutAmount(_getBalance(data, account), account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(data, account) - outAmount;
+        _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
     }
 }

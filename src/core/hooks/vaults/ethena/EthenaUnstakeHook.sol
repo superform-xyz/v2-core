@@ -17,8 +17,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title EthenaUnstakeHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes4 yieldSourceOracleId = bytes4(BytesLib.slice(data, 0, 4), 0);
-/// @notice         address yieldSource = BytesLib.toAddress(data, 4);
+/// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
+/// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 contract EthenaUnstakeHook is BaseHook, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
@@ -56,7 +56,6 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInspector {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
 
-
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
         return abi.encodePacked(data.extractYieldSource());
@@ -66,13 +65,14 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInspector {
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
-        outAmount = _getBalance(account, data);
+        _setOutAmount(_getBalance(account, data), account);
         usedShares = _getSharesBalance(account, data);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
         address yieldSource = data.extractYieldSource(); // sUSDE
-        outAmount = _getBalance(account, data) - outAmount;
+        uint256 outAmount = getOutAmount(account);
+        _setOutAmount(_getBalance(account, data) - outAmount, account);
         // this is how cooldownShares converts the shares to underlying.
         // might not match the exact pps when cooldownShares was called.
         // will likely underestimate the actual shares burned
