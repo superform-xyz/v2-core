@@ -2,11 +2,9 @@
 pragma solidity 0.8.30;
 
 // external
-import { IIrm } from "../../../../vendor/morpho/IIrm.sol";
 import { BytesLib } from "../../../../vendor/BytesLib.sol";
-import { MathLib } from "../../../../vendor/morpho/MathLib.sol";
+import { MarketParams, IMorpho } from "../../../../vendor/morpho/IMorpho.sol";
 import { MarketParamsLib } from "../../../../vendor/morpho/MarketParamsLib.sol";
-import { MarketParams, Market, IMorpho, Id } from "../../../../vendor/morpho/IMorpho.sol";
 
 // superform
 import { BaseLoanHook } from "../BaseLoanHook.sol";
@@ -16,13 +14,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
 
-    error TOKEN_DECIMALS_NOT_SUPPORTED();
-    error INVALID_TIMESTAMP();
-
     IMorpho public morphoInterface;
-
-    uint256 private constant AMOUNT_POSITION = 80;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
 
     struct BuildHookLocalVars {
         address loanToken;
@@ -39,6 +31,7 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
                             CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
     constructor(address morpho_, bytes32 hookSubtype_) BaseLoanHook(hookSubtype_) {
+        if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morphoInterface = IMorpho(morpho_);
     }
 
