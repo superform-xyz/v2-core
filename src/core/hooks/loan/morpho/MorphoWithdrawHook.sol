@@ -48,7 +48,6 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
     constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN_REPAY) {
-        if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morpho = morpho_;
         morphoBase = IMorphoBase(morpho_);
     }

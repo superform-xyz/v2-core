@@ -51,7 +51,6 @@ contract MorphoSupplyHook is BaseMorphoLoanHook, ISuperHookInspector {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
     constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN) {
-        if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morpho = morpho_;
         morphoBase = IMorphoBase(morpho_);
     }
