@@ -29,7 +29,7 @@ import { ERC4626YieldSourceOracle } from "../../src/core/accounting/oracles/ERC4
 import { ERC5115YieldSourceOracle } from "../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
 import { ERC7540YieldSourceOracle } from "../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { SuperLedger } from "../../src/core/accounting/SuperLedger.sol";
-import { ERC5115Ledger } from "../../src/core/accounting/ERC5115Ledger.sol";
+import { ERC5115Ledger } from "../mocks/ERC5115Ledger.sol";
 import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ApproveERC20Hook } from "../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";

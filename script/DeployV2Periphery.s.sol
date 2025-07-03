@@ -12,7 +12,6 @@ import { SuperVaultStrategy } from "../src/periphery/SuperVault/SuperVaultStrate
 import { SuperVaultEscrow } from "../src/periphery/SuperVault/SuperVaultEscrow.sol";
 import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 import { SuperOracle } from "../src/periphery/oracles/SuperOracle.sol";
-import { SuperYieldSourceOracle } from "../src/periphery/oracles/SuperYieldSourceOracle.sol";
 
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { console2 } from "forge-std/console2.sol";
@@ -23,7 +22,6 @@ contract DeployV2Periphery is DeployV2Base {
         address superVaultAggregator;
         address ecdsappsOracle;
         address superOracle;
-        address superYieldSourceOracle;
         address vaultImpl;
         address strategyImpl;
         address escrowImpl;
@@ -217,15 +215,6 @@ contract DeployV2Periphery is DeployV2Base {
                 type(SuperOracle).creationCode,
                 abi.encode(configuration.owner, new address[](0), new address[](0), new uint256[](0), new bytes32[](0))
             )
-        );
-
-        // Deploy SuperYieldSourceOracle
-        peripheryContracts.superYieldSourceOracle = __deployContract(
-            deployer,
-            SUPER_YIELD_SOURCE_ORACLE_KEY,
-            chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_YIELD_SOURCE_ORACLE_KEY),
-            abi.encodePacked(type(SuperYieldSourceOracle).creationCode, abi.encode(peripheryContracts.superOracle))
         );
 
         // Configure SuperGovernor with oracle and validator

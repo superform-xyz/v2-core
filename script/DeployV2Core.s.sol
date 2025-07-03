@@ -10,7 +10,7 @@ import { AcrossV3Adapter } from "../src/core/adapters/AcrossV3Adapter.sol";
 import { DebridgeAdapter } from "../src/core/adapters/DebridgeAdapter.sol";
 
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
-import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
+import { FlatFeeLedger } from "../src/core/accounting/FlatFeeLedger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
@@ -68,6 +68,7 @@ import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540
 import { PendlePTYieldSourceOracle } from "../src/core/accounting/oracles/PendlePTYieldSourceOracle.sol";
 import { SpectraPTYieldSourceOracle } from "../src/core/accounting/oracles/SpectraPTYieldSourceOracle.sol";
 import { StakingYieldSourceOracle } from "../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
+import { SuperYieldSourceOracle } from "../src/core/accounting/oracles/SuperYieldSourceOracle.sol";
 
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { console2 } from "forge-std/console2.sol";
@@ -79,7 +80,7 @@ contract DeployV2Core is DeployV2Base {
         address debridgeAdapter;
         address superDestinationExecutor;
         address superLedger;
-        address pendleLedger;
+        address flatFeeLedger;
         address superLedgerConfiguration;
         address superMerkleValidator;
         address superDestinationValidator;
@@ -245,14 +246,14 @@ contract DeployV2Core is DeployV2Base {
             )
         );
 
-        // Deploy ERC5115Ledger
-        coreContracts.pendleLedger = __deployContract(
+        // Deploy FlatFeeLedger
+        coreContracts.flatFeeLedger = __deployContract(
             deployer,
-            ERC1155_LEDGER_KEY,
+            FLAT_FEE_LEDGER_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, ERC1155_LEDGER_KEY),
+            __getSalt(configuration.owner, configuration.deployer, FLAT_FEE_LEDGER_KEY),
             abi.encodePacked(
-                type(ERC5115Ledger).creationCode, abi.encode(coreContracts.superLedgerConfiguration, allowedExecutors)
+                type(FlatFeeLedger).creationCode, abi.encode(coreContracts.superLedgerConfiguration, allowedExecutors)
             )
         );
 
@@ -506,7 +507,7 @@ contract DeployV2Core is DeployV2Base {
         private
         returns (address[] memory oracleAddresses)
     {
-        uint256 len = 6;
+        uint256 len = 7;
         OracleDeployment[] memory oracles = new OracleDeployment[](len);
         oracleAddresses = new address[](len);
 
@@ -536,6 +537,7 @@ contract DeployV2Core is DeployV2Base {
             STAKING_YIELD_SOURCE_ORACLE_KEY,
             abi.encodePacked(type(StakingYieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
         );
+        oracles[6] = OracleDeployment(SUPER_YIELD_SOURCE_ORACLE_KEY, type(SuperYieldSourceOracle).creationCode);
 
         for (uint256 i = 0; i < len; ++i) {
             OracleDeployment memory oracle = oracles[i];
@@ -571,9 +573,8 @@ contract DeployV2Core is DeployV2Base {
             yieldSourceOracle: _getContract(chainId, ERC5115_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 0,
             feeRecipient: configuration.owner,
-            ledger: _getContract(chainId, ERC1155_LEDGER_KEY)
+            ledger: _getContract(chainId, FLAT_FEE_LEDGER_KEY)
         });
-        /// !! TODO wrong ledger (should be flat fee)
         configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: _getContract(chainId, STAKING_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 0,

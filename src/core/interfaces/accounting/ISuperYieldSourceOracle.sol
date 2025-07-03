@@ -30,12 +30,14 @@ interface ISuperYieldSourceOracle {
     /// @param yieldSourceOracle The address of the yield source oracle.
     /// @param base The base asset of the yield source.
     /// @param quote The asset to quote the price in.
+    /// @param oracle The address of the oracle to use for the quote, must be EIP-7726 compliant.
     /// @return pricePerShareQuote The price per share in terms of the quote asset.
     function getPricePerShareQuote(
         address yieldSourceAddress,
         address yieldSourceOracle,
         address base,
-        address quote
+        address quote,
+        address oracle
     )
         external
         view
@@ -47,13 +49,15 @@ interface ISuperYieldSourceOracle {
     /// @param ownerOfShares The address of the owner whose shares' value is being queried.
     /// @param base The base asset of the yield source.
     /// @param quote The asset to quote the TVL in.
+    /// @param oracle The address of the oracle to use for the quote, must be EIP-7726 compliant.
     /// @return tvlQuote The TVL in terms of the quote asset.
     function getTVLByOwnerOfSharesQuote(
         address yieldSourceAddress,
         address yieldSourceOracle,
         address ownerOfShares,
         address base,
-        address quote
+        address quote,
+        address oracle
     )
         external
         view
@@ -64,12 +68,14 @@ interface ISuperYieldSourceOracle {
     /// @param yieldSourceOracle The address of the yield source oracle.
     /// @param base The base asset of the yield source.
     /// @param quote The asset to quote the TVL in.
+    /// @param oracle The address of the oracle to use for the quote, must be EIP-7726 compliant.
     /// @return tvlQuote The TVL in terms of the quote asset.
     function getTVLQuote(
         address yieldSourceAddress,
         address yieldSourceOracle,
         address base,
-        address quote
+        address quote,
+        address oracle
     )
         external
         view
@@ -80,12 +86,14 @@ interface ISuperYieldSourceOracle {
     /// @param yieldSourceOracles Array of yield source oracle addresses.
     /// @param baseAddresses Array of corresponding base asset addresses.
     /// @param quoteAddresses Array of corresponding quote asset addresses.
+    /// @param oracles Array of corresponding oracle addresses, must be EIP-7726 compliant.
     /// @return pricesPerShareQuote Array of prices per share in terms of the respective quote assets.
     function getPricePerShareMultipleQuote(
         address[] memory yieldSourceAddresses,
         address[] memory yieldSourceOracles,
         address[] memory baseAddresses,
-        address[] memory quoteAddresses
+        address[] memory quoteAddresses,
+        address[] memory oracles
     )
         external
         view
@@ -97,6 +105,7 @@ interface ISuperYieldSourceOracle {
     /// @param ownersOfShares Jagged array where each inner array contains owners for the corresponding yield source.
     /// @param baseAddresses Array of corresponding base asset addresses.
     /// @param quoteAddresses Array of corresponding quote asset addresses.
+    /// @param oracles Array of corresponding oracle addresses, must be EIP-7726 compliant.
     /// @return userTvlsQuote Jagged array of user TVLs in terms of the respective quote assets.
     /// @return totalTvlsQuote Array of total TVLs for each yield source in terms of the respective quote assets.
     function getTVLByOwnerOfSharesMultipleQuote(
@@ -104,7 +113,8 @@ interface ISuperYieldSourceOracle {
         address[] memory yieldSourceOracles,
         address[][] memory ownersOfShares,
         address[] memory baseAddresses,
-        address[] memory quoteAddresses
+        address[] memory quoteAddresses,
+        address[] memory oracles
     )
         external
         view
@@ -115,12 +125,14 @@ interface ISuperYieldSourceOracle {
     /// @param yieldSourceOracles Array of yield source oracle addresses.
     /// @param baseAddresses Array of corresponding base asset addresses.
     /// @param quoteAddresses Array of corresponding quote asset addresses.
+    /// @param oracles Array of corresponding oracle addresses, must be EIP-7726 compliant.
     /// @return tvlsQuote Array of total TVLs in terms of the respective quote assets.
     function getTVLMultipleQuote(
         address[] memory yieldSourceAddresses,
         address[] memory yieldSourceOracles,
         address[] memory baseAddresses,
-        address[] memory quoteAddresses
+        address[] memory quoteAddresses,
+        address[] memory oracles
     )
         external
         view

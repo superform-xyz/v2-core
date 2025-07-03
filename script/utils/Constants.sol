@@ -23,6 +23,7 @@ abstract contract Constants {
     string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string internal constant SUPER_LEDGER_KEY = "SuperLedger";
     string internal constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
+    string internal constant FLAT_FEE_LEDGER_KEY = "FlatFeeLedger";
     string internal constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
     string internal constant SUPER_POSITION_KEY = "SuperPosition";
     string internal constant DEBRIDGE_RECEIVE_FUNDS_AND_EXECUTE_GATEWAY_KEY = "DeBridgeReceiveFundsAndExecuteGateway";

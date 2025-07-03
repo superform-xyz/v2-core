@@ -16,7 +16,7 @@ import { ERC7540YieldSourceOracle } from "../../src/core/accounting/oracles/ERC7
 import { SuperLedgerConfiguration } from "../../src/core/accounting/SuperLedgerConfiguration.sol";
 import { SuperExecutor } from "../../src/core/executors/SuperExecutor.sol";
 import { SuperLedger } from "../../src/core/accounting/SuperLedger.sol";
-import { ERC5115Ledger } from "../../src/core/accounting/ERC5115Ledger.sol";
+import { ERC5115Ledger } from "../mocks/ERC5115Ledger.sol";
 import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
 import { ApproveERC20Hook } from "../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";

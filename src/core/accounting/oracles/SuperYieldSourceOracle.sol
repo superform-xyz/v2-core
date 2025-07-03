@@ -2,21 +2,15 @@
 pragma solidity 0.8.30;
 
 // External
-import { IOracle } from "../../vendor/awesome-oracles/IOracle.sol";
+import { IOracle } from "../../../vendor/awesome-oracles/IOracle.sol";
 // Superform
-import { IYieldSourceOracle } from "../../core/interfaces/accounting/IYieldSourceOracle.sol";
-import { ISuperYieldSourceOracle } from "../interfaces/oracles/ISuperYieldSourceOracle.sol";
+import { IYieldSourceOracle } from "../../interfaces/accounting/IYieldSourceOracle.sol";
+import { ISuperYieldSourceOracle } from "../../interfaces/accounting/ISuperYieldSourceOracle.sol";
 
 /// @title SuperYieldSourceOracle
 /// @author Superform Labs
 /// @notice Provides quoting functionality for yield sources using a SuperOracle.
 contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
-    IOracle public immutable superOracle;
-
-    constructor(address superOracle_) {
-        superOracle = IOracle(superOracle_);
-    }
-
     /*//////////////////////////////////////////////////////////////
                         GENERALIZED QUOTING FUNCTIONS
     //////////////////////////////////////////////////////////////*/
@@ -25,7 +19,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         address yieldSourceAddress,
         address yieldSourceOracle,
         address base,
-        address quote
+        address quote,
+        address oracle
     )
         external
         view
@@ -38,8 +33,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         // Get price per share in base asset terms
         uint256 baseAmount = yS.getPricePerShare(yieldSourceAddress);
 
-        // Convert to quote asset using oracle registry
-        pricePerShareQuote = superOracle.getQuote(baseAmount, base, quote);
+        // Convert to quote asset using oracle
+        pricePerShareQuote = IOracle(oracle).getQuote(baseAmount, base, quote);
     }
 
     /// @inheritdoc ISuperYieldSourceOracle
@@ -48,7 +43,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         address yieldSourceOracle,
         address ownerOfShares,
         address base,
-        address quote
+        address quote,
+        address oracle
     )
         external
         view
@@ -61,8 +57,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         // Get TVL in base asset terms
         uint256 baseAmount = yS.getTVLByOwnerOfShares(yieldSourceAddress, ownerOfShares);
 
-        // Convert to quote asset using oracle registry
-        tvlQuote = superOracle.getQuote(baseAmount, base, quote);
+        // Convert to quote asset using oracle
+        tvlQuote = IOracle(oracle).getQuote(baseAmount, base, quote);
     }
 
     /// @inheritdoc ISuperYieldSourceOracle
@@ -70,7 +66,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         address yieldSourceAddress,
         address yieldSourceOracle,
         address base,
-        address quote
+        address quote,
+        address oracle
     )
         external
         view
@@ -83,8 +80,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         // Get TVL in base asset terms
         uint256 baseAmount = yS.getTVL(yieldSourceAddress);
 
-        // Convert to quote asset using oracle registry
-        tvlQuote = superOracle.getQuote(baseAmount, base, quote);
+        // Convert to quote asset using oracle
+        tvlQuote = IOracle(oracle).getQuote(baseAmount, base, quote);
     }
 
     /// @inheritdoc ISuperYieldSourceOracle
@@ -92,7 +89,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         address[] memory yieldSourceAddresses,
         address[] memory yieldSourceOracles,
         address[] memory baseAddresses,
-        address[] memory quoteAddresses
+        address[] memory quoteAddresses,
+        address[] memory oracles
     )
         external
         view
@@ -115,8 +113,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
             // Get price per share in base asset terms
             uint256 baseAmount = yS.getPricePerShare(yieldSourceAddresses[i]);
 
-            // Convert to quote asset using oracle registry
-            pricesPerShareQuote[i] = superOracle.getQuote(baseAmount, baseAddresses[i], quoteAddresses[i]);
+            // Convert to quote asset using oracle
+            pricesPerShareQuote[i] = IOracle(oracles[i]).getQuote(baseAmount, baseAddresses[i], quoteAddresses[i]);
         }
     }
 
@@ -126,7 +124,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         address[] memory yieldSourceOracles,
         address[][] memory ownersOfShares,
         address[] memory baseAddresses,
-        address[] memory quoteAddresses
+        address[] memory quoteAddresses,
+        address[] memory oracles
     )
         external
         view
@@ -162,7 +161,7 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
                 vars.baseAmount = yS.getTVLByOwnerOfShares(vars.yieldSource, vars.owners[j]);
 
                 // Convert to quote asset using oracle registry
-                vars.userTvlQuote = superOracle.getQuote(vars.baseAmount, baseAddresses[i], quoteAddresses[i]); // Renamed
+                vars.userTvlQuote = IOracle(oracles[i]).getQuote(vars.baseAmount, baseAddresses[i], quoteAddresses[i]); // Renamed
                     // from userTvlUSD
                 userTvlsQuote[i][j] = vars.userTvlQuote;
                 vars.totalTvlQuote += vars.userTvlQuote;
@@ -177,7 +176,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         address[] memory yieldSourceAddresses,
         address[] memory yieldSourceOracles,
         address[] memory baseAddresses,
-        address[] memory quoteAddresses
+        address[] memory quoteAddresses,
+        address[] memory oracles
     )
         external
         view
@@ -200,8 +200,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
             // Get TVL in base asset terms
             uint256 baseAmount = yS.getTVL(yieldSourceAddresses[i]);
 
-            // Convert to quote asset using oracle registry
-            tvlsQuote[i] = superOracle.getQuote(baseAmount, baseAddresses[i], quoteAddresses[i]);
+            // Convert to quote asset using oracle
+            tvlsQuote[i] = IOracle(oracles[i]).getQuote(baseAmount, baseAddresses[i], quoteAddresses[i]);
         }
     }
 

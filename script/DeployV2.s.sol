@@ -18,7 +18,7 @@ import { DebridgeAdapter } from "../src/core/adapters/DebridgeAdapter.sol";
 import { SuperGovernor } from "../src/periphery/SuperGovernor.sol";
 
 import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
-import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
+import { ERC5115Ledger } from "../test/mocks/ERC5115Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
 import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
@@ -103,7 +103,7 @@ import { SuperVaultEscrow } from "../src/periphery/SuperVault/SuperVaultEscrow.s
 import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 
-import { SuperYieldSourceOracle } from "../src/periphery/oracles/SuperYieldSourceOracle.sol";
+import { SuperYieldSourceOracle } from "../src/core/accounting/oracles/SuperYieldSourceOracle.sol";
 
 contract DeployV2 is Script, Configuration {
     mapping(uint64 chainId => mapping(string contractName => address contractAddress)) public contractAddresses;
