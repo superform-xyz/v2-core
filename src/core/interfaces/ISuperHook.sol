@@ -21,13 +21,6 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
  */
 
 interface ISuperLockableHook {
-    /// @notice Extracts the vault bank and destination chain ID
-    /// @dev Used to retrieve lock details for cross-chain operations
-    /// @return vaultBank The vault bank address
-    /// @return dstChainId The destination chain ID
-    /// @return yieldSourceOracleId The yield source oracle ID
-    function extractLockDetails(bytes memory hookData) external view returns (address, uint256, bytes32);
-
     /// @notice The vault bank address used to lock SuperPositions
     /// @dev Only relevant for cross-chain operations where positions are locked
     /// @return The vault bank address, or address(0) if not applicable

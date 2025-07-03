@@ -31,6 +31,7 @@ import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20H
 import { BatchTransferHook } from "../src/core/hooks/tokens/BatchTransferHook.sol";
 import { BatchTransferFromHook } from "../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
 import { OfframpTokensHook } from "../src/core/hooks/tokens/OfframpTokensHook.sol";
+import { MintSuperPositionsHook } from "../src/core/hooks/vaults/vault-bank/MintSuperPositionsHook.sol";
 
 // ---- | vault
 import { Deposit4626VaultHook } from "../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
@@ -121,6 +122,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         address deBridgeCancelOrderHook;
         address ethenaCooldownSharesHook;
         address ethenaUnstakeHook;
+        address mintSuperPositionHook;
     }
 
     struct HookDeployment {
@@ -340,7 +342,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
     {
         console2.log("Starting hook deployment with dependency validation...");
 
-        uint256 len = 31;
+        uint256 len = 32;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -445,6 +447,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         );
         hooks[29] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, type(CancelRedeemHook).creationCode);
         hooks[30] = HookDeployment(OFFRAMP_TOKENS_HOOK_KEY, type(OfframpTokensHook).creationCode);
+        hooks[31] = HookDeployment(MINT_SUPERPOSITIONS_HOOK_KEY, type(MintSuperPositionsHook).creationCode);
 
         // ===== DEPLOY ALL HOOKS =====
         console2.log("Deploying", len, "hooks...");
@@ -514,6 +517,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             Strings.equal(hooks[29].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[29] : address(0);
         hookAddresses.offrampTokensHook =
             Strings.equal(hooks[30].name, OFFRAMP_TOKENS_HOOK_KEY) ? addresses[30] : address(0);
+        hookAddresses.mintSuperPositionHook =
+            Strings.equal(hooks[31].name, MINT_SUPERPOSITIONS_HOOK_KEY) ? addresses[31] : address(0);
 
         // Verify critical hooks were deployed successfully
         require(hookAddresses.approveErc20Hook != address(0), "approveErc20Hook not assigned");
@@ -569,6 +574,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         require(hookAddresses.ethenaCooldownSharesHook != address(0), "ethenaCooldownSharesHook not assigned");
         require(hookAddresses.ethenaUnstakeHook != address(0), "ethenaUnstakeHook not assigned");
         require(hookAddresses.offrampTokensHook != address(0), "offrampTokensHook not assigned");
+        require(hookAddresses.mintSuperPositionHook != address(0), "mintSuperPositionHook not assigned");
 
         console2.log("All hooks deployed and validated successfully with dependency checking!");
 
