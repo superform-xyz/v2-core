@@ -135,10 +135,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
 
     /// @notice Sets up complete configuration for core contracts with hook support
     /// @param env Environment (0/2 = production, 1 = test)
-    /// @param saltNamespace Salt namespace for deterministic deployments
-    function _setConfiguration(uint256 env, string memory saltNamespace) internal {
+    function _setConfiguration(uint256 env) internal {
         // Set base configuration (chain names, common addresses)
-        _setBaseConfiguration(env, saltNamespace);
+        _setBaseConfiguration(env);
 
         // Set core contract dependencies
         _setCoreConfiguration();
@@ -147,8 +146,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         _setOtherHooksConfiguration();
     }
 
-    function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
-        _setConfiguration(env, saltNamespace);
+    function run(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env);
         console2.log("Deploying V2 Core (Early Access) on chainId: ", chainId);
 
         _deployDeployer();
@@ -199,7 +198,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             deployer,
             SUPER_LEDGER_CONFIGURATION_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_CONFIGURATION_KEY),
+            __getSalt(SUPER_LEDGER_CONFIGURATION_KEY),
             abi.encodePacked(type(SuperLedgerConfiguration).creationCode, abi.encode(configuration.owner))
         );
 
@@ -213,7 +212,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             deployer,
             SUPER_MERKLE_VALIDATOR_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_MERKLE_VALIDATOR_KEY),
+            __getSalt(SUPER_MERKLE_VALIDATOR_KEY),
             type(SuperMerkleValidator).creationCode
         );
 
@@ -222,7 +221,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             deployer,
             SUPER_DESTINATION_VALIDATOR_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_DESTINATION_VALIDATOR_KEY),
+            __getSalt(SUPER_DESTINATION_VALIDATOR_KEY),
             type(SuperDestinationValidator).creationCode
         );
 
@@ -231,7 +230,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             deployer,
             SUPER_EXECUTOR_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_EXECUTOR_KEY),
+            __getSalt(SUPER_EXECUTOR_KEY),
             abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(coreContracts.superLedgerConfiguration))
         );
 
@@ -240,7 +239,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             deployer,
             SUPER_DESTINATION_EXECUTOR_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_DESTINATION_EXECUTOR_KEY),
+            __getSalt(SUPER_DESTINATION_EXECUTOR_KEY),
             abi.encodePacked(
                 type(SuperDestinationExecutor).creationCode,
                 abi.encode(
@@ -256,7 +255,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             deployer,
             ACROSS_V3_ADAPTER_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, ACROSS_V3_ADAPTER_KEY),
+            __getSalt(ACROSS_V3_ADAPTER_KEY),
             abi.encodePacked(
                 type(AcrossV3Adapter).creationCode,
                 abi.encode(configuration.acrossSpokePoolV3s[chainId], coreContracts.superDestinationExecutor)
@@ -271,7 +270,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             deployer,
             DEBRIDGE_ADAPTER_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, DEBRIDGE_ADAPTER_KEY),
+            __getSalt(DEBRIDGE_ADAPTER_KEY),
             abi.encodePacked(
                 type(DebridgeAdapter).creationCode,
                 abi.encode(configuration.debridgeDstDln[chainId], coreContracts.superDestinationExecutor)
@@ -294,7 +293,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             deployer,
             SUPER_LEDGER_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_KEY),
+            __getSalt(SUPER_LEDGER_KEY),
             abi.encodePacked(
                 type(SuperLedger).creationCode, abi.encode(coreContracts.superLedgerConfiguration, allowedExecutors)
             )
@@ -305,7 +304,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             deployer,
             FLAT_FEE_LEDGER_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, FLAT_FEE_LEDGER_KEY),
+            __getSalt(FLAT_FEE_LEDGER_KEY),
             abi.encodePacked(
                 type(FlatFeeLedger).creationCode, abi.encode(coreContracts.superLedgerConfiguration, allowedExecutors)
             )
@@ -316,7 +315,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             deployer,
             SUPER_NATIVE_PAYMASTER_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_NATIVE_PAYMASTER_KEY),
+            __getSalt(SUPER_NATIVE_PAYMASTER_KEY),
             abi.encodePacked(type(SuperNativePaymaster).creationCode, abi.encode(ENTRY_POINT))
         );
 
@@ -451,13 +450,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         console2.log("Deploying", len, "hooks...");
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
-            addresses[i] = __deployContract(
-                deployer,
-                hook.name,
-                chainId,
-                __getSalt(configuration.owner, configuration.deployer, hook.name),
-                hook.creationCode
-            );
+            addresses[i] = __deployContract(deployer, hook.name, chainId, __getSalt(hook.name), hook.creationCode);
         }
 
         // Assign hook addresses
@@ -623,13 +616,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
 
         for (uint256 i = 0; i < len; ++i) {
             OracleDeployment memory oracle = oracles[i];
-            oracleAddresses[i] = __deployContract(
-                deployer,
-                oracle.name,
-                chainId,
-                __getSalt(configuration.owner, configuration.deployer, oracle.name),
-                oracle.creationCode
-            );
+            oracleAddresses[i] =
+                __deployContract(deployer, oracle.name, chainId, __getSalt(oracle.name), oracle.creationCode);
         }
     }
 

@@ -20,7 +20,21 @@ abstract contract DeployV2Base is Script, ConfigBase {
             vm.startBroadcast(deployer);
             _;
             vm.stopBroadcast();
+        } else if (env == 0) {
+            // Production environment: Check if we're in broadcast mode or simulation
+            bool isBroadcast = vm.envOr("FORGE_BROADCAST", false);
+            if (isBroadcast) {
+                console2.log("Production broadcast mode detected");
+                vm.startBroadcast();
+                _;
+                vm.stopBroadcast();
+            } else {
+                console2.log("Production simulation mode detected");
+                // Simulation mode - don't use vm.startBroadcast()
+                _;
+            }
         } else {
+            // Fallback for other env values
             vm.startBroadcast();
             _;
             vm.stopBroadcast();
@@ -28,17 +42,28 @@ abstract contract DeployV2Base is Script, ConfigBase {
     }
 
     function _deployDeployer() internal {
-        // msg.sender is the address doing the deployment (controlled by private key/mnemonic)
-        address authorizedDeployer = msg.sender;
+        bytes32 salt = __getSalt(SUPER_DEPLOYER_KEY);
 
-        address superDeployer = address(
-            new SuperDeployer{ salt: __getSalt(configuration.owner, configuration.deployer, SUPER_DEPLOYER_KEY) }(
-                authorizedDeployer
-            )
-        );
-        console2.log("SuperDeployer deployed at:", superDeployer);
-        console2.log("Authorized deployer set to:", authorizedDeployer);
-        configuration.deployer = superDeployer;
+        // Predict the address using CREATE2
+        address predictedAddr = vm.computeCreate2Address(salt, keccak256(type(SuperDeployer).creationCode));
+
+        // Check if already deployed
+        uint256 codeSize;
+        assembly {
+            codeSize := extcodesize(predictedAddr)
+        }
+
+        if (codeSize > 0) {
+            console2.log("SuperDeployer already deployed at:", predictedAddr);
+            console2.log("Skipping deployment...");
+        } else {
+            address superDeployer = address(new SuperDeployer{ salt: salt }());
+            console2.log("SuperDeployer deployed at:", superDeployer);
+            require(superDeployer == predictedAddr, "Address mismatch");
+        }
+
+        configuration.deployer = predictedAddr;
+        console2.log("Using SuperDeployer at:", configuration.deployer);
     }
 
     function _getContract(uint64 chainId, string memory contractName) internal view returns (address) {
@@ -56,10 +81,14 @@ abstract contract DeployV2Base is Script, ConfigBase {
         returns (address)
     {
         console2.log("[!] Deploying %s...", contractName);
-        address expectedAddr = deployer.getDeployed(salt);
-        if (expectedAddr.code.length > 0) {
+
+        // Check if already deployed (Nexus-style pattern)
+        if (deployer.isDeployed(salt)) {
+            address expectedAddr = deployer.getDeployed(salt);
             console2.log("[!] %s already deployed at:", contractName, expectedAddr);
             console2.log("      skipping...");
+            contractAddresses[chainId][contractName] = expectedAddr;
+            _exportContract(contractName, expectedAddr, chainId);
             return expectedAddr;
         }
 
@@ -71,8 +100,10 @@ abstract contract DeployV2Base is Script, ConfigBase {
         return deployedAddr;
     }
 
-    function __getSalt(address eoa, address deployer, string memory name) internal view returns (bytes32) {
-        return keccak256(abi.encodePacked(eoa, deployer, SALT_NAMESPACE, bytes(string.concat(name, ".v0.1"))));
+    function __getSalt(string memory name) internal pure returns (bytes32) {
+        // Completely deterministic salt generation - independent of all external factors
+        // Only depends on contract name, guaranteeing same address across all chains/deployers
+        return keccak256(abi.encodePacked("SuperformV2", name, "v2.0"));
     }
 
     // Add a mapping to track exported contracts per chain

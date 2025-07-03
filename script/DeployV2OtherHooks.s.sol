@@ -64,17 +64,16 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
     /// @notice Sets up complete configuration for other hooks deployment
     /// @param env Environment (0/2 = production, 1 = test)
-    /// @param saltNamespace Salt namespace for deterministic deployments
-    function _setConfiguration(uint256 env, string memory saltNamespace) internal {
+    function _setConfiguration(uint256 env) internal {
         // Set base configuration (chain names, common addresses)
-        _setBaseConfiguration(env, saltNamespace);
+        _setBaseConfiguration(env);
 
         // Set protocol router addresses for hooks
         _setOtherHooksConfiguration();
     }
 
-    function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
-        _setConfiguration(env, saltNamespace);
+    function run(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env);
         console2.log("Deploying V2 Other Hooks on chainId: ", chainId);
 
         _deployDeployer();
@@ -162,13 +161,7 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
-            addresses[i] = __deployContract(
-                deployer,
-                hook.name,
-                chainId,
-                __getSalt(configuration.owner, configuration.deployer, hook.name),
-                hook.creationCode
-            );
+            addresses[i] = __deployContract(deployer, hook.name, chainId, __getSalt(hook.name), hook.creationCode);
         }
 
         // Assign hook addresses

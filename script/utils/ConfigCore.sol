@@ -18,42 +18,42 @@ abstract contract ConfigCore is ConfigBase {
         configuration.acrossSpokePoolV3s[MAINNET_CHAIN_ID] = ACROSS_SPOKE_POOL_MAINNET;
         configuration.acrossSpokePoolV3s[BASE_CHAIN_ID] = ACROSS_SPOKE_POOL_BASE;
         configuration.acrossSpokePoolV3s[OPTIMISM_CHAIN_ID] = ACROSS_SPOKE_POOL_OPTIMISM;
-        configuration.acrossSpokePoolV3s[ARBITRUM_CHAIN_ID] = ACROSS_SPOKE_POOL_ARBITRUM; // TODO: Verify this address
-        configuration.acrossSpokePoolV3s[BNB_CHAIN_ID] = ACROSS_SPOKE_POOL_BNB; // TODO: Research BNB Across Spoke Pool
+        configuration.acrossSpokePoolV3s[ARBITRUM_CHAIN_ID] = ACROSS_SPOKE_POOL_ARBITRUM;
+        configuration.acrossSpokePoolV3s[BNB_CHAIN_ID] = ACROSS_SPOKE_POOL_BNB;
 
         // ===== DEBRIDGE DLN DESTINATION ADDRESSES =====
         configuration.debridgeDstDln[MAINNET_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[BASE_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[OPTIMISM_CHAIN_ID] = DEBRIDGE_DLN_DST;
-        configuration.debridgeDstDln[ARBITRUM_CHAIN_ID] = address(0); // TODO: Add Arbitrum Debridge DLN address
-        configuration.debridgeDstDln[BNB_CHAIN_ID] = address(0); // TODO: Add BNB Debridge DLN address
+        configuration.debridgeDstDln[ARBITRUM_CHAIN_ID] = DEBRIDGE_DLN_DST;
+        configuration.debridgeDstDln[BNB_CHAIN_ID] = DEBRIDGE_DLN_DST;
 
         // ===== NEXUS FACTORY ADDRESSES =====
         configuration.nexusFactories[MAINNET_CHAIN_ID] = NEXUS_FACTORY_MAINNET;
         configuration.nexusFactories[BASE_CHAIN_ID] = NEXUS_FACTORY_BASE;
         configuration.nexusFactories[OPTIMISM_CHAIN_ID] = NEXUS_FACTORY_OPTIMISM;
-        configuration.nexusFactories[ARBITRUM_CHAIN_ID] = address(0); // TODO: Add Arbitrum Nexus factory address
-        configuration.nexusFactories[BNB_CHAIN_ID] = address(0); // TODO: Add BNB Nexus factory address
+        configuration.nexusFactories[ARBITRUM_CHAIN_ID] = NEXUS_FACTORY_ARBITRUM;
+        configuration.nexusFactories[BNB_CHAIN_ID] = NEXUS_FACTORY_BNB;
 
         // ===== PERMIT2 ADDRESSES =====
         configuration.permit2s[MAINNET_CHAIN_ID] = PERMIT2_MAINNET;
         configuration.permit2s[BASE_CHAIN_ID] = PERMIT2_BASE;
         configuration.permit2s[OPTIMISM_CHAIN_ID] = PERMIT2_OPTIMISM;
-        configuration.permit2s[ARBITRUM_CHAIN_ID] = address(0); // TODO: Add Arbitrum Permit2 address
-        configuration.permit2s[BNB_CHAIN_ID] = address(0); // TODO: Add BNB Permit2 address
+        configuration.permit2s[ARBITRUM_CHAIN_ID] = PERMIT2_ARBITRUM;
+        configuration.permit2s[BNB_CHAIN_ID] = PERMIT2_BNB;
 
         // ===== CRITICAL ROUTER ADDRESSES FOR CORE HOOKS =====
         // These are required for core hook deployments
         configuration.aggregationRouters[MAINNET_CHAIN_ID] = AGGREGATION_ROUTER_MAINNET;
         configuration.aggregationRouters[BASE_CHAIN_ID] = AGGREGATION_ROUTER_BASE;
         configuration.aggregationRouters[OPTIMISM_CHAIN_ID] = AGGREGATION_ROUTER_OPTIMISM;
-        configuration.aggregationRouters[ARBITRUM_CHAIN_ID] = address(0); // TODO: Add Arbitrum 1inch router address
-        configuration.aggregationRouters[BNB_CHAIN_ID] = address(0); // TODO: Add BNB 1inch router address
+        configuration.aggregationRouters[ARBITRUM_CHAIN_ID] = AGGREGATION_ROUTER_ARBITRUM;
+        configuration.aggregationRouters[BNB_CHAIN_ID] = AGGREGATION_ROUTER_BNB;
 
         configuration.odosRouters[MAINNET_CHAIN_ID] = ODOS_ROUTER_MAINNET;
         configuration.odosRouters[BASE_CHAIN_ID] = ODOS_ROUTER_BASE;
         configuration.odosRouters[OPTIMISM_CHAIN_ID] = ODOS_ROUTER_OPTIMISM;
-        configuration.odosRouters[ARBITRUM_CHAIN_ID] = address(0); // TODO: Add Arbitrum ODOS router address
-        configuration.odosRouters[BNB_CHAIN_ID] = address(0); // TODO: Add BNB ODOS router address
+        configuration.odosRouters[ARBITRUM_CHAIN_ID] = ODOS_ROUTER_ARBITRUM;
+        configuration.odosRouters[BNB_CHAIN_ID] = ODOS_ROUTER_BNB;
     }
 }

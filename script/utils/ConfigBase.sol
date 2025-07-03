@@ -36,6 +36,7 @@ abstract contract ConfigBase is Constants {
     mapping(uint64 chainId => string chainName) internal chainNames;
     bytes internal SALT_NAMESPACE;
     string internal constant MNEMONIC = "test test test test test test test test test test test junk";
+    string internal constant PRODUCTION_SALT_NAMESPACE = "DEPLOYPROD1.0.0";
 
     address internal constant TEST_DEPLOYER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;
 
@@ -45,9 +46,8 @@ abstract contract ConfigBase is Constants {
 
     /// @notice Sets up base configuration including chain names and common addresses
     /// @param env Environment (0/2 = production, 1 = test)
-    /// @param saltNamespace Salt namespace for deterministic deployments
-    function _setBaseConfiguration(uint256 env, string memory saltNamespace) internal {
-        SALT_NAMESPACE = bytes(saltNamespace);
+    function _setBaseConfiguration(uint256 env) internal {
+        SALT_NAMESPACE = bytes(PRODUCTION_SALT_NAMESPACE);
 
         // ===== MAINNET CHAIN NAMES =====
         chainNames[MAINNET_CHAIN_ID] = ETHEREUM_KEY;

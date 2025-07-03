@@ -64,17 +64,16 @@ contract DeployV2Periphery is DeployV2Base, ConfigPeriphery {
 
     /// @notice Sets up complete configuration for periphery contracts
     /// @param env Environment (0/2 = production, 1 = test)
-    /// @param saltNamespace Salt namespace for deterministic deployments
-    function _setConfiguration(uint256 env, string memory saltNamespace) internal {
+    function _setConfiguration(uint256 env) internal {
         // Set base configuration (chain names, common addresses)
-        _setBaseConfiguration(env, saltNamespace);
+        _setBaseConfiguration(env);
 
         // Set periphery contract dependencies
         _setPeripheryConfiguration();
     }
 
-    function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
-        _setConfiguration(env, saltNamespace);
+    function run(uint256 env, uint64 chainId) public broadcast(env) {
+        _setConfiguration(env);
         console2.log("Deploying V2 Periphery on chainId: ", chainId);
 
         _deployDeployer();
@@ -153,7 +152,7 @@ contract DeployV2Periphery is DeployV2Base, ConfigPeriphery {
             deployer,
             SUPER_GOVERNOR_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_GOVERNOR_KEY),
+            __getSalt(SUPER_GOVERNOR_KEY),
             abi.encodePacked(
                 type(SuperGovernor).creationCode,
                 abi.encode(
@@ -171,7 +170,7 @@ contract DeployV2Periphery is DeployV2Base, ConfigPeriphery {
             deployer,
             "SuperVaultImplementation",
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, "SuperVaultImplementation"),
+            __getSalt("SuperVaultImplementation"),
             type(SuperVault).creationCode
         );
 
@@ -179,7 +178,7 @@ contract DeployV2Periphery is DeployV2Base, ConfigPeriphery {
             deployer,
             "SuperVaultStrategyImplementation",
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, "SuperVaultStrategyImplementation"),
+            __getSalt("SuperVaultStrategyImplementation"),
             type(SuperVaultStrategy).creationCode
         );
 
@@ -187,7 +186,7 @@ contract DeployV2Periphery is DeployV2Base, ConfigPeriphery {
             deployer,
             "SuperVaultEscrowImplementation",
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, "SuperVaultEscrowImplementation"),
+            __getSalt("SuperVaultEscrowImplementation"),
             type(SuperVaultEscrow).creationCode
         );
 
@@ -196,7 +195,7 @@ contract DeployV2Periphery is DeployV2Base, ConfigPeriphery {
             deployer,
             SUPER_VAULT_AGGREGATOR_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_VAULT_AGGREGATOR_KEY),
+            __getSalt(SUPER_VAULT_AGGREGATOR_KEY),
             abi.encodePacked(
                 type(SuperVaultAggregator).creationCode,
                 abi.encode(
@@ -213,7 +212,7 @@ contract DeployV2Periphery is DeployV2Base, ConfigPeriphery {
             deployer,
             ECDSAPPS_ORACLE_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, ECDSAPPS_ORACLE_KEY),
+            __getSalt(ECDSAPPS_ORACLE_KEY),
             abi.encodePacked(type(ECDSAPPSOracle).creationCode, abi.encode(peripheryContracts.superGovernor))
         );
 
@@ -222,7 +221,7 @@ contract DeployV2Periphery is DeployV2Base, ConfigPeriphery {
             deployer,
             SUPER_ORACLE_KEY,
             chainId,
-            __getSalt(configuration.owner, configuration.deployer, SUPER_ORACLE_KEY),
+            __getSalt(SUPER_ORACLE_KEY),
             abi.encodePacked(
                 type(SuperOracle).creationCode,
                 abi.encode(configuration.owner, new address[](0), new address[](0), new uint256[](0), new bytes32[](0))
