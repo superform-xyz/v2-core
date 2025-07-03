@@ -71,7 +71,7 @@ contract GearboxClaimRewardHook is
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure returns (bytes memory) {
-        return abi.encodePacked(data.extractYieldSource());
+        return abi.encodePacked(data.extractYieldSource(), BytesLib.toAddress(data, 52));
     }
 
     /*//////////////////////////////////////////////////////////////

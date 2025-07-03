@@ -109,7 +109,7 @@ contract SwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHookInspector
                                  PRIVATE METHODS
     //////////////////////////////////////////////////////////////*/
     function _getBalance(address account, bytes memory data) private view returns (uint256) {
-        address outputToken = BytesLib.toAddress(BytesLib.slice(data, 72, 20), 0);
+        address outputToken = BytesLib.toAddress(data, 72);
 
         if (outputToken == address(0)) {
             return account.balance;
