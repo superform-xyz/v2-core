@@ -72,6 +72,7 @@ contract SuperExecutor_sameChainFlow is
     using ExecutionLib for *;
 
     IERC4626 public vaultInstance;
+    address public anotherYieldSourceAddress;
     address public yieldSourceAddress;
     address public yieldSourceOracle;
     address public underlying;
@@ -110,6 +111,7 @@ contract SuperExecutor_sameChainFlow is
         ledgerConfig = address(new SuperLedgerConfiguration());
 
         yieldSourceAddress = CHAIN_1_MorphoVault;
+        anotherYieldSourceAddress = CHAIN_1_YearnVault;
         yieldSourceOracle = address(new ERC4626YieldSourceOracle(address(ledgerConfig)));
         vaultInstance = IERC4626(yieldSourceAddress);
         instance = makeAccountInstance(keccak256(abi.encode("acc1")));
@@ -338,13 +340,16 @@ contract SuperExecutor_sameChainFlow is
         superGovernor.addVaultBank(8453, address(vaultBank));
 
         _getTokens(underlying, testAccount, amount);
+        _getTokens(CHAIN_1_DAI, testAccount, amount);
 
-        address[] memory hooksAddresses = new address[](3);
+        address[] memory hooksAddresses = new address[](5);
         hooksAddresses[0] = address(approveHook);
         hooksAddresses[1] = address(deposit4626Hook);
         hooksAddresses[2] = address(mintSuperPositionsHook);
+        hooksAddresses[3] = address(approveHook);
+        hooksAddresses[4] = address(deposit4626Hook);
 
-        bytes[] memory hooksData = new bytes[](3);
+        bytes[] memory hooksData = new bytes[](5);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, amount, false, address(vaultBank), 8453
@@ -353,6 +358,10 @@ contract SuperExecutor_sameChainFlow is
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
         hooksData[2] = _createApproveAndLockVaultBankHookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, sharesPreviewed, false, address(vaultBank), 8453
+        );
+        hooksData[3] = _createApproveHookData(CHAIN_1_DAI, anotherYieldSourceAddress, amount, false);
+        hooksData[4] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), anotherYieldSourceAddress, amount, false, address(vaultBank), 8453
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
