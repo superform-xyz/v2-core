@@ -19,14 +19,14 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @title MorphoSupplyAndBorrowHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address loanToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-/// @notice         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
-/// @notice         uint256 amount = BytesLib.toUint256(BytesLib.slice(data, 80, 32), 0);
-/// @notice         uint256 ltvRatio = BytesLib.toUint256(BytesLib.slice(data, 112, 32), 0);
+/// @notice         address loanToken = BytesLib.toAddress(data, 0);
+/// @notice         address collateralToken = BytesLib.toAddress(data, 20);
+/// @notice         address oracle = BytesLib.toAddress(data, 40);
+/// @notice         address irm = BytesLib.toAddress(data, 60);
+/// @notice         uint256 amount = BytesLib.toUint256(data, 80);
+/// @notice         uint256 ltvRatio = BytesLib.toUint256(data, 112);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
-/// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 145, 32), 0);
+/// @notice         uint256 lltv = BytesLib.toUint256(data, 145);
 /// @notice         bool placeholder = _decodeBool(data, 177);
 contract MorphoSupplyAndBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
     using HookDataDecoder for bytes;
@@ -37,10 +37,8 @@ contract MorphoSupplyAndBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
     address public morpho;
     IMorphoBase public morphoBase;
 
-    uint256 private constant AMOUNT_POSITION = 80;
     uint256 private constant PRICE_SCALING_FACTOR = 1e36;
     uint256 private constant PERCENTAGE_SCALING_FACTOR = 1e18;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
 
     struct BorrowHookLocalVars {
         address loanToken;

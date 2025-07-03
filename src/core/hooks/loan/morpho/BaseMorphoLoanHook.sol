@@ -16,9 +16,6 @@ abstract contract BaseMorphoLoanHook is BaseLoanHook {
 
     IMorpho public morphoInterface;
 
-    uint256 private constant AMOUNT_POSITION = 80;
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 144;
-
     struct BuildHookLocalVars {
         address loanToken;
         address collateralToken;

@@ -65,6 +65,8 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInspector {
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
+        address yieldSource = data.extractYieldSource(); // sUSDE
+        asset = IERC4626(yieldSource).asset();
         _setOutAmount(_getBalance(account, data), account);
         usedShares = _getSharesBalance(account, data);
     }
