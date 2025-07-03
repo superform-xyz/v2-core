@@ -9,6 +9,7 @@ abstract contract Constants {
     string internal constant BASE_KEY = "Base";
     string internal constant OPTIMISM_KEY = "Optimism";
     string internal constant ARBITRUM_KEY = "Arbitrum";
+    string internal constant BNB_KEY = "BNB";
     string internal constant SEPOLIA_KEY = "Sepolia";
     string internal constant ARB_SEPOLIA_KEY = "Arbitrum_Sepolia";
     string internal constant BASE_SEPOLIA_KEY = "Base_Sepolia";
@@ -39,6 +40,7 @@ abstract contract Constants {
     uint64 internal constant OPTIMISM_CHAIN_ID = 10;
     uint64 internal constant POLYGON_CHAIN_ID = 137;
     uint64 internal constant ARBITRUM_CHAIN_ID = 42_161;
+    uint64 internal constant BNB_CHAIN_ID = 56;
     // testnets
     uint64 internal constant SEPOLIA_CHAIN_ID = 11_155_111;
     uint64 internal constant ARB_SEPOLIA_CHAIN_ID = 421_613;
@@ -49,6 +51,9 @@ abstract contract Constants {
     address internal constant ACROSS_SPOKE_POOL_MAINNET = 0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5;
     address internal constant ACROSS_SPOKE_POOL_BASE = 0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64;
     address internal constant ACROSS_SPOKE_POOL_OPTIMISM = 0x6f26Bf09B1C792e3228e5467807a900A503c0281;
+    address internal constant ACROSS_SPOKE_POOL_ARBITRUM = 0xe35e9842fceaCA96570B734083f4a58e8F7C5f2A; // TODO: Verify
+        // this address
+    address internal constant ACROSS_SPOKE_POOL_BNB = address(0); // TODO: Research BNB Across Spoke Pool address
     address internal constant ACROSS_SPOKE_POOL_SEPOLIA = 0x7E63A5f1a8F0B4d0934B2f2327DAED3F6bb2ee75;
     address internal constant ACROSS_SPOKE_POOL_ARB_SEPOLIA = 0x7E63A5f1a8F0B4d0934B2f2327DAED3F6bb2ee75;
     address internal constant ACROSS_SPOKE_POOL_BASE_SEPOLIA = 0x82B564983aE7274c86695917BBf8C99ECb6F0F8F;
@@ -63,6 +68,10 @@ abstract contract Constants {
     address internal constant AGGREGATION_ROUTER_MAINNET = 0x111111125434b319222CdBf8C261674aDB56F3ae;
     address internal constant AGGREGATION_ROUTER_BASE = 0x111111125434b319222CdBf8C261674aDB56F3ae; //TODO: not the real
     address internal constant AGGREGATION_ROUTER_OPTIMISM = 0x111111125434b319222CdBf8C261674aDB56F3ae; //TODO: not the
+    address internal constant AGGREGATION_ROUTER_ARBITRUM = 0x111111125434b319222CdBf8C261674aDB56F3ae; // Standard
+        // 1inch address
+    address internal constant AGGREGATION_ROUTER_BNB = 0x111111125434b319222CdBf8C261674aDB56F3ae; // Standard 1inch
+        // address
     address internal constant AGGREGATION_ROUTER_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65;
     address internal constant AGGREGATION_ROUTER_ARB_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65;
     address internal constant AGGREGATION_ROUTER_BASE_SEPOLIA = 0x111111125421cA6dc452d289314280a0f8842A65;
@@ -71,6 +80,8 @@ abstract contract Constants {
     address internal constant OKX_ROUTER_MAINNET = 0x1Ef032a3c471a99CC31578c8007F256D95E89896;
     address internal constant OKX_ROUTER_BASE = 0x6b2C0c7be2048Daa9b5527982C29f48062B34D58;
     address internal constant OKX_ROUTER_OPTIMISM = 0xf332761c673b59B21fF6dfa8adA44d78c12dEF09;
+    address internal constant OKX_ROUTER_ARBITRUM = address(0); // TODO: Research Arbitrum OKX router address
+    address internal constant OKX_ROUTER_BNB = address(0); // TODO: Research BNB OKX router address
     address internal constant OKX_ROUTER_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not real
     address internal constant OKX_ROUTER_ARB_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not real
     address internal constant OKX_ROUTER_BASE_SEPOLIA = 0x1Ef032a3c471a99CC31578c8007F256D95E89896; //TODO: not real
@@ -80,6 +91,8 @@ abstract contract Constants {
     address internal constant ODOS_ROUTER_MAINNET = 0xCf5540fFFCdC3d510B18bFcA6d2b9987b0772559;
     address internal constant ODOS_ROUTER_BASE = 0x19cEeAd7105607Cd444F5ad10dd51356436095a1;
     address internal constant ODOS_ROUTER_OPTIMISM = 0xCa423977156BB05b13A2BA3b76Bc5419E2fE9680;
+    address internal constant ODOS_ROUTER_ARBITRUM = 0xa669e7A0d4b3e4Fa48af2dE86BD4CD7126Be4e13; // Odos V2 on Arbitrum
+    address internal constant ODOS_ROUTER_BNB = 0x89b8AA89FDd0507a99d334CBe3C808fAFC7d850E; // Odos V2 on BNB
     address internal constant ODOS_ROUTER_SEPOLIA = address(0x1);
     address internal constant ODOS_ROUTER_ARB_SEPOLIA = address(0x1);
     address internal constant ODOS_ROUTER_BASE_SEPOLIA = address(0x1);
@@ -89,6 +102,8 @@ abstract contract Constants {
     address internal constant SPECTRA_ROUTER_MAINNET = 0xD733e545C65d539f588d7c3793147B497403F0d2;
     address internal constant SPECTRA_ROUTER_BASE = 0x0FC2fbd3E8391744426C8bE5228b668481C59532;
     address internal constant SPECTRA_ROUTER_OPTIMISM = 0x7dcDeA738C2765398BaF66e4DbBcD2769F4C00Dc;
+    address internal constant SPECTRA_ROUTER_ARBITRUM = address(0); // TODO: Research Arbitrum Spectra router address
+    address internal constant SPECTRA_ROUTER_BNB = address(0); // TODO: Research BNB Spectra router address
     address internal constant SPECTRA_ROUTER_SEPOLIA = address(0x1);
     address internal constant SPECTRA_ROUTER_ARB_SEPOLIA = address(0x1);
     address internal constant SPECTRA_ROUTER_BASE_SEPOLIA = address(0x1);
@@ -98,6 +113,10 @@ abstract contract Constants {
     address internal constant PENDLE_ROUTER_MAINNET = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal constant PENDLE_ROUTER_BASE = 0x888888888889758F76e7103c6CbF23ABbF58F946;
     address internal constant PENDLE_ROUTER_OPTIMISM = 0x888888888889758F76e7103c6CbF23ABbF58F946;
+    address internal constant PENDLE_ROUTER_ARBITRUM = 0x888888888889758F76e7103c6CbF23ABbF58F946; // Standard Pendle
+        // router address
+    address internal constant PENDLE_ROUTER_BNB = 0x888888888889758F76e7103c6CbF23ABbF58F946; // Standard Pendle router
+        // address
     address internal constant PENDLE_ROUTER_SEPOLIA = address(0x1);
     address internal constant PENDLE_ROUTER_ARB_SEPOLIA = address(0x1);
     address internal constant PENDLE_ROUTER_BASE_SEPOLIA = address(0x1);
@@ -107,15 +126,22 @@ abstract contract Constants {
     address internal constant NEXUS_FACTORY_MAINNET = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
     address internal constant NEXUS_FACTORY_BASE = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
     address internal constant NEXUS_FACTORY_OPTIMISM = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
+    address internal constant NEXUS_FACTORY_ARBITRUM = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de; // Standard Nexus
+        // factory address
+    address internal constant NEXUS_FACTORY_BNB = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de; // Standard Nexus factory
+        // address
     address internal constant NEXUS_FACTORY_SEPOLIA = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
     address internal constant NEXUS_FACTORY_ARB_SEPOLIA = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
     address internal constant NEXUS_FACTORY_BASE_SEPOLIA = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
     address internal constant NEXUS_FACTORY_OP_SEPOLIA = 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de;
 
-    // Permit2 addresses per chain
+    // Permit2 addresses per chain (Universal standard address)
     address internal constant PERMIT2_MAINNET = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address internal constant PERMIT2_BASE = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address internal constant PERMIT2_OPTIMISM = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
+    address internal constant PERMIT2_ARBITRUM = 0x000000000022D473030F116dDEE9F6B43aC78BA3; // Universal Permit2
+        // address
+    address internal constant PERMIT2_BNB = 0x000000000022D473030F116dDEE9F6B43aC78BA3; // Universal Permit2 address
     address internal constant PERMIT2_SEPOLIA = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address internal constant PERMIT2_ARB_SEPOLIA = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
     address internal constant PERMIT2_BASE_SEPOLIA = 0x000000000022D473030F116dDEE9F6B43aC78BA3;
@@ -125,6 +151,8 @@ abstract contract Constants {
     address internal constant POLYMER_PROVER_MAINNET = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76;
     address internal constant POLYMER_PROVER_BASE = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
     address internal constant POLYMER_PROVER_OPTIMISM = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
+    address internal constant POLYMER_PROVER_ARBITRUM = address(0); // TODO: Research Arbitrum Polymer prover address
+    address internal constant POLYMER_PROVER_BNB = address(0); // TODO: Research BNB Polymer prover address
     address internal constant POLYMER_PROVER_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
     address internal constant POLYMER_PROVER_ARB_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available
     address internal constant POLYMER_PROVER_BASE_SEPOLIA = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76; // not available

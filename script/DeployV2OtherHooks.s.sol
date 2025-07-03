@@ -3,6 +3,7 @@ pragma solidity >=0.8.30;
 
 import { DeployV2Base } from "./DeployV2Base.s.sol";
 import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
+import { ConfigOtherHooks } from "./utils/ConfigOtherHooks.sol";
 
 // -- hooks for other deployments (non-early access)
 // ---- | claim
@@ -35,7 +36,7 @@ import { SpectraExchangeRedeemHook } from "../src/core/hooks/swappers/spectra/Sp
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { console2 } from "forge-std/console2.sol";
 
-contract DeployV2OtherHooks is DeployV2Base {
+contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     struct OtherHookAddresses {
         address fluidClaimRewardHook;
         address gearboxClaimRewardHook;
@@ -59,6 +60,17 @@ contract DeployV2OtherHooks is DeployV2Base {
     struct HookDeployment {
         string name;
         bytes creationCode;
+    }
+
+    /// @notice Sets up complete configuration for other hooks deployment
+    /// @param env Environment (0/2 = production, 1 = test)
+    /// @param saltNamespace Salt namespace for deterministic deployments
+    function _setConfiguration(uint256 env, string memory saltNamespace) internal {
+        // Set base configuration (chain names, common addresses)
+        _setBaseConfiguration(env, saltNamespace);
+
+        // Set protocol router addresses for hooks
+        _setOtherHooksConfiguration();
     }
 
     function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {

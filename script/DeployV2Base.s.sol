@@ -8,9 +8,9 @@ import "forge-std/console2.sol";
 // Superform
 import { SuperDeployer } from "./utils/SuperDeployer.sol";
 import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
-import { Configuration } from "./utils/Configuration.sol";
+import { ConfigBase } from "./utils/ConfigBase.sol";
 
-abstract contract DeployV2Base is Script, Configuration {
+abstract contract DeployV2Base is Script, ConfigBase {
     mapping(uint64 chainId => mapping(string contractName => address contractAddress)) public contractAddresses;
 
     modifier broadcast(uint256 env) {
@@ -28,10 +28,16 @@ abstract contract DeployV2Base is Script, Configuration {
     }
 
     function _deployDeployer() internal {
+        // msg.sender is the address doing the deployment (controlled by private key/mnemonic)
+        address authorizedDeployer = msg.sender;
+
         address superDeployer = address(
-            new SuperDeployer{ salt: __getSalt(configuration.owner, configuration.deployer, SUPER_DEPLOYER_KEY) }()
+            new SuperDeployer{ salt: __getSalt(configuration.owner, configuration.deployer, SUPER_DEPLOYER_KEY) }(
+                authorizedDeployer
+            )
         );
         console2.log("SuperDeployer deployed at:", superDeployer);
+        console2.log("Authorized deployer set to:", authorizedDeployer);
         configuration.deployer = superDeployer;
     }
 

@@ -3,6 +3,7 @@ pragma solidity >=0.8.30;
 
 import { DeployV2Base } from "./DeployV2Base.s.sol";
 import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
+import { ConfigPeriphery } from "./utils/ConfigPeriphery.sol";
 
 // Periphery contracts
 import { SuperGovernor } from "../src/periphery/SuperGovernor.sol";
@@ -16,7 +17,7 @@ import { SuperOracle } from "../src/periphery/oracles/SuperOracle.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { console2 } from "forge-std/console2.sol";
 
-contract DeployV2Periphery is DeployV2Base {
+contract DeployV2Periphery is DeployV2Base, ConfigPeriphery {
     struct PeripheryContracts {
         address superGovernor;
         address superVaultAggregator;
@@ -59,6 +60,17 @@ contract DeployV2Periphery is DeployV2Base {
         address deBridgeCancelOrderHook;
         address ethenaCooldownSharesHook;
         address ethenaUnstakeHook;
+    }
+
+    /// @notice Sets up complete configuration for periphery contracts
+    /// @param env Environment (0/2 = production, 1 = test)
+    /// @param saltNamespace Salt namespace for deterministic deployments
+    function _setConfiguration(uint256 env, string memory saltNamespace) internal {
+        // Set base configuration (chain names, common addresses)
+        _setBaseConfiguration(env, saltNamespace);
+
+        // Set periphery contract dependencies
+        _setPeripheryConfiguration();
     }
 
     function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {

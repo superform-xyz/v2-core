@@ -59,8 +59,10 @@ import { RequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/Reques
 import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
 import { CancelDepositRequest7540Hook } from "../src/core/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
 import { CancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
-import { ClaimCancelDepositRequest7540Hook } from "../src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
-import { ClaimCancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
+import { ClaimCancelDepositRequest7540Hook } from
+"../src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
+import { ClaimCancelRedeemRequest7540Hook } from
+"../src/core/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
 import { CancelRedeemHook } from "../src/core/hooks/vaults/super-vault/CancelRedeemHook.sol";
 
 // ---- | stake
@@ -244,7 +246,8 @@ contract DeployV2 is Script, Configuration {
             __getSalt(configuration.owner, configuration.deployer, SUPER_ORACLE_KEY),
             abi.encodePacked(
                 type(SuperOracle).creationCode,
-                abi.encode(configuration.owner, new address[](0), new address[](0), new uint256[](0), new bytes32[](0))
+                abi.encode(configuration.owner, new address[](0), new address[](0), new uint256[](0), new
+bytes32[](0))
             )
         );
 
@@ -281,7 +284,8 @@ contract DeployV2 is Script, Configuration {
             SUPER_EXECUTOR_KEY,
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_EXECUTOR_KEY),
-            abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(deployedContracts.superLedgerConfiguration))
+            abi.encodePacked(type(SuperExecutor).creationCode,
+abi.encode(deployedContracts.superLedgerConfiguration))
         );
 
         // Deploy SuperDestinationExecutor
@@ -337,7 +341,8 @@ contract DeployV2 is Script, Configuration {
             chainId,
             __getSalt(configuration.owner, configuration.deployer, SUPER_LEDGER_KEY),
             abi.encodePacked(
-                type(SuperLedger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration, allowedExecutors)
+                type(SuperLedger).creationCode, abi.encode(deployedContracts.superLedgerConfiguration,
+allowedExecutors)
             )
         );
 
@@ -536,13 +541,16 @@ contract DeployV2 is Script, Configuration {
         );
         hooks[4] = HookDeployment(DEPOSIT_4626_VAULT_HOOK_KEY, type(Deposit4626VaultHook).creationCode);
         hooks[5] =
-            HookDeployment(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY, type(ApproveAndDeposit4626VaultHook).creationCode);
+            HookDeployment(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY,
+type(ApproveAndDeposit4626VaultHook).creationCode);
         hooks[6] = HookDeployment(REDEEM_4626_VAULT_HOOK_KEY, type(Redeem4626VaultHook).creationCode);
         hooks[7] = HookDeployment(DEPOSIT_5115_VAULT_HOOK_KEY, type(Deposit5115VaultHook).creationCode);
         hooks[8] =
-            HookDeployment(APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY, type(ApproveAndDeposit5115VaultHook).creationCode);
+            HookDeployment(APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY,
+type(ApproveAndDeposit5115VaultHook).creationCode);
         hooks[9] = HookDeployment(REDEEM_5115_VAULT_HOOK_KEY, type(Redeem5115VaultHook).creationCode);
-        hooks[10] = HookDeployment(REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, type(RequestDeposit7540VaultHook).creationCode);
+        hooks[10] = HookDeployment(REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
+type(RequestDeposit7540VaultHook).creationCode);
         hooks[11] = HookDeployment(
             APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, type(ApproveAndRequestDeposit7540VaultHook).creationCode
         );
@@ -551,7 +559,8 @@ contract DeployV2 is Script, Configuration {
             APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(ApproveAndRequestRedeem7540VaultHook).creationCode
         );
         hooks[13] = HookDeployment(REDEEM_7540_VAULT_HOOK_KEY, type(Redeem7540VaultHook).creationCode);
-        hooks[14] = HookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(RequestRedeem7540VaultHook).creationCode);
+        hooks[14] = HookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY,
+type(RequestRedeem7540VaultHook).creationCode);
         hooks[15] = HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, type(Deposit7540VaultHook).creationCode);
         hooks[16] = HookDeployment(WITHDRAW_7540_VAULT_HOOK_KEY, type(Withdraw7540VaultHook).creationCode);
 
@@ -574,7 +583,8 @@ contract DeployV2 is Script, Configuration {
             ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
                 type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
-                abi.encode(configuration.acrossSpokePoolV3s[chainId], _getContract(chainId, SUPER_MERKLE_VALIDATOR_KEY))
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], _getContract(chainId,
+SUPER_MERKLE_VALIDATOR_KEY))
             )
         );
         hooks[21] = HookDeployment(
@@ -595,7 +605,8 @@ contract DeployV2 is Script, Configuration {
         hooks[26] = HookDeployment(FLUID_UNSTAKE_HOOK_KEY, type(FluidUnstakeHook).creationCode);
         hooks[27] = HookDeployment(GEARBOX_CLAIM_REWARD_HOOK_KEY, type(GearboxClaimRewardHook).creationCode);
         hooks[28] = HookDeployment(GEARBOX_STAKE_HOOK_KEY, type(GearboxStakeHook).creationCode);
-        hooks[29] = HookDeployment(GEARBOX_APPROVE_AND_STAKE_HOOK_KEY, type(ApproveAndGearboxStakeHook).creationCode);
+        hooks[29] = HookDeployment(GEARBOX_APPROVE_AND_STAKE_HOOK_KEY,
+type(ApproveAndGearboxStakeHook).creationCode);
         hooks[30] = HookDeployment(GEARBOX_UNSTAKE_HOOK_KEY, type(GearboxUnstakeHook).creationCode);
         hooks[31] = HookDeployment(YEARN_CLAIM_ONE_REWARD_HOOK_KEY, type(YearnClaimOneRewardHook).creationCode);
         hooks[32] = HookDeployment(ETHENA_COOLDOWN_SHARES_HOOK_KEY, type(EthenaCooldownSharesHook).creationCode);
@@ -614,7 +625,8 @@ contract DeployV2 is Script, Configuration {
         );
         hooks[36] = HookDeployment(
             PENDLE_ROUTER_SWAP_HOOK_KEY,
-            abi.encodePacked(type(PendleRouterSwapHook).creationCode, abi.encode(configuration.pendleRouters[chainId]))
+            abi.encodePacked(type(PendleRouterSwapHook).creationCode,
+abi.encode(configuration.pendleRouters[chainId]))
         );
         hooks[37] = HookDeployment(
             PENDLE_ROUTER_REDEEM_HOOK_KEY,
@@ -624,7 +636,8 @@ contract DeployV2 is Script, Configuration {
         );
         hooks[38] =
             HookDeployment(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(CancelDepositRequest7540Hook).creationCode);
-        hooks[39] = HookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(CancelRedeemRequest7540Hook).creationCode);
+        hooks[39] = HookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
+type(CancelRedeemRequest7540Hook).creationCode);
         hooks[40] = HookDeployment(
             CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(ClaimCancelDepositRequest7540Hook).creationCode
         );
@@ -684,9 +697,11 @@ contract DeployV2 is Script, Configuration {
         hookAddresses.requestDeposit7540VaultHook =
             Strings.equal(hooks[10].name, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[10] : address(0);
         hookAddresses.approveAndRequestDeposit7540VaultHook =
-            Strings.equal(hooks[11].name, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[11] : address(0);
+            Strings.equal(hooks[11].name, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[11] :
+address(0);
         hookAddresses.approveAndRequestRedeem7540VaultHook =
-            Strings.equal(hooks[12].name, APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[12] : address(0);
+            Strings.equal(hooks[12].name, APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[12] :
+address(0);
         hookAddresses.redeem7540VaultHook =
             Strings.equal(hooks[13].name, REDEEM_7540_VAULT_HOOK_KEY) ? addresses[13] : address(0);
         hookAddresses.requestRedeem7540VaultHook =
@@ -695,19 +710,24 @@ contract DeployV2 is Script, Configuration {
             Strings.equal(hooks[15].name, DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[15] : address(0);
         hookAddresses.withdraw7540VaultHook =
             Strings.equal(hooks[16].name, WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[16] : address(0);
-        hookAddresses.swap1InchHook = Strings.equal(hooks[17].name, SWAP_1INCH_HOOK_KEY) ? addresses[17] : address(0);
-        hookAddresses.swapOdosHook = Strings.equal(hooks[18].name, SWAP_ODOSV2_HOOK_KEY) ? addresses[18] : address(0);
+        hookAddresses.swap1InchHook = Strings.equal(hooks[17].name, SWAP_1INCH_HOOK_KEY) ? addresses[17] :
+address(0);
+        hookAddresses.swapOdosHook = Strings.equal(hooks[18].name, SWAP_ODOSV2_HOOK_KEY) ? addresses[18] :
+address(0);
         hookAddresses.approveAndSwapOdosHook =
             Strings.equal(hooks[19].name, APPROVE_AND_SWAP_ODOSV2_HOOK_KEY) ? addresses[19] : address(0);
         hookAddresses.acrossSendFundsAndExecuteOnDstHook =
-            Strings.equal(hooks[20].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[20] : address(0);
+            Strings.equal(hooks[20].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[20] :
+address(0);
         hookAddresses.deBridgeSendOrderAndExecuteOnDstHook =
-            Strings.equal(hooks[21].name, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[21] : address(0);
+            Strings.equal(hooks[21].name, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[21] :
+address(0);
         hookAddresses.deBridgeCancelOrderHook =
             Strings.equal(hooks[22].name, DEBRIDGE_CANCEL_ORDER_HOOK_KEY) ? addresses[22] : address(0);
         hookAddresses.fluidClaimRewardHook =
             Strings.equal(hooks[23].name, FLUID_CLAIM_REWARD_HOOK_KEY) ? addresses[23] : address(0);
-        hookAddresses.fluidStakeHook = Strings.equal(hooks[24].name, FLUID_STAKE_HOOK_KEY) ? addresses[24] : address(0);
+        hookAddresses.fluidStakeHook = Strings.equal(hooks[24].name, FLUID_STAKE_HOOK_KEY) ? addresses[24] :
+address(0);
         hookAddresses.approveAndFluidStakeHook =
             Strings.equal(hooks[25].name, APPROVE_AND_FLUID_STAKE_HOOK_KEY) ? addresses[25] : address(0);
         hookAddresses.fluidUnstakeHook =
@@ -803,7 +823,8 @@ contract DeployV2 is Script, Configuration {
         require(hookAddresses.approveAndGearboxStakeHook != address(0), "approveAndGearboxStakeHook not assigned");
         require(hookAddresses.gearboxUnstakeHook != address(0), "gearboxUnstakeHook not assigned");
         require(hookAddresses.yearnClaimOneRewardHook != address(0), "yearnClaimOneRewardHook not assigned");
-        require(hookAddresses.cancelDepositRequest7540Hook != address(0), "cancelDepositRequest7540Hook not assigned");
+        require(hookAddresses.cancelDepositRequest7540Hook != address(0), "cancelDepositRequest7540Hook not
+assigned");
         require(hookAddresses.cancelRedeemRequest7540Hook != address(0), "cancelRedeemRequest7540Hook not assigned");
         require(
             hookAddresses.claimCancelDepositRequest7540Hook != address(0),
