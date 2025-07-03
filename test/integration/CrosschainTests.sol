@@ -1525,7 +1525,8 @@ contract CrosschainTests is BaseTest {
         uint256 amount = 1e8;
         uint256 previewRedeemAmount =
             vaultInstanceMorphoEth.previewRedeem(vaultInstanceMorphoEth.previewDeposit(amount));
-
+        
+        uint256 previewLockAmount;
         // BASE IS DST
         SELECT_FORK_AND_WARP(BASE, block.timestamp);
 
@@ -1556,9 +1557,11 @@ contract CrosschainTests is BaseTest {
                 address(0),
                 0
             );
+            previewLockAmount = vaultInstanceMorphoBase.previewDeposit(previewRedeemAmount);
             dstHooksData[2] = _createApproveAndLockVaultBankHookData(
-                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceMorphoUsdcAddressBase, previewRedeemAmount, false, address(vaultBank), ETH
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceMorphoUsdcAddressBase, previewLockAmount, false, address(vaultBank), ETH
             );
+
 
             messageData = TargetExecutorMessage({
                 hooksAddresses: dstHooksAddresses,
@@ -1638,7 +1641,7 @@ contract CrosschainTests is BaseTest {
 
         SELECT_FORK_AND_WARP(BASE, block.timestamp + 10 days);
         uint256 accSharesAfter = IERC4626(yieldSourceMorphoUsdcAddressBase).balanceOf(address(vaultBank));
-        assertEq(accSharesAfter, previewRedeemAmount);
+        assertEq(accSharesAfter, previewLockAmount);
     }
 
     function test_Bridge_MintSP() public {
