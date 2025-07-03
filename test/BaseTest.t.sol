@@ -1219,16 +1219,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksAddresses[47] = address(A[i].offrampTokensHook);
 
             A[i].mintSuperPositionsHook = new MintSuperPositionsHook{ salt: SALT }();
-            vm.label(address(A[i].mintSuperPositionsHook), APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY);
-            hookAddresses[chainIds[i]][APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY] = address(A[i].mintSuperPositionsHook);
-            hooks[chainIds[i]][APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY] = Hook(
-                APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY,
+            vm.label(address(A[i].mintSuperPositionsHook), MINT_SUPERPOSITIONS_HOOK_KEY);
+            hookAddresses[chainIds[i]][MINT_SUPERPOSITIONS_HOOK_KEY] = address(A[i].mintSuperPositionsHook);
+            hooks[chainIds[i]][MINT_SUPERPOSITIONS_HOOK_KEY] = Hook(
+                MINT_SUPERPOSITIONS_HOOK_KEY,
                 HookCategory.TokenApprovals,
                 HookCategory.None,
                 address(A[i].mintSuperPositionsHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]][APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]][MINT_SUPERPOSITIONS_HOOK_KEY]);
             hooksAddresses[48] = address(A[i].mintSuperPositionsHook);
 
             hookListPerChain[chainIds[i]] = hooksAddresses;

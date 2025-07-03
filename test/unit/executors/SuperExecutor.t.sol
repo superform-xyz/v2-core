@@ -46,7 +46,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     MockERC20 public token;
     MockHook public inflowHook;
     MockHook public outflowHook;
-    MockHook public approveAndLockVaultBankHook;
+    MockHook public mintSuperPositionHook;
     MockLedger public ledger;
     MockNexusFactory public nexusFactory;
     MockLedgerConfiguration public ledgerConfig;

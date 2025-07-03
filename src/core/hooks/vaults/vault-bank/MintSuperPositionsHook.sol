@@ -65,11 +65,17 @@ contract MintSuperPositionsHook is
     {
         bytes32 yieldSourceOracleId = data.extractYieldSourceOracleId();
         uint256 amount = _decodeAmount(data);
+        // The bundler determines the correct placement of this hook based on context:
+        // - It follows a previous hook that granted shares to the user, OR
+        // - The user is independently locking shares.
+        //
+        // Note: It is not possible to distinguish whether the shares originate from an asset directly
+        // or from a yield source.
         address spToken = data.extractYieldSource();
         address vaultBank = BytesLib.toAddress(data, 85);
         uint256 dstChainId = BytesLib.toUint256(data, 105);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
-        
+
         if (vaultBank == address(0) || spToken == address(0)) revert ADDRESS_NOT_VALID();
         if (dstChainId == 0 || yieldSourceOracleId == bytes32(0)) revert ID_NOT_VALID();
 
@@ -126,7 +132,7 @@ contract MintSuperPositionsHook is
         return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 
-    function _getBalance(address account, address token) private view returns (uint256) {
-        return IERC20(token).balanceOf(account);
+    function _getBalance(address account, address spToken) private view returns (uint256) {
+        return IERC20(spToken).balanceOf(account);
     }
 } 

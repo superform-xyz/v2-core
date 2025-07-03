@@ -93,6 +93,12 @@ contract MintSuperPositionsHookTest is Helpers {
         vm.expectRevert(BaseHook.AMOUNT_NOT_VALID.selector);
         mintSuperPositionsHook.build(mockPrevHook, address(this), data);
     }
+
+    function test_Build_WithUsePrev_ButNoHook() public {
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, true, vaultBank, dstChainId);
+        vm.expectRevert();
+        mintSuperPositionsHook.build(address(0), address(this), data);
+    }
     
     function test_Build_ZeroSpToken() public {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, address(0), amount, false, vaultBank, dstChainId);

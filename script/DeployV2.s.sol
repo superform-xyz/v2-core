@@ -149,7 +149,7 @@ contract DeployV2 is Script, Configuration {
         address batchTransferHook;
         address batchTransferFromHook;
         address offrampTokensHook;
-        address approveAndLockVaultBankHook;
+        address mintSuperPositionHook;
         address deposit4626VaultHook;
         address approveAndDeposit4626VaultHook;
         address redeem4626VaultHook;
@@ -653,7 +653,7 @@ contract DeployV2 is Script, Configuration {
 
         hooks[47] = HookDeployment(OFFRAMP_TOKENS_HOOK_KEY, type(OfframpTokensHook).creationCode);
 
-        hooks[48] = HookDeployment(APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY, type(MintSuperPositionsHook).creationCode);
+        hooks[48] = HookDeployment(MINT_SUPERPOSITIONS_HOOK_KEY, type(MintSuperPositionsHook).creationCode);
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
@@ -758,8 +758,8 @@ contract DeployV2 is Script, Configuration {
         hookAddresses.morphoBorrowHook =
             Strings.equal(hooks[46].name, MORPHO_BORROW_ONLY_HOOK_KEY) ? addresses[46] : address(0);
         hookAddresses.offrampTokensHook = Strings.equal(hooks[47].name, OFFRAMP_TOKENS_HOOK_KEY) ? addresses[47] : address(0);
-        hookAddresses.approveAndLockVaultBankHook =
-            Strings.equal(hooks[48].name, APPROVE_AND_LOCK_VAULT_BANK_HOOK_KEY) ? addresses[48] : address(0);
+        hookAddresses.mintSuperPositionHook =
+            Strings.equal(hooks[48].name, MINT_SUPERPOSITIONS_HOOK_KEY) ? addresses[48] : address(0);
 
         // Verify no hooks were assigned address(0) (excluding experimental placeholders)
         require(hookAddresses.approveErc20Hook != address(0), "approveErc20Hook not assigned");
@@ -826,7 +826,7 @@ contract DeployV2 is Script, Configuration {
         require(hookAddresses.morphoBorrowHook != address(0), "morphoBorrowHook not assigned");
         require(hookAddresses.offrampTokensHook != address(0), "offrampTokensHook not assigned");
 
-        require(hookAddresses.approveAndLockVaultBankHook != address(0), "approveAndLockVaultBankHook not assigned");
+        require(hookAddresses.mintSuperPositionHook != address(0), "mintSuperPositionHook not assigned");
     }
 
     function _registerHooks(HookAddresses memory hookAddresses, SuperGovernor superGovernor) internal {
@@ -881,7 +881,7 @@ contract DeployV2 is Script, Configuration {
         superGovernor.registerHook(address(hookAddresses.pendleRouterRedeemHook), false);
         superGovernor.registerHook(address(hookAddresses.morphoBorrowHook), false);
         superGovernor.registerHook(address(hookAddresses.offrampTokensHook), false);
-        superGovernor.registerHook(address(hookAddresses.approveAndLockVaultBankHook), false);
+        superGovernor.registerHook(address(hookAddresses.mintSuperPositionHook), false);
     }
 
     function _deployOracles(
