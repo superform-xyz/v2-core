@@ -2,12 +2,14 @@
 pragma solidity 0.8.30;
 
 // external
-import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-import {SuperValidatorBase} from "./SuperValidatorBase.sol";
+// Superform
+import { SuperValidatorBase } from "./SuperValidatorBase.sol";
 
 /// @title SuperDestinationValidator
 /// @author Superform Labs
@@ -18,7 +20,9 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    bytes4 constant VALID_SIGNATURE = bytes4(0x5c2ec0f3);
+    bytes4 internal constant VALID_SIGNATURE = bytes4(0x5c2ec0f3);
+
+    bytes4 internal constant MAGIC_VALUE_EIP1271 = bytes4(0x1626ba7e);
 
     /*//////////////////////////////////////////////////////////////
                                  EXTERNAL METHODS
@@ -31,7 +35,11 @@ contract SuperDestinationValidator is SuperValidatorBase {
     }
 
     /// @notice Validate a signature with sender
-    function isValidSignatureWithSender(address, bytes32, bytes calldata)
+    function isValidSignatureWithSender(
+        address,
+        bytes32,
+        bytes calldata
+    )
         external
         pure
         virtual
@@ -47,11 +55,25 @@ contract SuperDestinationValidator is SuperValidatorBase {
         // Decode data
         (SignatureData memory sigData, DestinationData memory destinationData) =
             _decodeSignatureAndDestinationData(data, sender);
+
+        // Verify leaf
+        _verifyLeaf(sigData, destinationData);
+
+        address owner = _accountOwners[sender];
+
         // Process signature
-        (address signer,) = _processSignatureAndVerifyLeaf(sigData, destinationData);
+        bool isValid;
+        if (owner.code.length == 0) {
+            // Recover signer from signature using standard Ethereum signature recovery
+            address signer = _processEOASignature(sigData);
+
+            // Verify signer is valid based on signer and expiration time
+            isValid = _isSignatureValid(signer, sender, sigData.validUntil);
+        } else {
+            isValid = _processContractSignature(owner, sigData);
+        }
 
         // Validate
-        bool isValid = _isSignatureValid(signer, sender, sigData.validUntil);
         return isValid ? VALID_SIGNATURE : bytes4("");
     }
 
@@ -80,21 +102,47 @@ contract SuperDestinationValidator is SuperValidatorBase {
     ///      and recovers the signer's address from the signature
     /// @param sigData Signature data including merkle root, proofs, and actual signature
     /// @param destinationData The destination execution data to create the leaf hash from
-    /// @return signer The address that signed the message
-    /// @return leaf The computed leaf hash used in merkle verification
-    function _processSignatureAndVerifyLeaf(SignatureData memory sigData, DestinationData memory destinationData)
+    function _verifyLeaf(
+        SignatureData memory sigData,
+        DestinationData memory destinationData
+    )
         private
         view
-        returns (address signer, bytes32 leaf)
     {
-        // Create leaf from destination data and verify against merkle root using the proof
-        leaf = _createLeaf(abi.encode(destinationData), sigData.validUntil, false);
-        if (!MerkleProof.verify(_extractProof(sigData), sigData.merkleRoot, leaf)) revert INVALID_PROOF();
+        // Create leaf from destination data
+        bytes32 leaf = _createLeaf(abi.encode(destinationData), sigData.validUntil, false);
 
-        // Recover signer from signature using standard Ethereum signature recovery
+        // Verify leaf against merkle root using the proof
+        if (!MerkleProof.verify(_extractProof(sigData), sigData.merkleRoot, leaf)) revert INVALID_PROOF();
+    }
+    
+    /// @notice Processes an EOA signature and returns the signer
+    /// @param sigData Signature data including merkle root, proofs, and actual signature
+    /// @return signer The address that signed the message
+    function _processEOASignature(
+        SignatureData memory sigData
+    ) private pure returns (address signer) {
         bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+
         signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
+    }
+
+    /// @notice Processes a contract signature and verifies it against the owner
+    /// @dev This function is used to process contract signatures
+    /// @param owner The owner of the contract
+    /// @param sigData Signature data including merkle root, proofs, and actual signature
+    function _processContractSignature(
+        address owner,
+        SignatureData memory sigData
+    ) private view returns (bool) {
+        bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
+        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+
+        bytes memory sig = sigData.signature;
+
+        bytes4 rv = IERC1271(owner).isValidSignature(ethSignedMessageHash, sig);
+        return rv == MAGIC_VALUE_EIP1271;
     }
 
     /// @notice Extracts the proof for the current chain from the signature data
@@ -116,7 +164,10 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /// @param destinationDataRaw ABI-encoded destination data bytes
     /// @param sender_ Expected sender address to validate against
     /// @return Structured DestinationData for further processing
-    function _decodeDestinationData(bytes memory destinationDataRaw, address sender_)
+    function _decodeDestinationData(
+        bytes memory destinationDataRaw,
+        address sender_
+    )
         private
         view
         returns (DestinationData memory)
@@ -135,7 +186,10 @@ contract SuperDestinationValidator is SuperValidatorBase {
         return DestinationData(callData, chainId, decodedSender, executor, dstTokens, intentAmounts);
     }
 
-    function _decodeSignatureAndDestinationData(bytes memory data, address sender)
+    function _decodeSignatureAndDestinationData(
+        bytes memory data,
+        address sender
+    )
         private
         view
         returns (SignatureData memory, DestinationData memory)
