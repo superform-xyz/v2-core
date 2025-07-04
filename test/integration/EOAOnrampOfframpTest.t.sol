@@ -40,7 +40,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         keccak256("PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)");
 
     function setUp() public override {
-        blockNumber = 0;
+        blockNumber = 22832865;
         super.setUp();
 
         usdc = CHAIN_1_USDC;

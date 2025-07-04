@@ -15,6 +15,7 @@ import {SuperNativePaymaster} from "../../../src/core/paymaster/SuperNativePayma
 import {IEntryPoint} from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import {PaymasterHelper} from "./PaymasterHelper.t.sol";
 import "forge-std/console2.sol";
+import "forge-std/Test.sol";
 
 contract PoC is PaymasterHelper {
     MockRegistry public nexusRegistry;
@@ -352,16 +353,22 @@ contract PoC is PaymasterHelper {
         // SuperBundler calls paymaster.handleOps() with maxGasLimit * maxFeePerGas ether value, as was paid by the account
         // but the execution will fail since deposit will not cover the refund
         vm.deal(address(this), data.maxGasLimit * data.maxFeePerGas);
+        vm.recordLogs();
         data.paymaster.handleOps{gas: data.maxGasLimit, value: address(this).balance}(data.ops);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
 
-        // Allowance hasn't been set, dos
-        uint256 allowanceAmount = IERC20(CHAIN_1_WETH).allowance(data.nexusAccount, address(MANAGER));
-        //assertNotEq(allowanceAmount, data.amount, "Allowance was not set");
-        // ^ this now works after refunding what's available in EntryPoint
-        assertEq(allowanceAmount, data.amount, "Allowance was not set");
+        bytes32 expectedTopic = keccak256("SuperNativePaymsterRefund(address,uint256,uint256)");
+        for (uint256 i; i < entries.length; ++i) {
+            Vm.Log memory log = entries[i];
+            if (log.topics[0] == expectedTopic) {
+                (uint256 refundAmount, uint256 initialRefund) = abi.decode(log.data, (uint256, uint256));
+                assertEq(refundAmount, initialRefund);
+                assertGt(refundAmount, 0);
+            }
+        }
     }
 
-     function test_refundDOS_LessDeposit() public {
+    function test_refundDOS_LessDeposit() public {
         RefundDOSTestData memory data;
         
         // create account
@@ -397,7 +404,7 @@ contract PoC is PaymasterHelper {
         data.paymaster = new SuperNativePaymaster(IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032));
         data.paymasterVerificationGasLimit = 50e6;
         data.paymasterPostOpGasLimit = 50e6;
-        data.paymasterData = abi.encode(data.maxGasLimit, uint256(0), uint256(0)); // premium is too big
+        data.paymasterData = abi.encode(data.maxGasLimit, uint256(0), uint256(0)); 
         data.paymasterAndData = abi.encodePacked(
             address(data.paymaster), 
             data.paymasterVerificationGasLimit, 
@@ -418,13 +425,22 @@ contract PoC is PaymasterHelper {
         // SuperBundler calls paymaster.handleOps() with maxGasLimit * maxFeePerGas ether value, as was paid by the account
         // but the execution will fail since deposit will not cover the refund
         vm.deal(address(this), data.maxGasLimit * data.maxFeePerGas);
-        data.paymaster.handleOps{gas: data.maxGasLimit, value: 2e16}(data.ops);
+        uint256 ethBalanceBefore = data.nexusAccount.balance;
 
-        // Allowance hasn't been set, dos
-        uint256 allowanceAmount = IERC20(CHAIN_1_WETH).allowance(data.nexusAccount, address(MANAGER));
-        //assertNotEq(allowanceAmount, data.amount, "Allowance was not set");
-        // ^ this now works after refunding what's available in EntryPoint
-        assertEq(allowanceAmount, data.amount, "Allowance was not set");
+        vm.recordLogs();
+        data.paymaster.handleOps{gas: data.maxGasLimit, value: 2e16}(data.ops);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        bytes32 expectedTopic = keccak256("SuperNativePaymsterRefund(address,uint256,uint256)");
+        for (uint256 i; i < entries.length; ++i) {
+            Vm.Log memory log = entries[i];
+            if (log.topics[0] == expectedTopic) {
+                (uint256 refundAmount, uint256 initialRefund) = abi.decode(log.data, (uint256, uint256));
+                assertEq(refundAmount, 0.007e18);
+                assertGt(initialRefund, refundAmount);
+                assertGt(refundAmount, 0);
+            }
+        }
     }
 
 
