@@ -361,6 +361,72 @@ contract PoC is PaymasterHelper {
         assertEq(allowanceAmount, data.amount, "Allowance was not set");
     }
 
+     function test_refundDOS_LessDeposit() public {
+        RefundDOSTestData memory data;
+        
+        // create account
+        data.nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+
+        // fund account
+        vm.deal(data.nexusAccount, LARGE);
+
+        data.amount = 10e18;
+
+        // add tokens to account
+        _getTokens(CHAIN_1_WETH, data.nexusAccount, data.amount);
+
+        // create SuperExecutor data
+        data.hooksAddresses = new address[](1);
+        data.hooksData = new bytes[](1);
+        data.hooksAddresses[0] = approveHook;
+        data.hooksData[0] = _createApproveHookData(CHAIN_1_WETH, address(MANAGER), data.amount, false);
+        data.entry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: data.hooksAddresses, 
+            hooksData: data.hooksData
+        });
+
+        // create paymaster 
+        // set maxGasLimit
+        // paymasterVerificationGasLimit + paymasterPostOpGasLimit + callGasLimit + verificationGasLimit + preVerificationGas
+        // every value was set to 50e6, so in total we have 250e6
+        data.maxGasLimit = 250e6;
+
+        // maxFeePerGas is set to 40 gwei
+        data.maxFeePerGas = 40 gwei;
+
+        data.paymaster = new SuperNativePaymaster(IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032));
+        data.paymasterVerificationGasLimit = 50e6;
+        data.paymasterPostOpGasLimit = 50e6;
+        data.paymasterData = abi.encode(data.maxGasLimit, uint256(0), uint256(0)); // premium is too big
+        data.paymasterAndData = abi.encodePacked(
+            address(data.paymaster), 
+            data.paymasterVerificationGasLimit, 
+            data.paymasterPostOpGasLimit, 
+            data.paymasterData
+        );
+
+        data.ops = _createUserOpWithPaymaster(data.nexusAccount, data.entry, data.paymasterAndData);
+
+        data.snapshotBeforeDos = vm.snapshotState(); 
+
+        // gasPrice in EntryPoint is `min(maxFeePerGas, maxPriorityFeePerGas + block.basefee);`
+        // our priorityFee is 4e6, and we set the 1e2 basefee
+        // the tx.gasprice is 1e5, so maxPriorityFeePerGas + block.basefee covers the gas price
+        vm.txGasPrice(1e5);
+        vm.fee(1e2);
+
+        // SuperBundler calls paymaster.handleOps() with maxGasLimit * maxFeePerGas ether value, as was paid by the account
+        // but the execution will fail since deposit will not cover the refund
+        vm.deal(address(this), data.maxGasLimit * data.maxFeePerGas);
+        data.paymaster.handleOps{gas: data.maxGasLimit, value: 2e16}(data.ops);
+
+        // Allowance hasn't been set, dos
+        uint256 allowanceAmount = IERC20(CHAIN_1_WETH).allowance(data.nexusAccount, address(MANAGER));
+        //assertNotEq(allowanceAmount, data.amount, "Allowance was not set");
+        // ^ this now works after refunding what's available in EntryPoint
+        assertEq(allowanceAmount, data.amount, "Allowance was not set");
+    }
+
 
     receive() external payable {}
 }
