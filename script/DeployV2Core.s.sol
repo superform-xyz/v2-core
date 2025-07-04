@@ -201,7 +201,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             SUPER_LEDGER_CONFIGURATION_KEY,
             chainId,
             __getSalt(SUPER_LEDGER_CONFIGURATION_KEY),
-            abi.encodePacked(type(SuperLedgerConfiguration).creationCode, abi.encode(configuration.owner))
+            type(SuperLedgerConfiguration).creationCode
         );
 
         // Validate SuperLedgerConfiguration was deployed

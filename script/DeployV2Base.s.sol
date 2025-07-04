@@ -20,19 +20,6 @@ abstract contract DeployV2Base is Script, ConfigBase {
             vm.startBroadcast(deployer);
             _;
             vm.stopBroadcast();
-        } else if (env == 0) {
-            // Production environment: Check if we're in broadcast mode or simulation
-            bool isBroadcast = vm.envOr("FORGE_BROADCAST", false);
-            if (isBroadcast) {
-                console2.log("Production broadcast mode detected");
-                vm.startBroadcast();
-                _;
-                vm.stopBroadcast();
-            } else {
-                console2.log("Production simulation mode detected");
-                // Simulation mode - don't use vm.startBroadcast()
-                _;
-            }
         } else {
             // Fallback for other env values
             vm.startBroadcast();
