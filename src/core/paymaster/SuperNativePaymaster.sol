@@ -103,7 +103,6 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
     /// @dev `EntryPointSimulations` is not deployed. This works only with an `eth_call` while changing
     ///      the bytecode of `EntryPoint` with the one from `EntryPointSimulations`.
     /// @param op The user operation to simulate.
-    /// @param op The user operation to simulate.
     function simulateValidation(PackedUserOperation calldata op)
         external
         payable
