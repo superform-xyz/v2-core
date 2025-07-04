@@ -92,26 +92,26 @@ echo -e "${GREEN}✅ Configuration loaded successfully${NC}"
 echo -e "${CYAN}   • Using Tenderly private verification mode${NC}"
 print_separator
 
-# print_network_header "BASE MAINNET"
-# echo -e "${CYAN}   Chain ID: ${WHITE}8453${NC}"
-# echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-# echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
-# echo -e "${YELLOW}   Executing forge script...${NC}"
+print_network_header "BASE MAINNET"
+echo -e "${CYAN}   Chain ID: ${WHITE}8453${NC}"
+echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
+echo -e "${YELLOW}   Executing forge script...${NC}"
 
-# forge script script/DeployV2Core.s.sol:DeployV2Core \
-#     --sig 'run(uint256,uint64)' $FORGE_ENV 8453 \
-#     --account v2 \
-#     --rpc-url $BASE_MAINNET \
-#     --chain 8453 \
-#     --etherscan-api-key $TENDERLY_ACCESS_TOKEN \
-#     --verifier-url $BASE_VERIFIER_URL \
-#     $BROADCAST_FLAG \
-#     $VERIFY_FLAG \
-#     --slow \
-#     -vv
+forge script script/DeployV2Core.s.sol:DeployV2Core \
+    --sig 'run(uint256,uint64)' $FORGE_ENV 8453 \
+    --account v2 \
+    --rpc-url $BASE_MAINNET \
+    --chain 8453 \
+    --etherscan-api-key $TENDERLY_ACCESS_TOKEN \
+    --verifier-url $BASE_VERIFIER_URL \
+    $BROADCAST_FLAG \
+    $VERIFY_FLAG \
+    --slow \
+    -vv
 
-# echo -e "${GREEN}✅ Base Mainnet deployment completed successfully!${NC}"
-# wait
+echo -e "${GREEN}✅ Base Mainnet deployment completed successfully!${NC}"
+wait
 
 print_network_header "BSC MAINNET"
 echo -e "${CYAN}   Chain ID: ${WHITE}56${NC}"
