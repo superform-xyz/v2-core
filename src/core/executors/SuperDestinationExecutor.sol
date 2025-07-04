@@ -15,7 +15,7 @@ import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperDestinationExecutor } from "../interfaces/ISuperDestinationExecutor.sol";
 import { ISuperDestinationValidator } from "../interfaces/ISuperDestinationValidator.sol";
 import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
-import {BytesLib} from "../../vendor/BytesLib.sol";
+import { BytesLib } from "../../vendor/BytesLib.sol";
 
 /// @title SuperDestinationExecutor
 /// @author Superform Labs
@@ -153,7 +153,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         bytes4 selector = bytes4(BytesLib.slice(executorCalldata, 0, 4));
         if (selector != ISuperExecutor.execute.selector) return true;
         return executorCalldata.length <= EMPTY_EXECUTION_LENGTH;
-    }   
+    }
 
     function _validateOrCreateAccount(address account, bytes memory initData) internal returns (address) {
         if (account.code.length > 0) {
@@ -173,7 +173,8 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     }
 
     function _decodeMerkleRoot(bytes memory userSignatureData) private pure returns (bytes32) {
-        (,, bytes32 merkleRoot,,,) = abi.decode(userSignatureData, (bool, uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes));
+        (,, bytes32 merkleRoot,,,) =
+            abi.decode(userSignatureData, (bool, uint48, bytes32, bytes32[], ISuperValidator.DstProof[], bytes));
         return merkleRoot;
     }
 
