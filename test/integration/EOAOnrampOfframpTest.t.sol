@@ -28,6 +28,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
     uint256[] public amounts;
     uint48[] public nonces;
     uint256 public sigDeadline;
+    uint256 public privateKey;
 
     bytes32 public DOMAIN_SEPARATOR;
 
@@ -40,7 +41,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         keccak256("PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)");
 
     function setUp() public override {
-        blockNumber = 0;
+        blockNumber = 22832865;
         super.setUp();
 
         usdc = CHAIN_1_USDC;
@@ -63,8 +64,8 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         nonces[2] = 0;
 
         sigDeadline = block.timestamp + 2 weeks;
-
-        eoa = vm.addr(0x12341234);
+        privateKey = 12_342_142_412_412;
+        eoa = _deployAccount(privateKey, "ALICE");
         vm.label(eoa, "EOA");
 
         deal(usdc, eoa, 1e18);
@@ -101,7 +102,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         IAllowanceTransfer.PermitBatch memory permitBatch =
             defaultERC20PermitBatchAllowance(tokens, amounts, uint48(block.timestamp + 2 weeks), nonces);
 
-        bytes memory sig = getPermitBatchSignature(permitBatch, 0x12341234, DOMAIN_SEPARATOR);
+        bytes memory sig = getPermitBatchSignature(permitBatch, privateKey, DOMAIN_SEPARATOR);
 
         bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, sigDeadline, tokens, amounts, nonces, sig);
 
@@ -193,7 +194,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
 
         vars.permitBatch = defaultERC20PermitBatchAllowance(tokens, amounts, uint48(block.timestamp + 2 weeks), nonces);
 
-        vars.sig = getPermitBatchSignature(vars.permitBatch, 0x12341234, DOMAIN_SEPARATOR);
+        vars.sig = getPermitBatchSignature(vars.permitBatch, privateKey, DOMAIN_SEPARATOR);
 
         vars.hookData = _createBatchTransferFromHookData(eoa, 3, sigDeadline, tokens, amounts, nonces, vars.sig);
 
@@ -273,7 +274,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
 
     function getPermitBatchSignature(
         IAllowanceTransfer.PermitBatch memory permit,
-        uint256 privateKey,
+        uint256 privateKey_,
         bytes32 domainSeparator
     )
         internal
@@ -299,7 +300,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
             )
         );
 
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, msgHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey_, msgHash);
         return bytes.concat(r, s, bytes1(v));
     }
 }

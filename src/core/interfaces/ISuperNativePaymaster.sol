@@ -43,8 +43,9 @@ interface ISuperNativePaymaster {
     /// @notice Emitted when a refund is sent to an account
     /// @dev Refunds are provided when users overpay for gas costs
     /// @param sender The address receiving the refund
-    /// @param refund The amount of native tokens refunded
-    event SuperNativePaymsterRefund(address indexed sender, uint256 refund);
+    /// @param refundAmount The amount of native tokens refunded
+    /// @param initialRefund The initial refund amount before deposit check
+    event SuperNativePaymsterRefund(address indexed sender, uint256 refundAmount, uint256 initialRefund);
 
     /// @notice Emitted when a batch of user operations is handled
     /// @param sender The address that handled the operations
