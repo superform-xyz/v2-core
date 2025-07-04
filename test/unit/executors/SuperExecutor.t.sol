@@ -24,6 +24,8 @@ import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol"
 import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 import { ISuperDestinationExecutor } from "../../../src/core/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperValidator } from "../../../src/core/interfaces/ISuperValidator.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+
 
 import { Helpers } from "../../utils/Helpers.sol";
 
@@ -678,11 +680,14 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         superDestinationExecutor.processBridgedExecution(
             address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData
         );
+        bytes32 merkleRoot = bytes32(BytesLib.slice(signatureData, 64, 32));
+        assertTrue(superDestinationExecutor.isMerkleRootUsed(address(account), merkleRoot));
 
-        vm.expectRevert(ISuperDestinationExecutor.MERKLE_ROOT_ALREADY_USED.selector);
+        //shouldn't revert anymore; it just returns
         superDestinationExecutor.processBridgedExecution(
             address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData
         );
+        assertTrue(superDestinationExecutor.isMerkleRootUsed(address(account), merkleRoot));
     }
 
     function _createDestinationValidData(bool validSignature)
