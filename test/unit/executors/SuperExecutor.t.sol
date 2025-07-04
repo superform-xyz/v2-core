@@ -24,6 +24,8 @@ import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol"
 import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
 import { ISuperDestinationExecutor } from "../../../src/core/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperValidator } from "../../../src/core/interfaces/ISuperValidator.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+
 
 import { Helpers } from "../../utils/Helpers.sol";
 
@@ -46,6 +48,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
     MockERC20 public token;
     MockHook public inflowHook;
     MockHook public outflowHook;
+    MockHook public mintSuperPositionHook;
     MockLedger public ledger;
     MockNexusFactory public nexusFactory;
     MockLedgerConfiguration public ledgerConfig;
@@ -464,35 +467,6 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         vm.stopPrank();
     }
 
-    function test_SourceExecutor_VaultBank_InvalidDestinationChainId() public {
-        inflowHook.setOutAmount(1000, address(this));
-
-        address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = address(inflowHook);
-
-        bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createDeposit4626HookData(
-            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(token), 1, false, address(0), 0
-        );
-
-        vm.mockCall(address(inflowHook), abi.encodeWithSignature("spToken()"), abi.encode(address(token)));
-        vm.mockCall(address(inflowHook), abi.encodeWithSignature("extractLockDetails(bytes)"), abi.encode(address(this), uint64(block.chainid), bytes32(bytes("1"))));
-        vm.mockCall(
-            address(this),
-            abi.encodeWithSignature("lockAsset(bytes32,address,address,address,uint256,uint64)"),
-            abi.encode(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(account), address(token), address(inflowHook), 1000, uint64(block.chainid))
-        );
-
-        vm.startPrank(account);
-
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-
-        vm.expectRevert(ISuperExecutor.INVALID_CHAIN_ID.selector);
-        superSourceExecutor.execute(abi.encode(entry));
-        vm.stopPrank();
-    }
-
     function test_claimTokenAvoidFee() public {
         address[] memory hooksAddresses = new address[](1);
         bytes[] memory hooksData = new bytes[](1);
@@ -706,11 +680,14 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         superDestinationExecutor.processBridgedExecution(
             address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData
         );
+        bytes32 merkleRoot = bytes32(BytesLib.slice(signatureData, 64, 32));
+        assertTrue(superDestinationExecutor.isMerkleRootUsed(address(account), merkleRoot));
 
-        vm.expectRevert(ISuperDestinationExecutor.MERKLE_ROOT_ALREADY_USED.selector);
+        //shouldn't revert anymore; it just returns
         superDestinationExecutor.processBridgedExecution(
             address(token), address(account), dstTokens2, intentAmounts2, initData, executionDataForLeaf, signatureData
         );
+        assertTrue(superDestinationExecutor.isMerkleRootUsed(address(account), merkleRoot));
     }
 
     function _createDestinationValidData(bool validSignature)

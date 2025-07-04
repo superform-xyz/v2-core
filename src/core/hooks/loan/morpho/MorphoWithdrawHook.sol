@@ -17,15 +17,15 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @title MorphoWithdrawHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         address loanToken = BytesLib.toAddress(BytesLib.slice(data, 0, 20), 0);
-/// @notice         address collateralToken = BytesLib.toAddress(BytesLib.slice(data, 20, 20), 0);
-/// @notice         address oracle = BytesLib.toAddress(BytesLib.slice(data, 40, 20), 0);
-/// @notice         address irm = BytesLib.toAddress(BytesLib.slice(data, 60, 20), 0);
-/// @notice         address onBehalf = BytesLib.toAddress(BytesLib.slice(data, 80, 20), 0);
-/// @notice         address recipient = BytesLib.toAddress(BytesLib.slice(data, 100, 20), 0);
-/// @notice         uint256 lltv = BytesLib.toUint256(BytesLib.slice(data, 120, 32), 0);
-/// @notice         uint256 assets = BytesLib.toUint256(BytesLib.slice(data, 152, 32), 0);
-/// @notice         uint256 shares = BytesLib.toUint256(BytesLib.slice(data, 184, 32), 0);
+/// @notice         address loanToken = BytesLib.toAddress(data, 0);
+/// @notice         address collateralToken = BytesLib.toAddress(data, 20);
+/// @notice         address oracle = BytesLib.toAddress(data, 40);
+/// @notice         address irm = BytesLib.toAddress(data, 60);
+/// @notice         address onBehalf = BytesLib.toAddress(data, 80);
+/// @notice         address recipient = BytesLib.toAddress(data, 100);
+/// @notice         uint256 lltv = BytesLib.toUint256(data, 120);
+/// @notice         uint256 assets = BytesLib.toUint256(data, 152);
+/// @notice         uint256 shares = BytesLib.toUint256(data, 184);
 contract MorphoWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
@@ -48,7 +48,6 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
                               CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
     constructor(address morpho_) BaseMorphoLoanHook(morpho_, HookSubTypes.LOAN_REPAY) {
-        if (morpho_ == address(0)) revert ADDRESS_NOT_VALID();
         morpho = morpho_;
         morphoBase = IMorphoBase(morpho_);
     }

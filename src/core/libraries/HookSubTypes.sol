@@ -26,6 +26,7 @@ library HookSubTypes {
     bytes32 constant TOKEN = keccak256(bytes("Token"));
     bytes32 constant UNSTAKE = keccak256(bytes("Unstake"));
     bytes32 constant PTYT = keccak256(bytes("PTYT"));
+    bytes32 constant VAULT_BANK = keccak256(bytes("VaultBank"));
 
     function getHookSubType(string memory hookSubtype) internal pure returns (bytes32) {
         return keccak256(bytes(hookSubtype));

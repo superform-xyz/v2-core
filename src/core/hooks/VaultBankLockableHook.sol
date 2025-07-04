@@ -16,14 +16,4 @@ abstract contract VaultBankLockableHook {
     /// @notice The destination chain ID for cross-chain operations
     /// @dev Used primarily in bridge hooks to track target chain
     uint256 public transient dstChainId;
-
-
-    /// @notice Extracts the vault bank and destination chain ID
-    /// @dev Used to retrieve lock details for cross-chain operations
-    /// @return vaultBank The vault bank address
-    /// @return dstChainId The destination chain ID
-    /// @return yieldSourceOracleId The yield source oracle ID
-    function extractLockDetails(bytes memory hookData) external view returns (address, uint256, bytes32) {
-        return (vaultBank, dstChainId, hookData.extractYieldSourceOracleId());
-    }
 }

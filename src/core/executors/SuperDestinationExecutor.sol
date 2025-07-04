@@ -134,7 +134,11 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
 
         if (!_validateBalances(account, dstTokens, intentAmounts)) return;
 
-        if (usedMerkleRoots[account][merkleRoot]) revert MERKLE_ROOT_ALREADY_USED();
+        if (usedMerkleRoots[account][merkleRoot]) {
+            emit SuperDestinationExecutorReceivedButRootUsedAlready(account, merkleRoot);
+            return;
+        }
+        
         usedMerkleRoots[account][merkleRoot] = true;
 
         if (_shouldSkipCalldata(executorCalldata)) {

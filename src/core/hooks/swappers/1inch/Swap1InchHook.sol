@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import "../../../../vendor/1inch/I1InchAggregationRouterV6.sol";
 
@@ -20,8 +21,10 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 /// @notice         bytes txData_ = BytesLib.slice(data, 73, data.length - 73);
 contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
-    using AddressLib for Address;
     using ProtocolLib for Address;
+    using AddressLib for Address;
+    using SafeCast for uint256;
+    using SafeCast for int256;
 
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
@@ -196,15 +199,16 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
             uint256 selectorOffset =
                 (Address.unwrap(dex) >> _CURVE_TO_COINS_SELECTOR_OFFSET) & _CURVE_TO_COINS_SELECTOR_MASK;
             uint256 dstTokenIndex = (Address.unwrap(dex) >> _CURVE_TO_COINS_ARG_OFFSET) & _CURVE_TO_COINS_ARG_MASK;
+            uint128 dstTokenIndex128 = dstTokenIndex.toUint128();
 
             if (selectorOffset == 0) {
                 dstToken = ICurvePool(dex.get()).base_coins(dstTokenIndex);
             } else if (selectorOffset == 4) {
-                dstToken = ICurvePool(dex.get()).coins(int128(uint128(dstTokenIndex)));
+                dstToken = ICurvePool(dex.get()).coins(int256(uint256(dstTokenIndex128)).toInt128());
             } else if (selectorOffset == 8) {
                 dstToken = ICurvePool(dex.get()).coins(dstTokenIndex);
             } else if (selectorOffset == 12) {
-                dstToken = ICurvePool(dex.get()).underlying_coins(int128(uint128(dstTokenIndex)));
+                dstToken = ICurvePool(dex.get()).underlying_coins(int256(uint256(dstTokenIndex128)).toInt128());
             } else if (selectorOffset == 16) {
                 dstToken = ICurvePool(dex.get()).underlying_coins(dstTokenIndex);
             } else {

@@ -39,6 +39,9 @@ import { MorphoSupplyAndBorrowHook } from "../src/core/hooks/loan/morpho/MorphoS
 import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
 
 // vault hooks
+// -- vault bank
+import {MintSuperPositionsHook} from "../src/core/hooks/vaults/vault-bank/MintSuperPositionsHook.sol";
+
 // --- erc5115
 import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
 import { ApproveAndDeposit5115VaultHook } from "../src/core/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
@@ -225,6 +228,7 @@ struct Addresses {
     EthenaUnstakeHook ethenaUnstakeHook;
     BatchTransferFromHook batchTransferFromHook;
     OfframpTokensHook offrampTokensHook;
+    MintSuperPositionsHook mintSuperPositionsHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     ERC7540YieldSourceOracle erc7540YieldSourceOracle;
@@ -611,7 +615,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](48);
+            address[] memory hooksAddresses = new address[](49);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }();
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -1214,6 +1218,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][OFFRAMP_TOKENS_HOOK_KEY]);
             hooksAddresses[47] = address(A[i].offrampTokensHook);
 
+            A[i].mintSuperPositionsHook = new MintSuperPositionsHook{ salt: SALT }();
+            vm.label(address(A[i].mintSuperPositionsHook), MINT_SUPERPOSITIONS_HOOK_KEY);
+            hookAddresses[chainIds[i]][MINT_SUPERPOSITIONS_HOOK_KEY] = address(A[i].mintSuperPositionsHook);
+            hooks[chainIds[i]][MINT_SUPERPOSITIONS_HOOK_KEY] = Hook(
+                MINT_SUPERPOSITIONS_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.None,
+                address(A[i].mintSuperPositionsHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(hooks[chainIds[i]][MINT_SUPERPOSITIONS_HOOK_KEY]);
+            hooksAddresses[48] = address(A[i].mintSuperPositionsHook);
+
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
 
@@ -1451,6 +1468,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             superGovernor.registerHook(address(A[i].claimCancelDepositRequest7540Hook), false);
             superGovernor.registerHook(address(A[i].claimCancelRedeemRequest7540Hook), false);
             superGovernor.registerHook(address(A[i].cancelRedeemHook), false);
+            superGovernor.registerHook(address(A[i].mintSuperPositionsHook), false);
+
             // EXPERIMENTAL HOOKS FROM HERE ONWARDS
             superGovernor.registerHook(address(A[i].ethenaCooldownSharesHook), false);
             superGovernor.registerHook(address(A[i].ethenaUnstakeHook), true);
@@ -1809,6 +1828,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                     BRIDGE AND DST EXECUTION HELPERS
     //////////////////////////////////////////////////////////////*/
     enum RELAYER_TYPE {
+        USED_ROOT,
         NOT_ENOUGH_BALANCE,
         ENOUGH_BALANCE,
         NO_HOOKS,
@@ -1823,6 +1843,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         RELAYER_TYPE relayerType;
         bytes4 errorMessage;
         string errorReason;
+        bytes32 root;
         address account;
         uint256 relayerGas;
     }
@@ -1839,7 +1860,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         } else if (params.relayerType == RELAYER_TYPE.NO_HOOKS) {
             vm.expectEmit(true, true, true, true);
             emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNoHooks(params.account);
-        } else if (params.relayerType == RELAYER_TYPE.REVERT) {
+        }  else if (params.relayerType == RELAYER_TYPE.USED_ROOT) {
+            vm.expectEmit(true, true, true, true);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButRootUsedAlready(params.account, params.root);
+        }
+        else if (params.relayerType == RELAYER_TYPE.REVERT) {
             if (params.errorMessage != bytes4(0)) {
                 vm.expectRevert(params.errorMessage);
             } else {

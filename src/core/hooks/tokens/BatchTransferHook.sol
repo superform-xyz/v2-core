@@ -19,8 +19,6 @@ address constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 /// @notice         address to = BytesLib.toAddress(data, 0);
 /// @notice         bytes tokensArr = BytesLib.slice(data, 20, data.length - 20);
 contract BatchTransferHook is BaseHook, ISuperHookInspector {
-    uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
-
     error LENGTH_MISMATCH();
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }
