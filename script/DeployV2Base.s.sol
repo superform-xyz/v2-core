@@ -34,13 +34,7 @@ abstract contract DeployV2Base is Script, ConfigBase {
         // Predict the address using CREATE2
         address predictedAddr = vm.computeCreate2Address(salt, keccak256(type(SuperDeployer).creationCode));
 
-        // Check if already deployed
-        uint256 codeSize;
-        assembly {
-            codeSize := extcodesize(predictedAddr)
-        }
-
-        if (codeSize > 0) {
+        if (predictedAddr.code.length > 0) {
             console2.log("SuperDeployer already deployed at:", predictedAddr);
             console2.log("Skipping deployment...");
         } else {

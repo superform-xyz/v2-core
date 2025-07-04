@@ -172,22 +172,27 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         console2.log("Validating deployment dependencies for chain:", chainId);
 
         // Check Nexus Factory (required for SuperDestinationExecutor)
-        if (configuration.nexusFactories[chainId] == address(0)) {
+        if (
+            configuration.nexusFactories[chainId] == address(0) && configuration.nexusFactories[chainId].code.length > 0
+        ) {
             revert("NEXUS_FACTORY_NOT_CONFIGURED");
         }
         console2.log(" Nexus Factory:", configuration.nexusFactories[chainId]);
 
         // Check Permit2 (required for BatchTransferFromHook)
-        if (configuration.permit2s[chainId] == address(0)) {
+        if (configuration.permit2s[chainId] == address(0) && configuration.permit2s[chainId].code.length > 0) {
             revert("PERMIT2_NOT_CONFIGURED");
         }
         console2.log(" Permit2:", configuration.permit2s[chainId]);
 
         // Check critical router addresses
-        if (configuration.aggregationRouters[chainId] == address(0)) {
+        if (
+            configuration.aggregationRouters[chainId] == address(0)
+                && configuration.aggregationRouters[chainId].code.length > 0
+        ) {
             revert("1INCH_ROUTER_NOT_CONFIGURED");
         }
-        if (configuration.odosRouters[chainId] == address(0)) {
+        if (configuration.odosRouters[chainId] == address(0) && configuration.odosRouters[chainId].code.length > 0) {
             revert("ODOS_ROUTER_NOT_CONFIGURED");
         }
 
@@ -354,7 +359,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         // ===== HOOKS WITH VALIDATED DEPENDENCIES =====
 
         // BatchTransferFromHook - Requires Permit2 (already validated)
-        if (configuration.permit2s[chainId] == address(0)) {
+        if (configuration.permit2s[chainId] == address(0) && configuration.permit2s[chainId].code.length > 0) {
             revert("PERMIT2_NOT_CONFIGURED");
         }
         hooks[3] = HookDeployment(
@@ -385,7 +390,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         // ===== HOOKS WITH EXTERNAL ROUTER DEPENDENCIES =====
 
         // 1inch Swap Hook - Validate aggregation router
-        if (configuration.aggregationRouters[chainId] == address(0)) {
+        if (
+            configuration.aggregationRouters[chainId] == address(0)
+                && configuration.aggregationRouters[chainId].code.length > 0
+        ) {
             revert("1INCH_ROUTER_NOT_CONFIGURED");
         }
         hooks[17] = HookDeployment(
@@ -394,7 +402,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         );
 
         // ODOS Swap Hooks - Validate ODOS router
-        if (configuration.odosRouters[chainId] == address(0)) {
+        if (configuration.odosRouters[chainId] == address(0) && configuration.odosRouters[chainId].code.length > 0) {
             revert("ODOS_ROUTER_NOT_CONFIGURED");
         }
         hooks[18] = HookDeployment(
@@ -409,7 +417,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         );
 
         // Across Bridge Hook - Validate Across Spoke Pool
-        if (configuration.acrossSpokePoolV3s[chainId] == address(0)) {
+        if (
+            configuration.acrossSpokePoolV3s[chainId] == address(0)
+                && configuration.acrossSpokePoolV3s[chainId].code.length > 0
+        ) {
             revert("ACROSS_SPOKE_POOL_V3_NOT_CONFIGURED");
         }
         hooks[20] = HookDeployment(

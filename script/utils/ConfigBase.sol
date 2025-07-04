@@ -58,6 +58,7 @@ abstract contract ConfigBase is Constants {
         chainNames[BNB_CHAIN_ID] = BNB_KEY;
 
         // ===== COMMON CONFIGURATION =====
+        // TODO: think of making addresses as constant
         if (env == 0 || env == 2) {
             // Production environment
             configuration.owner = 0x22BC97cFac64D6d9BCaDF5dC36e4D01Db9e929c5;
