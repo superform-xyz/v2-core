@@ -20,7 +20,14 @@ interface ISuperDestinationExecutor {
         address indexed account, address indexed token, uint256 intentAmount, uint256 available
     );
 
+    /// @notice Emitted when a bridged execution is received but the account has no hooks
+    /// @param account The target account that lacks hooks for execution
     event SuperDestinationExecutorReceivedButNoHooks(address indexed account);
+
+    /// @notice Emitted when a bridged execution is received but the root has already been used
+    /// @param account The target account that has already used the root
+    /// @param root The merkle root that has already been used
+    event SuperDestinationExecutorReceivedButRootUsedAlready(address indexed account, bytes32 indexed root);
 
     /// @notice Emitted when a bridged execution completes successfully
     /// @param account The account on which the execution was performed

@@ -1828,6 +1828,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                     BRIDGE AND DST EXECUTION HELPERS
     //////////////////////////////////////////////////////////////*/
     enum RELAYER_TYPE {
+        USED_ROOT,
         NOT_ENOUGH_BALANCE,
         ENOUGH_BALANCE,
         NO_HOOKS,
@@ -1842,6 +1843,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         RELAYER_TYPE relayerType;
         bytes4 errorMessage;
         string errorReason;
+        bytes32 root;
         address account;
         uint256 relayerGas;
     }
@@ -1858,7 +1860,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         } else if (params.relayerType == RELAYER_TYPE.NO_HOOKS) {
             vm.expectEmit(true, true, true, true);
             emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNoHooks(params.account);
-        } else if (params.relayerType == RELAYER_TYPE.REVERT) {
+        }  else if (params.relayerType == RELAYER_TYPE.USED_ROOT) {
+            vm.expectEmit(true, true, true, true);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButRootUsedAlready(params.account, params.root);
+        }
+        else if (params.relayerType == RELAYER_TYPE.REVERT) {
             if (params.errorMessage != bytes4(0)) {
                 vm.expectRevert(params.errorMessage);
             } else {
