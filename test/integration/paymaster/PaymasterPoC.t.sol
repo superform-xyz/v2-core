@@ -425,7 +425,6 @@ contract PoC is PaymasterHelper {
         // SuperBundler calls paymaster.handleOps() with maxGasLimit * maxFeePerGas ether value, as was paid by the account
         // but the execution will fail since deposit will not cover the refund
         vm.deal(address(this), data.maxGasLimit * data.maxFeePerGas);
-        uint256 ethBalanceBefore = data.nexusAccount.balance;
 
         vm.recordLogs();
         data.paymaster.handleOps{gas: data.maxGasLimit, value: 2e16}(data.ops);

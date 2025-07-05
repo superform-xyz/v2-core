@@ -7,6 +7,7 @@ import { IEntryPointSimulations } from "modulekit/external/ERC4337.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { UserOperationLib } from "../../vendor/account-abstraction/UserOperationLib.sol";
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+
 // superform
 import { BasePaymaster } from "../../vendor/account-abstraction/BasePaymaster.sol";
 import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
@@ -72,6 +73,49 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
 
         emit UserOperationsHandled(msg.sender, ops.length, balance, withdrawnAmount);
     }
+
+    /// @notice Simulate the handling of a user operation.
+    /// @dev used by Bundler to validate a user operation before executing it.
+    /// @dev `EntryPointSimulations` is not deployed. This works only with an `eth_call` while changing
+    ///      the bytecode of `EntryPoint` with the one from `EntryPointSimulations`.
+    /// @param op The user operation to simulate.
+    /// @param target The target address of the user operation.
+    /// @param callData The call data for the user operation.
+    function simulateHandleOp(
+        PackedUserOperation calldata op,
+        address target,
+        bytes calldata callData
+    )
+        external
+        payable
+        returns (IEntryPointSimulations.ExecutionResult memory)
+    {
+        if (msg.value == 0) {
+            revert EMPTY_MESSAGE_VALUE();
+        }
+        IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
+        entryPointWithSimulations.depositTo{ value: msg.value }(address(this));
+        return entryPointWithSimulations.simulateHandleOp(op, target, callData);
+    }
+
+    /// @notice Simulate the validation of a user operation.
+    /// @dev used by Bundler to validate a user operation before executing it.
+    /// @dev `EntryPointSimulations` is not deployed. This works only with an `eth_call` while changing
+    ///      the bytecode of `EntryPoint` with the one from `EntryPointSimulations`.
+    /// @param op The user operation to simulate.
+    function simulateValidation(PackedUserOperation calldata op)
+        external
+        payable
+        returns (IEntryPointSimulations.ValidationResult memory)
+    {
+        if (msg.value == 0) {
+            revert EMPTY_MESSAGE_VALUE();
+        }
+        IEntryPointSimulations entryPointWithSimulations = _getEntryPointWithSimulations();
+        entryPointWithSimulations.depositTo{ value: msg.value }(address(this));
+        return entryPointWithSimulations.simulateValidation(op);
+    }
+
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
