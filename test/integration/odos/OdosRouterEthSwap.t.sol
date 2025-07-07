@@ -3,17 +3,17 @@ pragma solidity >=0.8.30;
 
 // Tests
 import { strings } from "@stringutils/strings.sol";
-import { SuperNativePaymaster } from "../../../src/core/paymaster/SuperNativePaymaster.sol";
+import { SuperNativePaymaster } from "../../../src/paymaster/SuperNativePaymaster.sol";
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { AccountInstance, UserOpData, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockValidatorModule } from "../../mocks/MockValidatorModule.sol";
 import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
 import { OdosAPIParser } from "../../utils/parsers/OdosAPIParser.sol";
-import { SwapOdosV2Hook } from "../../../src/core/hooks/swappers/odos/SwapOdosV2Hook.sol";
+import { SwapOdosV2Hook } from "../../../src/hooks/swappers/odos/SwapOdosV2Hook.sol";
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { MockOdosRouterV2 } from "../../mocks/MockOdosRouterV2.sol";
 

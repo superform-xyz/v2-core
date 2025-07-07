@@ -7,10 +7,10 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
-import {ISuperExecutor} from "../../../src/core/interfaces/ISuperExecutor.sol";
+import {ISuperExecutor} from "../../../src/interfaces/ISuperExecutor.sol";
 import {MockAccountingVault} from "../../mocks/MockAccountingVault.sol";
 import {MinimalBaseIntegrationTest} from "../MinimalBaseIntegrationTest.t.sol";
-import {ISuperLedgerConfiguration} from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import {ISuperLedgerConfiguration} from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 contract FeesTest is MinimalBaseIntegrationTest {
     IERC4626 public vaultInstance;

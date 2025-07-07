@@ -4,7 +4,7 @@ pragma solidity 0.8.30;
 import { Test } from "forge-std/Test.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { FluidClaimRewardHook } from "../../../../../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
+import { FluidClaimRewardHook } from "../../../../../src/hooks/claim/fluid/FluidClaimRewardHook.sol";
 
 contract MockFluidStakingRewards {
     address public rewardToken;

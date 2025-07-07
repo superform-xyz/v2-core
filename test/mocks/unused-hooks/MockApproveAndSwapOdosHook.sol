@@ -8,10 +8,10 @@ import { IOdosRouterV2 } from "../../../src/vendor/odos/IOdosRouterV2.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
-import { HookSubTypes } from "../../../src/core/libraries/HookSubTypes.sol";
-import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../src/core/interfaces/ISuperHook.sol";
+import { BaseHook } from "../../../src/hooks/BaseHook.sol";
+import { HookSubTypes } from "../../../src/libraries/HookSubTypes.sol";
+import { HookDataDecoder } from "../../../src/libraries/HookDataDecoder.sol";
+import { ISuperHookResult, ISuperHookContextAware } from "../../../src/interfaces/ISuperHook.sol";
 
 /// @title MockApproveAndSwapOdosHook
 /// @author Superform Labs

@@ -7,31 +7,31 @@ import { ConfigOtherHooks } from "./utils/ConfigOtherHooks.sol";
 
 // -- hooks for other deployments (non-early access)
 // ---- | claim
-import { FluidClaimRewardHook } from "../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
-import { GearboxClaimRewardHook } from "../src/core/hooks/claim/gearbox/GearboxClaimRewardHook.sol";
-import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
+import { FluidClaimRewardHook } from "../src/hooks/claim/fluid/FluidClaimRewardHook.sol";
+import { GearboxClaimRewardHook } from "../src/hooks/claim/gearbox/GearboxClaimRewardHook.sol";
+import { YearnClaimOneRewardHook } from "../src/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
 
 // ---- | stake
-import { ApproveAndGearboxStakeHook } from "../src/core/hooks/stake/gearbox/ApproveAndGearboxStakeHook.sol";
-import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
-import { GearboxUnstakeHook } from "../src/core/hooks/stake/gearbox/GearboxUnstakeHook.sol";
-import { FluidStakeHook } from "../src/core/hooks/stake/fluid/FluidStakeHook.sol";
-import { FluidUnstakeHook } from "../src/core/hooks/stake/fluid/FluidUnstakeHook.sol";
-import { ApproveAndFluidStakeHook } from "../src/core/hooks/stake/fluid/ApproveAndFluidStakeHook.sol";
+import { ApproveAndGearboxStakeHook } from "../src/hooks/stake/gearbox/ApproveAndGearboxStakeHook.sol";
+import { GearboxStakeHook } from "../src/hooks/stake/gearbox/GearboxStakeHook.sol";
+import { GearboxUnstakeHook } from "../src/hooks/stake/gearbox/GearboxUnstakeHook.sol";
+import { FluidStakeHook } from "../src/hooks/stake/fluid/FluidStakeHook.sol";
+import { FluidUnstakeHook } from "../src/hooks/stake/fluid/FluidUnstakeHook.sol";
+import { ApproveAndFluidStakeHook } from "../src/hooks/stake/fluid/ApproveAndFluidStakeHook.sol";
 
 // ---- | loan
-import { MorphoSupplyAndBorrowHook } from "../src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
-import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
-import { MorphoRepayAndWithdrawHook } from "../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
-import { MorphoBorrowHook } from "../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoSupplyAndBorrowHook } from "../src/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
+import { MorphoRepayHook } from "../src/hooks/loan/morpho/MorphoRepayHook.sol";
+import { MorphoRepayAndWithdrawHook } from "../src/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
+import { MorphoBorrowHook } from "../src/hooks/loan/morpho/MorphoBorrowHook.sol";
 
 // ---- | swappers/pendle
-import { PendleRouterSwapHook } from "../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
-import { PendleRouterRedeemHook } from "../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
+import { PendleRouterSwapHook } from "../src/hooks/swappers/pendle/PendleRouterSwapHook.sol";
+import { PendleRouterRedeemHook } from "../src/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
 
 // ---- | swappers/spectra
-import { SpectraExchangeDepositHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
-import { SpectraExchangeRedeemHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
+import { SpectraExchangeDepositHook } from "../src/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
+import { SpectraExchangeRedeemHook } from "../src/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
 
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { console2 } from "forge-std/console2.sol";
@@ -64,16 +64,30 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
 
     /// @notice Sets up complete configuration for other hooks deployment
     /// @param env Environment (0/2 = production, 1 = test)
-    function _setConfiguration(uint256 env) internal {
+    /// @param saltNamespace Salt namespace for deployment (if empty, uses production default)
+    function _setConfiguration(uint256 env, string memory saltNamespace) internal {
         // Set base configuration (chain names, common addresses)
-        _setBaseConfiguration(env);
+        _setBaseConfiguration(env, saltNamespace);
 
         // Set protocol router addresses for hooks
         _setOtherHooksConfiguration();
     }
 
     function run(uint256 env, uint64 chainId) public broadcast(env) {
-        _setConfiguration(env);
+        _setConfiguration(env, "");
+        console2.log("Deploying V2 Other Hooks on chainId: ", chainId);
+
+        _deployDeployer();
+
+        // deploy other hooks
+        _deployOtherHooks(chainId);
+
+        // Write all exported contracts for this chain
+        _writeExportedContracts(chainId);
+    }
+
+    function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
+        _setConfiguration(env, saltNamespace);
         console2.log("Deploying V2 Other Hooks on chainId: ", chainId);
 
         _deployDeployer();

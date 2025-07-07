@@ -7,9 +7,9 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
 // Superform
-import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../src/hooks/BaseHook.sol";
 
-import { ISuperHookResult } from "../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHookResult } from "../../../src/interfaces/ISuperHook.sol";
 import { IPermit2Single } from "../../../src/vendor/uniswap/permit2/IPermit2Single.sol";
 import { IAllowanceTransfer } from "../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
 

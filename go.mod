@@ -1,4 +1,4 @@
-module github.com/superform-xyz/v2-contracts
+module github.com/superform-xyz/v2-core
 
 go 1.22.5
 

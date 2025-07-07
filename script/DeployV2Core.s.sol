@@ -6,72 +6,72 @@ import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
 import { ConfigCore } from "./utils/ConfigCore.sol";
 import { ConfigOtherHooks } from "./utils/ConfigOtherHooks.sol";
 
-import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
-import { SuperDestinationExecutor } from "../src/core/executors/SuperDestinationExecutor.sol";
-import { AcrossV3Adapter } from "../src/core/adapters/AcrossV3Adapter.sol";
-import { DebridgeAdapter } from "../src/core/adapters/DebridgeAdapter.sol";
+import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
+import { SuperDestinationExecutor } from "../src/executors/SuperDestinationExecutor.sol";
+import { AcrossV3Adapter } from "../src/adapters/AcrossV3Adapter.sol";
+import { DebridgeAdapter } from "../src/adapters/DebridgeAdapter.sol";
 
-import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
-import { FlatFeeLedger } from "../src/core/accounting/FlatFeeLedger.sol";
-import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
-import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
-import { SuperDestinationValidator } from "../src/core/validators/SuperDestinationValidator.sol";
-import { SuperNativePaymaster } from "../src/core/paymaster/SuperNativePaymaster.sol";
+import { SuperLedger } from "../src/accounting/SuperLedger.sol";
+import { FlatFeeLedger } from "../src/accounting/FlatFeeLedger.sol";
+import { SuperLedgerConfiguration } from "../src/accounting/SuperLedgerConfiguration.sol";
+import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { SuperMerkleValidator } from "../src/validators/SuperMerkleValidator.sol";
+import { SuperDestinationValidator } from "../src/validators/SuperDestinationValidator.sol";
+import { SuperNativePaymaster } from "../src/paymaster/SuperNativePaymaster.sol";
 
 // -- hooks
 // ---- | swappers
-import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
-import { SwapOdosV2Hook } from "../src/core/hooks/swappers/odos/SwapOdosV2Hook.sol";
-import { ApproveAndSwapOdosV2Hook } from "../src/core/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol";
+import { Swap1InchHook } from "../src/hooks/swappers/1inch/Swap1InchHook.sol";
+import { SwapOdosV2Hook } from "../src/hooks/swappers/odos/SwapOdosV2Hook.sol";
+import { ApproveAndSwapOdosV2Hook } from "../src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol";
 
 // ---- | tokens
-import { ApproveERC20Hook } from "../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
-import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
-import { BatchTransferHook } from "../src/core/hooks/tokens/BatchTransferHook.sol";
-import { BatchTransferFromHook } from "../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
-import { OfframpTokensHook } from "../src/core/hooks/tokens/OfframpTokensHook.sol";
-import { MintSuperPositionsHook } from "../src/core/hooks/vaults/vault-bank/MintSuperPositionsHook.sol";
+import { ApproveERC20Hook } from "../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { TransferERC20Hook } from "../src/hooks/tokens/erc20/TransferERC20Hook.sol";
+import { BatchTransferHook } from "../src/hooks/tokens/BatchTransferHook.sol";
+import { BatchTransferFromHook } from "../src/hooks/tokens/permit2/BatchTransferFromHook.sol";
+import { OfframpTokensHook } from "../src/hooks/tokens/OfframpTokensHook.sol";
+import { MintSuperPositionsHook } from "../src/hooks/vaults/vault-bank/MintSuperPositionsHook.sol";
 
 // ---- | vault
-import { Deposit4626VaultHook } from "../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
-import { ApproveAndDeposit4626VaultHook } from "../src/core/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
-import { Redeem4626VaultHook } from "../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
-import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
-import { ApproveAndDeposit5115VaultHook } from "../src/core/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
-import { Redeem5115VaultHook } from "../src/core/hooks/vaults/5115/Redeem5115VaultHook.sol";
-import { RequestDeposit7540VaultHook } from "../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
+import { Deposit4626VaultHook } from "../src/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { ApproveAndDeposit4626VaultHook } from "../src/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
+import { Redeem4626VaultHook } from "../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { Deposit5115VaultHook } from "../src/hooks/vaults/5115/Deposit5115VaultHook.sol";
+import { ApproveAndDeposit5115VaultHook } from "../src/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
+import { Redeem5115VaultHook } from "../src/hooks/vaults/5115/Redeem5115VaultHook.sol";
+import { RequestDeposit7540VaultHook } from "../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
 import { ApproveAndRequestDeposit7540VaultHook } from
-    "../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
+    "../src/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
 import { ApproveAndRequestRedeem7540VaultHook } from
-    "../src/core/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
-import { Deposit7540VaultHook } from "../src/core/hooks/vaults/7540/Deposit7540VaultHook.sol";
-import { Redeem7540VaultHook } from "../src/core/hooks/vaults/7540/Redeem7540VaultHook.sol";
-import { RequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
-import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
-import { CancelDepositRequest7540Hook } from "../src/core/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
-import { CancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
-import { ClaimCancelDepositRequest7540Hook } from "../src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
-import { ClaimCancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
-import { CancelRedeemHook } from "../src/core/hooks/vaults/super-vault/CancelRedeemHook.sol";
+    "../src/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
+import { Deposit7540VaultHook } from "../src/hooks/vaults/7540/Deposit7540VaultHook.sol";
+import { Redeem7540VaultHook } from "../src/hooks/vaults/7540/Redeem7540VaultHook.sol";
+import { RequestRedeem7540VaultHook } from "../src/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
+import { Withdraw7540VaultHook } from "../src/hooks/vaults/7540/Withdraw7540VaultHook.sol";
+import { CancelDepositRequest7540Hook } from "../src/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
+import { CancelRedeemRequest7540Hook } from "../src/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
+import { ClaimCancelDepositRequest7540Hook } from "../src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
+import { ClaimCancelRedeemRequest7540Hook } from "../src/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
+import { CancelRedeemHook } from "../src/hooks/vaults/super-vault/CancelRedeemHook.sol";
 
 // ---- | bridges
 import { AcrossSendFundsAndExecuteOnDstHook } from
-    "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+    "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { DeBridgeSendOrderAndExecuteOnDstHook } from
-    "../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
-import { DeBridgeCancelOrderHook } from "../src/core/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
-import { EthenaCooldownSharesHook } from "../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
-import { EthenaUnstakeHook } from "../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
+    "../src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
+import { DeBridgeCancelOrderHook } from "../src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
+import { EthenaCooldownSharesHook } from "../src/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
+import { EthenaUnstakeHook } from "../src/hooks/vaults/ethena/EthenaUnstakeHook.sol";
 
 // -- oracles
-import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import { PendlePTYieldSourceOracle } from "../src/core/accounting/oracles/PendlePTYieldSourceOracle.sol";
-import { SpectraPTYieldSourceOracle } from "../src/core/accounting/oracles/SpectraPTYieldSourceOracle.sol";
-import { StakingYieldSourceOracle } from "../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
-import { SuperYieldSourceOracle } from "../src/core/accounting/oracles/SuperYieldSourceOracle.sol";
+import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import { ERC7540YieldSourceOracle } from "../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { PendlePTYieldSourceOracle } from "../src/accounting/oracles/PendlePTYieldSourceOracle.sol";
+import { SpectraPTYieldSourceOracle } from "../src/accounting/oracles/SpectraPTYieldSourceOracle.sol";
+import { StakingYieldSourceOracle } from "../src/accounting/oracles/StakingYieldSourceOracle.sol";
+import { SuperYieldSourceOracle } from "../src/accounting/oracles/SuperYieldSourceOracle.sol";
 
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { console2 } from "forge-std/console2.sol";
@@ -137,9 +137,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
 
     /// @notice Sets up complete configuration for core contracts with hook support
     /// @param env Environment (0/2 = production, 1 = test)
-    function _setConfiguration(uint256 env) internal {
+    /// @param saltNamespace Salt namespace for deployment (if empty, uses production default)
+    function _setConfiguration(uint256 env, string memory saltNamespace) internal {
         // Set base configuration (chain names, common addresses)
-        _setBaseConfiguration(env);
+        _setBaseConfiguration(env, saltNamespace);
 
         // Set core contract dependencies
         _setCoreConfiguration();
@@ -149,7 +150,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
     }
 
     function run(uint256 env, uint64 chainId) public broadcast(env) {
-        _setConfiguration(env);
+        _setConfiguration(env, "");
+        console2.log("Deploying V2 Core (Early Access) on chainId: ", chainId);
+
+        _deployDeployer();
+
+        // deploy core contracts
+        _deployCoreContracts(chainId);
+
+        // Write all exported contracts for this chain
+        _writeExportedContracts(chainId);
+    }
+
+    function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
+        _setConfiguration(env, saltNamespace);
         console2.log("Deploying V2 Core (Early Access) on chainId: ", chainId);
 
         _deployDeployer();

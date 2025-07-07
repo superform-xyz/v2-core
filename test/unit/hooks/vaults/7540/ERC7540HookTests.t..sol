@@ -4,30 +4,29 @@ pragma solidity 0.8.30;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ApproveAndRequestDeposit7540VaultHook } from
-    "../../../../../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
-import { RequestDeposit7540VaultHook } from "../../../../../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
+    "../../../../../src/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
+import { RequestDeposit7540VaultHook } from "../../../../../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
 import { ApproveAndRequestRedeem7540VaultHook } from
-    "../../../../../src/core/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
-import { Redeem7540VaultHook } from "../../../../../src/core/hooks/vaults/7540/Redeem7540VaultHook.sol";
-import { Withdraw7540VaultHook } from "../../../../../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
-import { Deposit7540VaultHook } from "../../../../../src/core/hooks/vaults/7540/Deposit7540VaultHook.sol";
-import { RequestRedeem7540VaultHook } from "../../../../../src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
-import { CancelDepositRequest7540Hook } from
-    "../../../../../src/core/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
-import { CancelRedeemRequest7540Hook } from "../../../../../src/core/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
+    "../../../../../src/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
+import { Redeem7540VaultHook } from "../../../../../src/hooks/vaults/7540/Redeem7540VaultHook.sol";
+import { Withdraw7540VaultHook } from "../../../../../src/hooks/vaults/7540/Withdraw7540VaultHook.sol";
+import { Deposit7540VaultHook } from "../../../../../src/hooks/vaults/7540/Deposit7540VaultHook.sol";
+import { RequestRedeem7540VaultHook } from "../../../../../src/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
+import { CancelDepositRequest7540Hook } from "../../../../../src/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
+import { CancelRedeemRequest7540Hook } from "../../../../../src/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
 import { ClaimCancelDepositRequest7540Hook } from
-    "../../../../../src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
+    "../../../../../src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
 import { ClaimCancelRedeemRequest7540Hook } from
-    "../../../../../src/core/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { ISuperHook, ISuperHookAsyncCancelations } from "../../../../../src/core/interfaces/ISuperHook.sol";
+    "../../../../../src/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
+import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
+import { ISuperHook, ISuperHookAsyncCancelations } from "../../../../../src/interfaces/ISuperHook.sol";
 import { IERC7540 } from "../../../../../src/vendor/vaults/7540/IERC7540.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { Helpers } from "../../../../../test/utils/Helpers.sol";
-import { HookSubTypes } from "../../../../../src/core/libraries/HookSubTypes.sol";
+import { HookSubTypes } from "../../../../../src/libraries/HookSubTypes.sol";
 import { InternalHelpers } from "../../../../../test/utils/InternalHelpers.sol";
-import { CancelRedeemHook } from "../../../../../src/core/hooks/vaults/super-vault/CancelRedeemHook.sol";
+import { CancelRedeemHook } from "../../../../../src/hooks/vaults/super-vault/CancelRedeemHook.sol";
 
 contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     RequestDeposit7540VaultHook public requestDepositHook;
@@ -737,8 +736,7 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         yieldSource = token; // for the .balanceOf call
         _getTokens(token, address(this), amount);
 
-        bytes memory data =
-            abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), address(this), uint256(1));
+        bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), address(this), uint256(1));
 
         claimCancelRedeemRequestHook.preExecute(address(0), address(this), data);
         assertEq(claimCancelRedeemRequestHook.getOutAmount(address(this)), 1_000_000_000);
@@ -754,21 +752,15 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
     function test_ClaimCancelRedeemRequestHook_SpTokenAndDstChainId() public {
         address receiver = address(0x123);
         address vaultBank = address(0x456);
-        uint256 testDstChainId = 12345;
-        
+        uint256 testDstChainId = 12_345;
+
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, receiver, vaultBank, testDstChainId);
-        
+
         claimCancelRedeemRequestHook.preExecute(address(0), address(this), data);
-        
-        assertEq(
-            claimCancelRedeemRequestHook.spToken(), 
-            address(token)
-        );
-        
-        assertEq(
-            claimCancelRedeemRequestHook.dstChainId(), 
-            testDstChainId
-        );
+
+        assertEq(claimCancelRedeemRequestHook.spToken(), address(token));
+
+        assertEq(claimCancelRedeemRequestHook.dstChainId(), testDstChainId);
     }
 
     function test_claimCancelDepositRequestHook_PreAndPostExecute() public {
@@ -857,25 +849,16 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
 
     function test_CancelRedeemHook_SpTokenAndDstChainId() public {
         address vaultBank = address(0x456);
-        uint256 testDstChainId = 12345;
+        uint256 testDstChainId = 12_345;
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, vaultBank, testDstChainId);
 
         cancelRedeemHook.preExecute(address(0), address(this), data);
 
-        assertEq(
-            cancelRedeemHook.vaultBank(), 
-            vaultBank, "A"
-        );
-        assertEq(
-            cancelRedeemHook.dstChainId(), 
-            testDstChainId, "B"
-        );
+        assertEq(cancelRedeemHook.vaultBank(), vaultBank, "A");
+        assertEq(cancelRedeemHook.dstChainId(), testDstChainId, "B");
 
-        assertEq(
-            cancelRedeemHook.spToken(), 
-            address(yieldSource), "C"
-        );
+        assertEq(cancelRedeemHook.spToken(), address(yieldSource), "C");
     }
 
     function test_CancelRedeemHook_Build_Revert_ZeroAddress() public {
@@ -916,14 +899,13 @@ contract ERC7540VaultHookTests is Helpers, InternalHelpers {
         );
     }
 
-    
-
     /*//////////////////////////////////////////////////////////////
                                 HELPERS
     //////////////////////////////////////////////////////////////*/
     function share() public view returns (address) {
         return token;
     }
+
     function _encodeData() internal view returns (bytes memory) {
         return abi.encodePacked(yieldSourceOracleId, yieldSource, address(this));
     }

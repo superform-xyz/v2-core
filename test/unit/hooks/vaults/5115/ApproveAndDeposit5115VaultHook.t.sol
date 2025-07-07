@@ -3,16 +3,15 @@ pragma solidity 0.8.30;
 
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { ApproveAndDeposit5115VaultHook } from
-    "../../../../../src/core/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
-import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ApproveAndDeposit5115VaultHook } from "../../../../../src/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
+import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
-import { SuperExecutor } from "../../../../../src/core/executors/SuperExecutor.sol";
+import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
+import { SuperExecutor } from "../../../../../src/executors/SuperExecutor.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 import { InternalHelpers } from "../../../../utils/InternalHelpers.sol";
-import { ISuperExecutor } from "../../../../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperExecutor } from "../../../../../src/interfaces/ISuperExecutor.sol";
 import { IStandardizedYield } from "../../../../../src/vendor/pendle/IStandardizedYield.sol";
 import { MockLedger, MockLedgerConfiguration } from "../../../../mocks/MockLedger.sol";
 import { RhinestoneModuleKit, AccountInstance, UserOpData, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
