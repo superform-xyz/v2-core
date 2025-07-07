@@ -7,9 +7,9 @@ import { BytesLib } from "../../src/vendor/BytesLib.sol";
 import { IAcrossSpokePoolV3 } from "../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
 
 // Superform
-import { BaseHook } from "../../src/core/hooks/BaseHook.sol";
-import { HookSubTypes } from "../../src/core/libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../src/core/interfaces/ISuperHook.sol";
+import { BaseHook } from "../../src/hooks/BaseHook.sol";
+import { HookSubTypes } from "../../src/libraries/HookSubTypes.sol";
+import { ISuperHookResult, ISuperHookContextAware } from "../../src/interfaces/ISuperHook.sol";
 
 /// @title MockAcrossHook
 /// @author Superform Labs

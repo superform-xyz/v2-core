@@ -9,15 +9,15 @@ import { IModule } from "modulekit/accounts/common/interfaces/IERC7579Module.sol
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperHook, ISuperHookResult, ISuperLockableHook } from "../../src/core/interfaces/ISuperHook.sol";
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
+import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperHook, ISuperHookResult, ISuperLockableHook } from "../../src/interfaces/ISuperHook.sol";
 import { ISuperCollectiveVault } from "./ISuperCollectiveVault.sol";
 
 import { INexusFactory } from "../../src/vendor/nexus/INexusFactory.sol";
 
-import { HookDataDecoder } from "../../src/core/libraries/HookDataDecoder.sol";
+import { HookDataDecoder } from "../../src/libraries/HookDataDecoder.sol";
 
 contract MockTargetExecutor is ERC7579ExecutorBase, ISuperExecutor {
     using HookDataDecoder for bytes;

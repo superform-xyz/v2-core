@@ -2,7 +2,7 @@
 pragma solidity >=0.8.30;
 
 import { Helpers } from "../../../utils/Helpers.sol";
-import { PendleRouterSwapHook } from "../../../../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
+import { PendleRouterSwapHook } from "../../../../src/hooks/swappers/pendle/PendleRouterSwapHook.sol";
 import {
     IPendleRouterV4,
     ApproxParams,
@@ -19,9 +19,9 @@ import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
 import { MockPendleRouter } from "../../../mocks/MockPendleRouter.sol";
 import { MockPendleMarket } from "../../../mocks/MockPendleMarket.sol";
-import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../src/interfaces/ISuperHook.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 
 contract PendleRouterSwapHookTest is Helpers {
     PendleRouterSwapHook public hook;

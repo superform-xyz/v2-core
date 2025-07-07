@@ -4,14 +4,13 @@ pragma solidity 0.8.30;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { ApproveAndDeposit4626VaultHook } from
-    "../../../../../src/core/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
-import { Deposit4626VaultHook } from "../../../../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
-import { Redeem4626VaultHook } from "../../../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
-import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ApproveAndDeposit4626VaultHook } from "../../../../../src/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
+import { Deposit4626VaultHook } from "../../../../../src/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { Redeem4626VaultHook } from "../../../../../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 
 contract ERC4626VaultHooksTest is Helpers {

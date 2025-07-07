@@ -8,7 +8,7 @@ import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
 import {AccountInstance} from "modulekit/ModuleKit.sol";
 
 // Superform
-import {SuperNativePaymaster} from "../../../src/core/paymaster/SuperNativePaymaster.sol";
+import {SuperNativePaymaster} from "../../../src/paymaster/SuperNativePaymaster.sol";
 import {MockEntryPoint} from "../../mocks/MockEntryPoint.sol";
 import {Helpers} from "../../utils/Helpers.sol";
 

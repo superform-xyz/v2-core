@@ -4,14 +4,14 @@ pragma solidity 0.8.30;
 import { InternalHelpers } from "../../../utils/InternalHelpers.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 
-import { SpectraPTYieldSourceOracle } from "../../../../src/core/accounting/oracles/SpectraPTYieldSourceOracle.sol";
-import { IYieldSourceOracle } from "../../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
+import { SpectraPTYieldSourceOracle } from "../../../../src/accounting/oracles/SpectraPTYieldSourceOracle.sol";
+import { IYieldSourceOracle } from "../../../../src/interfaces/accounting/IYieldSourceOracle.sol";
 import { MockSpectraPrincipalToken } from "../../../mocks/MockSpectraPrincipalToken.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
-import { SuperLedgerConfiguration } from "../../../../src/core/accounting/SuperLedgerConfiguration.sol";
-import { ISuperLedgerConfiguration } from "../../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperLedger } from "../../../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { SuperLedger } from "../../../../src/core/accounting/SuperLedger.sol";
+import { SuperLedgerConfiguration } from "../../../../src/accounting/SuperLedgerConfiguration.sol";
+import { ISuperLedgerConfiguration } from "../../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperLedger } from "../../../../src/interfaces/accounting/ISuperLedger.sol";
+import { SuperLedger } from "../../../../src/accounting/SuperLedger.sol";
 
 contract SpectraPTYieldSourceOracleTest is InternalHelpers, Helpers {
     SpectraPTYieldSourceOracle public oracle;

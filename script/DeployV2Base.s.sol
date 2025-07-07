@@ -81,10 +81,10 @@ abstract contract DeployV2Base is Script, ConfigBase {
         return deployedAddr;
     }
 
-    function __getSalt(string memory name) internal pure returns (bytes32) {
-        // Completely deterministic salt generation - independent of all external factors
-        // Only depends on contract name, guaranteeing same address across all chains/deployers
-        return keccak256(abi.encodePacked("SuperformV2", name, "v2.0"));
+    function __getSalt(string memory name) internal view returns (bytes32) {
+        // Use configurable salt namespace for deployment
+        // This allows for different salt namespaces for production vs test/vnet deployments
+        return keccak256(abi.encodePacked("SuperformV2", SALT_NAMESPACE, name, "v2.0"));
     }
 
     // Add a mapping to track exported contracts per chain

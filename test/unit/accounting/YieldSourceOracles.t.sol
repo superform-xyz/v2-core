@@ -12,16 +12,16 @@ import { ERC20 } from "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IStakingVault } from "../../../src/vendor/staking/IStakingVault.sol";
 
-import { ERC4626YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import { ERC5115YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { ERC7540YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import { StakingYieldSourceOracle } from "../../../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
+import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC5115YieldSourceOracle } from "../../../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import { ERC7540YieldSourceOracle } from "../../../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { StakingYieldSourceOracle } from "../../../src/accounting/oracles/StakingYieldSourceOracle.sol";
 
-import { SuperLedgerConfiguration } from "../../../src/core/accounting/SuperLedgerConfiguration.sol";
-import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
+import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
-import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { SuperLedger } from "../../../src/core/accounting/SuperLedger.sol";
+import { ISuperLedger } from "../../../src/interfaces/accounting/ISuperLedger.sol";
+import { SuperLedger } from "../../../src/accounting/SuperLedger.sol";
 
 contract YieldSourceOraclesTest is Helpers {
     ISuperLedgerConfiguration public ledgerConfig;

@@ -6,12 +6,12 @@ import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../src/hooks/BaseHook.sol";
 
-import { ISuperHookResult, ISuperHookInflowOutflow } from "../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow } from "../../../src/interfaces/ISuperHook.sol";
 import { IFluidLendingStakingRewards } from "../../../src/vendor/fluid/IFluidLendingStakingRewards.sol";
 
-import { HookDataDecoder } from "../../../src/core/libraries/HookDataDecoder.sol";
+import { HookDataDecoder } from "../../../src/libraries/HookDataDecoder.sol";
 
 /// @title FluidStakeWithPermitHook
 /// @author Superform Labs

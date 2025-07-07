@@ -2,13 +2,13 @@
 pragma solidity 0.8.30;
 
 import { Helpers } from "../../../utils/Helpers.sol";
-import { PendleRouterRedeemHook } from "../../../../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
+import { PendleRouterRedeemHook } from "../../../../src/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
 import { IPendleRouterV4, TokenOutput, SwapData, SwapType } from "../../../../src/vendor/pendle/IPendleRouterV4.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
-import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../src/interfaces/ISuperHook.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 
 contract PendleRouterRedeemHookTest is Helpers {
     PendleRouterRedeemHook public hook;

@@ -3,13 +3,13 @@ pragma solidity 0.8.30;
 
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
-import { ERC4626YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { Helpers } from "../../utils/Helpers.sol";
-import { SuperLedgerConfiguration } from "../../../src/core/accounting/SuperLedgerConfiguration.sol";
-import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { SuperLedger } from "../../../src/core/accounting/SuperLedger.sol";
+import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
+import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperLedger } from "../../../src/interfaces/accounting/ISuperLedger.sol";
+import { SuperLedger } from "../../../src/accounting/SuperLedger.sol";
 
 contract ERC4626YieldSourceOracleTest is Helpers {
     ISuperLedgerConfiguration public ledgerConfig;

@@ -8,10 +8,10 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {MinimalBaseNexusIntegrationTest} from "../MinimalBaseNexusIntegrationTest.t.sol";
 import {INexus} from "../../../src/vendor/nexus/INexus.sol";
 import {MockRegistry} from "../../mocks/MockRegistry.sol";
-import {ISuperExecutor} from "../../../src/core/interfaces/ISuperExecutor.sol";
+import {ISuperExecutor} from "../../../src/interfaces/ISuperExecutor.sol";
 
 import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
-import {SuperNativePaymaster} from "../../../src/core/paymaster/SuperNativePaymaster.sol";
+import {SuperNativePaymaster} from "../../../src/paymaster/SuperNativePaymaster.sol";
 import {IEntryPoint} from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import {PaymasterHelper} from "./PaymasterHelper.t.sol";
 import "forge-std/console2.sol";

@@ -8,10 +8,10 @@ import { MockPendleRouter } from "../../mocks/MockPendleRouter.sol";
 import { MockPendleMarket } from "../../mocks/MockPendleMarket.sol";
 import { IPendleMarket } from "../../../src/vendor/pendle/IPendleMarket.sol";
 import { IPendleRouterV4, TokenInput, SwapData, SwapType } from "../../../src/vendor/pendle/IPendleRouterV4.sol";
-import { PendleRouterRedeemHook } from "../../../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
-import { PendleRouterSwapHook } from "../../../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
+import { PendleRouterRedeemHook } from "../../../src/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
+import { PendleRouterSwapHook } from "../../../src/hooks/swappers/pendle/PendleRouterSwapHook.sol";
 import { IStandardizedYield } from "../../../src/vendor/pendle/IStandardizedYield.sol";
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
 import {

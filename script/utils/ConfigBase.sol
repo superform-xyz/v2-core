@@ -46,8 +46,14 @@ abstract contract ConfigBase is Constants {
 
     /// @notice Sets up base configuration including chain names and common addresses
     /// @param env Environment (0/2 = production, 1 = test)
-    function _setBaseConfiguration(uint256 env) internal {
-        SALT_NAMESPACE = bytes(PRODUCTION_SALT_NAMESPACE);
+    /// @param saltNamespace Salt namespace for deployment (if empty, uses production default)
+    function _setBaseConfiguration(uint256 env, string memory saltNamespace) internal {
+        // Set salt namespace - use production default if empty
+        if (bytes(saltNamespace).length == 0) {
+            SALT_NAMESPACE = bytes(PRODUCTION_SALT_NAMESPACE);
+        } else {
+            SALT_NAMESPACE = bytes(saltNamespace);
+        }
 
         // ===== MAINNET CHAIN NAMES =====
         chainNames[MAINNET_CHAIN_ID] = ETHEREUM_KEY;

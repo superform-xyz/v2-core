@@ -4,7 +4,7 @@ pragma solidity 0.8.30;
 // external
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 // superform
-import { BaseLedger } from "../../src/core/accounting/BaseLedger.sol";
+import { BaseLedger } from "../../src/accounting/BaseLedger.sol";
 
 /// @title ERC5115Ledger
 /// @author Superform Labs

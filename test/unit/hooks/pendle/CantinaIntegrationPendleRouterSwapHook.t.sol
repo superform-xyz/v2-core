@@ -5,9 +5,9 @@ import "forge-std/Test.sol";
 import "forge-std/console.sol";
 
 import { MockHook } from "../../../mocks/MockHook.sol";
-import { ISuperHook, Execution } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook, Execution } from "../../../../src/interfaces/ISuperHook.sol";
 
-import { PendleRouterSwapHook } from "../../../../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
+import { PendleRouterSwapHook } from "../../../../src/hooks/swappers/pendle/PendleRouterSwapHook.sol";
 
 contract CantinaIntegrationPendleRouterSwapHookTest is Test {
     address constant PENDLE_ROUTER = address(0x888888888889758F76e7103c6CbF23ABbF58F946);

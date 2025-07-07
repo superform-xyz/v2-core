@@ -2,8 +2,8 @@
 pragma solidity 0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { Swap1InchHook } from "../../../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
-import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { Swap1InchHook } from "../../../../../src/hooks/swappers/1inch/Swap1InchHook.sol";
+import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import "../../../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";

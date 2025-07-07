@@ -7,13 +7,13 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 import {MinimalBaseNexusIntegrationTest} from "../../MinimalBaseNexusIntegrationTest.t.sol";
 import {MockRegistry} from "../../../mocks/MockRegistry.sol";
-import {ISuperExecutor} from "../../../../src/core/interfaces/ISuperExecutor.sol";
-import {ISuperLedgerConfiguration} from "../../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import {ISuperExecutor} from "../../../../src/interfaces/ISuperExecutor.sol";
+import {ISuperLedgerConfiguration} from "../../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import {IStandardizedYield} from "../../../../src/vendor/pendle/IStandardizedYield.sol";
 
-import {ERC5115YieldSourceOracle} from "../../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import {Deposit5115VaultHook} from "../../../../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
-import {Redeem5115VaultHook} from "../../../../src/core/hooks/vaults/5115/Redeem5115VaultHook.sol";
+import {ERC5115YieldSourceOracle} from "../../../../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import {Deposit5115VaultHook} from "../../../../src/hooks/vaults/5115/Deposit5115VaultHook.sol";
+import {Redeem5115VaultHook} from "../../../../src/hooks/vaults/5115/Redeem5115VaultHook.sol";
 
 contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
     MockRegistry public nexusRegistry;

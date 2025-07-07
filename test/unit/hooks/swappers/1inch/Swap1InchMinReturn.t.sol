@@ -3,8 +3,8 @@ pragma solidity 0.8.30;
 
 import { Test } from "forge-std/Test.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { Swap1InchHook } from "../../../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
-import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { Swap1InchHook } from "../../../../../src/hooks/swappers/1inch/Swap1InchHook.sol";
+import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import "../../../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 import "forge-std/console.sol";
@@ -129,13 +129,9 @@ contract Swap1InchHookBugTest is Test {
         // Skip the selector (4 bytes) and decode using abi.decode
         // This matches how the data is encoded in _validateUnoswap
 
-        (
-            Address to, 
-            Address token, 
-            uint256 amount, 
-            uint256 minReturn, 
-        ) = abi.decode(BytesLib.slice(data, 4, data.length - 4), (Address, Address, uint256, uint256, Address));
-        
+        (Address to, Address token, uint256 amount, uint256 minReturn,) =
+            abi.decode(BytesLib.slice(data, 4, data.length - 4), (Address, Address, uint256, uint256, Address));
+
         // Extract actual addresses from Address type using the unwrap pattern
         rst.receiver = to.get();
         rst.fromToken = token.get();

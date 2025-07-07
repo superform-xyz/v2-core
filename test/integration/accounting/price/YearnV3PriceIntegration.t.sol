@@ -7,10 +7,10 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 import { MinimalBaseNexusIntegrationTest } from "../../MinimalBaseNexusIntegrationTest.t.sol";
 import { MockRegistry } from "../../../mocks/MockRegistry.sol";
-import { ISuperExecutor } from "../../../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedgerConfiguration } from "../../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperExecutor } from "../../../../src/interfaces/ISuperExecutor.sol";
+import { ISuperLedgerConfiguration } from "../../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
-import { ERC4626YieldSourceOracle } from "../../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC4626YieldSourceOracle } from "../../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 
 // 4626 vault
 contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {

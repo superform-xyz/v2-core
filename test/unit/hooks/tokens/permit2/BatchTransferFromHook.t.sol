@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Helpers} from "../../../../utils/Helpers.sol";
-import {InternalHelpers} from "../../../../utils/InternalHelpers.sol";
-import {BaseHook} from "../../../../../src/core/hooks/BaseHook.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
-import {BatchTransferFromHook} from "../../../../../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
-import {IAllowanceTransfer} from "../../../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
-import {IPermit2Batch} from "../../../../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
+import { InternalHelpers } from "../../../../utils/InternalHelpers.sol";
+import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
+import { BatchTransferFromHook } from "../../../../../src/hooks/tokens/permit2/BatchTransferFromHook.sol";
+import { IAllowanceTransfer } from "../../../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import { IPermit2Batch } from "../../../../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
 
 contract BatchTransferFromHookTest is Helpers, InternalHelpers {
     BatchTransferFromHook public hook;
@@ -115,7 +115,11 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         assertEq(executions[2].callData, expectedTransferCallData);
     }
 
-    function _buildExpectedPermitBatch(address spender, address[] memory tokens_, uint256[] memory amountPerToken)
+    function _buildExpectedPermitBatch(
+        address spender,
+        address[] memory tokens_,
+        uint256[] memory amountPerToken
+    )
         internal
         view
         returns (IAllowanceTransfer.PermitBatch memory)
@@ -132,7 +136,7 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
             });
         }
 
-        return IAllowanceTransfer.PermitBatch({details: details, spender: spender, sigDeadline: sigDeadline});
+        return IAllowanceTransfer.PermitBatch({ details: details, spender: spender, sigDeadline: sigDeadline });
     }
 
     function _buildExpectedTransferDetails(
@@ -140,7 +144,11 @@ contract BatchTransferFromHookTest is Helpers, InternalHelpers {
         address to,
         address[] memory tokens_,
         uint256[] memory amountPerToken
-    ) internal pure returns (IAllowanceTransfer.AllowanceTransferDetails[] memory) {
+    )
+        internal
+        pure
+        returns (IAllowanceTransfer.AllowanceTransferDetails[] memory)
+    {
         uint256 len = tokens_.length;
         IAllowanceTransfer.AllowanceTransferDetails[] memory details =
             new IAllowanceTransfer.AllowanceTransferDetails[](len);

@@ -6,12 +6,12 @@ import { ModuleKitHelpers } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { SuperExecutor } from "../../../src/core/executors/SuperExecutor.sol";
-import { SuperDestinationExecutor } from "../../../src/core/executors/SuperDestinationExecutor.sol";
-import { SuperDestinationValidator } from "../../../src/core/validators/SuperDestinationValidator.sol";
-import { SuperValidatorBase } from "../../../src/core/validators/SuperValidatorBase.sol";
-import { FluidClaimRewardHook } from "../../../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
-import { BaseClaimRewardHook } from "../../../src/core/hooks/claim/BaseClaimRewardHook.sol";
+import { SuperExecutor } from "../../../src/executors/SuperExecutor.sol";
+import { SuperDestinationExecutor } from "../../../src/executors/SuperDestinationExecutor.sol";
+import { SuperDestinationValidator } from "../../../src/validators/SuperDestinationValidator.sol";
+import { SuperValidatorBase } from "../../../src/validators/SuperValidatorBase.sol";
+import { FluidClaimRewardHook } from "../../../src/hooks/claim/fluid/FluidClaimRewardHook.sol";
+import { BaseClaimRewardHook } from "../../../src/hooks/claim/BaseClaimRewardHook.sol";
 import { MaliciousToken } from "../../mocks/MaliciousToken.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { TokenWithTransferControl } from "../../mocks/TokenWithTransferControl.sol";
@@ -20,10 +20,10 @@ import { MockHook } from "../../mocks/MockHook.sol";
 import { MockNexusFactory } from "../../mocks/MockNexusFactory.sol";
 import { MockLedger, MockLedgerConfiguration } from "../../mocks/MockLedger.sol";
 
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperHook } from "../../../src/core/interfaces/ISuperHook.sol";
-import { ISuperDestinationExecutor } from "../../../src/core/interfaces/ISuperDestinationExecutor.sol";
-import { ISuperValidator } from "../../../src/core/interfaces/ISuperValidator.sol";
+import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
+import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
+import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
+import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
 
 

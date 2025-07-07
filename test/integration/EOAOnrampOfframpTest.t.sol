@@ -5,14 +5,14 @@ import { console } from "forge-std/console.sol";
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IPermit2 } from "../../src/vendor/uniswap/permit2/IPermit2.sol";
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
 import { TrustedForwarder } from "modulekit/module-bases/utils/TrustedForwarder.sol";
 import { IPermit2Batch } from "../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
-import { BatchTransferFromHook } from "../../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
+import { BatchTransferFromHook } from "../../src/hooks/tokens/permit2/BatchTransferFromHook.sol";
 import { IAllowanceTransfer } from "../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
-import { TransferERC20Hook } from "../../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
-import { OfframpTokensHook } from "../../src/core/hooks/tokens/OfframpTokensHook.sol";
+import { TransferERC20Hook } from "../../src/hooks/tokens/erc20/TransferERC20Hook.sol";
+import { OfframpTokensHook } from "../../src/hooks/tokens/OfframpTokensHook.sol";
 
 contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
     address public eoa;

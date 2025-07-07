@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {Helpers} from "../../utils/Helpers.sol";
+import { Helpers } from "../../utils/Helpers.sol";
 
-import {AcrossV3Adapter} from "../../../src/core/adapters/AcrossV3Adapter.sol";
-import {IAcrossV3Receiver} from "../../../src/vendor/bridges/across/IAcrossV3Receiver.sol";
-import {DebridgeAdapter} from "../../../src/core/adapters/DebridgeAdapter.sol";
-import {MockERC20} from "../../mocks/MockERC20.sol";
+import { AcrossV3Adapter } from "../../../src/adapters/AcrossV3Adapter.sol";
+import { IAcrossV3Receiver } from "../../../src/vendor/bridges/across/IAcrossV3Receiver.sol";
+import { DebridgeAdapter } from "../../../src/adapters/DebridgeAdapter.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
 
 contract MockDlnDestination {
     address public externalAdapter;
@@ -26,7 +26,7 @@ contract AcrossV3AdapterTest is Helpers {
     MockDlnDestination public mockDlnDestination;
     MockERC20 public mockERC20;
 
-    receive() external payable {}
+    receive() external payable { }
 
     function setUp() public {
         mockERC20 = new MockERC20("Mock Token", "MOCK", 18);

@@ -8,12 +8,12 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ModuleKitHelpers, UserOpData } from "modulekit/ModuleKit.sol";
 
 // Superform
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
 import "forge-std/console2.sol";
-import { Redeem4626VaultHook } from "../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
-import { ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { Redeem4626VaultHook } from "../../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { ISuperLedgerData } from "../../src/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
 
 /// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault
 contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
