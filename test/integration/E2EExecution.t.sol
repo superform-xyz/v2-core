@@ -21,7 +21,7 @@ import { AcrossSendFundsAndExecuteOnDstHook } from
 import { MaliciousHookBypassFees } from "../mocks/MaliciousHookBypassFees.sol";
 import { ISuperSignatureStorage } from "../../src/core/interfaces/ISuperSignatureStorage.sol";
 import { MockValidator } from "../../lib/modulekit/src/module-bases/mocks/MockValidator.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import "forge-std/Test.sol";
 
 contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
@@ -111,11 +111,27 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         uint256 feeReceiverBalanceBefore = IERC4626(CHAIN_1_USDC).balanceOf(
             feeRecipient
         );
-
+        
+        vm.recordLogs();
         _executeThroughEntrypoint(nexusAccount, entry);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        console2.log("----entries length", entries.length);
+        bytes memory reason;
+        for (uint i; i < entries.length; ++i) {
+            Vm.Log memory logEntry = entries[i];
+            bytes32 topic0 = logEntry.topics[0];
+            if (topic0 == keccak256("UserOperationRevertReason(bytes32,address,uint256,bytes)")) {
+                (, reason) = abi.decode(
+                    logEntry.data,
+                    (uint256, bytes)
+                );
+            }
+        }
+        assertTrue(reason.length > 0);
 
-        // Ensure fee is not 0
-        assertGt(
+        // Ensure fee is 0
+        // Assures MaliciousHookBypassFees hook is not charging outAmount in postExecute
+        assertEq(
             IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient) -
                 feeReceiverBalanceBefore,
             0

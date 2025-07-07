@@ -6,8 +6,8 @@ import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 import { MockSuperOracle } from "../../mocks/MockSuperOracle.sol";
 import { MockYieldSourceOracle } from "../../mocks/MockYieldSourceOracle.sol";
-import { ISuperYieldSourceOracle } from "../../../src/periphery/interfaces/oracles/ISuperYieldSourceOracle.sol";
-import { SuperYieldSourceOracle } from "../../../src/periphery/oracles/SuperYieldSourceOracle.sol";
+import { ISuperYieldSourceOracle } from "../../../src/core/interfaces/accounting/ISuperYieldSourceOracle.sol";
+import { SuperYieldSourceOracle } from "../../../src/core/accounting/oracles/SuperYieldSourceOracle.sol";
 
 contract SuperYieldSourceOracleTest is Helpers {
     SuperYieldSourceOracle public superYieldSourceOracle;
@@ -36,8 +36,8 @@ contract SuperYieldSourceOracleTest is Helpers {
             false // Default validity set to false
         );
 
-        // Initialize SuperYieldSourceOracle with the mock SuperOracle
-        superYieldSourceOracle = new SuperYieldSourceOracle(address(mockSuperOracle));
+        // Initialize SuperYieldSourceOracle without oracle parameter
+        superYieldSourceOracle = new SuperYieldSourceOracle();
         yieldSourceOracle = ISuperYieldSourceOracle(address(superYieldSourceOracle));
 
         // Setup mock tokens and yield source
@@ -63,7 +63,8 @@ contract SuperYieldSourceOracleTest is Helpers {
             address(yieldSource),
             address(mockYieldSourceOracle),
             address(validAsset),
-            address(invalidAsset) // Quote asset can be any address
+            address(invalidAsset), // Quote asset can be any address
+            address(mockSuperOracle)
         );
 
         assertEq(priceQuote, QUOTE_AMOUNT, "Price quote should match the expected value");
@@ -75,7 +76,8 @@ contract SuperYieldSourceOracleTest is Helpers {
             address(yieldSource),
             address(mockYieldSourceOracle),
             address(invalidAsset), // Invalid base asset
-            address(validAsset)
+            address(validAsset),
+            address(mockSuperOracle)
         );
     }
 
@@ -85,7 +87,8 @@ contract SuperYieldSourceOracleTest is Helpers {
             address(mockYieldSourceOracle),
             user1,
             address(validAsset),
-            address(invalidAsset) // Quote asset can be any address
+            address(invalidAsset), // Quote asset can be any address
+            address(mockSuperOracle)
         );
 
         assertEq(tvlQuote, QUOTE_AMOUNT, "TVL quote should match the expected value");
@@ -98,7 +101,8 @@ contract SuperYieldSourceOracleTest is Helpers {
             address(mockYieldSourceOracle),
             user1,
             address(invalidAsset), // Invalid base asset
-            address(validAsset)
+            address(validAsset),
+            address(mockSuperOracle)
         );
     }
 
@@ -107,7 +111,8 @@ contract SuperYieldSourceOracleTest is Helpers {
             address(yieldSource),
             address(mockYieldSourceOracle),
             address(validAsset),
-            address(invalidAsset) // Quote asset can be any address
+            address(invalidAsset), // Quote asset can be any address
+            address(mockSuperOracle)
         );
 
         assertEq(tvlQuote, QUOTE_AMOUNT, "TVL quote should match the expected value");
@@ -119,7 +124,8 @@ contract SuperYieldSourceOracleTest is Helpers {
             address(yieldSource),
             address(mockYieldSourceOracle),
             address(invalidAsset), // Invalid base asset
-            address(validAsset)
+            address(validAsset),
+            address(mockSuperOracle)
         );
     }
 
@@ -131,6 +137,7 @@ contract SuperYieldSourceOracleTest is Helpers {
         address[] memory yieldSourceOracles = new address[](2);
         address[] memory baseAssets = new address[](2);
         address[] memory quoteAssets = new address[](2);
+        address[] memory oracles = new address[](2);
 
         yieldSources[0] = address(yieldSource);
         yieldSources[1] = address(yieldSource);
@@ -144,8 +151,12 @@ contract SuperYieldSourceOracleTest is Helpers {
         quoteAssets[0] = address(invalidAsset);
         quoteAssets[1] = address(invalidAsset);
 
-        uint256[] memory quotes =
-            yieldSourceOracle.getPricePerShareMultipleQuote(yieldSources, yieldSourceOracles, baseAssets, quoteAssets);
+        oracles[0] = address(mockSuperOracle);
+        oracles[1] = address(mockSuperOracle);
+
+        uint256[] memory quotes = yieldSourceOracle.getPricePerShareMultipleQuote(
+            yieldSources, yieldSourceOracles, baseAssets, quoteAssets, oracles
+        );
 
         assertEq(quotes.length, 2, "Should return 2 quotes");
         assertEq(quotes[0], QUOTE_AMOUNT, "First quote should match expected value");
@@ -157,9 +168,12 @@ contract SuperYieldSourceOracleTest is Helpers {
         address[] memory yieldSourceOracles = new address[](2);
         address[] memory baseAssets = new address[](1); // Mismatched length
         address[] memory quoteAssets = new address[](2);
+        address[] memory oracles = new address[](2);
 
         vm.expectRevert(abi.encodeWithSelector(ISuperYieldSourceOracle.ARRAY_LENGTH_MISMATCH.selector));
-        yieldSourceOracle.getPricePerShareMultipleQuote(yieldSources, yieldSourceOracles, baseAssets, quoteAssets);
+        yieldSourceOracle.getPricePerShareMultipleQuote(
+            yieldSources, yieldSourceOracles, baseAssets, quoteAssets, oracles
+        );
     }
 
     function test_getPricePerShareMultipleQuote_InvalidBase() public {
@@ -167,6 +181,7 @@ contract SuperYieldSourceOracleTest is Helpers {
         address[] memory yieldSourceOracles = new address[](2);
         address[] memory baseAssets = new address[](2);
         address[] memory quoteAssets = new address[](2);
+        address[] memory oracles = new address[](2);
 
         yieldSources[0] = address(yieldSource);
         yieldSources[1] = address(yieldSource);
@@ -180,8 +195,13 @@ contract SuperYieldSourceOracleTest is Helpers {
         quoteAssets[0] = address(invalidAsset);
         quoteAssets[1] = address(invalidAsset);
 
+        oracles[0] = address(mockSuperOracle);
+        oracles[1] = address(mockSuperOracle);
+
         vm.expectRevert(abi.encodeWithSelector(ISuperYieldSourceOracle.INVALID_BASE_ASSET.selector));
-        yieldSourceOracle.getPricePerShareMultipleQuote(yieldSources, yieldSourceOracles, baseAssets, quoteAssets);
+        yieldSourceOracle.getPricePerShareMultipleQuote(
+            yieldSources, yieldSourceOracles, baseAssets, quoteAssets, oracles
+        );
     }
 
     function test_getTVLByOwnerOfSharesMultipleQuote() public view {
@@ -190,6 +210,7 @@ contract SuperYieldSourceOracleTest is Helpers {
         address[][] memory owners = new address[][](2);
         address[] memory baseAssets = new address[](2);
         address[] memory quoteAssets = new address[](2);
+        address[] memory oracles = new address[](2);
 
         yieldSources[0] = address(yieldSource);
         yieldSources[1] = address(yieldSource);
@@ -210,8 +231,11 @@ contract SuperYieldSourceOracleTest is Helpers {
         quoteAssets[0] = address(invalidAsset);
         quoteAssets[1] = address(invalidAsset);
 
+        oracles[0] = address(mockSuperOracle);
+        oracles[1] = address(mockSuperOracle);
+
         (uint256[][] memory userTvls, uint256[] memory totalTvls) = yieldSourceOracle.getTVLByOwnerOfSharesMultipleQuote(
-            yieldSources, yieldSourceOracles, owners, baseAssets, quoteAssets
+            yieldSources, yieldSourceOracles, owners, baseAssets, quoteAssets, oracles
         );
 
         assertEq(userTvls.length, 2, "Should return 2 user TVL arrays");
@@ -233,10 +257,11 @@ contract SuperYieldSourceOracleTest is Helpers {
         address[][] memory owners = new address[][](1); // Mismatched length
         address[] memory baseAssets = new address[](2);
         address[] memory quoteAssets = new address[](2);
+        address[] memory oracles = new address[](2);
 
         vm.expectRevert(abi.encodeWithSelector(ISuperYieldSourceOracle.ARRAY_LENGTH_MISMATCH.selector));
         yieldSourceOracle.getTVLByOwnerOfSharesMultipleQuote(
-            yieldSources, yieldSourceOracles, owners, baseAssets, quoteAssets
+            yieldSources, yieldSourceOracles, owners, baseAssets, quoteAssets, oracles
         );
     }
 
@@ -246,6 +271,7 @@ contract SuperYieldSourceOracleTest is Helpers {
         address[][] memory owners = new address[][](2);
         address[] memory baseAssets = new address[](2);
         address[] memory quoteAssets = new address[](2);
+        address[] memory oracles = new address[](2);
 
         yieldSources[0] = address(yieldSource);
         yieldSources[1] = address(yieldSource);
@@ -265,9 +291,12 @@ contract SuperYieldSourceOracleTest is Helpers {
         quoteAssets[0] = address(invalidAsset);
         quoteAssets[1] = address(invalidAsset);
 
+        oracles[0] = address(mockSuperOracle);
+        oracles[1] = address(mockSuperOracle);
+
         vm.expectRevert(abi.encodeWithSelector(ISuperYieldSourceOracle.INVALID_BASE_ASSET.selector));
         yieldSourceOracle.getTVLByOwnerOfSharesMultipleQuote(
-            yieldSources, yieldSourceOracles, owners, baseAssets, quoteAssets
+            yieldSources, yieldSourceOracles, owners, baseAssets, quoteAssets, oracles
         );
     }
 
@@ -276,6 +305,7 @@ contract SuperYieldSourceOracleTest is Helpers {
         address[] memory yieldSourceOracles = new address[](2);
         address[] memory baseAssets = new address[](2);
         address[] memory quoteAssets = new address[](2);
+        address[] memory oracles = new address[](2);
 
         yieldSources[0] = address(yieldSource);
         yieldSources[1] = address(yieldSource);
@@ -289,8 +319,11 @@ contract SuperYieldSourceOracleTest is Helpers {
         quoteAssets[0] = address(invalidAsset);
         quoteAssets[1] = address(invalidAsset);
 
+        oracles[0] = address(mockSuperOracle);
+        oracles[1] = address(mockSuperOracle);
+
         uint256[] memory tvls =
-            yieldSourceOracle.getTVLMultipleQuote(yieldSources, yieldSourceOracles, baseAssets, quoteAssets);
+            yieldSourceOracle.getTVLMultipleQuote(yieldSources, yieldSourceOracles, baseAssets, quoteAssets, oracles);
 
         assertEq(tvls.length, 2, "Should return 2 TVLs");
         assertEq(tvls[0], QUOTE_AMOUNT, "First TVL should match expected value");
@@ -302,9 +335,10 @@ contract SuperYieldSourceOracleTest is Helpers {
         address[] memory yieldSourceOracles = new address[](2);
         address[] memory baseAssets = new address[](1); // Mismatched length
         address[] memory quoteAssets = new address[](2);
+        address[] memory oracles = new address[](2);
 
         vm.expectRevert(abi.encodeWithSelector(ISuperYieldSourceOracle.ARRAY_LENGTH_MISMATCH.selector));
-        yieldSourceOracle.getTVLMultipleQuote(yieldSources, yieldSourceOracles, baseAssets, quoteAssets);
+        yieldSourceOracle.getTVLMultipleQuote(yieldSources, yieldSourceOracles, baseAssets, quoteAssets, oracles);
     }
 
     function test_getTVLMultipleQuote_InvalidBase() public {
@@ -312,6 +346,7 @@ contract SuperYieldSourceOracleTest is Helpers {
         address[] memory yieldSourceOracles = new address[](2);
         address[] memory baseAssets = new address[](2);
         address[] memory quoteAssets = new address[](2);
+        address[] memory oracles = new address[](2);
 
         yieldSources[0] = address(yieldSource);
         yieldSources[1] = address(yieldSource);
@@ -325,8 +360,11 @@ contract SuperYieldSourceOracleTest is Helpers {
         quoteAssets[0] = address(invalidAsset);
         quoteAssets[1] = address(invalidAsset);
 
+        oracles[0] = address(mockSuperOracle);
+        oracles[1] = address(mockSuperOracle);
+
         vm.expectRevert(abi.encodeWithSelector(ISuperYieldSourceOracle.INVALID_BASE_ASSET.selector));
-        yieldSourceOracle.getTVLMultipleQuote(yieldSources, yieldSourceOracles, baseAssets, quoteAssets);
+        yieldSourceOracle.getTVLMultipleQuote(yieldSources, yieldSourceOracles, baseAssets, quoteAssets, oracles);
     }
 
     /*//////////////////////////////////////////////////////////////

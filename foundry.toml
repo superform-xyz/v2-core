@@ -32,6 +32,7 @@ remappings = [
 dynamic_test_linking = true
 gas_limit = "18446744073709551615"
 gas_snapshot_emit= false # Added due to tests in test_extraGas in PaymasterPoC.t.sol
+evm_version = "prague"
 
 [profile.ci-sizes]
 script = "src"
