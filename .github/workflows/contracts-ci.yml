@@ -116,10 +116,6 @@ jobs:
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
         run: pnpm install
-        
-      - name: "Install merkle-js dependencies"
-        working-directory: ./test/utils/merkle/merkle-js
-        run: npm install
 
       - name: "Show the Foundry config"
         run: "forge config"
@@ -256,10 +252,6 @@ jobs:
       - name: "Install ModuleKit"
         working-directory: ./lib/modulekit
         run: pnpm install
-        
-      - name: "Install merkle-js dependencies"
-        working-directory: ./test/utils/merkle/merkle-js
-        run: npm install
 
       - name: "Generate the coverage report using unit and integration tests"
         run: "make coverage"
