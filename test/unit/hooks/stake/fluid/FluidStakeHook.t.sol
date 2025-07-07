@@ -2,11 +2,11 @@
 pragma solidity 0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { FluidStakeHook } from "../../../../../src/core/hooks/stake/fluid/FluidStakeHook.sol";
-import { ISuperHook, ISuperHookResult } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { FluidStakeHook } from "../../../../../src/hooks/stake/fluid/FluidStakeHook.sol";
+import { ISuperHook, ISuperHookResult } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 
 contract FluidStakeHookTest is Helpers {

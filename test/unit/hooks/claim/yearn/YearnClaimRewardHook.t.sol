@@ -2,10 +2,10 @@
 pragma solidity 0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { YearnClaimOneRewardHook } from "../../../../../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
-import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { YearnClaimOneRewardHook } from "../../../../../src/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
+import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 import { IYearnStakingRewardsMulti } from "../../../../../src/vendor/yearn/IYearnStakingRewardsMulti.sol";
 

@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {
-    ISuperHook, ISuperHookResult, ISuperHookResultOutflow, Execution
-} from "../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, Execution } from "../../src/interfaces/ISuperHook.sol";
 
 contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     HookType public hookType;
@@ -131,7 +129,7 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     function setExecutionContext(address _caller) external {
         caller = _caller;
     }
-    
+
     function executionNonce() external pure returns (uint256) {
         return 1;
     }

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { ISuperHook, ISuperLockableHook, ISuperHookResult } from "../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperLockableHook, ISuperHookResult } from "../../src/interfaces/ISuperHook.sol";
 
 /**
  * @title MockLockableHook

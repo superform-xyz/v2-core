@@ -5,24 +5,24 @@ pragma solidity >=0.8.30;
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Superform
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { Helpers } from "../utils/Helpers.sol";
 import { InternalHelpers } from "../utils/InternalHelpers.sol";
 import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance } from "modulekit/ModuleKit.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
-import { ERC4626YieldSourceOracle } from "../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import { ERC5115YieldSourceOracle } from "../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { ERC7540YieldSourceOracle } from "../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import { SuperLedgerConfiguration } from "../../src/core/accounting/SuperLedgerConfiguration.sol";
-import { SuperExecutor } from "../../src/core/executors/SuperExecutor.sol";
-import { SuperLedger } from "../../src/core/accounting/SuperLedger.sol";
-import { ERC5115Ledger } from "../../src/core/accounting/ERC5115Ledger.sol";
-import { ISuperLedgerConfiguration } from "../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { ApproveERC20Hook } from "../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
-import { Deposit4626VaultHook } from "../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
-import { ApproveAndDeposit4626VaultHook } from "../../src/core/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
-import { Redeem4626VaultHook } from "../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { ERC4626YieldSourceOracle } from "../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC5115YieldSourceOracle } from "../../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import { ERC7540YieldSourceOracle } from "../../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { SuperLedgerConfiguration } from "../../src/accounting/SuperLedgerConfiguration.sol";
+import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
+import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
+import { ERC5115Ledger } from "../mocks/ERC5115Ledger.sol";
+import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
+import { ApproveERC20Hook } from "../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { Deposit4626VaultHook } from "../../src/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { ApproveAndDeposit4626VaultHook } from "../../src/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
+import { Redeem4626VaultHook } from "../../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
 import "forge-std/console2.sol";
 
 /// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault

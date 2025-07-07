@@ -9,9 +9,9 @@ import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../src/hooks/BaseHook.sol";
 
-import { ISuperHookResult } from "../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHookResult } from "../../../src/interfaces/ISuperHook.sol";
 import { IPermit2Batch } from "../../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
 import { IAllowanceTransfer } from "../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
 

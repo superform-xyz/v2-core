@@ -2,8 +2,8 @@
 pragma solidity 0.8.30;
 
 import { Helpers } from "../../utils/Helpers.sol";
-import { AbstractYieldSourceOracle } from "../../../src/core/accounting/oracles/AbstractYieldSourceOracle.sol";
-import { IYieldSourceOracle } from "../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
+import { AbstractYieldSourceOracle } from "../../../src/accounting/oracles/AbstractYieldSourceOracle.sol";
+import { IYieldSourceOracle } from "../../../src/interfaces/accounting/IYieldSourceOracle.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 
 contract MockYieldSourceOracle is AbstractYieldSourceOracle {

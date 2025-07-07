@@ -12,9 +12,9 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
-import {SuperMerkleValidator} from "../../../src/core/validators/SuperMerkleValidator.sol";
-import {SuperValidatorBase} from "../../../src/core/validators/SuperValidatorBase.sol";
-import {ISuperValidator} from "../../../src/core/interfaces/ISuperValidator.sol";
+import {SuperMerkleValidator} from "../../../src/validators/SuperMerkleValidator.sol";
+import {SuperValidatorBase} from "../../../src/validators/SuperValidatorBase.sol";
+import {ISuperValidator} from "../../../src/interfaces/ISuperValidator.sol";
 
 import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";

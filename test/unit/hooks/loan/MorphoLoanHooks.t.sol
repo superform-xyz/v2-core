@@ -6,21 +6,21 @@ import { console } from "forge-std/console.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { BytesLib } from "../../../../src/vendor/BytesLib.sol";
-import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { IOracle } from "../../../../src/vendor/morpho/IOracle.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../src/interfaces/ISuperHook.sol";
 import { SharesMathLib } from "../../../../src/vendor/morpho/SharesMathLib.sol";
 import { Id, IMorphoStaticTyping, MarketParams, Market } from "../../../../src/vendor/morpho/IMorpho.sol";
 import { MarketParamsLib } from "../../../../src/vendor/morpho/MarketParamsLib.sol";
 
 // Hooks
-import { MorphoBorrowHook } from "../../../../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
-import { MorphoRepayAndWithdrawHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
-import { MorphoRepayHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
-import { MorphoSupplyAndBorrowHook } from "../../../../src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
-import { MorphoWithdrawHook } from "../../../../src/core/hooks/loan/morpho/MorphoWithdrawHook.sol";
-import { MorphoSupplyHook } from "../../../../src/core/hooks/loan/morpho/MorphoSupplyHook.sol";
+import { MorphoBorrowHook } from "../../../../src/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoRepayAndWithdrawHook } from "../../../../src/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
+import { MorphoRepayHook } from "../../../../src/hooks/loan/morpho/MorphoRepayHook.sol";
+import { MorphoSupplyAndBorrowHook } from "../../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
+import { MorphoWithdrawHook } from "../../../../src/hooks/loan/morpho/MorphoWithdrawHook.sol";
+import { MorphoSupplyHook } from "../../../../src/hooks/loan/morpho/MorphoSupplyHook.sol";
 
 contract MockOracle is IOracle {
     function price() external pure returns (uint256) {

@@ -4,9 +4,9 @@ pragma solidity 0.8.30;
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import "../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 import { SpectraCommands } from "../../src/vendor/spectra/SpectraCommands.sol";
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { UserOpData, AccountInstance, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 
 abstract contract InternalHelpers {

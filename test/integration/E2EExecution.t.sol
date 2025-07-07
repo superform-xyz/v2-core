@@ -8,20 +8,20 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { MinimalBaseNexusIntegrationTest } from "./MinimalBaseNexusIntegrationTest.t.sol";
 import { INexus } from "../../src/vendor/nexus/INexus.sol";
 import { MockRegistry } from "../mocks/MockRegistry.sol";
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
-import { ISuperValidator } from "../../src/core/interfaces/ISuperValidator.sol";
-import { ISuperHook } from "../../src/core/interfaces/ISuperHook.sol";
+import { ISuperValidator } from "../../src/interfaces/ISuperValidator.sol";
+import { ISuperHook } from "../../src/interfaces/ISuperHook.sol";
 import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { SuperValidatorBase } from "../../src/core/validators/SuperValidatorBase.sol";
+import { SuperValidatorBase } from "../../src/validators/SuperValidatorBase.sol";
 import { AcrossSendFundsAndExecuteOnDstHook } from
-    "../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+    "../../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 
 import { MaliciousHookBypassFees } from "../mocks/MaliciousHookBypassFees.sol";
-import { ISuperSignatureStorage } from "../../src/core/interfaces/ISuperSignatureStorage.sol";
+import { ISuperSignatureStorage } from "../../src/interfaces/ISuperSignatureStorage.sol";
 import { MockValidator } from "../../lib/modulekit/src/module-bases/mocks/MockValidator.sol";
-import "forge-std/console.sol";
+import "forge-std/console2.sol";
 import "forge-std/Test.sol";
 
 contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
@@ -111,11 +111,27 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         uint256 feeReceiverBalanceBefore = IERC4626(CHAIN_1_USDC).balanceOf(
             feeRecipient
         );
-
+        
+        vm.recordLogs();
         _executeThroughEntrypoint(nexusAccount, entry);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        console2.log("----entries length", entries.length);
+        bytes memory reason;
+        for (uint i; i < entries.length; ++i) {
+            Vm.Log memory logEntry = entries[i];
+            bytes32 topic0 = logEntry.topics[0];
+            if (topic0 == keccak256("UserOperationRevertReason(bytes32,address,uint256,bytes)")) {
+                (, reason) = abi.decode(
+                    logEntry.data,
+                    (uint256, bytes)
+                );
+            }
+        }
+        assertTrue(reason.length > 0);
 
-        // Ensure fee is not 0
-        assertGt(
+        // Ensure fee is 0
+        // Assures MaliciousHookBypassFees hook is not charging outAmount in postExecute
+        assertEq(
             IERC4626(CHAIN_1_USDC).balanceOf(feeRecipient) -
                 feeReceiverBalanceBefore,
             0

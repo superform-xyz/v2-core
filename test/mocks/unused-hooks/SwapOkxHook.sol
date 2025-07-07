@@ -8,7 +8,7 @@ import "../../../src/vendor/okx/IOkxSwapRouter.sol";
 import "../../../src/vendor/okx/PMMLib.sol";
 
 // Superform
-import { BaseHook } from "../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../src/hooks/BaseHook.sol";
 
 /// @title SwapperOkxHook
 /// @author Superform Labs

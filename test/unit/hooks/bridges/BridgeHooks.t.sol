@@ -3,18 +3,18 @@ pragma solidity 0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { AcrossSendFundsAndExecuteOnDstHook } from
-    "../../../../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+    "../../../../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { DeBridgeSendOrderAndExecuteOnDstHook } from
-    "../../../../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
-import {DeBridgeCancelOrderHook} from "../../../../src/core/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
-import {ISuperValidator} from "../../../../src/core/interfaces/ISuperValidator.sol";
-import {ISuperHook, ISuperHookResult} from "../../../../src/core/interfaces/ISuperHook.sol";
-import {IAcrossSpokePoolV3} from "../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
-import {MockHook} from "../../../mocks/MockHook.sol";
-import {BaseHook} from "../../../../src/core/hooks/BaseHook.sol";
-import {Helpers} from "../../../utils/Helpers.sol";
-import {DlnExternalCallLib} from "../../../../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
-import {Math} from "@openzeppelin/contracts/utils/math/Math.sol";
+    "../../../../src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
+import { DeBridgeCancelOrderHook } from "../../../../src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
+import { ISuperValidator } from "../../../../src/interfaces/ISuperValidator.sol";
+import { ISuperHook, ISuperHookResult } from "../../../../src/interfaces/ISuperHook.sol";
+import { IAcrossSpokePoolV3 } from "../../../../src/vendor/bridges/across/IAcrossSpokePoolV3.sol";
+import { MockHook } from "../../../mocks/MockHook.sol";
+import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
+import { DlnExternalCallLib } from "../../../../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 
 contract MockSignatureStorage {
     function retrieveSignatureData(address) external view returns (bytes memory) {
@@ -164,9 +164,7 @@ contract BridgeHooks is Helpers {
         assertEq(MockHook(mockPrevHook).getOutAmount(address(this)), prevHookAmount);
 
         vm.mockCall(
-            mockPrevHook,
-            abi.encodeWithSelector(ISuperHookResult.getOutAmount.selector),
-            abi.encode(prevHookAmount)
+            mockPrevHook, abi.encodeWithSelector(ISuperHookResult.getOutAmount.selector), abi.encode(prevHookAmount)
         );
 
         bytes memory data = _encodeAcrossData(true);
@@ -182,11 +180,7 @@ contract BridgeHooks is Helpers {
         bytes memory sigData = mockSignatureStorage.retrieveSignatureData(address(0));
         mockMessage = abi.encode(bytes("0x123"), bytes("0x123"), address(this), dstTokens, intentAmounts, sigData);
 
-        uint256 finalOutputAmount = Math.mulDiv(
-            mockOutputAmount,
-            prevHookAmount,
-            mockInputAmount
-        );
+        uint256 finalOutputAmount = Math.mulDiv(mockOutputAmount, prevHookAmount, mockInputAmount);
         bytes memory expectedCallData = abi.encodeCall(
             IAcrossSpokePoolV3.depositV3Now,
             (
