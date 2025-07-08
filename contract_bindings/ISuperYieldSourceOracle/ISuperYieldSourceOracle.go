@@ -31,7 +31,7 @@ var (
 
 // ISuperYieldSourceOracleMetaData contains all meta data concerning the ISuperYieldSourceOracle contract.
 var ISuperYieldSourceOracleMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"function\",\"name\":\"getPricePerShareMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"yieldSourceOracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"baseAsset\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"pricesPerShare\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPricePerShareMultipleQuote\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"yieldSourceOracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"baseAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"quoteAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"pricesPerShareQuote\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPricePerShareQuote\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"pricePerShareQuote\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLByOwnerOfSharesMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"yieldSourceOracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"ownersOfShares\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"baseAsset\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"userTvls\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLByOwnerOfSharesMultipleQuote\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"yieldSourceOracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"ownersOfShares\",\"type\":\"address[][]\",\"internalType\":\"address[][]\"},{\"name\":\"baseAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"quoteAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"userTvlsQuote\",\"type\":\"uint256[][]\",\"internalType\":\"uint256[][]\"},{\"name\":\"totalTvlsQuote\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLByOwnerOfSharesQuote\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ownerOfShares\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"tvlQuote\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"yieldSourceOracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"baseAsset\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"tvls\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLMultipleQuote\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"yieldSourceOracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"baseAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"quoteAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"tvlsQuote\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLQuote\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"tvlQuote\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"error\",\"name\":\"ARRAY_LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_BASE_ASSET\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"function\",\"name\":\"getPricePerShareMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"yieldSourceOracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"baseAsset\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"pricesPerShare\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPricePerShareMultipleQuote\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"yieldSourceOracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"baseAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"quoteAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"oracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"pricesPerShareQuote\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getPricePerShareQuote\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"pricePerShareQuote\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLByOwnerOfSharesMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"yieldSourceOracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"ownersOfShares\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"baseAsset\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"userTvls\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLByOwnerOfSharesMultipleQuote\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"yieldSourceOracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"ownersOfShares\",\"type\":\"address[][]\",\"internalType\":\"address[][]\"},{\"name\":\"baseAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"quoteAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"oracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"userTvlsQuote\",\"type\":\"uint256[][]\",\"internalType\":\"uint256[][]\"},{\"name\":\"totalTvlsQuote\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLByOwnerOfSharesQuote\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ownerOfShares\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"tvlQuote\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLMultiple\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"yieldSourceOracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"baseAsset\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"tvls\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLMultipleQuote\",\"inputs\":[{\"name\":\"yieldSourceAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"yieldSourceOracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"baseAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"quoteAddresses\",\"type\":\"address[]\",\"internalType\":\"address[]\"},{\"name\":\"oracles\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"outputs\":[{\"name\":\"tvlsQuote\",\"type\":\"uint256[]\",\"internalType\":\"uint256[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getTVLQuote\",\"inputs\":[{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"base\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"quote\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"oracle\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"tvlQuote\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"error\",\"name\":\"ARRAY_LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_BASE_ASSET\",\"inputs\":[]}]",
 }
 
 // ISuperYieldSourceOracleABI is the input ABI used to generate the binding from.
@@ -211,12 +211,12 @@ func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetPricePe
 	return _ISuperYieldSourceOracle.Contract.GetPricePerShareMultiple(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, baseAsset)
 }
 
-// GetPricePerShareMultipleQuote is a free data retrieval call binding the contract method 0x379a09cb.
+// GetPricePerShareMultipleQuote is a free data retrieval call binding the contract method 0xa36cdfb5.
 //
-// Solidity: function getPricePerShareMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[] baseAddresses, address[] quoteAddresses) view returns(uint256[] pricesPerShareQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetPricePerShareMultipleQuote(opts *bind.CallOpts, yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, baseAddresses []common.Address, quoteAddresses []common.Address) ([]*big.Int, error) {
+// Solidity: function getPricePerShareMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[] baseAddresses, address[] quoteAddresses, address[] oracles) view returns(uint256[] pricesPerShareQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetPricePerShareMultipleQuote(opts *bind.CallOpts, yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, baseAddresses []common.Address, quoteAddresses []common.Address, oracles []common.Address) ([]*big.Int, error) {
 	var out []interface{}
-	err := _ISuperYieldSourceOracle.contract.Call(opts, &out, "getPricePerShareMultipleQuote", yieldSourceAddresses, yieldSourceOracles, baseAddresses, quoteAddresses)
+	err := _ISuperYieldSourceOracle.contract.Call(opts, &out, "getPricePerShareMultipleQuote", yieldSourceAddresses, yieldSourceOracles, baseAddresses, quoteAddresses, oracles)
 
 	if err != nil {
 		return *new([]*big.Int), err
@@ -228,26 +228,26 @@ func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetPricePerShareM
 
 }
 
-// GetPricePerShareMultipleQuote is a free data retrieval call binding the contract method 0x379a09cb.
+// GetPricePerShareMultipleQuote is a free data retrieval call binding the contract method 0xa36cdfb5.
 //
-// Solidity: function getPricePerShareMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[] baseAddresses, address[] quoteAddresses) view returns(uint256[] pricesPerShareQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleSession) GetPricePerShareMultipleQuote(yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, baseAddresses []common.Address, quoteAddresses []common.Address) ([]*big.Int, error) {
-	return _ISuperYieldSourceOracle.Contract.GetPricePerShareMultipleQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, baseAddresses, quoteAddresses)
+// Solidity: function getPricePerShareMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[] baseAddresses, address[] quoteAddresses, address[] oracles) view returns(uint256[] pricesPerShareQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleSession) GetPricePerShareMultipleQuote(yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, baseAddresses []common.Address, quoteAddresses []common.Address, oracles []common.Address) ([]*big.Int, error) {
+	return _ISuperYieldSourceOracle.Contract.GetPricePerShareMultipleQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, baseAddresses, quoteAddresses, oracles)
 }
 
-// GetPricePerShareMultipleQuote is a free data retrieval call binding the contract method 0x379a09cb.
+// GetPricePerShareMultipleQuote is a free data retrieval call binding the contract method 0xa36cdfb5.
 //
-// Solidity: function getPricePerShareMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[] baseAddresses, address[] quoteAddresses) view returns(uint256[] pricesPerShareQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetPricePerShareMultipleQuote(yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, baseAddresses []common.Address, quoteAddresses []common.Address) ([]*big.Int, error) {
-	return _ISuperYieldSourceOracle.Contract.GetPricePerShareMultipleQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, baseAddresses, quoteAddresses)
+// Solidity: function getPricePerShareMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[] baseAddresses, address[] quoteAddresses, address[] oracles) view returns(uint256[] pricesPerShareQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetPricePerShareMultipleQuote(yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, baseAddresses []common.Address, quoteAddresses []common.Address, oracles []common.Address) ([]*big.Int, error) {
+	return _ISuperYieldSourceOracle.Contract.GetPricePerShareMultipleQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, baseAddresses, quoteAddresses, oracles)
 }
 
-// GetPricePerShareQuote is a free data retrieval call binding the contract method 0x8bc857d4.
+// GetPricePerShareQuote is a free data retrieval call binding the contract method 0xcc84c43c.
 //
-// Solidity: function getPricePerShareQuote(address yieldSourceAddress, address yieldSourceOracle, address base, address quote) view returns(uint256 pricePerShareQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetPricePerShareQuote(opts *bind.CallOpts, yieldSourceAddress common.Address, yieldSourceOracle common.Address, base common.Address, quote common.Address) (*big.Int, error) {
+// Solidity: function getPricePerShareQuote(address yieldSourceAddress, address yieldSourceOracle, address base, address quote, address oracle) view returns(uint256 pricePerShareQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetPricePerShareQuote(opts *bind.CallOpts, yieldSourceAddress common.Address, yieldSourceOracle common.Address, base common.Address, quote common.Address, oracle common.Address) (*big.Int, error) {
 	var out []interface{}
-	err := _ISuperYieldSourceOracle.contract.Call(opts, &out, "getPricePerShareQuote", yieldSourceAddress, yieldSourceOracle, base, quote)
+	err := _ISuperYieldSourceOracle.contract.Call(opts, &out, "getPricePerShareQuote", yieldSourceAddress, yieldSourceOracle, base, quote, oracle)
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -259,18 +259,18 @@ func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetPricePerShareQ
 
 }
 
-// GetPricePerShareQuote is a free data retrieval call binding the contract method 0x8bc857d4.
+// GetPricePerShareQuote is a free data retrieval call binding the contract method 0xcc84c43c.
 //
-// Solidity: function getPricePerShareQuote(address yieldSourceAddress, address yieldSourceOracle, address base, address quote) view returns(uint256 pricePerShareQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleSession) GetPricePerShareQuote(yieldSourceAddress common.Address, yieldSourceOracle common.Address, base common.Address, quote common.Address) (*big.Int, error) {
-	return _ISuperYieldSourceOracle.Contract.GetPricePerShareQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddress, yieldSourceOracle, base, quote)
+// Solidity: function getPricePerShareQuote(address yieldSourceAddress, address yieldSourceOracle, address base, address quote, address oracle) view returns(uint256 pricePerShareQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleSession) GetPricePerShareQuote(yieldSourceAddress common.Address, yieldSourceOracle common.Address, base common.Address, quote common.Address, oracle common.Address) (*big.Int, error) {
+	return _ISuperYieldSourceOracle.Contract.GetPricePerShareQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddress, yieldSourceOracle, base, quote, oracle)
 }
 
-// GetPricePerShareQuote is a free data retrieval call binding the contract method 0x8bc857d4.
+// GetPricePerShareQuote is a free data retrieval call binding the contract method 0xcc84c43c.
 //
-// Solidity: function getPricePerShareQuote(address yieldSourceAddress, address yieldSourceOracle, address base, address quote) view returns(uint256 pricePerShareQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetPricePerShareQuote(yieldSourceAddress common.Address, yieldSourceOracle common.Address, base common.Address, quote common.Address) (*big.Int, error) {
-	return _ISuperYieldSourceOracle.Contract.GetPricePerShareQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddress, yieldSourceOracle, base, quote)
+// Solidity: function getPricePerShareQuote(address yieldSourceAddress, address yieldSourceOracle, address base, address quote, address oracle) view returns(uint256 pricePerShareQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetPricePerShareQuote(yieldSourceAddress common.Address, yieldSourceOracle common.Address, base common.Address, quote common.Address, oracle common.Address) (*big.Int, error) {
+	return _ISuperYieldSourceOracle.Contract.GetPricePerShareQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddress, yieldSourceOracle, base, quote, oracle)
 }
 
 // GetTVLByOwnerOfSharesMultiple is a free data retrieval call binding the contract method 0xcb797d16.
@@ -304,15 +304,15 @@ func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetTVLByOw
 	return _ISuperYieldSourceOracle.Contract.GetTVLByOwnerOfSharesMultiple(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, ownersOfShares, baseAsset)
 }
 
-// GetTVLByOwnerOfSharesMultipleQuote is a free data retrieval call binding the contract method 0xa0c90db0.
+// GetTVLByOwnerOfSharesMultipleQuote is a free data retrieval call binding the contract method 0x2a3e703b.
 //
-// Solidity: function getTVLByOwnerOfSharesMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[][] ownersOfShares, address[] baseAddresses, address[] quoteAddresses) view returns(uint256[][] userTvlsQuote, uint256[] totalTvlsQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetTVLByOwnerOfSharesMultipleQuote(opts *bind.CallOpts, yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, ownersOfShares [][]common.Address, baseAddresses []common.Address, quoteAddresses []common.Address) (struct {
+// Solidity: function getTVLByOwnerOfSharesMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[][] ownersOfShares, address[] baseAddresses, address[] quoteAddresses, address[] oracles) view returns(uint256[][] userTvlsQuote, uint256[] totalTvlsQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetTVLByOwnerOfSharesMultipleQuote(opts *bind.CallOpts, yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, ownersOfShares [][]common.Address, baseAddresses []common.Address, quoteAddresses []common.Address, oracles []common.Address) (struct {
 	UserTvlsQuote  [][]*big.Int
 	TotalTvlsQuote []*big.Int
 }, error) {
 	var out []interface{}
-	err := _ISuperYieldSourceOracle.contract.Call(opts, &out, "getTVLByOwnerOfSharesMultipleQuote", yieldSourceAddresses, yieldSourceOracles, ownersOfShares, baseAddresses, quoteAddresses)
+	err := _ISuperYieldSourceOracle.contract.Call(opts, &out, "getTVLByOwnerOfSharesMultipleQuote", yieldSourceAddresses, yieldSourceOracles, ownersOfShares, baseAddresses, quoteAddresses, oracles)
 
 	outstruct := new(struct {
 		UserTvlsQuote  [][]*big.Int
@@ -329,32 +329,32 @@ func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetTVLByOwnerOfSh
 
 }
 
-// GetTVLByOwnerOfSharesMultipleQuote is a free data retrieval call binding the contract method 0xa0c90db0.
+// GetTVLByOwnerOfSharesMultipleQuote is a free data retrieval call binding the contract method 0x2a3e703b.
 //
-// Solidity: function getTVLByOwnerOfSharesMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[][] ownersOfShares, address[] baseAddresses, address[] quoteAddresses) view returns(uint256[][] userTvlsQuote, uint256[] totalTvlsQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleSession) GetTVLByOwnerOfSharesMultipleQuote(yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, ownersOfShares [][]common.Address, baseAddresses []common.Address, quoteAddresses []common.Address) (struct {
+// Solidity: function getTVLByOwnerOfSharesMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[][] ownersOfShares, address[] baseAddresses, address[] quoteAddresses, address[] oracles) view returns(uint256[][] userTvlsQuote, uint256[] totalTvlsQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleSession) GetTVLByOwnerOfSharesMultipleQuote(yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, ownersOfShares [][]common.Address, baseAddresses []common.Address, quoteAddresses []common.Address, oracles []common.Address) (struct {
 	UserTvlsQuote  [][]*big.Int
 	TotalTvlsQuote []*big.Int
 }, error) {
-	return _ISuperYieldSourceOracle.Contract.GetTVLByOwnerOfSharesMultipleQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, ownersOfShares, baseAddresses, quoteAddresses)
+	return _ISuperYieldSourceOracle.Contract.GetTVLByOwnerOfSharesMultipleQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, ownersOfShares, baseAddresses, quoteAddresses, oracles)
 }
 
-// GetTVLByOwnerOfSharesMultipleQuote is a free data retrieval call binding the contract method 0xa0c90db0.
+// GetTVLByOwnerOfSharesMultipleQuote is a free data retrieval call binding the contract method 0x2a3e703b.
 //
-// Solidity: function getTVLByOwnerOfSharesMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[][] ownersOfShares, address[] baseAddresses, address[] quoteAddresses) view returns(uint256[][] userTvlsQuote, uint256[] totalTvlsQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetTVLByOwnerOfSharesMultipleQuote(yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, ownersOfShares [][]common.Address, baseAddresses []common.Address, quoteAddresses []common.Address) (struct {
+// Solidity: function getTVLByOwnerOfSharesMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[][] ownersOfShares, address[] baseAddresses, address[] quoteAddresses, address[] oracles) view returns(uint256[][] userTvlsQuote, uint256[] totalTvlsQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetTVLByOwnerOfSharesMultipleQuote(yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, ownersOfShares [][]common.Address, baseAddresses []common.Address, quoteAddresses []common.Address, oracles []common.Address) (struct {
 	UserTvlsQuote  [][]*big.Int
 	TotalTvlsQuote []*big.Int
 }, error) {
-	return _ISuperYieldSourceOracle.Contract.GetTVLByOwnerOfSharesMultipleQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, ownersOfShares, baseAddresses, quoteAddresses)
+	return _ISuperYieldSourceOracle.Contract.GetTVLByOwnerOfSharesMultipleQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, ownersOfShares, baseAddresses, quoteAddresses, oracles)
 }
 
-// GetTVLByOwnerOfSharesQuote is a free data retrieval call binding the contract method 0xd98417d6.
+// GetTVLByOwnerOfSharesQuote is a free data retrieval call binding the contract method 0x4a55f4de.
 //
-// Solidity: function getTVLByOwnerOfSharesQuote(address yieldSourceAddress, address yieldSourceOracle, address ownerOfShares, address base, address quote) view returns(uint256 tvlQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetTVLByOwnerOfSharesQuote(opts *bind.CallOpts, yieldSourceAddress common.Address, yieldSourceOracle common.Address, ownerOfShares common.Address, base common.Address, quote common.Address) (*big.Int, error) {
+// Solidity: function getTVLByOwnerOfSharesQuote(address yieldSourceAddress, address yieldSourceOracle, address ownerOfShares, address base, address quote, address oracle) view returns(uint256 tvlQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetTVLByOwnerOfSharesQuote(opts *bind.CallOpts, yieldSourceAddress common.Address, yieldSourceOracle common.Address, ownerOfShares common.Address, base common.Address, quote common.Address, oracle common.Address) (*big.Int, error) {
 	var out []interface{}
-	err := _ISuperYieldSourceOracle.contract.Call(opts, &out, "getTVLByOwnerOfSharesQuote", yieldSourceAddress, yieldSourceOracle, ownerOfShares, base, quote)
+	err := _ISuperYieldSourceOracle.contract.Call(opts, &out, "getTVLByOwnerOfSharesQuote", yieldSourceAddress, yieldSourceOracle, ownerOfShares, base, quote, oracle)
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -366,18 +366,18 @@ func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetTVLByOwnerOfSh
 
 }
 
-// GetTVLByOwnerOfSharesQuote is a free data retrieval call binding the contract method 0xd98417d6.
+// GetTVLByOwnerOfSharesQuote is a free data retrieval call binding the contract method 0x4a55f4de.
 //
-// Solidity: function getTVLByOwnerOfSharesQuote(address yieldSourceAddress, address yieldSourceOracle, address ownerOfShares, address base, address quote) view returns(uint256 tvlQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleSession) GetTVLByOwnerOfSharesQuote(yieldSourceAddress common.Address, yieldSourceOracle common.Address, ownerOfShares common.Address, base common.Address, quote common.Address) (*big.Int, error) {
-	return _ISuperYieldSourceOracle.Contract.GetTVLByOwnerOfSharesQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddress, yieldSourceOracle, ownerOfShares, base, quote)
+// Solidity: function getTVLByOwnerOfSharesQuote(address yieldSourceAddress, address yieldSourceOracle, address ownerOfShares, address base, address quote, address oracle) view returns(uint256 tvlQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleSession) GetTVLByOwnerOfSharesQuote(yieldSourceAddress common.Address, yieldSourceOracle common.Address, ownerOfShares common.Address, base common.Address, quote common.Address, oracle common.Address) (*big.Int, error) {
+	return _ISuperYieldSourceOracle.Contract.GetTVLByOwnerOfSharesQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddress, yieldSourceOracle, ownerOfShares, base, quote, oracle)
 }
 
-// GetTVLByOwnerOfSharesQuote is a free data retrieval call binding the contract method 0xd98417d6.
+// GetTVLByOwnerOfSharesQuote is a free data retrieval call binding the contract method 0x4a55f4de.
 //
-// Solidity: function getTVLByOwnerOfSharesQuote(address yieldSourceAddress, address yieldSourceOracle, address ownerOfShares, address base, address quote) view returns(uint256 tvlQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetTVLByOwnerOfSharesQuote(yieldSourceAddress common.Address, yieldSourceOracle common.Address, ownerOfShares common.Address, base common.Address, quote common.Address) (*big.Int, error) {
-	return _ISuperYieldSourceOracle.Contract.GetTVLByOwnerOfSharesQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddress, yieldSourceOracle, ownerOfShares, base, quote)
+// Solidity: function getTVLByOwnerOfSharesQuote(address yieldSourceAddress, address yieldSourceOracle, address ownerOfShares, address base, address quote, address oracle) view returns(uint256 tvlQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetTVLByOwnerOfSharesQuote(yieldSourceAddress common.Address, yieldSourceOracle common.Address, ownerOfShares common.Address, base common.Address, quote common.Address, oracle common.Address) (*big.Int, error) {
+	return _ISuperYieldSourceOracle.Contract.GetTVLByOwnerOfSharesQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddress, yieldSourceOracle, ownerOfShares, base, quote, oracle)
 }
 
 // GetTVLMultiple is a free data retrieval call binding the contract method 0x2404a710.
@@ -411,12 +411,12 @@ func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetTVLMult
 	return _ISuperYieldSourceOracle.Contract.GetTVLMultiple(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, baseAsset)
 }
 
-// GetTVLMultipleQuote is a free data retrieval call binding the contract method 0x57ae0545.
+// GetTVLMultipleQuote is a free data retrieval call binding the contract method 0x90df098d.
 //
-// Solidity: function getTVLMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[] baseAddresses, address[] quoteAddresses) view returns(uint256[] tvlsQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetTVLMultipleQuote(opts *bind.CallOpts, yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, baseAddresses []common.Address, quoteAddresses []common.Address) ([]*big.Int, error) {
+// Solidity: function getTVLMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[] baseAddresses, address[] quoteAddresses, address[] oracles) view returns(uint256[] tvlsQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetTVLMultipleQuote(opts *bind.CallOpts, yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, baseAddresses []common.Address, quoteAddresses []common.Address, oracles []common.Address) ([]*big.Int, error) {
 	var out []interface{}
-	err := _ISuperYieldSourceOracle.contract.Call(opts, &out, "getTVLMultipleQuote", yieldSourceAddresses, yieldSourceOracles, baseAddresses, quoteAddresses)
+	err := _ISuperYieldSourceOracle.contract.Call(opts, &out, "getTVLMultipleQuote", yieldSourceAddresses, yieldSourceOracles, baseAddresses, quoteAddresses, oracles)
 
 	if err != nil {
 		return *new([]*big.Int), err
@@ -428,26 +428,26 @@ func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetTVLMultipleQuo
 
 }
 
-// GetTVLMultipleQuote is a free data retrieval call binding the contract method 0x57ae0545.
+// GetTVLMultipleQuote is a free data retrieval call binding the contract method 0x90df098d.
 //
-// Solidity: function getTVLMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[] baseAddresses, address[] quoteAddresses) view returns(uint256[] tvlsQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleSession) GetTVLMultipleQuote(yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, baseAddresses []common.Address, quoteAddresses []common.Address) ([]*big.Int, error) {
-	return _ISuperYieldSourceOracle.Contract.GetTVLMultipleQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, baseAddresses, quoteAddresses)
+// Solidity: function getTVLMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[] baseAddresses, address[] quoteAddresses, address[] oracles) view returns(uint256[] tvlsQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleSession) GetTVLMultipleQuote(yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, baseAddresses []common.Address, quoteAddresses []common.Address, oracles []common.Address) ([]*big.Int, error) {
+	return _ISuperYieldSourceOracle.Contract.GetTVLMultipleQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, baseAddresses, quoteAddresses, oracles)
 }
 
-// GetTVLMultipleQuote is a free data retrieval call binding the contract method 0x57ae0545.
+// GetTVLMultipleQuote is a free data retrieval call binding the contract method 0x90df098d.
 //
-// Solidity: function getTVLMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[] baseAddresses, address[] quoteAddresses) view returns(uint256[] tvlsQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetTVLMultipleQuote(yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, baseAddresses []common.Address, quoteAddresses []common.Address) ([]*big.Int, error) {
-	return _ISuperYieldSourceOracle.Contract.GetTVLMultipleQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, baseAddresses, quoteAddresses)
+// Solidity: function getTVLMultipleQuote(address[] yieldSourceAddresses, address[] yieldSourceOracles, address[] baseAddresses, address[] quoteAddresses, address[] oracles) view returns(uint256[] tvlsQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetTVLMultipleQuote(yieldSourceAddresses []common.Address, yieldSourceOracles []common.Address, baseAddresses []common.Address, quoteAddresses []common.Address, oracles []common.Address) ([]*big.Int, error) {
+	return _ISuperYieldSourceOracle.Contract.GetTVLMultipleQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddresses, yieldSourceOracles, baseAddresses, quoteAddresses, oracles)
 }
 
-// GetTVLQuote is a free data retrieval call binding the contract method 0xfe1c4994.
+// GetTVLQuote is a free data retrieval call binding the contract method 0x7b9efab7.
 //
-// Solidity: function getTVLQuote(address yieldSourceAddress, address yieldSourceOracle, address base, address quote) view returns(uint256 tvlQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetTVLQuote(opts *bind.CallOpts, yieldSourceAddress common.Address, yieldSourceOracle common.Address, base common.Address, quote common.Address) (*big.Int, error) {
+// Solidity: function getTVLQuote(address yieldSourceAddress, address yieldSourceOracle, address base, address quote, address oracle) view returns(uint256 tvlQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetTVLQuote(opts *bind.CallOpts, yieldSourceAddress common.Address, yieldSourceOracle common.Address, base common.Address, quote common.Address, oracle common.Address) (*big.Int, error) {
 	var out []interface{}
-	err := _ISuperYieldSourceOracle.contract.Call(opts, &out, "getTVLQuote", yieldSourceAddress, yieldSourceOracle, base, quote)
+	err := _ISuperYieldSourceOracle.contract.Call(opts, &out, "getTVLQuote", yieldSourceAddress, yieldSourceOracle, base, quote, oracle)
 
 	if err != nil {
 		return *new(*big.Int), err
@@ -459,16 +459,16 @@ func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCaller) GetTVLQuote(opts 
 
 }
 
-// GetTVLQuote is a free data retrieval call binding the contract method 0xfe1c4994.
+// GetTVLQuote is a free data retrieval call binding the contract method 0x7b9efab7.
 //
-// Solidity: function getTVLQuote(address yieldSourceAddress, address yieldSourceOracle, address base, address quote) view returns(uint256 tvlQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleSession) GetTVLQuote(yieldSourceAddress common.Address, yieldSourceOracle common.Address, base common.Address, quote common.Address) (*big.Int, error) {
-	return _ISuperYieldSourceOracle.Contract.GetTVLQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddress, yieldSourceOracle, base, quote)
+// Solidity: function getTVLQuote(address yieldSourceAddress, address yieldSourceOracle, address base, address quote, address oracle) view returns(uint256 tvlQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleSession) GetTVLQuote(yieldSourceAddress common.Address, yieldSourceOracle common.Address, base common.Address, quote common.Address, oracle common.Address) (*big.Int, error) {
+	return _ISuperYieldSourceOracle.Contract.GetTVLQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddress, yieldSourceOracle, base, quote, oracle)
 }
 
-// GetTVLQuote is a free data retrieval call binding the contract method 0xfe1c4994.
+// GetTVLQuote is a free data retrieval call binding the contract method 0x7b9efab7.
 //
-// Solidity: function getTVLQuote(address yieldSourceAddress, address yieldSourceOracle, address base, address quote) view returns(uint256 tvlQuote)
-func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetTVLQuote(yieldSourceAddress common.Address, yieldSourceOracle common.Address, base common.Address, quote common.Address) (*big.Int, error) {
-	return _ISuperYieldSourceOracle.Contract.GetTVLQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddress, yieldSourceOracle, base, quote)
+// Solidity: function getTVLQuote(address yieldSourceAddress, address yieldSourceOracle, address base, address quote, address oracle) view returns(uint256 tvlQuote)
+func (_ISuperYieldSourceOracle *ISuperYieldSourceOracleCallerSession) GetTVLQuote(yieldSourceAddress common.Address, yieldSourceOracle common.Address, base common.Address, quote common.Address, oracle common.Address) (*big.Int, error) {
+	return _ISuperYieldSourceOracle.Contract.GetTVLQuote(&_ISuperYieldSourceOracle.CallOpts, yieldSourceAddress, yieldSourceOracle, base, quote, oracle)
 }
