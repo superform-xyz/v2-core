@@ -40,16 +40,15 @@ type ISuperLedgerConfigurationYieldSourceOracleConfig struct {
 
 // ISuperLedgerConfigurationYieldSourceOracleConfigArgs is an auto generated low-level Go binding around an user-defined struct.
 type ISuperLedgerConfigurationYieldSourceOracleConfigArgs struct {
-	YieldSourceOracleId [4]byte
-	YieldSourceOracle   common.Address
-	FeePercent          *big.Int
-	FeeRecipient        common.Address
-	Ledger              common.Address
+	YieldSourceOracle common.Address
+	FeePercent        *big.Int
+	FeeRecipient      common.Address
+	Ledger            common.Address
 }
 
 // SuperLedgerConfigurationMetaData contains all meta data concerning the SuperLedgerConfiguration contract.
 var SuperLedgerConfigurationMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"_deployer\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"acceptManagerRole\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"acceptYieldSourceOracleConfigProposal\",\"inputs\":[{\"name\":\"yieldSourceOracleIds\",\"type\":\"bytes4[]\",\"internalType\":\"bytes4[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"cancelYieldSourceOracleConfigProposal\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getYieldSourceOracleConfig\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structISuperLedgerConfiguration.YieldSourceOracleConfig\",\"components\":[{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"manager\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getYieldSourceOracleConfigs\",\"inputs\":[{\"name\":\"yieldSourceOracleIds\",\"type\":\"bytes4[]\",\"internalType\":\"bytes4[]\"}],\"outputs\":[{\"name\":\"configs\",\"type\":\"tuple[]\",\"internalType\":\"structISuperLedgerConfiguration.YieldSourceOracleConfig[]\",\"components\":[{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"manager\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"proposeYieldSourceOracleConfig\",\"inputs\":[{\"name\":\"configs\",\"type\":\"tuple[]\",\"internalType\":\"structISuperLedgerConfiguration.YieldSourceOracleConfigArgs[]\",\"components\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setYieldSourceOracles\",\"inputs\":[{\"name\":\"configs\",\"type\":\"tuple[]\",\"internalType\":\"structISuperLedgerConfiguration.YieldSourceOracleConfigArgs[]\",\"components\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferManagerRole\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"},{\"name\":\"newManager\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"ManagerRoleTransferAccepted\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes4\",\"indexed\":true,\"internalType\":\"bytes4\"},{\"name\":\"newManager\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ManagerRoleTransferStarted\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes4\",\"indexed\":true,\"internalType\":\"bytes4\"},{\"name\":\"currentManager\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newManager\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceOracleConfigAccepted\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes4\",\"indexed\":true,\"internalType\":\"bytes4\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"manager\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceOracleConfigProposalCancelled\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes4\",\"indexed\":true,\"internalType\":\"bytes4\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"manager\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceOracleConfigProposalSet\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes4\",\"indexed\":true,\"internalType\":\"bytes4\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"manager\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceOracleConfigSet\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes4\",\"indexed\":true,\"internalType\":\"bytes4\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"manager\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"ALREADY_INITIALIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CANNOT_ACCEPT_YET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CHANGE_ALREADY_PROPOSED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CONFIG_EXISTS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CONFIG_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE_PERCENT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MANAGER_NOT_MATCHED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_DEPLOYER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_MANAGER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_PENDING_MANAGER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_PENDING_PROPOSAL\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS_NOT_ALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ID_NOT_ALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_LENGTH\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"function\",\"name\":\"acceptManagerRole\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"acceptYieldSourceOracleConfigProposal\",\"inputs\":[{\"name\":\"yieldSourceOracleIds\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"cancelYieldSourceOracleConfigProposal\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"getAllYieldSourceOracleIdsByOwner\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getYieldSourceOracleConfig\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structISuperLedgerConfiguration.YieldSourceOracleConfig\",\"components\":[{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"manager\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getYieldSourceOracleConfigs\",\"inputs\":[{\"name\":\"yieldSourceOracleIds\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"}],\"outputs\":[{\"name\":\"configs\",\"type\":\"tuple[]\",\"internalType\":\"structISuperLedgerConfiguration.YieldSourceOracleConfig[]\",\"components\":[{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"manager\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"proposeYieldSourceOracleConfig\",\"inputs\":[{\"name\":\"yieldSourceOracleIds\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"},{\"name\":\"configs\",\"type\":\"tuple[]\",\"internalType\":\"structISuperLedgerConfiguration.YieldSourceOracleConfigArgs[]\",\"components\":[{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"setYieldSourceOracles\",\"inputs\":[{\"name\":\"salts\",\"type\":\"bytes32[]\",\"internalType\":\"bytes32[]\"},{\"name\":\"configs\",\"type\":\"tuple[]\",\"internalType\":\"structISuperLedgerConfiguration.YieldSourceOracleConfigArgs[]\",\"components\":[{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"internalType\":\"address\"}]}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferManagerRole\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"newManager\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"ManagerRoleTransferAccepted\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"newManager\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"ManagerRoleTransferStarted\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"currentManager\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newManager\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceOracleConfigAccepted\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"manager\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceOracleConfigProposalCancelled\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"manager\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceOracleConfigProposalSet\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"manager\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"YieldSourceOracleConfigSet\",\"inputs\":[{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"indexed\":true,\"internalType\":\"bytes32\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"feeRecipient\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"manager\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"},{\"name\":\"ledger\",\"type\":\"address\",\"indexed\":false,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"CANNOT_ACCEPT_YET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CHANGE_ALREADY_PROPOSED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CONFIG_EXISTS\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"CONFIG_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE_PERCENT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"LENGTH_MISMATCH\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MANAGER_NOT_MATCHED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_MANAGER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_PENDING_MANAGER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NO_PENDING_PROPOSAL\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS_NOT_ALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ID_NOT_ALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_LENGTH\",\"inputs\":[]}]",
 }
 
 // SuperLedgerConfigurationABI is the input ABI used to generate the binding from.
@@ -198,10 +197,41 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactorRaw) Transact
 	return _SuperLedgerConfiguration.Contract.contract.Transact(opts, method, params...)
 }
 
-// GetYieldSourceOracleConfig is a free data retrieval call binding the contract method 0xf8bc154b.
+// GetAllYieldSourceOracleIdsByOwner is a free data retrieval call binding the contract method 0xb6fd1b52.
 //
-// Solidity: function getYieldSourceOracleConfig(bytes4 yieldSourceOracleId) view returns((address,uint256,address,address,address))
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationCaller) GetYieldSourceOracleConfig(opts *bind.CallOpts, yieldSourceOracleId [4]byte) (ISuperLedgerConfigurationYieldSourceOracleConfig, error) {
+// Solidity: function getAllYieldSourceOracleIdsByOwner(address owner) view returns(bytes32[])
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationCaller) GetAllYieldSourceOracleIdsByOwner(opts *bind.CallOpts, owner common.Address) ([][32]byte, error) {
+	var out []interface{}
+	err := _SuperLedgerConfiguration.contract.Call(opts, &out, "getAllYieldSourceOracleIdsByOwner", owner)
+
+	if err != nil {
+		return *new([][32]byte), err
+	}
+
+	out0 := *abi.ConvertType(out[0], new([][32]byte)).(*[][32]byte)
+
+	return out0, err
+
+}
+
+// GetAllYieldSourceOracleIdsByOwner is a free data retrieval call binding the contract method 0xb6fd1b52.
+//
+// Solidity: function getAllYieldSourceOracleIdsByOwner(address owner) view returns(bytes32[])
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) GetAllYieldSourceOracleIdsByOwner(owner common.Address) ([][32]byte, error) {
+	return _SuperLedgerConfiguration.Contract.GetAllYieldSourceOracleIdsByOwner(&_SuperLedgerConfiguration.CallOpts, owner)
+}
+
+// GetAllYieldSourceOracleIdsByOwner is a free data retrieval call binding the contract method 0xb6fd1b52.
+//
+// Solidity: function getAllYieldSourceOracleIdsByOwner(address owner) view returns(bytes32[])
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationCallerSession) GetAllYieldSourceOracleIdsByOwner(owner common.Address) ([][32]byte, error) {
+	return _SuperLedgerConfiguration.Contract.GetAllYieldSourceOracleIdsByOwner(&_SuperLedgerConfiguration.CallOpts, owner)
+}
+
+// GetYieldSourceOracleConfig is a free data retrieval call binding the contract method 0xb4767370.
+//
+// Solidity: function getYieldSourceOracleConfig(bytes32 yieldSourceOracleId) view returns((address,uint256,address,address,address))
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationCaller) GetYieldSourceOracleConfig(opts *bind.CallOpts, yieldSourceOracleId [32]byte) (ISuperLedgerConfigurationYieldSourceOracleConfig, error) {
 	var out []interface{}
 	err := _SuperLedgerConfiguration.contract.Call(opts, &out, "getYieldSourceOracleConfig", yieldSourceOracleId)
 
@@ -215,24 +245,24 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationCaller) GetYieldSourceO
 
 }
 
-// GetYieldSourceOracleConfig is a free data retrieval call binding the contract method 0xf8bc154b.
+// GetYieldSourceOracleConfig is a free data retrieval call binding the contract method 0xb4767370.
 //
-// Solidity: function getYieldSourceOracleConfig(bytes4 yieldSourceOracleId) view returns((address,uint256,address,address,address))
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) GetYieldSourceOracleConfig(yieldSourceOracleId [4]byte) (ISuperLedgerConfigurationYieldSourceOracleConfig, error) {
+// Solidity: function getYieldSourceOracleConfig(bytes32 yieldSourceOracleId) view returns((address,uint256,address,address,address))
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) GetYieldSourceOracleConfig(yieldSourceOracleId [32]byte) (ISuperLedgerConfigurationYieldSourceOracleConfig, error) {
 	return _SuperLedgerConfiguration.Contract.GetYieldSourceOracleConfig(&_SuperLedgerConfiguration.CallOpts, yieldSourceOracleId)
 }
 
-// GetYieldSourceOracleConfig is a free data retrieval call binding the contract method 0xf8bc154b.
+// GetYieldSourceOracleConfig is a free data retrieval call binding the contract method 0xb4767370.
 //
-// Solidity: function getYieldSourceOracleConfig(bytes4 yieldSourceOracleId) view returns((address,uint256,address,address,address))
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationCallerSession) GetYieldSourceOracleConfig(yieldSourceOracleId [4]byte) (ISuperLedgerConfigurationYieldSourceOracleConfig, error) {
+// Solidity: function getYieldSourceOracleConfig(bytes32 yieldSourceOracleId) view returns((address,uint256,address,address,address))
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationCallerSession) GetYieldSourceOracleConfig(yieldSourceOracleId [32]byte) (ISuperLedgerConfigurationYieldSourceOracleConfig, error) {
 	return _SuperLedgerConfiguration.Contract.GetYieldSourceOracleConfig(&_SuperLedgerConfiguration.CallOpts, yieldSourceOracleId)
 }
 
-// GetYieldSourceOracleConfigs is a free data retrieval call binding the contract method 0xa53fba1a.
+// GetYieldSourceOracleConfigs is a free data retrieval call binding the contract method 0x351166c6.
 //
-// Solidity: function getYieldSourceOracleConfigs(bytes4[] yieldSourceOracleIds) view returns((address,uint256,address,address,address)[] configs)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationCaller) GetYieldSourceOracleConfigs(opts *bind.CallOpts, yieldSourceOracleIds [][4]byte) ([]ISuperLedgerConfigurationYieldSourceOracleConfig, error) {
+// Solidity: function getYieldSourceOracleConfigs(bytes32[] yieldSourceOracleIds) view returns((address,uint256,address,address,address)[] configs)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationCaller) GetYieldSourceOracleConfigs(opts *bind.CallOpts, yieldSourceOracleIds [][32]byte) ([]ISuperLedgerConfigurationYieldSourceOracleConfig, error) {
 	var out []interface{}
 	err := _SuperLedgerConfiguration.contract.Call(opts, &out, "getYieldSourceOracleConfigs", yieldSourceOracleIds)
 
@@ -246,143 +276,143 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationCaller) GetYieldSourceO
 
 }
 
-// GetYieldSourceOracleConfigs is a free data retrieval call binding the contract method 0xa53fba1a.
+// GetYieldSourceOracleConfigs is a free data retrieval call binding the contract method 0x351166c6.
 //
-// Solidity: function getYieldSourceOracleConfigs(bytes4[] yieldSourceOracleIds) view returns((address,uint256,address,address,address)[] configs)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) GetYieldSourceOracleConfigs(yieldSourceOracleIds [][4]byte) ([]ISuperLedgerConfigurationYieldSourceOracleConfig, error) {
+// Solidity: function getYieldSourceOracleConfigs(bytes32[] yieldSourceOracleIds) view returns((address,uint256,address,address,address)[] configs)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) GetYieldSourceOracleConfigs(yieldSourceOracleIds [][32]byte) ([]ISuperLedgerConfigurationYieldSourceOracleConfig, error) {
 	return _SuperLedgerConfiguration.Contract.GetYieldSourceOracleConfigs(&_SuperLedgerConfiguration.CallOpts, yieldSourceOracleIds)
 }
 
-// GetYieldSourceOracleConfigs is a free data retrieval call binding the contract method 0xa53fba1a.
+// GetYieldSourceOracleConfigs is a free data retrieval call binding the contract method 0x351166c6.
 //
-// Solidity: function getYieldSourceOracleConfigs(bytes4[] yieldSourceOracleIds) view returns((address,uint256,address,address,address)[] configs)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationCallerSession) GetYieldSourceOracleConfigs(yieldSourceOracleIds [][4]byte) ([]ISuperLedgerConfigurationYieldSourceOracleConfig, error) {
+// Solidity: function getYieldSourceOracleConfigs(bytes32[] yieldSourceOracleIds) view returns((address,uint256,address,address,address)[] configs)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationCallerSession) GetYieldSourceOracleConfigs(yieldSourceOracleIds [][32]byte) ([]ISuperLedgerConfigurationYieldSourceOracleConfig, error) {
 	return _SuperLedgerConfiguration.Contract.GetYieldSourceOracleConfigs(&_SuperLedgerConfiguration.CallOpts, yieldSourceOracleIds)
 }
 
-// AcceptManagerRole is a paid mutator transaction binding the contract method 0xef841cc2.
+// AcceptManagerRole is a paid mutator transaction binding the contract method 0x9ffba1fb.
 //
-// Solidity: function acceptManagerRole(bytes4 yieldSourceOracleId) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactor) AcceptManagerRole(opts *bind.TransactOpts, yieldSourceOracleId [4]byte) (*types.Transaction, error) {
+// Solidity: function acceptManagerRole(bytes32 yieldSourceOracleId) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactor) AcceptManagerRole(opts *bind.TransactOpts, yieldSourceOracleId [32]byte) (*types.Transaction, error) {
 	return _SuperLedgerConfiguration.contract.Transact(opts, "acceptManagerRole", yieldSourceOracleId)
 }
 
-// AcceptManagerRole is a paid mutator transaction binding the contract method 0xef841cc2.
+// AcceptManagerRole is a paid mutator transaction binding the contract method 0x9ffba1fb.
 //
-// Solidity: function acceptManagerRole(bytes4 yieldSourceOracleId) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) AcceptManagerRole(yieldSourceOracleId [4]byte) (*types.Transaction, error) {
+// Solidity: function acceptManagerRole(bytes32 yieldSourceOracleId) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) AcceptManagerRole(yieldSourceOracleId [32]byte) (*types.Transaction, error) {
 	return _SuperLedgerConfiguration.Contract.AcceptManagerRole(&_SuperLedgerConfiguration.TransactOpts, yieldSourceOracleId)
 }
 
-// AcceptManagerRole is a paid mutator transaction binding the contract method 0xef841cc2.
+// AcceptManagerRole is a paid mutator transaction binding the contract method 0x9ffba1fb.
 //
-// Solidity: function acceptManagerRole(bytes4 yieldSourceOracleId) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactorSession) AcceptManagerRole(yieldSourceOracleId [4]byte) (*types.Transaction, error) {
+// Solidity: function acceptManagerRole(bytes32 yieldSourceOracleId) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactorSession) AcceptManagerRole(yieldSourceOracleId [32]byte) (*types.Transaction, error) {
 	return _SuperLedgerConfiguration.Contract.AcceptManagerRole(&_SuperLedgerConfiguration.TransactOpts, yieldSourceOracleId)
 }
 
-// AcceptYieldSourceOracleConfigProposal is a paid mutator transaction binding the contract method 0x03a63c75.
+// AcceptYieldSourceOracleConfigProposal is a paid mutator transaction binding the contract method 0xfe46d282.
 //
-// Solidity: function acceptYieldSourceOracleConfigProposal(bytes4[] yieldSourceOracleIds) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactor) AcceptYieldSourceOracleConfigProposal(opts *bind.TransactOpts, yieldSourceOracleIds [][4]byte) (*types.Transaction, error) {
+// Solidity: function acceptYieldSourceOracleConfigProposal(bytes32[] yieldSourceOracleIds) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactor) AcceptYieldSourceOracleConfigProposal(opts *bind.TransactOpts, yieldSourceOracleIds [][32]byte) (*types.Transaction, error) {
 	return _SuperLedgerConfiguration.contract.Transact(opts, "acceptYieldSourceOracleConfigProposal", yieldSourceOracleIds)
 }
 
-// AcceptYieldSourceOracleConfigProposal is a paid mutator transaction binding the contract method 0x03a63c75.
+// AcceptYieldSourceOracleConfigProposal is a paid mutator transaction binding the contract method 0xfe46d282.
 //
-// Solidity: function acceptYieldSourceOracleConfigProposal(bytes4[] yieldSourceOracleIds) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) AcceptYieldSourceOracleConfigProposal(yieldSourceOracleIds [][4]byte) (*types.Transaction, error) {
+// Solidity: function acceptYieldSourceOracleConfigProposal(bytes32[] yieldSourceOracleIds) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) AcceptYieldSourceOracleConfigProposal(yieldSourceOracleIds [][32]byte) (*types.Transaction, error) {
 	return _SuperLedgerConfiguration.Contract.AcceptYieldSourceOracleConfigProposal(&_SuperLedgerConfiguration.TransactOpts, yieldSourceOracleIds)
 }
 
-// AcceptYieldSourceOracleConfigProposal is a paid mutator transaction binding the contract method 0x03a63c75.
+// AcceptYieldSourceOracleConfigProposal is a paid mutator transaction binding the contract method 0xfe46d282.
 //
-// Solidity: function acceptYieldSourceOracleConfigProposal(bytes4[] yieldSourceOracleIds) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactorSession) AcceptYieldSourceOracleConfigProposal(yieldSourceOracleIds [][4]byte) (*types.Transaction, error) {
+// Solidity: function acceptYieldSourceOracleConfigProposal(bytes32[] yieldSourceOracleIds) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactorSession) AcceptYieldSourceOracleConfigProposal(yieldSourceOracleIds [][32]byte) (*types.Transaction, error) {
 	return _SuperLedgerConfiguration.Contract.AcceptYieldSourceOracleConfigProposal(&_SuperLedgerConfiguration.TransactOpts, yieldSourceOracleIds)
 }
 
-// CancelYieldSourceOracleConfigProposal is a paid mutator transaction binding the contract method 0x0ec29842.
+// CancelYieldSourceOracleConfigProposal is a paid mutator transaction binding the contract method 0xcd708da7.
 //
-// Solidity: function cancelYieldSourceOracleConfigProposal(bytes4 yieldSourceOracleId) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactor) CancelYieldSourceOracleConfigProposal(opts *bind.TransactOpts, yieldSourceOracleId [4]byte) (*types.Transaction, error) {
+// Solidity: function cancelYieldSourceOracleConfigProposal(bytes32 yieldSourceOracleId) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactor) CancelYieldSourceOracleConfigProposal(opts *bind.TransactOpts, yieldSourceOracleId [32]byte) (*types.Transaction, error) {
 	return _SuperLedgerConfiguration.contract.Transact(opts, "cancelYieldSourceOracleConfigProposal", yieldSourceOracleId)
 }
 
-// CancelYieldSourceOracleConfigProposal is a paid mutator transaction binding the contract method 0x0ec29842.
+// CancelYieldSourceOracleConfigProposal is a paid mutator transaction binding the contract method 0xcd708da7.
 //
-// Solidity: function cancelYieldSourceOracleConfigProposal(bytes4 yieldSourceOracleId) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) CancelYieldSourceOracleConfigProposal(yieldSourceOracleId [4]byte) (*types.Transaction, error) {
+// Solidity: function cancelYieldSourceOracleConfigProposal(bytes32 yieldSourceOracleId) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) CancelYieldSourceOracleConfigProposal(yieldSourceOracleId [32]byte) (*types.Transaction, error) {
 	return _SuperLedgerConfiguration.Contract.CancelYieldSourceOracleConfigProposal(&_SuperLedgerConfiguration.TransactOpts, yieldSourceOracleId)
 }
 
-// CancelYieldSourceOracleConfigProposal is a paid mutator transaction binding the contract method 0x0ec29842.
+// CancelYieldSourceOracleConfigProposal is a paid mutator transaction binding the contract method 0xcd708da7.
 //
-// Solidity: function cancelYieldSourceOracleConfigProposal(bytes4 yieldSourceOracleId) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactorSession) CancelYieldSourceOracleConfigProposal(yieldSourceOracleId [4]byte) (*types.Transaction, error) {
+// Solidity: function cancelYieldSourceOracleConfigProposal(bytes32 yieldSourceOracleId) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactorSession) CancelYieldSourceOracleConfigProposal(yieldSourceOracleId [32]byte) (*types.Transaction, error) {
 	return _SuperLedgerConfiguration.Contract.CancelYieldSourceOracleConfigProposal(&_SuperLedgerConfiguration.TransactOpts, yieldSourceOracleId)
 }
 
-// ProposeYieldSourceOracleConfig is a paid mutator transaction binding the contract method 0x3685d4be.
+// ProposeYieldSourceOracleConfig is a paid mutator transaction binding the contract method 0x97d4c17f.
 //
-// Solidity: function proposeYieldSourceOracleConfig((bytes4,address,uint256,address,address)[] configs) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactor) ProposeYieldSourceOracleConfig(opts *bind.TransactOpts, configs []ISuperLedgerConfigurationYieldSourceOracleConfigArgs) (*types.Transaction, error) {
-	return _SuperLedgerConfiguration.contract.Transact(opts, "proposeYieldSourceOracleConfig", configs)
+// Solidity: function proposeYieldSourceOracleConfig(bytes32[] yieldSourceOracleIds, (address,uint256,address,address)[] configs) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactor) ProposeYieldSourceOracleConfig(opts *bind.TransactOpts, yieldSourceOracleIds [][32]byte, configs []ISuperLedgerConfigurationYieldSourceOracleConfigArgs) (*types.Transaction, error) {
+	return _SuperLedgerConfiguration.contract.Transact(opts, "proposeYieldSourceOracleConfig", yieldSourceOracleIds, configs)
 }
 
-// ProposeYieldSourceOracleConfig is a paid mutator transaction binding the contract method 0x3685d4be.
+// ProposeYieldSourceOracleConfig is a paid mutator transaction binding the contract method 0x97d4c17f.
 //
-// Solidity: function proposeYieldSourceOracleConfig((bytes4,address,uint256,address,address)[] configs) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) ProposeYieldSourceOracleConfig(configs []ISuperLedgerConfigurationYieldSourceOracleConfigArgs) (*types.Transaction, error) {
-	return _SuperLedgerConfiguration.Contract.ProposeYieldSourceOracleConfig(&_SuperLedgerConfiguration.TransactOpts, configs)
+// Solidity: function proposeYieldSourceOracleConfig(bytes32[] yieldSourceOracleIds, (address,uint256,address,address)[] configs) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) ProposeYieldSourceOracleConfig(yieldSourceOracleIds [][32]byte, configs []ISuperLedgerConfigurationYieldSourceOracleConfigArgs) (*types.Transaction, error) {
+	return _SuperLedgerConfiguration.Contract.ProposeYieldSourceOracleConfig(&_SuperLedgerConfiguration.TransactOpts, yieldSourceOracleIds, configs)
 }
 
-// ProposeYieldSourceOracleConfig is a paid mutator transaction binding the contract method 0x3685d4be.
+// ProposeYieldSourceOracleConfig is a paid mutator transaction binding the contract method 0x97d4c17f.
 //
-// Solidity: function proposeYieldSourceOracleConfig((bytes4,address,uint256,address,address)[] configs) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactorSession) ProposeYieldSourceOracleConfig(configs []ISuperLedgerConfigurationYieldSourceOracleConfigArgs) (*types.Transaction, error) {
-	return _SuperLedgerConfiguration.Contract.ProposeYieldSourceOracleConfig(&_SuperLedgerConfiguration.TransactOpts, configs)
+// Solidity: function proposeYieldSourceOracleConfig(bytes32[] yieldSourceOracleIds, (address,uint256,address,address)[] configs) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactorSession) ProposeYieldSourceOracleConfig(yieldSourceOracleIds [][32]byte, configs []ISuperLedgerConfigurationYieldSourceOracleConfigArgs) (*types.Transaction, error) {
+	return _SuperLedgerConfiguration.Contract.ProposeYieldSourceOracleConfig(&_SuperLedgerConfiguration.TransactOpts, yieldSourceOracleIds, configs)
 }
 
-// SetYieldSourceOracles is a paid mutator transaction binding the contract method 0x79fc641e.
+// SetYieldSourceOracles is a paid mutator transaction binding the contract method 0xedd95d06.
 //
-// Solidity: function setYieldSourceOracles((bytes4,address,uint256,address,address)[] configs) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactor) SetYieldSourceOracles(opts *bind.TransactOpts, configs []ISuperLedgerConfigurationYieldSourceOracleConfigArgs) (*types.Transaction, error) {
-	return _SuperLedgerConfiguration.contract.Transact(opts, "setYieldSourceOracles", configs)
+// Solidity: function setYieldSourceOracles(bytes32[] salts, (address,uint256,address,address)[] configs) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactor) SetYieldSourceOracles(opts *bind.TransactOpts, salts [][32]byte, configs []ISuperLedgerConfigurationYieldSourceOracleConfigArgs) (*types.Transaction, error) {
+	return _SuperLedgerConfiguration.contract.Transact(opts, "setYieldSourceOracles", salts, configs)
 }
 
-// SetYieldSourceOracles is a paid mutator transaction binding the contract method 0x79fc641e.
+// SetYieldSourceOracles is a paid mutator transaction binding the contract method 0xedd95d06.
 //
-// Solidity: function setYieldSourceOracles((bytes4,address,uint256,address,address)[] configs) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) SetYieldSourceOracles(configs []ISuperLedgerConfigurationYieldSourceOracleConfigArgs) (*types.Transaction, error) {
-	return _SuperLedgerConfiguration.Contract.SetYieldSourceOracles(&_SuperLedgerConfiguration.TransactOpts, configs)
+// Solidity: function setYieldSourceOracles(bytes32[] salts, (address,uint256,address,address)[] configs) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) SetYieldSourceOracles(salts [][32]byte, configs []ISuperLedgerConfigurationYieldSourceOracleConfigArgs) (*types.Transaction, error) {
+	return _SuperLedgerConfiguration.Contract.SetYieldSourceOracles(&_SuperLedgerConfiguration.TransactOpts, salts, configs)
 }
 
-// SetYieldSourceOracles is a paid mutator transaction binding the contract method 0x79fc641e.
+// SetYieldSourceOracles is a paid mutator transaction binding the contract method 0xedd95d06.
 //
-// Solidity: function setYieldSourceOracles((bytes4,address,uint256,address,address)[] configs) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactorSession) SetYieldSourceOracles(configs []ISuperLedgerConfigurationYieldSourceOracleConfigArgs) (*types.Transaction, error) {
-	return _SuperLedgerConfiguration.Contract.SetYieldSourceOracles(&_SuperLedgerConfiguration.TransactOpts, configs)
+// Solidity: function setYieldSourceOracles(bytes32[] salts, (address,uint256,address,address)[] configs) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactorSession) SetYieldSourceOracles(salts [][32]byte, configs []ISuperLedgerConfigurationYieldSourceOracleConfigArgs) (*types.Transaction, error) {
+	return _SuperLedgerConfiguration.Contract.SetYieldSourceOracles(&_SuperLedgerConfiguration.TransactOpts, salts, configs)
 }
 
-// TransferManagerRole is a paid mutator transaction binding the contract method 0x0e9a3a76.
+// TransferManagerRole is a paid mutator transaction binding the contract method 0xdd3cf00b.
 //
-// Solidity: function transferManagerRole(bytes4 yieldSourceOracleId, address newManager) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactor) TransferManagerRole(opts *bind.TransactOpts, yieldSourceOracleId [4]byte, newManager common.Address) (*types.Transaction, error) {
+// Solidity: function transferManagerRole(bytes32 yieldSourceOracleId, address newManager) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactor) TransferManagerRole(opts *bind.TransactOpts, yieldSourceOracleId [32]byte, newManager common.Address) (*types.Transaction, error) {
 	return _SuperLedgerConfiguration.contract.Transact(opts, "transferManagerRole", yieldSourceOracleId, newManager)
 }
 
-// TransferManagerRole is a paid mutator transaction binding the contract method 0x0e9a3a76.
+// TransferManagerRole is a paid mutator transaction binding the contract method 0xdd3cf00b.
 //
-// Solidity: function transferManagerRole(bytes4 yieldSourceOracleId, address newManager) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) TransferManagerRole(yieldSourceOracleId [4]byte, newManager common.Address) (*types.Transaction, error) {
+// Solidity: function transferManagerRole(bytes32 yieldSourceOracleId, address newManager) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationSession) TransferManagerRole(yieldSourceOracleId [32]byte, newManager common.Address) (*types.Transaction, error) {
 	return _SuperLedgerConfiguration.Contract.TransferManagerRole(&_SuperLedgerConfiguration.TransactOpts, yieldSourceOracleId, newManager)
 }
 
-// TransferManagerRole is a paid mutator transaction binding the contract method 0x0e9a3a76.
+// TransferManagerRole is a paid mutator transaction binding the contract method 0xdd3cf00b.
 //
-// Solidity: function transferManagerRole(bytes4 yieldSourceOracleId, address newManager) returns()
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactorSession) TransferManagerRole(yieldSourceOracleId [4]byte, newManager common.Address) (*types.Transaction, error) {
+// Solidity: function transferManagerRole(bytes32 yieldSourceOracleId, address newManager) returns()
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationTransactorSession) TransferManagerRole(yieldSourceOracleId [32]byte, newManager common.Address) (*types.Transaction, error) {
 	return _SuperLedgerConfiguration.Contract.TransferManagerRole(&_SuperLedgerConfiguration.TransactOpts, yieldSourceOracleId, newManager)
 }
 
@@ -455,15 +485,15 @@ func (it *SuperLedgerConfigurationManagerRoleTransferAcceptedIterator) Close() e
 
 // SuperLedgerConfigurationManagerRoleTransferAccepted represents a ManagerRoleTransferAccepted event raised by the SuperLedgerConfiguration contract.
 type SuperLedgerConfigurationManagerRoleTransferAccepted struct {
-	YieldSourceOracleId [4]byte
+	YieldSourceOracleId [32]byte
 	NewManager          common.Address
 	Raw                 types.Log // Blockchain specific contextual infos
 }
 
-// FilterManagerRoleTransferAccepted is a free log retrieval operation binding the contract event 0x61c5f5d804ff8c242cac3cdb71c97f45ef46d5bac0e47b2ce23684710e2f1770.
+// FilterManagerRoleTransferAccepted is a free log retrieval operation binding the contract event 0xb129e473bec7ed12bc0faacf7e7da6677f0b79f93ca6e88667329193166b007d.
 //
-// Solidity: event ManagerRoleTransferAccepted(bytes4 indexed yieldSourceOracleId, address indexed newManager)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterManagerRoleTransferAccepted(opts *bind.FilterOpts, yieldSourceOracleId [][4]byte, newManager []common.Address) (*SuperLedgerConfigurationManagerRoleTransferAcceptedIterator, error) {
+// Solidity: event ManagerRoleTransferAccepted(bytes32 indexed yieldSourceOracleId, address indexed newManager)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterManagerRoleTransferAccepted(opts *bind.FilterOpts, yieldSourceOracleId [][32]byte, newManager []common.Address) (*SuperLedgerConfigurationManagerRoleTransferAcceptedIterator, error) {
 
 	var yieldSourceOracleIdRule []interface{}
 	for _, yieldSourceOracleIdItem := range yieldSourceOracleId {
@@ -481,10 +511,10 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterManager
 	return &SuperLedgerConfigurationManagerRoleTransferAcceptedIterator{contract: _SuperLedgerConfiguration.contract, event: "ManagerRoleTransferAccepted", logs: logs, sub: sub}, nil
 }
 
-// WatchManagerRoleTransferAccepted is a free log subscription operation binding the contract event 0x61c5f5d804ff8c242cac3cdb71c97f45ef46d5bac0e47b2ce23684710e2f1770.
+// WatchManagerRoleTransferAccepted is a free log subscription operation binding the contract event 0xb129e473bec7ed12bc0faacf7e7da6677f0b79f93ca6e88667329193166b007d.
 //
-// Solidity: event ManagerRoleTransferAccepted(bytes4 indexed yieldSourceOracleId, address indexed newManager)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchManagerRoleTransferAccepted(opts *bind.WatchOpts, sink chan<- *SuperLedgerConfigurationManagerRoleTransferAccepted, yieldSourceOracleId [][4]byte, newManager []common.Address) (event.Subscription, error) {
+// Solidity: event ManagerRoleTransferAccepted(bytes32 indexed yieldSourceOracleId, address indexed newManager)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchManagerRoleTransferAccepted(opts *bind.WatchOpts, sink chan<- *SuperLedgerConfigurationManagerRoleTransferAccepted, yieldSourceOracleId [][32]byte, newManager []common.Address) (event.Subscription, error) {
 
 	var yieldSourceOracleIdRule []interface{}
 	for _, yieldSourceOracleIdItem := range yieldSourceOracleId {
@@ -527,9 +557,9 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchManagerR
 	}), nil
 }
 
-// ParseManagerRoleTransferAccepted is a log parse operation binding the contract event 0x61c5f5d804ff8c242cac3cdb71c97f45ef46d5bac0e47b2ce23684710e2f1770.
+// ParseManagerRoleTransferAccepted is a log parse operation binding the contract event 0xb129e473bec7ed12bc0faacf7e7da6677f0b79f93ca6e88667329193166b007d.
 //
-// Solidity: event ManagerRoleTransferAccepted(bytes4 indexed yieldSourceOracleId, address indexed newManager)
+// Solidity: event ManagerRoleTransferAccepted(bytes32 indexed yieldSourceOracleId, address indexed newManager)
 func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) ParseManagerRoleTransferAccepted(log types.Log) (*SuperLedgerConfigurationManagerRoleTransferAccepted, error) {
 	event := new(SuperLedgerConfigurationManagerRoleTransferAccepted)
 	if err := _SuperLedgerConfiguration.contract.UnpackLog(event, "ManagerRoleTransferAccepted", log); err != nil {
@@ -608,16 +638,16 @@ func (it *SuperLedgerConfigurationManagerRoleTransferStartedIterator) Close() er
 
 // SuperLedgerConfigurationManagerRoleTransferStarted represents a ManagerRoleTransferStarted event raised by the SuperLedgerConfiguration contract.
 type SuperLedgerConfigurationManagerRoleTransferStarted struct {
-	YieldSourceOracleId [4]byte
+	YieldSourceOracleId [32]byte
 	CurrentManager      common.Address
 	NewManager          common.Address
 	Raw                 types.Log // Blockchain specific contextual infos
 }
 
-// FilterManagerRoleTransferStarted is a free log retrieval operation binding the contract event 0x60540b5ce4133c8361bacbc33d47bfba0613b441b7dbdd89454b538d0e7ee049.
+// FilterManagerRoleTransferStarted is a free log retrieval operation binding the contract event 0xe7c22852fbb0b4ee248bdc050be6600234e1f5b3b5d748ce19463a1bdb47547b.
 //
-// Solidity: event ManagerRoleTransferStarted(bytes4 indexed yieldSourceOracleId, address indexed currentManager, address indexed newManager)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterManagerRoleTransferStarted(opts *bind.FilterOpts, yieldSourceOracleId [][4]byte, currentManager []common.Address, newManager []common.Address) (*SuperLedgerConfigurationManagerRoleTransferStartedIterator, error) {
+// Solidity: event ManagerRoleTransferStarted(bytes32 indexed yieldSourceOracleId, address indexed currentManager, address indexed newManager)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterManagerRoleTransferStarted(opts *bind.FilterOpts, yieldSourceOracleId [][32]byte, currentManager []common.Address, newManager []common.Address) (*SuperLedgerConfigurationManagerRoleTransferStartedIterator, error) {
 
 	var yieldSourceOracleIdRule []interface{}
 	for _, yieldSourceOracleIdItem := range yieldSourceOracleId {
@@ -639,10 +669,10 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterManager
 	return &SuperLedgerConfigurationManagerRoleTransferStartedIterator{contract: _SuperLedgerConfiguration.contract, event: "ManagerRoleTransferStarted", logs: logs, sub: sub}, nil
 }
 
-// WatchManagerRoleTransferStarted is a free log subscription operation binding the contract event 0x60540b5ce4133c8361bacbc33d47bfba0613b441b7dbdd89454b538d0e7ee049.
+// WatchManagerRoleTransferStarted is a free log subscription operation binding the contract event 0xe7c22852fbb0b4ee248bdc050be6600234e1f5b3b5d748ce19463a1bdb47547b.
 //
-// Solidity: event ManagerRoleTransferStarted(bytes4 indexed yieldSourceOracleId, address indexed currentManager, address indexed newManager)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchManagerRoleTransferStarted(opts *bind.WatchOpts, sink chan<- *SuperLedgerConfigurationManagerRoleTransferStarted, yieldSourceOracleId [][4]byte, currentManager []common.Address, newManager []common.Address) (event.Subscription, error) {
+// Solidity: event ManagerRoleTransferStarted(bytes32 indexed yieldSourceOracleId, address indexed currentManager, address indexed newManager)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchManagerRoleTransferStarted(opts *bind.WatchOpts, sink chan<- *SuperLedgerConfigurationManagerRoleTransferStarted, yieldSourceOracleId [][32]byte, currentManager []common.Address, newManager []common.Address) (event.Subscription, error) {
 
 	var yieldSourceOracleIdRule []interface{}
 	for _, yieldSourceOracleIdItem := range yieldSourceOracleId {
@@ -689,9 +719,9 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchManagerR
 	}), nil
 }
 
-// ParseManagerRoleTransferStarted is a log parse operation binding the contract event 0x60540b5ce4133c8361bacbc33d47bfba0613b441b7dbdd89454b538d0e7ee049.
+// ParseManagerRoleTransferStarted is a log parse operation binding the contract event 0xe7c22852fbb0b4ee248bdc050be6600234e1f5b3b5d748ce19463a1bdb47547b.
 //
-// Solidity: event ManagerRoleTransferStarted(bytes4 indexed yieldSourceOracleId, address indexed currentManager, address indexed newManager)
+// Solidity: event ManagerRoleTransferStarted(bytes32 indexed yieldSourceOracleId, address indexed currentManager, address indexed newManager)
 func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) ParseManagerRoleTransferStarted(log types.Log) (*SuperLedgerConfigurationManagerRoleTransferStarted, error) {
 	event := new(SuperLedgerConfigurationManagerRoleTransferStarted)
 	if err := _SuperLedgerConfiguration.contract.UnpackLog(event, "ManagerRoleTransferStarted", log); err != nil {
@@ -770,7 +800,7 @@ func (it *SuperLedgerConfigurationYieldSourceOracleConfigAcceptedIterator) Close
 
 // SuperLedgerConfigurationYieldSourceOracleConfigAccepted represents a YieldSourceOracleConfigAccepted event raised by the SuperLedgerConfiguration contract.
 type SuperLedgerConfigurationYieldSourceOracleConfigAccepted struct {
-	YieldSourceOracleId [4]byte
+	YieldSourceOracleId [32]byte
 	YieldSourceOracle   common.Address
 	FeePercent          *big.Int
 	FeeRecipient        common.Address
@@ -779,10 +809,10 @@ type SuperLedgerConfigurationYieldSourceOracleConfigAccepted struct {
 	Raw                 types.Log // Blockchain specific contextual infos
 }
 
-// FilterYieldSourceOracleConfigAccepted is a free log retrieval operation binding the contract event 0x814831b00a6934451a16960666868ead8dc884f244a041c3aa9866aa8ab9bf61.
+// FilterYieldSourceOracleConfigAccepted is a free log retrieval operation binding the contract event 0xc20741f4f1b5c8af4594296c1807952e9d77ea10c701b4cba482967d82b62a24.
 //
-// Solidity: event YieldSourceOracleConfigAccepted(bytes4 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterYieldSourceOracleConfigAccepted(opts *bind.FilterOpts, yieldSourceOracleId [][4]byte, yieldSourceOracle []common.Address) (*SuperLedgerConfigurationYieldSourceOracleConfigAcceptedIterator, error) {
+// Solidity: event YieldSourceOracleConfigAccepted(bytes32 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterYieldSourceOracleConfigAccepted(opts *bind.FilterOpts, yieldSourceOracleId [][32]byte, yieldSourceOracle []common.Address) (*SuperLedgerConfigurationYieldSourceOracleConfigAcceptedIterator, error) {
 
 	var yieldSourceOracleIdRule []interface{}
 	for _, yieldSourceOracleIdItem := range yieldSourceOracleId {
@@ -800,10 +830,10 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterYieldSo
 	return &SuperLedgerConfigurationYieldSourceOracleConfigAcceptedIterator{contract: _SuperLedgerConfiguration.contract, event: "YieldSourceOracleConfigAccepted", logs: logs, sub: sub}, nil
 }
 
-// WatchYieldSourceOracleConfigAccepted is a free log subscription operation binding the contract event 0x814831b00a6934451a16960666868ead8dc884f244a041c3aa9866aa8ab9bf61.
+// WatchYieldSourceOracleConfigAccepted is a free log subscription operation binding the contract event 0xc20741f4f1b5c8af4594296c1807952e9d77ea10c701b4cba482967d82b62a24.
 //
-// Solidity: event YieldSourceOracleConfigAccepted(bytes4 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchYieldSourceOracleConfigAccepted(opts *bind.WatchOpts, sink chan<- *SuperLedgerConfigurationYieldSourceOracleConfigAccepted, yieldSourceOracleId [][4]byte, yieldSourceOracle []common.Address) (event.Subscription, error) {
+// Solidity: event YieldSourceOracleConfigAccepted(bytes32 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchYieldSourceOracleConfigAccepted(opts *bind.WatchOpts, sink chan<- *SuperLedgerConfigurationYieldSourceOracleConfigAccepted, yieldSourceOracleId [][32]byte, yieldSourceOracle []common.Address) (event.Subscription, error) {
 
 	var yieldSourceOracleIdRule []interface{}
 	for _, yieldSourceOracleIdItem := range yieldSourceOracleId {
@@ -846,9 +876,9 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchYieldSou
 	}), nil
 }
 
-// ParseYieldSourceOracleConfigAccepted is a log parse operation binding the contract event 0x814831b00a6934451a16960666868ead8dc884f244a041c3aa9866aa8ab9bf61.
+// ParseYieldSourceOracleConfigAccepted is a log parse operation binding the contract event 0xc20741f4f1b5c8af4594296c1807952e9d77ea10c701b4cba482967d82b62a24.
 //
-// Solidity: event YieldSourceOracleConfigAccepted(bytes4 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
+// Solidity: event YieldSourceOracleConfigAccepted(bytes32 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
 func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) ParseYieldSourceOracleConfigAccepted(log types.Log) (*SuperLedgerConfigurationYieldSourceOracleConfigAccepted, error) {
 	event := new(SuperLedgerConfigurationYieldSourceOracleConfigAccepted)
 	if err := _SuperLedgerConfiguration.contract.UnpackLog(event, "YieldSourceOracleConfigAccepted", log); err != nil {
@@ -927,7 +957,7 @@ func (it *SuperLedgerConfigurationYieldSourceOracleConfigProposalCancelledIterat
 
 // SuperLedgerConfigurationYieldSourceOracleConfigProposalCancelled represents a YieldSourceOracleConfigProposalCancelled event raised by the SuperLedgerConfiguration contract.
 type SuperLedgerConfigurationYieldSourceOracleConfigProposalCancelled struct {
-	YieldSourceOracleId [4]byte
+	YieldSourceOracleId [32]byte
 	YieldSourceOracle   common.Address
 	FeePercent          *big.Int
 	FeeRecipient        common.Address
@@ -936,10 +966,10 @@ type SuperLedgerConfigurationYieldSourceOracleConfigProposalCancelled struct {
 	Raw                 types.Log // Blockchain specific contextual infos
 }
 
-// FilterYieldSourceOracleConfigProposalCancelled is a free log retrieval operation binding the contract event 0x68839b26267a4e2923397c3c18eea298983035a126631feb8efc72e5e082f581.
+// FilterYieldSourceOracleConfigProposalCancelled is a free log retrieval operation binding the contract event 0xae0e289a9d3651a0fff20fac99910f80b76acfe3d401d1dc4433ada542be7790.
 //
-// Solidity: event YieldSourceOracleConfigProposalCancelled(bytes4 indexed yieldSourceOracleId, address yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterYieldSourceOracleConfigProposalCancelled(opts *bind.FilterOpts, yieldSourceOracleId [][4]byte) (*SuperLedgerConfigurationYieldSourceOracleConfigProposalCancelledIterator, error) {
+// Solidity: event YieldSourceOracleConfigProposalCancelled(bytes32 indexed yieldSourceOracleId, address yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterYieldSourceOracleConfigProposalCancelled(opts *bind.FilterOpts, yieldSourceOracleId [][32]byte) (*SuperLedgerConfigurationYieldSourceOracleConfigProposalCancelledIterator, error) {
 
 	var yieldSourceOracleIdRule []interface{}
 	for _, yieldSourceOracleIdItem := range yieldSourceOracleId {
@@ -953,10 +983,10 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterYieldSo
 	return &SuperLedgerConfigurationYieldSourceOracleConfigProposalCancelledIterator{contract: _SuperLedgerConfiguration.contract, event: "YieldSourceOracleConfigProposalCancelled", logs: logs, sub: sub}, nil
 }
 
-// WatchYieldSourceOracleConfigProposalCancelled is a free log subscription operation binding the contract event 0x68839b26267a4e2923397c3c18eea298983035a126631feb8efc72e5e082f581.
+// WatchYieldSourceOracleConfigProposalCancelled is a free log subscription operation binding the contract event 0xae0e289a9d3651a0fff20fac99910f80b76acfe3d401d1dc4433ada542be7790.
 //
-// Solidity: event YieldSourceOracleConfigProposalCancelled(bytes4 indexed yieldSourceOracleId, address yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchYieldSourceOracleConfigProposalCancelled(opts *bind.WatchOpts, sink chan<- *SuperLedgerConfigurationYieldSourceOracleConfigProposalCancelled, yieldSourceOracleId [][4]byte) (event.Subscription, error) {
+// Solidity: event YieldSourceOracleConfigProposalCancelled(bytes32 indexed yieldSourceOracleId, address yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchYieldSourceOracleConfigProposalCancelled(opts *bind.WatchOpts, sink chan<- *SuperLedgerConfigurationYieldSourceOracleConfigProposalCancelled, yieldSourceOracleId [][32]byte) (event.Subscription, error) {
 
 	var yieldSourceOracleIdRule []interface{}
 	for _, yieldSourceOracleIdItem := range yieldSourceOracleId {
@@ -995,9 +1025,9 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchYieldSou
 	}), nil
 }
 
-// ParseYieldSourceOracleConfigProposalCancelled is a log parse operation binding the contract event 0x68839b26267a4e2923397c3c18eea298983035a126631feb8efc72e5e082f581.
+// ParseYieldSourceOracleConfigProposalCancelled is a log parse operation binding the contract event 0xae0e289a9d3651a0fff20fac99910f80b76acfe3d401d1dc4433ada542be7790.
 //
-// Solidity: event YieldSourceOracleConfigProposalCancelled(bytes4 indexed yieldSourceOracleId, address yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
+// Solidity: event YieldSourceOracleConfigProposalCancelled(bytes32 indexed yieldSourceOracleId, address yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
 func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) ParseYieldSourceOracleConfigProposalCancelled(log types.Log) (*SuperLedgerConfigurationYieldSourceOracleConfigProposalCancelled, error) {
 	event := new(SuperLedgerConfigurationYieldSourceOracleConfigProposalCancelled)
 	if err := _SuperLedgerConfiguration.contract.UnpackLog(event, "YieldSourceOracleConfigProposalCancelled", log); err != nil {
@@ -1076,7 +1106,7 @@ func (it *SuperLedgerConfigurationYieldSourceOracleConfigProposalSetIterator) Cl
 
 // SuperLedgerConfigurationYieldSourceOracleConfigProposalSet represents a YieldSourceOracleConfigProposalSet event raised by the SuperLedgerConfiguration contract.
 type SuperLedgerConfigurationYieldSourceOracleConfigProposalSet struct {
-	YieldSourceOracleId [4]byte
+	YieldSourceOracleId [32]byte
 	YieldSourceOracle   common.Address
 	FeePercent          *big.Int
 	FeeRecipient        common.Address
@@ -1085,10 +1115,10 @@ type SuperLedgerConfigurationYieldSourceOracleConfigProposalSet struct {
 	Raw                 types.Log // Blockchain specific contextual infos
 }
 
-// FilterYieldSourceOracleConfigProposalSet is a free log retrieval operation binding the contract event 0x15b13915ede6636ce8731f76ba01024780f382a88587dbb649e002b447f5ea10.
+// FilterYieldSourceOracleConfigProposalSet is a free log retrieval operation binding the contract event 0x573d854ab453d79ebca19a017648a4f975f0550a209a72f386a1682e196c5b65.
 //
-// Solidity: event YieldSourceOracleConfigProposalSet(bytes4 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterYieldSourceOracleConfigProposalSet(opts *bind.FilterOpts, yieldSourceOracleId [][4]byte, yieldSourceOracle []common.Address) (*SuperLedgerConfigurationYieldSourceOracleConfigProposalSetIterator, error) {
+// Solidity: event YieldSourceOracleConfigProposalSet(bytes32 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterYieldSourceOracleConfigProposalSet(opts *bind.FilterOpts, yieldSourceOracleId [][32]byte, yieldSourceOracle []common.Address) (*SuperLedgerConfigurationYieldSourceOracleConfigProposalSetIterator, error) {
 
 	var yieldSourceOracleIdRule []interface{}
 	for _, yieldSourceOracleIdItem := range yieldSourceOracleId {
@@ -1106,10 +1136,10 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterYieldSo
 	return &SuperLedgerConfigurationYieldSourceOracleConfigProposalSetIterator{contract: _SuperLedgerConfiguration.contract, event: "YieldSourceOracleConfigProposalSet", logs: logs, sub: sub}, nil
 }
 
-// WatchYieldSourceOracleConfigProposalSet is a free log subscription operation binding the contract event 0x15b13915ede6636ce8731f76ba01024780f382a88587dbb649e002b447f5ea10.
+// WatchYieldSourceOracleConfigProposalSet is a free log subscription operation binding the contract event 0x573d854ab453d79ebca19a017648a4f975f0550a209a72f386a1682e196c5b65.
 //
-// Solidity: event YieldSourceOracleConfigProposalSet(bytes4 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchYieldSourceOracleConfigProposalSet(opts *bind.WatchOpts, sink chan<- *SuperLedgerConfigurationYieldSourceOracleConfigProposalSet, yieldSourceOracleId [][4]byte, yieldSourceOracle []common.Address) (event.Subscription, error) {
+// Solidity: event YieldSourceOracleConfigProposalSet(bytes32 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchYieldSourceOracleConfigProposalSet(opts *bind.WatchOpts, sink chan<- *SuperLedgerConfigurationYieldSourceOracleConfigProposalSet, yieldSourceOracleId [][32]byte, yieldSourceOracle []common.Address) (event.Subscription, error) {
 
 	var yieldSourceOracleIdRule []interface{}
 	for _, yieldSourceOracleIdItem := range yieldSourceOracleId {
@@ -1152,9 +1182,9 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchYieldSou
 	}), nil
 }
 
-// ParseYieldSourceOracleConfigProposalSet is a log parse operation binding the contract event 0x15b13915ede6636ce8731f76ba01024780f382a88587dbb649e002b447f5ea10.
+// ParseYieldSourceOracleConfigProposalSet is a log parse operation binding the contract event 0x573d854ab453d79ebca19a017648a4f975f0550a209a72f386a1682e196c5b65.
 //
-// Solidity: event YieldSourceOracleConfigProposalSet(bytes4 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
+// Solidity: event YieldSourceOracleConfigProposalSet(bytes32 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
 func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) ParseYieldSourceOracleConfigProposalSet(log types.Log) (*SuperLedgerConfigurationYieldSourceOracleConfigProposalSet, error) {
 	event := new(SuperLedgerConfigurationYieldSourceOracleConfigProposalSet)
 	if err := _SuperLedgerConfiguration.contract.UnpackLog(event, "YieldSourceOracleConfigProposalSet", log); err != nil {
@@ -1233,7 +1263,7 @@ func (it *SuperLedgerConfigurationYieldSourceOracleConfigSetIterator) Close() er
 
 // SuperLedgerConfigurationYieldSourceOracleConfigSet represents a YieldSourceOracleConfigSet event raised by the SuperLedgerConfiguration contract.
 type SuperLedgerConfigurationYieldSourceOracleConfigSet struct {
-	YieldSourceOracleId [4]byte
+	YieldSourceOracleId [32]byte
 	YieldSourceOracle   common.Address
 	FeePercent          *big.Int
 	FeeRecipient        common.Address
@@ -1242,10 +1272,10 @@ type SuperLedgerConfigurationYieldSourceOracleConfigSet struct {
 	Raw                 types.Log // Blockchain specific contextual infos
 }
 
-// FilterYieldSourceOracleConfigSet is a free log retrieval operation binding the contract event 0x325563e67bd0f9ddf8076fe8c531e47576230cd340e7ea24ea7fed745606131a.
+// FilterYieldSourceOracleConfigSet is a free log retrieval operation binding the contract event 0x7ab0c7c67b786595d83b9e3657bb135d591d1c8847e4211cf8a4a7bf0eb65354.
 //
-// Solidity: event YieldSourceOracleConfigSet(bytes4 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterYieldSourceOracleConfigSet(opts *bind.FilterOpts, yieldSourceOracleId [][4]byte, yieldSourceOracle []common.Address) (*SuperLedgerConfigurationYieldSourceOracleConfigSetIterator, error) {
+// Solidity: event YieldSourceOracleConfigSet(bytes32 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterYieldSourceOracleConfigSet(opts *bind.FilterOpts, yieldSourceOracleId [][32]byte, yieldSourceOracle []common.Address) (*SuperLedgerConfigurationYieldSourceOracleConfigSetIterator, error) {
 
 	var yieldSourceOracleIdRule []interface{}
 	for _, yieldSourceOracleIdItem := range yieldSourceOracleId {
@@ -1263,10 +1293,10 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) FilterYieldSo
 	return &SuperLedgerConfigurationYieldSourceOracleConfigSetIterator{contract: _SuperLedgerConfiguration.contract, event: "YieldSourceOracleConfigSet", logs: logs, sub: sub}, nil
 }
 
-// WatchYieldSourceOracleConfigSet is a free log subscription operation binding the contract event 0x325563e67bd0f9ddf8076fe8c531e47576230cd340e7ea24ea7fed745606131a.
+// WatchYieldSourceOracleConfigSet is a free log subscription operation binding the contract event 0x7ab0c7c67b786595d83b9e3657bb135d591d1c8847e4211cf8a4a7bf0eb65354.
 //
-// Solidity: event YieldSourceOracleConfigSet(bytes4 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
-func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchYieldSourceOracleConfigSet(opts *bind.WatchOpts, sink chan<- *SuperLedgerConfigurationYieldSourceOracleConfigSet, yieldSourceOracleId [][4]byte, yieldSourceOracle []common.Address) (event.Subscription, error) {
+// Solidity: event YieldSourceOracleConfigSet(bytes32 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
+func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchYieldSourceOracleConfigSet(opts *bind.WatchOpts, sink chan<- *SuperLedgerConfigurationYieldSourceOracleConfigSet, yieldSourceOracleId [][32]byte, yieldSourceOracle []common.Address) (event.Subscription, error) {
 
 	var yieldSourceOracleIdRule []interface{}
 	for _, yieldSourceOracleIdItem := range yieldSourceOracleId {
@@ -1309,9 +1339,9 @@ func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) WatchYieldSou
 	}), nil
 }
 
-// ParseYieldSourceOracleConfigSet is a log parse operation binding the contract event 0x325563e67bd0f9ddf8076fe8c531e47576230cd340e7ea24ea7fed745606131a.
+// ParseYieldSourceOracleConfigSet is a log parse operation binding the contract event 0x7ab0c7c67b786595d83b9e3657bb135d591d1c8847e4211cf8a4a7bf0eb65354.
 //
-// Solidity: event YieldSourceOracleConfigSet(bytes4 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
+// Solidity: event YieldSourceOracleConfigSet(bytes32 indexed yieldSourceOracleId, address indexed yieldSourceOracle, uint256 feePercent, address feeRecipient, address manager, address ledger)
 func (_SuperLedgerConfiguration *SuperLedgerConfigurationFilterer) ParseYieldSourceOracleConfigSet(log types.Log) (*SuperLedgerConfigurationYieldSourceOracleConfigSet, error) {
 	event := new(SuperLedgerConfigurationYieldSourceOracleConfigSet)
 	if err := _SuperLedgerConfiguration.contract.UnpackLog(event, "YieldSourceOracleConfigSet", log); err != nil {
