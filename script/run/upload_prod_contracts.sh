@@ -21,7 +21,7 @@
 #   A single `latest_deployment.json` file uploaded to s3://<S3_BUCKET_NAME>/prod/latest_deployment.json
 #
 # Usage:
-#   ./upload_prod_contracts_to_s3.sh
+#   ./upload_prod_contracts.sh
 #
 # Requirements:
 #   - jq: For JSON processing
