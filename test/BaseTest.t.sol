@@ -323,9 +323,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     bool public useRealOdosRouter = false;
     address[] public globalMerkleHooks;
     string[] public globalMerkleHookNames;
-    address public globalSVStrategy;
-    address public globalSVGearStrategy;
-    address public globalRuggableVault;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
