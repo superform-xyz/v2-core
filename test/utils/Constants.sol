@@ -221,10 +221,6 @@ abstract contract Constants {
     address public constant CHAIN_8453_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
     address public constant CHAIN_8453_SpectraRouter = 0x0FC2fbd3E8391744426C8bE5228b668481C59532;
 
-    address public constant CHAIN_1_POLYMER_PROVER = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76;
-    address public constant CHAIN_10_POLYMER_PROVER = address(0); // not available
-    address public constant CHAIN_8453_POLYMER_PROVER = address(0); // not available
-
     // staking protocols
     string public constant GEARBOX_STAKING_KEY = "GearboxStaking";
 
