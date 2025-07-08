@@ -204,7 +204,7 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
 
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {
         return abi.encodePacked(
-            yieldSourceOracleId, yieldSource, token, amount, amount, usePrevHook, address(0), uint256(0)
+            yieldSourceOracleId, yieldSource, token, amount, amount, usePrevHook
         );
     }
 }

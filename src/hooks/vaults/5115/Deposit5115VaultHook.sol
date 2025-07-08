@@ -28,8 +28,6 @@ import {
 /// @notice         uint256 amount = BytesLib.toUint256(data, 72);
 /// @notice         uint256 minSharesOut = BytesLib.toUint256(data, 104);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 137);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 157);
 contract Deposit5115VaultHook is
     BaseHook,
     VaultBankLockableHook,
@@ -106,8 +104,6 @@ contract Deposit5115VaultHook is
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data), account);
-        vaultBank = BytesLib.toAddress(data, 137);
-        dstChainId = BytesLib.toUint256(data, 157);
         spToken = data.extractYieldSource();
         asset = BytesLib.toAddress(data, 52);
     }

@@ -26,8 +26,6 @@ import {
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 52);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 85);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 105);
 contract Deposit7540VaultHook is
     BaseHook,
     VaultBankLockableHook,
@@ -100,8 +98,6 @@ contract Deposit7540VaultHook is
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
         _setOutAmount(_getBalance(account, data), account);
-        vaultBank = BytesLib.toAddress(data, 85);
-        dstChainId = BytesLib.toUint256(data, 105);
         spToken = IERC7540(data.extractYieldSource()).share();
     }
 
