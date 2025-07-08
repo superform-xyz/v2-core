@@ -977,6 +977,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
             A[i].yearnClaimOneRewardHook = new YearnClaimOneRewardHook{ salt: SALT }();
             vm.label(address(A[i].yearnClaimOneRewardHook), YEARN_CLAIM_ONE_REWARD_HOOK_KEY);
+            hookAddresses[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY] = address(A[i].yearnClaimOneRewardHook);
             hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY] = Hook(
                 YEARN_CLAIM_ONE_REWARD_HOOK_KEY,
                 HookCategory.Claims,
