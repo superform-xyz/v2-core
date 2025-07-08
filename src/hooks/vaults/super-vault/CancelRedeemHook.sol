@@ -20,8 +20,6 @@ import { ISuperHookAsyncCancelations, ISuperHookInspector } from "../../../inter
 /// @dev data has the following structure
 /// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 52);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 72);
 contract CancelRedeemHook is BaseHook, VaultBankLockableHook, ISuperHookAsyncCancelations, ISuperHookInspector {
     using HookDataDecoder for bytes;
 
@@ -68,8 +66,6 @@ contract CancelRedeemHook is BaseHook, VaultBankLockableHook, ISuperHookAsyncCan
     //////////////////////////////////////////////////////////////*/
     function _preExecute(address, address account, bytes calldata data) internal override {
         _setOutAmount(_getBalance(account, data), account);
-        vaultBank = BytesLib.toAddress(data, 52);
-        dstChainId = BytesLib.toUint256(data, 72);
         spToken = data.extractYieldSource();
     }
 

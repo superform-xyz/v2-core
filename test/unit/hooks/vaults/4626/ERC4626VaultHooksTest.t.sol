@@ -314,11 +314,11 @@ contract ERC4626VaultHooksTest is Helpers {
                         HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function _encodeApproveAndDepositData() internal view returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false, address(0), uint256(0));
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false);
     }
 
     function _encodeDepositData() internal view returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false, address(0), uint256(0));
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false);
     }
 
     function _encodeRedeemData() internal view returns (bytes memory) {
