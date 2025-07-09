@@ -1,22 +1,30 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-// external
 import { console2 } from "forge-std/console2.sol";
+
+// OpenZeppelin
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
+// Safe7579
+// import { ModeLib } from "safe7579/lib/ModeLib.sol";
+// import { IERC7484 } from "safe7579/interfaces/IERC7484.sol";
+// import { Safe7579Launchpad } from "safe7579/Safe7579Launchpad.sol";
 import { SafeFactory } from "modulekit/accounts/safe/SafeFactory.sol";
 import { ISafe7579Launchpad, ModuleInit } from "modulekit/accounts/safe/interfaces/ISafe7579Launchpad.sol";
 import { ISafe7579 } from "modulekit/accounts/safe/interfaces/ISafe7579.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
 import { MODULE_TYPE_VALIDATOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 
+// Safe
 import { Safe } from "@safe/Safe.sol";
 import { ISafe } from "@safe/interfaces/ISafe.sol";
 import { SafeProxy } from "@safe/proxies/SafeProxy.sol";
@@ -24,7 +32,10 @@ import { SignMessageLib } from "@safe/libraries/SignMessageLib.sol";
 import { SafeProxyFactory } from "@safe/proxies/SafeProxyFactory.sol";
 
 // Superform
+import { MockRegistry } from "../../mocks/MockRegistry.sol";
+import { MockEntryPoint } from "../../mocks/MockEntryPoint.sol";
 import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
+import { MockExecutorModule } from "../../mocks/MockExecutorModule.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 import { SuperDestinationValidator } from "../../../src/validators/SuperDestinationValidator.sol";
 
@@ -53,6 +64,10 @@ contract MultisigOwnerValidationTest is MerkleTreeHelper, RhinestoneModuleKit {
 
     SafeFactory public factory;
 
+    IEntryPoint public entryPoint;
+    MockEntryPoint public mockEntryPoint;
+    MockExecutorModule public mockExecutor;
+
     SuperDestinationValidator public validator;
     bytes public validSigData;
 
@@ -68,8 +83,14 @@ contract MultisigOwnerValidationTest is MerkleTreeHelper, RhinestoneModuleKit {
     address public owner1;
     address public owner2;
 
+    Safe public safe;
+    Safe public singleton;
+    // IERC7484 public registry;
+    // Safe7579Launchpad public launchpad;
+
     ISafe7579 public safe7579;
     address public safeSmartAccount;
+    // Safe7579 public safe7579Contract;
 
     SafeProxy public safeProxy;
     address public safeMultisig;
@@ -84,6 +105,8 @@ contract MultisigOwnerValidationTest is MerkleTreeHelper, RhinestoneModuleKit {
 
     function setUp() public {
         validator = new SuperDestinationValidator();
+        mockEntryPoint = new MockEntryPoint();
+        entryPoint = IEntryPoint(address(mockEntryPoint));
 
         (owner1, privateKey1) = makeAddrAndKey("alice");
         (owner2, privateKey2) = makeAddrAndKey("bob");
@@ -92,28 +115,51 @@ contract MultisigOwnerValidationTest is MerkleTreeHelper, RhinestoneModuleKit {
         owners[0] = owner1;
         owners[1] = owner2;
 
+        //registry = new MockRegistry();
+
+        // launchpad = new Safe7579Launchpad(address(entryPoint), registry);
+
         // Deploy Safe smart account
+        // safe7579Contract = new Safe7579();
         safeSmartAccount = _deploySafeSmartAccount(owners);
         safe7579 = ISafe7579(safeSmartAccount);
 
         // Deploy Safe proxy (multisig that will use companion accout)
-        Safe singleton = new Safe();
+        singleton = new Safe();
         SafeProxyFactory proxyFactory = new SafeProxyFactory();
 
-        safeProxy = proxyFactory.createProxyWithNonce(address(singleton), "", 999);
+        bytes memory initializer = abi.encodeWithSignature(
+            "setup(address[],uint256,address,bytes,address,address,uint256,address)",
+            owners,
+            2,
+            address(0),
+            bytes(""),
+            address(0),
+            address(0),
+            0,
+            address(0)
+        );
+
+        safeProxy = proxyFactory.createProxyWithNonce(address(singleton), initializer, 1);
         safeMultisig = address(safeProxy);
 
         instance = makeAccountInstance(keccak256(abi.encode("acc1")));
         companionAccount = instance.account;
+
+        //vm.prank(companionAccount);
+        //validator.onInstall(abi.encode(safeMultisig));
+        // TODO: This fails with ALREADY_INITIALIZED() -> Separate makeAccount() logic into two steps here where the
+        // first step is the account creation and the second step is the module installation with multisig as owner
+
+        // Add compatability fallback handler ?
 
         bytes memory moduleData = abi.encode(safeMultisig);
         instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: moduleData });
         assertEq(validator.getAccountOwner(companionAccount), safeMultisig);
 
         // Deploy Safe proxy (multisig without 7570 modules)
-        straightMultisig = proxyFactory.createProxyWithNonce(address(singleton), "", 200);
+        straightMultisig = proxyFactory.createProxyWithNonce(address(singleton), initializer, 2);
         straightMultisigAddress = address(straightMultisig);
-        console2.log("straightMultisigAddress", straightMultisigAddress);
 
         executorNonce = 0;
     }
@@ -121,14 +167,53 @@ contract MultisigOwnerValidationTest is MerkleTreeHelper, RhinestoneModuleKit {
     /*//////////////////////////////////////////////////////////////
                                 TESTS
     //////////////////////////////////////////////////////////////*/
-    function test_Multisig_With_CompanionAccount_SignatureValidation() public {
-        uint48 validUntil = uint48(block.timestamp + 5 hours);
+    // function test_Multisig_With_CompanionAccount_SignatureValidation() public {
+    //     uint48 validUntil = uint48(block.timestamp + 5 hours);
 
-        console2.log("companionAccount", companionAccount);
+    //     approveDestinationData = _createApproveDestinationData(executorNonce, safeMultisig);
+    //     transferDestinationData = _createTransferDestinationData(executorNonce, safeMultisig);
+    //     depositDestinationData = _createDepositDestinationData(executorNonce, safeMultisig);
 
-        // simulate a merkle tree with 3 leaves (3 user ops)
-        bytes32[] memory leaves = new bytes32[](3);
-    }
+    //     // simulate a merkle tree with 3 leaves (3 user ops)
+    //     bytes32[] memory leaves = new bytes32[](3);
+
+    //     leaves[0] = _createDestinationValidatorLeaf(
+    //         approveDestinationData.callData,
+    //         approveDestinationData.chainId,
+    //         approveDestinationData.sender,
+    //         approveDestinationData.executor,
+    //         approveDestinationData.dstTokens,
+    //         approveDestinationData.intentAmounts,
+    //         validUntil,
+    //         address(validator)
+    //     );
+    //     leaves[1] = _createDestinationValidatorLeaf(
+    //         transferDestinationData.callData,
+    //         transferDestinationData.chainId,
+    //         transferDestinationData.sender,
+    //         transferDestinationData.executor,
+    //         transferDestinationData.dstTokens,
+    //         transferDestinationData.intentAmounts,
+    //         validUntil,
+    //         address(validator)
+    //     );
+    //     leaves[2] = _createDestinationValidatorLeaf(
+    //         depositDestinationData.callData,
+    //         depositDestinationData.chainId,
+    //         depositDestinationData.sender,
+    //         depositDestinationData.executor,
+    //         depositDestinationData.dstTokens,
+    //         depositDestinationData.intentAmounts,
+    //         validUntil,
+    //         address(validator)
+    //     );
+
+    //     (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+    //     bytes memory signature = _makeSignatureViaApproveHash(root);
+
+    //     _testDestinationDataValidation(owner1, validUntil, root, proof[0], signature, approveDestinationData);
+    // }
 
     function test_Multisig7579_SignatureValidation_ViaConcat() public {
         uint48 validUntil = uint48(block.timestamp + 5 hours);
@@ -173,7 +258,23 @@ contract MultisigOwnerValidationTest is MerkleTreeHelper, RhinestoneModuleKit {
 
         (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
 
-        bytes memory signature = _makeSignatureViaConcat(root);
+        //bytes memory signature = _makeSignatureViaConcat(root);
+
+        // bytes32 hash = keccak256(EIP712.encodeMessageData(Safe(payable(safeSmartAccount)).domainSeparator(),
+        // abi.encode(validator.namespace(), root)));
+
+        bytes memory signatures = _makeSignatureViaApproveHash(safeSmartAccount, root);
+
+        bytes32 hash = keccak256(abi.encode(validator.namespace(), root));
+
+        //bytes memory data = abi.encodePacked(address(validator), signature);
+        bytes memory data = abi.encodePacked(address(0), signatures);
+
+        vm.prank(safeSmartAccount);
+        // Call isValidSignature with address(0) validator
+        bytes4 magicValue = IERC1271(address(safeSmartAccount)).isValidSignature(hash, data);
+
+        assertEq(magicValue, IERC1271.isValidSignature.selector);
 
         vm.prank(safeSmartAccount);
         validator.onInstall(abi.encode(safeSmartAccount));
@@ -196,7 +297,7 @@ contract MultisigOwnerValidationTest is MerkleTreeHelper, RhinestoneModuleKit {
             root,
             proof,
             proofDst,
-            signature
+            signatures
         );
 
         bytes memory destinationRaw = abi.encode(
@@ -275,10 +376,13 @@ contract MultisigOwnerValidationTest is MerkleTreeHelper, RhinestoneModuleKit {
 
     function _makeSignatureViaConcat(bytes32 root) private view returns (bytes memory) {
         bytes memory message = abi.encode(validator.namespace(), root);
+        //bytes32 hash = keccak256(message);
 
-        bytes32 SAFE_MESSAGE_TYPEHASH = 0x0f9ff3595466d2c304e2d88e1058190e8b7eb1cc1e81286209d4ed6199986368;
+        bytes32 SAFE_MSG_TYPEHASH = 0x60b3cbf8b4a223d68d641b3b6ddf9a298e7f33710cf3d3a9d1146b5a6150fbca;
 
-        bytes32 structHash = keccak256(abi.encode(SAFE_MESSAGE_TYPEHASH, keccak256(message)));
+        bytes32 structHash = keccak256(abi.encode(SAFE_MSG_TYPEHASH, keccak256(message)));
+
+        // //bytes32 safeHash = SignMessageLib(payable(safeSmartAccount)).getMessageHash(message);
 
         bytes32 safeHash = keccak256(
             abi.encodePacked(bytes1(0x19), bytes1(0x01), ISafe(payable(safeSmartAccount)).domainSeparator(), structHash)
@@ -292,22 +396,26 @@ contract MultisigOwnerValidationTest is MerkleTreeHelper, RhinestoneModuleKit {
         bytes memory sig2 = abi.encodePacked(r2, s2, v2);
 
         // concat in ascending owner address order (Safe requirement)
-        bytes memory signature = owner1 < owner2 ? bytes.concat(sig1, sig2) : bytes.concat(sig2, sig1);
+        bytes memory signatures = owner1 < owner2 ? bytes.concat(sig1, sig2) : bytes.concat(sig2, sig1);
 
         // check if the signature is valid
-        bytes4 magic = IERC1271(safeSmartAccount).isValidSignature(safeHash, signature);
+        bytes memory data = abi.encodePacked(address(validator), signatures);
+        bytes4 magic = ISafe7579(safeSmartAccount).isValidSignature(safeHash, data);
         assertEq(magic, bytes4(0x1626ba7e), "Safe rejected the signature blob");
 
-        return signature;
+        return signatures;
     }
 
-    function _makeSignatureViaApproveHash(bytes32 root) private returns (bytes memory) {
+    function _makeSignatureViaApproveHash(address multisig, bytes32 root) private returns (bytes memory) {
+        bytes memory message = abi.encode(validator.namespace(), root);
+        bytes32 hash = keccak256(message);
+
         // each owner approves the hash once
         vm.prank(owner1);
-        ISafe(payable(safeProxy)).approveHash(root);
+        ISafe(payable(multisig)).approveHash(hash);
 
         vm.prank(owner2);
-        ISafe(payable(safeProxy)).approveHash(root);
+        ISafe(payable(multisig)).approveHash(hash);
 
         // now call validator with empty sigs
         bytes memory signatures = "";
