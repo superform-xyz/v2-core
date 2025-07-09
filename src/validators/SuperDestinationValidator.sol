@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
+import { console2 } from "forge-std/console2.sol";
+
 // external
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
@@ -56,6 +58,8 @@ contract SuperDestinationValidator is SuperValidatorBase {
         (SignatureData memory sigData, DestinationData memory destinationData) =
             _decodeSignatureAndDestinationData(data, sender);
 
+        console2.log("1");
+
         // Verify leaf
         _verifyLeaf(sigData, destinationData);
 
@@ -70,6 +74,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
             // Verify signer is valid based on signer and expiration time
             isValid = _isSignatureValid(signer, sender, sigData.validUntil);
         } else {
+            console2.log("2");
             isValid = _processContractSignature(owner, sigData);
         }
 
@@ -137,11 +142,15 @@ contract SuperDestinationValidator is SuperValidatorBase {
         SignatureData memory sigData
     ) private view returns (bool) {
         bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
-        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+        //bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+
+        console2.log("----");
+        console2.logBytes32(messageHash);
+        console2.logBytes(sigData.signature);
 
         bytes memory sig = sigData.signature;
 
-        bytes4 rv = IERC1271(owner).isValidSignature(ethSignedMessageHash, sig);
+        bytes4 rv = IERC1271(owner).isValidSignature(messageHash, sig);
         return rv == MAGIC_VALUE_EIP1271;
     }
 
