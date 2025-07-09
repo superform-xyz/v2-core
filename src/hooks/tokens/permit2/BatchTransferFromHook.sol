@@ -32,7 +32,6 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
-    error INSUFFICIENT_ALLOWANCE();
     error INSUFFICIENT_BALANCE();
     error INVALID_ARRAY_LENGTH();
 
