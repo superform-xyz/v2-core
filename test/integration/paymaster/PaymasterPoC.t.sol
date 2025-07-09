@@ -8,13 +8,14 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {MinimalBaseNexusIntegrationTest} from "../MinimalBaseNexusIntegrationTest.t.sol";
 import {INexus} from "../../../src/vendor/nexus/INexus.sol";
 import {MockRegistry} from "../../mocks/MockRegistry.sol";
-import {ISuperExecutor} from "../../../src/core/interfaces/ISuperExecutor.sol";
+import {ISuperExecutor} from "../../../src/interfaces/ISuperExecutor.sol";
 
 import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
-import {SuperNativePaymaster} from "../../../src/core/paymaster/SuperNativePaymaster.sol";
+import {SuperNativePaymaster} from "../../../src/paymaster/SuperNativePaymaster.sol";
 import {IEntryPoint} from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import {PaymasterHelper} from "./PaymasterHelper.t.sol";
 import "forge-std/console2.sol";
+import "forge-std/Test.sol";
 
 contract PoC is PaymasterHelper {
     MockRegistry public nexusRegistry;
@@ -276,6 +277,171 @@ contract PoC is PaymasterHelper {
 
         console2.log(realGasCost);
     }
+
+    /// @notice Struct to hold test_refundDOS data to avoid stack too deep error
+    struct RefundDOSTestData {
+        address nexusAccount;
+        uint256 amount;
+        address[] hooksAddresses;
+        bytes[] hooksData;
+        ISuperExecutor.ExecutorEntry entry;
+        uint256 maxGasLimit;
+        uint256 maxFeePerGas;
+        SuperNativePaymaster paymaster;
+        uint128 paymasterVerificationGasLimit;
+        uint128 paymasterPostOpGasLimit;
+        bytes paymasterData;
+        bytes paymasterAndData;
+        PackedUserOperation[] ops;
+        uint256 snapshotBeforeDos;
+    }
+
+    function test_refundDOS() public {
+        RefundDOSTestData memory data;
+        
+        // create account
+        data.nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+
+        // fund account
+        vm.deal(data.nexusAccount, LARGE);
+
+        data.amount = 10e18;
+
+        // add tokens to account
+        _getTokens(CHAIN_1_WETH, data.nexusAccount, data.amount);
+
+        // create SuperExecutor data
+        data.hooksAddresses = new address[](1);
+        data.hooksData = new bytes[](1);
+        data.hooksAddresses[0] = approveHook;
+        data.hooksData[0] = _createApproveHookData(CHAIN_1_WETH, address(MANAGER), data.amount, false);
+        data.entry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: data.hooksAddresses, 
+            hooksData: data.hooksData
+        });
+
+        // create paymaster 
+        // set maxGasLimit
+        // paymasterVerificationGasLimit + paymasterPostOpGasLimit + callGasLimit + verificationGasLimit + preVerificationGas
+        // every value was set to 50e6, so in total we have 250e6
+        data.maxGasLimit = 250e6;
+
+        // maxFeePerGas is set to 40 gwei
+        data.maxFeePerGas = 40 gwei;
+
+        data.paymaster = new SuperNativePaymaster(IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032));
+        data.paymasterVerificationGasLimit = 50e6;
+        data.paymasterPostOpGasLimit = 50e6;
+        data.paymasterData = abi.encode(data.maxGasLimit, uint256(0), uint256(0)); // premium is zero
+        data.paymasterAndData = abi.encodePacked(
+            address(data.paymaster), 
+            data.paymasterVerificationGasLimit, 
+            data.paymasterPostOpGasLimit, 
+            data.paymasterData
+        );
+
+        data.ops = _createUserOpWithPaymaster(data.nexusAccount, data.entry, data.paymasterAndData);
+
+        data.snapshotBeforeDos = vm.snapshotState(); 
+
+        // gasPrice in EntryPoint is `min(maxFeePerGas, maxPriorityFeePerGas + block.basefee);`
+        // our priorityFee is 4e6, and we set the 1e2 basefee
+        // the tx.gasprice is 1e5, so maxPriorityFeePerGas + block.basefee covers the gas price
+        vm.txGasPrice(1e5);
+        vm.fee(1e2);
+
+        // SuperBundler calls paymaster.handleOps() with maxGasLimit * maxFeePerGas ether value, as was paid by the account
+        // but the execution will fail since deposit will not cover the refund
+        vm.deal(address(this), data.maxGasLimit * data.maxFeePerGas);
+        vm.recordLogs();
+        data.paymaster.handleOps{gas: data.maxGasLimit, value: address(this).balance}(data.ops);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        bytes32 expectedTopic = keccak256("SuperNativePaymasterRefund(address,uint256,uint256)");
+        for (uint256 i; i < entries.length; ++i) {
+            Vm.Log memory log = entries[i];
+            if (log.topics[0] == expectedTopic) {
+                (uint256 refundAmount, uint256 initialRefund) = abi.decode(log.data, (uint256, uint256));
+                assertEq(refundAmount, initialRefund);
+                assertGt(refundAmount, 0);
+            }
+        }
+    }
+
+    function test_refundDOS_LessDeposit() public {
+        RefundDOSTestData memory data;
+        
+        // create account
+        data.nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+
+        // fund account
+        vm.deal(data.nexusAccount, LARGE);
+
+        data.amount = 10e18;
+
+        // add tokens to account
+        _getTokens(CHAIN_1_WETH, data.nexusAccount, data.amount);
+
+        // create SuperExecutor data
+        data.hooksAddresses = new address[](1);
+        data.hooksData = new bytes[](1);
+        data.hooksAddresses[0] = approveHook;
+        data.hooksData[0] = _createApproveHookData(CHAIN_1_WETH, address(MANAGER), data.amount, false);
+        data.entry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: data.hooksAddresses, 
+            hooksData: data.hooksData
+        });
+
+        // create paymaster 
+        // set maxGasLimit
+        // paymasterVerificationGasLimit + paymasterPostOpGasLimit + callGasLimit + verificationGasLimit + preVerificationGas
+        // every value was set to 50e6, so in total we have 250e6
+        data.maxGasLimit = 250e6;
+
+        // maxFeePerGas is set to 40 gwei
+        data.maxFeePerGas = 40 gwei;
+
+        data.paymaster = new SuperNativePaymaster(IEntryPoint(0x0000000071727De22E5E9d8BAf0edAc6f37da032));
+        data.paymasterVerificationGasLimit = 50e6;
+        data.paymasterPostOpGasLimit = 50e6;
+        data.paymasterData = abi.encode(data.maxGasLimit, uint256(0), uint256(0)); 
+        data.paymasterAndData = abi.encodePacked(
+            address(data.paymaster), 
+            data.paymasterVerificationGasLimit, 
+            data.paymasterPostOpGasLimit, 
+            data.paymasterData
+        );
+
+        data.ops = _createUserOpWithPaymaster(data.nexusAccount, data.entry, data.paymasterAndData);
+
+        data.snapshotBeforeDos = vm.snapshotState(); 
+
+        // gasPrice in EntryPoint is `min(maxFeePerGas, maxPriorityFeePerGas + block.basefee);`
+        // our priorityFee is 4e6, and we set the 1e2 basefee
+        // the tx.gasprice is 1e5, so maxPriorityFeePerGas + block.basefee covers the gas price
+        vm.txGasPrice(1e5);
+        vm.fee(1e2);
+
+        // SuperBundler calls paymaster.handleOps() with maxGasLimit * maxFeePerGas ether value, as was paid by the account
+        // but the execution will fail since deposit will not cover the refund
+        vm.deal(address(this), data.maxGasLimit * data.maxFeePerGas);
+
+        vm.recordLogs();
+        data.paymaster.handleOps{gas: data.maxGasLimit, value: 2e16}(data.ops);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+
+        bytes32 expectedTopic = keccak256("SuperNativePaymasterRefund(address,uint256,uint256)");
+        for (uint256 i; i < entries.length; ++i) {
+            Vm.Log memory log = entries[i];
+            if (log.topics[0] == expectedTopic) {
+                (uint256 refundAmount, uint256 initialRefund) = abi.decode(log.data, (uint256, uint256));
+                assertEq(refundAmount, 0.007e18);
+                assertGt(initialRefund, refundAmount);
+                assertGt(refundAmount, 0);
+            }
+        }
+    }
+
 
     receive() external payable {}
 }

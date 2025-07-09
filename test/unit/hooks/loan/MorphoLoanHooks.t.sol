@@ -6,21 +6,21 @@ import { console } from "forge-std/console.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { BytesLib } from "../../../../src/vendor/BytesLib.sol";
-import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { IOracle } from "../../../../src/vendor/morpho/IOracle.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook } from "../../../../src/interfaces/ISuperHook.sol";
 import { SharesMathLib } from "../../../../src/vendor/morpho/SharesMathLib.sol";
 import { Id, IMorphoStaticTyping, MarketParams, Market } from "../../../../src/vendor/morpho/IMorpho.sol";
 import { MarketParamsLib } from "../../../../src/vendor/morpho/MarketParamsLib.sol";
 
 // Hooks
-import { MorphoBorrowHook } from "../../../../src/core/hooks/loan/morpho/MorphoBorrowHook.sol";
-import { MorphoRepayAndWithdrawHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
-import { MorphoRepayHook } from "../../../../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
-import { MorphoSupplyAndBorrowHook } from "../../../../src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
-import { MorphoWithdrawHook } from "../../../../src/core/hooks/loan/morpho/MorphoWithdrawHook.sol";
-import { MorphoSupplyHook } from "../../../../src/core/hooks/loan/morpho/MorphoSupplyHook.sol";
+import { MorphoBorrowHook } from "../../../../src/hooks/loan/morpho/MorphoBorrowHook.sol";
+import { MorphoRepayAndWithdrawHook } from "../../../../src/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
+import { MorphoRepayHook } from "../../../../src/hooks/loan/morpho/MorphoRepayHook.sol";
+import { MorphoSupplyAndBorrowHook } from "../../../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
+import { MorphoWithdrawHook } from "../../../../src/hooks/loan/morpho/MorphoWithdrawHook.sol";
+import { MorphoSupplyHook } from "../../../../src/hooks/loan/morpho/MorphoSupplyHook.sol";
 
 contract MockOracle is IOracle {
     function price() external pure returns (uint256) {
@@ -81,8 +81,12 @@ contract MockHook {
         loanToken = _loanToken;
     }
 
-    function setOutAmount(uint256 _outAmount) external {
+    function setOutAmount(uint256 _outAmount, address) external {
         outAmount = _outAmount;
+    }
+
+    function getOutAmount(address) external view returns (uint256) {
+        return outAmount;
     }
 }
 
@@ -141,7 +145,7 @@ contract MorphoLoanHooksTest is Helpers {
             irm: address(mockIRM),
             lltv: lltv
         });
-        
+
         Market memory market = Market({
             totalSupplyAssets: 100e18,
             totalSupplyShares: 10e18,
@@ -152,11 +156,11 @@ contract MorphoLoanHooksTest is Helpers {
         });
         mockMorpho.setMarket(marketParams.id(), market);
 
-        mockMorpho.setPosition(marketParams.id(), address(this), MockMorpho.Position({
-            supplyShares: 100e18,
-            borrowShares: 100e18,
-            collateral: 1e18
-        }));
+        mockMorpho.setPosition(
+            marketParams.id(),
+            address(this),
+            MockMorpho.Position({ supplyShares: 100e18, borrowShares: 100e18, collateral: 1e18 })
+        );
     }
 
     function test_Constructors() public view {
@@ -290,7 +294,7 @@ contract MorphoLoanHooksTest is Helpers {
     function test_BorrowHookB_BuildWithPreviousHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeBorrowOnlyData(true);
         Execution[] memory executions = borrowHookB.build(mockPrevHook, address(this), data);
@@ -306,10 +310,10 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeBorrowOnlyData(false);
         deal(loanToken, address(this), amount);
         borrowHookB.preExecute(address(0), address(this), data);
-        assertEq(borrowHookB.outAmount(), amount);
+        assertEq(borrowHookB.getOutAmount(address(this)), amount);
 
         borrowHookB.postExecute(address(0), address(this), data);
-        assertEq(borrowHookB.outAmount(), 0);
+        assertEq(borrowHookB.getOutAmount(address(this)), 0);
     }
 
     function test_BorrowHookB_DecodeUsePrevHookAmount() public view {
@@ -660,7 +664,7 @@ contract MorphoLoanHooksTest is Helpers {
     function test_BorrowHook_BuildWithPreviousHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeBorrowData(true);
         Execution[] memory executions = borrowHook.build(mockPrevHook, address(this), data);
@@ -675,7 +679,7 @@ contract MorphoLoanHooksTest is Helpers {
     function test_RepayHook_BuildWithPreviousHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeRepayData(true, false);
         Execution[] memory executions = repayHook.build(mockPrevHook, address(this), data);
@@ -690,7 +694,7 @@ contract MorphoLoanHooksTest is Helpers {
     function test_RepayAndWithdrawHook_BuildWithPreviousHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, loanToken));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeRepayAndWithdrawData(true, false);
         Execution[] memory executions = repayAndWithdrawHook.build(mockPrevHook, address(this), data);
@@ -827,38 +831,38 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeBorrowData(false);
         deal(address(collateralToken), address(this), amount);
         borrowHook.preExecute(address(0), address(this), data);
-        assertEq(borrowHook.outAmount(), amount, "A");
+        assertEq(borrowHook.getOutAmount(address(this)), amount, "A");
 
         borrowHook.postExecute(address(0), address(this), data);
-        assertEq(borrowHook.outAmount(), 0, "B");
+        assertEq(borrowHook.getOutAmount(address(this)), 0, "B");
     }
 
     function test_SupplyHook_PrePostExecute() public {
         bytes memory data = _encodeSupplyData(false);
         deal(address(collateralToken), address(this), amount);
         supplyHook.preExecute(address(0), address(this), data);
-        assertEq(supplyHook.outAmount(), amount);
+        assertEq(supplyHook.getOutAmount(address(this)), amount);
 
         supplyHook.postExecute(address(0), address(this), data);
-        assertEq(supplyHook.outAmount(), 0);
+        assertEq(supplyHook.getOutAmount(address(this)), 0);
     }
 
     function test_RepayHook_PrePostExecute() public {
         bytes memory data = _encodeRepayData(false, false);
         repayHook.preExecute(address(0), address(this), data);
-        assertEq(repayHook.outAmount(), 0);
+        assertEq(repayHook.getOutAmount(address(this)), 0);
 
         repayHook.postExecute(address(0), address(this), data);
-        assertEq(repayHook.outAmount(), 0);
+        assertEq(repayHook.getOutAmount(address(this)), 0);
     }
 
     function test_RepayAndWithdrawHook_PrePostExecute() public {
         bytes memory data = _encodeRepayAndWithdrawData(false, false);
         repayAndWithdrawHook.preExecute(address(0), address(this), data);
-        assertEq(repayAndWithdrawHook.outAmount(), 0);
+        assertEq(repayAndWithdrawHook.getOutAmount(address(this)), 0);
 
         repayAndWithdrawHook.postExecute(address(0), address(this), data);
-        assertEq(repayAndWithdrawHook.outAmount(), 0);
+        assertEq(repayAndWithdrawHook.getOutAmount(address(this)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -997,9 +1001,9 @@ contract MorphoLoanHooksTest is Helpers {
             0
         );
         withdrawHook.preExecute(address(0), address(this), data);
-        assertEq(withdrawHook.outAmount(), 0);
+        assertEq(withdrawHook.getOutAmount(address(this)), 0);
         withdrawHook.postExecute(address(0), address(this), data);
-        assertEq(withdrawHook.outAmount(), 0);
+        assertEq(withdrawHook.getOutAmount(address(this)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -1026,11 +1030,8 @@ contract MorphoLoanHooksTest is Helpers {
             fee: 0
         });
         mockMorpho.setMarket(id, newMarket);
-        MockMorpho.Position memory positionMock = MockMorpho.Position({
-            supplyShares: 0,
-            borrowShares: 10e18,
-            collateral: 0
-        });
+        MockMorpho.Position memory positionMock =
+            MockMorpho.Position({ supplyShares: 0, borrowShares: 10e18, collateral: 0 });
         mockMorpho.setPosition(id, account, positionMock); // User has 1% of total shares
         vm.warp(block.timestamp + 1 days); // Accrue interest for 1 day
 
@@ -1046,7 +1047,7 @@ contract MorphoLoanHooksTest is Helpers {
         );
 
         Execution[] memory executions = repayHook.build(address(0), account, data);
-        
+
         bytes memory approveCallData = executions[1].callData;
         bytes memory args = BytesLib.slice(approveCallData, 4, approveCallData.length - 4);
 
@@ -1070,7 +1071,7 @@ contract MorphoLoanHooksTest is Helpers {
     /*//////////////////////////////////////////////////////////////
                     REPAY AND WITHDRAW FULL REPAYMENT 
     //////////////////////////////////////////////////////////////*/
-    
+
     function test_RepayAndWithdrawHook_Build_FullRepayment() public view {
         bytes memory data = _encodeRepayAndWithdrawData(false, true);
         Execution[] memory executions = repayAndWithdrawHook.build(address(0), address(this), data);
@@ -1098,9 +1099,9 @@ contract MorphoLoanHooksTest is Helpers {
         bytes memory data = _encodeRepayAndWithdrawData(false, true);
         // outAmount should be 0 before and after since MockERC20 has no balance logic
         repayAndWithdrawHook.preExecute(address(0), address(this), data);
-        assertEq(repayAndWithdrawHook.outAmount(), 0);
+        assertEq(repayAndWithdrawHook.getOutAmount(address(this)), 0);
         repayAndWithdrawHook.postExecute(address(0), address(this), data);
-        assertEq(repayAndWithdrawHook.outAmount(), 0);
+        assertEq(repayAndWithdrawHook.getOutAmount(address(this)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////

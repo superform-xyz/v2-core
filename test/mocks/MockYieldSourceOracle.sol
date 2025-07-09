@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.30;
 
-import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
+import { IYieldSourceOracle } from "../../src/interfaces/accounting/IYieldSourceOracle.sol";
 
 // Mock YieldSourceOracle implementation for testing
 contract MockYieldSourceOracle is IYieldSourceOracle {
@@ -46,7 +46,21 @@ contract MockYieldSourceOracle is IYieldSourceOracle {
         return assetsIn;
     }
 
-    function getAssetOutput(address, address, uint256 sharesIn) external pure returns (uint256) {
+    function getAssetOutput(address, address, uint256 sharesIn) public pure returns (uint256) {
+        return sharesIn;
+    }
+
+    function getAssetOutputWithFees(
+        bytes32,
+        address,
+        address,
+        address,
+        uint256 sharesIn
+    )
+        public
+        pure
+        returns (uint256)
+    {
         return sharesIn;
     }
 

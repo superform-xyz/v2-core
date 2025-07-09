@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {Swap1InchHook} from "../../../../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
-import {ISuperHook} from "../../../../../src/core/interfaces/ISuperHook.sol";
-import {MockERC20} from "../../../../mocks/MockERC20.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { Swap1InchHook } from "../../../../../src/hooks/swappers/1inch/Swap1InchHook.sol";
+import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
+import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import "../../../../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
-import {Helpers} from "../../../../utils/Helpers.sol";
+import { Helpers } from "../../../../utils/Helpers.sol";
 
 contract MockUniswapPair {
     address public token0;
@@ -50,9 +50,8 @@ contract MockCurvePair {
     }
 }
 
-
 contract Executor {
-    function execute(address) external payable returns(int256) {
+    function execute(address) external payable returns (int256) {
         address DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
         IERC20(DAI).transfer(msg.sender, 100e18);
         return 100e18;
@@ -71,7 +70,7 @@ contract Swap1InchHookTest is Helpers {
     address mockRouter;
     address mockCurvePair;
 
-    receive() external payable {}
+    receive() external payable { }
 
     function setUp() public {
         MockERC20 _mockSrcToken = new MockERC20("Source Token", "SRC", 18);
@@ -109,36 +108,33 @@ contract Swap1InchHookTest is Helpers {
         address account = address(this);
 
         // 1.  Craft a SwapDescription that *expects* native ETH in .amount
-        //     (we set amount = 0 because the hook will overwrite it with prevHook.outAmount())
+        //     (we set amount = 0 because the hook will overwrite it with prevHook.getOutAmount(address(this)))
         address NATIVE = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
         I1InchAggregationRouterV6.SwapDescription memory desc = I1InchAggregationRouterV6.SwapDescription({
-            srcToken:        IERC20(NATIVE),    // swapping native coin
-            dstToken:        IERC20(dstToken),  // receive some ERC-20
-            srcReceiver:     payable(account),
-            dstReceiver:     payable(account),
-            amount:          0,                 // will be overridden
+            srcToken: IERC20(NATIVE), // swapping native coin
+            dstToken: IERC20(dstToken), // receive some ERC-20
+            srcReceiver: payable(account),
+            dstReceiver: payable(account),
+            amount: 0, // will be overridden
             minReturnAmount: 1,
-            flags:           0                  // no partial fill
-        });
+            flags: 0 // no partial fill
+         });
 
         // 2.  Pack the 1inch `swap()` calldata
         bytes memory swapCalldata = abi.encode(
-            address(0),   // executor (ignored)
+            address(0), // executor (ignored)
             desc,
-            bytes(""),    // permit
-            bytes("")     // extra data
+            bytes(""), // permit
+            bytes("") // extra data
         );
-        bytes memory callData = abi.encodePacked(
-            I1InchAggregationRouterV6.swap.selector,
-            swapCalldata
-        );
+        bytes memory callData = abi.encodePacked(I1InchAggregationRouterV6.swap.selector, swapCalldata);
 
         // 3.  Full hook payload: [dstToken][dstReceiver][value=0][usePrev=1][callData]
         bytes memory hookData = abi.encodePacked(
-            bytes20(dstToken),          // dstToken (an ERC-20)
-            bytes20(account),           // dstReceiver
-            uint256(1),                 //  static “value” field is ZERO (the bug)
-            bytes1(0x01),               // usePrevHookAmount = true
+            bytes20(dstToken), // dstToken (an ERC-20)
+            bytes20(account), // dstReceiver
+            uint256(1), //  static “value” field is ZERO (the bug)
+            bytes1(0x01), // usePrevHookAmount = true
             callData
         );
 
@@ -147,11 +143,7 @@ contract Swap1InchHookTest is Helpers {
 
         // 5.  Assertions – test passes and demonstrates the bug
         assertEq(execs.length, 3, "should emit exactly one Execution");
-        assertEq(
-            execs[1].value,
-            1000,
-            "value is zero even though usePrevHookAmount == true (should be 1_000)"
-        );
+        assertEq(execs[1].value, 1000, "value is zero even though usePrevHookAmount == true (should be 1_000)");
     }
 
     function test_decodeUsePrevHookAmount() public view {
@@ -271,7 +263,7 @@ contract Swap1InchHookTest is Helpers {
 
         hook.preExecute(address(0), address(this), data);
 
-        assertEq(hook.outAmount(), 500);
+        assertEq(hook.getOutAmount(address(this)), 500);
     }
 
     function test_PostExecute() public {
@@ -286,7 +278,7 @@ contract Swap1InchHookTest is Helpers {
 
         hook.postExecute(address(0), address(this), data);
 
-        assertEq(hook.outAmount(), 300);
+        assertEq(hook.getOutAmount(address(this)), 300);
     }
 
     function test_Build_Swap() public {
@@ -358,7 +350,7 @@ contract Swap1InchHookTest is Helpers {
         assertGt(argsEncoded.length, 0);
     }
 
-     function test_inspect_invalidSelector() public {
+    function test_inspect_invalidSelector() public {
         bytes memory data = _buildInvalidData(1000, 100, dstReceiver, dstToken, false);
         vm.expectRevert(Swap1InchHook.INVALID_SELECTOR.selector);
         hook.inspect(data);
@@ -370,7 +362,11 @@ contract Swap1InchHookTest is Helpers {
         address _dstReceiver,
         address _dstToken,
         bool usePrev
-    ) private view returns (bytes memory) {
+    )
+        private
+        view
+        returns (bytes memory)
+    {
         bytes memory clipperData = abi.encode(
             address(0), // exchange
             _dstReceiver, // receiver
@@ -386,14 +382,18 @@ contract Swap1InchHookTest is Helpers {
         bytes memory callData = abi.encodePacked(selector, clipperData);
         return abi.encodePacked(dstToken, dstReceiver, value, usePrev, callData);
     }
-    
+
     function _buildClipperData(
         uint256 _amount,
         uint256 _minAmount,
         address _dstReceiver,
         address _dstToken,
         bool usePrev
-    ) private view returns (bytes memory) {
+    )
+        private
+        view
+        returns (bytes memory)
+    {
         bytes memory clipperData = abi.encode(
             address(0), // exchange
             _dstReceiver, // receiver
@@ -427,20 +427,20 @@ contract Swap1InchHookTest is Helpers {
         return abi.encodePacked(dstToken, dstReceiver, value, false, callData);
     }
 
-    function outAmount() external pure returns (uint256) {
+    function getOutAmount(address) external pure returns (uint256) {
         return 1000;
     }
 
     // Swap1InchHook.t.sol
-function testOrion_IncorrectOutAmountForGenericSwaps() public {
+    function testOrion_IncorrectOutAmountForGenericSwaps() public {
         vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
 
         // Deploy hook
         Swap1InchHook testHook = new Swap1InchHook(mockRouter);
 
-        address payable destinationReceiver = payable(address(0)); 
+        address payable destinationReceiver = payable(address(0));
         Executor executor = new Executor();
-        // We configure destination receiver to be address(0), signaling 1inch that swap receiver should 
+        // We configure destination receiver to be address(0), signaling 1inch that swap receiver should
         // be msg.sender.
         address AGGREGATION_ROUTER = 0x111111125421cA6dc452d289314280a0f8842A65;
         address USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
@@ -455,7 +455,7 @@ function testOrion_IncorrectOutAmountForGenericSwaps() public {
             srcToken: IERC20(USDC), // USDC
             dstToken: IERC20(DAI), // DAI
             srcReceiver: payable(this),
-            dstReceiver: destinationReceiver, 
+            dstReceiver: destinationReceiver,
             amount: 10e6,
             minReturnAmount: 1, // avoid revert due to 0 amount
             flags: 0
@@ -466,7 +466,7 @@ function testOrion_IncorrectOutAmountForGenericSwaps() public {
             bytes(""), // permit
             bytes("") // data
         );
-        
+
         bytes4 selector = I1InchAggregationRouterV6.swap.selector;
         bytes memory callData = abi.encodePacked(selector, swapData);
         bytes memory hookData = abi.encodePacked(IERC20(DAI), destinationReceiver, uint256(0), false, callData);
@@ -475,7 +475,7 @@ function testOrion_IncorrectOutAmountForGenericSwaps() public {
         testHook.preExecute(address(0), address(this), hookData);
 
         uint256 accountBalanceBeforeExecution = IERC20(DAI).balanceOf(address(this));
-        
+
         // Mimic hook execution by performing a swap. This swap will transfer 100e18 dai to the receiver.
         // Note that we set the dstReceiver to address(0) in the `desc` data. However, 1inch will detect
         // this and transfer tokens to the caller, in this case this contract (which acts as the account).
@@ -485,14 +485,13 @@ function testOrion_IncorrectOutAmountForGenericSwaps() public {
         // Trigger postexecute to see outAmount
         testHook.postExecute(address(0), address(this), hookData);
 
-        // Outcome: Although the account actually obtained the tokens, the `outAmount` does not reflect that, as it queried
-        // the balance of address(0). 
+        // Outcome: Although the account actually obtained the tokens, the `outAmount` does not reflect that, as it
+        // queried
+        // the balance of address(0).
         // not anymore after the fix ->
-        assertEq(testHook.outAmount(), 100e18);
+        assertEq(testHook.getOutAmount(address(this)), 100e18);
         assertEq(IERC20(DAI).balanceOf(address(this)) - accountBalanceBeforeExecution, 100e18);
-
     }
-
 
     //----------- PRIVATE ------------
     function _encodeAddressWithProtocol(
@@ -500,7 +499,11 @@ function testOrion_IncorrectOutAmountForGenericSwaps() public {
         uint8 selectorOffset,
         uint8 dstTokenIndex,
         bool unwrapWeth
-    ) internal pure returns (Address) {
+    )
+        internal
+        pure
+        returns (Address)
+    {
         uint256 result = uint256(uint160(actualAddress)); // Put base address in low 160 bits
 
         // Set Curve protocol (value = 2) in bits 253–255
@@ -527,7 +530,11 @@ function testOrion_IncorrectOutAmountForGenericSwaps() public {
         uint256 amount,
         uint256 minAmount,
         bool usePrev
-    ) private view returns (bytes memory) {
+    )
+        private
+        view
+        returns (bytes memory)
+    {
         uint8 dstTokenIndex = 0;
         Address dex = _encodeAddressWithProtocol(mockCurvePair, selectorOffset, dstTokenIndex, unwrapWeth);
         bytes memory unoswapData = abi.encode(
@@ -543,7 +550,12 @@ function testOrion_IncorrectOutAmountForGenericSwaps() public {
         return abi.encodePacked(dstToken, dstReceiver, uint256(0), usePrev, callData);
     }
 
-    function _buildUnoswapUniswap(address _dstReceiver, address _srcToken, uint256 _amount, uint256 _minAmount)
+    function _buildUnoswapUniswap(
+        address _dstReceiver,
+        address _srcToken,
+        uint256 _amount,
+        uint256 _minAmount
+    )
         private
         view
         returns (bytes memory)
@@ -568,7 +580,11 @@ function testOrion_IncorrectOutAmountForGenericSwaps() public {
         uint256 _amount,
         uint256 _minAmount,
         bool usePrev
-    ) private view returns (bytes memory) {
+    )
+        private
+        view
+        returns (bytes memory)
+    {
         I1InchAggregationRouterV6.SwapDescription memory desc = I1InchAggregationRouterV6.SwapDescription({
             srcToken: IERC20(srcToken),
             dstToken: IERC20(_dstToken),

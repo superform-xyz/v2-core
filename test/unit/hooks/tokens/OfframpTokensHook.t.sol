@@ -3,11 +3,11 @@ pragma solidity 0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { OfframpTokensHook } from "../../../../src/core/hooks/tokens/OfframpTokensHook.sol";
-import { ISuperHook } from "../../../../src/core/interfaces/ISuperHook.sol";
+import { OfframpTokensHook } from "../../../../src/hooks/tokens/OfframpTokensHook.sol";
+import { ISuperHook } from "../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
 
 contract OfframpTokensHookTest is Helpers {
@@ -88,7 +88,6 @@ contract OfframpTokensHookTest is Helpers {
         tokens[1] = NATIVE_TOKEN;
         tokens[2] = token2;
 
-
         bytes memory data = _encodeData(tokens);
 
         // Test build function
@@ -99,19 +98,19 @@ contract OfframpTokensHookTest is Helpers {
         assertEq(executions.length, 5);
 
         // Check first ERC20 transfer (index 1 because of hook callback)
-        assertEq(executions[1].target, token1,"A");
-        assertEq(executions[1].value, 0,"B");
-        assertGt(executions[1].callData.length, 0,"C");
+        assertEq(executions[1].target, token1, "A");
+        assertEq(executions[1].value, 0, "B");
+        assertGt(executions[1].callData.length, 0, "C");
 
         // Check native token transfer (index 2)
-        assertEq(executions[2].target, to,"D");
-        assertEq(executions[2].value, balance,"E");
-        assertEq(executions[2].callData.length, 0,"F");
+        assertEq(executions[2].target, to, "D");
+        assertEq(executions[2].value, balance, "E");
+        assertEq(executions[2].callData.length, 0, "F");
 
         // Check second ERC20 transfer (index 3)
-        assertEq(executions[3].target, token2,"G");
-        assertEq(executions[3].value, 0,"H");
-        assertGt(executions[3].callData.length, 0,"I");
+        assertEq(executions[3].target, token2, "G");
+        assertEq(executions[3].value, 0, "H");
+        assertGt(executions[3].callData.length, 0, "I");
     }
 
     function test_Inspector() public view {

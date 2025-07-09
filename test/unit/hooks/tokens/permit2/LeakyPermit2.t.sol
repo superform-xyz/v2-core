@@ -2,7 +2,7 @@
 pragma solidity 0.8.30;
 
 import "forge-std/Test.sol";
-import { BatchTransferFromHook } from "../../../../../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
+import { BatchTransferFromHook } from "../../../../../src/hooks/tokens/permit2/BatchTransferFromHook.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IPermit2Batch, IAllowanceTransfer } from "../../../../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";

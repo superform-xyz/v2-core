@@ -14,7 +14,6 @@ abstract contract Constants {
     uint256 public constant MANAGER_KEY = 0x3;
     uint256 public constant ACROSS_RELAYER_KEY = 0x4;
     uint256 public constant STRATEGIST_KEY = 0x5;
-    uint256 public constant EMERGENCY_ADMIN_KEY = 0x6;
     uint256 public constant FEE_RECIPIENT_KEY = 0x7;
     uint256 public constant TREASURY_KEY = 0x8;
     uint256 public constant SUPER_BUNDLER_KEY = 0x9;
@@ -76,6 +75,7 @@ abstract contract Constants {
     string public constant PERMIT_WITH_PERMIT2_HOOK_KEY = "PermitWithPermit2Hook";
     string public constant BATCH_TRANSFER_FROM_HOOK_KEY = "BatchTransferFromHook";
     string public constant OFFRAMP_TOKENS_HOOK_KEY = "OfframpTokensHook";
+    string public constant MINT_SUPERPOSITIONS_HOOK_KEY = "MintSuperPositionsHook";
     string public constant SWAP_1INCH_HOOK_KEY = "Swap1InchHook";
     string public constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string public constant GEARBOX_STAKE_HOOK_KEY = "GearboxStakeHook";
@@ -116,21 +116,16 @@ abstract contract Constants {
     string public constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
     string public constant SUPER_EXECUTOR_KEY = "SuperExecutor";
-    string public constant SUPER_EXECUTOR_WITH_SP_LOCK_KEY = "SuperExecutorWithSPLock";
     string public constant MOCK_TARGET_EXECUTOR_KEY = "MockTargetExecutor";
     string public constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
     string public constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string public constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
     string public constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";
-    string public constant SUPER_ORACLE_KEY = "SuperOracle";
     string public constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
     string public constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
     string public constant ERC7540_YIELD_SOURCE_ORACLE_KEY = "ERC7540YieldSourceOracle";
     string public constant STAKING_YIELD_SOURCE_ORACLE_KEY = "StakingYieldSourceOracle";
-    string public constant SUPER_GOVERNOR_KEY = "SuperGovernor";
-    string public constant SUPER_BANK_KEY = "SuperBank";
     string public constant SUPER_NATIVE_PAYMASTER_KEY = "SuperNativePaymaster";
-    string public constant SUPER_GAS_TANK_KEY = "SuperGasTank";
 
     // tokens
     string public constant DAI_KEY = "DAI";
@@ -226,10 +221,6 @@ abstract contract Constants {
     address public constant CHAIN_8453_PendleSwap = 0x313e7Ef7d52f5C10aC04ebaa4d33CDc68634c212;
     address public constant CHAIN_8453_SpectraRouter = 0x0FC2fbd3E8391744426C8bE5228b668481C59532;
 
-    address public constant CHAIN_1_POLYMER_PROVER = 0x441f16587d8a8cACE647352B24E1Aefa55ACEA76;
-    address public constant CHAIN_10_POLYMER_PROVER = address(0); // not available
-    address public constant CHAIN_8453_POLYMER_PROVER = address(0); // not available
-
     // staking protocols
     string public constant GEARBOX_STAKING_KEY = "GearboxStaking";
 
@@ -257,11 +248,4 @@ abstract contract Constants {
     address public constant CHAIN_1_NEXUS_FACTORY = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address public constant CHAIN_10_NEXUS_FACTORY = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
     address public constant CHAIN_8453_NEXUS_FACTORY = 0x000000226cada0d8b36034F5D5c06855F59F6F3A;
-
-    // periphery
-    string public constant SUPER_VAULT_AGGREGATOR_KEY = "SUPER_VAULT_AGGREGATOR";
-    string public constant SUPER_VAULT_REGISTRY_KEY = "SUPER_VAULT_REGISTRY";
-    string public constant SUPER_VAULT_FACTORY_KEY = "SUPER_VAULT_FACTORY";
-    string public constant HOOK_FACTORY_KEY = "HOOK_FACTORY";
-    string public constant ECDSAPPS_ORACLE_KEY = "ECDSAPPS_ORACLE";
 }

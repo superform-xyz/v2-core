@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {Helpers} from "../../utils/Helpers.sol";
-import {AbstractYieldSourceOracle} from "../../../src/core/accounting/oracles/AbstractYieldSourceOracle.sol";
-import {IYieldSourceOracle} from "../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
-import {MockERC20} from "../../mocks/MockERC20.sol";
+import { Helpers } from "../../utils/Helpers.sol";
+import { AbstractYieldSourceOracle } from "../../../src/accounting/oracles/AbstractYieldSourceOracle.sol";
+import { IYieldSourceOracle } from "../../../src/interfaces/accounting/IYieldSourceOracle.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
 
 contract MockYieldSourceOracle is AbstractYieldSourceOracle {
     MockERC20 public mockAsset;
@@ -12,7 +12,7 @@ contract MockYieldSourceOracle is AbstractYieldSourceOracle {
     uint256 public constant PRICE_PER_SHARE = 1e18;
     uint256 public constant TVL = 1000e18;
 
-    constructor() {
+    constructor(address superLedgerConfiguration_) AbstractYieldSourceOracle(superLedgerConfiguration_) {
         mockAsset = new MockERC20("Mock Asset", "MA", DECIMALS);
     }
 
@@ -24,7 +24,7 @@ contract MockYieldSourceOracle is AbstractYieldSourceOracle {
         return assetsIn;
     }
 
-    function getAssetOutput(address, address, uint256 sharesIn) external pure override returns (uint256) {
+    function getAssetOutput(address, address, uint256 sharesIn) public pure override returns (uint256) {
         return sharesIn;
     }
 
@@ -48,7 +48,10 @@ contract MockYieldSourceOracle is AbstractYieldSourceOracle {
         return true;
     }
 
-    function isValidUnderlyingAssets(address[] memory, address[] memory)
+    function isValidUnderlyingAssets(
+        address[] memory,
+        address[] memory
+    )
         external
         pure
         override
@@ -66,12 +69,18 @@ contract AbstractYieldSourceOracleTest is Helpers {
     address public mockYieldSource;
     address public mockAsset;
     address public mockOwner;
+    address public mockSuperLedgerConfiguration;
 
     function setUp() public {
-        oracle = new MockYieldSourceOracle();
+        mockSuperLedgerConfiguration = address(0x789);
+        oracle = new MockYieldSourceOracle(mockSuperLedgerConfiguration);
         mockYieldSource = address(0x123);
         mockAsset = address(oracle.mockAsset());
         mockOwner = address(0x456);
+    }
+
+    function test_superLedgerConfiguration() public view {
+        assertEq(oracle.superLedgerConfiguration(), mockSuperLedgerConfiguration);
     }
 
     function test_decimals() public view {

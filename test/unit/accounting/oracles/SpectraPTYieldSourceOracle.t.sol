@@ -1,17 +1,23 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import {InternalHelpers} from "../../../utils/InternalHelpers.sol";
-import {Helpers} from "../../../utils/Helpers.sol";
+import { InternalHelpers } from "../../../utils/InternalHelpers.sol";
+import { Helpers } from "../../../utils/Helpers.sol";
 
-import {SpectraPTYieldSourceOracle} from "../../../../src/core/accounting/oracles/SpectraPTYieldSourceOracle.sol";
-import {IYieldSourceOracle} from "../../../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
-import {MockSpectraPrincipalToken} from "../../../mocks/MockSpectraPrincipalToken.sol";
-import {MockERC20} from "../../../mocks/MockERC20.sol";
+import { SpectraPTYieldSourceOracle } from "../../../../src/accounting/oracles/SpectraPTYieldSourceOracle.sol";
+import { IYieldSourceOracle } from "../../../../src/interfaces/accounting/IYieldSourceOracle.sol";
+import { MockSpectraPrincipalToken } from "../../../mocks/MockSpectraPrincipalToken.sol";
+import { MockERC20 } from "../../../mocks/MockERC20.sol";
+import { SuperLedgerConfiguration } from "../../../../src/accounting/SuperLedgerConfiguration.sol";
+import { ISuperLedgerConfiguration } from "../../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperLedger } from "../../../../src/interfaces/accounting/ISuperLedger.sol";
+import { SuperLedger } from "../../../../src/accounting/SuperLedger.sol";
 
 contract SpectraPTYieldSourceOracleTest is InternalHelpers, Helpers {
     SpectraPTYieldSourceOracle public oracle;
     MockSpectraPrincipalToken public mockPT;
+    ISuperLedgerConfiguration public ledgerConfig;
+    ISuperLedger public ledger;
 
     MockERC20 public mockUnderlying;
     MockERC20 public ibt;
@@ -25,7 +31,12 @@ contract SpectraPTYieldSourceOracleTest is InternalHelpers, Helpers {
         ibt = new MockERC20("Mock IBT", "MOIBT", 18);
         yt = new MockERC20("Mock YT", "MOYT", 18);
 
-        oracle = new SpectraPTYieldSourceOracle();
+        ledgerConfig = ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
+        address[] memory allowedExecutors = new address[](1);
+        allowedExecutors[0] = address(0x777);
+        ledger = ISuperLedger(address(new SuperLedger(address(ledgerConfig), allowedExecutors)));
+
+        oracle = new SpectraPTYieldSourceOracle(address(ledgerConfig));
         mockPT = new MockSpectraPrincipalToken(address(yt), address(ibt), address(mockUnderlying));
         mockPT.setUnderlyingAmount(INITIAL_UNDERLYING_AMOUNT);
         mockPT.mint(OWNER, INITIAL_PT_AMOUNT);

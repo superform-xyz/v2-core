@@ -7,10 +7,10 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 // Superform
-import {ISuperExecutor} from "../../../src/core/interfaces/ISuperExecutor.sol";
+import {ISuperExecutor} from "../../../src/interfaces/ISuperExecutor.sol";
 import {MockAccountingVault} from "../../mocks/MockAccountingVault.sol";
 import {MinimalBaseIntegrationTest} from "../MinimalBaseIntegrationTest.t.sol";
-import {ISuperLedgerConfiguration} from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import {ISuperLedgerConfiguration} from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
 contract FeesTest is MinimalBaseIntegrationTest {
     IERC4626 public vaultInstance;
@@ -41,7 +41,7 @@ contract FeesTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, amount, false, address(0), 0
         );
         uint256 sharesPreviewed = vaultInstance.previewDeposit(amount);
 
@@ -68,7 +68,7 @@ contract FeesTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, amount, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -92,10 +92,10 @@ contract FeesTest is MinimalBaseIntegrationTest {
 
         hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, accountEth, sharesToWithdraw, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, accountEth, sharesToWithdraw, false
         );
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)));
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
 
         entry = ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
@@ -122,7 +122,7 @@ contract FeesTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, amount, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -147,10 +147,10 @@ contract FeesTest is MinimalBaseIntegrationTest {
 
         hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, accountEth, sharesToWithdraw, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, accountEth, sharesToWithdraw, false
         );
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)));
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
 
         entry = ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
@@ -177,7 +177,7 @@ contract FeesTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlying, yieldSourceAddress, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, amount, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -200,10 +200,10 @@ contract FeesTest is MinimalBaseIntegrationTest {
 
         hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddress, accountEth, sharesToWithdraw, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddress, accountEth, sharesToWithdraw, false
         );
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)));
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
 
         entry = ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});

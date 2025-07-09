@@ -5,9 +5,9 @@ pragma solidity >=0.8.30;
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MockSpectraRouter, MockSpectraRedeemRouter } from "../../mocks/MockSpectraRouter.sol";
-import { SpectraExchangeDepositHook } from "../../../src/core/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
-import { SpectraExchangeRedeemHook } from "../../../src/core/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
+import { SpectraExchangeDepositHook } from "../../../src/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
+import { SpectraExchangeRedeemHook } from "../../../src/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
+import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
 

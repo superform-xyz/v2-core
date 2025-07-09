@@ -1,9 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import {
-    ISuperHook, ISuperHookResult, ISuperHookResultOutflow, Execution
-} from "../../src/core/interfaces/ISuperHook.sol";
+import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, Execution } from "../../src/interfaces/ISuperHook.sol";
 
 contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     HookType public hookType;
@@ -28,8 +26,12 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         return bytes32("Mock");
     }
 
-    function setOutAmount(uint256 _outAmount) external {
+    function setOutAmount(uint256 _outAmount, address) external {
         outAmount = _outAmount;
+    }
+
+    function getOutAmount(address) external view returns (uint256) {
+        return outAmount;
     }
 
     function setUsedShares(uint256 _usedShares) external {
@@ -51,32 +53,36 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         preExecuteCalled = true;
     }
 
-
     /// @dev Standard build pattern - MUST include preExecute first, postExecute last
     /// @inheritdoc ISuperHook
     function build(
         address prevHook,
         address account,
         bytes calldata hookData
-    ) external view virtual returns (Execution[] memory _executions) {
+    )
+        external
+        view
+        virtual
+        returns (Execution[] memory _executions)
+    {
         // Get hook-specific executions
         Execution[] memory hookExecutions = _buildHookExecutions(prevHook, account, hookData);
-        
+
         // Always include pre + hook + post
         _executions = new Execution[](hookExecutions.length + 2);
-        
+
         // FIRST: preExecute
         _executions[0] = Execution({
             target: address(this),
             value: 0,
             callData: abi.encodeCall(this.preExecute, (prevHook, account, hookData))
         });
-        
+
         // MIDDLE: hook-specific operations
         for (uint256 i = 0; i < hookExecutions.length; i++) {
             _executions[i + 1] = hookExecutions[i];
         }
-        
+
         // LAST: postExecute
         _executions[_executions.length - 1] = Execution({
             target: address(this),
@@ -84,8 +90,6 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
             callData: abi.encodeCall(this.postExecute, (prevHook, account, hookData))
         });
     }
-
-
 
     function _buildHookExecutions(address, address, bytes calldata) internal view returns (Execution[] memory) {
         Execution[] memory result = new Execution[](executions.length);
@@ -107,22 +111,30 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         return address(0);
     }
 
-    function vaultBank() external pure override returns (address) {
+    function vaultBank() public pure returns (address) {
         return address(0);
     }
 
-    function dstChainId() external pure override returns (uint256) {
+    function dstChainId() public pure returns (uint256) {
         return 0;
     }
 
-     /// @notice Resets execution state - ONLY callable by executor after accounting
-    function resetExecutionState() external {
+    /// @notice Resets execution state - ONLY callable by executor after accounting
+    function resetExecutionState(address) external {
         // Reset both mutexes
         preExecuteMutex = false;
         postExecuteMutex = false;
     }
 
-    function setCaller() external {
-        caller = msg.sender;
+    function setExecutionContext(address _caller) external {
+        caller = _caller;
+    }
+
+    function executionNonce() external pure returns (uint256) {
+        return 1;
+    }
+
+    function lastCaller() external view returns (address) {
+        return msg.sender;
     }
 }

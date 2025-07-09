@@ -19,21 +19,21 @@ import { IERC7484 } from "../../../src/vendor/nexus/IERC7484.sol";
 // Superform
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
-import { ISuperExecutor } from "../../../src/core/interfaces/ISuperExecutor.sol";
-import { SuperMerkleValidator } from "../../../src/core/validators/SuperMerkleValidator.sol";
-import { SuperLedgerConfiguration } from "../../../src/core/accounting/SuperLedgerConfiguration.sol";
-import { SuperExecutor } from "../../../src/core/executors/SuperExecutor.sol";
-import { ERC4626YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import { ERC5115YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { ERC7540YieldSourceOracle } from "../../../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import { SuperLedger } from "../../../src/core/accounting/SuperLedger.sol";
-import { ERC5115Ledger } from "../../../src/core/accounting/ERC5115Ledger.sol";
-import { ISuperLedgerConfiguration } from "../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperLedger } from "../../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { ISuperValidator } from "../../../src/core/interfaces/ISuperValidator.sol";
-import { ApproveERC20Hook } from "../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
-import { Deposit4626VaultHook } from "../../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
-import { Redeem4626VaultHook } from "../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
+import { SuperMerkleValidator } from "../../../src/validators/SuperMerkleValidator.sol";
+import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
+import { SuperExecutor } from "../../../src/executors/SuperExecutor.sol";
+import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC5115YieldSourceOracle } from "../../../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import { ERC7540YieldSourceOracle } from "../../../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { SuperLedger } from "../../../src/accounting/SuperLedger.sol";
+import { ERC5115Ledger } from "../../mocks/ERC5115Ledger.sol";
+import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperLedger } from "../../../src/interfaces/accounting/ISuperLedger.sol";
+import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
+import { ApproveERC20Hook } from "../../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { Deposit4626VaultHook } from "../../../src/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { Redeem4626VaultHook } from "../../../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
 
 abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers {
     SuperMerkleValidator public superMerkleValidator;
@@ -58,7 +58,6 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         blockNumber != 0
             ? vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY), blockNumber)
             : vm.createSelectFork(vm.envString(ETHEREUM_RPC_URL_KEY));
-        MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
 
         (signer, signerPrvKey) = makeAddrAndKey("signer");
 
@@ -70,7 +69,7 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         vm.label(address(nexusFactory), "NexusFactory");
         nexusBootstrap = INexusBootstrap(CHAIN_1_NEXUS_BOOTSTRAP);
         vm.label(address(nexusBootstrap), "NexusBootstrap");
-        ledgerConfig = ISuperLedgerConfiguration(new SuperLedgerConfiguration(address(this)));
+        ledgerConfig = ISuperLedgerConfiguration(new SuperLedgerConfiguration());
 
         superExecutorModule = new SuperExecutor(address(ledgerConfig));
 
@@ -81,18 +80,16 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
 
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
             new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](3);
-        yieldSourceOracle4626 = address(new ERC4626YieldSourceOracle());
-        yieldSourceOracle5115 = address(new ERC5115YieldSourceOracle());
-        yieldSourceOracle7540 = address(new ERC7540YieldSourceOracle());
+        yieldSourceOracle4626 = address(new ERC4626YieldSourceOracle(address(ledgerConfig)));
+        yieldSourceOracle5115 = address(new ERC5115YieldSourceOracle(address(ledgerConfig)));
+        yieldSourceOracle7540 = address(new ERC7540YieldSourceOracle(address(ledgerConfig)));
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle4626,
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(ledger)
         });
         configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle7540,
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
@@ -100,13 +97,16 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         });
 
         configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-            yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             yieldSourceOracle: yieldSourceOracle5115,
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
             ledger: address(new ERC5115Ledger(address(ledgerConfig), allowedExecutors))
         });
-        ledgerConfig.setYieldSourceOracles(configs);
+        bytes32[] memory salts = new bytes32[](3);
+        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
+        salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY));
+        ledgerConfig.setYieldSourceOracles(salts, configs);
 
         approveHook = address(new ApproveERC20Hook());
         deposit4626Hook = address(new Deposit4626VaultHook());

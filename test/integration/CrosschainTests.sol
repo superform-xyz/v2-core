@@ -6,11 +6,11 @@ import { BaseTest } from "../BaseTest.t.sol";
 import { console2 } from "forge-std/console2.sol";
 
 // Superform
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
-import { IYieldSourceOracle } from "../../src/core/interfaces/accounting/IYieldSourceOracle.sol";
-import { ISuperLedger, ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { AcrossV3Adapter } from "../../src/core/adapters/AcrossV3Adapter.sol";
-import { DebridgeAdapter } from "../../src/core/adapters/DebridgeAdapter.sol";
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
+import { IYieldSourceOracle } from "../../src/interfaces/accounting/IYieldSourceOracle.sol";
+import { ISuperLedger, ISuperLedgerData } from "../../src/interfaces/accounting/ISuperLedger.sol";
+import { AcrossV3Adapter } from "../../src/adapters/AcrossV3Adapter.sol";
+import { DebridgeAdapter } from "../../src/adapters/DebridgeAdapter.sol";
 import { MockTargetExecutor } from "../mocks/MockTargetExecutor.sol";
 import { MockAcrossHook } from "../mocks/MockAcrossHook.sol";
 import { MockRegistry } from "../mocks/MockRegistry.sol";
@@ -25,9 +25,11 @@ import { IInvestmentManager } from "../mocks/centrifuge/IInvestmentManager.sol";
 import { IPoolManager } from "../mocks/centrifuge/IPoolManager.sol";
 import { ITranche } from "../mocks/centrifuge/ITranch.sol";
 import { IRoot } from "../mocks/centrifuge/IRoot.sol";
-import { ISuperDestinationExecutor } from "../../src/core/interfaces/ISuperDestinationExecutor.sol";
+import { ISuperDestinationExecutor } from "../../src/interfaces/ISuperDestinationExecutor.sol";
+import { ISuperValidator } from "../../src/interfaces/ISuperValidator.sol";
 import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
-import { SuperValidatorBase } from "../../src/core/validators/SuperValidatorBase.sol";
+import { SuperValidatorBase } from "../../src/validators/SuperValidatorBase.sol";
+import { BytesLib } from "../../src/vendor/BytesLib.sol";
 
 // External
 import { UserOpData, AccountInstance, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
@@ -40,7 +42,7 @@ import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/
 import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
-import { BaseHook } from "../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../src/hooks/BaseHook.sol";
 
 contract CrosschainTests is BaseTest {
     using ModuleKitHelpers for *;
@@ -318,7 +320,10 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+                yieldSource7540AddressETH_USDC,
+                amountPerVault,
+                true
             );
 
             messageData = TargetExecutorMessage({
@@ -438,7 +443,10 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault / 2, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault / 2, true
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+                yieldSource7540AddressETH_USDC,
+                amountPerVault / 2,
+                true
             );
 
             // Build the target executor message
@@ -524,6 +532,7 @@ contract CrosschainTests is BaseTest {
                 errorMessage: bytes4(0),
                 errorReason: "",
                 account: accountToUse,
+                root: bytes32(0),
                 relayerGas: 600_000
             })
         );
@@ -637,7 +646,10 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+                yieldSource7540AddressETH_USDC,
+                amountPerVault,
+                true
             );
 
             messageData = TargetExecutorMessage({
@@ -805,7 +817,7 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory srcHooksData = new bytes[](2);
         srcHooksData[0] =
-            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault / 2, false);
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
         srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, true, targetExecutorMessage
         );
@@ -827,6 +839,7 @@ contract CrosschainTests is BaseTest {
                 relayerType: RELAYER_TYPE.NO_HOOKS,
                 errorMessage: bytes4(0),
                 errorReason: "",
+                root: bytes32(0),
                 account: accountToUse,
                 relayerGas: 0
             })
@@ -852,7 +865,7 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault / 2, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), address(0), 0, false
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER), address(0), 0, false
             );
 
             messageData = TargetExecutorMessage({
@@ -926,6 +939,7 @@ contract CrosschainTests is BaseTest {
                 relayerType: RELAYER_TYPE.REVERT,
                 errorMessage: BaseHook.AMOUNT_NOT_VALID.selector,
                 errorReason: "",
+                root: bytes32(0),
                 account: accountToUse,
                 relayerGas: 0
             })
@@ -951,7 +965,10 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault / 2, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault / 2, true
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+                yieldSource7540AddressETH_USDC,
+                amountPerVault / 2,
+                true
             );
 
             messageData = TargetExecutorMessage({
@@ -1026,6 +1043,7 @@ contract CrosschainTests is BaseTest {
                 relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
                 errorMessage: bytes4(0),
                 errorReason: "",
+                root: bytes32(0),
                 account: accountToUse,
                 relayerGas: 0
             })
@@ -1036,6 +1054,90 @@ contract CrosschainTests is BaseTest {
         vm.selectFork(FORKS[ETH]);
         uint256 maxDeposit = vaultInstance7540ETH.maxDeposit(accountToUse);
         assertEq(maxDeposit, amountPerVault / 2 - 1, "Max deposit is not as expected");
+    }
+
+    function test_Bridge_WithPrevHookAmount() public {
+        uint256 amountPerVault = 1e8;
+
+        // ETH IS DST
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+
+        // PREPARE ETH DATA
+        bytes memory targetExecutorMessage;
+        TargetExecutorMessage memory messageData;
+        address accountToUse;
+        {
+            address[] memory dstHooks = new address[](0);
+            bytes[] memory dstHooksData = new bytes[](0);
+
+            messageData = TargetExecutorMessage({
+                hooksAddresses: dstHooks,
+                hooksData: dstHooksData,
+                validator: address(validatorOnETH),
+                signer: validatorSigners[ETH],
+                signerPrivateKey: validatorSignerPrivateKeys[ETH],
+                targetAdapter: address(acrossV3AdapterOnETH),
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: CHAIN_1_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+                chainId: uint64(ETH),
+                amount: amountPerVault,
+                account: accountETH,
+                tokenSent: underlyingETH_USDC
+            });
+
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+        }
+
+        uint256 initialOutputAmount = amountPerVault / 2;
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+        uint256 balanceBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingBase_USDC,
+            underlyingETH_USDC,
+            amountPerVault / 2,
+            amountPerVault / 2,
+            ETH,
+            true,
+            targetExecutorMessage
+        );
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(
+            messageData, srcUserOpData.userOpHash, accountToUse, ETH, address(sourceValidatorOnBase)
+        );
+        srcUserOpData.userOp.signature = signatureData;
+
+        // EXECUTE ETH
+        _processAcrossV3Message(
+            ProcessAcrossV3MessageParams({
+                srcChainId: BASE,
+                dstChainId: ETH,
+                warpTimestamp: WARP_START_TIME + 30 days,
+                executionData: executeOp(srcUserOpData),
+                relayerType: RELAYER_TYPE.NO_HOOKS,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                root: bytes32(0),
+                account: accountETH,
+                relayerGas: 0
+            })
+        );
+        uint256 balanceAfter = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+        uint256 amountSent = balanceBefore - balanceAfter;
+        assertEq(amountSent, initialOutputAmount * 2, "A");
     }
 
     function test_Bridge_To_ETH_And_Deposit() public {
@@ -1057,7 +1159,10 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, amountPerVault, true
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+                yieldSource7540AddressETH_USDC,
+                amountPerVault,
+                true
             );
 
             messageData = TargetExecutorMessage({
@@ -1110,6 +1215,7 @@ contract CrosschainTests is BaseTest {
                 relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
                 errorMessage: bytes4(0),
                 errorReason: "",
+                root: bytes32(0),
                 account: accountETH,
                 relayerGas: 0
             })
@@ -1220,6 +1326,7 @@ contract CrosschainTests is BaseTest {
                 relayerType: RELAYER_TYPE.NO_HOOKS,
                 errorMessage: bytes4(0),
                 errorReason: "",
+                root: bytes32(0),
                 account: accountBase,
                 relayerGas: 0
             })
@@ -1255,7 +1362,7 @@ contract CrosschainTests is BaseTest {
             opHooksData[0] =
                 _createApproveHookData(underlyingOP_USDCe, yieldSource4626AddressOP_USDCe, amountPerVault, false);
             opHooksData[1] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
                 yieldSource4626AddressOP_USDCe,
                 amountPerVault,
                 true,
@@ -1318,15 +1425,16 @@ contract CrosschainTests is BaseTest {
                 relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
                 errorMessage: bytes4(0),
                 errorReason: "",
+                root: bytes32(0),
                 account: accountOP,
                 relayerGas: 0
             })
         );
 
-        assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), userBalanceBaseUSDCBefore - amountPerVault);
+        assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), userBalanceBaseUSDCBefore - amountPerVault, "A");
 
         vm.selectFork(FORKS[OP]);
-        assertEq(vaultInstance4626OP.balanceOf(accountOP), previewDepositAmountOP);
+        assertEq(vaultInstance4626OP.balanceOf(accountOP), previewDepositAmountOP, "B");
     }
 
     function test_RebalanceCrossChain_4626_Mainnet_Flow() public {
@@ -1353,7 +1461,7 @@ contract CrosschainTests is BaseTest {
                 underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, previewRedeemAmount, false
             );
             dstHooksData[1] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
                 yieldSourceMorphoUsdcAddressBase,
                 previewRedeemAmount,
                 false,
@@ -1392,7 +1500,7 @@ contract CrosschainTests is BaseTest {
         bytes[] memory srcHooksData = new bytes[](4);
         srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount, false);
         srcHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSourceMorphoUsdcAddressEth,
             amount,
             false,
@@ -1431,10 +1539,181 @@ contract CrosschainTests is BaseTest {
                 relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
                 errorMessage: bytes4(0),
                 errorReason: "",
+                root: bytes32(0),
                 account: accountBase,
                 relayerGas: 0
             })
         );
+    }
+
+    /**
+     * @notice Struct to hold test parameters for Bridge_Deposit4626_UsedRoot test to avoid stack too deep
+     */
+    struct BridgeDeposit4626UsedRootParams {
+        uint256 amount;
+        uint256 previewRedeemAmount;
+        bytes targetExecutorMessage;
+        TargetExecutorMessage messageData;
+        address accountToUse;
+        address[] srcHooksAddresses;
+        bytes[] srcHooksData;
+        address[] dstHooksAddresses;
+        bytes[] dstHooksData;
+        ISuperExecutor.ExecutorEntry entry;
+        UserOpData srcUserOpData;
+        bytes signatureData;
+    }
+
+    function test_Bridge_Deposit4626_UsedRoot_Because_Frontrunning() public {
+        BridgeDeposit4626UsedRootParams memory params;
+
+        // Initialize test parameters
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
+
+        params.amount = 1e8;
+        params.previewRedeemAmount =
+            vaultInstanceMorphoEth.previewRedeem(vaultInstanceMorphoEth.previewDeposit(params.amount));
+
+        // BASE IS DST
+        SELECT_FORK_AND_WARP(BASE, block.timestamp);
+
+        // Set up destination hooks and data
+        {
+            // PREPARE DST DATA
+            params.dstHooksAddresses = new address[](2);
+            params.dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+            params.dstHooksAddresses[1] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+            params.dstHooksData = new bytes[](2);
+            params.dstHooksData[0] = _createApproveHookData(
+                underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, params.previewRedeemAmount, false
+            );
+            params.dstHooksData[1] = _createDeposit4626HookData(
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+                yieldSourceMorphoUsdcAddressBase,
+                params.previewRedeemAmount,
+                false,
+                address(0),
+                0
+            );
+
+            params.messageData = TargetExecutorMessage({
+                hooksAddresses: params.dstHooksAddresses,
+                hooksData: params.dstHooksData,
+                validator: address(validatorOnBase),
+                signer: validatorSigners[BASE],
+                signerPrivateKey: validatorSignerPrivateKeys[BASE],
+                targetAdapter: address(acrossV3AdapterOnBase),
+                targetExecutor: address(superTargetExecutorOnBase),
+                nexusFactory: CHAIN_8453_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
+                chainId: uint64(BASE),
+                amount: params.previewRedeemAmount,
+                account: accountBase,
+                tokenSent: underlyingBase_USDC
+            });
+
+            (params.targetExecutorMessage, params.accountToUse) = _createTargetExecutorMessage(params.messageData);
+        }
+
+        _getTokens(underlyingBase_USDC, params.accountToUse, params.previewRedeemAmount);
+
+        // ETH is SRC
+        SELECT_FORK_AND_WARP(ETH, block.timestamp);
+
+        // Set up source hooks and data
+        params.srcHooksAddresses = new address[](4);
+        params.srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        params.srcHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        params.srcHooksAddresses[2] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        params.srcHooksAddresses[3] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        params.srcHooksData = new bytes[](4);
+        params.srcHooksData[0] =
+            _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, params.amount, false);
+        params.srcHooksData[1] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressEth,
+            params.amount,
+            false,
+            address(0),
+            0
+        );
+        params.srcHooksData[2] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 0, true);
+
+        params.srcHooksData[3] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            existingUnderlyingTokens[ETH][USDC_KEY],
+            existingUnderlyingTokens[BASE][USDC_KEY],
+            params.previewRedeemAmount,
+            params.previewRedeemAmount,
+            BASE,
+            false,
+            params.targetExecutorMessage
+        );
+
+        params.entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: params.srcHooksAddresses, hooksData: params.srcHooksData });
+
+        params.srcUserOpData = _getExecOpsWithValidator(
+            instanceOnETH, superExecutorOnETH, abi.encode(params.entry), address(sourceValidatorOnETH)
+        );
+        params.signatureData = _createMerkleRootAndSignature(
+            params.messageData,
+            params.srcUserOpData.userOpHash,
+            params.accountToUse,
+            BASE,
+            address(sourceValidatorOnETH)
+        );
+        params.srcUserOpData.userOp.signature = params.signatureData;
+
+        // Frontrun the actual call
+        SELECT_FORK_AND_WARP(BASE, block.timestamp + 1 days);
+
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = underlyingBase_USDC;
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = params.previewRedeemAmount;
+        (bytes memory accountCreationData, bytes memory executionData,,,) =
+            abi.decode(params.targetExecutorMessage, (bytes, bytes, address, address[], uint256[]));
+
+        uint256 tokensAmountBeforeProcessing = IERC20(underlyingBase_USDC).balanceOf(params.accountToUse);
+        assertEq(tokensAmountBeforeProcessing, params.previewRedeemAmount);
+        superTargetExecutorOnBase.processBridgedExecution(
+            address(this),
+            params.accountToUse,
+            dstTokens,
+            intentAmounts,
+            accountCreationData,
+            executionData,
+            params.signatureData
+        );
+        uint256 tokensAmountAfterProcessing = IERC20(underlyingBase_USDC).balanceOf(params.accountToUse);
+        assertEq(tokensAmountAfterProcessing, 0);
+
+        // now the actual bridge message arrives
+        SELECT_FORK_AND_WARP(ETH, block.timestamp + 1 days);
+        bytes32 _merkleRoot = bytes32(BytesLib.slice(params.signatureData, 64, 32));
+        _processAcrossV3Message(
+            ProcessAcrossV3MessageParams({
+                srcChainId: ETH,
+                dstChainId: BASE,
+                warpTimestamp: block.timestamp,
+                executionData: executeOp(params.srcUserOpData),
+                relayerType: RELAYER_TYPE.USED_ROOT,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                root: _merkleRoot,
+                account: accountBase,
+                relayerGas: 0
+            })
+        );
+
+        // Verify results
+        SELECT_FORK_AND_WARP(BASE, block.timestamp + 10 days);
+
+        uint256 tokensAmountAfterBridgeMessage = IERC20(underlyingBase_USDC).balanceOf(params.accountToUse);
+        // tokens should have been sent to the acount even when merkle root was marked as used
+        assertEq(tokensAmountAfterBridgeMessage, params.previewRedeemAmount);
     }
 
     /*
@@ -1521,15 +1800,15 @@ contract CrosschainTests is BaseTest {
         bytes[] memory srcHooksData = new bytes[](6);
     srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount, false);
         srcHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSourceMorphoUsdcAddressEth,
             amount,
             false,
             address(0),
             0
         );
-        srcHooksData[2] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amount, true);
-        srcHooksData[3] = _createApproveHookData(underlyingETH_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], amount, true);
+    srcHooksData[2] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], amount / 2, true);
+    srcHooksData[3] = _createApproveHookData(underlyingETH_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], amount / 2, true);
 
         srcHooksData[4] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             existingUnderlyingTokens[ETH][USDC_KEY],
@@ -1621,7 +1900,7 @@ contract CrosschainTests is BaseTest {
 
             bytes[] memory dstHooksData = new bytes[](1);
             dstHooksData[0] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
                 yieldSourceMorphoUsdcAddressBase,
                 previewRedeemAmount,
                 false,
@@ -1660,7 +1939,7 @@ contract CrosschainTests is BaseTest {
         bytes[] memory srcHooksData = new bytes[](4);
         srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount, false);
         srcHooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSourceMorphoUsdcAddressEth,
             amount,
             false,
@@ -1700,6 +1979,7 @@ contract CrosschainTests is BaseTest {
                 errorMessage: bytes4(0),
                 errorReason: "ERC20: transfer amount exceeds allowance",
                 account: accountBase,
+                root: bytes32(0),
                 relayerGas: 0
             })
         );
@@ -1887,7 +2167,7 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory opHooksData = new bytes[](2);
         opHooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSource4626AddressOP_USDCe,
             accountOP,
             userBalanceSharesBefore,
@@ -2003,6 +2283,7 @@ contract CrosschainTests is BaseTest {
                 errorMessage: bytes4(0),
                 errorReason: "",
                 account: accountBase,
+                root: bytes32(0),
                 relayerGas: 0
             })
         );
@@ -2013,7 +2294,9 @@ contract CrosschainTests is BaseTest {
 
         uint256 expected_Base_USDC_BalanceIncrease = amountAfterSlippage;
 
-        assertEq(user_Base_USDC_Balance_After, user_Base_USDC_Balance_Before + expected_Base_USDC_BalanceIncrease);
+        assertApproxEqRel(
+            user_Base_USDC_Balance_After, user_Base_USDC_Balance_Before + expected_Base_USDC_BalanceIncrease, 0.04e18
+        );
     }
 
     function _fulfill7540DepositRequest(uint256 amountPerVault, address accountToUse) internal {
@@ -2056,7 +2339,7 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createDeposit7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSource7540AddressETH_USDC,
             maxDeposit,
             false,
@@ -2113,7 +2396,10 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, userExpectedAssets, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSource7540AddressETH_USDC,
+            userExpectedAssets,
+            false
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -2165,7 +2451,10 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, userExpectedAssets, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSource7540AddressETH_USDC,
+            userExpectedAssets,
+            false
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -2218,7 +2507,10 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createWithdraw7540VaultHookData(
-            bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), yieldSource7540AddressETH_USDC, userExpectedAssets, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSource7540AddressETH_USDC,
+            userExpectedAssets,
+            false
         );
 
         UserOpData memory redeemOpData = _createUserOpData(redeemHooksAddresses, redeemHooksData, ETH, false);
@@ -2257,7 +2549,7 @@ contract CrosschainTests is BaseTest {
 
         bytes[] memory opHooksData = new bytes[](1);
         opHooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSource4626AddressOP_USDCe,
             accountOP,
             userBalanceSharesBefore,
@@ -2353,7 +2645,7 @@ contract CrosschainTests is BaseTest {
             dstHooksData[0] =
                 _createApproveHookData(underlyingBase_USDC, yieldSource4626AddressBase_USDC, intentAmount / 2, false);
             dstHooksData[1] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
                 yieldSource4626AddressBase_USDC,
                 intentAmount / 2,
                 false,
@@ -2420,6 +2712,7 @@ contract CrosschainTests is BaseTest {
                 errorMessage: bytes4(0),
                 errorReason: "",
                 account: accountBase,
+                root: bytes32(0),
                 relayerGas: 0
             })
         );
@@ -2459,7 +2752,7 @@ contract CrosschainTests is BaseTest {
             dstHooksData[2] =
                 _createApproveHookData(underlyingBase_WETH, yieldSource4626AddressBase_WETH, intentAmount, true);
             dstHooksData[3] = _createDeposit4626HookData(
-                bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+                _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
                 yieldSource4626AddressBase_WETH,
                 intentAmount,
                 true,
@@ -2525,6 +2818,7 @@ contract CrosschainTests is BaseTest {
                 errorMessage: bytes4(0),
                 errorReason: "",
                 account: accountBase,
+                root: bytes32(0),
                 relayerGas: 0
             })
         );

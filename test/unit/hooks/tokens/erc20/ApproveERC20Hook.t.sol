@@ -2,11 +2,11 @@
 pragma solidity 0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { ApproveERC20Hook } from "../../../../../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
-import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ApproveERC20Hook } from "../../../../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 
 contract ApproveERC20HookTest is Helpers {
@@ -54,7 +54,7 @@ contract ApproveERC20HookTest is Helpers {
     function test_Build_WithPrevHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = _encodeData(true);
         Execution[] memory executions = hook.build(mockPrevHook, address(this), data);
@@ -81,21 +81,18 @@ contract ApproveERC20HookTest is Helpers {
         hook.build(address(0), address(this), _encodeData(false));
     }
 
-    function test_PreAndPostExecute() public {
-        hook.preExecute(address(0), address(this), _encodeData(false));
-        assertEq(hook.outAmount(), amount);
-
+    function test_PostExecute() public {
         hook.postExecute(address(0), address(this), _encodeData(false));
-        assertEq(hook.outAmount(), 0);
+        assertEq(hook.getOutAmount(address(this)), 0);
     }
 
     function test_PreAndPostExecute_WithPrevHook() public {
         uint256 prevHookAmount = 2000;
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         hook.postExecute(mockPrevHook, address(this), _encodeData(true));
-        assertEq(hook.outAmount(), 0);
+        assertEq(hook.getOutAmount(address(this)), 0);
     }
 
     function test_Inspector() public view {

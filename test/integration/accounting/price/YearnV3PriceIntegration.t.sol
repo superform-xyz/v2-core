@@ -2,15 +2,15 @@
 pragma solidity 0.8.30;
 
 // external
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
-import {MinimalBaseNexusIntegrationTest} from "../../MinimalBaseNexusIntegrationTest.t.sol";
-import {MockRegistry} from "../../../mocks/MockRegistry.sol";
-import {ISuperExecutor} from "../../../../src/core/interfaces/ISuperExecutor.sol";
-import {ISuperLedgerConfiguration} from "../../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { MinimalBaseNexusIntegrationTest } from "../../MinimalBaseNexusIntegrationTest.t.sol";
+import { MockRegistry } from "../../../mocks/MockRegistry.sol";
+import { ISuperExecutor } from "../../../../src/interfaces/ISuperExecutor.sol";
+import { ISuperLedgerConfiguration } from "../../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
-import {ERC4626YieldSourceOracle} from "../../../../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC4626YieldSourceOracle } from "../../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 
 // 4626 vault
 contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
@@ -33,7 +33,7 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         attesters[0] = address(MANAGER);
         threshold = 1;
 
-        oracle = new ERC4626YieldSourceOracle();
+        oracle = new ERC4626YieldSourceOracle(address(ledgerConfig));
 
         yearnVault = IERC4626(CHAIN_1_YearnVault);
         underlying = yearnVault.asset();
@@ -56,10 +56,10 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         hooksAddresses[1] = deposit4626Hook;
         hooksData[0] = _createApproveHookData(underlying, address(yearnVault), amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(yearnVault), amount, false, address(0), 0
         );
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         // prepare data & execute through entry point
         _executeThroughEntrypoint(nexusAccount, entry);
@@ -74,7 +74,7 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         uint256 amount = SMALL; // fixed amount to test the fee and consumed entries easily
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)));
         assertEq(config.feePercent, 100); //1%
 
         // create and fund
@@ -117,7 +117,7 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         uint256 amount = SMALL; // fixed amount to test the fee and consumed entries easily
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)));
         assertEq(config.feePercent, 100); //1%
 
         // create and fund
@@ -164,7 +164,7 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         uint256 amount = SMALL; // fixed amount to test the fee and consumed entries easily
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)));
         assertEq(config.feePercent, 100); //1%
 
         // create and fund
@@ -219,12 +219,15 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         hooksAddresses[1] = deposit4626Hook;
         hooksData[0] = _createApproveHookData(underlying, address(yearnVault), amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(yearnVault), amount, false, address(0), 0
         );
-        entry = ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+        entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
     }
 
-    function _prepareWithdrawExecutorEntry(uint256 amount, address account)
+    function _prepareWithdrawExecutorEntry(
+        uint256 amount,
+        address account
+    )
         private
         view
         returns (ISuperExecutor.ExecutorEntry memory entry)
@@ -233,9 +236,9 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         bytes[] memory hooksData = new bytes[](1);
         hooksAddresses[0] = redeem4626Hook;
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(yearnVault), account, amount, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(yearnVault), account, amount, false
         );
-        entry = ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+        entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
     }
 
     function _mockPricePerShareDouble() private {

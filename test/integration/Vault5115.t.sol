@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { IStandardizedYield } from "../../src/vendor/pendle/IStandardizedYield.sol";
 import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
-import { Deposit5115VaultHook } from "../../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
-import { RequestDeposit7540VaultHook } from "../../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
-import { Redeem5115VaultHook } from "../../src/core/hooks/vaults/5115/Redeem5115VaultHook.sol";
+import { Deposit5115VaultHook } from "../../src/hooks/vaults/5115/Deposit5115VaultHook.sol";
+import { RequestDeposit7540VaultHook } from "../../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
+import { Redeem5115VaultHook } from "../../src/hooks/vaults/5115/Redeem5115VaultHook.sol";
 import "forge-std/console2.sol";
 
 interface IRoot {
@@ -59,7 +59,7 @@ contract Redeem5115VaultBugTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingETH_sUSDe, yieldSource5115AddressSUSDe, amountPerVault, false);
         hooksData[1] = _createDeposit5115VaultHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSource5115AddressSUSDe,
             underlyingETH_sUSDe,
             amountPerVault,
@@ -87,7 +87,7 @@ contract Redeem5115VaultBugTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksDataRedeem = new bytes[](1);
         hooksAddressesRedeem[0] = address(new Redeem5115VaultHook());
         hooksDataRedeem[0] = _create5115RedeemHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(vaultInstance5115ETH),
             underlyingETH_sUSDe,
             amountPerVault,

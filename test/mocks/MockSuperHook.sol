@@ -1,14 +1,14 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import { Execution } from "../../src/core/interfaces/ISuperHook.sol";
+import { Execution } from "../../src/interfaces/ISuperHook.sol";
 
 /// @notice Mock SuperHook implementation for testing
 contract MockSuperHook {
     // Events for testing
     event PreExecuteCalled(address prevHook, address sender, bytes data);
     event PostExecuteCalled(address prevHook, address sender, bytes data);
-    
+
     // Control parameters
     bool public shouldFailBuild;
     bool public shouldReturnEmptyExecutions;
@@ -20,15 +20,15 @@ contract MockSuperHook {
         targetToReturn = _targetToReturn;
         callDataToReturn = abi.encodeWithSignature("execute()");
     }
-    
+
     function setShouldFailBuild(bool _shouldFail) external {
         shouldFailBuild = _shouldFail;
     }
-    
+
     function setShouldReturnEmptyExecutions(bool _shouldReturnEmpty) external {
         shouldReturnEmptyExecutions = _shouldReturnEmpty;
     }
-    
+
     function setCallData(bytes calldata _callData) external {
         callDataToReturn = _callData;
     }
@@ -41,18 +41,14 @@ contract MockSuperHook {
         if (shouldFailBuild) {
             revert("MockSuperHook: build failed");
         }
-        
+
         if (shouldReturnEmptyExecutions) {
             return new Execution[](0);
         }
-        
+
         Execution[] memory executions = new Execution[](1);
-        executions[0] = Execution({
-            target: targetToReturn,
-            value: 0,
-            callData: callDataToReturn
-        });
-        
+        executions[0] = Execution({ target: targetToReturn, value: 0, callData: callDataToReturn });
+
         return executions;
     }
 
@@ -61,9 +57,9 @@ contract MockSuperHook {
     }
 
     /// @notice Resets execution state - ONLY callable by executor after accounting
-    function resetExecutionState() external { }
+    function resetExecutionState(address) external { }
 
-    function setCaller() external {
-        caller = msg.sender;
+    function setExecutionContext(address _caller) external {
+        caller = _caller;
     }
 }

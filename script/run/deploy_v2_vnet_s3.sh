@@ -1,10 +1,10 @@
 #!/bin/bash
 
 ###################################################################################
-# Superform V2 Deployment Script
+# Superform V2 Core Deployment Script
 ###################################################################################
 # Description:
-#   This script manages the deployment of Superform V2 contracts to multiple networks
+#   This script manages the deployment of Superform V2 CORE contracts to multiple networks
 #   using Tenderly Virtual Networks (VNETs). It includes functionality for:
 #   - Creating and managing VNETs for multiple chains
 #   - Maintaining deployment salt counters for deterministic addresses
@@ -140,12 +140,14 @@ if [ "$BRANCH_NAME" = "dev" ] || [ "$BRANCH_NAME" = "main" ]; then
     IS_MAIN_OR_DEV=true
 fi
 
-# Override BRANCH_NAME to "local" for all non-dev/main branches
-if [ "$IS_MAIN_OR_DEV" = "false" ]; then
-    log "INFO" "Non-dev/main branch detected: $BRANCH_NAME. Treating as local deployment."
-    BRANCH_NAME="local"
+# Handle branch name logic
+if [ "$BRANCH_NAME" = "local" ]; then
+    log "INFO" "Local branch detected: $BRANCH_NAME. Using local deployment settings."
     GITHUB_REF_NAME="local"
-
+    S3_BUCKET_NAME="vnet-state"
+elif [ "$IS_MAIN_OR_DEV" = "false" ]; then
+    log "INFO" "Custom branch detected: $BRANCH_NAME. Deploying to new VNET with branch name."
+    GITHUB_REF_NAME="$BRANCH_NAME"
     S3_BUCKET_NAME="vnet-state"
 fi
 
@@ -171,7 +173,7 @@ OUTPUT_BASE_DIR="script/output"
 ###################################################################################
 
 # Check if we're in a local run and if the op command is available
-if is_local_run && command -v op >/dev/null 2>&1; then
+if command -v op >/dev/null 2>&1; then
     log "INFO" "Running in local environment with 1Password CLI available"
     # For local runs with op available, get TENDERLY_ACCESS_KEY from 1Password
     TENDERLY_ACCESS_KEY=$(op read "op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_ACCESS_KEY/credential")
@@ -207,27 +209,28 @@ if ! is_local_run && [ "$IS_MAIN_OR_DEV" = "true" ]; then
 fi
 
 # Directory configuration based on branch type
-if ! is_local_run && [ "$IS_MAIN_OR_DEV" = "true" ]; then
+if is_local_run; then
+    # For local runs only
+    BRANCH_DIR="$OUTPUT_BASE_DIR/local"
+    # Create local output directories
+    for network in 1 8453 10; do
+        mkdir -p "$BRANCH_DIR/$network"
+    done
+else
+    # For CI/remote runs (dev, main, and custom branches)
     # Handle feature branches differently
     if [[ "$GITHUB_REF_NAME" == feat/* ]]; then
         # Extract feature name without feat/ prefix
         FEATURE_NAME=${GITHUB_REF_NAME#feat/}
         BRANCH_DIR="$OUTPUT_BASE_DIR/feat/$FEATURE_NAME"
     else
-        # For dev, main branches
+        # For dev, main, and custom branches
         BRANCH_DIR="$OUTPUT_BASE_DIR/$GITHUB_REF_NAME"
     fi
     
     BRANCH_LATEST_FILE="$BRANCH_DIR/latest.json"
     
     # Create branch output directories
-    for network in 1 8453 10; do
-        mkdir -p "$BRANCH_DIR/$network"
-    done
-else
-    # For local runs and non-dev/main branches
-    BRANCH_DIR="$OUTPUT_BASE_DIR/local"
-    # Create local output directories
     for network in 1 8453 10; do
         mkdir -p "$BRANCH_DIR/$network"
     done
@@ -310,34 +313,73 @@ check_existing_vnet_by_slug() {
     
     log "INFO" "Checking if a VNET with slug '$slug' already exists in Tenderly"
     
-    # Get list of all VNETs from Tenderly
-    local vnet_list=$(curl -s -X GET \
-        "${API_BASE_URL}/account/${account}/project/${project}/vnets" \
-        -H "X-Access-Key: ${access_key}")
-    
-    # Check if response is valid JSON
-    if ! echo "$vnet_list" | jq '.' >/dev/null 2>&1; then
-        log "ERROR" "Invalid JSON response when listing VNETs: $vnet_list"
+    # Validate inputs
+    if [ -z "$slug" ] || [ -z "$account" ] || [ -z "$project" ] || [ -z "$access_key" ]; then
+        log "ERROR" "Missing required parameters for VNET check"
+        log "DEBUG" "slug=$slug, account=$account, project=$project, access_key=[${access_key:+SET}]"
         return 1
     fi
     
+    # Get list of all VNETs from Tenderly
+    log "DEBUG" "Making API call to list VNETs..."
+    local vnet_list
+    if ! vnet_list=$(curl -s -X GET \
+        "${API_BASE_URL}/account/${account}/project/${project}/vnets" \
+        -H "X-Access-Key: ${access_key}" 2>&1); then
+        log "ERROR" "Failed to make API call to list VNETs"
+        log "ERROR" "curl error: $vnet_list"
+        return 1
+    fi
+    
+    log "DEBUG" "API response received, length: ${#vnet_list}"
+    
+    # Check if response is valid JSON
+    if ! echo "$vnet_list" | jq '.' >/dev/null 2>&1; then
+        log "ERROR" "Invalid JSON response when listing VNETs"
+        log "ERROR" "Response (first 500 chars): ${vnet_list:0:500}"
+        return 1
+    fi
+    
+    log "DEBUG" "API response is valid JSON, checking for existing VNET..."
+    
     # Check if the VNET with this slug exists
-    local existing_vnet_id=$(echo "$vnet_list" | jq -r --arg slug "$slug" '.[] | select(.slug==$slug) | .id // empty')
+    local existing_vnet_id
+    if ! existing_vnet_id=$(echo "$vnet_list" | jq -r --arg slug "$slug" '.[] | select(.slug==$slug) | .id // empty' 2>&1); then
+        log "ERROR" "Failed to parse VNET list with jq"
+        log "ERROR" "jq error: $existing_vnet_id"
+        return 1
+    fi
     
     if [ -n "$existing_vnet_id" ]; then
         log "INFO" "Found existing VNET with slug '$slug', ID: $existing_vnet_id"
         
         # Get details of the VNET to extract RPC URL
-        local vnet_details=$(curl -s -X GET \
+        log "DEBUG" "Getting VNET details for ID: $existing_vnet_id"
+        local vnet_details
+        if ! vnet_details=$(curl -s -X GET \
             "${API_BASE_URL}/account/${account}/project/${project}/vnets/${existing_vnet_id}" \
-            -H "X-Access-Key: ${access_key}")
+            -H "X-Access-Key: ${access_key}" 2>&1); then
+            log "ERROR" "Failed to get VNET details"
+            log "ERROR" "curl error: $vnet_details"
+            return 1
+        fi
         
-        local admin_rpc=$(echo "$vnet_details" | jq -r '.rpcs[] | select(.name=="Admin RPC") | .url')
+        local admin_rpc
+        if ! admin_rpc=$(echo "$vnet_details" | jq -r '.rpcs[] | select(.name=="Admin RPC") | .url' 2>&1); then
+            log "ERROR" "Failed to extract admin RPC from VNET details"
+            log "ERROR" "jq error: $admin_rpc"
+            return 1
+        fi
         
         if [ -n "$admin_rpc" ]; then
+            log "INFO" "Successfully extracted admin RPC: $admin_rpc"
             echo "${admin_rpc}|${existing_vnet_id}"
             return 0
+        else
+            log "WARN" "No admin RPC found in VNET details"
         fi
+    else
+        log "DEBUG" "No existing VNET found with slug '$slug'"
     fi
     
     # No existing VNET found or couldn't extract details
@@ -380,19 +422,40 @@ check_vnets() {
     # Step 2: Check if there's already a VNET with this slug in Tenderly (not in our state)
     slug=$(generate_slug "$network_slug")
     log "INFO" "Checking if VNET with slug '$slug' already exists in Tenderly"
+    log "DEBUG" "Generated slug: $slug for network: $network_slug"
+    log "DEBUG" "TENDERLY_ACCOUNT: $TENDERLY_ACCOUNT, TENDERLY_PROJECT: $TENDERLY_PROJECT"
     
+    log "DEBUG" "Calling check_existing_vnet_by_slug function..."
+    local existing_vnet
+    # Temporarily disable exit on error for this specific call
+    set +e
     existing_vnet=$(check_existing_vnet_by_slug "$slug" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
-    if [ $? -eq 0 ]; then
+    local check_result=$?
+    set -e
+    
+    if [ $check_result -eq 0 ]; then
         log "INFO" "Found and reusing existing VNET from Tenderly with slug: $slug"
+        log "DEBUG" "Existing VNET response: $existing_vnet"
         echo "$existing_vnet"
         return 0
+    else
+        log "DEBUG" "check_existing_vnet_by_slug returned non-zero status, proceeding to create new VNET"
     fi
 
     # Step 3: If no existing VNET found, create a new one
     log "INFO" "No existing VNET found. Creating new VNET for $network_slug with slug: $slug"
-    response=$(create_virtual_testnet "$slug" "$network_id" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY")
-    echo "$response"
-    return 0
+    log "DEBUG" "Calling create_virtual_testnet with parameters: slug=$slug, network_id=$network_id"
+    
+    local response
+    if response=$(create_virtual_testnet "$slug" "$network_id" "$TENDERLY_ACCOUNT" "$TENDERLY_PROJECT" "$TENDERLY_ACCESS_KEY"); then
+        log "INFO" "Successfully created new VNET"
+        log "DEBUG" "New VNET response: $response"
+        echo "$response"
+        return 0
+    else
+        log "ERROR" "Failed to create new VNET"
+        return 1
+    fi
 }
 
 create_virtual_testnet() {
@@ -674,7 +737,22 @@ if [ -n "$TENDERLY_ACCESS_KEY" ]; then
     export TENDERLY_ACCESS_KEY
 fi
 
+# Export environment variables needed for the deployment script
+if ! is_local_run; then
+    export CI=true
+    export GITHUB_REF_NAME="$GITHUB_REF_NAME"
+else
+    # For local runs, we still want to use branch-specific directories for non-local branches
+    if [ "$BRANCH_NAME" != "local" ]; then
+        export CI=true
+        export GITHUB_REF_NAME="$BRANCH_NAME"
+    else
+        export CI=false
+    fi
+fi
+
 log "INFO" "Environment variables exported"
+log "DEBUG" "CI=${CI:-false}, GITHUB_REF_NAME=${GITHUB_REF_NAME:-not_set}"
 
 # Cache VNET information to be saved after successful deployment
 if is_local_run; then
@@ -710,11 +788,11 @@ deploy_error_handler() {
 # Set trap to ensure S3 files are preserved on any unexpected error
 trap 'log "ERROR" "Unexpected error occurred, preserving S3 file"; exit 1' ERR
 
-# Deploy all networks
+# Deploy all networks - Core contracts only
 deploy_contracts() {
-    # Deploy on Ethereum Mainnet
-    log "INFO" "Deploying on Ethereum Mainnet..."
-    if ! forge script script/DeployV2.s.sol:DeployV2 \
+    # Deploy Core contracts on Ethereum Mainnet
+    log "INFO" "Deploying V2 Core on Ethereum Mainnet..."
+    if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(uint256,uint64,string)' $FORGE_ENV $ETH_CHAIN_ID "$ETH_SALT" \
         --verify \
         --verifier-url $ETH_MAINNET_VERIFIER_URL \
@@ -728,9 +806,9 @@ deploy_contracts() {
     fi
     wait
     
-    # Deploy on Base Mainnet
-    log "INFO" "Deploying on Base Mainnet..."
-    if ! forge script script/DeployV2.s.sol:DeployV2 \
+    # Deploy Core contracts on Base Mainnet
+    log "INFO" "Deploying V2 Core on Base Mainnet..."
+    if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(uint256,uint64,string)' $FORGE_ENV $BASE_CHAIN_ID "$BASE_SALT" \
         --verify \
         --verifier-url $BASE_MAINNET_VERIFIER_URL \
@@ -744,9 +822,9 @@ deploy_contracts() {
     fi
     wait
     
-    # Deploy on Optimism Mainnet
-    log "INFO" "Deploying on Optimism Mainnet..."
-    if ! forge script script/DeployV2.s.sol:DeployV2 \
+    # Deploy Core contracts on Optimism Mainnet
+    log "INFO" "Deploying V2 Core on Optimism Mainnet..."
+    if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(uint256,uint64,string)' $FORGE_ENV $OPTIMISM_CHAIN_ID "$OPTIMISM_SALT" \
         --verify \
         --verifier-url $OPTIMISM_MAINNET_VERIFIER_URL \
@@ -760,7 +838,8 @@ deploy_contracts() {
     fi
     wait
     
-    # If we reach here, all deployments were successful
+    # If we reach here, all core deployments were successful
+    log "INFO" "All V2 Core deployments completed successfully!"
     return 0
 }
 
@@ -950,4 +1029,4 @@ fi
 # Since we're using S3 for everything now, no need to pass parameters
 update_latest_file
 
-log "SUCCESS" "All deployments completed successfully!"
+log "SUCCESS" "All V2 Core deployments completed successfully!"

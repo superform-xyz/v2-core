@@ -2,11 +2,11 @@
 pragma solidity 0.8.30;
 
 import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {ISuperExecutor} from "../../src/core/interfaces/ISuperExecutor.sol";
+import {ISuperExecutor} from "../../src/interfaces/ISuperExecutor.sol";
 import {UserOpData} from "modulekit/ModuleKit.sol";
 import {MinimalBaseIntegrationTest} from "./MinimalBaseIntegrationTest.t.sol";
 import {Address, AddressLib, ProtocolLib, I1InchAggregationRouterV6} from "../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
-import {Swap1InchHook} from "../../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
+import {Swap1InchHook} from "../../src/hooks/swappers/1inch/Swap1InchHook.sol";
 
 contract OneInchHookFail is MinimalBaseIntegrationTest {
     using AddressLib for Address;

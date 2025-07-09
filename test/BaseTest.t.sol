@@ -9,119 +9,119 @@ import { SignatureHelper } from "./utils/SignatureHelper.sol";
 import { MerkleTreeHelper } from "./utils/MerkleTreeHelper.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 // Superform interfaces
-import { ISuperRegistry } from "../src/core/interfaces/ISuperRegistry.sol";
-import { ISuperExecutor } from "../src/core/interfaces/ISuperExecutor.sol";
-import { ISuperLedger } from "../src/core/interfaces/accounting/ISuperLedger.sol";
-import { ISuperLedgerConfiguration } from "../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperDestinationExecutor } from "../src/core/interfaces/ISuperDestinationExecutor.sol";
-import { ISuperValidator } from "../src/core/interfaces/ISuperValidator.sol";
+import { ISuperRegistry } from "../src/interfaces/ISuperRegistry.sol";
+import { ISuperExecutor } from "../src/interfaces/ISuperExecutor.sol";
+import { ISuperLedger } from "../src/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperDestinationExecutor } from "../src/interfaces/ISuperDestinationExecutor.sol";
+import { ISuperValidator } from "../src/interfaces/ISuperValidator.sol";
 
 // Superform contracts coded
-import { SuperLedger } from "../src/core/accounting/SuperLedger.sol";
-import { ERC5115Ledger } from "../src/core/accounting/ERC5115Ledger.sol";
-import { SuperLedgerConfiguration } from "../src/core/accounting/SuperLedgerConfiguration.sol";
-import { SuperExecutor } from "../src/core/executors/SuperExecutor.sol";
-import { SuperDestinationExecutor } from "../src/core/executors/SuperDestinationExecutor.sol";
-import { SuperMerkleValidator } from "../src/core/validators/SuperMerkleValidator.sol";
-import { SuperDestinationValidator } from "../src/core/validators/SuperDestinationValidator.sol";
-import { SuperValidatorBase } from "../src/core/validators/SuperValidatorBase.sol";
+import { SuperLedger } from "../src/accounting/SuperLedger.sol";
+import { ERC5115Ledger } from "./mocks/ERC5115Ledger.sol";
+import { SuperLedgerConfiguration } from "../src/accounting/SuperLedgerConfiguration.sol";
+import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
+import { SuperDestinationExecutor } from "../src/executors/SuperDestinationExecutor.sol";
+import { SuperMerkleValidator } from "../src/validators/SuperMerkleValidator.sol";
+import { SuperDestinationValidator } from "../src/validators/SuperDestinationValidator.sol";
+import { SuperValidatorBase } from "../src/validators/SuperValidatorBase.sol";
 
 // hooks
 
 // token hooks
 // --- erc20
-import { ApproveERC20Hook } from "../src/core/hooks/tokens/erc20/ApproveERC20Hook.sol";
-import { TransferERC20Hook } from "../src/core/hooks/tokens/erc20/TransferERC20Hook.sol";
+import { ApproveERC20Hook } from "../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { TransferERC20Hook } from "../src/hooks/tokens/erc20/TransferERC20Hook.sol";
 
 // loan hooks
-import { MorphoRepayAndWithdrawHook } from "../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
-import { MorphoSupplyAndBorrowHook } from "../src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
-import { MorphoRepayHook } from "../src/core/hooks/loan/morpho/MorphoRepayHook.sol";
+import { MorphoRepayAndWithdrawHook } from "../src/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
+import { MorphoSupplyAndBorrowHook } from "../src/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
+import { MorphoRepayHook } from "../src/hooks/loan/morpho/MorphoRepayHook.sol";
 
 // vault hooks
-// --- erc5115
-import { Deposit5115VaultHook } from "../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
-import { ApproveAndDeposit5115VaultHook } from "../src/core/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
-import { Redeem5115VaultHook } from "../src/core/hooks/vaults/5115/Redeem5115VaultHook.sol";
-// --- erc4626
-import { Deposit4626VaultHook } from "../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
-import { ApproveAndDeposit4626VaultHook } from "../src/core/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
-import { Redeem4626VaultHook } from "../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
-// -- erc7540
-import { Deposit7540VaultHook } from "../src/core/hooks/vaults/7540/Deposit7540VaultHook.sol";
-import { RequestDeposit7540VaultHook } from "../src/core/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
+// -- vault bank
+import { MintSuperPositionsHook } from "../src/hooks/vaults/vault-bank/MintSuperPositionsHook.sol";
 
-import { CancelDepositRequest7540Hook } from "../src/core/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
-import { CancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
-import { ClaimCancelDepositRequest7540Hook } from "../src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
-import { ClaimCancelRedeemRequest7540Hook } from "../src/core/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
-import { CancelRedeemHook } from "../src/core/hooks/vaults/super-vault/CancelRedeemHook.sol";
+// --- erc5115
+import { Deposit5115VaultHook } from "../src/hooks/vaults/5115/Deposit5115VaultHook.sol";
+import { ApproveAndDeposit5115VaultHook } from "../src/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
+import { Redeem5115VaultHook } from "../src/hooks/vaults/5115/Redeem5115VaultHook.sol";
+// --- erc4626
+import { Deposit4626VaultHook } from "../src/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { ApproveAndDeposit4626VaultHook } from "../src/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
+import { Redeem4626VaultHook } from "../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
+// -- erc7540
+import { Deposit7540VaultHook } from "../src/hooks/vaults/7540/Deposit7540VaultHook.sol";
+import { RequestDeposit7540VaultHook } from "../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
+
+import { CancelDepositRequest7540Hook } from "../src/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
+import { CancelRedeemRequest7540Hook } from "../src/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
+import { ClaimCancelDepositRequest7540Hook } from "../src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
+import { ClaimCancelRedeemRequest7540Hook } from "../src/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
+import { CancelRedeemHook } from "../src/hooks/vaults/super-vault/CancelRedeemHook.sol";
 import { ApproveAndRequestDeposit7540VaultHook } from
-    "../src/core/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
-import { Redeem7540VaultHook } from "../src/core/hooks/vaults/7540/Redeem7540VaultHook.sol";
-import { RequestRedeem7540VaultHook } from "../src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
-import { Withdraw7540VaultHook } from "../src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol";
-import { ApproveAndRequestRedeem7540VaultHook } from
-    "../src/core/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
+    "../src/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
+import { Redeem7540VaultHook } from "../src/hooks/vaults/7540/Redeem7540VaultHook.sol";
+import { RequestRedeem7540VaultHook } from "../src/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
+import { Withdraw7540VaultHook } from "../src/hooks/vaults/7540/Withdraw7540VaultHook.sol";
+import { ApproveAndRequestRedeem7540VaultHook } from "../src/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
 // bridges hooks
-import { AcrossSendFundsAndExecuteOnDstHook } from
-    "../src/core/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+import { AcrossSendFundsAndExecuteOnDstHook } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { DeBridgeSendOrderAndExecuteOnDstHook } from
-    "../src/core/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
-import { DeBridgeCancelOrderHook } from "../src/core/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
+    "../src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
+import { DeBridgeCancelOrderHook } from "../src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
 
 // Swap hooks
 // --- 1inch
-import { Swap1InchHook } from "../src/core/hooks/swappers/1inch/Swap1InchHook.sol";
+import { Swap1InchHook } from "../src/hooks/swappers/1inch/Swap1InchHook.sol";
 
 // --- Odos
 import { OdosAPIParser } from "./utils/parsers/OdosAPIParser.sol";
 import { IOdosRouterV2 } from "../src/vendor/odos/IOdosRouterV2.sol";
-import { SwapOdosV2Hook } from "../src/core/hooks/swappers/odos/SwapOdosV2Hook.sol";
+import { SwapOdosV2Hook } from "../src/hooks/swappers/odos/SwapOdosV2Hook.sol";
 import { MockApproveAndSwapOdosHook } from "../test/mocks/unused-hooks/MockApproveAndSwapOdosHook.sol";
-import { ApproveAndSwapOdosV2Hook } from "../src/core/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol";
+import { ApproveAndSwapOdosV2Hook } from "../src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol";
 import { MockSwapOdosHook } from "../test/mocks/unused-hooks/MockSwapOdosHook.sol";
 
 // Stake hooks
 // --- Gearbox
-import { GearboxStakeHook } from "../src/core/hooks/stake/gearbox/GearboxStakeHook.sol";
-import { GearboxUnstakeHook } from "../src/core/hooks/stake/gearbox/GearboxUnstakeHook.sol";
-import { ApproveAndGearboxStakeHook } from "../src/core/hooks/stake/gearbox/ApproveAndGearboxStakeHook.sol";
+import { GearboxStakeHook } from "../src/hooks/stake/gearbox/GearboxStakeHook.sol";
+import { GearboxUnstakeHook } from "../src/hooks/stake/gearbox/GearboxUnstakeHook.sol";
+import { ApproveAndGearboxStakeHook } from "../src/hooks/stake/gearbox/ApproveAndGearboxStakeHook.sol";
 // --- Fluid
-import { ApproveAndFluidStakeHook } from "../src/core/hooks/stake/fluid/ApproveAndFluidStakeHook.sol";
-import { FluidStakeHook } from "../src/core/hooks/stake/fluid/FluidStakeHook.sol";
-import { FluidUnstakeHook } from "../src/core/hooks/stake/fluid/FluidUnstakeHook.sol";
+import { ApproveAndFluidStakeHook } from "../src/hooks/stake/fluid/ApproveAndFluidStakeHook.sol";
+import { FluidStakeHook } from "../src/hooks/stake/fluid/FluidStakeHook.sol";
+import { FluidUnstakeHook } from "../src/hooks/stake/fluid/FluidUnstakeHook.sol";
 
 // Claim Hooks
 // --- Fluid
-import { FluidClaimRewardHook } from "../src/core/hooks/claim/fluid/FluidClaimRewardHook.sol";
+import { FluidClaimRewardHook } from "../src/hooks/claim/fluid/FluidClaimRewardHook.sol";
 
 // --- Gearbox
-import { GearboxClaimRewardHook } from "../src/core/hooks/claim/gearbox/GearboxClaimRewardHook.sol";
+import { GearboxClaimRewardHook } from "../src/hooks/claim/gearbox/GearboxClaimRewardHook.sol";
 
 // --- Yearn
-import { YearnClaimOneRewardHook } from "../src/core/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
+import { YearnClaimOneRewardHook } from "../src/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
 
 // --- Ethena
-import { EthenaCooldownSharesHook } from "../src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
-import { EthenaUnstakeHook } from "../src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol";
-import { SpectraExchangeDepositHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
-import { SpectraExchangeRedeemHook } from "../src/core/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
-import { PendleRouterSwapHook } from "../src/core/hooks/swappers/pendle/PendleRouterSwapHook.sol";
-import { PendleRouterRedeemHook } from "../src/core/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
+import { EthenaCooldownSharesHook } from "../src/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
+import { EthenaUnstakeHook } from "../src/hooks/vaults/ethena/EthenaUnstakeHook.sol";
+import { SpectraExchangeDepositHook } from "../src/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
+import { SpectraExchangeRedeemHook } from "../src/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
+import { PendleRouterSwapHook } from "../src/hooks/swappers/pendle/PendleRouterSwapHook.sol";
+import { PendleRouterRedeemHook } from "../src/hooks/swappers/pendle/PendleRouterRedeemHook.sol";
 
 // --- Onramp
-import { BatchTransferFromHook } from "../src/core/hooks/tokens/permit2/BatchTransferFromHook.sol";
+import { BatchTransferFromHook } from "../src/hooks/tokens/permit2/BatchTransferFromHook.sol";
 
 // --- Offramp
-import { OfframpTokensHook } from "../src/core/hooks/tokens/OfframpTokensHook.sol";
+import { OfframpTokensHook } from "../src/hooks/tokens/OfframpTokensHook.sol";
 
 // action oracles
-import { ERC4626YieldSourceOracle } from "../src/core/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import { ERC5115YieldSourceOracle } from "../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { SuperOracle } from "../src/periphery/oracles/SuperOracle.sol";
-import { ERC7540YieldSourceOracle } from "../src/core/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import { StakingYieldSourceOracle } from "../src/core/accounting/oracles/StakingYieldSourceOracle.sol";
+import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
+import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import { ERC7540YieldSourceOracle } from "../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
+import { StakingYieldSourceOracle } from "../src/accounting/oracles/StakingYieldSourceOracle.sol";
 
 // external
 import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
@@ -134,13 +134,11 @@ import { AcrossV3Helper } from "pigeon/across/AcrossV3Helper.sol";
 import { DebridgeHelper } from "pigeon/debridge/DebridgeHelper.sol";
 import { DebridgeDlnHelper } from "pigeon/debridge/DebridgeDlnHelper.sol";
 import { MockOdosRouterV2 } from "./mocks/MockOdosRouterV2.sol";
-import { AcrossV3Adapter } from "../src/core/adapters/AcrossV3Adapter.sol";
-import { DebridgeAdapter } from "../src/core/adapters/DebridgeAdapter.sol";
-import { SuperGovernor } from "../src/periphery/SuperGovernor.sol";
-import { SuperBank } from "../src/periphery/SuperBank.sol";
+import { AcrossV3Adapter } from "../src/adapters/AcrossV3Adapter.sol";
+import { DebridgeAdapter } from "../src/adapters/DebridgeAdapter.sol";
 
 // SuperformNativePaymaster
-import { SuperNativePaymaster } from "../src/core/paymaster/SuperNativePaymaster.sol";
+import { SuperNativePaymaster } from "../src/paymaster/SuperNativePaymaster.sol";
 
 // Nexus and Rhinestone overrides to allow for SuperformNativePaymaster
 import { IAccountFactory } from "modulekit/accounts/factory/interface/IAccountFactory.sol";
@@ -152,13 +150,7 @@ import { INexusFactory } from "../src/vendor/nexus/INexusFactory.sol";
 import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "./mocks/MockRegistry.sol";
 
-import { SuperVaultAggregator } from "../src/periphery/SuperVault/SuperVaultAggregator.sol";
-import { SuperVault } from "../src/periphery/SuperVault/SuperVault.sol";
-import { SuperVaultStrategy } from "../src/periphery/SuperVault/SuperVaultStrategy.sol";
-import { SuperVaultEscrow } from "../src/periphery/SuperVault/SuperVaultEscrow.sol";
-import { ECDSAPPSOracle } from "../src/periphery/oracles/ECDSAPPSOracle.sol";
-
-import { BaseHook } from "../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../src/hooks/BaseHook.sol";
 import { MockSuperExecutor } from "./mocks/MockSuperExecutor.sol";
 import { MockLockVault } from "./mocks/MockLockVault.sol";
 import { MockTargetExecutor } from "./mocks/MockTargetExecutor.sol";
@@ -225,20 +217,15 @@ struct Addresses {
     EthenaUnstakeHook ethenaUnstakeHook;
     BatchTransferFromHook batchTransferFromHook;
     OfframpTokensHook offrampTokensHook;
+    MintSuperPositionsHook mintSuperPositionsHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     ERC7540YieldSourceOracle erc7540YieldSourceOracle;
     StakingYieldSourceOracle stakingYieldSourceOracle;
-    SuperOracle oracleRegistry;
     SuperMerkleValidator superMerkleValidator;
     SuperDestinationValidator superDestinationValidator;
-    SuperGovernor superGovernor;
     SuperNativePaymaster superNativePaymaster;
-    SuperVaultAggregator superVaultAggregator;
-    ECDSAPPSOracle ecdsappsOracle;
-    ISuperExecutor superExecutorWithSPLock;
     MockTargetExecutor mockTargetExecutor;
-    SuperBank superBank;
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser, InternalHelpers {
@@ -336,24 +323,13 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     bool public useRealOdosRouter = false;
     address[] public globalMerkleHooks;
     string[] public globalMerkleHookNames;
-    address public globalSVStrategy;
-    address public globalSVGearStrategy;
-    address public globalRuggableVault;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
     //////////////////////////////////////////////////////////////*/
 
     function setUp() public virtual {
-        // deploy accounts
-        MANAGER = _deployAccount(MANAGER_KEY, "MANAGER");
-        TREASURY = _deployAccount(TREASURY_KEY, "TREASURY");
-        SUPER_BUNDLER = _deployAccount(SUPER_BUNDLER_KEY, "SUPER_BUNDLER");
-        ACROSS_RELAYER = _deployAccount(ACROSS_RELAYER_KEY, "ACROSS_RELAYER");
-        SV_MANAGER = _deployAccount(MANAGER_KEY, "SV_MANAGER");
-        STRATEGIST = _deployAccount(STRATEGIST_KEY, "STRATEGIST");
-        EMERGENCY_ADMIN = _deployAccount(EMERGENCY_ADMIN_KEY, "EMERGENCY_ADMIN");
-        VALIDATOR = _deployAccount(VALIDATOR_KEY, "VALIDATOR");
+        deployAccounts();
 
         // Setup forks
         _preDeploymentSetup();
@@ -364,10 +340,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
         // Deploy hooks
         A = _deployHooks(A);
-
-        _configureGovernor();
-
-        _registerHooks(A);
 
         // Initialize accounts
         _initializeAccounts(ACCOUNT_COUNT);
@@ -484,26 +456,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.makePersistent(debridgeDlnHelper);
             contractAddresses[chainIds[i]][DEBRIDGE_DLN_HELPER_KEY] = debridgeDlnHelper;
 
-            A[i].superGovernor = new SuperGovernor{ salt: SALT }(
-                address(this), address(this), address(this), TREASURY, CHAIN_1_POLYMER_PROVER
-            );
-            vm.label(address(A[i].superGovernor), SUPER_GOVERNOR_KEY);
-            contractAddresses[chainIds[i]][SUPER_GOVERNOR_KEY] = address(A[i].superGovernor);
-
-            A[i].superBank = new SuperBank{ salt: SALT }(address(A[i].superGovernor));
-            vm.label(address(A[i].superBank), SUPER_BANK_KEY);
-            contractAddresses[chainIds[i]][SUPER_BANK_KEY] = address(A[i].superBank);
-
-            TREASURY = address(A[i].superBank);
-
-            A[i].oracleRegistry = new SuperOracle{ salt: SALT }(
-                address(this), new address[](0), new address[](0), new bytes32[](0), new address[](0)
-            );
-            vm.label(address(A[i].oracleRegistry), SUPER_ORACLE_KEY);
-            contractAddresses[chainIds[i]][SUPER_ORACLE_KEY] = address(A[i].oracleRegistry);
-
             A[i].superLedgerConfiguration =
-                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration{ salt: SALT }(address(this))));
+                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration{ salt: SALT }()));
             vm.label(address(A[i].superLedgerConfiguration), SUPER_LEDGER_CONFIGURATION_KEY);
             contractAddresses[chainIds[i]][SUPER_LEDGER_CONFIGURATION_KEY] = address(A[i].superLedgerConfiguration);
 
@@ -526,11 +480,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
             MockLockVault lockVault = new MockLockVault();
             vm.label(address(lockVault), "MockLockVault");
-            A[i].superExecutorWithSPLock = ISuperExecutor(
-                address(new MockSuperExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration), address(lockVault)))
-            );
-            vm.label(address(A[i].superExecutorWithSPLock), SUPER_EXECUTOR_WITH_SP_LOCK_KEY);
-            contractAddresses[chainIds[i]][SUPER_EXECUTOR_WITH_SP_LOCK_KEY] = address(A[i].superExecutorWithSPLock);
 
             A[i].mockTargetExecutor =
                 new MockTargetExecutor{ salt: SALT }(address(A[i].superLedgerConfiguration), address(lockVault));
@@ -563,7 +512,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             address[] memory allowedExecutors = new address[](3);
             allowedExecutors[0] = address(A[i].superExecutor);
             allowedExecutors[1] = address(A[i].superDestinationExecutor);
-            allowedExecutors[2] = address(A[i].superExecutorWithSPLock);
 
             A[i].superLedger = ISuperLedger(
                 address(new SuperLedger{ salt: SALT }(address(A[i].superLedgerConfiguration), allowedExecutors))
@@ -578,38 +526,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             contractAddresses[chainIds[i]][ERC1155_LEDGER_KEY] = address(A[i].erc1155Ledger);
 
             /// @dev action oracles
-            A[i].erc4626YieldSourceOracle = new ERC4626YieldSourceOracle();
+            A[i].erc4626YieldSourceOracle = new ERC4626YieldSourceOracle(address(A[i].superLedgerConfiguration));
             vm.label(address(A[i].erc4626YieldSourceOracle), ERC4626_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][ERC4626_YIELD_SOURCE_ORACLE_KEY] = address(A[i].erc4626YieldSourceOracle);
 
-            A[i].erc5115YieldSourceOracle = new ERC5115YieldSourceOracle();
+            A[i].erc5115YieldSourceOracle = new ERC5115YieldSourceOracle(address(A[i].superLedgerConfiguration));
             vm.label(address(A[i].erc5115YieldSourceOracle), ERC5115_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][ERC5115_YIELD_SOURCE_ORACLE_KEY] = address(A[i].erc5115YieldSourceOracle);
 
-            A[i].erc7540YieldSourceOracle = new ERC7540YieldSourceOracle();
+            A[i].erc7540YieldSourceOracle = new ERC7540YieldSourceOracle(address(A[i].superLedgerConfiguration));
             vm.label(address(A[i].erc7540YieldSourceOracle), ERC7540_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][ERC7540_YIELD_SOURCE_ORACLE_KEY] = address(A[i].erc7540YieldSourceOracle);
 
-            A[i].stakingYieldSourceOracle = new StakingYieldSourceOracle();
+            A[i].stakingYieldSourceOracle = new StakingYieldSourceOracle(address(A[i].superLedgerConfiguration));
             vm.label(address(A[i].stakingYieldSourceOracle), STAKING_YIELD_SOURCE_ORACLE_KEY);
             contractAddresses[chainIds[i]][STAKING_YIELD_SOURCE_ORACLE_KEY] = address(A[i].stakingYieldSourceOracle);
-
-            A[i].ecdsappsOracle = new ECDSAPPSOracle(address(A[i].superGovernor));
-            vm.label(address(A[i].ecdsappsOracle), ECDSAPPS_ORACLE_KEY);
-            contractAddresses[chainIds[i]][ECDSAPPS_ORACLE_KEY] = address(A[i].ecdsappsOracle);
-
-            // Deploy implementation contracts first
-            address vaultImpl = address(new SuperVault());
-            address strategyImpl = address(new SuperVaultStrategy());
-            address escrowImpl = address(new SuperVaultEscrow());
-
-            A[i].superVaultAggregator =
-                new SuperVaultAggregator(address(A[i].superGovernor), vaultImpl, strategyImpl, escrowImpl);
-            vm.label(address(A[i].superVaultAggregator), SUPER_VAULT_AGGREGATOR_KEY);
-            contractAddresses[chainIds[i]][SUPER_VAULT_AGGREGATOR_KEY] = address(A[i].superVaultAggregator);
-
-            A[i].superGovernor.setActivePPSOracle(address(A[i].ecdsappsOracle));
-            A[i].superGovernor.addValidator(VALIDATOR);
         }
         return A;
     }
@@ -619,7 +550,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](48);
+            address[] memory hooksAddresses = new address[](49);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }();
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -1043,6 +974,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
             A[i].yearnClaimOneRewardHook = new YearnClaimOneRewardHook{ salt: SALT }();
             vm.label(address(A[i].yearnClaimOneRewardHook), YEARN_CLAIM_ONE_REWARD_HOOK_KEY);
+            hookAddresses[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY] = address(A[i].yearnClaimOneRewardHook);
             hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY] = Hook(
                 YEARN_CLAIM_ONE_REWARD_HOOK_KEY,
                 HookCategory.Claims,
@@ -1222,6 +1154,21 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][OFFRAMP_TOKENS_HOOK_KEY]);
             hooksAddresses[47] = address(A[i].offrampTokensHook);
 
+            A[i].mintSuperPositionsHook = new MintSuperPositionsHook{ salt: SALT }();
+            vm.label(address(A[i].mintSuperPositionsHook), MINT_SUPERPOSITIONS_HOOK_KEY);
+            hookAddresses[chainIds[i]][MINT_SUPERPOSITIONS_HOOK_KEY] = address(A[i].mintSuperPositionsHook);
+            hooks[chainIds[i]][MINT_SUPERPOSITIONS_HOOK_KEY] = Hook(
+                MINT_SUPERPOSITIONS_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.None,
+                address(A[i].mintSuperPositionsHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.VaultDeposits].push(
+                hooks[chainIds[i]][MINT_SUPERPOSITIONS_HOOK_KEY]
+            );
+            hooksAddresses[48] = address(A[i].mintSuperPositionsHook);
+
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
 
@@ -1238,235 +1185,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             globalMerkleHookNames[1] = "REDEEM_4626_VAULT_HOOK";
             globalMerkleHookNames[2] = "APPROVE_AND_GEARBOX_STAKE_HOOK";
             globalMerkleHookNames[3] = "GEARBOX_UNSTAKE_HOOK";
-
-            if (chainIds[i] == ETH) {
-                /// @dev set any new sv addresses here
-                address aggregator = _getContract(ETH, SUPER_VAULT_AGGREGATOR_KEY);
-                globalSVStrategy = SuperVaultAggregator(aggregator).STRATEGY_IMPLEMENTATION()
-                    .predictDeterministicAddress(
-                    keccak256(
-                        abi.encodePacked(existingUnderlyingTokens[ETH][USDC_KEY], "SuperVault", "SV_USDC", uint256(0))
-                    ),
-                    aggregator
-                );
-                globalSVGearStrategy = SuperVaultAggregator(aggregator).STRATEGY_IMPLEMENTATION()
-                    .predictDeterministicAddress(
-                    keccak256(
-                        abi.encodePacked(existingUnderlyingTokens[ETH][USDC_KEY], "SuperVault", "svGearbox", uint256(1))
-                    ),
-                    aggregator
-                );
-
-                globalRuggableVault = SuperVaultAggregator(aggregator).STRATEGY_IMPLEMENTATION()
-                    .predictDeterministicAddress(
-                    keccak256(
-                        abi.encodePacked(
-                            existingUnderlyingTokens[ETH][USDC_KEY], "SuperVault", "SV_USDC_RUG", uint256(1)
-                        )
-                    ),
-                    aggregator
-                );
-            }
-        }
-
-        return A;
-    }
-
-    /*
-    
-    
-    function _updateAndRegenerateMerkleTree(
-        string memory vaultName_,
-        address vaultAddress_,
-        uint64 chainId_
-    )
-        internal
-    {
-        string memory vaultAddressStr = vm.toString(vaultAddress_);
-        string memory chainIdStr = vm.toString(chainId_);
-
-        string[] memory cmd = new string[](5);
-        cmd[0] = "node";
-        cmd[1] = "test/utils/merkle/merkle-js/update-lists.js";
-        cmd[2] = vaultName_; // Single vault name (not a number, signals single mode to script)
-        cmd[3] = vaultAddressStr;
-        cmd[4] = chainIdStr;
-
-        _executeVaultListUpdateScript(cmd, chainId_);
-    }
-
-
-    function _updateAndRegenerateMerkleTreeBatch(
-        string[] memory vaultNames_,
-        address[] memory vaultAddresses_,
-        uint64 chainId_
-    )
-        internal
-    {
-    require(vaultNames_.length == vaultAddresses_.length, "Vault names and addresses array lengths must match.");
-
-        uint256 numVaults = vaultNames_.length;
-        string memory chainIdStr = vm.toString(chainId_);
-
-        // cmd: node <script_path> <numVaults> <name1> <name2> ... <addr1_str> <addr2_str> ... <chainId_str>
-        string[] memory cmd = new string[](3 + numVaults * 2 + 1);
-        cmd[0] = "node";
-        cmd[1] = "test/utils/merkle/merkle-js/update-lists.js";
-        cmd[2] = vm.toString(numVaults); // This signals batch mode to the script
-
-        for (uint256 i = 0; i < numVaults; i++) {
-            cmd[3 + i] = vaultNames_[i];
-            cmd[3 + numVaults + i] = vm.toString(vaultAddresses_[i]);
-        }
-        cmd[3 + numVaults * 2] = chainIdStr;
-
-        _executeVaultListUpdateScript(cmd, chainId_);
-    }
-
-       function _executeVaultListUpdateScript(string[] memory cmd_, uint64 chainId_) internal {
-        bytes memory output = vm.ffi(cmd_);
-        string memory outputStr = string(output);
-        // Note: _trim was removed. JS script now outputs "true\n" or "false\n".
-
-        bool wasSuccessful = false;
-        if (bytes(outputStr).length > 0) {
-            // Check if the script output starts with 't', indicating "true\n"
-            if (bytes(outputStr)[0] == "t") {
-                wasSuccessful = true;
-            }
-        }
-
-        if (wasSuccessful) {
-            console2.log(
-                "[DEBUG] update-lists.js executed successfully. Regenerating Merkle tree for chainId:", chainId_
-            );
-            _generateMerkleTree(chainId_);
-        } else {
-            // Log details to stderr from the script will provide more context on failure.
-            console2.log(
-    "[WARN] update-lists.js indicated failure or no changes made. Merkle tree not regenerated. Check stderr for details
-    from script."
-            );
-            if (bytes(outputStr).length == 0) {
-                console2.log(
-    "[WARN] update-lists.js produced empty output (FFI call might have failed before script execution)."
-                );
-            }
-            // revert("Failed to update token/yield lists.");
-        }
-    }
-
-    */
-
-    function _configureGovernor() internal {
-        for (uint256 i = 0; i < chainIds.length; ++i) {
-            vm.selectFork(FORKS[chainIds[i]]);
-
-            SuperGovernor superGovernor = SuperGovernor(_getContract(chainIds[i], SUPER_GOVERNOR_KEY));
-
-            superGovernor.setAddress(
-                superGovernor.SUPER_VAULT_AGGREGATOR(), _getContract(chainIds[i], SUPER_VAULT_AGGREGATOR_KEY)
-            );
-
-            superGovernor.setAddress(superGovernor.TREASURY(), TREASURY);
-        }
-    }
-    /**
-     * @notice Registers all hooks with the periphery registry
-     * @param A Array of Addresses structs containing hook addresses
-     * @return A The input Addresses array
-     */
-
-    function _registerHooks(Addresses[] memory A) internal returns (Addresses[] memory) {
-        if (DEBUG) console2.log("---------------- REGISTERING HOOKS ----------------");
-        for (uint256 i = 0; i < chainIds.length; ++i) {
-            vm.selectFork(FORKS[chainIds[i]]);
-
-            SuperGovernor superGovernor = SuperGovernor(_getContract(chainIds[i], SUPER_GOVERNOR_KEY));
-
-            console2.log("Registering hooks for chain", chainIds[i]);
-            if (DEBUG) {
-                console2.log("deposit4626VaultHook", address(A[i].deposit4626VaultHook));
-                console2.log("redeem4626VaultHook", address(A[i].redeem4626VaultHook));
-                console2.log("deposit5115VaultHook", address(A[i].deposit5115VaultHook));
-                console2.log("redeem5115VaultHook", address(A[i].redeem5115VaultHook));
-                console2.log("requestDeposit7540VaultHook", address(A[i].requestDeposit7540VaultHook));
-                console2.log("requestRedeem7540VaultHook", address(A[i].requestRedeem7540VaultHook));
-                console2.log("approveAndDeposit4626VaultHook", address(A[i].approveAndDeposit4626VaultHook));
-                console2.log("approveAndDeposit5115VaultHook", address(A[i].approveAndDeposit5115VaultHook));
-                console2.log(
-                    "approveAndRequestDeposit7540VaultHook", address(A[i].approveAndRequestDeposit7540VaultHook)
-                );
-                console2.log("approveErc20Hook", address(A[i].approveErc20Hook));
-                console2.log("transferErc20Hook", address(A[i].transferErc20Hook));
-                console2.log("deposit7540VaultHook", address(A[i].deposit7540VaultHook));
-                console2.log("withdraw7540VaultHook", address(A[i].withdraw7540VaultHook));
-                console2.log("approveAndRequestRedeem7540VaultHook", address(A[i].approveAndRequestRedeem7540VaultHook));
-                console2.log("swap1InchHook", address(A[i].swap1InchHook));
-                console2.log("swapOdosHook", address(A[i].swapOdosHook));
-                console2.log("approveAndSwapOdosHook", address(A[i].approveAndSwapOdosHook));
-                console2.log("acrossSendFundsAndExecuteOnDstHook", address(A[i].acrossSendFundsAndExecuteOnDstHook));
-                console2.log("fluidClaimRewardHook", address(A[i].fluidClaimRewardHook));
-                console2.log("fluidStakeHook", address(A[i].fluidStakeHook));
-                console2.log("approveAndFluidStakeHook", address(A[i].approveAndFluidStakeHook));
-                console2.log("fluidUnstakeHook", address(A[i].fluidUnstakeHook));
-                console2.log("gearboxClaimRewardHook", address(A[i].gearboxClaimRewardHook));
-                console2.log("gearboxStakeHook", address(A[i].gearboxStakeHook));
-                console2.log("approveAndGearboxStakeHook", address(A[i].approveAndGearboxStakeHook));
-                console2.log("gearboxUnstakeHook", address(A[i].gearboxUnstakeHook));
-                console2.log("yearnClaimOneRewardHook", address(A[i].yearnClaimOneRewardHook));
-                console2.log("ethenaCooldownSharesHook", address(A[i].ethenaCooldownSharesHook));
-                console2.log("ethenaUnstakeHook", address(A[i].ethenaUnstakeHook));
-                console2.log("cancelDepositRequest7540Hook", address(A[i].cancelDepositRequest7540Hook));
-                console2.log("cancelRedeemRequest7540Hook", address(A[i].cancelRedeemRequest7540Hook));
-                console2.log("claimCancelDepositRequest7540Hook", address(A[i].claimCancelDepositRequest7540Hook));
-                console2.log("claimCancelRedeemRequest7540Hook", address(A[i].claimCancelRedeemRequest7540Hook));
-                console2.log("cancelRedeemHook", address(A[i].cancelRedeemHook));
-            }
-
-            // Register fulfillRequests hooks
-            superGovernor.registerHook(address(A[i].deposit4626VaultHook), true);
-            superGovernor.registerHook(address(A[i].redeem4626VaultHook), true);
-            superGovernor.registerHook(address(A[i].deposit5115VaultHook), true);
-            superGovernor.registerHook(address(A[i].redeem5115VaultHook), true);
-            superGovernor.registerHook(address(A[i].requestDeposit7540VaultHook), false);
-            superGovernor.registerHook(address(A[i].requestRedeem7540VaultHook), false);
-
-            // Register remaining hooks
-            superGovernor.registerHook(address(A[i].approveAndDeposit4626VaultHook), true);
-            superGovernor.registerHook(address(A[i].approveAndDeposit5115VaultHook), true);
-            superGovernor.registerHook(address(A[i].approveAndRequestDeposit7540VaultHook), true);
-            superGovernor.registerHook(address(A[i].approveErc20Hook), false);
-            superGovernor.registerHook(address(A[i].transferErc20Hook), false);
-            superGovernor.registerHook(address(A[i].deposit7540VaultHook), true);
-            superGovernor.registerHook(address(A[i].withdraw7540VaultHook), false);
-            superGovernor.registerHook(address(A[i].approveAndRequestRedeem7540VaultHook), true);
-            superGovernor.registerHook(address(A[i].swap1InchHook), false);
-            superGovernor.registerHook(address(A[i].swapOdosHook), false);
-            superGovernor.registerHook(address(A[i].approveAndSwapOdosHook), false);
-            superGovernor.registerHook(address(A[i].acrossSendFundsAndExecuteOnDstHook), false);
-            superGovernor.registerHook(address(A[i].fluidClaimRewardHook), false);
-            superGovernor.registerHook(address(A[i].fluidStakeHook), false);
-            superGovernor.registerHook(address(A[i].approveAndFluidStakeHook), false);
-            superGovernor.registerHook(address(A[i].fluidUnstakeHook), false);
-            superGovernor.registerHook(address(A[i].gearboxClaimRewardHook), false);
-            superGovernor.registerHook(address(A[i].gearboxStakeHook), false);
-            superGovernor.registerHook(address(A[i].approveAndGearboxStakeHook), false);
-            superGovernor.registerHook(address(A[i].gearboxUnstakeHook), false);
-            superGovernor.registerHook(address(A[i].yearnClaimOneRewardHook), false);
-            superGovernor.registerHook(address(A[i].cancelDepositRequest7540Hook), false);
-            superGovernor.registerHook(address(A[i].cancelRedeemRequest7540Hook), false);
-            superGovernor.registerHook(address(A[i].claimCancelDepositRequest7540Hook), false);
-            superGovernor.registerHook(address(A[i].claimCancelRedeemRequest7540Hook), false);
-            superGovernor.registerHook(address(A[i].cancelRedeemHook), false);
-            // EXPERIMENTAL HOOKS FROM HERE ONWARDS
-            superGovernor.registerHook(address(A[i].ethenaCooldownSharesHook), false);
-            superGovernor.registerHook(address(A[i].ethenaUnstakeHook), true);
-            superGovernor.registerHook(address(A[i].MorphoSupplyAndBorrowHook), false);
-            superGovernor.registerHook(address(A[i].morphoRepayHook), false);
-            superGovernor.registerHook(address(A[i].morphoRepayAndWithdrawHook), false);
-            superGovernor.registerHook(address(A[i].pendleRouterRedeemHook), false);
-            superGovernor.registerHook(address(A[i].offrampTokensHook), false);
         }
 
         return A;
@@ -1518,12 +1236,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             instance.installModule({
                 moduleTypeId: MODULE_TYPE_EXECUTOR,
                 module: _getContract(chainIds[i], SUPER_DESTINATION_EXECUTOR_KEY),
-                data: ""
-            });
-
-            instance.installModule({
-                moduleTypeId: MODULE_TYPE_EXECUTOR,
-                module: _getContract(chainIds[i], SUPER_EXECUTOR_WITH_SP_LOCK_KEY),
                 data: ""
             });
             instance.installModule({
@@ -1634,14 +1346,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         nexusFactoryAddressesMap[BASE] = CHAIN_8453_NEXUS_FACTORY;
         vm.label(nexusFactoryAddressesMap[BASE], "NexusFactoryBASE");
 
-        mapping(uint64 => address) storage polymerProvers = POLYMER_PROVER;
-        polymerProvers[ETH] = CHAIN_1_POLYMER_PROVER;
-        vm.label(polymerProvers[ETH], "PolymerProverETH");
-        polymerProvers[OP] = CHAIN_10_POLYMER_PROVER;
-        // vm.label(polymerProvers[OP], "PolymerProverOP");
-        polymerProvers[BASE] = CHAIN_8453_POLYMER_PROVER;
-        // vm.label(polymerProvers[BASE], "PolymerProverBASE");
-
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
         existingUnderlyingTokens[ETH][DAI_KEY] = CHAIN_1_DAI;
@@ -1740,46 +1444,47 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     }
 
     function _setupSuperLedger() internal {
+        console2.log("------ base test MANAGER", MANAGER);
         for (uint256 i; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
             vm.startPrank(MANAGER);
-            SuperGovernor superGovernor = SuperGovernor(_getContract(chainIds[i], SUPER_GOVERNOR_KEY));
+            console2.log("------ A", MANAGER);
             ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
                 new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](4);
             configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
+                feeRecipient: TREASURY,
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[1] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC7540_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
+                feeRecipient: TREASURY,
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
             configs[2] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], ERC5115_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
+                feeRecipient: TREASURY,
                 ledger: _getContract(chainIds[i], ERC1155_LEDGER_KEY)
             });
             configs[3] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracleId: bytes4(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY)),
                 yieldSourceOracle: _getContract(chainIds[i], STAKING_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 100,
-                feeRecipient: superGovernor.getAddress(keccak256("TREASURY")),
+                feeRecipient: TREASURY,
                 ledger: _getContract(chainIds[i], SUPER_LEDGER_KEY)
             });
-            vm.stopPrank();
-
+            bytes32[] memory salts = new bytes32[](4);
+            salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+            salts[1] = bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY));
+            salts[2] = bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY));
+            salts[3] = bytes32(bytes(STAKING_YIELD_SOURCE_ORACLE_KEY));
             ISuperLedgerConfiguration(_getContract(chainIds[i], SUPER_LEDGER_CONFIGURATION_KEY)).setYieldSourceOracles(
-                configs
+                salts, configs
             );
+            vm.stopPrank();
         }
     }
     /*//////////////////////////////////////////////////////////////
@@ -1815,6 +1520,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                     BRIDGE AND DST EXECUTION HELPERS
     //////////////////////////////////////////////////////////////*/
     enum RELAYER_TYPE {
+        USED_ROOT,
         NOT_ENOUGH_BALANCE,
         ENOUGH_BALANCE,
         NO_HOOKS,
@@ -1829,6 +1535,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         RELAYER_TYPE relayerType;
         bytes4 errorMessage;
         string errorReason;
+        bytes32 root;
         address account;
         uint256 relayerGas;
     }
@@ -1845,6 +1552,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         } else if (params.relayerType == RELAYER_TYPE.NO_HOOKS) {
             vm.expectEmit(true, true, true, true);
             emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNoHooks(params.account);
+        } else if (params.relayerType == RELAYER_TYPE.USED_ROOT) {
+            vm.expectEmit(true, true, true, true);
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButRootUsedAlready(
+                params.account, params.root
+            );
         } else if (params.relayerType == RELAYER_TYPE.REVERT) {
             if (params.errorMessage != bytes4(0)) {
                 vm.expectRevert(params.errorMessage);

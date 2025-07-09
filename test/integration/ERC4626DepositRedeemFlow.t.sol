@@ -8,12 +8,12 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { ModuleKitHelpers, UserOpData } from "modulekit/ModuleKit.sol";
 
 // Superform
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
 import "forge-std/console2.sol";
-import { Redeem4626VaultHook } from "../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
-import { ISuperLedgerData } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
-import { ISuperLedger } from "../../src/core/interfaces/accounting/ISuperLedger.sol";
+import { Redeem4626VaultHook } from "../../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { ISuperLedgerData } from "../../src/interfaces/accounting/ISuperLedger.sol";
+import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
 
 /// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault
 contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
@@ -32,11 +32,11 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddressEth, amount, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         vm.expectEmit(true, true, true, false);
@@ -53,7 +53,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         hooksAddresses[0] = redeem4626Hook;
         hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSourceAddressEth,
             accountEth,
             accSharesAfter,
@@ -61,7 +61,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         );
 
         ISuperExecutor.ExecutorEntry memory entryWithdraw =
-            ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entryWithdraw));
 
@@ -70,17 +70,13 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
 
         executeOp(userOpData);
         // ^ does not revert anymore
-        
+
         // ASSERTIONS
-        
+
         uint256 finalShareBalance = vaultInstanceEth.balanceOf(accountEth);
         assertEq(finalShareBalance, 0);
-        
-        IERC4626(yieldSourceAddressEth).convertToAssets(accSharesAfter);
         uint256 actualTokenBalance = IERC20(underlyingEth_USDC).balanceOf(accountEth);
         assertGt(actualTokenBalance, 0);
-        
-
     }
 
     function test_Deposit_4626_Mainnet_Flow() public {
@@ -92,7 +88,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddressEth, amount, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -109,7 +105,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingEth_USDC, yieldSourceAddressEth, amount, false);
         hooksData[1] = _createDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, amount, false, address(0), 0
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddressEth, amount, false, address(0), 0
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -127,7 +123,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         hooksAddresses[0] = redeem4626Hook;
         hooksData = new bytes[](1);
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSourceAddressEth,
             accountEth,
             accSharesAfter / 2, // temporary
@@ -151,7 +147,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         hooksAddresses[0] = approveAndDeposit4626Hook;
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createApproveAndDeposit4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSourceAddressEth,
             underlyingEth_USDC,
             amount,
@@ -178,16 +174,22 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
 
         hooksAddresses[0] = redeem4626Hook;
         hooksData[0] = _createRedeem4626HookData(
-            bytes4(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), yieldSourceAddressEth, accountEth2, yieldSourceBal, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)), yieldSourceAddressEth, accountEth2, yieldSourceBal, false
         );
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
-        uint256 expectedFee = ledger.previewFees(accountEth, yieldSourceAddressEth, IERC4626(yieldSourceAddressEth).convertToAssets(yieldSourceBal), yieldSourceBal, 100);
+        uint256 expectedFee = ledger.previewFees(
+            accountEth,
+            yieldSourceAddressEth,
+            IERC4626(yieldSourceAddressEth).convertToAssets(yieldSourceBal),
+            yieldSourceBal,
+            100
+        );
 
         executeOp(userOpData);
 
-        uint256 outAmount = Redeem4626VaultHook(redeem4626Hook).outAmount();
+        uint256 outAmount = Redeem4626VaultHook(redeem4626Hook).getOutAmount(instanceOnEth.account);
         uint256 usedShares = Redeem4626VaultHook(redeem4626Hook).usedShares();
         vm.assertGt(usedShares, 0);
         vm.assertGt(outAmount, 0);

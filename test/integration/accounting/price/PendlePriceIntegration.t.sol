@@ -7,13 +7,13 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 import {MinimalBaseNexusIntegrationTest} from "../../MinimalBaseNexusIntegrationTest.t.sol";
 import {MockRegistry} from "../../../mocks/MockRegistry.sol";
-import {ISuperExecutor} from "../../../../src/core/interfaces/ISuperExecutor.sol";
-import {ISuperLedgerConfiguration} from "../../../../src/core/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import {ISuperExecutor} from "../../../../src/interfaces/ISuperExecutor.sol";
+import {ISuperLedgerConfiguration} from "../../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import {IStandardizedYield} from "../../../../src/vendor/pendle/IStandardizedYield.sol";
 
-import {ERC5115YieldSourceOracle} from "../../../../src/core/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import {Deposit5115VaultHook} from "../../../../src/core/hooks/vaults/5115/Deposit5115VaultHook.sol";
-import {Redeem5115VaultHook} from "../../../../src/core/hooks/vaults/5115/Redeem5115VaultHook.sol";
+import {ERC5115YieldSourceOracle} from "../../../../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
+import {Deposit5115VaultHook} from "../../../../src/hooks/vaults/5115/Deposit5115VaultHook.sol";
+import {Redeem5115VaultHook} from "../../../../src/hooks/vaults/5115/Redeem5115VaultHook.sol";
 
 contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
     MockRegistry public nexusRegistry;
@@ -54,7 +54,7 @@ contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
         hooksAddresses[1] = address(new Deposit5115VaultHook());
         hooksData[0] = _createApproveHookData(underlying, address(pendleVault), amount, false);
         hooksData[1] = _create5115DepositHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
             address(pendleVault),
             underlying,
             amount,
@@ -80,7 +80,7 @@ contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
         uint256 amount = SMALL; // fixed amount to test the fee and consumed entries easily
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig( _getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)));
         assertEq(config.feePercent, 100); //1%
 
         // create and fund
@@ -117,7 +117,7 @@ contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
         uint256 amount = 1e18;
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(_getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)));
         assertEq(config.feePercent, 100);
 
         address nexusAccount = _setupNexusAccount(amount);
@@ -148,7 +148,7 @@ contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
         uint256 amount = 1e18;
 
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            ledgerConfig.getYieldSourceOracleConfig(bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)));
+            ledgerConfig.getYieldSourceOracleConfig(_getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)));
         assertEq(config.feePercent, 100);
 
         address nexusAccount = _setupNexusAccount(amount);
@@ -214,7 +214,7 @@ contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
         hooksAddresses[1] = address(new Deposit5115VaultHook());
         hooksData[0] = _createApproveHookData(underlying, address(pendleVault), amount, false);
         hooksData[1] = _create5115DepositHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)),
+            _getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             address(pendleVault),
             underlying,
             amount,
@@ -234,7 +234,7 @@ contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
         bytes[] memory hooksData = new bytes[](1);
         hooksAddresses[0] = address(new Redeem5115VaultHook());
         hooksData[0] = _create5115RedeemHookData(
-            bytes4(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(pendleVault), underlying, amount, 0, false
+            _getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)), address(pendleVault), underlying, amount, 0, false
         );
 
         entry = ISuperExecutor.ExecutorEntry({hooksAddresses: hooksAddresses, hooksData: hooksData});

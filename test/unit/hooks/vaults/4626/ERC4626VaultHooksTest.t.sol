@@ -4,14 +4,13 @@ pragma solidity 0.8.30;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { ApproveAndDeposit4626VaultHook } from
-    "../../../../../src/core/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
-import { Deposit4626VaultHook } from "../../../../../src/core/hooks/vaults/4626/Deposit4626VaultHook.sol";
-import { Redeem4626VaultHook } from "../../../../../src/core/hooks/vaults/4626/Redeem4626VaultHook.sol";
-import { ISuperHook } from "../../../../../src/core/interfaces/ISuperHook.sol";
+import { ApproveAndDeposit4626VaultHook } from "../../../../../src/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
+import { Deposit4626VaultHook } from "../../../../../src/hooks/vaults/4626/Deposit4626VaultHook.sol";
+import { Redeem4626VaultHook } from "../../../../../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
+import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
-import { BaseHook } from "../../../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 
 contract ERC4626VaultHooksTest is Helpers {
@@ -19,7 +18,7 @@ contract ERC4626VaultHooksTest is Helpers {
     Deposit4626VaultHook public depositHook;
     Redeem4626VaultHook public redeemHook;
 
-    bytes4 yieldSourceOracleId;
+    bytes32 yieldSourceOracleId;
     address yieldSource;
     address token;
 
@@ -28,7 +27,7 @@ contract ERC4626VaultHooksTest is Helpers {
     uint256 prevHookAmount;
 
     function setUp() public {
-        yieldSourceOracleId = bytes4(keccak256("YIELD_SOURCE_ORACLE_ID"));
+        yieldSourceOracleId = bytes32(keccak256("YIELD_SOURCE_ORACLE_ID"));
         yieldSource = address(this);
         token = address(new MockERC20("Token", "TKN", 18));
         amount = 1000;
@@ -155,7 +154,7 @@ contract ERC4626VaultHooksTest is Helpers {
     //////////////////////////////////////////////////////////////*/
     function test_ApproveAndDepositHook_PrevHookAmount() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, token, prevHookAmount, true);
         Execution[] memory executions = approveAndDepositHook.build(mockPrevHook, address(this), data);
@@ -183,7 +182,7 @@ contract ERC4626VaultHooksTest is Helpers {
 
     function test_DepositHook_PrevHookAmount() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.INFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, amount, true, address(0), uint256(0));
         Execution[] memory executions = depositHook.build(mockPrevHook, address(this), data);
@@ -199,7 +198,7 @@ contract ERC4626VaultHooksTest is Helpers {
 
     function test_RedeemHook_PrevHookAmount() public {
         address mockPrevHook = address(new MockHook(ISuperHook.HookType.OUTFLOW, token));
-        MockHook(mockPrevHook).setOutAmount(prevHookAmount);
+        MockHook(mockPrevHook).setOutAmount(prevHookAmount, address(this));
 
         bytes memory data = abi.encodePacked(yieldSourceOracleId, yieldSource, address(this), amount, true);
         Execution[] memory executions = redeemHook.build(mockPrevHook, address(this), data);
@@ -267,10 +266,10 @@ contract ERC4626VaultHooksTest is Helpers {
 
         bytes memory data = _encodeApproveAndDepositData();
         approveAndDepositHook.preExecute(address(0), address(this), data);
-        assertEq(approveAndDepositHook.outAmount(), amount);
+        assertEq(approveAndDepositHook.getOutAmount(address(this)), amount);
 
         approveAndDepositHook.postExecute(address(0), address(this), data);
-        assertEq(approveAndDepositHook.outAmount(), 0);
+        assertEq(approveAndDepositHook.getOutAmount(address(this)), 0);
     }
 
     function test_DepositHook_PrePostExecute() public {
@@ -279,10 +278,10 @@ contract ERC4626VaultHooksTest is Helpers {
 
         bytes memory data = _encodeDepositData();
         depositHook.preExecute(address(0), address(this), data);
-        assertEq(depositHook.outAmount(), amount);
+        assertEq(depositHook.getOutAmount(address(this)), amount);
 
         depositHook.postExecute(address(0), address(this), data);
-        assertEq(depositHook.outAmount(), 0);
+        assertEq(depositHook.getOutAmount(address(this)), 0);
     }
 
     function test_RedeemHook_PrePostExecute() public {
@@ -291,10 +290,10 @@ contract ERC4626VaultHooksTest is Helpers {
 
         bytes memory data = _encodeRedeemData();
         redeemHook.preExecute(address(0), address(this), data);
-        assertEq(redeemHook.outAmount(), amount);
+        assertEq(redeemHook.getOutAmount(address(this)), amount);
 
         redeemHook.postExecute(address(0), address(this), data);
-        assertEq(redeemHook.outAmount(), 0);
+        assertEq(redeemHook.getOutAmount(address(this)), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -315,11 +314,11 @@ contract ERC4626VaultHooksTest is Helpers {
                         HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
     function _encodeApproveAndDepositData() internal view returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false, address(0), uint256(0));
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, false);
     }
 
     function _encodeDepositData() internal view returns (bytes memory) {
-        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false, address(0), uint256(0));
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, amount, false);
     }
 
     function _encodeRedeemData() internal view returns (bytes memory) {

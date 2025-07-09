@@ -3,11 +3,11 @@ pragma solidity 0.8.30;
 
 import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
 import { MarketParamsLib } from "../../src/vendor/morpho/MarketParamsLib.sol";
-import { ISuperExecutor } from "../../src/core/interfaces/ISuperExecutor.sol";
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { Id, IMorphoStaticTyping, MarketParams } from "../../src/vendor/morpho/IMorpho.sol";
-import { MorphoRepayAndWithdrawHook } from "../../src/core/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
+import { MorphoRepayAndWithdrawHook } from "../../src/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { MorphoSupplyAndBorrowHook } from "../../src/core/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
+import { MorphoSupplyAndBorrowHook } from "../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import { console } from "forge-std/console.sol";
 

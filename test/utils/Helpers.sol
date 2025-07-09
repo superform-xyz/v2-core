@@ -15,14 +15,18 @@ abstract contract Helpers is Test, Constants {
     address public user1;
     address public user2;
     address public user3;
-    address public MANAGER;
+    address public constant MANAGER = address(0x9876564321);
     address public TREASURY;
     address public SUPER_BUNDLER;
     address public ACROSS_RELAYER;
-    address public SV_MANAGER;
-    address public STRATEGIST;
-    address public EMERGENCY_ADMIN;
-    address public VALIDATOR;
+
+    function deployAccounts() public  {
+        // deploy accounts
+        TREASURY = _deployAccount(TREASURY_KEY, "TREASURY");
+        SUPER_BUNDLER = _deployAccount(SUPER_BUNDLER_KEY, "SUPER_BUNDLER");
+        ACROSS_RELAYER = _deployAccount(ACROSS_RELAYER_KEY, "ACROSS_RELAYER");
+    }
+    
     /*//////////////////////////////////////////////////////////////
                                  EIP-7702 HELPER METHODS
     //////////////////////////////////////////////////////////////*/

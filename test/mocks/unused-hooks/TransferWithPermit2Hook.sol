@@ -2,17 +2,17 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../src/vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import {BaseHook} from "../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../src/hooks/BaseHook.sol";
 
-import {ISuperHookResult} from "../../../src/core/interfaces/ISuperHook.sol";
-import {IPermit2Single} from "../../../src/vendor/uniswap/permit2/IPermit2Single.sol";
+import { ISuperHookResult } from "../../../src/interfaces/ISuperHook.sol";
+import { IPermit2Single } from "../../../src/vendor/uniswap/permit2/IPermit2Single.sol";
 
 /// @title TransferWithPermit2Hook
 /// @dev data has the following structure
@@ -37,7 +37,11 @@ contract TransferWithPermit2Hook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function _buildHookExecutions(address prevHook, address, bytes calldata data)
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
         internal
         view
         override
@@ -50,7 +54,7 @@ contract TransferWithPermit2Hook is BaseHook {
         bool usePrevHookAmount = _decodeBool(data, 80);
 
         if (usePrevHookAmount) {
-            amount = ISuperHookResult(prevHook).outAmount().toUint160();
+            amount = ISuperHookResult(prevHook).getOutAmount(account).toUint160();
         }
 
         if (token == address(0) || from == address(0)) revert ADDRESS_NOT_VALID();
@@ -66,12 +70,12 @@ contract TransferWithPermit2Hook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data);
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        _setOutAmount(_getBalance(data), account);
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data) - outAmount;
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        _setOutAmount(_getBalance(data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////

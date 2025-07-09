@@ -31,7 +31,7 @@ var (
 
 // SuperLedgerMetaData contains all meta data concerning the SuperLedger contract.
 var SuperLedgerMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"ledgerConfiguration_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"allowedExecutors_\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"allowedExecutors\",\"inputs\":[{\"name\":\"executor\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isAllowed\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"calculateCostBasisView\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"usedShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"costBasis\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewFees\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountAssets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"usedShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"feeAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"superLedgerConfiguration\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractSuperLedgerConfiguration\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"updateAccounting\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes4\",\"internalType\":\"bytes4\"},{\"name\":\"isInflow\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"amountSharesOrAssets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"usedShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"feeAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"usersAccumulatorCostBasis\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"costBasis\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"usersAccumulatorShares\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"event\",\"name\":\"AccountingInflow\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"pps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AccountingOutflow\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"feeAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AccountingOutflowSkipped\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes4\",\"indexed\":true,\"internalType\":\"bytes4\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"FEE_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"HOOK_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_SHARES\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE_PERCENT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_LEDGER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_PRICE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MANAGER_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_MANAGER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS_NOT_ALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ID_NOT_ALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_LENGTH\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"ledgerConfiguration_\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"allowedExecutors_\",\"type\":\"address[]\",\"internalType\":\"address[]\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"allowedExecutors\",\"inputs\":[{\"name\":\"executor\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"isAllowed\",\"type\":\"bool\",\"internalType\":\"bool\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"calculateCostBasisView\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"usedShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"costBasis\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"previewFees\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceAddress\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"amountAssets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"usedShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"feePercent\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"feeAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"superLedgerConfiguration\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractSuperLedgerConfiguration\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"updateAccounting\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSourceOracleId\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"isInflow\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"amountSharesOrAssets\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"usedShares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"feeAmount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"usersAccumulatorCostBasis\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"costBasis\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"usersAccumulatorShares\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[{\"name\":\"shares\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"event\",\"name\":\"AccountingInflow\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"pps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"AccountingOutflow\",\"inputs\":[{\"name\":\"user\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSourceOracle\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"yieldSource\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"amount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"feeAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UsedSharesCapped\",\"inputs\":[{\"name\":\"originalVal\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"cappedVal\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"FEE_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"HOOK_NOT_FOUND\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_FEE_PERCENT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_LEDGER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_PRICE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"MANAGER_NOT_SET\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_AUTHORIZED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"NOT_MANAGER\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS_NOT_ALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ID_NOT_ALLOWED\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_LENGTH\",\"inputs\":[]}]",
 }
 
 // SuperLedgerABI is the input ABI used to generate the binding from.
@@ -213,32 +213,46 @@ func (_SuperLedger *SuperLedgerCallerSession) AllowedExecutors(executor common.A
 
 // CalculateCostBasisView is a free data retrieval call binding the contract method 0xe4367cd3.
 //
-// Solidity: function calculateCostBasisView(address user, address yieldSource, uint256 usedShares) view returns(uint256 costBasis)
-func (_SuperLedger *SuperLedgerCaller) CalculateCostBasisView(opts *bind.CallOpts, user common.Address, yieldSource common.Address, usedShares *big.Int) (*big.Int, error) {
+// Solidity: function calculateCostBasisView(address user, address yieldSource, uint256 usedShares) view returns(uint256 costBasis, uint256 shares)
+func (_SuperLedger *SuperLedgerCaller) CalculateCostBasisView(opts *bind.CallOpts, user common.Address, yieldSource common.Address, usedShares *big.Int) (struct {
+	CostBasis *big.Int
+	Shares    *big.Int
+}, error) {
 	var out []interface{}
 	err := _SuperLedger.contract.Call(opts, &out, "calculateCostBasisView", user, yieldSource, usedShares)
 
+	outstruct := new(struct {
+		CostBasis *big.Int
+		Shares    *big.Int
+	})
 	if err != nil {
-		return *new(*big.Int), err
+		return *outstruct, err
 	}
 
-	out0 := *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+	outstruct.CostBasis = *abi.ConvertType(out[0], new(*big.Int)).(**big.Int)
+	outstruct.Shares = *abi.ConvertType(out[1], new(*big.Int)).(**big.Int)
 
-	return out0, err
+	return *outstruct, err
 
 }
 
 // CalculateCostBasisView is a free data retrieval call binding the contract method 0xe4367cd3.
 //
-// Solidity: function calculateCostBasisView(address user, address yieldSource, uint256 usedShares) view returns(uint256 costBasis)
-func (_SuperLedger *SuperLedgerSession) CalculateCostBasisView(user common.Address, yieldSource common.Address, usedShares *big.Int) (*big.Int, error) {
+// Solidity: function calculateCostBasisView(address user, address yieldSource, uint256 usedShares) view returns(uint256 costBasis, uint256 shares)
+func (_SuperLedger *SuperLedgerSession) CalculateCostBasisView(user common.Address, yieldSource common.Address, usedShares *big.Int) (struct {
+	CostBasis *big.Int
+	Shares    *big.Int
+}, error) {
 	return _SuperLedger.Contract.CalculateCostBasisView(&_SuperLedger.CallOpts, user, yieldSource, usedShares)
 }
 
 // CalculateCostBasisView is a free data retrieval call binding the contract method 0xe4367cd3.
 //
-// Solidity: function calculateCostBasisView(address user, address yieldSource, uint256 usedShares) view returns(uint256 costBasis)
-func (_SuperLedger *SuperLedgerCallerSession) CalculateCostBasisView(user common.Address, yieldSource common.Address, usedShares *big.Int) (*big.Int, error) {
+// Solidity: function calculateCostBasisView(address user, address yieldSource, uint256 usedShares) view returns(uint256 costBasis, uint256 shares)
+func (_SuperLedger *SuperLedgerCallerSession) CalculateCostBasisView(user common.Address, yieldSource common.Address, usedShares *big.Int) (struct {
+	CostBasis *big.Int
+	Shares    *big.Int
+}, error) {
 	return _SuperLedger.Contract.CalculateCostBasisView(&_SuperLedger.CallOpts, user, yieldSource, usedShares)
 }
 
@@ -366,24 +380,24 @@ func (_SuperLedger *SuperLedgerCallerSession) UsersAccumulatorShares(user common
 	return _SuperLedger.Contract.UsersAccumulatorShares(&_SuperLedger.CallOpts, user, yieldSource)
 }
 
-// UpdateAccounting is a paid mutator transaction binding the contract method 0x603feb71.
+// UpdateAccounting is a paid mutator transaction binding the contract method 0xfd8cd53f.
 //
-// Solidity: function updateAccounting(address user, address yieldSource, bytes4 yieldSourceOracleId, bool isInflow, uint256 amountSharesOrAssets, uint256 usedShares) returns(uint256 feeAmount)
-func (_SuperLedger *SuperLedgerTransactor) UpdateAccounting(opts *bind.TransactOpts, user common.Address, yieldSource common.Address, yieldSourceOracleId [4]byte, isInflow bool, amountSharesOrAssets *big.Int, usedShares *big.Int) (*types.Transaction, error) {
+// Solidity: function updateAccounting(address user, address yieldSource, bytes32 yieldSourceOracleId, bool isInflow, uint256 amountSharesOrAssets, uint256 usedShares) returns(uint256 feeAmount)
+func (_SuperLedger *SuperLedgerTransactor) UpdateAccounting(opts *bind.TransactOpts, user common.Address, yieldSource common.Address, yieldSourceOracleId [32]byte, isInflow bool, amountSharesOrAssets *big.Int, usedShares *big.Int) (*types.Transaction, error) {
 	return _SuperLedger.contract.Transact(opts, "updateAccounting", user, yieldSource, yieldSourceOracleId, isInflow, amountSharesOrAssets, usedShares)
 }
 
-// UpdateAccounting is a paid mutator transaction binding the contract method 0x603feb71.
+// UpdateAccounting is a paid mutator transaction binding the contract method 0xfd8cd53f.
 //
-// Solidity: function updateAccounting(address user, address yieldSource, bytes4 yieldSourceOracleId, bool isInflow, uint256 amountSharesOrAssets, uint256 usedShares) returns(uint256 feeAmount)
-func (_SuperLedger *SuperLedgerSession) UpdateAccounting(user common.Address, yieldSource common.Address, yieldSourceOracleId [4]byte, isInflow bool, amountSharesOrAssets *big.Int, usedShares *big.Int) (*types.Transaction, error) {
+// Solidity: function updateAccounting(address user, address yieldSource, bytes32 yieldSourceOracleId, bool isInflow, uint256 amountSharesOrAssets, uint256 usedShares) returns(uint256 feeAmount)
+func (_SuperLedger *SuperLedgerSession) UpdateAccounting(user common.Address, yieldSource common.Address, yieldSourceOracleId [32]byte, isInflow bool, amountSharesOrAssets *big.Int, usedShares *big.Int) (*types.Transaction, error) {
 	return _SuperLedger.Contract.UpdateAccounting(&_SuperLedger.TransactOpts, user, yieldSource, yieldSourceOracleId, isInflow, amountSharesOrAssets, usedShares)
 }
 
-// UpdateAccounting is a paid mutator transaction binding the contract method 0x603feb71.
+// UpdateAccounting is a paid mutator transaction binding the contract method 0xfd8cd53f.
 //
-// Solidity: function updateAccounting(address user, address yieldSource, bytes4 yieldSourceOracleId, bool isInflow, uint256 amountSharesOrAssets, uint256 usedShares) returns(uint256 feeAmount)
-func (_SuperLedger *SuperLedgerTransactorSession) UpdateAccounting(user common.Address, yieldSource common.Address, yieldSourceOracleId [4]byte, isInflow bool, amountSharesOrAssets *big.Int, usedShares *big.Int) (*types.Transaction, error) {
+// Solidity: function updateAccounting(address user, address yieldSource, bytes32 yieldSourceOracleId, bool isInflow, uint256 amountSharesOrAssets, uint256 usedShares) returns(uint256 feeAmount)
+func (_SuperLedger *SuperLedgerTransactorSession) UpdateAccounting(user common.Address, yieldSource common.Address, yieldSourceOracleId [32]byte, isInflow bool, amountSharesOrAssets *big.Int, usedShares *big.Int) (*types.Transaction, error) {
 	return _SuperLedger.Contract.UpdateAccounting(&_SuperLedger.TransactOpts, user, yieldSource, yieldSourceOracleId, isInflow, amountSharesOrAssets, usedShares)
 }
 
@@ -715,9 +729,9 @@ func (_SuperLedger *SuperLedgerFilterer) ParseAccountingOutflow(log types.Log) (
 	return event, nil
 }
 
-// SuperLedgerAccountingOutflowSkippedIterator is returned from FilterAccountingOutflowSkipped and is used to iterate over the raw logs and unpacked data for AccountingOutflowSkipped events raised by the SuperLedger contract.
-type SuperLedgerAccountingOutflowSkippedIterator struct {
-	Event *SuperLedgerAccountingOutflowSkipped // Event containing the contract specifics and raw log
+// SuperLedgerUsedSharesCappedIterator is returned from FilterUsedSharesCapped and is used to iterate over the raw logs and unpacked data for UsedSharesCapped events raised by the SuperLedger contract.
+type SuperLedgerUsedSharesCappedIterator struct {
+	Event *SuperLedgerUsedSharesCapped // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -731,7 +745,7 @@ type SuperLedgerAccountingOutflowSkippedIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *SuperLedgerAccountingOutflowSkippedIterator) Next() bool {
+func (it *SuperLedgerUsedSharesCappedIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -740,7 +754,7 @@ func (it *SuperLedgerAccountingOutflowSkippedIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(SuperLedgerAccountingOutflowSkipped)
+			it.Event = new(SuperLedgerUsedSharesCapped)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -755,7 +769,7 @@ func (it *SuperLedgerAccountingOutflowSkippedIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(SuperLedgerAccountingOutflowSkipped)
+		it.Event = new(SuperLedgerUsedSharesCapped)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -771,70 +785,42 @@ func (it *SuperLedgerAccountingOutflowSkippedIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperLedgerAccountingOutflowSkippedIterator) Error() error {
+func (it *SuperLedgerUsedSharesCappedIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *SuperLedgerAccountingOutflowSkippedIterator) Close() error {
+func (it *SuperLedgerUsedSharesCappedIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// SuperLedgerAccountingOutflowSkipped represents a AccountingOutflowSkipped event raised by the SuperLedger contract.
-type SuperLedgerAccountingOutflowSkipped struct {
-	User                common.Address
-	YieldSource         common.Address
-	YieldSourceOracleId [4]byte
-	Amount              *big.Int
-	Raw                 types.Log // Blockchain specific contextual infos
+// SuperLedgerUsedSharesCapped represents a UsedSharesCapped event raised by the SuperLedger contract.
+type SuperLedgerUsedSharesCapped struct {
+	OriginalVal *big.Int
+	CappedVal   *big.Int
+	Raw         types.Log // Blockchain specific contextual infos
 }
 
-// FilterAccountingOutflowSkipped is a free log retrieval operation binding the contract event 0xcb9f4d80b9362ac2676a62e3cb41fa315c1144520a039b0131e1a00244987c6b.
+// FilterUsedSharesCapped is a free log retrieval operation binding the contract event 0xcbf6e1ecca8662a52fbda88e401671949eb8ef33066b8afbc19ecca7f127b22d.
 //
-// Solidity: event AccountingOutflowSkipped(address indexed user, address indexed yieldSource, bytes4 indexed yieldSourceOracleId, uint256 amount)
-func (_SuperLedger *SuperLedgerFilterer) FilterAccountingOutflowSkipped(opts *bind.FilterOpts, user []common.Address, yieldSource []common.Address, yieldSourceOracleId [][4]byte) (*SuperLedgerAccountingOutflowSkippedIterator, error) {
+// Solidity: event UsedSharesCapped(uint256 originalVal, uint256 cappedVal)
+func (_SuperLedger *SuperLedgerFilterer) FilterUsedSharesCapped(opts *bind.FilterOpts) (*SuperLedgerUsedSharesCappedIterator, error) {
 
-	var userRule []interface{}
-	for _, userItem := range user {
-		userRule = append(userRule, userItem)
-	}
-	var yieldSourceRule []interface{}
-	for _, yieldSourceItem := range yieldSource {
-		yieldSourceRule = append(yieldSourceRule, yieldSourceItem)
-	}
-	var yieldSourceOracleIdRule []interface{}
-	for _, yieldSourceOracleIdItem := range yieldSourceOracleId {
-		yieldSourceOracleIdRule = append(yieldSourceOracleIdRule, yieldSourceOracleIdItem)
-	}
-
-	logs, sub, err := _SuperLedger.contract.FilterLogs(opts, "AccountingOutflowSkipped", userRule, yieldSourceRule, yieldSourceOracleIdRule)
+	logs, sub, err := _SuperLedger.contract.FilterLogs(opts, "UsedSharesCapped")
 	if err != nil {
 		return nil, err
 	}
-	return &SuperLedgerAccountingOutflowSkippedIterator{contract: _SuperLedger.contract, event: "AccountingOutflowSkipped", logs: logs, sub: sub}, nil
+	return &SuperLedgerUsedSharesCappedIterator{contract: _SuperLedger.contract, event: "UsedSharesCapped", logs: logs, sub: sub}, nil
 }
 
-// WatchAccountingOutflowSkipped is a free log subscription operation binding the contract event 0xcb9f4d80b9362ac2676a62e3cb41fa315c1144520a039b0131e1a00244987c6b.
+// WatchUsedSharesCapped is a free log subscription operation binding the contract event 0xcbf6e1ecca8662a52fbda88e401671949eb8ef33066b8afbc19ecca7f127b22d.
 //
-// Solidity: event AccountingOutflowSkipped(address indexed user, address indexed yieldSource, bytes4 indexed yieldSourceOracleId, uint256 amount)
-func (_SuperLedger *SuperLedgerFilterer) WatchAccountingOutflowSkipped(opts *bind.WatchOpts, sink chan<- *SuperLedgerAccountingOutflowSkipped, user []common.Address, yieldSource []common.Address, yieldSourceOracleId [][4]byte) (event.Subscription, error) {
+// Solidity: event UsedSharesCapped(uint256 originalVal, uint256 cappedVal)
+func (_SuperLedger *SuperLedgerFilterer) WatchUsedSharesCapped(opts *bind.WatchOpts, sink chan<- *SuperLedgerUsedSharesCapped) (event.Subscription, error) {
 
-	var userRule []interface{}
-	for _, userItem := range user {
-		userRule = append(userRule, userItem)
-	}
-	var yieldSourceRule []interface{}
-	for _, yieldSourceItem := range yieldSource {
-		yieldSourceRule = append(yieldSourceRule, yieldSourceItem)
-	}
-	var yieldSourceOracleIdRule []interface{}
-	for _, yieldSourceOracleIdItem := range yieldSourceOracleId {
-		yieldSourceOracleIdRule = append(yieldSourceOracleIdRule, yieldSourceOracleIdItem)
-	}
-
-	logs, sub, err := _SuperLedger.contract.WatchLogs(opts, "AccountingOutflowSkipped", userRule, yieldSourceRule, yieldSourceOracleIdRule)
+	logs, sub, err := _SuperLedger.contract.WatchLogs(opts, "UsedSharesCapped")
 	if err != nil {
 		return nil, err
 	}
@@ -844,8 +830,8 @@ func (_SuperLedger *SuperLedgerFilterer) WatchAccountingOutflowSkipped(opts *bin
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(SuperLedgerAccountingOutflowSkipped)
-				if err := _SuperLedger.contract.UnpackLog(event, "AccountingOutflowSkipped", log); err != nil {
+				event := new(SuperLedgerUsedSharesCapped)
+				if err := _SuperLedger.contract.UnpackLog(event, "UsedSharesCapped", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -866,12 +852,12 @@ func (_SuperLedger *SuperLedgerFilterer) WatchAccountingOutflowSkipped(opts *bin
 	}), nil
 }
 
-// ParseAccountingOutflowSkipped is a log parse operation binding the contract event 0xcb9f4d80b9362ac2676a62e3cb41fa315c1144520a039b0131e1a00244987c6b.
+// ParseUsedSharesCapped is a log parse operation binding the contract event 0xcbf6e1ecca8662a52fbda88e401671949eb8ef33066b8afbc19ecca7f127b22d.
 //
-// Solidity: event AccountingOutflowSkipped(address indexed user, address indexed yieldSource, bytes4 indexed yieldSourceOracleId, uint256 amount)
-func (_SuperLedger *SuperLedgerFilterer) ParseAccountingOutflowSkipped(log types.Log) (*SuperLedgerAccountingOutflowSkipped, error) {
-	event := new(SuperLedgerAccountingOutflowSkipped)
-	if err := _SuperLedger.contract.UnpackLog(event, "AccountingOutflowSkipped", log); err != nil {
+// Solidity: event UsedSharesCapped(uint256 originalVal, uint256 cappedVal)
+func (_SuperLedger *SuperLedgerFilterer) ParseUsedSharesCapped(log types.Log) (*SuperLedgerUsedSharesCapped, error) {
+	event := new(SuperLedgerUsedSharesCapped)
+	if err := _SuperLedger.contract.UnpackLog(event, "UsedSharesCapped", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log

@@ -2,18 +2,18 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../src/vendor/BytesLib.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import {SafeCast} from "@openzeppelin/contracts/utils/math/SafeCast.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { SafeCast } from "@openzeppelin/contracts/utils/math/SafeCast.sol";
 
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import {BaseHook} from "../../../src/core/hooks/BaseHook.sol";
+import { BaseHook } from "../../../src/hooks/BaseHook.sol";
 
-import {ISuperHookResult} from "../../../src/core/interfaces/ISuperHook.sol";
-import {IPermit2Batch} from "../../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
-import {IAllowanceTransfer} from "../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import { ISuperHookResult } from "../../../src/interfaces/ISuperHook.sol";
+import { IPermit2Batch } from "../../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
+import { IAllowanceTransfer } from "../../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
 
 /// @title TransferBatchWithPermit2Hook
 /// @dev data has the following structure
@@ -27,7 +27,7 @@ import {IAllowanceTransfer} from "../../../src/vendor/uniswap/permit2/IAllowance
 /// @notice             uint160 amount = uint160(BytesLib.toUint256(BytesLib.slice(data, offset + 40, 32), 0));
 /// @notice             address token = BytesLib.toAddress(BytesLib.slice(data, offset + 72, 20), 0);
 /// @notice         If usePrevHookAmount is true, transferDetails[indexOfAmount].amount is set to
-/// ISuperHookResult(prevHook).outAmount().toUint160()
+/// ISuperHookResult(prevHook).getOutAmount(account).toUint160()
 contract TransferBatchWithPermit2Hook is BaseHook {
     using SafeCast for uint256;
     /*//////////////////////////////////////////////////////////////
@@ -44,7 +44,11 @@ contract TransferBatchWithPermit2Hook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    function _buildHookExecutions(address prevHook, address, bytes calldata data)
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
         internal
         view
         override
@@ -74,7 +78,7 @@ contract TransferBatchWithPermit2Hook is BaseHook {
         }
 
         if (usePrevHookAmount) {
-            transferDetails[indexOfAmount].amount = ISuperHookResult(prevHook).outAmount().toUint160();
+            transferDetails[indexOfAmount].amount = ISuperHookResult(prevHook).getOutAmount(account).toUint160();
         }
 
         executions = new Execution[](1);
@@ -88,12 +92,12 @@ contract TransferBatchWithPermit2Hook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data);
+    function _preExecute(address, address account, bytes calldata data) internal override {
+        _setOutAmount(_getBalance(data), account);
     }
 
-    function _postExecute(address, address, bytes calldata data) internal override {
-        outAmount = _getBalance(data) - outAmount;
+    function _postExecute(address, address account, bytes calldata data) internal override {
+        _setOutAmount(_getBalance(data) - getOutAmount(account), account);
     }
 
     /*//////////////////////////////////////////////////////////////
