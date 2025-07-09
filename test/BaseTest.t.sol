@@ -1823,10 +1823,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         bytes32 initSalt = bytes32(keccak256("SIGNER_SALT"));
 
         address precomputedAddress = INexusFactory(nexusFactory).computeAccountAddress(initData, initSalt);
-        return (abi.encode(initData, initSalt), precomputedAddress);
+
+        bytes memory initFactoryCalldata = abi.encodeWithSelector(INexusFactory.createAccount.selector, initData, initSalt);
+        return (abi.encodePacked(address(nexusFactory), initFactoryCalldata), precomputedAddress);
     }
 
-    function _createAcrossV3ReceiveFundsAndExecuteHookData(
+    function _createAcrossV3ReceiveFundsAndExecuteHookData( 
         address inputToken,
         address outputToken,
         uint256 inputAmount,

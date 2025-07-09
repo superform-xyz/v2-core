@@ -166,15 +166,8 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         }
 
         if (initData.length > 0 && account.code.length == 0) {
-            account = _createAccount(initData);
-
-            // NOTE: left the below here for reference; will remove once reviewed
-            // Do we still need a `account != computedAddress` check ?
-            //--
-            //TODO: remove below
-            //(bytes memory factoryInitData, bytes32 salt) = abi.decode(initData, (bytes, bytes32, address));
-            //address computedAddress = NEXUS_FACTORY.createAccount(factoryInitData, salt);
-            //if (account != computedAddress) revert INVALID_ACCOUNT();
+            address computedAddress = _createAccount(initData);
+            if (account != computedAddress) revert INVALID_ACCOUNT();
         }
 
         if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
@@ -225,15 +218,13 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     }
 
     function _createAccount(bytes memory initCode) internal returns (address account) {
-        (address initAddress, bytes memory factoryInitData) = abi.decode(initCode, (address, bytes));
-        bool success;
-        /* solhint-disable no-inline-assembly */
-        assembly {
-            success := call(gas(), initAddress, 0, add(factoryInitData, 0x20), mload(factoryInitData), 0, 32)
-            account := mload(0)
-        }
+        address initAddress = BytesLib.toAddress(initCode, 0);
+        bytes memory initCallData = BytesLib.slice(initCode, 20, initCode.length - 20);
+        (bool success, bytes memory returnData) = initAddress.call(initCallData);
         if (!success) {
             account = address(0);
+        } else {
+            account = abi.decode(returnData, (address));
         }
     }
 }
