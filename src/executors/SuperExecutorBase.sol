@@ -13,7 +13,13 @@ import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperLedger } from "../interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, ISuperHookSetter, ISuperHookContextAware } from "../interfaces/ISuperHook.sol";
+import {
+    ISuperHook,
+    ISuperHookResult,
+    ISuperHookResultOutflow,
+    ISuperHookSetter,
+    ISuperHookContextAware
+} from "../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
 
 /// @title SuperExecutorBase
@@ -175,15 +181,8 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     /// @param account The smart account executing the operation
     /// @param hook The hook that was just executed
     /// @param hookData The data provided to the hook for execution
-    function _updateAccounting(
-        address account,
-        address hook,
-        bytes memory hookData
-    )
-        internal
-        virtual
-        returns (uint256 feeAmount)
-    {
+    function _updateAccounting(address account, address hook, bytes memory hookData) internal virtual {
+        uint256 feeAmount;
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             // Extract yield source information from the hook data
@@ -195,7 +194,8 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
                 ledgerConfiguration.getYieldSourceOracleConfig(yieldSourceOracleId);
             if (config.manager == address(0)) revert MANAGER_NOT_SET();
 
-            uint256 _outAmount = ISuperHookResult(address(hook)).getOutAmount(account); // Amount of shares or assets processed
+            uint256 _outAmount = ISuperHookResult(address(hook)).getOutAmount(account); // Amount of shares or assets
+                // processed
             // Update accounting records and calculate any fees
             feeAmount = ISuperLedger(config.ledger).updateAccounting(
                 account,
@@ -222,7 +222,6 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
                     if (IERC20(assetToken).balanceOf(account) < feeAmount) revert INSUFFICIENT_BALANCE_FOR_FEE();
                     _performErc20FeeTransfer(account, assetToken, config.feeRecipient, feeAmount);
                 }
-                
 
                 // refresh `outAmount`
                 ISuperHookSetter(hook).setOutAmount(_outAmount - feeAmount, account);
