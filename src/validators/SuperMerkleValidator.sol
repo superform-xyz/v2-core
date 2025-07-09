@@ -2,14 +2,14 @@
 pragma solidity 0.8.30;
 
 // external
-import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 // Superform
-import {SuperValidatorBase} from "./SuperValidatorBase.sol";
-import {ISuperSignatureStorage} from "../interfaces/ISuperSignatureStorage.sol";
+import { SuperValidatorBase } from "./SuperValidatorBase.sol";
+import { ISuperSignatureStorage } from "../interfaces/ISuperSignatureStorage.sol";
 
 /// @title SuperMerkleValidator
 /// @author Superform Labs
@@ -42,7 +42,10 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     //////////////////////////////////////////////////////////////*/
     /// @notice Validate a user operation
     /// @param _userOp The user operation to validate
-    function validateUserOp(PackedUserOperation calldata _userOp, bytes32 _userOpHash)
+    function validateUserOp(
+        PackedUserOperation calldata _userOp,
+        bytes32 _userOpHash
+    )
         external
         override
         returns (ValidationData)
@@ -74,19 +77,24 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
                 });
                 bytes32 dstLeaf = _createDestinationLeaf(dstData, sigData.validUntil, dstProof.info.validator);
 
-                if (!MerkleProof.verify(dstProof.proof, sigData.merkleRoot, dstLeaf)) revert INVALID_DESTINATION_PROOF();
+                if (!MerkleProof.verify(dstProof.proof, sigData.merkleRoot, dstLeaf)) {
+                    revert INVALID_DESTINATION_PROOF();
+                }
             }
 
             // store signature in transient storage to be retrieved during bridge execution
             _storeSignature(uint256(uint160(_userOp.sender)), _userOp.signature);
-
         }
 
         return _packValidationData(!isValid, sigData.validUntil, 0);
     }
 
     /// @notice Validate a signature with sender
-    function isValidSignatureWithSender(address, bytes32 dataHash, bytes calldata data)
+    function isValidSignatureWithSender(
+        address,
+        bytes32 dataHash,
+        bytes calldata data
+    )
         external
         view
         override
@@ -117,9 +125,20 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     /// @param validUntil Timestamp after which the signature becomes invalid
     /// @param checkCrossChainExecution Whether to validate destination proof
     /// @return The calculated leaf hash used in merkle tree verification
-    function _createLeaf(bytes memory data, uint48 validUntil, bool checkCrossChainExecution) internal view override returns (bytes32) {
+    function _createLeaf(
+        bytes memory data,
+        uint48 validUntil,
+        bool checkCrossChainExecution
+    )
+        internal
+        view
+        override
+        returns (bytes32)
+    {
         bytes32 userOpHash = abi.decode(data, (bytes32));
-        return keccak256(bytes.concat(keccak256(abi.encode(userOpHash, validUntil, checkCrossChainExecution, address(this)))));
+        return keccak256(
+            bytes.concat(keccak256(abi.encode(userOpHash, validUntil, checkCrossChainExecution, address(this))))
+        );
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -132,7 +151,10 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     /// @param userOpHash The hash of the user operation being verified
     /// @return signer The address that signed the message
     /// @return leaf The computed leaf hash used in merkle verification
-    function _processSignatureAndVerifyLeaf(SignatureData memory sigData, bytes32 userOpHash)
+    function _processSignatureAndVerifyLeaf(
+        SignatureData memory sigData,
+        bytes32 userOpHash
+    )
         private
         view
         returns (address signer, bytes32 leaf)
@@ -166,12 +188,12 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         bytes32 storageKey = _makeKey(identifier);
 
         // only one userOp per account is being executed
-        uint256 stored;        
+        uint256 stored;
         assembly {
             stored := tload(storageKey)
         }
 
-        if(stored != 0) revert INVALID_USER_OP();
+        if (stored != 0) revert INVALID_USER_OP();
 
         uint256 len = data.length;
 
