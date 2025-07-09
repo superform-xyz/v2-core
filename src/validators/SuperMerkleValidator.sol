@@ -22,7 +22,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     //////////////////////////////////////////////////////////////*/
     /// @notice Magic value returned when a signature is valid according to EIP-1271
     /// @dev The value 0x1626ba7e is specified by the EIP-1271 standard
-    bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
+    bytes4 public constant VALID_SIGNATURE = bytes4(0x1626ba7e);
 
     /// @notice Storage key for transient signature data
     /// @dev Uses the transient storage pattern to store signature data temporarily
