@@ -180,7 +180,7 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         address[] memory tokensOut = sY.getTokensOut();
         uint256 tokensInLength = tokensIn.length;
         uint256 tokensOutLength = tokensOut.length;
-        bool foundInTokensIn = false;
+        bool foundInTokensIn;
         for (uint256 i; i < tokensInLength; ++i) {
             if (tokensIn[i] == expectedUnderlying) {
                 foundInTokensIn = true;
@@ -190,7 +190,7 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
 
         if (!foundInTokensIn) return false;
 
-        bool foundInTokensOut = false;
+        bool foundInTokensOut;
         for (uint256 i; i < tokensOutLength; ++i) {
             if (tokensOut[i] == expectedUnderlying) {
                 foundInTokensOut = true;
