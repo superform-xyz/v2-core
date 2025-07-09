@@ -168,7 +168,7 @@ contract SuperNativePaymaster is BasePaymaster, ISuperNativePaymaster {
             uint256 deposit = entryPoint.getDepositInfo(address(this)).deposit;
             uint256 refundAmount = refund > deposit ? deposit : refund;
             entryPoint.withdrawTo(payable(sender), refundAmount);
-            emit SuperNativePaymsterRefund(sender, refundAmount, refund);
+            emit SuperNativePaymasterRefund(sender, refundAmount, refund);
         }
 
         emit SuperNativePaymasterPostOp(context);
