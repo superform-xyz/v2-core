@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-
 import {
     RhinestoneModuleKit,
     ModuleKitHelpers,
@@ -30,7 +29,6 @@ import { SafeProxy } from "@safe/proxies/SafeProxy.sol";
 import { ISafe } from "@safe/interfaces/ISafe.sol";
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
-
 // Superform
 import { InternalHelpers } from "../../utils/InternalHelpers.sol";
 import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
@@ -57,6 +55,20 @@ contract SafeAccountExecution is
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
+    struct SignatureData {
+        bytes32 rawHash;
+        bytes32 domainSeparator;
+        bytes32 finalHash;
+        uint8 v1;
+        uint8 v2;
+        bytes32 r1;
+        bytes32 r2;
+        bytes32 s1;
+        bytes32 s2;
+        address recovered1;
+        address recovered2;
+    }
+
     // SafeERC7579
     // -- erc7579 account
     AccountInstance instance;
@@ -81,7 +93,6 @@ contract SafeAccountExecution is
     SafeProxy safeProxy;
     Safe safe;
 
-
     // Superform
     ApproveERC20Hook approveERC20Hook;
     SuperLedgerConfiguration superLedgerConfiguration;
@@ -104,7 +115,7 @@ contract SafeAccountExecution is
         vm.label(address(approveERC20Hook), "Superform ApproveERC20Hook");
         vm.label(address(mockERC20), "Superform MockERC20");
 
-        // safe 
+        // safe
         privateKey1 = 1;
         owner1 = vm.addr(privateKey1);
         privateKey2 = 2;
@@ -119,7 +130,10 @@ contract SafeAccountExecution is
             threshold,
             address(0), // fallbackHandler
             bytes(""),
-            address(0), address(0), 0, address(0)
+            address(0),
+            address(0),
+            0,
+            address(0)
         );
 
         // SafeERC7579 manual account creation
@@ -130,12 +144,11 @@ contract SafeAccountExecution is
         safeFactory = new SafeFactory();
         safeFactory.init();
 
-        //https://github.com/safe-global/safe-smart-account creation 
+        //https://github.com/safe-global/safe-smart-account creation
         Safe _safeSingleton = new Safe();
         SafeProxyFactory factory = new SafeProxyFactory();
         safeProxy = factory.createProxyWithNonce(address(_safeSingleton), initializer, 0);
         safe = Safe(payable(safeProxy));
-
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -147,70 +160,72 @@ contract SafeAccountExecution is
         assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
     }
 
-
     /**
-    function test_SameChainTx_execution_ManualAccountCreation() public {
-        console2.log("----- test_SameChainTx_execution_ManualAccountCreation");
-
-        bytes memory initCode = _getInitData("");
-        ISafe7579Launchpad.InitData memory initData =
-            abi.decode(initCode, (ISafe7579Launchpad.InitData));
-        bytes32 initHash = launchpad.hash(initData);
-
-        bytes memory factoryInitializer =
-            abi.encodeCall(ISafe7579Launchpad.preValidationSetup, (initHash, address(0), ""));
-
-        safeErc7579Account = address(
-            safeProxyFactory.createProxyWithNonce(
-                address(launchpad), factoryInitializer, uint256(accountSalt)
-            )
-        );
-
-
-        // setup execution data
-        uint256 amount = 1e8;
-        uint256 allowanceBefore = mockERC20.allowance(address(this), address(account));
-
-        // -- executor entry
-        address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = address(approveERC20Hook);
-        bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createApproveHookData(address(mockERC20), address(safeErc7579Account), amount, false);
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-
-        // -- userOp calldata
-        Execution[] memory executions = new Execution[](1);
-        executions[0] = Execution({
-            target: address(superExecutor),
-            value: 0,
-            callData: abi.encodeCall(ISuperExecutor.execute, (abi.encode(entry)))
-        });
-        bytes memory userOpCalldata =
-            abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleBatch(), ExecutionLib.encodeBatch(executions)));
-
-        uint256 nonce = 1;//IEntryPoint(ENTRYPOINT_ADDR).getNonce(address(safeErc7579Account), _makeNonceKey(0x00));
-
-        // prepare PackedUserOperatio
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        userOps[0] = _getDefaultUserOp();
-        userOps[0].sender = safeErc7579Account;
-        userOps[0].nonce = nonce;
-        userOps[0].callData = userOpCalldata;
-
-        console2.log("---------------A");
-        uint48 validUntil = uint48(block.timestamp + 100 days);
-        bytes32 userOpHash = bytes32("0x1");//IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOps[0]);
-        console2.log("---------------B");
-        bytes memory sigData = _createSourceSigData(validUntil, userOpHash);
-        userOps[0].signature = sigData;
-    }
-    */
-
-
+     * function test_SameChainTx_execution_ManualAccountCreation() public {
+     *     console2.log("----- test_SameChainTx_execution_ManualAccountCreation");
+     *
+     *     bytes memory initCode = _getInitData("");
+     *     ISafe7579Launchpad.InitData memory initData =
+     *         abi.decode(initCode, (ISafe7579Launchpad.InitData));
+     *     bytes32 initHash = launchpad.hash(initData);
+     *
+     *     bytes memory factoryInitializer =
+     *         abi.encodeCall(ISafe7579Launchpad.preValidationSetup, (initHash, address(0), ""));
+     *
+     *     safeErc7579Account = address(
+     *         safeProxyFactory.createProxyWithNonce(
+     *             address(launchpad), factoryInitializer, uint256(accountSalt)
+     *         )
+     *     );
+     *
+     *
+     *     // setup execution data
+     *     uint256 amount = 1e8;
+     *     uint256 allowanceBefore = mockERC20.allowance(address(this), address(account));
+     *
+     *     // -- executor entry
+     *     address[] memory hooksAddresses = new address[](1);
+     *     hooksAddresses[0] = address(approveERC20Hook);
+     *     bytes[] memory hooksData = new bytes[](1);
+     *     hooksData[0] = _createApproveHookData(address(mockERC20), address(safeErc7579Account),
+     * amount, false);
+     *     ISuperExecutor.ExecutorEntry memory entry =
+     *         ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData
+     * });
+     *
+     *     // -- userOp calldata
+     *     Execution[] memory executions = new Execution[](1);
+     *     executions[0] = Execution({
+     *         target: address(superExecutor),
+     *         value: 0,
+     *         callData: abi.encodeCall(ISuperExecutor.execute, (abi.encode(entry)))
+     *     });
+     *     bytes memory userOpCalldata =
+     *         abi.encodeCall(IERC7579Account.execute, (ModeLib.encodeSimpleBatch(),
+     * ExecutionLib.encodeBatch(executions)));
+     *
+     *     uint256 nonce = 1;//IEntryPoint(ENTRYPOINT_ADDR).getNonce(address(safeErc7579Account),
+     * _makeNonceKey(0x00));
+     *
+     *     // prepare PackedUserOperatio
+     *     PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+     *     userOps[0] = _getDefaultUserOp();
+     *     userOps[0].sender = safeErc7579Account;
+     *     userOps[0].nonce = nonce;
+     *     userOps[0].callData = userOpCalldata;
+     *
+     *     console2.log("---------------A");
+     *     uint48 validUntil = uint48(block.timestamp + 100 days);
+     *     bytes32 userOpHash =
+     * bytes32("0x1");//IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOps[0]);
+     *     console2.log("---------------B");
+     *     bytes memory sigData = _createSourceSigData(validUntil, userOpHash);
+     *     userOps[0].signature = sigData;
+     * }
+     */
     function test_SameChainTx_executionA() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
         console2.log("----- test_SameChainTx_execution");
-        // setup SafeERC7579 
+        // setup SafeERC7579
         safe7579 = SafeFactory(_getFactory("SAFE")).safe7579();
         bytes memory initData = _getInitData();
         address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
@@ -218,11 +233,12 @@ contract SafeAccountExecution is
         bytes memory initCode = abi.encodePacked(
             address(_getFactory("SAFE")), abi.encodeCall(IAccountFactory.createAccount, (accountSalt, initData))
         );
+        /// @dev FLAG TODO
         instance = makeAccountInstance(accountSalt, predictedAddress, initCode);
         account = instance.account;
         assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
         console2.log("----- test_SameChainTx_execution installing custom 7579 modules A");
-         
+
         console2.log("----- test_SameChainTx_execution installing custom 7579 modules B");
         instance.installModule({
             moduleTypeId: MODULE_TYPE_VALIDATOR,
@@ -253,9 +269,7 @@ contract SafeAccountExecution is
 
         assertTrue(false);
         //executeOp(userOpData);
-
     }
-
 
     /*//////////////////////////////////////////////////////////////
                                 INTERNAL HELPERS
@@ -270,69 +284,65 @@ contract SafeAccountExecution is
 
     // -- SAFEERC7579 helper
     /**
-    function _makeSafeERC7579Account() public returns (address, bytes memory) {
-        ModuleInit[] memory modules = new ModuleInit[](1);
-        modules[0] = ModuleInit({
-            module: address(validator),
-            initData: bytes(""),
-            moduleType: MODULE_TYPE_VALIDATOR
-        });
-
-        bytes memory initializer = abi.encodeCall(
-            Safe.setup,
-            (
-                owners,
-                2,
-                address(launchpad),
-                abi.encodeCall(
-                    Safe7579Launchpad.addSafe7579,
-                    (
-                        address(safe7579),
-                        modules,
-                        owners,
-                        2
-                    )
-                ),
-                address(safe7579),
-                address(0),
-                0,
-                payable(address(0))
-            )
-        );
-
-        uint256 saltNonce = 222;
-
-        bytes memory deploymentData = abi.encodePacked(
-            safeProxyFactory.proxyCreationCode(), uint256(uint160(address(safeSingleton)))
-        );
-        bytes32 salt = keccak256(abi.encodePacked(keccak256(initializer), saltNonce));
-        bytes32 hash = keccak256(
-            abi.encodePacked(
-                bytes1(0xff), // prefix
-                address(safeProxyFactory), // deployer address
-                salt, // salt
-                keccak256(deploymentData) // bytecode hash
-            )
-        );
-
-        address account = payable(address(uint160(uint256(hash))));
-
-        vm.deal(address(account), 1 ether);
-        bytes memory accountInitData = abi.encodePacked(
-            safeProxyFactory,
-            abi.encodeCall(
-                SafeProxyFactory.createProxyWithNonce,
-                (address(singleton), initializer, saltNonce)
-            ));
-
-        return (account, accountInitData);
-    }
-    */
-    function _getInitData()
-        internal
-        view
-        returns (bytes memory _init)
-    {
+     * function _makeSafeERC7579Account() public returns (address, bytes memory) {
+     *     ModuleInit[] memory modules = new ModuleInit[](1);
+     *     modules[0] = ModuleInit({
+     *         module: address(validator),
+     *         initData: bytes(""),
+     *         moduleType: MODULE_TYPE_VALIDATOR
+     *     });
+     *
+     *     bytes memory initializer = abi.encodeCall(
+     *         Safe.setup,
+     *         (
+     *             owners,
+     *             2,
+     *             address(launchpad),
+     *             abi.encodeCall(
+     *                 Safe7579Launchpad.addSafe7579,
+     *                 (
+     *                     address(safe7579),
+     *                     modules,
+     *                     owners,
+     *                     2
+     *                 )
+     *             ),
+     *             address(safe7579),
+     *             address(0),
+     *             0,
+     *             payable(address(0))
+     *         )
+     *     );
+     *
+     *     uint256 saltNonce = 222;
+     *
+     *     bytes memory deploymentData = abi.encodePacked(
+     *         safeProxyFactory.proxyCreationCode(), uint256(uint160(address(safeSingleton)))
+     *     );
+     *     bytes32 salt = keccak256(abi.encodePacked(keccak256(initializer), saltNonce));
+     *     bytes32 hash = keccak256(
+     *         abi.encodePacked(
+     *             bytes1(0xff), // prefix
+     *             address(safeProxyFactory), // deployer address
+     *             salt, // salt
+     *             keccak256(deploymentData) // bytecode hash
+     *         )
+     *     );
+     *
+     *     address account = payable(address(uint160(uint256(hash))));
+     *
+     *     vm.deal(address(account), 1 ether);
+     *     bytes memory accountInitData = abi.encodePacked(
+     *         safeProxyFactory,
+     *         abi.encodeCall(
+     *             SafeProxyFactory.createProxyWithNonce,
+     *             (address(singleton), initializer, saltNonce)
+     *         ));
+     *
+     *     return (account, accountInitData);
+     * }
+     */
+    function _getInitData() internal view returns (bytes memory _init) {
         ModuleInit[] memory validators = new ModuleInit[](1);
         validators[0] = ModuleInit({ module: address(_defaultValidator), initData: "" });
         ModuleInit[] memory executors = new ModuleInit[](0);
@@ -346,14 +356,7 @@ contract SafeAccountExecution is
             setupTo: address(SafeFactory(_getFactory("SAFE")).launchpad()),
             setupData: abi.encodeCall(
                 ISafe7579Launchpad.initSafe7579,
-                (
-                    address(SafeFactory(_getFactory("SAFE")).safe7579()),
-                    executors,
-                    fallbacks,
-                    hooks,
-                    owners,
-                    2
-                )
+                (address(SafeFactory(_getFactory("SAFE")).safe7579()), executors, fallbacks, hooks, owners, 2)
             ),
             safe7579: ISafe7579(SafeFactory(_getFactory("SAFE")).safe7579()),
             validators: validators,
@@ -361,7 +364,6 @@ contract SafeAccountExecution is
         });
         _init = abi.encode(initDataSafe);
     }
-
 
     // -- 1271 signature helper
     function _createSourceSigData(
@@ -381,63 +383,88 @@ contract SafeAccountExecution is
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         signatureData = abi.encode(false, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
     }
-    function _getSafeSignature(bytes32 merkleRoot)
-        internal
-        view
-        returns (bytes memory)
-    {
-        bytes32 rawHash = keccak256(abi.encode(validator.namespace(), merkleRoot));
-        bytes32 safeMessageHash = _getSafeMessageHash(rawHash); 
 
-        (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(privateKey1, safeMessageHash);
-        (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(privateKey2, safeMessageHash);
+    function _getSafeSignature(bytes32 merkleRoot) internal view returns (bytes memory) {
+        SignatureData memory sigData;
+        sigData.rawHash = keccak256(abi.encode(validator.namespace(), merkleRoot));
 
-        bytes memory sig1 = abi.encodePacked(r1, s1, v1);
-        bytes memory sig2 = abi.encodePacked(r2, s2, v2);
-        console2.log("--------v1", v1);
-        console2.log("--------v2", v2);
+        console2.log("Expected owner1:", owner1);
+        console2.log("Expected owner2:", owner2);
+        console2.log("Account address:", address(account));
+
+        // Calculate the hash that Safe7579 will actually validate against
+        sigData.domainSeparator = ISafe(payable(account)).domainSeparator();
+        console2.log("Domain separator:", vm.toString(sigData.domainSeparator));
+        console2.log("Raw hash:", vm.toString(sigData.rawHash));
+
+        // Replicate exactly what EIP712.encodeMessageData does
+        // keccak256("SafeMessage(bytes message)");
+        bytes32 SAFE_MSG_TYPEHASH = 0x60b3cbf8b4a223d68d641b3b6ddf9a298e7f33710cf3d3a9d1146b5a6150fbca;
+        bytes memory messageData = abi.encodePacked(
+            bytes1(0x19),
+            bytes1(0x01),
+            sigData.domainSeparator,
+            keccak256(abi.encode(SAFE_MSG_TYPEHASH, keccak256(abi.encode(sigData.rawHash))))
+        );
+        sigData.finalHash = keccak256(messageData);
+
+        console2.log("Final hash being signed:", vm.toString(sigData.finalHash));
+
+        // Sign the hash that Safe7579 will actually validate
+        (sigData.v1, sigData.r1, sigData.s1) = vm.sign(privateKey1, sigData.finalHash);
+        (sigData.v2, sigData.r2, sigData.s2) = vm.sign(privateKey2, sigData.finalHash);
+
+        // Verify recovery
+        sigData.recovered1 = ecrecover(sigData.finalHash, sigData.v1, sigData.r1, sigData.s1);
+        sigData.recovered2 = ecrecover(sigData.finalHash, sigData.v2, sigData.r2, sigData.s2);
+        console2.log("Recovered address 1:", sigData.recovered1);
+        console2.log("Recovered address 2:", sigData.recovered2);
+
+        return _buildAndValidateSignature(sigData);
+    }
+
+    function _buildAndValidateSignature(SignatureData memory sigData) internal view returns (bytes memory) {
+        bytes memory sig1 = abi.encodePacked(sigData.r1, sigData.s1, sigData.v1);
+        bytes memory sig2 = abi.encodePacked(sigData.r2, sigData.s2, sigData.v2);
+        console2.log("--------v1", sigData.v1);
+        console2.log("--------v2", sigData.v2);
+
         bytes memory signature;
         if (owner1 < owner2) {
             signature = bytes.concat(sig1, sig2);
         } else {
             signature = bytes.concat(sig2, sig1);
         }
-        //GS020
-        //GS026-> 
+
         console2.log("--------checking signature", signature.length);
-        bytes4 rv = IERC1271(address(account)).isValidSignature(safeMessageHash, signature);
+        bytes memory dataWithValidator = abi.encodePacked(address(0), signature);
+        console2.logBytes(dataWithValidator);
+        bytes4 rv = IERC1271(address(account)).isValidSignature(sigData.rawHash, dataWithValidator);
         console2.log("--------checked");
 
         return signature;
     }
 
-    function _encodeSafeSignature(uint256 ownerIndex, uint8 v, bytes32 r, bytes32 s) internal pure returns (bytes memory) {
+    function _encodeSafeSignature(
+        uint256 ownerIndex,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
         // Encode v with index per Gnosis Safe spec
         uint256 vWithIndex = v + uint8(ownerIndex) * 0x100;
         return abi.encodePacked(r, s, uint8(vWithIndex));
-    }
-
-    /// @dev Replicates Safe.getMessageHash(bytes32)
-    function _getSafeMessageHash(bytes32 dataHash) internal view returns (bytes32) {
-        // Safe uses EIP-712 domain separator
-        bytes32 domainSeparator = ISafe(payable(safe)).domainSeparator();
-
-        return keccak256(
-            abi.encodePacked(
-                "\x19\x01",
-                domainSeparator,
-                keccak256(abi.encode(
-                    keccak256("SafeMessage(bytes32 message)"), // constant per Safe implementation
-                    dataHash
-                ))
-            )
-        );
     }
 
     // -- UserOps helpers
     function _makeNonceKey(bytes1 vMode) internal view returns (uint192 key) {
         key = (uint192(uint8(vMode)) << 160) | uint192(uint160(address(validator)));
     }
+
     function _getDefaultUserOp() internal pure returns (PackedUserOperation memory userOp) {
         userOp = PackedUserOperation({
             sender: address(0),
@@ -451,5 +478,4 @@ contract SafeAccountExecution is
             signature: abi.encodePacked(hex"41414141")
         });
     }
-
 }

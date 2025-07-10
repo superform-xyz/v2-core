@@ -182,8 +182,8 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     )
         internal
         virtual
-        returns (uint256 feeAmount)
     {
+        uint256 feeAmount;
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {
             // Extract yield source information from the hook data
