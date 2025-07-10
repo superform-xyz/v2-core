@@ -21,7 +21,7 @@ import { IFluidLendingStakingRewards } from "../../../vendor/fluid/IFluidLending
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 52);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-contract FluidUnstakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract FluidUnstakeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;
