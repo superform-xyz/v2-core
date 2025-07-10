@@ -138,7 +138,7 @@ interface ISuperHookLoans is ISuperHookContextAware {
     /// @dev Used to identify which asset is being borrowed from the lending protocol
     /// @param data The hook-specific data containing loan information
     /// @return The address of the borrowed token
-    function getLoanTokenAddress(bytes memory data) external view returns (address);
+    function getLoanTokenAddress(bytes memory data) external pure returns (address);
 
     /// @notice Gets the address of the token used as collateral
     /// @dev Used to identify which asset is being used to secure the loan

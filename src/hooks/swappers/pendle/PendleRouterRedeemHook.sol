@@ -56,7 +56,6 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error YT_NOT_VALID();
-    error ORDER_NOT_MATURE();
     error RECEIVER_NOT_VALID();
     error TOKEN_OUT_NOT_VALID();
     error MIN_TOKEN_OUT_NOT_VALID();

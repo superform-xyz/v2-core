@@ -67,4 +67,9 @@ interface ISuperValidator {
     error NOT_IMPLEMENTED();
     error PROOF_NOT_FOUND();
     error INVALID_CHAIN_ID();
+
+    /*//////////////////////////////////////////////////////////////
+                                 FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    function namespace() external pure returns (string memory);
 }

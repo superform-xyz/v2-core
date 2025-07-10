@@ -314,7 +314,6 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware, ISuperH
     //////////////////////////////////////////////////////////////*/
 
     function _getBalance(bytes calldata data, address account) private view returns (uint256) {
-        // TODO: check if this is correct; Get's the latest token out from the commands list
         address tokenOut = _decodeTokenOut(data[TX_DATA_POSITION:]);
 
         if (tokenOut == address(0)) {

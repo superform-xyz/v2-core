@@ -274,7 +274,6 @@ abstract contract BaseLedger is ISuperLedger {
             );
 
             emit AccountingInflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, pps);
-            return 0;
         } else {
             uint256 amountAssets = _getOutflowProcessVolume(
                 amountSharesOrAssets,

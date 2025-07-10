@@ -77,10 +77,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     /// @dev Used in validation checks for tokens, accounts, and other addresses
     error ADDRESS_NOT_VALID();
 
-    /// @notice Thrown when the provided data payload is too short for decoding
-    /// @dev Used when validating and parsing hook-specific data parameters
-    error DATA_LENGTH_INSUFFICIENT();
-
     /// @notice Thrown when a caller is not authorized to execute hook methods
     /// @dev Used by security validation to prevent unauthorized hook execution
     error UNAUTHORIZED_CALLER();
