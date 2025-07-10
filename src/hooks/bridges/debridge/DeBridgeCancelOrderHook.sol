@@ -65,7 +65,7 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
 /// givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength +
 /// allowedCancelBeneficiarySrc_paramLength);
-contract DeBridgeCancelOrderHook is BaseHook, ISuperHookInspector {
+contract DeBridgeCancelOrderHook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/

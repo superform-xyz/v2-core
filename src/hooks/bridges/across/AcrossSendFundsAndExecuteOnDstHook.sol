@@ -33,7 +33,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         uint32 exclusivityPeriod = BytesLib.toUint32(data, 212);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 216);
 /// @notice         bytes destinationMessage = BytesLib.slice(data, 217, data.length - 217);
-contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/

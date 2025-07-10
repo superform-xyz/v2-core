@@ -32,8 +32,7 @@ contract GearboxClaimRewardHook is
     BaseClaimRewardHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
 
