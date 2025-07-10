@@ -5,7 +5,7 @@ pragma solidity >=0.8.30;
 import { CREATE3 } from "@solady/src/utils/CREATE3.sol";
 
 // Superform
-import { ISuperDeployer } from "./ISuperDeployer.sol";
+import { ISuperDeployer } from "./interfaces/ISuperDeployer.sol";
 
 contract SuperDeployer is ISuperDeployer {
     /*//////////////////////////////////////////////////////////////

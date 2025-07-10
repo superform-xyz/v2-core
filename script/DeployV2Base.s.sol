@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.30;
 
 // external
@@ -6,8 +6,8 @@ import { Script } from "forge-std/Script.sol";
 import "forge-std/console2.sol";
 
 // Superform
-import { SuperDeployer } from "./utils/SuperDeployer.sol";
-import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
+import { SuperDeployer } from "../src/SuperDeployer.sol";
+import { ISuperDeployer } from "../src/interfaces/ISuperDeployer.sol";
 import { ConfigBase } from "./utils/ConfigBase.sol";
 
 abstract contract DeployV2Base is Script, ConfigBase {
