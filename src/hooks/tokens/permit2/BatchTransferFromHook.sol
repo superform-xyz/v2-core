@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -32,7 +32,6 @@ contract BatchTransferFromHook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
-    error INSUFFICIENT_ALLOWANCE();
     error INSUFFICIENT_BALANCE();
     error INVALID_ARRAY_LENGTH();
 
@@ -192,7 +191,7 @@ contract BatchTransferFromHook is BaseHook {
                 from: from,
                 to: account,
                 token: token,
-                amount: uint160(amount)
+                amount: amount.toUint160()
             });
         }
         return details;

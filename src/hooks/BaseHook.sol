@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // External
@@ -79,10 +79,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     /// @notice Thrown when an address parameter is invalid (e.g., zero address)
     /// @dev Used in validation checks for tokens, accounts, and other addresses
     error ADDRESS_NOT_VALID();
-
-    /// @notice Thrown when the provided data payload is too short for decoding
-    /// @dev Used when validating and parsing hook-specific data parameters
-    error DATA_LENGTH_INSUFFICIENT();
 
     /// @notice Thrown when a caller is not authorized to execute hook methods
     /// @dev Used by security validation to prevent unauthorized hook execution
@@ -214,9 +210,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata) external view virtual returns (bytes memory) { 
-        return "";
-    }
+    function inspect(bytes calldata) external view virtual returns (bytes memory) { }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS

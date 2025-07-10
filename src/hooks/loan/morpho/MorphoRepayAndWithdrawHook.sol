@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -157,7 +157,6 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     /// @param id the id of the market
     /// @param account the account to derive the share balance for
     /// @return borrowShares the share balance of the account
-
     function deriveShareBalance(Id id, address account) public view returns (uint128 borrowShares) {
         (, borrowShares,) = morphoStaticTyping.position(id, account);
     }

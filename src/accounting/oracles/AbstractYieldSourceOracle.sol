@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // Superform
@@ -122,7 +122,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         pricesPerShare = new uint256[](length);
 
         // Iterate through all yield sources and get individual prices
-        for (uint256 i = 0; i < length; ++i) {
+        for (uint256 i; i < length; ++i) {
             pricesPerShare[i] = getPricePerShare(yieldSourceAddresses[i]);
         }
     }
@@ -152,7 +152,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         userTvls = new uint256[][](length);
 
         // Process each yield source
-        for (uint256 i = 0; i < length; ++i) {
+        for (uint256 i; i < length; ++i) {
             address yieldSource = yieldSourceAddresses[i];
             address[] memory owners = ownersOfShares[i];
             uint256 ownersLength = owners.length;
@@ -160,7 +160,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
             userTvls[i] = new uint256[](ownersLength);
 
             // For each yield source, process each owner
-            for (uint256 j = 0; j < ownersLength; ++j) {
+            for (uint256 j; j < ownersLength; ++j) {
                 uint256 userTvl = getTVLByOwnerOfShares(yieldSource, owners[j]);
                 userTvls[i][j] = userTvl;
             }
@@ -173,7 +173,7 @@ abstract contract AbstractYieldSourceOracle is IYieldSourceOracle {
         tvls = new uint256[](length);
 
         // Get TVL for each yield source
-        for (uint256 i = 0; i < length; ++i) {
+        for (uint256 i; i < length; ++i) {
             tvls[i] = getTVL(yieldSourceAddresses[i]);
         }
     }

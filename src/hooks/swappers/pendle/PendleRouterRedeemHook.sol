@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -51,7 +51,6 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error YT_NOT_VALID();
-    error ORDER_NOT_MATURE();
     error RECEIVER_NOT_VALID();
     error TOKEN_OUT_NOT_VALID();
     error MIN_TOKEN_OUT_NOT_VALID();
@@ -87,18 +86,18 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
         executions[0] = Execution({
             target: params.PT,
             value: 0,
-            callData: abi.encodeWithSelector(IERC20.approve.selector, address(pendleRouterV4), finalAmount)
+            callData: abi.encodeCall(IERC20.approve, (address(pendleRouterV4), finalAmount))
         });
         executions[1] = Execution({
             target: params.YT,
             value: 0,
-            callData: abi.encodeWithSelector(IERC20.approve.selector, address(pendleRouterV4), finalAmount)
+            callData: abi.encodeCall(IERC20.approve, (address(pendleRouterV4), finalAmount))
         });
         executions[2] = Execution({
             target: address(pendleRouterV4),
             value: 0,
-            callData: abi.encodeWithSelector(
-                IPendleRouterV4.redeemPyToToken.selector, account, params.YT, finalAmount, params.output
+            callData: abi.encodeCall(
+                IPendleRouterV4.redeemPyToToken, (account, params.YT, finalAmount, params.output)
             )
         });
     }
