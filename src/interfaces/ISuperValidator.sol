@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 /// @title ISuperValidator
@@ -39,7 +39,6 @@ interface ISuperValidator {
         /// @notice The minimum token amounts required for execution
         uint256[] intentAmounts;
     }
-
 
     /// @notice Structure holding signature data used across validator implementations
     /// @dev Contains all components needed for merkle proof verification and signature validation
