@@ -12,8 +12,6 @@ import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { BasePaymaster } from "../vendor/account-abstraction/BasePaymaster.sol";
 import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
 
-import "forge-std/console2.sol";
-
 /// @title SuperNativePaymaster
 /// @author Superform Labs
 /// @notice A paymaster contract that allows users to pay for their operations with native tokens.

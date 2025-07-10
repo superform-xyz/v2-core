@@ -32,7 +32,6 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
-    error INSUFFICIENT_ALLOWANCE();
     error INSUFFICIENT_BALANCE();
     error INVALID_ARRAY_LENGTH();
 
@@ -192,7 +191,7 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
                 from: from,
                 to: account,
                 token: token,
-                amount: uint160(amount)
+                amount: amount.toUint160()
             });
         }
         return details;

@@ -2,9 +2,9 @@
 pragma solidity 0.8.30;
 
 // external
-import {ERC7579ValidatorBase} from "modulekit/Modules.sol";
-import {ISuperSignatureStorage} from "../interfaces/ISuperSignatureStorage.sol";
-import {ISuperValidator} from "../interfaces/ISuperValidator.sol";
+import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
+import { ISuperSignatureStorage } from "../interfaces/ISuperSignatureStorage.sol";
+import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
 
 /// @title SuperValidatorBase
 /// @author Superform Labs
@@ -27,7 +27,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     error ZERO_ADDRESS();
     error INVALID_PROOF();
     error ALREADY_INITIALIZED();
-    error INVALID_DESTINATION_PROOF(); // thrown on source 
+    error INVALID_DESTINATION_PROOF(); // thrown on source
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -75,9 +75,26 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         return "SuperValidator";
     }
 
-    function _createLeaf(bytes memory data, uint48 validUntil, bool checkCrossChainExecution) internal view virtual returns (bytes32);
+    function _createLeaf(
+        bytes memory data,
+        uint48 validUntil,
+        bool checkCrossChainExecution
+    )
+        internal
+        view
+        virtual
+        returns (bytes32);
 
-    function _createDestinationLeaf(DestinationData memory destinationData, uint48 validUntil, address validator) internal view virtual returns (bytes32) {
+    function _createDestinationLeaf(
+        DestinationData memory destinationData,
+        uint48 validUntil,
+        address validator
+    )
+        internal
+        view
+        virtual
+        returns (bytes32)
+    {
         // Note: destinationData.initData is not included because it is not needed for the leaf.
         // If precomputed account is != than the executing account, the entire execution reverts
         // before this method is called. Check SuperDestinationExecutor for more details.
@@ -98,7 +115,6 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
             )
         );
     }
-
 
     /// @notice Decodes raw signature data into a structured SignatureData object
     /// @dev Handles ABI decoding of all signature components
@@ -131,7 +147,11 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     /// @param sender The account address being operated on
     /// @param validUntil Timestamp after which the signature is no longer valid
     /// @return True if the signature is valid, false otherwise
-    function _isSignatureValid(address signer, address sender, uint48 validUntil)
+    function _isSignatureValid(
+        address signer,
+        address sender,
+        uint48 validUntil
+    )
         internal
         view
         virtual
