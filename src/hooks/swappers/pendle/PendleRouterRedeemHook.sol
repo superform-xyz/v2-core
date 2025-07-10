@@ -12,7 +12,6 @@ import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import {
-    ISuperHook,
     ISuperHookResult,
     ISuperHookContextAware,
     ISuperHookInspector
@@ -28,7 +27,7 @@ import {
 /// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 92);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
 /// @notice         bytes output = BytesLib.slice(data, 125, data.length - 125);
-contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     // Offset for bool usePrevHookAmount (after packed amount, YT, tokenOut, minTokenOut)

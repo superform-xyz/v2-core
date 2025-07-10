@@ -21,7 +21,7 @@ import { IGearboxFarmingPool } from "../../../vendor/gearbox/IGearboxFarmingPool
 /// @notice         address token = BytesLib.toAddress(data, 52);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 72);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
-contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 72;

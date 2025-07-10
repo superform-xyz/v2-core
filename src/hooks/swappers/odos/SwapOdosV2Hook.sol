@@ -3,9 +3,9 @@ pragma solidity 0.8.30;
 
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IOdosRouterV2 } from "../../../vendor/odos/IOdosRouterV2.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -26,7 +26,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         bytes pathDefinition = BytesLib.slice(data, 189, pathDefinition_paramLength);
 /// @notice         address executor = BytesLib.toAddress(data, 189 + pathDefinition_paramLength);
 /// @notice         uint32 referralCode = BytesLib.toUint32(data, 189 + pathDefinition_paramLength + 20);
-contract SwapOdosV2Hook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract SwapOdosV2Hook is BaseHook, ISuperHookContextAware {
     IOdosRouterV2 public immutable odosRouterV2;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
