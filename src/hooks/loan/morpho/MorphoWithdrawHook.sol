@@ -26,7 +26,7 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 120);
 /// @notice         uint256 assets = BytesLib.toUint256(data, 152);
 /// @notice         uint256 shares = BytesLib.toUint256(data, 184);
-contract MorphoWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
+contract MorphoWithdrawHook is BaseMorphoLoanHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
 
