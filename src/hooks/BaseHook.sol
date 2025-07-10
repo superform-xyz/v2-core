@@ -214,7 +214,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure virtual returns (bytes memory) { }
+    function inspect(bytes calldata data) external view virtual returns (bytes memory) { }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
