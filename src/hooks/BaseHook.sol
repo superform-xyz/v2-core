@@ -214,11 +214,7 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, IS
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
-        return abi.encodePacked(
-            data.extractYieldSource()
-        );
-    }
+    function inspect(bytes calldata data) external pure virtual returns (bytes memory) { }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
