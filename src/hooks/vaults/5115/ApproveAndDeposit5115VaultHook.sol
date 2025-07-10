@@ -99,7 +99,7 @@ contract ApproveAndDeposit5115VaultHook is
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
             data.extractYieldSource(),
             BytesLib.toAddress(data, 52) // tokenIn

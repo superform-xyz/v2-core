@@ -80,7 +80,7 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         WithdrawHookVars memory vars = _decodeWithdrawData(data);
 
         return abi.encodePacked(

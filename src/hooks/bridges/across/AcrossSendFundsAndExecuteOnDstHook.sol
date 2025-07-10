@@ -174,7 +174,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
             BytesLib.toAddress(data, 32), // recipient
             BytesLib.toAddress(data, 52), // inputToken

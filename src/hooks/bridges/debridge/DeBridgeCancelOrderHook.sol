@@ -101,7 +101,7 @@ contract DeBridgeCancelOrderHook is BaseHook {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         (Order memory order,,) = _createOrder(data);
 
         return abi.encodePacked(

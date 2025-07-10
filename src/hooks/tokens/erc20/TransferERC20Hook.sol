@@ -64,7 +64,7 @@ contract TransferERC20Hook is BaseHook, ISuperHookContextAware {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
             BytesLib.toAddress(data, 0), //token
             BytesLib.toAddress(data, 20) //to

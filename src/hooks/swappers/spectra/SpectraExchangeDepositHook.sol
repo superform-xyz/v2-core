@@ -90,7 +90,7 @@ contract SpectraExchangeDepositHook is BaseHook, ISuperHookContextAware {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         bytes calldata txData_ = data[TX_DATA_POSITION:];
         ValidateTxDataParams memory params;
         params.selector = bytes4(txData_[0:4]);

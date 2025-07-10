@@ -21,11 +21,7 @@ import { ISuperHookAsyncCancelations, ISuperHookInspector } from "../../../inter
 /// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         address receiver = BytesLib.toAddress(data, 52);
-contract ClaimCancelRedeemRequest7540Hook is
-    BaseHook,
-    VaultBankLockableHook,
-    ISuperHookAsyncCancelations
-{
+contract ClaimCancelRedeemRequest7540Hook is BaseHook, VaultBankLockableHook, ISuperHookAsyncCancelations {
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM_CANCEL_REDEEM_REQUEST) { }
@@ -67,7 +63,7 @@ contract ClaimCancelRedeemRequest7540Hook is
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
             data.extractYieldSource(),
             BytesLib.toAddress(data, 52) //receiver

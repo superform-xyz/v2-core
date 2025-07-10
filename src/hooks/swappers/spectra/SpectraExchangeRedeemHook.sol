@@ -119,7 +119,7 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         RedeemParams memory params = _decodeRedeemParams(data);
 
         return abi.encodePacked(params.asset, params.pt, params.recipient);

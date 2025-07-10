@@ -141,7 +141,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         (IDlnSource.OrderCreation memory orderCreation,,,) = _createOrder(data, "");
 
         return abi.encodePacked(

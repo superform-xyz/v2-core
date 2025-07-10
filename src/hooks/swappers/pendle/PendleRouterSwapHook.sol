@@ -96,7 +96,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         bytes calldata txData_ = data[85:];
         bytes4 selector = bytes4(txData_[0:4]);
 

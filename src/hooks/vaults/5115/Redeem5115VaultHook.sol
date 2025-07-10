@@ -28,12 +28,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 shares = BytesLib.toUint256(data, 72);
 /// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 104);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
-contract Redeem5115VaultHook is
-    BaseHook,
-    ISuperHookInflowOutflow,
-    ISuperHookOutflow,
-    ISuperHookContextAware
-{
+contract Redeem5115VaultHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 72;
@@ -96,7 +91,7 @@ contract Redeem5115VaultHook is
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
             data.extractYieldSource(),
             BytesLib.toAddress(data, 52) // tokenOut

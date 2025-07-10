@@ -11,11 +11,7 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import {
-    ISuperHookResult,
-    ISuperHookContextAware,
-    ISuperHookInspector
-} from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title PendleRouterRedeemHook
 /// @author Superform Labs
@@ -118,7 +114,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         DecodedParams memory params = _decodeAndValidateData(data);
         return abi.encodePacked(params.YT, params.PT, params.tokenOut);
     }

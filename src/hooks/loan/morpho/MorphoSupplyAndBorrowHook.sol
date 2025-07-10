@@ -109,7 +109,7 @@ contract MorphoSupplyAndBorrowHook is BaseMorphoLoanHook {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         BorrowHookLocalVars memory vars = _decodeBorrowHookData(data);
 
         MarketParams memory marketParams =

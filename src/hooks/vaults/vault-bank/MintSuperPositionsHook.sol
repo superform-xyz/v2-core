@@ -32,12 +32,7 @@ import {
 ///         bool usePrevHookAmount = BytesLib.toBool(data, 84);
 ///         address vaultBank = BytesLib.toAddress(data, 85);
 ///         uint256 dstChainId = BytesLib.toUint256(data, 105);
-contract MintSuperPositionsHook is
-    BaseHook,
-    VaultBankLockableHook,
-    ISuperHookInflowOutflow,
-    ISuperHookContextAware
-{
+contract MintSuperPositionsHook is BaseHook, VaultBankLockableHook, ISuperHookInflowOutflow, ISuperHookContextAware {
     using SafeCast for uint256;
     using HookDataDecoder for bytes;
 
@@ -114,7 +109,7 @@ contract MintSuperPositionsHook is
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
             data.extractYieldSource(),
             /**

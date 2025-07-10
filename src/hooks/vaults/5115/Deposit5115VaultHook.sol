@@ -28,12 +28,7 @@ import {
 /// @notice         uint256 amount = BytesLib.toUint256(data, 72);
 /// @notice         uint256 minSharesOut = BytesLib.toUint256(data, 104);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 136);
-contract Deposit5115VaultHook is
-    BaseHook,
-    VaultBankLockableHook,
-    ISuperHookInflowOutflow,
-    ISuperHookContextAware
-{
+contract Deposit5115VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInflowOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 72;
@@ -91,7 +86,7 @@ contract Deposit5115VaultHook is
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
             data.extractYieldSource(),
             BytesLib.toAddress(data, 52) // tokenIn
