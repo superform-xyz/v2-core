@@ -4,44 +4,81 @@ pragma solidity 0.8.30;
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-
-import { MinimalBaseNexusIntegrationTest } from "./MinimalBaseNexusIntegrationTest.t.sol";
 import { INexus } from "../../src/vendor/nexus/INexus.sol";
-import { MockRegistry } from "../mocks/MockRegistry.sol";
-import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
-import { ISuperValidator } from "../../src/interfaces/ISuperValidator.sol";
-import { ISuperHook } from "../../src/interfaces/ISuperHook.sol";
 import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { SuperValidatorBase } from "../../src/validators/SuperValidatorBase.sol";
+
+// Superform
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
+import { ISuperValidator } from "../../src/interfaces/ISuperValidator.sol";
+import { ISuperHook } from "../../src/interfaces/ISuperHook.sol";
+import { ISuperSignatureStorage } from "../../src/interfaces/ISuperSignatureStorage.sol";
 import { AcrossSendFundsAndExecuteOnDstHook } from
     "../../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+import { MinimalBaseNexusIntegrationTest } from "./MinimalBaseNexusIntegrationTest.t.sol";
 
-import { MaliciousHookBypassFees } from "../mocks/MaliciousHookBypassFees.sol";
-import { ISuperSignatureStorage } from "../../src/interfaces/ISuperSignatureStorage.sol";
+// edge case & poc mocks
+//  -- used on test_HookPoisoning_ tests to bypass validation from a malicious account
 import { MockValidator } from "../../lib/modulekit/src/module-bases/mocks/MockValidator.sol";
+//  -- used to bypass fees in `test_feeBypassMaliciousHook`
+import { MaliciousHookBypassFees } from "../mocks/MaliciousHookBypassFees.sol";
+// -- used by `test_feeBypassByCustomHook_Reverts`
+import { MockMaliciousHook } from "../mocks/MockMaliciousHook.sol";
+
 import "forge-std/console2.sol";
 import "forge-std/Test.sol";
 
 contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
-    MockRegistry public nexusRegistry;
     address[] public attesters;
     uint8 public threshold;
-
-    bytes public mockSignature;
 
     function setUp() public override {
         blockNumber = ETH_BLOCK;
         super.setUp();
-        nexusRegistry = new MockRegistry();
+
         attesters = new address[](1);
         attesters[0] = address(MANAGER);
         threshold = 1;
-
-        mockSignature = abi.encodePacked(hex"41414141");
+    }
+    /*//////////////////////////////////////////////////////////////
+                          TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_AccountCreation_WithNexus() public {
+        address nexusAccount = _createWithNexus(attesters, threshold, 0);
+        _assertAccountCreation(nexusAccount);
     }
 
+    function test_AccountCreation_WithNexus_WithNoAttesters() public {
+        address[] memory actualAttesters = new address[](0);
+        address nexusAccount = _createWithNexus(actualAttesters, threshold, 0);
+        _assertAccountCreation(nexusAccount);
+    }
+
+    function test_AccountCreation_WithNexus_WithNoThreshold() public {
+        address nexusAccount = _createWithNexus(attesters, 0, 0);
+        _assertAccountCreation(nexusAccount);
+    }
+
+    function test_AccountCreation_Multiple_Times() public {
+        address nexusAccount = _createWithNexus(attesters, threshold, 0);
+        _assertAccountCreation(nexusAccount);
+
+        address nexusAccount2 = _createWithNexus(attesters, threshold, 0);
+        _assertAccountCreation(nexusAccount2);
+        assertEq(nexusAccount, nexusAccount2, "Nexus accounts should be the same");
+
+        address nexusAccount3 = _createWithNexus(attesters, 0, 0);
+        _assertAccountCreation(nexusAccount3);
+        assertNotEq(nexusAccount, nexusAccount3, "Nexus3 account should be different");
+
+        address[] memory actualAttesters = new address[](0);
+        address nexusAccount4 = _createWithNexus(actualAttesters, threshold, 0);
+        _assertAccountCreation(nexusAccount4);
+        assertNotEq(nexusAccount, nexusAccount4, "Nexus4 account should be different");
+    }
+
+    // --- PoC related tests ---
     function test_feeBypassMaliciousHook() public {
         uint256 amount = 10_000e6;
         address underlyingToken = CHAIN_1_USDC;
@@ -51,7 +88,6 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         // Step 1: Create account and install custom malicious hook
         address nexusAccount = _createWithNexusWithMaliciousHook(
-            address(nexusRegistry),
             attesters,
             threshold,
             1e18,
@@ -146,7 +182,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         );
 
         // Step 1: Create account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+        address nexusAccount = _createWithNexus(attesters, threshold, 1e18);
 
         // 2. Add tokens to account
         _getTokens(CHAIN_1_USDC, nexusAccount, 100e6);
@@ -379,6 +415,10 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         // This demonstrates that multiple cross-chain transactions CAN be sent in the same tx
     }
 
+
+    /*//////////////////////////////////////////////////////////////
+                          INTERNAL HELPERS
+    //////////////////////////////////////////////////////////////*/
     function _encodeSigData(
         ISuperValidator.DstProof[] memory proofDst,
         TestData memory testData,
@@ -420,39 +460,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         assertTrue(found);
     }
 
-    function test_AccountCreation_WithNexus() public {
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
-        _assertAccountCreation(nexusAccount);
-    }
-
-    function test_AccountCreation_WithNexus_WithNoAttesters() public {
-        address[] memory actualAttesters = new address[](0);
-        address nexusAccount = _createWithNexus(address(nexusRegistry), actualAttesters, threshold, 0);
-        _assertAccountCreation(nexusAccount);
-    }
-
-    function test_AccountCreation_WithNexus_WithNoThreshold() public {
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, 0, 0);
-        _assertAccountCreation(nexusAccount);
-    }
-
-    function test_AccountCreation_Multiple_Times() public {
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
-        _assertAccountCreation(nexusAccount);
-
-        address nexusAccount2 = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
-        _assertAccountCreation(nexusAccount2);
-        assertEq(nexusAccount, nexusAccount2, "Nexus accounts should be the same");
-
-        address nexusAccount3 = _createWithNexus(address(nexusRegistry), attesters, 0, 0);
-        _assertAccountCreation(nexusAccount3);
-        assertNotEq(nexusAccount, nexusAccount3, "Nexus3 account should be different");
-
-        address[] memory actualAttesters = new address[](0);
-        address nexusAccount4 = _createWithNexus(address(nexusRegistry), actualAttesters, threshold, 0);
-        _assertAccountCreation(nexusAccount4);
-        assertNotEq(nexusAccount, nexusAccount4, "Nexus4 account should be different");
-    }
+    
 
     struct TestData {
         address[] hooksAddresses;
@@ -486,7 +494,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
             0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5, address(superMerkleValidator)
         );
 
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+        address nexusAccount = _createWithNexus(attesters, threshold, 1e18);
 
         _getTokens(CHAIN_1_USDC, nexusAccount, amount);
         _getTokens(CHAIN_1_WETH, nexusAccount, amount);
@@ -698,7 +706,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         amount = _bound(amount);
 
         // create account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+        address nexusAccount = _createWithNexus(attesters, threshold, 0);
         _assertAccountCreation(nexusAccount);
 
         // fund account
@@ -729,11 +737,11 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         amount = _bound(amount);
 
         // create account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+        address nexusAccount = _createWithNexus(attesters, threshold, 1e18);
         _assertAccountCreation(nexusAccount);
 
         // "re-create" account
-        nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+        nexusAccount = _createWithNexus(attesters, threshold, 0);
         _assertAccountCreation(nexusAccount);
 
         _assertExecutorIsInitialized(nexusAccount);
@@ -762,7 +770,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         address morphoVault = CHAIN_1_MorphoVault;
 
         // create account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+        address nexusAccount = _createWithNexus(attesters, threshold, 1e18);
         _assertAccountCreation(nexusAccount);
 
         // add tokens to account
@@ -805,7 +813,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         address morphoVault = CHAIN_1_MorphoVault;
 
         // 1. Create account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+        address nexusAccount = _createWithNexus(attesters, threshold, 1e18);
 
         // add tokens to account
         _getTokens(underlyingToken, nexusAccount, amount);
@@ -896,11 +904,11 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         address morphoVault = CHAIN_1_MorphoVault;
 
         address accountOwner = makeAddr("owner");
-        MaliciousHook maliciousHook = new MaliciousHook(accountOwner, underlyingToken);
+        MockMaliciousHook maliciousHook = new MockMaliciousHook(accountOwner, underlyingToken);
 
         // Step 1: Create account and install custom malicious hook
         address nexusAccount = _createWithNexusWithMaliciousHook(
-            address(nexusRegistry), attesters, threshold, 1e18, address(maliciousHook)
+            attesters, threshold, 1e18, address(maliciousHook)
         );
 
         maliciousHook.setAccount(nexusAccount);
@@ -962,7 +970,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         address morphoVault = CHAIN_1_MorphoVault;
 
         // Create account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+        address nexusAccount = _createWithNexus(attesters, threshold, 1e18);
 
         // Fund account with tokens
         _getTokens(underlyingToken, nexusAccount, amount * 2); // Double amount to handle both
@@ -1004,7 +1012,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         address morphoVault = CHAIN_1_MorphoVault;
 
         // Create legitimate account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+        address nexusAccount = _createWithNexus(attesters, threshold, 1e18);
 
         // Fund account with tokens
         _getTokens(underlyingToken, nexusAccount, amount * 2);
@@ -1014,7 +1022,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         // Create malicious account that will try to poison the legitimate user's transaction
         // Use a different validator to completely bypass Superform core flow
-        address maliciousAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+        address maliciousAccount = _createWithNexus(attesters, threshold, 1e18);
 
         // Deploy and install MockValidator on malicious account to bypass normal validation
         MockValidator mockValidator = new MockValidator();
@@ -1055,7 +1063,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         address morphoVault = CHAIN_1_MorphoVault;
 
         // Create legitimate account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+        address nexusAccount = _createWithNexus(attesters, threshold, 1e18);
 
         // Fund account with tokens
         _getTokens(underlyingToken, nexusAccount, amount * 2);
@@ -1065,7 +1073,7 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
 
         // Create malicious account that will try to poison the legitimate user's transaction
         // Use a different validator to completely bypass Superform core flow
-        address maliciousAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 1e18);
+        address maliciousAccount = _createWithNexus(attesters, threshold, 1e18);
 
         // Deploy and install MockValidator on malicious account to bypass normal validation
         MockValidator mockValidator = new MockValidator();
@@ -1211,55 +1219,4 @@ contract E2EExecutionTest is MinimalBaseNexusIntegrationTest {
         userOps[0] = userOp;
         IMinimalEntryPoint(ENTRYPOINT_ADDR).handleOps(userOps, payable(address(0x69)));
     }
-}
-
-contract MaliciousHook {
-    address public owner;
-    address public account;
-    address public underlying;
-    uint256 count;
-    uint256 constant MODULE_TYPE_HOOK = 4;
-
-    constructor(address _owner, address _underlying) {
-        owner = _owner;
-        underlying = _underlying;
-    }
-
-    function setAccount(address _account) external {
-        account = _account;
-    }
-
-    function preCheck(
-        address msgSender,
-        uint256 msgValue,
-        bytes calldata msgData
-    )
-        external
-        returns (bytes memory hookData)
-    {
-        // do nothing in precheck
-    }
-
-    function postCheck(bytes calldata /*hookData*/ ) external {
-        // This check isn't really necessary. However in our poc we batch
-        // the approve, deposit and redeem calls in the same execution. Because of this, this
-        // postCheck
-        // is called three times, after approving, after depositing and after redeeming, so we only
-        // want to call this
-        // after redeeming. We limit it with a simple, unoptimized solution.
-        if (count < 2) {
-            count++;
-            return;
-        }
-        // We directly transfer our balance. This will set `outAmount` to 0 in Superform's
-        // postExecute call to
-        // ERC4626 redeem hook, instead of the actual redeemed amount.
-        IERC4626(underlying).transferFrom(account, owner, IERC4626(underlying).balanceOf(account));
-    }
-
-    function isModuleType(uint256 moduleTypeID) external pure returns (bool) {
-        return moduleTypeID == MODULE_TYPE_HOOK;
-    }
-
-    function onInstall(bytes calldata data) external { }
 }

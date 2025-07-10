@@ -1,30 +1,35 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import { console } from "forge-std/console.sol";
+// external
 import { UserOpData } from "modulekit/ModuleKit.sol";
+import { TrustedForwarder } from "modulekit/module-bases/utils/TrustedForwarder.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IPermit2 } from "../../src/vendor/uniswap/permit2/IPermit2.sol";
-import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
-import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
-import { TrustedForwarder } from "modulekit/module-bases/utils/TrustedForwarder.sol";
 import { IPermit2Batch } from "../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
-import { BatchTransferFromHook } from "../../src/hooks/tokens/permit2/BatchTransferFromHook.sol";
 import { IAllowanceTransfer } from "../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import { console } from "forge-std/console.sol";
+
+// Superform
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
+import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
+import { SuperNativePaymaster } from "../../src/paymaster/SuperNativePaymaster.sol";
+import { BatchTransferFromHook } from "../../src/hooks/tokens/permit2/BatchTransferFromHook.sol";
 import { TransferERC20Hook } from "../../src/hooks/tokens/erc20/TransferERC20Hook.sol";
 import { OfframpTokensHook } from "../../src/hooks/tokens/OfframpTokensHook.sol";
+import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
 
 contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
+
+    ISuperNativePaymaster public superNativePaymaster;
+
     address public eoa;
 
     IAllowanceTransfer public permit2;
     IPermit2Batch public permit2Batch;
 
-    address public usdc;
-    address public weth;
-    address public dai;
     address[] public tokens;
-
     uint256[] public amounts;
     uint48[] public nonces;
     uint256 public sigDeadline;
@@ -40,117 +45,8 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
     bytes32 public constant _PERMIT_DETAILS_TYPEHASH =
         keccak256("PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)");
 
-    function setUp() public override {
-        blockNumber = 22832865;
-        super.setUp();
-
-        usdc = CHAIN_1_USDC;
-        weth = CHAIN_1_WETH;
-        dai = CHAIN_1_DAI;
-
-        tokens = new address[](3);
-        tokens[0] = usdc;
-        tokens[1] = weth;
-        tokens[2] = dai;
-
-        amounts = new uint256[](3);
-        amounts[0] = 1e18;
-        amounts[1] = 1e18;
-        amounts[2] = 1e18;
-
-        nonces = new uint48[](3);
-        nonces[0] = 0;
-        nonces[1] = 0;
-        nonces[2] = 0;
-
-        sigDeadline = block.timestamp + 2 weeks;
-        privateKey = 12_342_142_412_412;
-        eoa = _deployAccount(privateKey, "ALICE");
-        vm.label(eoa, "EOA");
-
-        deal(usdc, eoa, 1e18);
-        deal(weth, eoa, 1e18);
-        deal(dai, eoa, 1e18);
-
-        permit2 = IAllowanceTransfer(PERMIT2);
-        permit2Batch = IPermit2Batch(PERMIT2);
-
-        try IPermit2(PERMIT2).DOMAIN_SEPARATOR() returns (bytes32 domainSeparator) {
-            DOMAIN_SEPARATOR = domainSeparator;
-            console.log("Got DOMAIN_SEPARATOR from contract");
-        } catch {
-            DOMAIN_SEPARATOR = 0x866a5aba21966af95d6c7ab78eb2b2fc913915c28be3b9aa07cc04ff903e3f28;
-            console.log("Using hardcoded DOMAIN_SEPARATOR");
-        }
-    }
-
-    function test_EOAOnrampOfframp() public {
-        uint256 usdcBalanceBefore = IERC20(usdc).balanceOf(accountEth);
-        uint256 wethBalanceBefore = IERC20(weth).balanceOf(accountEth);
-        uint256 daiBalanceBefore = IERC20(dai).balanceOf(accountEth);
-
-        BatchTransferFromHook hook = new BatchTransferFromHook(PERMIT2);
-        address[] memory hooks = new address[](1);
-        hooks[0] = address(hook);
-
-        vm.startPrank(eoa);
-        IERC20(usdc).approve(PERMIT2, 10e18);
-        IERC20(weth).approve(PERMIT2, 10e18);
-        IERC20(dai).approve(PERMIT2, 10e18);
-        vm.stopPrank();
-
-        IAllowanceTransfer.PermitBatch memory permitBatch =
-            defaultERC20PermitBatchAllowance(tokens, amounts, uint48(block.timestamp + 2 weeks), nonces);
-
-        bytes memory sig = getPermitBatchSignature(permitBatch, privateKey, DOMAIN_SEPARATOR);
-
-        bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, sigDeadline, tokens, amounts, nonces, sig);
-
-        bytes[] memory hookDataArray = new bytes[](1);
-        hookDataArray[0] = hookData;
-
-        uint256 expectedLength = 20 + 32 + 32 + (20 * 3) + (32 * 3) + (6 * 3) + 65;
-        assertEq(hookData.length, expectedLength);
-
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
-
-        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
-
-        executeOp(userOpData);
-
-        assertEq(IERC20(usdc).balanceOf(accountEth), usdcBalanceBefore + 1e18);
-        assertEq(IERC20(weth).balanceOf(accountEth), wethBalanceBefore + 1e18);
-        assertEq(IERC20(dai).balanceOf(accountEth), daiBalanceBefore + 1e18);
-
-        uint256 usdcBalanceEOABefore = IERC20(usdc).balanceOf(eoa);
-        uint256 wethBalanceEOABefore = IERC20(weth).balanceOf(eoa);
-        uint256 daiBalanceEOABefore = IERC20(dai).balanceOf(eoa);
-
-        address[] memory offrampHooks = new address[](3);
-        address transferHook = address(new TransferERC20Hook());
-        offrampHooks[0] = transferHook;
-        offrampHooks[1] = transferHook;
-        offrampHooks[2] = transferHook;
-
-        bytes[] memory offrampHookData = new bytes[](3);
-        offrampHookData[0] = _createTransferERC20HookData(usdc, eoa, 1e18, false);
-        offrampHookData[1] = _createTransferERC20HookData(weth, eoa, 1e18, false);
-        offrampHookData[2] = _createTransferERC20HookData(dai, eoa, 1e18, false);
-
-        ISuperExecutor.ExecutorEntry memory offrampEntry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: offrampHooks, hooksData: offrampHookData });
-
-        UserOpData memory offrampUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(offrampEntry));
-
-        executeOp(offrampUserOpData);
-
-        assertEq(IERC20(usdc).balanceOf(eoa), usdcBalanceEOABefore + 1e18);
-        assertEq(IERC20(weth).balanceOf(eoa), wethBalanceEOABefore + 1e18);
-        assertEq(IERC20(dai).balanceOf(eoa), daiBalanceEOABefore + 1e18);
-    }
-
-    /// @dev Local variables struct to avoid stack too deep error
+    // STACK-TOO-DEEP structs
+    /// @dev Local variables struct to avoid stack too deep error for `test_EOAOnrampOfframpWithOfframpTokensHook`
     struct TestLocalVars {
         uint256 usdcBalanceBefore;
         uint256 wethBalanceBefore;
@@ -173,13 +69,128 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         UserOpData offrampUserOpData;
     }
 
+    function setUp() public override {
+        blockNumber = ETH_BLOCK;
+        super.setUp();
+
+        permit2 = IAllowanceTransfer(PERMIT2);
+        permit2Batch = IPermit2Batch(PERMIT2);
+
+        try IPermit2(PERMIT2).DOMAIN_SEPARATOR() returns (bytes32 domainSeparator) {
+            DOMAIN_SEPARATOR = domainSeparator;
+            console.log("Got DOMAIN_SEPARATOR from contract");
+        } catch {
+            DOMAIN_SEPARATOR = 0x866a5aba21966af95d6c7ab78eb2b2fc913915c28be3b9aa07cc04ff903e3f28;
+            console.log("Using hardcoded DOMAIN_SEPARATOR");
+        }
+
+        tokens = new address[](3);
+        tokens[0] = CHAIN_1_USDC;
+        tokens[1] = CHAIN_1_WETH;
+        tokens[2] = CHAIN_1_DAI;
+
+        amounts = new uint256[](3);
+        amounts[0] = 1e18;
+        amounts[1] = 1e18;
+        amounts[2] = 1e18;
+
+        nonces = new uint48[](3);
+        nonces[0] = 0;
+        nonces[1] = 0;
+        nonces[2] = 0;
+
+        sigDeadline = block.timestamp + 2 weeks;
+        privateKey = 12_342_142_412_412;
+        eoa = _deployAccount(privateKey, "ALICE");
+        vm.label(eoa, "EOA");
+
+        superNativePaymaster = ISuperNativePaymaster(new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR)));
+
+        deal(CHAIN_1_USDC, eoa, 1e18);
+        deal(CHAIN_1_WETH, eoa, 1e18);
+        deal(CHAIN_1_DAI, eoa, 1e18);
+
+    }
+
+    receive() external payable {}
+
+    /*//////////////////////////////////////////////////////////////
+                          TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_EOAOnrampOfframp() public {
+        uint256 usdcBalanceBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
+        uint256 wethBalanceBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+        uint256 daiBalanceBefore = IERC20(CHAIN_1_DAI).balanceOf(accountEth);
+
+        BatchTransferFromHook hook = new BatchTransferFromHook(PERMIT2);
+        address[] memory hooks = new address[](1);
+        hooks[0] = address(hook);
+
+        vm.startPrank(eoa);
+        IERC20(CHAIN_1_USDC).approve(PERMIT2, 10e18);
+        IERC20(CHAIN_1_WETH).approve(PERMIT2, 10e18);
+        IERC20(CHAIN_1_DAI).approve(PERMIT2, 10e18);
+        vm.stopPrank();
+
+        IAllowanceTransfer.PermitBatch memory permitBatch =
+            defaultERC20PermitBatchAllowance(tokens, amounts, uint48(block.timestamp + 2 weeks), nonces);
+
+        bytes memory sig = getPermitBatchSignature(permitBatch, privateKey, DOMAIN_SEPARATOR);
+
+        bytes memory hookData = _createBatchTransferFromHookData(eoa, 3, sigDeadline, tokens, amounts, nonces, sig);
+
+        bytes[] memory hookDataArray = new bytes[](1);
+        hookDataArray[0] = hookData;
+
+        uint256 expectedLength = 20 + 32 + 32 + (20 * 3) + (32 * 3) + (6 * 3) + 65;
+        assertEq(hookData.length, expectedLength);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: hookDataArray });
+
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
+        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18); 
+
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth), usdcBalanceBefore + 1e18);
+        assertEq(IERC20(CHAIN_1_WETH).balanceOf(accountEth), wethBalanceBefore + 1e18);
+        assertEq(IERC20(CHAIN_1_DAI).balanceOf(accountEth), daiBalanceBefore + 1e18);
+
+        uint256 usdcBalanceEOABefore = IERC20(CHAIN_1_USDC).balanceOf(eoa);
+        uint256 wethBalanceEOABefore = IERC20(CHAIN_1_WETH).balanceOf(eoa);
+        uint256 daiBalanceEOABefore = IERC20(CHAIN_1_DAI).balanceOf(eoa);
+
+        address[] memory offrampHooks = new address[](3);
+        address transferHook = address(new TransferERC20Hook());
+        offrampHooks[0] = transferHook;
+        offrampHooks[1] = transferHook;
+        offrampHooks[2] = transferHook;
+
+        bytes[] memory offrampHookData = new bytes[](3);
+        offrampHookData[0] = _createTransferERC20HookData(CHAIN_1_USDC, eoa, 1e18, false);
+        offrampHookData[1] = _createTransferERC20HookData(CHAIN_1_WETH, eoa, 1e18, false);
+        offrampHookData[2] = _createTransferERC20HookData(CHAIN_1_DAI, eoa, 1e18, false);
+
+        ISuperExecutor.ExecutorEntry memory offrampEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: offrampHooks, hooksData: offrampHookData });
+
+        UserOpData memory offrampUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(offrampEntry));
+
+        executeOpsThroughPaymaster(offrampUserOpData, superNativePaymaster, 1e18); 
+
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(eoa), usdcBalanceEOABefore + 1e18);
+        assertEq(IERC20(CHAIN_1_WETH).balanceOf(eoa), wethBalanceEOABefore + 1e18);
+        assertEq(IERC20(CHAIN_1_DAI).balanceOf(eoa), daiBalanceEOABefore + 1e18);
+    }
+
+
+
     function test_EOAOnrampOfframpWithOfframpTokensHook() public {
         TestLocalVars memory vars;
 
         // Initial balances
-        vars.usdcBalanceBefore = IERC20(usdc).balanceOf(accountEth);
-        vars.wethBalanceBefore = IERC20(weth).balanceOf(accountEth);
-        vars.daiBalanceBefore = IERC20(dai).balanceOf(accountEth);
+        vars.usdcBalanceBefore = IERC20(CHAIN_1_USDC).balanceOf(accountEth);
+        vars.wethBalanceBefore = IERC20(CHAIN_1_WETH).balanceOf(accountEth);
+        vars.daiBalanceBefore = IERC20(CHAIN_1_DAI).balanceOf(accountEth);
 
         // Setup onramp using BatchTransferFromHook (same as original test)
         vars.hook = new BatchTransferFromHook(PERMIT2);
@@ -187,9 +198,9 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         vars.hooks[0] = address(vars.hook);
 
         vm.startPrank(eoa);
-        IERC20(usdc).approve(PERMIT2, 10e18);
-        IERC20(weth).approve(PERMIT2, 10e18);
-        IERC20(dai).approve(PERMIT2, 10e18);
+        IERC20(CHAIN_1_USDC).approve(PERMIT2, 10e18);
+        IERC20(CHAIN_1_WETH).approve(PERMIT2, 10e18);
+        IERC20(CHAIN_1_DAI).approve(PERMIT2, 10e18);
         vm.stopPrank();
 
         vars.permitBatch = defaultERC20PermitBatchAllowance(tokens, amounts, uint48(block.timestamp + 2 weeks), nonces);
@@ -205,17 +216,17 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
 
         vars.userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(vars.entry));
 
-        executeOp(vars.userOpData);
+        executeOpsThroughPaymaster(vars.userOpData, superNativePaymaster, 1e18); 
 
         // Verify onramp worked
-        assertEq(IERC20(usdc).balanceOf(accountEth), vars.usdcBalanceBefore + 1e18);
-        assertEq(IERC20(weth).balanceOf(accountEth), vars.wethBalanceBefore + 1e18);
-        assertEq(IERC20(dai).balanceOf(accountEth), vars.daiBalanceBefore + 1e18);
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth), vars.usdcBalanceBefore + 1e18);
+        assertEq(IERC20(CHAIN_1_WETH).balanceOf(accountEth), vars.wethBalanceBefore + 1e18);
+        assertEq(IERC20(CHAIN_1_DAI).balanceOf(accountEth), vars.daiBalanceBefore + 1e18);
 
         // Store EOA balances before offramp
-        vars.usdcBalanceEOABefore = IERC20(usdc).balanceOf(eoa);
-        vars.wethBalanceEOABefore = IERC20(weth).balanceOf(eoa);
-        vars.daiBalanceEOABefore = IERC20(dai).balanceOf(eoa);
+        vars.usdcBalanceEOABefore = IERC20(CHAIN_1_USDC).balanceOf(eoa);
+        vars.wethBalanceEOABefore = IERC20(CHAIN_1_WETH).balanceOf(eoa);
+        vars.daiBalanceEOABefore = IERC20(CHAIN_1_DAI).balanceOf(eoa);
 
         // Setup offramp using OfframpTokensHook (single hook instead of multiple TransferERC20Hooks)
         vars.offrampHook = new OfframpTokensHook();
@@ -230,7 +241,7 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
 
         vars.offrampUserOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(vars.offrampEntry));
 
-        executeOp(vars.offrampUserOpData);
+        executeOpsThroughPaymaster(vars.offrampUserOpData, superNativePaymaster, 1e18); 
 
         // Verify offramp worked - OfframpTokensHook transfers ALL tokens from account to EOA
         // EOA receives: initial EOA balance + entire account balance (original + onramped)
@@ -238,16 +249,19 @@ contract EOAOnrampOfframpTest is MinimalBaseIntegrationTest, TrustedForwarder {
         uint256 expectedWethEOA = vars.wethBalanceEOABefore + (vars.wethBalanceBefore + 1e18);
         uint256 expectedDaiEOA = vars.daiBalanceEOABefore + (vars.daiBalanceBefore + 1e18);
 
-        assertEq(IERC20(usdc).balanceOf(eoa), expectedUsdcEOA);
-        assertEq(IERC20(weth).balanceOf(eoa), expectedWethEOA);
-        assertEq(IERC20(dai).balanceOf(eoa), expectedDaiEOA);
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(eoa), expectedUsdcEOA);
+        assertEq(IERC20(CHAIN_1_WETH).balanceOf(eoa), expectedWethEOA);
+        assertEq(IERC20(CHAIN_1_DAI).balanceOf(eoa), expectedDaiEOA);
 
         // Verify account balances are now zero (all tokens transferred out)
-        assertEq(IERC20(usdc).balanceOf(accountEth), 0);
-        assertEq(IERC20(weth).balanceOf(accountEth), 0);
-        assertEq(IERC20(dai).balanceOf(accountEth), 0);
+        assertEq(IERC20(CHAIN_1_USDC).balanceOf(accountEth), 0);
+        assertEq(IERC20(CHAIN_1_WETH).balanceOf(accountEth), 0);
+        assertEq(IERC20(CHAIN_1_DAI).balanceOf(accountEth), 0);
     }
 
+    /*//////////////////////////////////////////////////////////////
+                          INTERNAL HELPERS
+    //////////////////////////////////////////////////////////////*/
     function defaultERC20PermitBatchAllowance(
         address[] memory permitTokens,
         uint256[] memory permitAmounts,

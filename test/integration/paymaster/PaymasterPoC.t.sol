@@ -56,7 +56,7 @@ contract PoC is PaymasterHelper {
         TestData memory data;
 
         // create account
-        data.nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+        data.nexusAccount = _createWithNexus(attesters, threshold, 0);
 
         // fund account
         vm.deal(data.nexusAccount, LARGE);
@@ -137,7 +137,7 @@ contract PoC is PaymasterHelper {
         TestData memory data;
 
         // create account
-        data.nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+        data.nexusAccount = _createWithNexus(attesters, threshold, 0);
 
         // fund account
         vm.deal(data.nexusAccount, LARGE);
@@ -216,7 +216,7 @@ contract PoC is PaymasterHelper {
 
     function test_incorrectGas() public {
         // create account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+        address nexusAccount = _createWithNexus(attesters, threshold, 0);
 
         // fund account
         vm.deal(nexusAccount, LARGE);
@@ -300,7 +300,7 @@ contract PoC is PaymasterHelper {
         RefundDOSTestData memory data;
         
         // create account
-        data.nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+        data.nexusAccount = _createWithNexus(attesters, threshold, 0);
 
         // fund account
         vm.deal(data.nexusAccount, LARGE);
@@ -372,7 +372,7 @@ contract PoC is PaymasterHelper {
         RefundDOSTestData memory data;
         
         // create account
-        data.nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+        data.nexusAccount = _createWithNexus(attesters, threshold, 0);
 
         // fund account
         vm.deal(data.nexusAccount, LARGE);

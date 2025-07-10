@@ -5,24 +5,31 @@ pragma solidity 0.8.30;
 import "forge-std/Test.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { ModuleKitHelpers, UserOpData } from "modulekit/ModuleKit.sol";
 
 // Superform
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
-import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
-import "forge-std/console2.sol";
 import { Redeem4626VaultHook } from "../../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
 import { ISuperLedgerData } from "../../src/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
+import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
+import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
+import { SuperNativePaymaster } from "../../src/paymaster/SuperNativePaymaster.sol";
 
 /// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault
 contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
     using ModuleKitHelpers for *;
 
+    ISuperNativePaymaster public superNativePaymaster;
+
     function setUp() public override {
         blockNumber = ETH_BLOCK;
         super.setUp();
+
+        superNativePaymaster = ISuperNativePaymaster(new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR)));
     }
+    receive() external payable { }
 
     function test_failsToRedeemFullBalance() public {
         uint256 amount = 1e8;
@@ -41,7 +48,8 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         vm.expectEmit(true, true, true, false);
         emit ISuperLedgerData.AccountingInflow(accountEth, yieldSourceOracle, yieldSourceAddressEth, amount, 1e18);
-        executeOp(userOpData);
+        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18); 
+
 
         // user transfers some shares from other account to op's sender
         deal(address(vaultInstanceEth), address(this), 10);
@@ -68,11 +76,10 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         vm.expectEmit(true, true, true, false);
         emit ISuperLedgerData.AccountingOutflow(accountEth, yieldSourceOracle, yieldSourceAddressEth, accSharesAfter, 0);
 
-        executeOp(userOpData);
+        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18); 
         // ^ does not revert anymore
 
         // ASSERTIONS
-
         uint256 finalShareBalance = vaultInstanceEth.balanceOf(accountEth);
         assertEq(finalShareBalance, 0);
         uint256 actualTokenBalance = IERC20(underlyingEth_USDC).balanceOf(accountEth);
@@ -94,7 +101,8 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
-        executeOp(userOpData);
+        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18); 
+
     }
 
     function test_Deposit_Redeem_4626_Mainnet_Flow() public {
@@ -114,7 +122,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         vm.expectEmit(true, true, true, false);
         emit ISuperLedgerData.AccountingInflow(accountEth, yieldSourceOracle, yieldSourceAddressEth, amount, 1e18);
-        executeOp(userOpData);
+        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18); 
 
         uint256 accSharesAfter = vaultInstanceEth.balanceOf(accountEth);
         assertEq(accSharesAfter, vaultInstanceEth.previewDeposit(amount));
@@ -138,7 +146,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         vm.expectEmit(true, true, true, false);
         emit ISuperLedgerData.AccountingOutflow(accountEth, yieldSourceOracle, yieldSourceAddressEth, accSharesAfter, 0);
 
-        executeOp(userOpData);
+        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18); 
     }
 
     function test_ShareBalance_NotMiscalculated() public {
@@ -158,7 +166,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
-        executeOp(userOpData);
+        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18); 
 
         uint256 yieldSourceBal = IERC20(yieldSourceAddressEth).balanceOf(accountEth);
 
@@ -187,7 +195,7 @@ contract ERC4626DepositRedeemFlowTest is MinimalBaseIntegrationTest {
             100
         );
 
-        executeOp(userOpData);
+        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18); 
 
         uint256 outAmount = Redeem4626VaultHook(redeem4626Hook).getOutAmount(instanceOnEth.account);
         uint256 usedShares = Redeem4626VaultHook(redeem4626Hook).usedShares();

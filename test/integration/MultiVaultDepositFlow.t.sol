@@ -1,18 +1,28 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.30;
 
-import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
+// external
 import { IStandardizedYield } from "../../src/vendor/pendle/IStandardizedYield.sol";
 import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
-import { UserOpData } from "modulekit/ModuleKit.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
+import { UserOpData } from "modulekit/ModuleKit.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+
+// Superform
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { Deposit5115VaultHook } from "../../src/hooks/vaults/5115/Deposit5115VaultHook.sol";
 import { RequestDeposit7540VaultHook } from "../../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
 import { CancelDepositRequest7540Hook } from "../../src/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
 import { ClaimCancelDepositRequest7540Hook } from
     "../../src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
+import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
+import { SuperNativePaymaster } from "../../src/paymaster/SuperNativePaymaster.sol";
+import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
+
+// -- to remove maybe
 import { Mock7540Hook } from "../mocks/Mock7540Hook.sol";
+import { IInvestmentManager } from "../mocks/centrifuge/IInvestmentManager.sol";
+import { IPoolManager } from "../mocks/centrifuge/IPoolManager.sol";
 
 interface IRoot {
     function endorsed(address user) external view returns (bool);
@@ -22,10 +32,10 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
     IStandardizedYield public vaultInstance5115ETH;
 
     address public underlyingETH_sUSDe;
-
     address public yieldSource5115AddressSUSDe;
-
     address public yieldSource7540AddressUSDC;
+    ISuperNativePaymaster public superNativePaymaster;
+    IERC7540 public vaultInstance7540ETH;
 
     function setUp() public override {
         blockNumber = ETH_BLOCK;
@@ -36,11 +46,13 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
         _getTokens(underlyingETH_sUSDe, accountEth, 1e18);
 
         yieldSource5115AddressSUSDe = CHAIN_1_PendleEthena;
-
         yieldSource7540AddressUSDC = CHAIN_1_CentrifugeUSDC;
-
         vaultInstance5115ETH = IStandardizedYield(yieldSource5115AddressSUSDe);
+        vaultInstance7540ETH = IERC7540(yieldSource7540AddressUSDC);
+
+        superNativePaymaster = ISuperNativePaymaster(new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR)));
     }
+    receive() external payable {}
 
     function test_ClaimCancelDepositRequest7540Hook_WrongReceiver() public {
         yieldSource7540AddressUSDC = address(new Mock7540Hook(underlyingEth_USDC));
