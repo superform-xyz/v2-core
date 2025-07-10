@@ -32,8 +32,7 @@ contract ApproveAndRequestDeposit7540VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
     ISuperHookAsyncCancelations,
-    ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
 

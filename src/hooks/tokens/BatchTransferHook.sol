@@ -18,7 +18,7 @@ address constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 /// @dev data has the following structure
 /// @notice         address to = BytesLib.toAddress(data, 0);
 /// @notice         bytes tokensArr = BytesLib.slice(data, 20, data.length - 20);
-contract BatchTransferHook is BaseHook, ISuperHookInspector {
+contract BatchTransferHook is BaseHook {
     error LENGTH_MISMATCH();
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }

@@ -6,12 +6,12 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC7540 } from "../../../vendor/vaults/7540/IERC7540.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { VaultBankLockableHook } from "../../VaultBankLockableHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
@@ -30,8 +30,7 @@ contract Deposit7540VaultHook is
     BaseHook,
     VaultBankLockableHook,
     ISuperHookInflowOutflow,
-    ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
 

@@ -24,7 +24,7 @@ import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 /// @notice         uint256 sharesToBurn = BytesLib.toUint256(data, 124);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
 /// @notice         bytes1 command = BytesLib.slice(data, 157, 1);
-contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;

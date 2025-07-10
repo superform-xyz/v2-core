@@ -3,9 +3,8 @@ pragma solidity 0.8.30;
 
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
@@ -20,7 +19,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         address spender = BytesLib.toAddress(data, 20);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 40);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
-contract ApproveERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract ApproveERC20Hook is BaseHook, ISuperHookContextAware {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }

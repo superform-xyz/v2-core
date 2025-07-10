@@ -3,10 +3,11 @@ pragma solidity 0.8.30;
 
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IERC7540CancelRedeem } from "../../../vendor/standards/ERC7540/IERC7540Vault.sol";
 import { IERC7540 } from "../../../vendor/vaults/7540/IERC7540.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { IERC7540CancelRedeem } from "../../../vendor/standards/ERC7540/IERC7540Vault.sol";
+
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { VaultBankLockableHook } from "../../VaultBankLockableHook.sol";
@@ -23,8 +24,7 @@ import { ISuperHookAsyncCancelations, ISuperHookInspector } from "../../../inter
 contract ClaimCancelRedeemRequest7540Hook is
     BaseHook,
     VaultBankLockableHook,
-    ISuperHookAsyncCancelations,
-    ISuperHookInspector
+    ISuperHookAsyncCancelations
 {
     using HookDataDecoder for bytes;
 

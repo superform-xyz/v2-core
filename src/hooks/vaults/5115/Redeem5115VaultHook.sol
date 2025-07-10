@@ -3,11 +3,11 @@ pragma solidity 0.8.30;
 
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IStandardizedYield } from "../../../vendor/pendle/IStandardizedYield.sol";
 
 // Superform
-import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import {
     ISuperHookResultOutflow,
@@ -32,8 +32,7 @@ contract Redeem5115VaultHook is
     BaseHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
 

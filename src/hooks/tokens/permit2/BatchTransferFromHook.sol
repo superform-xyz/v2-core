@@ -26,7 +26,7 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @notice     bytes nonces = BytesLib.slice(data, 84 + 20 * tokensLength + 32 * tokensLength, 48 * tokensLength);
 /// @notice     bytes signature = BytesLib.slice(data, 84 + 20 * tokensLength + 32 * tokensLength + 48 * tokensLength,
 /// 65);
-contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
+contract BatchTransferFromHook is BaseHook {
     using SafeCast for uint256;
 
     /*//////////////////////////////////////////////////////////////

@@ -8,8 +8,8 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { VaultBankLockableHook } from "../../VaultBankLockableHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { VaultBankLockableHook } from "../../VaultBankLockableHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 import {
     ISuperHookResult,
@@ -29,8 +29,7 @@ contract Deposit4626VaultHook is
     BaseHook,
     VaultBankLockableHook,
     ISuperHookInflowOutflow,
-    ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
 

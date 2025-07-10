@@ -18,7 +18,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         address to = BytesLib.toAddress(data, 20);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 40);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
-contract TransferERC20Hook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract TransferERC20Hook is BaseHook, ISuperHookContextAware {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 72;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }

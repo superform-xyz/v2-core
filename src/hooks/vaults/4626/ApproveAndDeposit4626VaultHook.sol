@@ -32,8 +32,7 @@ contract ApproveAndDeposit4626VaultHook is
     BaseHook,
     VaultBankLockableHook,
     ISuperHookInflowOutflow,
-    ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
 

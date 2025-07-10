@@ -16,7 +16,7 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @dev data has the following structure
 /// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
-contract CancelDepositRequest7540Hook is BaseHook, ISuperHookInspector {
+contract CancelDepositRequest7540Hook is BaseHook {
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CANCEL_DEPOSIT_REQUEST) { }

@@ -18,7 +18,7 @@ address constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 /// @dev data has the following structure
 /// @notice         address to = BytesLib.toAddress(data, 0);
 /// @notice         bytes tokensArr = BytesLib.slice(data, 20, data.length - 20);
-contract OfframpTokensHook is BaseHook, ISuperHookInspector {
+contract OfframpTokensHook is BaseHook {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
 
     error LENGTH_MISMATCH();

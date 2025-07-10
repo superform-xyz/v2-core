@@ -36,8 +36,7 @@ contract MintSuperPositionsHook is
     BaseHook,
     VaultBankLockableHook,
     ISuperHookInflowOutflow,
-    ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookContextAware
 {
     using SafeCast for uint256;
     using HookDataDecoder for bytes;

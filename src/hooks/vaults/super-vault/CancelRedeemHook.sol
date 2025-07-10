@@ -2,7 +2,6 @@
 pragma solidity 0.8.30;
 
 // external
-import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC7540 } from "../../../vendor/vaults/7540/IERC7540.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -20,7 +19,7 @@ import { ISuperHookAsyncCancelations, ISuperHookInspector } from "../../../inter
 /// @dev data has the following structure
 /// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
-contract CancelRedeemHook is BaseHook, VaultBankLockableHook, ISuperHookAsyncCancelations, ISuperHookInspector {
+contract CancelRedeemHook is BaseHook, VaultBankLockableHook, ISuperHookAsyncCancelations {
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CANCEL_REDEEM) { }
