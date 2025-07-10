@@ -10,10 +10,9 @@ import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 // Superform
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHook, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoSupplyHook
 /// @author Superform Labs
