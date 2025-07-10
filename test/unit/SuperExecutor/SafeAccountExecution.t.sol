@@ -29,6 +29,9 @@ import { SafeProxy } from "@safe/proxies/SafeProxy.sol";
 import { ISafe } from "@safe/interfaces/ISafe.sol";
 import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
+// Safe7579 EIP712
+import { EIP712 } from "@safe7579/lib/EIP712.sol";
+
 // Superform
 import { InternalHelpers } from "../../utils/InternalHelpers.sol";
 import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
@@ -397,15 +400,8 @@ contract SafeAccountExecution is
         console2.log("Domain separator:", vm.toString(sigData.domainSeparator));
         console2.log("Raw hash:", vm.toString(sigData.rawHash));
 
-        // Replicate exactly what EIP712.encodeMessageData does
-        // keccak256("SafeMessage(bytes message)");
-        bytes32 SAFE_MSG_TYPEHASH = 0x60b3cbf8b4a223d68d641b3b6ddf9a298e7f33710cf3d3a9d1146b5a6150fbca;
-        bytes memory messageData = abi.encodePacked(
-            bytes1(0x19),
-            bytes1(0x01),
-            sigData.domainSeparator,
-            keccak256(abi.encode(SAFE_MSG_TYPEHASH, keccak256(abi.encode(sigData.rawHash))))
-        );
+        // Use the actual EIP712 library from Safe7579
+        bytes memory messageData = EIP712.encodeMessageData(sigData.domainSeparator, abi.encode(sigData.rawHash));
         sigData.finalHash = keccak256(messageData);
 
         console2.log("Final hash being signed:", vm.toString(sigData.finalHash));
