@@ -3,9 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
 // Superform
 import {SuperValidatorBase} from "./SuperValidatorBase.sol";
@@ -53,7 +51,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
 
         // Verify source data
-        (address signer,) = _processSignatureAndVerifyLeaf(sigData, _userOpHash);
+        (address signer,) = _processSignatureAndVerifyLeaf(_userOp.sender, sigData, _userOpHash);
         // Validate
         bool isValid = _isSignatureValid(signer, _userOp.sender, sigData.validUntil);
 
@@ -99,7 +97,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         SignatureData memory sigData = _decodeSignatureData(sigDataRaw);
 
         // Process signature
-        (address signer,) = _processSignatureAndVerifyLeaf(sigData, dataHash);
+        (address signer,) = _processSignatureAndVerifyLeaf(msg.sender, sigData, dataHash);
 
         // Validate
         bool isValid = _isSignatureValid(signer, msg.sender, sigData.validUntil);
@@ -128,11 +126,12 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     /// @notice Processes a signature and verifies it against a merkle proof
     /// @dev Verifies the user operation hash is part of the merkle tree and recovers the signer
     ///      Uses the source proof (proofSrc) for verification
+    /// @param sender The sender address to validate the signature against
     /// @param sigData Signature data including merkle root, proofs, and actual signature
     /// @param userOpHash The hash of the user operation being verified
     /// @return signer The address that signed the message
     /// @return leaf The computed leaf hash used in merkle verification
-    function _processSignatureAndVerifyLeaf(SignatureData memory sigData, bytes32 userOpHash)
+    function _processSignatureAndVerifyLeaf(address sender, SignatureData memory sigData, bytes32 userOpHash)
         private
         view
         returns (address signer, bytes32 leaf)
@@ -141,10 +140,12 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         leaf = _createLeaf(abi.encode(userOpHash), sigData.validUntil, sigData.validateDstProof);
         if (!MerkleProof.verify(sigData.proofSrc, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
-        // Recover signer from signature using standard Ethereum signature recovery
-        bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
-        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
-        signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
+        address owner = _accountOwners[sender];
+        if (owner.code.length > 0) {
+           signer = _processEIP1271Signature(owner, sigData);
+        } else {
+           signer = _processECDSASignature(sigData);
+        }
     }
 
     /// @notice Generates a storage key for transient storage

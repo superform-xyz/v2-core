@@ -25,9 +25,9 @@ ftest-ci :; forge test -v --jobs 2
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-test-vvv :; forge test --match-test test_POC_IncorrectValidUntilHandling  -vvvv --jobs 10
+test-vvv :; forge test --match-contract MultisigOwnerValidationTest -vvvv --jobs 10
 
-test-integration :; forge test --match-test test_DeBridgeCancelOrderHook -vvvv --jobs 10
+test-integration :; forge test --match-test test_SameChainTx_executionA -vvvv --jobs 10
 
 test-gas-report-user :; forge test --match-test test_gasReport --gas-report --jobs 10
 test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10

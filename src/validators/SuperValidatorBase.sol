@@ -1,10 +1,15 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
+import { console2 } from "forge-std/console2.sol";
+
 // external
-import {ERC7579ValidatorBase} from "modulekit/Modules.sol";
-import {ISuperSignatureStorage} from "../interfaces/ISuperSignatureStorage.sol";
-import {ISuperValidator} from "../interfaces/ISuperValidator.sol";
+import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
+import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
+import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { ISafe } from "@safe/interfaces/ISafe.sol";
 
 /// @title SuperValidatorBase
 /// @author Superform Labs
@@ -21,13 +26,16 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     /// @dev Used to verify signatures against the correct owner address
     mapping(address account => address owner) internal _accountOwners;
 
+    bytes4 internal constant MAGIC_VALUE_EIP1271 = bytes4(0x1626ba7e);
+
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error ZERO_ADDRESS();
     error INVALID_PROOF();
     error ALREADY_INITIALIZED();
-    error INVALID_DESTINATION_PROOF(); // thrown on source 
+    error INVALID_DESTINATION_PROOF(); // thrown on source
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -75,9 +83,26 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         return "SuperValidator";
     }
 
-    function _createLeaf(bytes memory data, uint48 validUntil, bool checkCrossChainExecution) internal view virtual returns (bytes32);
+    function _createLeaf(
+        bytes memory data,
+        uint48 validUntil,
+        bool checkCrossChainExecution
+    )
+        internal
+        view
+        virtual
+        returns (bytes32);
 
-    function _createDestinationLeaf(DestinationData memory destinationData, uint48 validUntil, address validator) internal view virtual returns (bytes32) {
+    function _createDestinationLeaf(
+        DestinationData memory destinationData,
+        uint48 validUntil,
+        address validator
+    )
+        internal
+        view
+        virtual
+        returns (bytes32)
+    {
         // Note: destinationData.initData is not included because it is not needed for the leaf.
         // If precomputed account is != than the executing account, the entire execution reverts
         // before this method is called. Check SuperDestinationExecutor for more details.
@@ -98,7 +123,6 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
             )
         );
     }
-
 
     /// @notice Decodes raw signature data into a structured SignatureData object
     /// @dev Handles ABI decoding of all signature components
@@ -122,7 +146,56 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     /// @param merkleRoot The merkle root to use for message hash creation
     /// @return The hash that was signed by the account owner
     function _createMessageHash(bytes32 merkleRoot) internal pure returns (bytes32) {
+        console2.log("----");
+        console2.logBytes(abi.encode(namespace(), merkleRoot));
         return keccak256(abi.encode(namespace(), merkleRoot));
+    }
+
+    /// @notice Processes an EOA signature and returns the signer
+    /// @param sigData Signature data including merkle root, proofs, and actual signature
+    /// @return signer The address that signed the message
+    function _processECDSASignature(
+        SignatureData memory sigData
+    ) internal pure returns (address signer) {
+        bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
+        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+
+        signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
+    }
+
+    /// @notice Processes a contract signature and verifies it against the owner
+    /// @dev This function is used to process EIP1271 signatures
+    /// @param owner The owner of the contract
+    /// @param sigData Signature data including merkle root, proofs, and actual signature
+    function _processEIP1271Signature(
+        address owner,
+        SignatureData memory sigData
+    ) internal view returns (address) {
+        bytes32 rawHash = _createMessageHash(sigData.merkleRoot);
+        bytes32 safeMessageHash = _getSafeMessageHash(owner, rawHash);
+
+        bytes4 rv = IERC1271(owner).isValidSignature(safeMessageHash, sigData.signature);
+        if (rv == MAGIC_VALUE_EIP1271) {
+            return owner;
+        }
+        return address(0);
+    }
+
+    /// @dev Replicates Safe.getMessageHash(bytes32)
+    function _getSafeMessageHash(address safe, bytes32 dataHash) internal view returns (bytes32) {
+        // Safe uses EIP-712 domain separator
+        bytes32 domainSeparator = ISafe(payable(safe)).domainSeparator();
+
+        return keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                domainSeparator,
+                keccak256(abi.encode(
+                    keccak256("SafeMessage(bytes32 message)"), // constant per Safe implementation
+                    dataHash
+                ))
+            )
+        );
     }
 
     /// @notice Validates if a signature is valid based on signer and expiration time
@@ -131,7 +204,11 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     /// @param sender The account address being operated on
     /// @param validUntil Timestamp after which the signature is no longer valid
     /// @return True if the signature is valid, false otherwise
-    function _isSignatureValid(address signer, address sender, uint48 validUntil)
+    function _isSignatureValid(
+        address signer,
+        address sender,
+        uint48 validUntil
+    )
         internal
         view
         virtual
