@@ -25,7 +25,7 @@ import { ISuperHook, ISuperHookInspector } from "../../../interfaces/ISuperHook.
 /// @notice         uint256 amount = BytesLib.toUint256(data, 80);
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 112);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
-contract MorphoSupplyHook is BaseMorphoLoanHook, ISuperHookInspector {
+contract MorphoSupplyHook is BaseMorphoLoanHook {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
