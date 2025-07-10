@@ -8,8 +8,6 @@ import { IGearboxFarmingPool } from "../../../vendor/gearbox/IGearboxFarmingPool
 
 // Superform
 import {
-    ISuperHook,
-    ISuperHookResultOutflow,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware,
