@@ -28,7 +28,7 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 145);
 /// @notice         bool placeholder = _decodeBool(data, 177);
-contract MorphoSupplyAndBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
+contract MorphoSupplyAndBorrowHook is BaseMorphoLoanHook {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -109,7 +109,7 @@ contract MorphoSupplyAndBorrowHook is BaseMorphoLoanHook, ISuperHookInspector {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         BorrowHookLocalVars memory vars = _decodeBorrowHookData(data);
 
         MarketParams memory marketParams =

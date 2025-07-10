@@ -2,8 +2,6 @@
 pragma solidity 0.8.30;
 
 // external
-import { IIrm } from "../../../vendor/morpho/IIrm.sol";
-import { MathLib } from "../../../vendor/morpho/MathLib.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SharesMathLib } from "../../../vendor/morpho/SharesMathLib.sol";
@@ -29,7 +27,7 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 112);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isFullRepayment = _decodeBool(data, 145);
-contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
+contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
     using SharesMathLib for uint256;
@@ -142,7 +140,7 @@ contract MorphoRepayAndWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         BuildHookLocalVars memory vars = _decodeHookData(data);
 
         MarketParams memory marketParams =

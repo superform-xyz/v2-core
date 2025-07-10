@@ -10,10 +10,9 @@ import { IMorphoBase, MarketParams } from "../../../vendor/morpho/IMorpho.sol";
 // Superform
 import { BaseMorphoLoanHook } from "./BaseMorphoLoanHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { ISuperHookLoans } from "../../../interfaces/ISuperHook.sol";
 import { ISuperHookResult } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import { ISuperHook, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title MorphoSupplyHook
 /// @author Superform Labs
@@ -25,7 +24,7 @@ import { ISuperHook, ISuperHookInspector } from "../../../interfaces/ISuperHook.
 /// @notice         uint256 amount = BytesLib.toUint256(data, 80);
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 112);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
-contract MorphoSupplyHook is BaseMorphoLoanHook, ISuperHookInspector {
+contract MorphoSupplyHook is BaseMorphoLoanHook {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -98,7 +97,7 @@ contract MorphoSupplyHook is BaseMorphoLoanHook, ISuperHookInspector {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         SupplyHookLocalVars memory vars = _decodeSupplyHookData(data);
 
         MarketParams memory marketParams =

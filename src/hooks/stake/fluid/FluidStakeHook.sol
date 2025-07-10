@@ -19,7 +19,7 @@ import { ISuperHookContextAware, ISuperHookResult, ISuperHookInspector } from ".
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 52);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-contract FluidStakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract FluidStakeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;
@@ -70,7 +70,7 @@ contract FluidStakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(data.extractYieldSource());
     }
 

@@ -16,7 +16,7 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @dev data has the following structure
 /// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
-contract CancelRedeemRequest7540Hook is BaseHook, ISuperHookInspector {
+contract CancelRedeemRequest7540Hook is BaseHook {
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CANCEL_REDEEM_REQUEST) { }
@@ -48,7 +48,7 @@ contract CancelRedeemRequest7540Hook is BaseHook, ISuperHookInspector {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(data.extractYieldSource());
     }
     /*//////////////////////////////////////////////////////////////

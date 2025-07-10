@@ -20,7 +20,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         uint256 value = BytesLib.toUint256(data, 40);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 72);
 /// @notice         bytes txData_ = BytesLib.slice(data, 73, data.length - 73);
-contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract Swap1InchHook is BaseHook, ISuperHookContextAware {
     using ProtocolLib for Address;
     using AddressLib for Address;
     using SafeCast for uint256;
@@ -97,7 +97,7 @@ contract Swap1InchHook is BaseHook, ISuperHookContextAware, ISuperHookInspector 
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         bytes calldata txData_ = data[73:];
         bytes4 selector = bytes4(txData_[:4]);
 
