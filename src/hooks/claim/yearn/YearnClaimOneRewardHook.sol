@@ -11,8 +11,6 @@ import { BaseHook } from "../../BaseHook.sol";
 import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import {
-    ISuperHook,
-    ISuperHookResultOutflow,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware,
