@@ -1,15 +1,21 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
+// external
 import { MarketParamsLib } from "../../src/vendor/morpho/MarketParamsLib.sol";
-import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { Id, IMorphoStaticTyping, MarketParams } from "../../src/vendor/morpho/IMorpho.sol";
-import { MorphoRepayAndWithdrawHook } from "../../src/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import { MorphoSupplyAndBorrowHook } from "../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { UserOpData } from "modulekit/ModuleKit.sol";
-import { console } from "forge-std/console.sol";
+import "forge-std/console2.sol";
+
+// Superform
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
+import { MinimalBaseIntegrationTest } from "./MinimalBaseIntegrationTest.t.sol";
+import { MorphoRepayAndWithdrawHook } from "../../src/hooks/loan/morpho/MorphoRepayAndWithdrawHook.sol";
+import { MorphoSupplyAndBorrowHook } from "../../src/hooks/loan/morpho/MorphoSupplyAndBorrowHook.sol";
+import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
+import { SuperNativePaymaster } from "../../src/paymaster/SuperNativePaymaster.sol";
 
 contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
     using MarketParamsLib for MarketParams;
@@ -19,11 +25,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
     address public morphoRepayHook;
 
     MorphoRepayAndWithdrawHook public repayAndWithdrawHook;
-
-    address public constant CHAIN_1_WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
-
-    address public morpho_oracle_wbtc_usdc = 0xDddd770BADd886dF3864029e4B377B5F6a2B6b83;
-    address public morpho_irm_wbtc_usdc = 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC;
+    ISuperNativePaymaster public superNativePaymaster;
 
     uint256 public amount;
     uint256 public lltv;
@@ -36,6 +38,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         morphoSupplyAndBorrowHook = address(new MorphoSupplyAndBorrowHook(address(MORPHO)));
         repayAndWithdrawHook = new MorphoRepayAndWithdrawHook(address(MORPHO));
         repayAndWithdrawHookAddress = address(repayAndWithdrawHook);
+        superNativePaymaster = ISuperNativePaymaster(new SuperNativePaymaster(IEntryPoint(ENTRYPOINT_ADDR)));
 
         amount = 1_000_000;
         lltv = 860_000_000_000_000_000;
@@ -44,8 +47,13 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         _getTokens(CHAIN_1_WBTC, accountEth, 1e8);
     }
 
+    receive() external payable {}
+
+    /*//////////////////////////////////////////////////////////////
+                      TESTS
+    //////////////////////////////////////////////////////////////*/
     function test_MorphoSupplyAndBorrowHook_TracksCollateralNotLoan() external {
-        console.log("=== MorphoSupplyAndBorrowHook Token Tracking Test ===");
+        console2.log("=== MorphoSupplyAndBorrowHook Token Tracking Test ===");
 
         address loanToken = CHAIN_1_USDC;
         address collateralToken = CHAIN_1_WBTC;
@@ -54,9 +62,9 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         uint256 collateralBefore = IERC20(collateralToken).balanceOf(accountEth);
         uint256 loanBefore = IERC20(loanToken).balanceOf(accountEth);
 
-        console.log("Initial Balances:");
-        console.log("  Collateral (WBTC):", collateralBefore);
-        console.log("  Loan Token (USDC):", loanBefore);
+        console2.log("Initial Balances:");
+        console2.log("  Collateral (WBTC):", collateralBefore);
+        console2.log("  Loan Token (USDC):", loanBefore);
 
         // Setup the borrow hook execution
         address[] memory hooksAddresses = new address[](1);
@@ -64,7 +72,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createMorphoSupplyAndBorrowHookData(
-            loanToken, collateralToken, morpho_oracle_wbtc_usdc, morpho_irm_wbtc_usdc, amount, lltvRatio, false, lltv
+            loanToken, collateralToken, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, amount, lltvRatio, false, lltv
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -72,14 +80,39 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
         // Execute the borrow operation
-        executeOp(userOpData);
+        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18);
 
-        //confirmed by console2.log
+        // Get post-execution balances
+        uint256 collateralAfter = IERC20(collateralToken).balanceOf(accountEth);
+        uint256 loanAfter = IERC20(loanToken).balanceOf(accountEth);
+
+        console2.log("Post-Execution Balances:");
+        console2.log("  Collateral (WBTC):", collateralAfter);
+        console2.log("  Loan Token (USDC):", loanAfter);
+
+        // Get market parameters
+        MarketParams memory marketParams = MarketParams({
+            loanToken: loanToken,
+            collateralToken: collateralToken,
+            oracle: MORPHO_ORACLE_WBTC_USDC,
+            irm: MORPHO_IRM_WBTC_USDC,
+            lltv: lltv
+        });
+
+        Id id = marketParams.id();
+        (uint256 borrowed, uint256 supplied, uint128 collateralShares) = IMorphoStaticTyping(MORPHO).position(id, accountEth);
+        
+        console2.log("Morpho Position:");
+        console2.log("  Borrowed:", borrowed);
+        console2.log("  Supplied:", supplied);
+        console2.log("  Collateral Shares:", collateralShares);
+
+        assertLt(collateralAfter, collateralBefore, "Collateral balance should decrease");
+        assertEq(collateralBefore - collateralAfter, amount, "Collateral amount should match supplied amount");
+        assertGt(loanAfter, loanBefore, "Loan token balance should increase");
+        assertGt(collateralShares, 0, "Collateral shares should be tracked in Morpho");
     }
 
-    /*//////////////////////////////////////////////////////////////
-                      TEST REPAY AND WITHDRAW LLTV
-    //////////////////////////////////////////////////////////////*/
     function test_RepayAndWithdrawHook_PartialRepay_Maintains_LTV() public {
         address loanToken = CHAIN_1_USDC;
         address collateralToken = CHAIN_1_WBTC;
@@ -90,7 +123,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
 
         bytes[] memory hooksData = new bytes[](1);
         hooksData[0] = _createMorphoSupplyAndBorrowHookData(
-            loanToken, collateralToken, morpho_oracle_wbtc_usdc, morpho_irm_wbtc_usdc, amount, lltvRatio, false, lltv
+            loanToken, collateralToken, MORPHO_ORACLE_WBTC_USDC, MORPHO_IRM_WBTC_USDC, amount, lltvRatio, false, lltv
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
@@ -98,13 +131,13 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
 
         // Execute the borrow operation
-        executeOp(userOpData);
+        executeOpsThroughPaymaster(userOpData, superNativePaymaster, 1e18); 
 
         MarketParams memory marketParams = MarketParams({
             loanToken: loanToken,
             collateralToken: collateralToken,
-            oracle: morpho_oracle_wbtc_usdc,
-            irm: morpho_irm_wbtc_usdc,
+            oracle: MORPHO_ORACLE_WBTC_USDC,
+            irm: MORPHO_IRM_WBTC_USDC,
             lltv: lltv
         });
 
@@ -132,8 +165,8 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         repayAndWithdrawHookData[0] = abi.encodePacked(
             loanToken,
             collateralToken,
-            morpho_oracle_wbtc_usdc,
-            morpho_irm_wbtc_usdc,
+            MORPHO_ORACLE_WBTC_USDC,
+            MORPHO_IRM_WBTC_USDC,
             repayAmount,
             lltv,
             false, // don't use prev hook
@@ -147,7 +180,7 @@ contract MorphoHooksIntegrationTest is MinimalBaseIntegrationTest {
         UserOpData memory userOpData1 = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry1));
 
         // Execute the partial repayment operation
-        executeOp(userOpData1);
+        executeOpsThroughPaymaster(userOpData1, superNativePaymaster, 1e18); 
 
         uint128 collateralAfter;
         (,, collateralAfter) = morpho.position(id, accountEth);
