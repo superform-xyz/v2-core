@@ -25,7 +25,7 @@ ftest-ci :; forge test -v --jobs 2
 
 coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
 
-test-vvv :; forge test --match-contract MultisigOwnerValidationTest -vvvv --jobs 10
+test-vvv :; forge test --match-test test_CrossChain_executionA -vvvv --jobs 10
 
 test-integration :; forge test --match-test test_SameChainTx_executionA -vvvv --jobs 10
 

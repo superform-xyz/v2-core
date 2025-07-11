@@ -43,16 +43,11 @@ import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
 import { BaseTest } from "../../BaseTest.t.sol";
 
-import "forge-std/console2.sol";
-
-contract SafeAccountExecution is
-    Safe7579Precompiles,
-    BaseTest
-{
+contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     using BytesLib for bytes;
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
-    
+
     /// @notice Structure to hold variables for cross-chain execution tests
     /// @dev Used to mitigate stack too deep errors in test functions
     struct CrossChainTestVars {
@@ -62,30 +57,25 @@ contract SafeAccountExecution is
         bytes initData;
         address predictedAddress;
         bytes initCode;
-        
         // Account instances
         AccountInstance instanceOp;
         AccountInstance instanceBase;
         address accountOp;
         address accountBase;
-        
         // Message data
         bytes targetExecutorMessage;
         TargetExecutorMessage messageData;
         address accountToUse;
-        
         // Target chain (OP) data
         address[] opHooksAddresses;
         bytes[] opHooksData;
         uint256 previewDepositAmountOP;
-        
         // Source chain (BASE) data
         address[] srcHooksAddresses;
         bytes[] srcHooksData;
         uint256 userBalanceBaseUSDCBefore;
         ISuperExecutor.ExecutorEntry entryToExecute;
         UserOpData srcUserOpData;
-        
         // Proof data
         MerkleContext ctx;
         ISuperValidator.DstProof[] proofDst;
@@ -141,7 +131,6 @@ contract SafeAccountExecution is
     IValidator sourceValidatorOnBase;
     ISuperExecutor superExecutorOnBase;
 
-
     function setUp() public override {
         skipAccountsCreation = true;
         super.setUp();
@@ -181,7 +170,6 @@ contract SafeAccountExecution is
         owners = new address[](2);
         owners[0] = owner1;
         owners[1] = owner2;
-       
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -192,7 +180,7 @@ contract SafeAccountExecution is
         account = instance.account;
         assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
     }
-   
+
     function test_SameChainTx_execution() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
         // setup SafeERC7579
         bytes memory initData = _getInitData();
@@ -205,11 +193,7 @@ contract SafeAccountExecution is
         account = instance.account;
         assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
 
-        instance.installModule({
-            moduleTypeId: MODULE_TYPE_EXECUTOR,
-            module: address(superExecutor),
-            data: ""
-        });
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
         instance.installModule({
             moduleTypeId: MODULE_TYPE_VALIDATOR,
             module: address(validator),
@@ -246,7 +230,6 @@ contract SafeAccountExecution is
      * @notice Test cross-chain transaction execution
      */
     function test_CrossChain_executionA() public {
-        console2.log("test_CrossChain_executionA");
         CrossChainTestVars memory vars;
         vars.amountPerVault = 1e8 / 2;
         vars.warpStartTime = 1_740_559_708;
@@ -256,7 +239,7 @@ contract SafeAccountExecution is
         _setupSourceChain(vars);
         _executeAndVerifyCrossChainTx(vars);
     }
-    
+
     /*//////////////////////////////////////////////////////////////
                                 INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
@@ -266,7 +249,6 @@ contract SafeAccountExecution is
      * @param vars Test variables
      */
     function _setupAccountsAndCode(CrossChainTestVars memory vars) internal {
-       
         //src account
         vm.selectFork(FORKS[BASE]);
         _initializeModuleKit("SAFE", keccak256("123"));
@@ -275,8 +257,7 @@ contract SafeAccountExecution is
         vars.initData = _getInitData();
         vars.predictedAddress = IAccountFactory(safeFactory).getAddress(accountSalt, vars.initData);
         vars.initCode = abi.encodePacked(
-            address(safeFactory), 
-            abi.encodeCall(IAccountFactory.createAccount, (accountSalt, vars.initData))
+            address(safeFactory), abi.encodeCall(IAccountFactory.createAccount, (accountSalt, vars.initData))
         );
         vars.instanceBase = makeAccountInstance(accountSalt, vars.predictedAddress, vars.initCode);
         vars.accountBase = vars.instanceBase.account;
@@ -292,7 +273,7 @@ contract SafeAccountExecution is
             data: abi.encode(address(vars.predictedAddress))
         });
         assertEq(uint256(vars.instanceBase.accountType), uint256(AccountType.SAFE), "not safe on base");
-        
+
         //dst account
         vm.selectFork(FORKS[OP]);
         _initializeModuleKit("SAFE", keccak256("123"));
@@ -313,28 +294,24 @@ contract SafeAccountExecution is
             data: abi.encode(address(vars.predictedAddress))
         });
         assertEq(uint256(vars.instanceOp.accountType), uint256(AccountType.SAFE), "not safe on op");
-
     }
     /**
      * @notice Setup destination chain (OP) environment and data
      * @param vars Test variables
      */
+
     function _setupDestinationChain(CrossChainTestVars memory vars) internal {
         // OP IS DST
         SELECT_FORK_AND_WARP(OP, vars.warpStartTime + 1);
-        
+
         // PREPARE OP DATA
         vars.opHooksAddresses = new address[](2);
         vars.opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
         vars.opHooksAddresses[1] = _getHookAddress(OP, DEPOSIT_4626_VAULT_HOOK_KEY);
 
         vars.opHooksData = new bytes[](2);
-        vars.opHooksData[0] = _createApproveHookData(
-            underlyingOpUsdce, 
-            yieldSource4626AddressOpUsdce, 
-            vars.amountPerVault, 
-            false
-        );
+        vars.opHooksData[0] =
+            _createApproveHookData(underlyingOpUsdce, yieldSource4626AddressOpUsdce, vars.amountPerVault, false);
         vars.opHooksData[1] = _createDeposit4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSource4626AddressOpUsdce,
@@ -367,11 +344,10 @@ contract SafeAccountExecution is
      * @notice Setup source chain (BASE) environment and data
      * @param vars Test variables
      */
+
     function _setupSourceChain(CrossChainTestVars memory vars) internal {
         // BASE IS SRC
         SELECT_FORK_AND_WARP(BASE, vars.warpStartTime + 1);
-
-        vars.userBalanceBaseUSDCBefore = IERC20(underlyingBaseUsdc).balanceOf(vars.accountBase);
 
         // PREPARE BASE DATA
         vars.srcHooksAddresses = new address[](2);
@@ -379,64 +355,48 @@ contract SafeAccountExecution is
         vars.srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         vars.srcHooksData = new bytes[](2);
-        vars.srcHooksData[0] = _createApproveHookData(
-            underlyingBaseUsdc, 
-            SPOKE_POOL_V3_ADDRESSES[BASE], 
-            vars.amountPerVault, 
-            false
-        );
+        vars.srcHooksData[0] =
+            _createApproveHookData(underlyingBaseUsdc, SPOKE_POOL_V3_ADDRESSES[BASE], vars.amountPerVault, false);
         vars.srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBaseUsdc, 
-            underlyingOpUsdce, 
-            vars.amountPerVault, 
-            vars.amountPerVault, 
-            OP, 
-            true, 
+            underlyingBaseUsdc,
+            underlyingOpUsdce,
+            vars.amountPerVault,
+            vars.amountPerVault,
+            OP,
+            true,
             vars.targetExecutorMessage
         );
 
-        vars.entryToExecute = ISuperExecutor.ExecutorEntry({ 
-            hooksAddresses: vars.srcHooksAddresses, 
-            hooksData: vars.srcHooksData 
-        });
-        
+        vars.entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: vars.srcHooksAddresses, hooksData: vars.srcHooksData });
+
         vars.srcUserOpData = _getExecOpsWithValidator(
-            vars.instanceBase, 
-            superExecutorOnBase, 
-            abi.encode(vars.entryToExecute), 
-            address(sourceValidatorOnBase)
+            vars.instanceBase, superExecutorOnBase, abi.encode(vars.entryToExecute), address(sourceValidatorOnBase)
         );
 
+        // Give account tokens FIRST, then capture balance
         _getTokens(underlyingBaseUsdc, address(vars.accountBase), vars.amountPerVault);
+        vars.userBalanceBaseUSDCBefore = IERC20(underlyingBaseUsdc).balanceOf(vars.accountBase);
 
         _prepareMerkleRootAndSignature(vars);
     }
-    
+
     /**
      * @notice Prepare the Merkle root and signature for validation
      * @param vars Test variables
      */
     function _prepareMerkleRootAndSignature(CrossChainTestVars memory vars) internal view {
         (vars.ctx, vars.proofDst) = _createMerkleRootWithoutSignature(
-            vars.messageData, 
-            vars.srcUserOpData.userOpHash, 
-            vars.accountToUse, 
-            OP, 
-            address(sourceValidatorOnBase)
+            vars.messageData, vars.srcUserOpData.userOpHash, vars.accountToUse, OP, address(sourceValidatorOnBase)
         );
 
         vars.signature = _getSafeSignature(vars.ctx.merkleRoot, vars.accountToUse);
         vars.signatureData = abi.encode(
-            true, 
-            vars.ctx.validUntil, 
-            vars.ctx.merkleRoot, 
-            vars.ctx.merkleProof[1], 
-            vars.proofDst, 
-            vars.signature
+            true, vars.ctx.validUntil, vars.ctx.merkleRoot, vars.ctx.merkleProof[1], vars.proofDst, vars.signature
         );
         vars.srcUserOpData.userOp.signature = vars.signatureData;
     }
-    
+
     /**
      * @notice Execute the cross-chain transaction and verify results
      * @param vars Test variables
@@ -458,21 +418,22 @@ contract SafeAccountExecution is
             })
         );
 
+        // Verify source chain: tokens should be sent via Across bridge
+        uint256 currentBaseBalance = IERC20(underlyingBaseUsdc).balanceOf(vars.accountBase);
+        uint256 expectedBaseBalance = vars.userBalanceBaseUSDCBefore - vars.amountPerVault;
+
         assertEq(
-            IERC20(underlyingBaseUsdc).balanceOf(vars.accountBase), 
-            vars.userBalanceBaseUSDCBefore - vars.amountPerVault, 
-            "A"
+            currentBaseBalance, expectedBaseBalance, "Source chain BASE USDC balance incorrect after cross-chain send"
         );
 
+        // Verify destination chain: tokens should be deposited into vault
         vm.selectFork(FORKS[OP]);
+        uint256 currentOpShares = vaultInstance4626OP.balanceOf(vars.accountOp);
+
         assertEq(
-            vaultInstance4626OP.balanceOf(vars.accountOp), 
-            vars.previewDepositAmountOP, 
-            "B"
+            currentOpShares, vars.previewDepositAmountOP, "Destination chain OP vault shares incorrect after deposit"
         );
     }
-
-
 
     // -- SAFEERC7579 helper
     function _getInitData() internal view returns (bytes memory _init) {
@@ -505,15 +466,14 @@ contract SafeAccountExecution is
             factory := sload(slot)
         }
     }
-  
+
     function _getHelper(string memory helperType) internal view returns (address helper) {
         bytes32 slot = keccak256(abi.encode("ModuleKit.", helperType, "HelperSlot"));
         assembly {
             helper := sload(slot)
         }
     }
-  
-    
+
     // -- 1271 signature helper
     function _createSafeSigData(
         uint48 validUntil,
@@ -538,26 +498,57 @@ contract SafeAccountExecution is
         SignatureData memory sigData;
         sigData.rawHash = keccak256(abi.encode(validator.namespace(), merkleRoot));
 
-        // Calculate the hash that Safe7579 will actually validate against
-        sigData.domainSeparator = ISafe(payable(_account)).domainSeparator();
+        // Use chain-agnostic domain separator instead of Safe's native one
+        sigData.domainSeparator = _getChainAgnosticDomainSeparator(_account);
 
-        // Use the actual EIP712 library from Safe7579
-        bytes memory messageData = EIP712.encodeMessageData(sigData.domainSeparator, abi.encode(sigData.rawHash));
-        sigData.finalHash = keccak256(messageData);
+        // Create the final hash using the same logic as SuperValidatorBase
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(
+                bytes1(0x19),
+                bytes1(0x01),
+                sigData.domainSeparator,
+                keccak256(abi.encode(keccak256("SafeMessage(bytes message)"), keccak256(abi.encode(sigData.rawHash))))
+            )
+        );
 
-
-        // Sign the hash that Safe7579 will actually validate
-        (sigData.v1, sigData.r1, sigData.s1) = vm.sign(privateKey1, sigData.finalHash);
-        (sigData.v2, sigData.r2, sigData.s2) = vm.sign(privateKey2, sigData.finalHash);
+        // Sign the chain-agnostic hash
+        (sigData.v1, sigData.r1, sigData.s1) = vm.sign(privateKey1, messageHash);
+        (sigData.v2, sigData.r2, sigData.s2) = vm.sign(privateKey2, messageHash);
 
         // Verify recovery
-        sigData.recovered1 = ecrecover(sigData.finalHash, sigData.v1, sigData.r1, sigData.s1);
-        sigData.recovered2 = ecrecover(sigData.finalHash, sigData.v2, sigData.r2, sigData.s2);
+        sigData.recovered1 = ecrecover(messageHash, sigData.v1, sigData.r1, sigData.s1);
+        sigData.recovered2 = ecrecover(messageHash, sigData.v2, sigData.r2, sigData.s2);
 
         return _buildAndValidateSignature(sigData, _account);
-        }
+    }
 
-    function _buildAndValidateSignature(SignatureData memory sigData, address _account) internal view returns (bytes memory) {
+    /// @notice Helper function to create chain-agnostic domain separator
+    /// @dev Must match the logic in SuperValidatorBase
+    function _getChainAgnosticDomainSeparator(address account) internal pure returns (bytes32) {
+        bytes32 CHAIN_AGNOSTIC_DOMAIN_TYPEHASH = 0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
+        uint256 FIXED_CHAIN_ID = 1;
+        string memory DOMAIN_NAME = "SuperformSafe";
+        string memory DOMAIN_VERSION = "1.0.0";
+
+        return keccak256(
+            abi.encode(
+                CHAIN_AGNOSTIC_DOMAIN_TYPEHASH,
+                keccak256(bytes(DOMAIN_NAME)),
+                keccak256(bytes(DOMAIN_VERSION)),
+                FIXED_CHAIN_ID,
+                account
+            )
+        );
+    }
+
+    function _buildAndValidateSignature(
+        SignatureData memory sigData,
+        address _account
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
         bytes memory sig1 = abi.encodePacked(sigData.r1, sigData.s1, sigData.v1);
         bytes memory sig2 = abi.encodePacked(sigData.r2, sigData.s2, sigData.v2);
 
@@ -568,10 +559,10 @@ contract SafeAccountExecution is
             signature = bytes.concat(sig2, sig1);
         }
 
-        bytes memory dataWithValidator = abi.encodePacked(address(0), signature);
-        bytes4 rv = IERC1271(address(_account)).isValidSignature(sigData.rawHash, dataWithValidator);
-        assertEq(rv, ERC1271_MAGICVALUE);
+        // The validation will now happen in SuperValidatorBase using chain-agnostic logic
+        // Remove the ISafe(account).isValidSignature check since we're bypassing it
 
+        bytes memory dataWithValidator = abi.encodePacked(address(0), signature);
         return dataWithValidator;
     }
 
