@@ -31,3 +31,6 @@
 [submodule "lib/safe7579"]
 	path = lib/safe7579
 	url = https://github.com/rhinestonewtf/safe7579
+[submodule "lib/modulekit"]
+	path = lib/modulekit
+	url = https://github.com/superform-xyz/modulekit.git
