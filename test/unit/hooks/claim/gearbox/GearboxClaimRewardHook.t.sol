@@ -8,8 +8,11 @@ import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 import { IGearboxFarmingPool } from "../../../../../src/vendor/gearbox/IGearboxFarmingPool.sol";
+import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 
 contract GearboxClaimRewardHookTest is Helpers {
+    using BytesLib for bytes;
+
     GearboxClaimRewardHook public hook;
     address public mockFarmingPool;
     address public mockRewardToken;
@@ -86,6 +89,9 @@ contract GearboxClaimRewardHookTest is Helpers {
         bytes memory data = _encodeData();
         bytes memory argsEncoded = hook.inspect(data);
         assertGt(argsEncoded.length, 0);
+
+        assertEq(BytesLib.toAddress(argsEncoded, 0), mockFarmingPool);
+        assertEq(BytesLib.toAddress(argsEncoded, 20), mockRewardToken);
     }
 
     function test_CalldataDecoding() public view {

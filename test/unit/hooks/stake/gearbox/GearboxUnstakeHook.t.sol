@@ -8,8 +8,11 @@ import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
+import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 
 contract GearboxUnstakeHookTest is Helpers {
+    using BytesLib for bytes;
+
     GearboxUnstakeHook public hook;
 
     bytes32 yieldSourceOracleId;
@@ -36,6 +39,8 @@ contract GearboxUnstakeHookTest is Helpers {
         bytes memory data = _encodeData(false);
         bytes memory argsEncoded = hook.inspect(data);
         assertGt(argsEncoded.length, 0);
+
+        assertEq(BytesLib.toAddress(argsEncoded, 0), yieldSource);
     }
 
     function test_DecodeUsePrevHookAmount() public view {
