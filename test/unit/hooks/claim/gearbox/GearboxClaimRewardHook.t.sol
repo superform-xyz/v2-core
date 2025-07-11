@@ -12,7 +12,7 @@ import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 
 contract GearboxClaimRewardHookTest is Helpers {
     using BytesLib for bytes;
-    
+
     GearboxClaimRewardHook public hook;
     address public mockFarmingPool;
     address public mockRewardToken;

@@ -83,7 +83,7 @@ contract ApproveAndGearboxStakeHookTest is Helpers {
     function test_Inspector() public view {
         bytes memory data = _encodeData(false);
         bytes memory argsEncoded = hook.inspect(data);
-        
+
         assertEq(yieldSource, BytesLib.toAddress(argsEncoded, 0));
         assertEq(token, BytesLib.toAddress(argsEncoded, 20));
 
