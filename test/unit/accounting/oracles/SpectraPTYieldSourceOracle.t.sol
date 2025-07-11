@@ -90,49 +90,4 @@ contract SpectraPTYieldSourceOracleTest is InternalHelpers, Helpers {
         uint256 actualTVL = oracle.getTVL(address(mockPT));
         assertEq(actualTVL, expectedTVL, "Incorrect total TVL");
     }
-
-    function test_isValidUnderlyingAsset() public {
-        address _mockUnderlying = address(0x789);
-        mockPT.setUnderlying(_mockUnderlying);
-
-        assertTrue(
-            oracle.isValidUnderlyingAsset(address(mockPT), _mockUnderlying), "Should return true for correct underlying"
-        );
-        assertFalse(
-            oracle.isValidUnderlyingAsset(address(mockPT), address(0x999)),
-            "Should return false for incorrect underlying"
-        );
-    }
-
-    function test_isValidUnderlyingAssets() public {
-        address mockUnderlying1 = address(0x789);
-        address mockUnderlying2 = address(0x987);
-
-        MockSpectraPrincipalToken mockPT2 =
-            new MockSpectraPrincipalToken(address(yt), address(ibt), address(mockUnderlying2));
-
-        mockPT.setUnderlying(mockUnderlying1);
-        mockPT2.setUnderlying(mockUnderlying2);
-
-        address[] memory ptAddresses = new address[](2);
-        ptAddresses[0] = address(mockPT);
-        ptAddresses[1] = address(mockPT2);
-
-        address[] memory expectedUnderlyings = new address[](2);
-        expectedUnderlyings[0] = mockUnderlying1;
-        expectedUnderlyings[1] = mockUnderlying2;
-
-        bool[] memory results = oracle.isValidUnderlyingAssets(ptAddresses, expectedUnderlyings);
-
-        assertTrue(results[0], "First PT should have valid underlying");
-        assertTrue(results[1], "Second PT should have valid underlying");
-    }
-
-    function test_isValidUnderlyingAssets_ArrayLengthMismatch() public {
-        address[] memory ptAddresses = new address[](2);
-        address[] memory expectedUnderlyings = new address[](1);
-
-        vm.expectRevert(IYieldSourceOracle.ARRAY_LENGTH_MISMATCH.selector);
-        oracle.isValidUnderlyingAssets(ptAddresses, expectedUnderlyings);
-    }
 }

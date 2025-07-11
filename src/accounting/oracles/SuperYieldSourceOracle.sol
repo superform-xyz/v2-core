@@ -27,11 +27,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         override // Added override
         returns (uint256 pricePerShareQuote)
     {
-        IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracle);
-        if (!yS.isValidUnderlyingAsset(yieldSourceAddress, base)) revert INVALID_BASE_ASSET();
-
         // Get price per share in base asset terms
-        uint256 baseAmount = yS.getPricePerShare(yieldSourceAddress);
+        uint256 baseAmount = IYieldSourceOracle(yieldSourceOracle).getPricePerShare(yieldSourceAddress);
 
         // Convert to quote asset using oracle
         pricePerShareQuote = IOracle(oracle).getQuote(baseAmount, base, quote);
@@ -51,11 +48,9 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         override // Added override
         returns (uint256 tvlQuote)
     {
-        IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracle);
-        if (!yS.isValidUnderlyingAsset(yieldSourceAddress, base)) revert INVALID_BASE_ASSET();
-
         // Get TVL in base asset terms
-        uint256 baseAmount = yS.getTVLByOwnerOfShares(yieldSourceAddress, ownerOfShares);
+        uint256 baseAmount =
+            IYieldSourceOracle(yieldSourceOracle).getTVLByOwnerOfShares(yieldSourceAddress, ownerOfShares);
 
         // Convert to quote asset using oracle
         tvlQuote = IOracle(oracle).getQuote(baseAmount, base, quote);
@@ -74,11 +69,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         override // Added override
         returns (uint256 tvlQuote)
     {
-        IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracle);
-        if (!yS.isValidUnderlyingAsset(yieldSourceAddress, base)) revert INVALID_BASE_ASSET();
-
         // Get TVL in base asset terms
-        uint256 baseAmount = yS.getTVL(yieldSourceAddress);
+        uint256 baseAmount = IYieldSourceOracle(yieldSourceOracle).getTVL(yieldSourceAddress);
 
         // Convert to quote asset using oracle
         tvlQuote = IOracle(oracle).getQuote(baseAmount, base, quote);
@@ -105,13 +97,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         pricesPerShareQuote = new uint256[](length);
 
         for (uint256 i; i < length; ++i) {
-            IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
-            if (!yS.isValidUnderlyingAsset(yieldSourceAddresses[i], baseAddresses[i])) {
-                revert INVALID_BASE_ASSET();
-            }
-
             // Get price per share in base asset terms
-            uint256 baseAmount = yS.getPricePerShare(yieldSourceAddresses[i]);
+            uint256 baseAmount = IYieldSourceOracle(yieldSourceOracles[i]).getPricePerShare(yieldSourceAddresses[i]);
 
             // Convert to quote asset using oracle
             pricesPerShareQuote[i] = IOracle(oracles[i]).getQuote(baseAmount, baseAddresses[i], quoteAddresses[i]);
@@ -151,18 +138,14 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
             vars.totalTvlQuote = 0; // Renamed from totalTvlUSD
 
             userTvlsQuote[i] = new uint256[](vars.ownersLength);
-            IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
-            if (!yS.isValidUnderlyingAsset(vars.yieldSource, baseAddresses[i])) {
-                revert INVALID_BASE_ASSET();
-            }
 
             for (uint256 j = 0; j < vars.ownersLength; ++j) {
                 // Get TVL in base asset terms
-                vars.baseAmount = yS.getTVLByOwnerOfShares(vars.yieldSource, vars.owners[j]);
+                vars.baseAmount =
+                    IYieldSourceOracle(yieldSourceOracles[i]).getTVLByOwnerOfShares(vars.yieldSource, vars.owners[j]);
 
                 // Convert to quote asset using oracle registry
-                vars.userTvlQuote = IOracle(oracles[i]).getQuote(vars.baseAmount, baseAddresses[i], quoteAddresses[i]); // Renamed
-                    // from userTvlUSD
+                vars.userTvlQuote = IOracle(oracles[i]).getQuote(vars.baseAmount, baseAddresses[i], quoteAddresses[i]);
                 userTvlsQuote[i][j] = vars.userTvlQuote;
                 vars.totalTvlQuote += vars.userTvlQuote;
             }
@@ -192,13 +175,8 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         tvlsQuote = new uint256[](length);
 
         for (uint256 i; i < length; ++i) {
-            IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
-            if (!yS.isValidUnderlyingAsset(yieldSourceAddresses[i], baseAddresses[i])) {
-                revert INVALID_BASE_ASSET();
-            }
-
             // Get TVL in base asset terms
-            uint256 baseAmount = yS.getTVL(yieldSourceAddresses[i]);
+            uint256 baseAmount = IYieldSourceOracle(yieldSourceOracles[i]).getTVL(yieldSourceAddresses[i]);
 
             // Convert to quote asset using oracle
             tvlsQuote[i] = IOracle(oracles[i]).getQuote(baseAmount, baseAddresses[i], quoteAddresses[i]);
@@ -211,8 +189,7 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
     /// @inheritdoc ISuperYieldSourceOracle
     function getPricePerShareMultiple(
         address[] memory yieldSourceAddresses,
-        address[] memory yieldSourceOracles,
-        address baseAsset
+        address[] memory yieldSourceOracles
     )
         external
         view
@@ -222,11 +199,7 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         pricesPerShare = new uint256[](length);
 
         for (uint256 i; i < length; ++i) {
-            IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
-            if (!yS.isValidUnderlyingAsset(yieldSourceAddresses[i], baseAsset)) {
-                revert INVALID_BASE_ASSET();
-            }
-            pricesPerShare[i] = yS.getPricePerShare(yieldSourceAddresses[i]);
+            pricesPerShare[i] = IYieldSourceOracle(yieldSourceOracles[i]).getPricePerShare(yieldSourceAddresses[i]);
         }
     }
 
@@ -234,8 +207,7 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
     function getTVLByOwnerOfSharesMultiple(
         address[] memory yieldSourceAddresses,
         address[] memory yieldSourceOracles,
-        address[] memory ownersOfShares,
-        address baseAsset
+        address[] memory ownersOfShares
     )
         external
         view
@@ -245,19 +217,16 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         userTvls = new uint256[](length);
 
         for (uint256 i; i < length; ++i) {
-            IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
-            if (!yS.isValidUnderlyingAsset(yieldSourceAddresses[i], baseAsset)) {
-                revert INVALID_BASE_ASSET();
-            }
-            userTvls[i] = yS.getTVLByOwnerOfShares(yieldSourceAddresses[i], ownersOfShares[i]);
+            userTvls[i] = IYieldSourceOracle(yieldSourceOracles[i]).getTVLByOwnerOfShares(
+                yieldSourceAddresses[i], ownersOfShares[i]
+            );
         }
     }
 
     /// @inheritdoc ISuperYieldSourceOracle
     function getTVLMultiple(
         address[] memory yieldSourceAddresses,
-        address[] memory yieldSourceOracles,
-        address baseAsset
+        address[] memory yieldSourceOracles
     )
         external
         view
@@ -267,11 +236,7 @@ contract SuperYieldSourceOracle is ISuperYieldSourceOracle {
         tvls = new uint256[](length);
 
         for (uint256 i; i < length; ++i) {
-            IYieldSourceOracle yS = IYieldSourceOracle(yieldSourceOracles[i]);
-            if (!yS.isValidUnderlyingAsset(yieldSourceAddresses[i], baseAsset)) {
-                revert INVALID_BASE_ASSET();
-            }
-            tvls[i] = yS.getTVL(yieldSourceAddresses[i]);
+            tvls[i] = IYieldSourceOracle(yieldSourceOracles[i]).getTVL(yieldSourceAddresses[i]);
         }
     }
 }
