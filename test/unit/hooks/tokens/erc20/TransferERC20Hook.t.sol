@@ -8,8 +8,11 @@ import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
+import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 
 contract TransferERC20HookTest is Helpers {
+    using BytesLib for bytes;
+
     TransferERC20Hook public hook;
 
     address token;
@@ -85,6 +88,9 @@ contract TransferERC20HookTest is Helpers {
         bytes memory data = _encodeData(false);
         bytes memory argsEncoded = hook.inspect(data);
         assertGt(argsEncoded.length, 0);
+
+        assertEq(BytesLib.toAddress(argsEncoded, 0), token);
+        assertEq(BytesLib.toAddress(argsEncoded, 20), to);
     }
 
     function _encodeData(bool usePrev) internal view returns (bytes memory) {
