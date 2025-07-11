@@ -91,16 +91,5 @@ contract ERC4626YieldSourceOracle is AbstractYieldSourceOracle {
         return IERC4626(yieldSourceAddress).totalAssets();
     }
 
-    /// @inheritdoc AbstractYieldSourceOracle
-    function isValidUnderlyingAsset(
-        address yieldSourceAddress,
-        address expectedUnderlying
-    )
-        public
-        view
-        override
-        returns (bool)
-    {
-        return IERC4626(yieldSourceAddress).asset() == expectedUnderlying;
-    }
+
 }

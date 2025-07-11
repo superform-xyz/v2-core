@@ -115,31 +115,9 @@ interface IYieldSourceOracle {
     /// @return tvl The total value locked in the yield source, in underlying asset terms
     function getTVL(address yieldSourceAddress) external view returns (uint256);
 
-    /// @notice Verifies if a given token is a valid underlying asset for a yield source
-    /// @dev Security check to prevent operations with incompatible assets
-    /// @param yieldSourceAddress The yield-bearing token address to check against
-    /// @param expectedUnderlying The address of the potential underlying asset
-    /// @return True if the address is a valid underlying asset for the yield source
-    function isValidUnderlyingAsset(
-        address yieldSourceAddress,
-        address expectedUnderlying
-    )
-        external
-        view
-        returns (bool);
 
-    /// @notice Batch version of isValidUnderlyingAsset for multiple yield sources
-    /// @dev Efficiently verifies multiple yield source/asset pairs in a single call
-    /// @param yieldSourceAddresses Array of yield-bearing token addresses
-    /// @param expectedUnderlying Array of potential underlying asset addresses
-    /// @return isValid Array of booleans indicating validity of each pair
-    function isValidUnderlyingAssets(
-        address[] memory yieldSourceAddresses,
-        address[] memory expectedUnderlying
-    )
-        external
-        view
-        returns (bool[] memory isValid);
+
+
 
     /// @notice Batch version of getPricePerShare for multiple yield sources
     /// @dev Efficiently retrieves current prices for multiple yield sources

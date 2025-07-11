@@ -73,18 +73,6 @@ contract SpectraPTYieldSourceOracle is AbstractYieldSourceOracle {
         return IPrincipalToken(ptAddress).totalAssets();
     }
 
-    /// @inheritdoc AbstractYieldSourceOracle
-    function isValidUnderlyingAsset(
-        address yieldSourceAddress,
-        address expectedUnderlying
-    )
-        public
-        view
-        override
-        returns (bool)
-    {
-        return IPrincipalToken(yieldSourceAddress).underlying() == expectedUnderlying;
-    }
 
     function _decimals(address ptAddress) internal view returns (uint8) {
         return IERC20Metadata(ptAddress).decimals();

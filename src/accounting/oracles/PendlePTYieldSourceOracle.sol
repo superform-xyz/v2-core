@@ -63,11 +63,7 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         // sharesOut = assetsIn * 1e18 / pricePerShare
         // Asset decimals might differ from 18, need to adjust. PT decimals also matter.
         IStandardizedYield sY = IStandardizedYield(_sy(market));
-        (uint256 assetType, address assetAddress, uint8 assetDecimals) = _getAssetInfo(sY);
-        if (assetType != 0) revert NOT_AVAILABLE_ERC20_ON_CHAIN();
-
-        // ! if the SY token upgrades and asset stops being part of token in or out array this could revert
-        if (!_validateAssetFoundInSY(sY, assetAddress)) revert INVALID_ASSET();
+        (,, uint8 assetDecimals) = _getAssetInfo(sY);
 
         uint8 ptDecimals = IERC20Metadata(_pt(market)).decimals();
 
@@ -103,11 +99,7 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
         // assetsOut = sharesIn * pricePerShare / 1e(ptDecimals) / 1e(18 - assetDecimals)
         uint8 ptDecimals = IERC20Metadata(_pt(market)).decimals();
         IStandardizedYield sY = IStandardizedYield(_sy(market));
-        (uint256 assetType, address assetAddress, uint8 assetDecimals) = _getAssetInfo(sY);
-        if (assetType != 0) revert NOT_AVAILABLE_ERC20_ON_CHAIN();
-
-        // ! if the SY token upgrades and asset stops being part of token in or out array this could revert
-        if (!_validateAssetFoundInSY(sY, assetAddress)) revert INVALID_ASSET();
+        (,, uint8 assetDecimals) = _getAssetInfo(sY);
 
         // Calculate asset value in 1e18 terms first
         // assetsOut18 = sharesIn * pricePerShare / 10^ptDecimals
@@ -164,40 +156,6 @@ contract PendlePTYieldSourceOracle is AbstractYieldSourceOracle {
     {
         IERC20Metadata pt = IERC20Metadata(_pt(market));
         balance = pt.balanceOf(ownerOfShares);
-    }
-
-    /// @inheritdoc AbstractYieldSourceOracle
-    function isValidUnderlyingAsset(address market, address expectedUnderlying) public view override returns (bool) {
-        IStandardizedYield sY = IStandardizedYield(_sy(market));
-        (uint256 assetType,,) = _getAssetInfo(sY);
-        if (assetType != 0) revert NOT_AVAILABLE_ERC20_ON_CHAIN();
-
-        return _validateAssetFoundInSY(sY, expectedUnderlying);
-    }
-
-    function _validateAssetFoundInSY(IStandardizedYield sY, address expectedUnderlying) internal view returns (bool) {
-        address[] memory tokensIn = sY.getTokensIn();
-        address[] memory tokensOut = sY.getTokensOut();
-        uint256 tokensInLength = tokensIn.length;
-        uint256 tokensOutLength = tokensOut.length;
-        bool foundInTokensIn;
-        for (uint256 i; i < tokensInLength; ++i) {
-            if (tokensIn[i] == expectedUnderlying) {
-                foundInTokensIn = true;
-                break;
-            }
-        }
-
-        if (!foundInTokensIn) return false;
-
-        bool foundInTokensOut;
-        for (uint256 i; i < tokensOutLength; ++i) {
-            if (tokensOut[i] == expectedUnderlying) {
-                foundInTokensOut = true;
-                break;
-            }
-        }
-        return foundInTokensOut;
     }
 
     function _getAssetInfo(IStandardizedYield sY) internal view returns (uint256, address, uint8) {

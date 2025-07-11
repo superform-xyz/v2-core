@@ -69,16 +69,5 @@ contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
         return IERC20(yieldSourceAddress).totalSupply();
     }
 
-    /// @inheritdoc AbstractYieldSourceOracle
-    function isValidUnderlyingAsset(
-        address yieldSourceAddress,
-        address expectedUnderlying
-    )
-        public
-        view
-        override
-        returns (bool)
-    {
-        return IStakingVault(yieldSourceAddress).stakingToken() == expectedUnderlying;
-    }
+
 }
