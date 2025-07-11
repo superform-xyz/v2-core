@@ -317,8 +317,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     bytes32 constant SALT = keccak256("TEST");
 
+
     address public mockBaseHook;
 
+    bool public skipAccountsCreation = false;
     bool public useLatestFork = false;
     bool public useRealOdosRouter = false;
     address[] public globalMerkleHooks;
@@ -342,7 +344,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         A = _deployHooks(A);
 
         // Initialize accounts
-        _initializeAccounts(ACCOUNT_COUNT);
+        if (!skipAccountsCreation) {
+            _initializeAccounts(ACCOUNT_COUNT);
+        }
 
         // Setup SuperLedger
         _setupSuperLedger();
@@ -1698,6 +1702,53 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         bytes32[][] merkleProof;
         bytes32 merkleRoot;
         bytes signature;
+    }
+
+    function _createMerkleRootWithoutSignature(
+        TargetExecutorMessage memory messageData,
+        bytes32 userOpHash,
+        address accountToUse,
+        uint64 dstChainId,
+        address srcValidator
+    )
+    internal
+        view
+        returns (MerkleContext memory ctx, ISuperValidator.DstProof[] memory proofDst)
+    {
+        ctx.validUntil = uint48(block.timestamp + 100 days);
+        ctx.executionData =
+            _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
+
+        ctx.leaves = new bytes32[](2);
+        ctx.dstTokens = new address[](1);
+        ctx.dstTokens[0] = messageData.tokenSent;
+        ctx.intentAmounts = new uint256[](1);
+        ctx.intentAmounts[0] = messageData.amount;
+
+        ctx.leaves[0] = _createDestinationValidatorLeaf(
+            ctx.executionData,
+            messageData.chainId,
+            accountToUse,
+            messageData.targetExecutor,
+            ctx.dstTokens,
+            ctx.intentAmounts,
+            ctx.validUntil,
+            messageData.validator
+        );
+        ctx.leaves[1] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, true, srcValidator);
+
+        (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
+
+        proofDst = new ISuperValidator.DstProof[](1);
+        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
+            data: ctx.executionData,
+            executor: messageData.targetExecutor,
+            dstTokens: ctx.dstTokens,
+            intentAmounts: ctx.intentAmounts,
+            account: accountToUse,
+            validator: messageData.validator
+        });
+        proofDst[0] = ISuperValidator.DstProof({ proof: ctx.merkleProof[0], dstChainId: dstChainId, info: dstInfo });
     }
 
     function _createMerkleRootAndSignature(
