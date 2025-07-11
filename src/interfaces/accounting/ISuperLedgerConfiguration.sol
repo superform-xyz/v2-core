@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 /// @title ISuperLedgerConfiguration
@@ -45,7 +45,7 @@ interface ISuperLedgerConfiguration {
     //////////////////////////////////////////////////////////////*/
     /// @notice Thrown when a function restricted to managers is called by a non-manager address
     error NOT_MANAGER();
-    
+
     /// @notice Thrown when providing an empty array where at least one element is required
     error ZERO_LENGTH();
 
@@ -78,10 +78,9 @@ interface ISuperLedgerConfiguration {
 
     /// @notice Thrown when a critical address parameter is set to the zero address
     error ZERO_ADDRESS_NOT_ALLOWED();
-    
+
     /// @notice Thrown when the length of input arrays do not match
     error LENGTH_MISMATCH();
-
 
     /*//////////////////////////////////////////////////////////////
                                  EVENTS
@@ -180,7 +179,11 @@ interface ISuperLedgerConfiguration {
     ///      Fee percentage changes are limited to a maximum percentage change
     /// @param yieldSourceOracleIds Array of yield source IDs to propose changes for
     /// @param configs Array of proposed configuration changes
-    function proposeYieldSourceOracleConfig(bytes32[] calldata yieldSourceOracleIds, YieldSourceOracleConfigArgs[] calldata configs) external;
+    function proposeYieldSourceOracleConfig(
+        bytes32[] calldata yieldSourceOracleIds,
+        YieldSourceOracleConfigArgs[] calldata configs
+    )
+        external;
 
     /// @notice Accepts previously proposed changes to yield source oracle configurations
     /// @dev Can only be called by the manager after the time-lock period has passed

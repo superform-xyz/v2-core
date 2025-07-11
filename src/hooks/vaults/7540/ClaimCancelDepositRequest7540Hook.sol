@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -20,7 +20,7 @@ import { ISuperHookAsyncCancelations, ISuperHookInspector } from "../../../inter
 /// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         address receiver = BytesLib.toAddress(data, 52);
-contract ClaimCancelDepositRequest7540Hook is BaseHook, ISuperHookAsyncCancelations, ISuperHookInspector {
+contract ClaimCancelDepositRequest7540Hook is BaseHook, ISuperHookAsyncCancelations {
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM_CANCEL_DEPOSIT_REQUEST) { }
@@ -62,7 +62,7 @@ contract ClaimCancelDepositRequest7540Hook is BaseHook, ISuperHookAsyncCancelati
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
             data.extractYieldSource(),
             BytesLib.toAddress(data, 52) //receiver

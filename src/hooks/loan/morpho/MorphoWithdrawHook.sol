@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -26,7 +26,7 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 120);
 /// @notice         uint256 assets = BytesLib.toUint256(data, 152);
 /// @notice         uint256 shares = BytesLib.toUint256(data, 184);
-contract MorphoWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
+contract MorphoWithdrawHook is BaseMorphoLoanHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
 
@@ -80,7 +80,7 @@ contract MorphoWithdrawHook is BaseMorphoLoanHook, ISuperHookInspector {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         WithdrawHookVars memory vars = _decodeWithdrawData(data);
 
         return abi.encodePacked(

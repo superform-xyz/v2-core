@@ -1,13 +1,13 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
-import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
-import {ECDSA} from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
-import {SuperValidatorBase} from "./SuperValidatorBase.sol";
+import { SuperValidatorBase } from "./SuperValidatorBase.sol";
 
 /// @title SuperDestinationValidator
 /// @author Superform Labs
@@ -31,7 +31,11 @@ contract SuperDestinationValidator is SuperValidatorBase {
     }
 
     /// @notice Validate a signature with sender
-    function isValidSignatureWithSender(address, bytes32, bytes calldata)
+    function isValidSignatureWithSender(
+        address,
+        bytes32,
+        bytes calldata
+    )
         external
         pure
         virtual
@@ -82,7 +86,10 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /// @param destinationData The destination execution data to create the leaf hash from
     /// @return signer The address that signed the message
     /// @return leaf The computed leaf hash used in merkle verification
-    function _processSignatureAndVerifyLeaf(SignatureData memory sigData, DestinationData memory destinationData)
+    function _processSignatureAndVerifyLeaf(
+        SignatureData memory sigData,
+        DestinationData memory destinationData
+    )
         private
         view
         returns (address signer, bytes32 leaf)
@@ -116,7 +123,10 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /// @param destinationDataRaw ABI-encoded destination data bytes
     /// @param sender_ Expected sender address to validate against
     /// @return Structured DestinationData for further processing
-    function _decodeDestinationData(bytes memory destinationDataRaw, address sender_)
+    function _decodeDestinationData(
+        bytes memory destinationDataRaw,
+        address sender_
+    )
         private
         view
         returns (DestinationData memory)
@@ -135,7 +145,10 @@ contract SuperDestinationValidator is SuperValidatorBase {
         return DestinationData(callData, chainId, decodedSender, executor, dstTokens, intentAmounts);
     }
 
-    function _decodeSignatureAndDestinationData(bytes memory data, address sender)
+    function _decodeSignatureAndDestinationData(
+        bytes memory data,
+        address sender
+    )
         private
         view
         returns (SignatureData memory, DestinationData memory)
