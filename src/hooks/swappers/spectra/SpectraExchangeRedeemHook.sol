@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -24,7 +24,7 @@ import { SpectraCommands } from "../../../vendor/spectra/SpectraCommands.sol";
 /// @notice         uint256 sharesToBurn = BytesLib.toUint256(data, 124);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 156);
 /// @notice         bytes1 command = BytesLib.slice(data, 157, 1);
-contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 156;
@@ -119,7 +119,7 @@ contract SpectraExchangeRedeemHook is BaseHook, ISuperHookContextAware, ISuperHo
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         RedeemParams memory params = _decodeRedeemParams(data);
 
         return abi.encodePacked(params.asset, params.pt, params.recipient);

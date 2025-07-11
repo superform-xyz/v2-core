@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -6,12 +6,12 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC7540 } from "../../../vendor/vaults/7540/IERC7540.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
 import { VaultBankLockableHook } from "../../VaultBankLockableHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-
 import {
     ISuperHookResult,
     ISuperHookInflowOutflow,
@@ -26,15 +26,7 @@ import {
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 52);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 85);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 105);
-contract Deposit7540VaultHook is
-    BaseHook,
-    VaultBankLockableHook,
-    ISuperHookInflowOutflow,
-    ISuperHookContextAware,
-    ISuperHookInspector
-{
+contract Deposit7540VaultHook is BaseHook, VaultBankLockableHook, ISuperHookInflowOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;
@@ -90,7 +82,7 @@ contract Deposit7540VaultHook is
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(data.extractYieldSource());
     }
 
@@ -100,8 +92,6 @@ contract Deposit7540VaultHook is
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
         _setOutAmount(_getBalance(account, data), account);
-        vaultBank = BytesLib.toAddress(data, 85);
-        dstChainId = BytesLib.toUint256(data, 105);
         spToken = IERC7540(data.extractYieldSource()).share();
     }
 

@@ -230,7 +230,9 @@ The system uses a dedicated on-chain oracle system to compute the price per shar
 
 #### SuperBundler
 
-A specialized off-chain bundler that processes ERC4337 userOps on a timed basis. It integrates with the validation system to ensure secure operation. Unlike typical bundlers that immediately forward userOps, SuperBundler processes them in a timed manner, allowing for batching and optimized execution.
+A specialized off-chain bundler that processes ERC-4337 UserOperations on a timed basis. It integrates with the validation system to ensure secure and compliant operation.
+Unlike typical bundlers that immediately forward userOps to the EntryPoint, SuperBundler collects them, simulates them in advance, and dispatches them in timed batches — allowing for gas optimization, sequencing control, and higher throughput.
+⚠️ Note: According to ERC-4337 recommendations, bundler operates using a private RPC endpoint. All UserOperations are simulated before submission to ensure validity and avoid wasting gas on failing transactions.
 
 Bundler Operation
 

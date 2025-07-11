@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -10,8 +10,8 @@ import { IStakedUSDeCooldown } from "../../../vendor/ethena/IStakedUSDeCooldown.
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title EthenaUnstakeHook
@@ -19,7 +19,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @dev data has the following structure
 /// @notice         bytes32 yieldSourceOracleId = bytes32(BytesLib.slice(data, 0, 32), 0);
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
-contract EthenaUnstakeHook is BaseHook, ISuperHookInspector {
+contract EthenaUnstakeHook is BaseHook {
     using HookDataDecoder for bytes;
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.ETHENA) { }
@@ -57,7 +57,7 @@ contract EthenaUnstakeHook is BaseHook, ISuperHookInspector {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(data.extractYieldSource());
     }
 

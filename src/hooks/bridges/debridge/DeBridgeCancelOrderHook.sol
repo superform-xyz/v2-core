@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -65,7 +65,7 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// giveTokenAddress_paramLength + takeTokenAddress_paramLength + receiverDst_paramLength +
 /// givePatchAuthoritySrc_paramLength + orderAuthorityAddressDst_paramLength + allowedTakerDst_paramLength +
 /// allowedCancelBeneficiarySrc_paramLength);
-contract DeBridgeCancelOrderHook is BaseHook, ISuperHookInspector {
+contract DeBridgeCancelOrderHook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -101,7 +101,7 @@ contract DeBridgeCancelOrderHook is BaseHook, ISuperHookInspector {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         (Order memory order,,) = _createOrder(data);
 
         return abi.encodePacked(

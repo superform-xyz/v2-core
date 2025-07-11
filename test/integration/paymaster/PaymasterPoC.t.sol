@@ -357,7 +357,7 @@ contract PoC is PaymasterHelper {
         data.paymaster.handleOps{gas: data.maxGasLimit, value: address(this).balance}(data.ops);
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
-        bytes32 expectedTopic = keccak256("SuperNativePaymsterRefund(address,uint256,uint256)");
+        bytes32 expectedTopic = keccak256("SuperNativePaymasterRefund(address,uint256,uint256)");
         for (uint256 i; i < entries.length; ++i) {
             Vm.Log memory log = entries[i];
             if (log.topics[0] == expectedTopic) {
@@ -430,7 +430,7 @@ contract PoC is PaymasterHelper {
         data.paymaster.handleOps{gas: data.maxGasLimit, value: 2e16}(data.ops);
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
-        bytes32 expectedTopic = keccak256("SuperNativePaymsterRefund(address,uint256,uint256)");
+        bytes32 expectedTopic = keccak256("SuperNativePaymasterRefund(address,uint256,uint256)");
         for (uint256 i; i < entries.length; ++i) {
             Vm.Log memory log = entries[i];
             if (log.topics[0] == expectedTopic) {

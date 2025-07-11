@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -9,9 +9,9 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IStakedUSDeCooldown } from "../../../vendor/ethena/IStakedUSDeCooldown.sol";
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
+import { ISuperHookResult, ISuperHookInflowOutflow, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title EthenaCooldownSharesHook
 /// @author Superform Labs
@@ -21,7 +21,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         uint256 shares = BytesLib.toUint256(data, 52);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHookInspector {
+contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;
@@ -63,7 +63,7 @@ contract EthenaCooldownSharesHook is BaseHook, ISuperHookInflowOutflow, ISuperHo
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(data.extractYieldSource());
     }
 

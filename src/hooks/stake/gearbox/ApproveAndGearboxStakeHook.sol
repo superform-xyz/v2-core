@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -21,7 +21,7 @@ import { IGearboxFarmingPool } from "../../../vendor/gearbox/IGearboxFarmingPool
 /// @notice         address token = BytesLib.toAddress(data, 52);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 72);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
-contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 72;
@@ -80,8 +80,11 @@ contract ApproveAndGearboxStakeHook is BaseHook, ISuperHookContextAware, ISuperH
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
-        return abi.encodePacked(data.extractYieldSource());
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+        return abi.encodePacked(
+            data.extractYieldSource(),
+            BytesLib.toAddress(data, 52) // token
+        );
     }
 
     /*//////////////////////////////////////////////////////////////

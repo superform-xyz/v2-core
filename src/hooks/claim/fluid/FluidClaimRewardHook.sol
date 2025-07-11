@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -31,8 +31,7 @@ contract FluidClaimRewardHook is
     BaseClaimRewardHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
-    ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
 
@@ -74,7 +73,7 @@ contract FluidClaimRewardHook is
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(data.extractYieldSource(), BytesLib.toAddress(data, 52));
     }
 

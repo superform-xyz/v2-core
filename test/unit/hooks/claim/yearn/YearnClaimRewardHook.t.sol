@@ -8,8 +8,11 @@ import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 import { IYearnStakingRewardsMulti } from "../../../../../src/vendor/yearn/IYearnStakingRewardsMulti.sol";
+import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 
 contract YearnClaimOneRewardHookTest is Helpers {
+    using BytesLib for bytes;
+
     YearnClaimOneRewardHook public hook;
     address public mockYieldSource;
     address public mockRewardToken;
@@ -80,6 +83,9 @@ contract YearnClaimOneRewardHookTest is Helpers {
         bytes memory data = _encodeData();
         bytes memory argsEncoded = hook.inspect(data);
         assertGt(argsEncoded.length, 0);
+
+        assertEq(BytesLib.toAddress(argsEncoded, 0), mockYieldSource);
+        assertEq(BytesLib.toAddress(argsEncoded, 20), mockRewardToken);
     }
 
     function test_CalldataDecoding() public view {

@@ -29,6 +29,46 @@ var (
 	_ = abi.ConvertType
 )
 
+// IEntryPointAggregatorStakeInfo is an auto generated low-level Go binding around an user-defined struct.
+type IEntryPointAggregatorStakeInfo struct {
+	Aggregator common.Address
+	StakeInfo  IStakeManagerStakeInfo
+}
+
+// IEntryPointReturnInfo is an auto generated low-level Go binding around an user-defined struct.
+type IEntryPointReturnInfo struct {
+	PreOpGas                *big.Int
+	Prefund                 *big.Int
+	AccountValidationData   *big.Int
+	PaymasterValidationData *big.Int
+	PaymasterContext        []byte
+}
+
+// IEntryPointSimulationsExecutionResult is an auto generated low-level Go binding around an user-defined struct.
+type IEntryPointSimulationsExecutionResult struct {
+	PreOpGas                *big.Int
+	Paid                    *big.Int
+	AccountValidationData   *big.Int
+	PaymasterValidationData *big.Int
+	TargetSuccess           bool
+	TargetResult            []byte
+}
+
+// IEntryPointSimulationsValidationResult is an auto generated low-level Go binding around an user-defined struct.
+type IEntryPointSimulationsValidationResult struct {
+	ReturnInfo     IEntryPointReturnInfo
+	SenderInfo     IStakeManagerStakeInfo
+	FactoryInfo    IStakeManagerStakeInfo
+	PaymasterInfo  IStakeManagerStakeInfo
+	AggregatorInfo IEntryPointAggregatorStakeInfo
+}
+
+// IStakeManagerStakeInfo is an auto generated low-level Go binding around an user-defined struct.
+type IStakeManagerStakeInfo struct {
+	Stake           *big.Int
+	UnstakeDelaySec *big.Int
+}
+
 // PackedUserOperation is an auto generated low-level Go binding around an user-defined struct.
 type PackedUserOperation struct {
 	Sender             common.Address
@@ -44,7 +84,7 @@ type PackedUserOperation struct {
 
 // SuperNativePaymasterMetaData contains all meta data concerning the SuperNativePaymaster contract.
 var SuperNativePaymasterMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"_entryPoint\",\"type\":\"address\",\"internalType\":\"contractIEntryPoint\"}],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"acceptOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addStake\",\"inputs\":[{\"name\":\"unstakeDelaySec\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"outputs\":[],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"calculateRefund\",\"inputs\":[{\"name\":\"maxGasLimit\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"maxFeePerGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"actualGasCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"nodeOperatorPremium\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"refund\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"entryPoint\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractIEntryPoint\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getDeposit\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"handleOps\",\"inputs\":[{\"name\":\"ops\",\"type\":\"tuple[]\",\"internalType\":\"structPackedUserOperation[]\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"outputs\":[],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingOwner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"postOp\",\"inputs\":[{\"name\":\"mode\",\"type\":\"uint8\",\"internalType\":\"enumIPaymaster.PostOpMode\"},{\"name\":\"context\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"actualGasCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"actualUserOpFeePerGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"renounceOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"transferOwnership\",\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"unlockStake\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"validatePaymasterUserOp\",\"inputs\":[{\"name\":\"userOp\",\"type\":\"tuple\",\"internalType\":\"structPackedUserOperation\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"name\":\"userOpHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"maxCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"context\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"validationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"withdrawStake\",\"inputs\":[{\"name\":\"withdrawAddress\",\"type\":\"address\",\"internalType\":\"addresspayable\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"withdrawTo\",\"inputs\":[{\"name\":\"withdrawAddress\",\"type\":\"address\",\"internalType\":\"addresspayable\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"OwnershipTransferStarted\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferred\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperNativePaymasterPostOp\",\"inputs\":[{\"name\":\"context\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperNativePaymsterRefund\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"refund\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UserOperationsHandled\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"numOps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"initialAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"withdrawnAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"EMPTY_MESSAGE_VALUE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_MAX_GAS_LIMIT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_NODE_OPERATOR_PREMIUM\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OwnableInvalidOwner\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OwnableUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"_entryPoint\",\"type\":\"address\",\"internalType\":\"contractIEntryPoint\"}],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"acceptOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addStake\",\"inputs\":[{\"name\":\"unstakeDelaySec\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"outputs\":[],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"calculateRefund\",\"inputs\":[{\"name\":\"maxGasLimit\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"maxFeePerGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"actualGasCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"nodeOperatorPremium\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"refund\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"entryPoint\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractIEntryPoint\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getDeposit\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"handleOps\",\"inputs\":[{\"name\":\"ops\",\"type\":\"tuple[]\",\"internalType\":\"structPackedUserOperation[]\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"outputs\":[],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingOwner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"postOp\",\"inputs\":[{\"name\":\"mode\",\"type\":\"uint8\",\"internalType\":\"enumIPaymaster.PostOpMode\"},{\"name\":\"context\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"actualGasCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"actualUserOpFeePerGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"renounceOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"simulateHandleOp\",\"inputs\":[{\"name\":\"op\",\"type\":\"tuple\",\"internalType\":\"structPackedUserOperation\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIEntryPointSimulations.ExecutionResult\",\"components\":[{\"name\":\"preOpGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"paid\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"accountValidationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"paymasterValidationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"targetSuccess\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"targetResult\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"simulateValidation\",\"inputs\":[{\"name\":\"op\",\"type\":\"tuple\",\"internalType\":\"structPackedUserOperation\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIEntryPointSimulations.ValidationResult\",\"components\":[{\"name\":\"returnInfo\",\"type\":\"tuple\",\"internalType\":\"structIEntryPoint.ReturnInfo\",\"components\":[{\"name\":\"preOpGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"prefund\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"accountValidationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"paymasterValidationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"paymasterContext\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"name\":\"senderInfo\",\"type\":\"tuple\",\"internalType\":\"structIStakeManager.StakeInfo\",\"components\":[{\"name\":\"stake\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"unstakeDelaySec\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"name\":\"factoryInfo\",\"type\":\"tuple\",\"internalType\":\"structIStakeManager.StakeInfo\",\"components\":[{\"name\":\"stake\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"unstakeDelaySec\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"name\":\"paymasterInfo\",\"type\":\"tuple\",\"internalType\":\"structIStakeManager.StakeInfo\",\"components\":[{\"name\":\"stake\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"unstakeDelaySec\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"name\":\"aggregatorInfo\",\"type\":\"tuple\",\"internalType\":\"structIEntryPoint.AggregatorStakeInfo\",\"components\":[{\"name\":\"aggregator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"stakeInfo\",\"type\":\"tuple\",\"internalType\":\"structIStakeManager.StakeInfo\",\"components\":[{\"name\":\"stake\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"unstakeDelaySec\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]}]}]}],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"transferOwnership\",\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"unlockStake\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"validatePaymasterUserOp\",\"inputs\":[{\"name\":\"userOp\",\"type\":\"tuple\",\"internalType\":\"structPackedUserOperation\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"name\":\"userOpHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"maxCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"context\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"validationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"withdrawStake\",\"inputs\":[{\"name\":\"withdrawAddress\",\"type\":\"address\",\"internalType\":\"addresspayable\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"withdrawTo\",\"inputs\":[{\"name\":\"withdrawAddress\",\"type\":\"address\",\"internalType\":\"addresspayable\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"OwnershipTransferStarted\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferred\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperNativePaymasterPostOp\",\"inputs\":[{\"name\":\"context\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperNativePaymsterRefund\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"refundAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"initialRefund\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UserOperationsHandled\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"numOps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"initialAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"withdrawnAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"EMPTY_MESSAGE_VALUE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_MAX_GAS_LIMIT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_NODE_OPERATOR_PREMIUM\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OwnableInvalidOwner\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OwnableUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]}]",
 }
 
 // SuperNativePaymasterABI is the input ABI used to generate the binding from.
@@ -451,6 +491,48 @@ func (_SuperNativePaymaster *SuperNativePaymasterSession) RenounceOwnership() (*
 // Solidity: function renounceOwnership() returns()
 func (_SuperNativePaymaster *SuperNativePaymasterTransactorSession) RenounceOwnership() (*types.Transaction, error) {
 	return _SuperNativePaymaster.Contract.RenounceOwnership(&_SuperNativePaymaster.TransactOpts)
+}
+
+// SimulateHandleOp is a paid mutator transaction binding the contract method 0x97b2dcb9.
+//
+// Solidity: function simulateHandleOp((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes) op, address target, bytes callData) payable returns((uint256,uint256,uint256,uint256,bool,bytes))
+func (_SuperNativePaymaster *SuperNativePaymasterTransactor) SimulateHandleOp(opts *bind.TransactOpts, op PackedUserOperation, target common.Address, callData []byte) (*types.Transaction, error) {
+	return _SuperNativePaymaster.contract.Transact(opts, "simulateHandleOp", op, target, callData)
+}
+
+// SimulateHandleOp is a paid mutator transaction binding the contract method 0x97b2dcb9.
+//
+// Solidity: function simulateHandleOp((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes) op, address target, bytes callData) payable returns((uint256,uint256,uint256,uint256,bool,bytes))
+func (_SuperNativePaymaster *SuperNativePaymasterSession) SimulateHandleOp(op PackedUserOperation, target common.Address, callData []byte) (*types.Transaction, error) {
+	return _SuperNativePaymaster.Contract.SimulateHandleOp(&_SuperNativePaymaster.TransactOpts, op, target, callData)
+}
+
+// SimulateHandleOp is a paid mutator transaction binding the contract method 0x97b2dcb9.
+//
+// Solidity: function simulateHandleOp((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes) op, address target, bytes callData) payable returns((uint256,uint256,uint256,uint256,bool,bytes))
+func (_SuperNativePaymaster *SuperNativePaymasterTransactorSession) SimulateHandleOp(op PackedUserOperation, target common.Address, callData []byte) (*types.Transaction, error) {
+	return _SuperNativePaymaster.Contract.SimulateHandleOp(&_SuperNativePaymaster.TransactOpts, op, target, callData)
+}
+
+// SimulateValidation is a paid mutator transaction binding the contract method 0xc3bce009.
+//
+// Solidity: function simulateValidation((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes) op) payable returns(((uint256,uint256,uint256,uint256,bytes),(uint256,uint256),(uint256,uint256),(uint256,uint256),(address,(uint256,uint256))))
+func (_SuperNativePaymaster *SuperNativePaymasterTransactor) SimulateValidation(opts *bind.TransactOpts, op PackedUserOperation) (*types.Transaction, error) {
+	return _SuperNativePaymaster.contract.Transact(opts, "simulateValidation", op)
+}
+
+// SimulateValidation is a paid mutator transaction binding the contract method 0xc3bce009.
+//
+// Solidity: function simulateValidation((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes) op) payable returns(((uint256,uint256,uint256,uint256,bytes),(uint256,uint256),(uint256,uint256),(uint256,uint256),(address,(uint256,uint256))))
+func (_SuperNativePaymaster *SuperNativePaymasterSession) SimulateValidation(op PackedUserOperation) (*types.Transaction, error) {
+	return _SuperNativePaymaster.Contract.SimulateValidation(&_SuperNativePaymaster.TransactOpts, op)
+}
+
+// SimulateValidation is a paid mutator transaction binding the contract method 0xc3bce009.
+//
+// Solidity: function simulateValidation((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes) op) payable returns(((uint256,uint256,uint256,uint256,bytes),(uint256,uint256),(uint256,uint256),(uint256,uint256),(address,(uint256,uint256))))
+func (_SuperNativePaymaster *SuperNativePaymasterTransactorSession) SimulateValidation(op PackedUserOperation) (*types.Transaction, error) {
+	return _SuperNativePaymaster.Contract.SimulateValidation(&_SuperNativePaymaster.TransactOpts, op)
 }
 
 // TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
@@ -1067,14 +1149,15 @@ func (it *SuperNativePaymasterSuperNativePaymsterRefundIterator) Close() error {
 
 // SuperNativePaymasterSuperNativePaymsterRefund represents a SuperNativePaymsterRefund event raised by the SuperNativePaymaster contract.
 type SuperNativePaymasterSuperNativePaymsterRefund struct {
-	Sender common.Address
-	Refund *big.Int
-	Raw    types.Log // Blockchain specific contextual infos
+	Sender        common.Address
+	RefundAmount  *big.Int
+	InitialRefund *big.Int
+	Raw           types.Log // Blockchain specific contextual infos
 }
 
-// FilterSuperNativePaymsterRefund is a free log retrieval operation binding the contract event 0x8dc60f2aa916a6eb8cd704fb0865096c718ff92fdf75bba53075164ab027464a.
+// FilterSuperNativePaymsterRefund is a free log retrieval operation binding the contract event 0xdcd9e4f1277b422146a795332836d6261d5f9ddaeb7ca22636435ab6a435cea0.
 //
-// Solidity: event SuperNativePaymsterRefund(address indexed sender, uint256 refund)
+// Solidity: event SuperNativePaymsterRefund(address indexed sender, uint256 refundAmount, uint256 initialRefund)
 func (_SuperNativePaymaster *SuperNativePaymasterFilterer) FilterSuperNativePaymsterRefund(opts *bind.FilterOpts, sender []common.Address) (*SuperNativePaymasterSuperNativePaymsterRefundIterator, error) {
 
 	var senderRule []interface{}
@@ -1089,9 +1172,9 @@ func (_SuperNativePaymaster *SuperNativePaymasterFilterer) FilterSuperNativePaym
 	return &SuperNativePaymasterSuperNativePaymsterRefundIterator{contract: _SuperNativePaymaster.contract, event: "SuperNativePaymsterRefund", logs: logs, sub: sub}, nil
 }
 
-// WatchSuperNativePaymsterRefund is a free log subscription operation binding the contract event 0x8dc60f2aa916a6eb8cd704fb0865096c718ff92fdf75bba53075164ab027464a.
+// WatchSuperNativePaymsterRefund is a free log subscription operation binding the contract event 0xdcd9e4f1277b422146a795332836d6261d5f9ddaeb7ca22636435ab6a435cea0.
 //
-// Solidity: event SuperNativePaymsterRefund(address indexed sender, uint256 refund)
+// Solidity: event SuperNativePaymsterRefund(address indexed sender, uint256 refundAmount, uint256 initialRefund)
 func (_SuperNativePaymaster *SuperNativePaymasterFilterer) WatchSuperNativePaymsterRefund(opts *bind.WatchOpts, sink chan<- *SuperNativePaymasterSuperNativePaymsterRefund, sender []common.Address) (event.Subscription, error) {
 
 	var senderRule []interface{}
@@ -1131,9 +1214,9 @@ func (_SuperNativePaymaster *SuperNativePaymasterFilterer) WatchSuperNativePayms
 	}), nil
 }
 
-// ParseSuperNativePaymsterRefund is a log parse operation binding the contract event 0x8dc60f2aa916a6eb8cd704fb0865096c718ff92fdf75bba53075164ab027464a.
+// ParseSuperNativePaymsterRefund is a log parse operation binding the contract event 0xdcd9e4f1277b422146a795332836d6261d5f9ddaeb7ca22636435ab6a435cea0.
 //
-// Solidity: event SuperNativePaymsterRefund(address indexed sender, uint256 refund)
+// Solidity: event SuperNativePaymsterRefund(address indexed sender, uint256 refundAmount, uint256 initialRefund)
 func (_SuperNativePaymaster *SuperNativePaymasterFilterer) ParseSuperNativePaymsterRefund(log types.Log) (*SuperNativePaymasterSuperNativePaymsterRefund, error) {
 	event := new(SuperNativePaymasterSuperNativePaymsterRefund)
 	if err := _SuperNativePaymaster.contract.UnpackLog(event, "SuperNativePaymsterRefund", log); err != nil {

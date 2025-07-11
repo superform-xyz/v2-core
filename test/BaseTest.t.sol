@@ -67,11 +67,9 @@ import { ApproveAndRequestDeposit7540VaultHook } from
 import { Redeem7540VaultHook } from "../src/hooks/vaults/7540/Redeem7540VaultHook.sol";
 import { RequestRedeem7540VaultHook } from "../src/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
 import { Withdraw7540VaultHook } from "../src/hooks/vaults/7540/Withdraw7540VaultHook.sol";
-import { ApproveAndRequestRedeem7540VaultHook } from
-    "../src/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
+import { ApproveAndRequestRedeem7540VaultHook } from "../src/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
 // bridges hooks
-import { AcrossSendFundsAndExecuteOnDstHook } from
-    "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+import { AcrossSendFundsAndExecuteOnDstHook } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { DeBridgeSendOrderAndExecuteOnDstHook } from
     "../src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
 import { DeBridgeCancelOrderHook } from "../src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
@@ -330,9 +328,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     bool public useRealOdosRouter = false;
     address[] public globalMerkleHooks;
     string[] public globalMerkleHookNames;
-    address public globalSVStrategy;
-    address public globalSVGearStrategy;
-    address public globalRuggableVault;
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -984,6 +979,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
             A[i].yearnClaimOneRewardHook = new YearnClaimOneRewardHook{ salt: SALT }();
             vm.label(address(A[i].yearnClaimOneRewardHook), YEARN_CLAIM_ONE_REWARD_HOOK_KEY);
+            hookAddresses[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY] = address(A[i].yearnClaimOneRewardHook);
             hooks[chainIds[i]][YEARN_CLAIM_ONE_REWARD_HOOK_KEY] = Hook(
                 YEARN_CLAIM_ONE_REWARD_HOOK_KEY,
                 HookCategory.Claims,
@@ -1199,7 +1195,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return A;
     }
 
-   
     // Hook mocking helpers
 
     /**
@@ -1355,14 +1350,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         vm.label(nexusFactoryAddressesMap[OP], "NexusFactoryOP");
         nexusFactoryAddressesMap[BASE] = CHAIN_8453_NEXUS_FACTORY;
         vm.label(nexusFactoryAddressesMap[BASE], "NexusFactoryBASE");
-
-        mapping(uint64 => address) storage polymerProvers = POLYMER_PROVER;
-        polymerProvers[ETH] = CHAIN_1_POLYMER_PROVER;
-        vm.label(polymerProvers[ETH], "PolymerProverETH");
-        polymerProvers[OP] = CHAIN_10_POLYMER_PROVER;
-        // vm.label(polymerProvers[OP], "PolymerProverOP");
-        polymerProvers[BASE] = CHAIN_8453_POLYMER_PROVER;
-        // vm.label(polymerProvers[BASE], "PolymerProverBASE");
 
         /// @dev Setup existingUnderlyingTokens
         // Mainnet tokens
@@ -1570,11 +1557,12 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         } else if (params.relayerType == RELAYER_TYPE.NO_HOOKS) {
             vm.expectEmit(true, true, true, true);
             emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButNoHooks(params.account);
-        }  else if (params.relayerType == RELAYER_TYPE.USED_ROOT) {
+        } else if (params.relayerType == RELAYER_TYPE.USED_ROOT) {
             vm.expectEmit(true, true, true, true);
-            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButRootUsedAlready(params.account, params.root);
-        }
-        else if (params.relayerType == RELAYER_TYPE.REVERT) {
+            emit ISuperDestinationExecutor.SuperDestinationExecutorReceivedButRootUsedAlready(
+                params.account, params.root
+            );
+        } else if (params.relayerType == RELAYER_TYPE.REVERT) {
             if (params.errorMessage != bytes4(0)) {
                 vm.expectRevert(params.errorMessage);
             } else {

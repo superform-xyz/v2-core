@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // Superform
@@ -274,7 +274,6 @@ abstract contract BaseLedger is ISuperLedger {
             );
 
             emit AccountingInflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, pps);
-            return 0;
         } else {
             uint256 amountAssets = _getOutflowProcessVolume(
                 amountSharesOrAssets,

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -28,14 +28,11 @@ import {
 /// @notice         address token = BytesLib.toAddress(data, 52);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 72);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 104);
-/// @notice         address vaultBank = BytesLib.toAddress(data, 105);
-/// @notice         uint256 dstChainId = BytesLib.toUint256(data, 125);
 contract ApproveAndDeposit4626VaultHook is
     BaseHook,
     VaultBankLockableHook,
     ISuperHookInflowOutflow,
-    ISuperHookContextAware,
-    ISuperHookInspector
+    ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
 
@@ -96,7 +93,7 @@ contract ApproveAndDeposit4626VaultHook is
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(
             data.extractYieldSource(),
             BytesLib.toAddress(data, 52) //token
@@ -109,8 +106,6 @@ contract ApproveAndDeposit4626VaultHook is
     function _preExecute(address, address account, bytes calldata data) internal override {
         // store current balance
         _setOutAmount(_getBalance(account, data), account);
-        vaultBank = BytesLib.toAddress(data, 105);
-        dstChainId = BytesLib.toUint256(data, 125);
         spToken = data.extractYieldSource();
     }
 

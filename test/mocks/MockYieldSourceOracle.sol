@@ -108,13 +108,4 @@ contract MockYieldSourceOracle is IYieldSourceOracle {
         return tvls;
     }
 
-    function isValidUnderlyingAsset(address, address asset) external view returns (bool) {
-        return validAssetMap[asset];
-    }
-
-    function isValidUnderlyingAssets(address[] memory, address[] memory) external view returns (bool[] memory) {
-        bool[] memory validities = new bool[](1);
-        validities[0] = validity;
-        return validities;
-    }
 }
