@@ -9,8 +9,11 @@ import { MockERC20 } from "../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../utils/Helpers.sol";
+import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 
 contract BatchTransferHookTest is Helpers {
+    using BytesLib for bytes;
+    
     BatchTransferHook public hook;
 
     address token1;

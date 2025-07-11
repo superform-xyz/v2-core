@@ -15,10 +15,12 @@ import { ISuperExecutor } from "../../../../../src/interfaces/ISuperExecutor.sol
 import { IStandardizedYield } from "../../../../../src/vendor/pendle/IStandardizedYield.sol";
 import { MockLedger, MockLedgerConfiguration } from "../../../../mocks/MockLedger.sol";
 import { RhinestoneModuleKit, AccountInstance, UserOpData, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
-
+import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
 
 contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, InternalHelpers {
+    using BytesLib for bytes;
+
     ApproveAndDeposit5115VaultHook public hook;
 
     using ModuleKitHelpers for *;
@@ -200,6 +202,9 @@ contract ApproveAndDeposit5115VaultHookTest is Helpers, RhinestoneModuleKit, Int
         bytes memory data = _encodeData(false);
         bytes memory argsEncoded = hook.inspect(data);
         assertGt(argsEncoded.length, 0);
+
+        assertEq(BytesLib.toAddress(argsEncoded, 0), yieldSource);
+        assertEq(BytesLib.toAddress(argsEncoded, 20), token);
     }
 
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {

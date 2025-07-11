@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ApproveAndGearboxStakeHook } from "../../../../../src/hooks/stake/gearbox/ApproveAndGearboxStakeHook.sol";
+import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 import { ISuperHook } from "../../../../../src/interfaces/ISuperHook.sol";
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
@@ -10,6 +11,8 @@ import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
 
 contract ApproveAndGearboxStakeHookTest is Helpers {
+    using BytesLib for bytes;
+
     ApproveAndGearboxStakeHook public hook;
 
     bytes32 yieldSourceOracleId;
@@ -80,6 +83,10 @@ contract ApproveAndGearboxStakeHookTest is Helpers {
     function test_Inspector() public view {
         bytes memory data = _encodeData(false);
         bytes memory argsEncoded = hook.inspect(data);
+        
+        assertEq(yieldSource, BytesLib.toAddress(argsEncoded, 0));
+        assertEq(token, BytesLib.toAddress(argsEncoded, 20));
+
         assertGt(argsEncoded.length, 0);
     }
 
