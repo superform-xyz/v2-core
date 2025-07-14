@@ -11,8 +11,7 @@
 ├── .github
 │   ├── CODEOWNERS
 │   └── workflows
-│       ├── contracts-ci.yml
-│       └── validate-branch-name.yml
+│       └── contracts-ci.yml
 ├── .gitignore
 ├── .gitmodules
 ├── .solhint.json
@@ -23,22 +22,16 @@
 ├── contract_bindings
 │   ├── AbstractYieldSourceOracle
 │   │   └── AbstractYieldSourceOracle.go
-│   ├── ECDSAPPSOracle
-│   │   └── ECDSAPPSOracle.go
 │   ├── ERC4626YieldSourceOracle
 │   │   └── ERC4626YieldSourceOracle.go
 │   ├── ERC5115YieldSourceOracle
 │   │   └── ERC5115YieldSourceOracle.go
 │   ├── ERC7540YieldSourceOracle
 │   │   └── ERC7540YieldSourceOracle.go
-│   ├── IECDSAPPSOracle
-│   │   └── IECDSAPPSOracle.go
 │   ├── IOracle
 │   │   └── IOracle.go
 │   ├── IPPYLpOracle
 │   │   └── IPPYLpOracle.go
-│   ├── ISuperOracle
-│   │   └── ISuperOracle.go
 │   ├── ISuperYieldSourceOracle
 │   │   └── ISuperYieldSourceOracle.go
 │   ├── IYieldSourceOracle
@@ -53,14 +46,6 @@
 │   │   └── SpectraPTYieldSourceOracle.go
 │   ├── StakingYieldSourceOracle
 │   │   └── StakingYieldSourceOracle.go
-│   ├── SuperAsset
-│   │   └── SuperAsset.go
-│   ├── SuperAssetFactory
-│   │   └── SuperAssetFactory.go
-│   ├── SuperAssetPriceLib
-│   │   └── SuperAssetPriceLib.go
-│   ├── SuperBank
-│   │   └── SuperBank.go
 │   ├── SuperDeployer
 │   │   └── SuperDeployer.go
 │   ├── SuperDestinationExecutor
@@ -71,8 +56,6 @@
 │   │   └── SuperExecutor.go
 │   ├── SuperExecutorBase
 │   │   └── SuperExecutorBase.go
-│   ├── SuperGovernor
-│   │   └── SuperGovernor.go
 │   ├── SuperLedger
 │   │   └── SuperLedger.go
 │   ├── SuperLedgerConfiguration
@@ -81,22 +64,8 @@
 │   │   └── SuperMerkleValidator.go
 │   ├── SuperNativePaymaster
 │   │   └── SuperNativePaymaster.go
-│   ├── SuperOracle
-│   │   └── SuperOracle.go
-│   ├── SuperOracleBase
-│   │   └── SuperOracleBase.go
-│   ├── SuperOracleL2
-│   │   └── SuperOracleL2.go
 │   ├── SuperValidatorBase
 │   │   └── SuperValidatorBase.go
-│   ├── SuperVault
-│   │   └── SuperVault.go
-│   ├── SuperVaultAggregator
-│   │   └── SuperVaultAggregator.go
-│   ├── SuperVaultEscrow
-│   │   └── SuperVaultEscrow.go
-│   ├── SuperVaultStrategy
-│   │   └── SuperVaultStrategy.go
 │   └── SuperYieldSourceOracle
 │       └── SuperYieldSourceOracle.go
 ├── documentation
@@ -117,17 +86,18 @@
 │   ├── openzeppelin-contracts
 │   ├── pendle-core-v2-public
 │   ├── pigeon
+│   ├── safe-smart-account
+│   ├── safe7579
 │   ├── solady
 │   ├── solidity-stringutils
 │   └── surl
+├── LICENSE
 ├── Makefile
 ├── README.md
 ├── script
-│   ├── DeployV2.s.sol.txt
 │   ├── DeployV2Base.s.sol
 │   ├── DeployV2Core.s.sol
 │   ├── DeployV2OtherHooks.s.sol
-│   ├── DeployV2Periphery.s.sol
 │   ├── output
 │   │   ├── demo
 │   │   │   ├── 1
@@ -167,8 +137,6 @@
 │   │   ├── export_abis_s3.sh
 │   │   ├── generate-contract-bindings.sh
 │   │   ├── retrieve-abis.sh
-│   │   ├── tenderly
-│   │   │   └── index.js
 │   │   ├── update_structure.sh
 │   │   ├── upload_prod_contracts.sh
 │   │   ├── verify_v2_prod.sh
@@ -178,10 +146,7 @@
 │       ├── ConfigBase.sol
 │       ├── ConfigCore.sol
 │       ├── ConfigOtherHooks.sol
-│       ├── ConfigPeriphery.sol
-│       ├── Constants.sol
-│       ├── ISuperDeployer.sol
-│       └── SuperDeployer.sol
+│       └── Constants.sol
 ├── src
 │   ├── accounting
 │   │   ├── BaseLedger.sol
@@ -200,136 +165,6 @@
 │   ├── adapters
 │   │   ├── AcrossV3Adapter.sol
 │   │   └── DebridgeAdapter.sol
-│   ├── core
-│   │   ├── accounting
-│   │   │   ├── BaseLedger.sol
-│   │   │   ├── FlatFeeLedger.sol
-│   │   │   ├── oracles
-│   │   │   │   ├── AbstractYieldSourceOracle.sol
-│   │   │   │   ├── ERC4626YieldSourceOracle.sol
-│   │   │   │   ├── ERC5115YieldSourceOracle.sol
-│   │   │   │   ├── ERC7540YieldSourceOracle.sol
-│   │   │   │   ├── PendlePTYieldSourceOracle.sol
-│   │   │   │   ├── SpectraPTYieldSourceOracle.sol
-│   │   │   │   ├── StakingYieldSourceOracle.sol
-│   │   │   │   └── SuperYieldSourceOracle.sol
-│   │   │   ├── SuperLedger.sol
-│   │   │   └── SuperLedgerConfiguration.sol
-│   │   ├── adapters
-│   │   │   ├── AcrossV3Adapter.sol
-│   │   │   └── DebridgeAdapter.sol
-│   │   ├── executors
-│   │   │   ├── SuperDestinationExecutor.sol
-│   │   │   ├── SuperExecutor.sol
-│   │   │   └── SuperExecutorBase.sol
-│   │   ├── hooks
-│   │   │   ├── BaseHook.sol
-│   │   │   ├── bridges
-│   │   │   │   ├── across
-│   │   │   │   │   └── AcrossSendFundsAndExecuteOnDstHook.sol
-│   │   │   │   └── debridge
-│   │   │   │       ├── DeBridgeCancelOrderHook.sol
-│   │   │   │       └── DeBridgeSendOrderAndExecuteOnDstHook.sol
-│   │   │   ├── claim
-│   │   │   │   ├── BaseClaimRewardHook.sol
-│   │   │   │   ├── fluid
-│   │   │   │   │   └── FluidClaimRewardHook.sol
-│   │   │   │   ├── gearbox
-│   │   │   │   │   └── GearboxClaimRewardHook.sol
-│   │   │   │   └── yearn
-│   │   │   │       └── YearnClaimOneRewardHook.sol
-│   │   │   ├── loan
-│   │   │   │   ├── BaseLoanHook.sol
-│   │   │   │   └── morpho
-│   │   │   │       ├── BaseMorphoLoanHook.sol
-│   │   │   │       ├── MorphoBorrowHook.sol
-│   │   │   │       ├── MorphoRepayAndWithdrawHook.sol
-│   │   │   │       ├── MorphoRepayHook.sol
-│   │   │   │       ├── MorphoSupplyAndBorrowHook.sol
-│   │   │   │       ├── MorphoSupplyHook.sol
-│   │   │   │       └── MorphoWithdrawHook.sol
-│   │   │   ├── stake
-│   │   │   │   ├── fluid
-│   │   │   │   │   ├── ApproveAndFluidStakeHook.sol
-│   │   │   │   │   ├── FluidStakeHook.sol
-│   │   │   │   │   └── FluidUnstakeHook.sol
-│   │   │   │   └── gearbox
-│   │   │   │       ├── ApproveAndGearboxStakeHook.sol
-│   │   │   │       ├── GearboxStakeHook.sol
-│   │   │   │       └── GearboxUnstakeHook.sol
-│   │   │   ├── swappers
-│   │   │   │   ├── 1inch
-│   │   │   │   │   └── Swap1InchHook.sol
-│   │   │   │   ├── odos
-│   │   │   │   │   ├── ApproveAndSwapOdosV2Hook.sol
-│   │   │   │   │   └── SwapOdosV2Hook.sol
-│   │   │   │   ├── pendle
-│   │   │   │   │   ├── PendleRouterRedeemHook.sol
-│   │   │   │   │   └── PendleRouterSwapHook.sol
-│   │   │   │   └── spectra
-│   │   │   │       ├── SpectraExchangeDepositHook.sol
-│   │   │   │       └── SpectraExchangeRedeemHook.sol
-│   │   │   ├── tokens
-│   │   │   │   ├── BatchTransferHook.sol
-│   │   │   │   ├── erc20
-│   │   │   │   │   ├── ApproveERC20Hook.sol
-│   │   │   │   │   └── TransferERC20Hook.sol
-│   │   │   │   ├── OfframpTokensHook.sol
-│   │   │   │   └── permit2
-│   │   │   │       └── BatchTransferFromHook.sol
-│   │   │   ├── VaultBankLockableHook.sol
-│   │   │   └── vaults
-│   │   │       ├── 4626
-│   │   │       │   ├── ApproveAndDeposit4626VaultHook.sol
-│   │   │       │   ├── Deposit4626VaultHook.sol
-│   │   │       │   └── Redeem4626VaultHook.sol
-│   │   │       ├── 5115
-│   │   │       │   ├── ApproveAndDeposit5115VaultHook.sol
-│   │   │       │   ├── Deposit5115VaultHook.sol
-│   │   │       │   └── Redeem5115VaultHook.sol
-│   │   │       ├── 7540
-│   │   │       │   ├── ApproveAndRequestDeposit7540VaultHook.sol
-│   │   │       │   ├── ApproveAndRequestRedeem7540VaultHook.sol
-│   │   │       │   ├── CancelDepositRequest7540Hook.sol
-│   │   │       │   ├── CancelRedeemRequest7540Hook.sol
-│   │   │       │   ├── ClaimCancelDepositRequest7540Hook.sol
-│   │   │       │   ├── ClaimCancelRedeemRequest7540Hook.sol
-│   │   │       │   ├── Deposit7540VaultHook.sol
-│   │   │       │   ├── Redeem7540VaultHook.sol
-│   │   │       │   ├── RequestDeposit7540VaultHook.sol
-│   │   │       │   ├── RequestRedeem7540VaultHook.sol
-│   │   │       │   └── Withdraw7540VaultHook.sol
-│   │   │       ├── ethena
-│   │   │       │   ├── EthenaCooldownSharesHook.sol
-│   │   │       │   └── EthenaUnstakeHook.sol
-│   │   │       ├── super-vault
-│   │   │       │   ├── CancelRedeemHook.sol
-│   │   │       │   └── Withdraw7540VaultHook.sol
-│   │   │       └── vault-bank
-│   │   │           └── MintSuperPositionsHook.sol
-│   │   ├── interfaces
-│   │   │   ├── accounting
-│   │   │   │   ├── ISuperLedger.sol
-│   │   │   │   ├── ISuperLedgerConfiguration.sol
-│   │   │   │   ├── ISuperYieldSourceOracle.sol
-│   │   │   │   └── IYieldSourceOracle.sol
-│   │   │   ├── ISuperDestinationExecutor.sol
-│   │   │   ├── ISuperDestinationValidator.sol
-│   │   │   ├── ISuperExecutor.sol
-│   │   │   ├── ISuperHook.sol
-│   │   │   ├── ISuperNativePaymaster.sol
-│   │   │   ├── ISuperRegistry.sol
-│   │   │   ├── ISuperSignatureStorage.sol
-│   │   │   └── ISuperValidator.sol
-│   │   ├── libraries
-│   │   │   ├── HookDataDecoder.sol
-│   │   │   └── HookSubTypes.sol
-│   │   ├── paymaster
-│   │   │   └── SuperNativePaymaster.sol
-│   │   └── validators
-│   │       ├── SuperDestinationValidator.sol
-│   │       ├── SuperMerkleValidator.sol
-│   │       └── SuperValidatorBase.sol
 │   ├── executors
 │   │   ├── SuperDestinationExecutor.sol
 │   │   ├── SuperExecutor.sol
@@ -425,6 +260,7 @@
 │   │   │   ├── ISuperLedgerConfiguration.sol
 │   │   │   ├── ISuperYieldSourceOracle.sol
 │   │   │   └── IYieldSourceOracle.sol
+│   │   ├── ISuperDeployer.sol
 │   │   ├── ISuperDestinationExecutor.sol
 │   │   ├── ISuperDestinationValidator.sol
 │   │   ├── ISuperExecutor.sol
@@ -438,59 +274,7 @@
 │   │   └── HookSubTypes.sol
 │   ├── paymaster
 │   │   └── SuperNativePaymaster.sol
-│   ├── periphery
-│   │   ├── Bank.sol
-│   │   ├── BundlerRegistry.sol
-│   │   ├── interfaces
-│   │   │   ├── IBundlerRegistry.sol
-│   │   │   ├── IHookExecutionData.sol
-│   │   │   ├── ISuperBank.sol
-│   │   │   ├── ISuperGovernor.sol
-│   │   │   ├── oracles
-│   │   │   │   ├── IECDSAPPSOracle.sol
-│   │   │   │   ├── ISuperOracle.sol
-│   │   │   │   └── ISuperOracleL2.sol
-│   │   │   ├── SuperAsset
-│   │   │   │   ├── IIncentiveCalculationContract.sol
-│   │   │   │   ├── IIncentiveFundContract.sol
-│   │   │   │   ├── ISuperAsset.sol
-│   │   │   │   └── ISuperAssetFactory.sol
-│   │   │   ├── SuperVault
-│   │   │   │   ├── ISuperVault.sol
-│   │   │   │   ├── ISuperVaultAggregator.sol
-│   │   │   │   ├── ISuperVaultEscrow.sol
-│   │   │   │   └── ISuperVaultStrategy.sol
-│   │   │   └── VaultBank
-│   │   │       ├── ISuperPositions.sol
-│   │   │       └── IVaultBank.sol
-│   │   ├── libraries
-│   │   │   ├── AssetMetadataLib.sol
-│   │   │   └── SuperAssetPriceLib.sol
-│   │   ├── oracles
-│   │   │   ├── ECDSAPPSOracle.sol
-│   │   │   ├── SuperOracle.sol
-│   │   │   ├── SuperOracleBase.sol
-│   │   │   └── SuperOracleL2.sol
-│   │   ├── SuperAsset
-│   │   │   ├── IncentiveCalculationContract.sol
-│   │   │   ├── IncentiveFundContract.sol
-│   │   │   ├── SuperAsset.sol
-│   │   │   └── SuperAssetFactory.sol
-│   │   ├── SuperBank.sol
-│   │   ├── SuperGovernor.sol
-│   │   ├── SuperVault
-│   │   │   ├── SuperVault.sol
-│   │   │   ├── SuperVaultAggregator.sol
-│   │   │   ├── SuperVaultEscrow.sol
-│   │   │   └── SuperVaultStrategy.sol
-│   │   ├── UP
-│   │   │   ├── Up.sol
-│   │   │   └── UpDistributor.sol
-│   │   └── VaultBank
-│   │       ├── VaultBank.sol
-│   │       ├── VaultBankDestination.sol
-│   │       ├── VaultBankSource.sol
-│   │       └── VaultBankSuperPosition.sol
+│   ├── SuperDeployer.sol
 │   ├── validators
 │   │   ├── SuperDestinationValidator.sol
 │   │   ├── SuperMerkleValidator.sol
@@ -504,8 +288,6 @@
 │       │   └── UserOperationLib.sol
 │       ├── awesome-oracles
 │       │   └── IOracle.sol
-│       ├── BoringSolidity
-│       │   └── BoringERC20.sol
 │       ├── bridges
 │       │   ├── across
 │       │   │   ├── IAcrossSpokePoolV3.sol
@@ -515,8 +297,6 @@
 │       │       ├── IDlnSource.sol
 │       │       └── IExternalCallExecutor.sol
 │       ├── BytesLib.sol
-│       ├── chainlink
-│       │   └── AggregatorV3Interface.sol
 │       ├── debridge
 │       │   └── IDlnDestination.sol
 │       ├── ethena
@@ -547,8 +327,6 @@
 │       │   ├── IPendleRouterV4.sol
 │       │   ├── IPPYLpOracle.sol
 │       │   └── IStandardizedYield.sol
-│       ├── polymer
-│       │   └── ICrossL2ProverV2.sol
 │       ├── spectra
 │       │   ├── IPrincipalToken.sol
 │       │   ├── ISpectraPTToken.sol
@@ -566,6 +344,10 @@
 │       │   │   └── IERC7575.sol
 │       │   └── ERC7741
 │       │       └── IERC7741.sol
+│       ├── superform
+│       │   ├── IHookExecutionData.sol
+│       │   ├── ISuperVault.sol
+│       │   └── IVaultBank.sol
 │       ├── uniswap
 │       │   └── permit2
 │       │       ├── IAllowanceTransfer.sol
@@ -634,7 +416,6 @@
     │   ├── MockAcrossHook.sol
     │   ├── MockAggregator.sol
     │   ├── MockBaseHook.sol
-    │   ├── MockCrossL2ProverV2.sol
     │   ├── MockEntryPoint.sol
     │   ├── MockERC20.sol
     │   ├── MockExecutorModule.sol
@@ -645,6 +426,7 @@
     │   ├── MockLedger.sol
     │   ├── MockLockableHook.sol
     │   ├── MockLockVault.sol
+    │   ├── MockMaliciousHook.sol
     │   ├── MockNexusFactory.sol
     │   ├── MockOdosRouterV2.sol
     │   ├── MockPendleMarket.sol
@@ -661,7 +443,6 @@
     │   ├── MockSuperPositionFactory.sol
     │   ├── MockTargetExecutor.sol
     │   ├── MockValidatorModule.sol
-    │   ├── MockVaultBank.sol
     │   ├── MockYieldSourceOracle.sol
     │   ├── RuggableConvertVault.sol
     │   ├── RuggableVault.sol
@@ -677,42 +458,6 @@
     │       ├── TransferBatchWithPermit2Hook.sol
     │       ├── TransferWithPermit2Hook.sol
     │       └── YearnClaimAllRewardsHook.sol
-    ├── periphery
-    │   ├── integration
-    │   │   ├── SuperAsset
-    │   │   │   ├── IncentiveCalculationContract.t.sol
-    │   │   │   ├── IncentiveFundContract.t.sol
-    │   │   │   └── SuperAsset.t.sol
-    │   │   └── SuperVault
-    │   │       ├── BaseSuperVaultTest.t.sol
-    │   │       ├── SuperVault.t.sol
-    │   │       ├── SuperVault5115Underlying.t.txt
-    │   │       ├── SuperVault7540Underlying.t.txt
-    │   │       ├── SuperVaultLoanDeposit.txt
-    │   │       └── TotalAssetHelper.sol
-    │   ├── mocks
-    │   │   └── MockAggregator.sol
-    │   ├── oracles
-    │   │   ├── ECDSAPPSOracle.t.sol
-    │   │   ├── SuperOracle.t.sol
-    │   │   ├── SuperOracleL2.t.sol
-    │   │   └── SuperYieldSourceOracle.t.sol
-    │   └── unit
-    │       ├── SuperBank.t.sol
-    │       ├── SuperGovernor.t.sol
-    │       ├── up
-    │       │   ├── merkle
-    │       │   │   ├── helper
-    │       │   │   │   └── MerkleReader.sol
-    │       │   │   ├── merkle-js
-    │       │   │   │   └── generateMerkleTree.js
-    │       │   │   └── target
-    │       │   │       ├── input0.json
-    │       │   │       ├── jsGeneratedRoot0.json
-    │       │   │       └── jsTreeDump0.json
-    │       │   ├── Up.t.sol
-    │       │   └── UpDistributor.t.sol
-    │       └── VaultBank.t.sol
     ├── unit
     │   ├── accounting
     │   │   ├── AbstractYieldSourceOracleTest.t.sol
@@ -723,8 +468,6 @@
     │   │   └── YieldSourceOracles.t.sol
     │   ├── adapters
     │   │   └── AdaptersUnitTests.sol
-    │   ├── bundler
-    │   │   └── BundlerRegistry.t.sol
     │   ├── executors
     │   │   └── SuperExecutor.t.sol
     │   ├── hooks
@@ -790,9 +533,7 @@
     │   │   ├── CurveTest.t.sol
     │   │   ├── Mock.t.sol
     │   │   ├── OdosParser.t.sol
-    │   │   ├── OneInchParser.t.sol.txt
-    │   │   ├── SuperPositionsFactory.t.sol
-    │   │   └── SuperPositionsFactoryFuzz.t.sol
+    │   │   └── OneInchParser.t.sol.txt
     │   ├── oracles
     │   │   └── ERC4626YieldSourceOracle.t.sol
     │   ├── paymaster
@@ -807,26 +548,6 @@
         ├── Constants.sol
         ├── Helpers.sol
         ├── InternalHelpers.sol
-        ├── merkle
-        │   ├── helper
-        │   │   └── MerkleReader.sol
-        │   ├── merkle-js
-        │   │   ├── build-hook-merkle-trees.js
-        │   │   ├── deterministic-merkle-pregeneration.js
-        │   │   ├── efficient-proof-lookup.js
-        │   │   ├── GetAddressesFromBaseTest.s.sol
-        │   │   ├── package.json
-        │   │   └── update-lists.js
-        │   ├── output
-        │   │   ├── jsGeneratedRoot_1.json
-        │   │   ├── jsTreeDump_1.json
-        │   │   └── lookup_cache_1.json
-        │   └── target
-        │       ├── deterministic_addresses.json
-        │       ├── owner_list.json
-        │       ├── staking_list.json
-        │       ├── token_list.json
-        │       └── yield_sources_list.json
         ├── MerkleTreeHelper.sol
         ├── parsers
         │   ├── BaseAPIParser.sol
@@ -834,5 +555,5 @@
         │   └── OneInchAPIParser.sol
         └── SignatureHelper.sol
 
-256 directories, 576 files
+172 directories, 381 files
 ```
