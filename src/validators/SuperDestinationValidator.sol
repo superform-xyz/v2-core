@@ -9,6 +9,8 @@ import {MessageHashUtils} from "@openzeppelin/contracts/utils/cryptography/Messa
 
 import {SuperValidatorBase} from "./SuperValidatorBase.sol";
 
+import "forge-std/console2.sol";
+
 /// @title SuperDestinationValidator
 /// @author Superform Labs
 /// @notice Validates cross-chain operation signatures for destination chain operations
@@ -42,6 +44,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
     }
 
     function isValidDestinationSignature(address sender, bytes calldata data) external view returns (bytes4) {
+        console2.log("------ isValidDestinationSignature sender", sender);
         if (!_initialized[sender]) revert NOT_INITIALIZED();
 
         // Decode data
@@ -129,6 +132,9 @@ contract SuperDestinationValidator is SuperValidatorBase {
             address[] memory dstTokens,
             uint256[] memory intentAmounts
         ) = abi.decode(destinationDataRaw, (bytes, uint64, address, address, address[], uint256[]));
+
+        console2.log("--- _decodeDestinationData acc", sender_);
+        console2.log("--- decodedSender          dec", decodedSender);
         if (sender_ != decodedSender) revert INVALID_SENDER();
 
         if (chainId != block.chainid) revert INVALID_CHAIN_ID();

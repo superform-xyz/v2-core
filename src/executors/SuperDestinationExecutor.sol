@@ -7,7 +7,6 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 import { INexusFactory } from "../vendor/nexus/INexusFactory.sol";
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 
 // Superform
 import { SuperExecutorBase } from "./SuperExecutorBase.sol";
@@ -17,6 +16,8 @@ import { ISuperDestinationValidator } from "../interfaces/ISuperDestinationValid
 import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
 import { ISuperSenderCreator } from "../interfaces/ISuperSenderCreator.sol";
 import { BytesLib } from "../vendor/BytesLib.sol";
+
+import "forge-std/console2.sol";
 
 /// @title SuperDestinationExecutor
 /// @author Superform Labs
@@ -116,7 +117,8 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         uint256 dstTokensLen = dstTokens.length;
         if (dstTokensLen != intentAmounts.length) revert ARRAY_LENGTH_MISMATCH();
 
-        account = _validateOrCreateAccount(account, initData);
+        address delegatee;
+        (account, delegatee) = _validateOrCreateAccount(account, initData);
 
         bytes32 merkleRoot = _decodeMerkleRoot(userSignatureData);
 
@@ -128,7 +130,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
 
         // The userSignatureData is passed directly from the adapter
         bytes4 validationResult = ISuperDestinationValidator(SUPER_DESTINATION_VALIDATOR).isValidDestinationSignature(
-            account, abi.encode(userSignatureData, destinationData)
+            delegatee, abi.encode(userSignatureData, destinationData)
         );
 
         if (validationResult != SIGNATURE_MAGIC_VALUE) revert INVALID_SIGNATURE();
@@ -160,20 +162,18 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         return executorCalldata.length <= EMPTY_EXECUTION_LENGTH;
     }
 
-    function _validateOrCreateAccount(address account, bytes memory initData) internal returns (address) {
-        if (account.code.length > 0) {
-            string memory accountId = IERC7579Account(account).accountId();
-            if (bytes(accountId).length == 0) revert ADDRESS_NOT_ACCOUNT();
-        }
-
+    function _validateOrCreateAccount(address account, bytes memory initData) internal returns (address, address) {
+        
+        address computedAddress;
+        address delegatee = account;
         if (initData.length > 0 && account.code.length == 0) {
-            address computedAddress = _createAccount(initData);
+            (computedAddress, delegatee) = _createAccount(initData, account);
             if (account != computedAddress) revert INVALID_ACCOUNT();
         }
 
         if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
 
-        return account;
+        return (account, delegatee);
     }
 
     function _decodeMerkleRoot(bytes memory userSignatureData) private pure returns (bytes32) {
@@ -218,13 +218,13 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         return true;
     }
 
-    function _createAccount(bytes memory initCode) internal returns (address account) {
+    function _createAccount(bytes memory initCode, address computedAddress) internal returns (address account, address delegatee) {
         // SuperSenderCreator contract
         address senderCreator = BytesLib.toAddress(initCode, 0);
 
         // This one contains `abi.encodePacked(address, initData)`
         bytes memory senderData = BytesLib.slice(initCode, 20, initCode.length - 20);
 
-        return ISuperSenderCreator(senderCreator).createSender(senderData);
+        return ISuperSenderCreator(senderCreator).createSender(senderData, computedAddress);
     }
 }

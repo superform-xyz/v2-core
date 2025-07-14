@@ -6,6 +6,8 @@ import {ERC7579ValidatorBase} from "modulekit/Modules.sol";
 import {ISuperSignatureStorage} from "../interfaces/ISuperSignatureStorage.sol";
 import {ISuperValidator} from "../interfaces/ISuperValidator.sol";
 
+import "forge-std/console2.sol";
+
 /// @title SuperValidatorBase
 /// @author Superform Labs
 /// @notice A base contract for all Superform validators
@@ -52,8 +54,11 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     function onInstall(bytes calldata data) external {
+        console2.log("--------- onInstall sender", msg.sender);
+
         if (_initialized[msg.sender]) revert ALREADY_INITIALIZED();
         address owner = abi.decode(data, (address));
+        console2.log("--------- onInstall owner", owner);
         if (owner == address(0)) revert ZERO_ADDRESS();
         _initialized[msg.sender] = true;
         _accountOwners[msg.sender] = owner;

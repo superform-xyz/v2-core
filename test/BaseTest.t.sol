@@ -15,7 +15,6 @@ import { ISuperLedger } from "../src/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperDestinationExecutor } from "../src/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperValidator } from "../src/interfaces/ISuperValidator.sol";
-import { ISuperSenderCreator } from "../src/interfaces/ISuperSenderCreator.sol";
 
 // Superform contracts coded
 import { SuperLedger } from "../src/accounting/SuperLedger.sol";
@@ -1547,6 +1546,33 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint256 relayerGas;
     }
 
+      function _directAcrossV3Message(ProcessAcrossV3MessageParams memory params) internal {
+        if (params.relayerGas == 0) {
+            AcrossV3Helper(_getContract(params.srcChainId, ACROSS_V3_HELPER_KEY)).help(
+                SPOKE_POOL_V3_ADDRESSES[params.srcChainId],
+                SPOKE_POOL_V3_ADDRESSES[params.dstChainId],
+                ACROSS_RELAYER,
+                params.warpTimestamp,
+                FORKS[params.dstChainId],
+                params.dstChainId,
+                params.srcChainId,
+                params.executionData.logs
+            );
+        } else {
+            AcrossV3Helper(_getContract(params.srcChainId, ACROSS_V3_HELPER_KEY)).help(
+                SPOKE_POOL_V3_ADDRESSES[params.srcChainId],
+                SPOKE_POOL_V3_ADDRESSES[params.dstChainId],
+                ACROSS_RELAYER,
+                params.warpTimestamp,
+                FORKS[params.dstChainId],
+                params.dstChainId,
+                params.srcChainId,
+                params.executionData.logs,
+                params.relayerGas
+            );
+        }
+    }
+
     function _processAcrossV3Message(ProcessAcrossV3MessageParams memory params) internal {
         if (params.relayerType == RELAYER_TYPE.NOT_ENOUGH_BALANCE) {
             vm.expectEmit(true, false, false, false);
@@ -1654,23 +1680,59 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address signer,
         address nexusFactory,
         address nexusBootstrap,
-        uint64 chainId
+        uint64 dstChainId
     )
         internal
         returns (address)
     {
         (, address account) = _createAccountCreationData_DestinationExecutor(
             AccountCreationParams({
-                senderCreatorOnDestinationChain: _getContract(chainId, SUPER_SENDER_CREATOR_KEY),
-                validatorOnDestinationChain: validator,
+                senderCreatorOnDestinationChain: _getContract(dstChainId, SUPER_SENDER_CREATOR_KEY),
+                dstValidatorOnChain: validator,
+                srcValidatorOnChain: address(0),
                 theSigner: signer,
-                executorOnDestinationChain: _getContract(chainId, SUPER_DESTINATION_EXECUTOR_KEY),
+                executorOnDestinationChain: _getContract(dstChainId, SUPER_DESTINATION_EXECUTOR_KEY),
                 nexusFactory: nexusFactory,
                 nexusBootstrap: nexusBootstrap
             })
         );
         return account;
     }
+
+    function _create7702TargetExecutorMessage(TargetExecutorMessage memory messageData, address senderCreator, address eoa)
+        internal
+        virtual
+        returns (bytes memory, address)
+    {
+        bytes memory executionData =
+            _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
+
+        address accountToUse;
+        bytes memory accountCreationData;
+        (accountCreationData, accountToUse) = _createAccountCreationData_DestinationExecutor(
+            AccountCreationParams({
+                senderCreatorOnDestinationChain: senderCreator,
+                dstValidatorOnChain: messageData.validator,
+                srcValidatorOnChain: address(0),
+                theSigner: messageData.signer,
+                executorOnDestinationChain: _getContract(messageData.chainId, SUPER_DESTINATION_EXECUTOR_KEY),
+                nexusFactory: messageData.nexusFactory,
+                nexusBootstrap: messageData.nexusBootstrap
+            })
+        );
+        messageData.account = eoa; // prefill the account to use
+    
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = messageData.tokenSent;
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = messageData.amount;
+        return (
+            abi.encode(accountCreationData, executionData, eoa, dstTokens, intentAmounts), eoa
+        );
+    }
+
+
+
 
     function _createTargetExecutorMessage(TargetExecutorMessage memory messageData)
         internal
@@ -1685,7 +1747,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             (accountCreationData, accountToUse) = _createAccountCreationData_DestinationExecutor(
                 AccountCreationParams({
                     senderCreatorOnDestinationChain: _getContract(messageData.chainId, SUPER_SENDER_CREATOR_KEY),
-                    validatorOnDestinationChain: messageData.validator,
+                    dstValidatorOnChain: messageData.validator,
+                    srcValidatorOnChain: address(0),
                     theSigner: messageData.signer,
                     executorOnDestinationChain: _getContract(messageData.chainId, SUPER_DESTINATION_EXECUTOR_KEY),
                     nexusFactory: messageData.nexusFactory,
@@ -1812,7 +1875,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     struct AccountCreationParams {
         address senderCreatorOnDestinationChain;
-        address validatorOnDestinationChain;
+        address dstValidatorOnChain;
+        address srcValidatorOnChain;
         address theSigner;
         address executorOnDestinationChain;
         address nexusFactory;
@@ -1822,20 +1886,22 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         AccountCreationParams memory p
     )
         internal
+        virtual
         returns (bytes memory, address)
     {
-        // create validators
-        BootstrapConfig[] memory validators = new BootstrapConfig[](1);
-        validators[0] = BootstrapConfig({ module: p.validatorOnDestinationChain, data: abi.encode(p.theSigner) });
-
-        // create executors
+        BootstrapConfig[] memory validators;
+        if (p.srcValidatorOnChain == address(0)) {
+            validators = new BootstrapConfig[](1);
+            validators[0] = BootstrapConfig({ module: p.dstValidatorOnChain, data: abi.encode(p.theSigner) });
+        } else {
+            validators = new BootstrapConfig[](2);
+            validators[0] = BootstrapConfig({ module: p.dstValidatorOnChain, data: abi.encode(p.theSigner) });
+            validators[1] = BootstrapConfig({ module: p.srcValidatorOnChain, data: abi.encode(p.theSigner) });
+        }
+       
         BootstrapConfig[] memory executors = new BootstrapConfig[](1);
         executors[0] = BootstrapConfig({ module: p.executorOnDestinationChain, data: "" });
-
-        // create hooks
         BootstrapConfig memory hook = BootstrapConfig({ module: address(0), data: "" });
-
-        // create fallbacks
         BootstrapConfig[] memory fallbacks = new BootstrapConfig[](0);
 
         address[] memory attesters = new address[](1);
@@ -1852,7 +1918,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address precomputedAddress = INexusFactory(p.nexusFactory).computeAccountAddress(initData, initSalt);
         bytes memory initFactoryCalldata = abi.encodeWithSelector(INexusFactory.createAccount.selector, initData, initSalt);
 
-    return (abi.encodePacked(p.senderCreatorOnDestinationChain, address(p.nexusFactory), initFactoryCalldata), precomputedAddress);
+        return (abi.encodePacked(p.senderCreatorOnDestinationChain, address(p.nexusFactory), initFactoryCalldata), precomputedAddress);
     }
 
     function _createAcrossV3ReceiveFundsAndExecuteHookData( 
