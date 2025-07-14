@@ -467,13 +467,6 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         }
     }
 
-    function _getHelper(string memory helperType) internal view returns (address helper) {
-        bytes32 slot = keccak256(abi.encode("ModuleKit.", helperType, "HelperSlot"));
-        assembly {
-            helper := sload(slot)
-        }
-    }
-
     // -- 1271 signature helper
     function _createSafeSigData(
         uint48 validUntil,

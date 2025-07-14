@@ -30,20 +30,18 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     /// @dev Used to verify signatures against the correct owner address
     mapping(address account => address owner) internal _accountOwners;
 
-    bytes4 internal constant MAGIC_VALUE_EIP1271 = bytes4(0x1626ba7e);
-
     /// @notice Chain-agnostic domain separator type hash
     /// @dev Uses a fixed domain without chainId for cross-chain compatibility
+    // keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
     bytes32 private constant CHAIN_AGNOSTIC_DOMAIN_TYPEHASH =
-        0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f; // keccak256("EIP712Domain(string name,string
-        // version,uint256 chainId,address verifyingContract)")
-
-    /// @notice Fixed chain ID for cross-chain signature compatibility
+        0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f; 
+    /// @notice Fixed chain ID for cross-chain signature 1271 compatibility
     uint256 private constant FIXED_CHAIN_ID = 1;
-
-    /// @notice Domain name and version for cross-chain signatures
+    /// @notice Domain name and version for cross-chain 1271 signatures
     string private constant DOMAIN_NAME = "SuperformSafe";
     string private constant DOMAIN_VERSION = "1.0.0";
+    /// @notice Magic value for EIP-1271 validation
+    bytes4 internal constant MAGIC_VALUE_EIP1271 = bytes4(0x1626ba7e);
 
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
@@ -204,8 +202,8 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         bytes32 chainAgnosticHash = _getChainAgnosticTypedDataHash(rawHash, safe);
 
         // Get Safe configuration
-        address[] memory owners = _getSafeOwners(safe);
-        uint256 threshold = _getSafeThreshold(safe);
+        address[] memory owners = ISafeConfig(safe).getOwners();
+        uint256 threshold = ISafeConfig(safe).getThreshold();
 
         // Validate signatures against the multisig configuration
         return _verifyMultisigSignatures(chainAgnosticHash, sigData.signature, owners, threshold);
@@ -244,31 +242,6 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         );
     }
 
-    /// @notice Retrieves the list of owners from a Safe contract
-    /// @dev Reads the owners array from the Safe's storage
-    /// @param safe The Safe contract address
-    /// @return owners Array of owner addresses
-    function _getSafeOwners(address safe) internal view returns (address[] memory owners) {
-        try ISafeConfig(safe).getOwners() returns (address[] memory _owners) {
-            return _owners;
-        } catch {
-            // Fallback: return empty array if call fails
-            return new address[](0);
-        }
-    }
-
-    /// @notice Retrieves the signature threshold from a Safe contract
-    /// @dev Reads the threshold value from the Safe's storage
-    /// @param safe The Safe contract address
-    /// @return threshold Number of signatures required
-    function _getSafeThreshold(address safe) internal view returns (uint256 threshold) {
-        try ISafeConfig(safe).getThreshold() returns (uint256 _threshold) {
-            return _threshold;
-        } catch {
-            // Fallback: return 0 if call fails
-            return 0;
-        }
-    }
 
     /// @notice Verifies multisig signatures against owners and threshold
     /// @dev Implements Safe-compatible signature verification with chain-agnostic hash
