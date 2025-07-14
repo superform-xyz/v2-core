@@ -123,7 +123,7 @@
 │   │   │   │   └── Base-latest.json
 │   │   │   └── 84532
 │   │   │       └── Base_Sepolia-latest.json
-│   │   └── prod
+│   │   └── staging
 │   │       ├── 42161
 │   │       │   └── Arbitrum-latest.json
 │   │       ├── 56
@@ -131,16 +131,16 @@
 │   │       └── 8453
 │   │           └── Base-latest.json
 │   ├── run
-│   │   ├── deploy_v2_prod.sh
-│   │   ├── deploy_v2_testnet.sh
+│   │   ├── config_v2_ledger_staging_prod.sh
+│   │   ├── deploy_v2_staging_prod.sh
 │   │   ├── deploy_v2_vnet_s3.sh
 │   │   ├── export_abis_s3.sh
 │   │   ├── generate-contract-bindings.sh
 │   │   ├── retrieve-abis.sh
+│   │   ├── test_s3_upload.sh
 │   │   ├── update_structure.sh
 │   │   ├── upload_prod_contracts.sh
 │   │   ├── verify_v2_prod.sh
-│   │   ├── verify_v2_testnet.sh
 │   │   └── verify_v2_vnet.sh
 │   └── utils
 │       ├── ConfigBase.sol
@@ -555,5 +555,5 @@
         │   └── OneInchAPIParser.sol
         └── SignatureHelper.sol
 
-172 directories, 381 files
+170 directories, 383 files
 ```
