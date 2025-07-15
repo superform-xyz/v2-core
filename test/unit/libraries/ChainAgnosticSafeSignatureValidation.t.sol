@@ -3,11 +3,11 @@ pragma solidity 0.8.30;
 
 import { Test } from "forge-std/Test.sol";
 import { ChainAgnosticSafeSignatureValidation } from "../../../src/libraries/ChainAgnosticSafeSignatureValidation.sol";
-import { ISafeConfig } from "../../../src/vendor/gnosis/IsafeConfig.sol";
+import { ISafeConfiguration } from "../../../src/vendor/gnosis/ISafeConfiguration.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 
 /// @title Mock Safe implementation for testing
-contract MockSafeAccount is ISafeConfig {
+contract MockSafeAccount is ISafeConfiguration {
     address[] public _owners;
     uint256 public _threshold;
 
@@ -71,7 +71,7 @@ contract ChainAgnosticSafeSignatureValidationTest is Test {
         mockSafe = new MockSafeAccount(owners, 2);
     }
 
-    function test_ValidateChainAgnosticMultisig_ValidSignatures() public {
+    function test_ValidateChainAgnosticMultisig_ValidSignatures() public view {
          // Create test message hash
         bytes32 rawHash = keccak256(abi.encode("SuperValidator", bytes32(uint256(123))));
         
@@ -120,30 +120,10 @@ contract ChainAgnosticSafeSignatureValidationTest is Test {
         assertTrue(isValid, "Validation should pass");
     }
 
-    function test_ValidateChainAgnosticMultisig_InvalidSignatures() public {
+    function test_ValidateChainAgnosticMultisig_InvalidSignatures() public view {
         // Create test message hash
         bytes32 rawHash = keccak256(abi.encode("SuperValidator", bytes32(uint256(123))));
         
-        // Create chain-agnostic hash for signing
-        bytes32 domainSeparator = keccak256(
-            abi.encode(
-                CHAIN_AGNOSTIC_DOMAIN_TYPEHASH,
-                keccak256(bytes(DOMAIN_NAME)),
-                keccak256(bytes(DOMAIN_VERSION)),
-                FIXED_CHAIN_ID,
-                address(mockSafe)
-            )
-        );
-        
-        bytes32 chainAgnosticHash = keccak256(
-            abi.encodePacked(
-                bytes1(0x19),
-                bytes1(0x01),
-                domainSeparator,
-                keccak256(abi.encode(keccak256("SafeMessage(bytes message)"), keccak256(abi.encode(rawHash))))
-            )
-        );
-
         // Sign with wrong message hash using owner1 and owner2 keys
         bytes32 wrongHash = keccak256("wrong message hash");
         (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(privateKey1, wrongHash);
@@ -169,7 +149,7 @@ contract ChainAgnosticSafeSignatureValidationTest is Test {
         assertFalse(isValid, "Invalid signatures should fail validation");
     }
 
-    function test_ValidateChainAgnosticMultisig_ThresholdNotMet() public {
+    function test_ValidateChainAgnosticMultisig_ThresholdNotMet() public view {
         // Create test message hash
         bytes32 rawHash = keccak256(abi.encode("SuperValidator", bytes32(uint256(123))));
         

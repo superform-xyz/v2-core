@@ -5,7 +5,6 @@ pragma solidity 0.8.30;
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { ISafeConfig } from "../vendor/gnosis/IsafeConfig.sol";
 
 // Superform
 import { ChainAgnosticSafeSignatureValidation } from "../libraries/ChainAgnosticSafeSignatureValidation.sol";

@@ -2,7 +2,7 @@
 pragma solidity 0.8.30;
 
 // external
-import { ISafeConfig } from "../vendor/gnosis/IsafeConfig.sol";
+import { ISafeConfiguration } from "../vendor/gnosis/ISafeConfiguration.sol";
 
 // Superform
 import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
@@ -42,8 +42,8 @@ library ChainAgnosticSafeSignatureValidation {
         );
 
         // Get Safe configuration
-        address[] memory owners = ISafeConfig(safe).getOwners();
-        uint256 threshold = ISafeConfig(safe).getThreshold();
+        address[] memory owners = ISafeConfiguration(safe).getOwners();
+        uint256 threshold = ISafeConfiguration(safe).getThreshold();
 
         // Validate signatures against the multisig configuration
         return _verifyMultisigSignatures(chainAgnosticHash, sigData.signature, owners, threshold);
