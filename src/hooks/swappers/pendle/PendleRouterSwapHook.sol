@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -8,12 +8,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
 import { BaseHook } from "../../BaseHook.sol";
-import {
-    ISuperHook,
-    ISuperHookResult,
-    ISuperHookContextAware,
-    ISuperHookInspector
-} from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import {
     IPendleRouterV4,
     ApproxParams,
@@ -35,7 +30,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
 /// @notice         uint256 value = BytesLib.toUint256(data, 53);
 /// @notice         bytes txData_ = BytesLib.slice(data, 85, data.length - 85);
-contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
@@ -101,7 +96,7 @@ contract PendleRouterSwapHook is BaseHook, ISuperHookContextAware, ISuperHookIns
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         bytes calldata txData_ = data[85:];
         bytes4 selector = bytes4(txData_[0:4]);
 

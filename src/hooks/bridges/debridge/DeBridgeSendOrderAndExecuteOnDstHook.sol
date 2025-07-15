@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -70,7 +70,7 @@ import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from ".
 /// @notice         uint256 referralCode = BytesLib.toUint256(data, 468 + destinationMessage_paramLength +
 /// takeTokenAddress_paramLength + receiverDst_paramLength + orderAuthorityAddressDst_paramLength +
 /// allowedTakerDst_paramLength + allowedCancelBeneficiarySrc_paramLength + affiliateFee_paramLength);
-contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -141,7 +141,7 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         (IDlnSource.OrderCreation memory orderCreation,,,) = _createOrder(data, "");
 
         return abi.encodePacked(

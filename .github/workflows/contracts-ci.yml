@@ -26,6 +26,9 @@ on:
       - main
       - dev
       - "feat/**"
+  pull_request:
+    branches:
+      - main
 
 jobs:
   build:
@@ -139,7 +142,7 @@ jobs:
   vnet-deploy:
     needs: ["test"]
     if:
-      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev' || startsWith(github.ref, 'refs/heads/feat/'))
+      (github.event_name == 'pull_request' && github.base_ref == 'main') || github.event_name == 'workflow_dispatch'
     runs-on: "SuperformCore3"
     outputs:
       eth_mainnet_addresses: ${{ steps.get-addresses-eth.outputs.addresses }}
@@ -256,7 +259,7 @@ jobs:
         run: pnpm install
 
       - name: "Generate the coverage report using unit and integration tests"
-        run: "make coverage"
+        run: "make coverage-genhtml"
 
       - name: "Upload coverage report to Codecov"
         uses: "codecov/codecov-action@v5"

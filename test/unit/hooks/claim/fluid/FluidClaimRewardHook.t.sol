@@ -8,8 +8,11 @@ import { IFluidLendingStakingRewards } from "../../../../../src/vendor/fluid/IFl
 import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
+import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 
 contract FluidClaimRewardHookTest is Helpers {
+    using BytesLib for bytes;
+
     FluidClaimRewardHook public hook;
     address public stakingRewards;
     address public rewardToken;
@@ -86,6 +89,9 @@ contract FluidClaimRewardHookTest is Helpers {
         bytes memory data = _encodeData();
         bytes memory argsEncoded = hook.inspect(data);
         assertGt(argsEncoded.length, 0);
+
+        assertEq(BytesLib.toAddress(argsEncoded, 0), stakingRewards);
+        assertEq(BytesLib.toAddress(argsEncoded, 20), rewardToken);
     }
 
     function test_CalldataDecoding() public view {

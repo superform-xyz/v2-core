@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -26,7 +26,7 @@ import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 /// @notice         uint256 lltv = BytesLib.toUint256(data, 112);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 144);
 /// @notice         bool isFullRepayment = _decodeBool(data, 145);
-contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
+contract MorphoRepayHook is BaseMorphoLoanHook {
     using MarketParamsLib for MarketParams;
     using HookDataDecoder for bytes;
     using SharesMathLib for uint256;
@@ -115,7 +115,7 @@ contract MorphoRepayHook is BaseMorphoLoanHook, ISuperHookInspector {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         BuildHookLocalVars memory vars = _decodeHookData(data);
 
         MarketParams memory marketParams =

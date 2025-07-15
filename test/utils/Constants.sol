@@ -138,6 +138,8 @@ abstract contract Constants {
     string public constant GEAR_KEY = "GEAR";
     string public constant WST_ETH_KEY = "wstETH";
 
+    address public constant CHAIN_1_WBTC = 0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599;
+
     address public constant CHAIN_1_DAI = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
     address public constant CHAIN_1_USDC = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
     address public constant CHAIN_1_WETH = 0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2;
@@ -223,6 +225,11 @@ abstract contract Constants {
     address public constant CHAIN_8453_SpectraRouter = 0x0FC2fbd3E8391744426C8bE5228b668481C59532;
 
     // staking protocols
+
+    address public MORPHO_ORACLE_WBTC_USDC = 0xDddd770BADd886dF3864029e4B377B5F6a2B6b83;
+    address public MORPHO_IRM_WBTC_USDC = 0x870aC11D48B15DB9a138Cf899d20F13F79Ba00BC;
+
+
     string public constant GEARBOX_STAKING_KEY = "GearboxStaking";
 
     address public constant CHAIN_1_GearboxStaking = 0x9ef444a6d7F4A5adcd68FD5329aA5240C90E14d2;

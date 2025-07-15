@@ -150,22 +150,6 @@ contract PendlePtYieldSourceOracleTest is InternalHelpers, Helpers {
         );
     }
 
-    function testIsValidUnderlyingAsset() public {
-        assertTrue(oracle.isValidUnderlyingAsset(address(mockPendleMarket), address(assetSy)));
-
-        sy.setAssetType(1);
-        vm.expectRevert();
-        oracle.isValidUnderlyingAsset(address(mockPendleMarket), address(assetSy));
-
-        sy.setAssetType(0);
-        address[] memory yieldSourceAddresses = new address[](1);
-        yieldSourceAddresses[0] = address(mockPendleMarket);
-        address[] memory expectedUnderlyings = new address[](1);
-        expectedUnderlyings[0] = address(assetSy);
-        bool[] memory results = oracle.isValidUnderlyingAssets(yieldSourceAddresses, expectedUnderlyings);
-        assertTrue(results[0], "First yield source should have valid underlying");
-    }
-
     function testGetShareOutputWithDifferentDecimals() public {
         // Test with 6 decimals asset (like USDC)
         assetSy = new MockERC20("Mock SY 6", "MSY6", 6);

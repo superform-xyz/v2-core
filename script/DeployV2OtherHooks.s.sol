@@ -1,8 +1,8 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.30;
 
 import { DeployV2Base } from "./DeployV2Base.s.sol";
-import { ISuperDeployer } from "./utils/ISuperDeployer.sol";
+import { ISuperDeployer } from "../src/interfaces/ISuperDeployer.sol";
 import { ConfigOtherHooks } from "./utils/ConfigOtherHooks.sol";
 
 // -- hooks for other deployments (non-early access)

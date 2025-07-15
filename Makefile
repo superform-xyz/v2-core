@@ -23,7 +23,9 @@ ftest-vvv :; forge test -v --jobs 2
 
 ftest-ci :; forge test -v --jobs 2
 
-coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --ir-minimum --report lcov
+coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report lcov
+
+coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/vendor/*' --exclude 'test/*'
 
 test-vvv :; forge test --match-test test_CrossChain_executionA -vvvv --jobs 10
 

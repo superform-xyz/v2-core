@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -11,8 +11,6 @@ import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 // superform
 import { BasePaymaster } from "../vendor/account-abstraction/BasePaymaster.sol";
 import { ISuperNativePaymaster } from "../interfaces/ISuperNativePaymaster.sol";
-
-import "forge-std/console2.sol";
 
 /// @title SuperNativePaymaster
 /// @author Superform Labs

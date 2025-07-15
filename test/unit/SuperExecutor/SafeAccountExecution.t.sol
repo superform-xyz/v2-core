@@ -37,11 +37,15 @@ import { SuperExecutor } from "../../../src/executors/SuperExecutor.sol";
 import { ApproveERC20Hook } from "../../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { AcrossV3Adapter } from "../../../src/adapters/AcrossV3Adapter.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { MaliciousSafeAccount } from "../../mocks/MaliciousSafeAccount.sol";
 import { SuperMerkleValidator } from "../../../src/validators/SuperMerkleValidator.sol";
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
 import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
 import { BaseTest } from "../../BaseTest.t.sol";
+
+import "forge-std/console2.sol";
+import "forge-std/Test.sol";
 
 contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     using BytesLib for bytes;
@@ -229,7 +233,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     /**
      * @notice Test cross-chain transaction execution
      */
-    function test_CrossChain_executionA() public {
+    function test_CrossChain_execution() public {
         CrossChainTestVars memory vars;
         vars.amountPerVault = 1e8 / 2;
         vars.warpStartTime = 1_740_559_708;
@@ -239,6 +243,184 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         _setupSourceChain(vars);
         _executeAndVerifyCrossChainTx(vars);
     }
+
+    function test_MaliciousSafeLike_revert() public  initializeModuleKit usingAccountEnv(AccountType.SAFE)  {
+        address[] memory _owners = new address[](2);
+        _owners[0] = address(0x1); 
+        _owners[1] = address(0x2); 
+        MaliciousSafeAccount maliciousSafeAccount = new MaliciousSafeAccount(_owners);
+        vm.label(address(maliciousSafeAccount), "MaliciousSafeAccount");
+
+        bytes memory initData = _getInitData();
+        address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
+        bytes memory initCode = abi.encodePacked(
+            address(_getFactory("SAFE")), abi.encodeCall(IAccountFactory.createAccount, (accountSalt, initData))
+        );
+        instance = makeAccountInstance(accountSalt, predictedAddress, initCode);
+        account = instance.account;
+        assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
+
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(address(maliciousSafeAccount))
+        });
+
+        // setup execution data
+        uint256 amount = 1e8;
+        uint256 allowanceBefore = mockERC20.allowance(address(account), address(this));
+        assertEq(allowanceBefore, 0);
+
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(approveERC20Hook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveHookData(address(mockERC20), address(this), amount, false);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+        bytes memory sigData = _createSafeSigData(validUntil, userOpData.userOpHash, address(account));
+        userOpData.userOp.signature = sigData;
+
+        instance.expect4337Revert();
+        executeOp(userOpData);
+    }
+
+    function test_MaliciousSafeLike_execution_no_harm() public  initializeModuleKit usingAccountEnv(AccountType.SAFE)  {
+        MaliciousSafeAccount maliciousSafeAccount = new MaliciousSafeAccount(owners);
+        vm.label(address(maliciousSafeAccount), "MaliciousSafeAccount");
+
+        bytes memory initData = _getInitData();
+        address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
+        bytes memory initCode = abi.encodePacked(
+            address(_getFactory("SAFE")), abi.encodeCall(IAccountFactory.createAccount, (accountSalt, initData))
+        );
+        instance = makeAccountInstance(accountSalt, predictedAddress, initCode);
+        account = instance.account;
+        assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
+
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(address(maliciousSafeAccount))
+        });
+
+        // setup execution data
+        uint256 amount = 1e8;
+        uint256 allowanceBefore = mockERC20.allowance(address(account), address(this));
+        assertEq(allowanceBefore, 0);
+
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(approveERC20Hook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveHookData(address(mockERC20), address(this), amount, false);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+        bytes memory sigData = _createSafeSigData(validUntil, userOpData.userOpHash, address(maliciousSafeAccount));
+        userOpData.userOp.signature = sigData;
+
+        executeOp(userOpData);
+    }
+
+    function test_EOA_UsingSafeSig() public {
+        address[] memory _owners = new address[](2);
+        _owners[0] = address(0x1); 
+        _owners[1] = address(0x2); 
+        MaliciousSafeAccount maliciousSafeAccount = new MaliciousSafeAccount(_owners);
+        vm.label(address(maliciousSafeAccount), "MaliciousSafeAccount");
+        AccountInstance memory testInstance = makeAccountInstance(keccak256(abi.encode("TEST")));
+        address testAccount = testInstance.account;
+
+        testInstance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
+        testInstance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(address(maliciousSafeAccount))
+        });
+
+        uint256 amount = 1e8;
+
+        _getTokens(address(mockERC20), testAccount, amount);
+
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(approveERC20Hook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveHookData(address(mockERC20), address(this), amount, false);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(testInstance, superExecutor, abi.encode(entry), address(validator));
+
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+        bytes memory sigData = _createSafeSigData(validUntil, userOpData.userOpHash, address(testAccount));
+        userOpData.userOp.signature = sigData;
+
+        testInstance.expect4337Revert();
+        executeOp(userOpData);
+    }
+    
+
+    function test_SameChainTx_execution_MalformedHash() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
+        // setup SafeERC7579
+        bytes memory initData = _getInitData();
+        address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
+        bytes memory initCode = abi.encodePacked(
+            address(_getFactory("SAFE")), abi.encodeCall(IAccountFactory.createAccount, (accountSalt, initData))
+        );
+        /// @dev FLAG TODO
+        instance = makeAccountInstance(accountSalt, predictedAddress, initCode);
+        account = instance.account;
+        assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
+
+        instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
+        instance.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(address(predictedAddress))
+        });
+
+        // setup execution data
+        uint256 amount = 1e8;
+        uint256 allowanceBefore = mockERC20.allowance(address(account), address(this));
+        assertEq(allowanceBefore, 0);
+
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = address(approveERC20Hook);
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveHookData(address(mockERC20), address(this), amount, false);
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
+
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+        bytes memory sigData = _createSafeSigData(validUntil, userOpData.userOpHash, address(0x1));
+        userOpData.userOp.signature = sigData;
+
+        vm.recordLogs();
+        instance.expect4337Revert();
+        executeOp(userOpData);
+        Vm.Log[] memory entries = vm.getRecordedLogs();
+        assertTrue(entries.length == 1);
+    }
+
+
 
     /*//////////////////////////////////////////////////////////////
                                 INTERNAL HELPERS
@@ -512,31 +694,31 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         sigData.recovered1 = ecrecover(messageHash, sigData.v1, sigData.r1, sigData.s1);
         sigData.recovered2 = ecrecover(messageHash, sigData.v2, sigData.r2, sigData.s2);
 
-        return _buildAndValidateSignature(sigData, _account);
+        return _buildAndValidateSignature(sigData);
     }
 
     /// @notice Helper function to create chain-agnostic domain separator
     /// @dev Must match the logic in SuperValidatorBase
-    function _getChainAgnosticDomainSeparator(address account) internal pure returns (bytes32) {
+    function _getChainAgnosticDomainSeparator(address _account) internal pure returns (bytes32) {
         bytes32 CHAIN_AGNOSTIC_DOMAIN_TYPEHASH = 0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
         uint256 FIXED_CHAIN_ID = 1;
         string memory DOMAIN_NAME = "SuperformSafe";
         string memory DOMAIN_VERSION = "1.0.0";
 
+        console2.log("---------------------------_account ", _account);
         return keccak256(
             abi.encode(
                 CHAIN_AGNOSTIC_DOMAIN_TYPEHASH,
                 keccak256(bytes(DOMAIN_NAME)),
                 keccak256(bytes(DOMAIN_VERSION)),
                 FIXED_CHAIN_ID,
-                account
+                _account
             )
         );
     }
 
     function _buildAndValidateSignature(
-        SignatureData memory sigData,
-        address _account
+        SignatureData memory sigData
     )
         internal
         view
@@ -551,9 +733,6 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         } else {
             signature = bytes.concat(sig2, sig1);
         }
-
-        // The validation will now happen in SuperValidatorBase using chain-agnostic logic
-        // Remove the ISafe(account).isValidSignature check since we're bypassing it
 
         bytes memory dataWithValidator = abi.encodePacked(address(0), signature);
         return dataWithValidator;

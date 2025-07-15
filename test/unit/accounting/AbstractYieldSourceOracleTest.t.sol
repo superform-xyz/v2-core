@@ -43,25 +43,6 @@ contract MockYieldSourceOracle is AbstractYieldSourceOracle {
     function getBalanceOfOwner(address, address) external pure override returns (uint256) {
         return TVL;
     }
-
-    function isValidUnderlyingAsset(address, address) public pure override returns (bool) {
-        return true;
-    }
-
-    function isValidUnderlyingAssets(
-        address[] memory,
-        address[] memory
-    )
-        external
-        pure
-        override
-        returns (bool[] memory)
-    {
-        bool[] memory results = new bool[](2);
-        results[0] = true;
-        results[1] = true;
-        return results;
-    }
 }
 
 contract AbstractYieldSourceOracleTest is Helpers {
@@ -161,25 +142,7 @@ contract AbstractYieldSourceOracleTest is Helpers {
         assertEq(tvls[1], 1000e18);
     }
 
-    function test_isValidUnderlyingAsset() public view {
-        bool isValid = oracle.isValidUnderlyingAsset(mockYieldSource, mockAsset);
-        assertTrue(isValid);
-    }
 
-    function test_isValidUnderlyingAssets() public view {
-        address[] memory yieldSources = new address[](2);
-        address[] memory expectedUnderlying = new address[](2);
-
-        yieldSources[0] = mockYieldSource;
-        yieldSources[1] = mockYieldSource;
-        expectedUnderlying[0] = mockAsset;
-        expectedUnderlying[1] = mockAsset;
-
-        bool[] memory results = oracle.isValidUnderlyingAssets(yieldSources, expectedUnderlying);
-        assertEq(results.length, 2);
-        assertTrue(results[0]);
-        assertTrue(results[1]);
-    }
 
     function test_getTVLByOwnerOfSharesMultiple_ArrayLengthMismatch() public {
         address[] memory yieldSources = new address[](2);
