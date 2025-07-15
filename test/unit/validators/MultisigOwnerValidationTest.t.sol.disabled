@@ -1,0 +1,749 @@
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity 0.8.30;
+
+import { console2 } from "forge-std/console2.sol";
+
+// OpenZeppelin
+import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
+import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { EIP712 } from "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { Execution } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
+import { ModeCode, ModeLib } from "modulekit/accounts/common/lib/ModeLib.sol";
+
+// Safe7579
+// import { ModeLib } from "safe7579/lib/ModeLib.sol";
+// import { IERC7484 } from "safe7579/interfaces/IERC7484.sol";
+//import { Safe7579Launchpad } from "safe7579/Safe7579Launchpad.sol";
+import { SafeFactory } from "modulekit/accounts/safe/SafeFactory.sol";
+import { ISafe7579Launchpad, ModuleInit } from "modulekit/accounts/safe/interfaces/ISafe7579Launchpad.sol";
+import { ISafe7579 } from "modulekit/accounts/safe/interfaces/ISafe7579.sol";
+import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance, UserOpData } from "modulekit/ModuleKit.sol";
+import { MODULE_TYPE_VALIDATOR, MODULE_TYPE_EXECUTOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
+import { PackedUserOperation } from "account-abstraction/interfaces/PackedUserOperation.sol";
+
+// Safe
+import { Safe } from "@safe/Safe.sol";
+import { ISafe } from "@safe/interfaces/ISafe.sol";
+import { SafeProxy } from "@safe/proxies/SafeProxy.sol";
+import { SignMessageLib } from "@safe/libraries/SignMessageLib.sol";
+import { SafeProxyFactory } from "@safe/proxies/SafeProxyFactory.sol";
+
+// external
+import { IMinimalEntryPoint } from "../../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
+
+// Superform
+import { MockRegistry } from "../../mocks/MockRegistry.sol";
+import { MockValidatorModule } from "../../mocks/MockValidatorModule.sol";
+import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { MockEntryPoint } from "../../mocks/MockEntryPoint.sol";
+import { MerkleTreeHelper } from "../../utils/MerkleTreeHelper.sol";
+import { MockExecutorModule } from "../../mocks/MockExecutorModule.sol";
+import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
+import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
+import { SuperExecutor } from "../../../src/executors/SuperExecutor.sol";
+import { SuperDestinationValidator } from "../../../src/validators/SuperDestinationValidator.sol";
+import { ApproveERC20Hook } from "../../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
+import { InternalHelpers } from "../../utils/InternalHelpers.sol";
+import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
+
+interface IGnosisSafe {
+    function isValidSignature(bytes32, bytes memory) external view returns (bytes4);
+}
+
+
+contract MultisigOwnerValidationTest is MerkleTreeHelper, RhinestoneModuleKit, InternalHelpers {
+    using MessageHashUtils for *;
+    using ModuleKitHelpers for *;
+    using ExecutionLib for *;
+
+
+    // Superform
+    address public approveHook;
+    SuperLedgerConfiguration public superLedgerConfiguration;
+    SuperExecutor public superExecutor;
+    MockERC20 public mockERC20;
+    MockValidatorModule public mockValidatorModule;
+
+    // external
+    struct DestinationData {
+        uint256 nonce;
+        bytes callData;
+        uint64 chainId;
+        address sender;
+        address executor;
+        address adapter;
+        address tokenSent;
+        address[] dstTokens;
+        uint256[] intentAmounts;
+    }
+
+    struct SignatureData {
+        uint48 validUntil;
+        bytes32 merkleRoot;
+        bytes32[] proof;
+        bytes signature;
+    }
+
+    SafeFactory public factory;
+
+    IEntryPoint public entryPoint;
+    MockEntryPoint public mockEntryPoint;
+    MockExecutorModule public mockExecutor;
+
+    SuperDestinationValidator public validator;
+    bytes public validSigData;
+
+    DestinationData public approveDestinationData;
+    DestinationData public transferDestinationData;
+    DestinationData public depositDestinationData;
+
+    uint256 public executorNonce;
+
+    uint256 public privateKey1;
+    uint256 public privateKey2;
+
+    address public owner1;
+    address public owner2;
+
+    Safe public safe;
+    Safe public singleton;
+    MockRegistry public registry;
+    //Safe7579Launchpad public launchpad;
+
+    ISafe7579 public safe7579;
+    address public safeSmartAccount;
+    // Safe7579 public safe7579Contract;
+
+    SafeProxy public safeProxy;
+    address public safeMultisig;
+
+    SafeProxy public straightMultisig;
+    address public straightMultisigAddress;
+
+    AccountInstance public instance;
+    address public companionAccount;
+
+    bytes4 public constant VALID_SIGNATURE = bytes4(0x5c2ec0f3);
+
+    function setUp() public {
+        // Superform
+        approveHook = address(new ApproveERC20Hook());
+        mockERC20 = new MockERC20("MockERC20", "MOCK", 18);
+        superLedgerConfiguration = new SuperLedgerConfiguration();
+        superExecutor = new SuperExecutor(address(superLedgerConfiguration));
+        mockValidatorModule = new MockValidatorModule();
+
+        validator = new SuperDestinationValidator();
+        mockEntryPoint = new MockEntryPoint();
+        entryPoint = IEntryPoint(address(mockEntryPoint));
+
+        privateKey1 = 1;
+        owner1 = vm.addr(privateKey1);
+
+        privateKey2 = 2;
+        owner2 = vm.addr(privateKey2);
+
+        address[] memory owners = new address[](2);
+        owners[0] = owner1;
+        owners[1] = owner2;
+
+        //registry = new MockRegistry();
+        //launchpad = new Safe7579Launchpad(address(entryPoint), registry);
+
+        // Deploy Safe smart account
+        // safe7579Contract = new Safe7579();
+        safeSmartAccount = _deploySafeSmartAccount(owners);
+        safe7579 = ISafe7579(safeSmartAccount);
+
+
+
+
+
+        // Deploy Safe proxy (multisig that will use companion accout)
+        singleton = new Safe();
+        SafeProxyFactory proxyFactory = new SafeProxyFactory();
+
+        bytes memory initializer = abi.encodeWithSelector(
+            Safe.setup.selector, owners, 1, address(0), bytes(""), address(0), address(0), 0, payable(address(0))
+        );
+
+        safeProxy = proxyFactory.createProxyWithNonce(address(singleton), initializer, 1);
+        safeMultisig = address(safeProxy);
+
+        instance = makeAccountInstance(keccak256(abi.encode("acc1")));
+        companionAccount = instance.account;
+
+        //vm.prank(companionAccount);
+        //validator.onInstall(abi.encode(safeMultisig));
+        // TODO: This fails with ALREADY_INITIALIZED() -> Separate makeAccount() logic into two steps here where the
+        // first step is the account creation and the second step is the module installation with multisig as owner
+
+        // Add compatability fallback handler ?
+
+        bytes memory moduleData = abi.encode(safeMultisig);
+        instance.installModule({ moduleTypeId: MODULE_TYPE_VALIDATOR, module: address(validator), data: moduleData });
+        assertEq(validator.getAccountOwner(companionAccount), safeMultisig);
+
+        //vm.prank(owner1);
+        // vm.prank(owner1);
+        // validator.onInstall(abi.encode(companionAccount));
+
+        // //vm.prank(owner2);
+        // vm.prank(owner2);
+        // //validator.onInstall(abi.encode(safeMultisig));
+        // validator.onInstall(abi.encode(companionAccount));
+
+        vm.prank(safeMultisig);
+        validator.onInstall(abi.encode(companionAccount));
+
+        //TODO: Remove
+        // Deploy Safe proxy (multisig without 7570 modules)
+        // straightMultisig = proxyFactory.createProxyWithNonce(address(singleton), initializer, 2);
+        // straightMultisigAddress = address(straightMultisig);
+
+        executorNonce = 0;
+
+        address[] memory proxyOwners = Safe(payable(address(safeProxy))).getOwners();
+        console2.log("proxy owner0:", proxyOwners[0]);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                                TESTS
+    //////////////////////////////////////////////////////////////*/
+    function test_SameChain_7579SafeAccount() public {
+        // the following test uses `safeSmartAccount` as the account to perform actions on
+        // `safeSmartAccount` is the 7579 implementation created by the safe factory
+        uint256 amount = 1e8;
+        uint256 allowanceBefore = mockERC20.allowance(address(this), address(safeSmartAccount));
+
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = approveHook;
+
+        bytes[] memory hooksData = new bytes[](1);
+        hooksData[0] = _createApproveHookData(address(mockERC20), address(this), amount, false);
+
+        Execution[] memory executions = new Execution[](1);
+        executions[0] = Execution({
+            target: address(superExecutor),
+            value: 0,
+            callData: abi.encodeWithSelector(
+                ISuperExecutor.execute.selector,
+                abi.encode(
+                    ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData })
+                )
+            )
+        });
+
+
+        bytes memory callData = _prepareExecutionCalldata(executions);
+        uint256 nonce = _prepareNonce(safeSmartAccount);
+        PackedUserOperation memory userOp = _createPackedUserOperation(safeSmartAccount, nonce, callData);
+
+        (bytes memory operationData,,,) = safe7579.getSafeOp(userOp, ENTRYPOINT_ADDR);
+        bytes32 opHash = keccak256(operationData);
+        bytes memory sig = _signHash(privateKey1, opHash);
+        userOp.signature = abi.encodePacked(uint48(0), uint48(type(uint48).max), sig);
+
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = userOp;
+        IEntryPoint(ENTRYPOINT_ADDR).handleOps(userOps, payable(safeSmartAccount));
+
+        uint256 allowanceAfter = mockERC20.allowance(address(this), address(safeSmartAccount));
+        assertEq(allowanceAfter, allowanceBefore + amount);
+    }
+
+
+
+    /*//////////////////////////////////////////////////////////////
+                                INTERNAL HELPERS
+    //////////////////////////////////////////////////////////////*/
+    function _prepareExecutionCalldata(Execution[] memory executions)
+        internal
+        pure
+        returns (bytes memory executionCalldata)
+    {
+        ModeCode mode;
+        uint256 length = executions.length;
+
+        if (length == 1) {
+            mode = ModeLib.encodeSimpleSingle();
+            executionCalldata = abi.encodeCall(
+                ISafe7579.execute,
+                (mode, ExecutionLib.encodeSingle(executions[0].target, executions[0].value, executions[0].callData))
+            );
+        } else if (length > 1) {
+            mode = ModeLib.encodeSimpleBatch();
+            executionCalldata = abi.encodeCall(ISafe7579.execute, (mode, ExecutionLib.encodeBatch(executions)));
+        } else {
+            revert("Executions array cannot be empty");
+        }
+    }
+
+    function _prepareNonce(address account) internal view returns (uint256 nonce) {
+        uint192 key = uint192(bytes24(bytes20(address(mockValidatorModule))));
+        nonce = safe7579.getNonce(account, key);
+    }
+
+    function _createPackedUserOperation(
+        address account,
+        uint256 nonce,
+        bytes memory callData
+    )
+        internal
+        pure
+        returns (PackedUserOperation memory)
+    {
+        uint48 validAfter = 0;
+        uint48 validUntil = type(uint48).max;
+        return PackedUserOperation({
+            sender: account,
+            nonce: nonce,
+            initCode: "", //we assume contract is already deployed (following the Bundler flow)
+            callData: callData,
+            accountGasLimits: bytes32(abi.encodePacked(uint128(3e6), uint128(1e6))),
+            preVerificationGas: 3e5,
+            gasFees: bytes32(abi.encodePacked(uint128(3e5), uint128(1e7))),
+            paymasterAndData: "",
+            signature: abi.encodePacked(validAfter, validUntil, hex"41414141")
+        });
+    }
+
+    function _signHash(uint256 privKey, bytes32 digest) internal returns (bytes memory) {
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privKey, digest);
+
+        // Sanity checks
+        address signer = ecrecover(digest, v, r, s);
+        require(signer == vm.addr(privKey), "Invalid signature");
+
+        return abi.encodePacked(r, s, v);
+    }
+
+    function test_Multisig_With_CompanionAccount_SignatureValidation() public {
+        uint48 validUntil = uint48(block.timestamp + 5 hours);
+
+        approveDestinationData = _createApproveDestinationData(executorNonce, safeMultisig);
+        transferDestinationData = _createTransferDestinationData(executorNonce, safeMultisig);
+        depositDestinationData = _createDepositDestinationData(executorNonce, safeMultisig);
+
+        // simulate a merkle tree with 3 leaves (3 user ops)
+        bytes32[] memory leaves = new bytes32[](3);
+
+        leaves[0] = _createDestinationValidatorLeaf(
+            approveDestinationData.callData,
+            approveDestinationData.chainId,
+            approveDestinationData.sender,
+            approveDestinationData.executor,
+            approveDestinationData.dstTokens,
+            approveDestinationData.intentAmounts,
+            validUntil,
+            address(validator)
+        );
+        leaves[1] = _createDestinationValidatorLeaf(
+            transferDestinationData.callData,
+            transferDestinationData.chainId,
+            transferDestinationData.sender,
+            transferDestinationData.executor,
+            transferDestinationData.dstTokens,
+            transferDestinationData.intentAmounts,
+            validUntil,
+            address(validator)
+        );
+        leaves[2] = _createDestinationValidatorLeaf(
+            depositDestinationData.callData,
+            depositDestinationData.chainId,
+            depositDestinationData.sender,
+            depositDestinationData.executor,
+            depositDestinationData.dstTokens,
+            depositDestinationData.intentAmounts,
+            validUntil,
+            address(validator)
+        );
+
+        (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+        //bytes memory signature = _makeSignatureViaApproveHash(safeMultisig, root);
+        bytes memory signature = _signMessage(root);
+
+        _testDestinationDataValidation(safeMultisig, validUntil, root, proof[0], signature, approveDestinationData);
+    }
+
+    function _signMessage(bytes32 root) internal view returns (bytes memory) {
+        bytes memory message = abi.encode(validator.namespace(), root);
+        bytes32 hash = keccak256(message);
+        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(hash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey1, ethSignedMessageHash);
+        v+=4;
+
+        bytes memory safeSig =
+            abi.encodePacked(r, s, v);
+        // Validate
+        bytes4 magic = IGnosisSafe(safeMultisig).isValidSignature(hash, safeSig);
+
+        assertTrue(magic == 0x1626ba7e, "Invalid signature");
+        return safeSig;
+
+        // address[] memory owners = Safe(payable(safeMultisig)).getOwners();
+        // console2.logAddress(owners[0]);
+        // assertEq(owners[0], vm.addr(privateKey1));
+
+        // bytes32 rawHash = keccak256(abi.encodePacked("test"));
+        // bytes32 ethHash = MessageHashUtils.toEthSignedMessageHash(rawHash);
+        // (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey1, ethHash);
+        // v += 4;
+
+        // address recovered = ecrecover(ethHash, v - 4, r, s);
+        // console2.logAddress(recovered);
+        // console2.logAddress(vm.addr(privateKey1));
+        // assertEq(recovered, vm.addr(privateKey1));
+
+        // bytes memory sig = abi.encodePacked(r, s, v);
+        // bytes4 magic = IGnosisSafe(safeMultisig).isValidSignature(rawHash, sig);
+        // assertTrue(magic == 0x1626ba7e);
+    }
+
+    // function test_Multisig7579_SignatureValidation_ViaConcat() public {
+    //     uint48 validUntil = uint48(block.timestamp + 5 hours);
+
+    //     approveDestinationData = _createApproveDestinationData(executorNonce, safeSmartAccount);
+    //     transferDestinationData = _createTransferDestinationData(executorNonce, safeSmartAccount);
+    //     depositDestinationData = _createDepositDestinationData(executorNonce, safeSmartAccount);
+
+    //     // simulate a merkle tree with 3 leaves (3 user ops)
+    //     bytes32[] memory leaves = new bytes32[](3);
+
+    //     leaves[0] = _createDestinationValidatorLeaf(
+    //         approveDestinationData.callData,
+    //         approveDestinationData.chainId,
+    //         approveDestinationData.sender,
+    //         approveDestinationData.executor,
+    //         approveDestinationData.dstTokens,
+    //         approveDestinationData.intentAmounts,
+    //         validUntil,
+    //         address(validator)
+    //     );
+    //     leaves[1] = _createDestinationValidatorLeaf(
+    //         transferDestinationData.callData,
+    //         transferDestinationData.chainId,
+    //         transferDestinationData.sender,
+    //         transferDestinationData.executor,
+    //         transferDestinationData.dstTokens,
+    //         transferDestinationData.intentAmounts,
+    //         validUntil,
+    //         address(validator)
+    //     );
+    //     leaves[2] = _createDestinationValidatorLeaf(
+    //         depositDestinationData.callData,
+    //         depositDestinationData.chainId,
+    //         depositDestinationData.sender,
+    //         depositDestinationData.executor,
+    //         depositDestinationData.dstTokens,
+    //         depositDestinationData.intentAmounts,
+    //         validUntil,
+    //         address(validator)
+    //     );
+
+    //     (bytes32[][] memory proof, bytes32 root) = _createValidatorMerkleTree(leaves);
+
+    //     //bytes memory signature = _makeSignatureViaConcat(root);
+
+    //     // bytes32 hash = keccak256(EIP712.encodeMessageData(Safe(payable(safeSmartAccount)).domainSeparator(),
+    //     // abi.encode(validator.namespace(), root)));
+
+    //     bytes memory signatures = _makeSignatureViaApproveHash(safeSmartAccount, root);
+
+    //     bytes32 hash = keccak256(abi.encode(validator.namespace(), root));
+
+    //     //bytes memory data = abi.encodePacked(address(validator), signature);
+    //     bytes memory data = abi.encodePacked(address(0), signatures);
+
+    //     vm.prank(safeSmartAccount);
+    //     // Call isValidSignature with address(0) validator
+    //     bytes4 magicValue = IERC1271(address(safeSmartAccount)).isValidSignature(hash, data);
+
+    //     assertEq(magicValue, IERC1271.isValidSignature.selector);
+
+    //     vm.prank(safeSmartAccount);
+    //     validator.onInstall(abi.encode(safeSmartAccount));
+
+    //     ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+
+    //     ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
+    //         data: approveDestinationData.callData,
+    //         executor: approveDestinationData.executor,
+    //         dstTokens: approveDestinationData.dstTokens,
+    //         intentAmounts: approveDestinationData.intentAmounts,
+    //         account: approveDestinationData.sender,
+    //         validator: address(validator)
+    //     });
+    //     proofDst[0] = ISuperValidator.DstProof({ proof: proof[0], dstChainId: uint64(block.chainid), info: dstInfo
+    // });
+
+    //     bytes memory sigDataRaw = abi.encode(
+    //         false, // isEthSignedMessage
+    //         validUntil,
+    //         root,
+    //         proof,
+    //         proofDst,
+    //         signatures
+    //     );
+
+    //     bytes memory destinationRaw = abi.encode(
+    //         approveDestinationData.callData,
+    //         approveDestinationData.chainId,
+    //         approveDestinationData.sender,
+    //         approveDestinationData.executor,
+    //         approveDestinationData.dstTokens,
+    //         approveDestinationData.intentAmounts
+    //     );
+
+    //     bytes4 rv = validator.isValidDestinationSignature(safeSmartAccount, abi.encode(sigDataRaw, destinationRaw));
+
+    //     assertEq(rv, VALID_SIGNATURE);
+    // }
+
+    /*//////////////////////////////////////////////////////////////
+                            HELPER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    function _deploySafeSmartAccount(address[] memory owners) internal returns (address account) {
+        factory = new SafeFactory();
+        factory.init(); // deploys singleton + proxy-factory
+
+        ModuleInit[] memory validators = new ModuleInit[](1);
+        validators[0] = ModuleInit({ module: address(mockValidatorModule), initData: "" });
+
+        ModuleInit[] memory executors = new ModuleInit[](1);
+        executors[0] = ModuleInit({
+            module: address(superExecutor),
+            initData: bytes("")
+        });
+        ModuleInit[] memory hooks = new ModuleInit[](0);
+        ModuleInit[] memory fallbacks = new ModuleInit[](0);
+
+        ISafe7579Launchpad.InitData memory initData = ISafe7579Launchpad.InitData({
+            singleton: address(singleton),
+            owners: owners,
+            threshold: 2,
+            setupTo: address(safe7579),
+            setupData: abi.encodeCall(
+                ISafe7579Launchpad.initSafe7579,
+                (
+                    address(safe7579),
+                    executors,
+                    fallbacks,
+                    hooks,
+                    owners,
+                    2
+                )
+            ),
+            safe7579: ISafe7579(address(safe7579)),
+            validators: validators,
+            callData: ""
+        });
+
+        bytes memory initCode = abi.encode(initData);
+        bytes32 salt = keccak256("SAFE-1279-TEST");
+
+        account = factory.createAccount(salt, initCode);
+    }
+
+    function _createValidatorLeaf(
+        DestinationData memory destinationData,
+        uint48 validUntil,
+        address _validator
+    )
+        private
+        view
+        returns (bytes32)
+    {
+        return keccak256(
+            bytes.concat(
+                keccak256(
+                    abi.encode(
+                        destinationData.callData,
+                        uint64(block.chainid),
+                        destinationData.sender,
+                        destinationData.nonce,
+                        destinationData.executor,
+                        destinationData.dstTokens,
+                        destinationData.intentAmounts,
+                        validUntil,
+                        _validator
+                    )
+                )
+            )
+        );
+    }
+
+    function _makeSignatureViaConcat(bytes32 root) private view returns (bytes memory) {
+        bytes memory message = abi.encode(validator.namespace(), root);
+        //bytes32 hash = keccak256(message);
+
+        bytes32 SAFE_MSG_TYPEHASH = 0x60b3cbf8b4a223d68d641b3b6ddf9a298e7f33710cf3d3a9d1146b5a6150fbca;
+
+        bytes32 structHash = keccak256(abi.encode(SAFE_MSG_TYPEHASH, keccak256(message)));
+
+        // //bytes32 safeHash = SignMessageLib(payable(safeSmartAccount)).getMessageHash(message);
+
+        bytes32 safeHash = keccak256(
+            abi.encodePacked(bytes1(0x19), bytes1(0x01), ISafe(payable(safeSmartAccount)).domainSeparator(),
+    structHash)
+        );
+
+        // sign with each owner key
+        (uint8 v1, bytes32 r1, bytes32 s1) = vm.sign(privateKey1, safeHash);
+        (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(privateKey2, safeHash);
+
+        bytes memory sig1 = abi.encodePacked(r1, s1, v1);
+        bytes memory sig2 = abi.encodePacked(r2, s2, v2);
+
+        // concat in ascending owner address order (Safe requirement)
+        bytes memory signatures = owner1 < owner2 ? bytes.concat(sig1, sig2) : bytes.concat(sig2, sig1);
+
+        // check if the signature is valid
+        bytes memory data = abi.encodePacked(address(validator), signatures);
+        bytes4 magic = ISafe7579(safeSmartAccount).isValidSignature(safeHash, data);
+        assertEq(magic, bytes4(0x1626ba7e), "Safe rejected the signature blob");
+
+        return signatures;
+    }
+
+    function _makeSignatureViaApproveHash(address, bytes32 root) private returns (bytes memory) {
+        bytes memory message = abi.encode(validator.namespace(), root);
+        bytes32 hash = keccak256(message);
+
+        console2.log("----");
+        console2.logBytes(message);
+        console2.logBytes32(hash);
+
+        // each owner approves the hash once
+        vm.prank(owner1);
+        ISafe(payable(safeMultisig)).approveHash(hash);
+
+        vm.prank(owner2);
+        ISafe(payable(safeMultisig)).approveHash(hash);
+
+        // now call validator with empty sigs
+        bytes memory signatures = "";
+
+        return signatures;
+    }
+
+    function _createApproveDestinationData(
+        uint256 nonce,
+        address signerAddr
+    )
+        private
+        view
+        returns (DestinationData memory)
+    {
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(this);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1e18;
+        return DestinationData(
+            nonce,
+            abi.encodeWithSelector(IERC20.approve.selector, address(this), 1e18),
+            uint64(block.chainid),
+            signerAddr,
+            address(this),
+            address(this),
+            address(this),
+            dstTokens,
+            intentAmounts
+        );
+    }
+
+    function _createTransferDestinationData(
+        uint256 nonce,
+        address signerAddr
+    )
+        private
+        view
+        returns (DestinationData memory)
+    {
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(this);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1e18;
+        return DestinationData(
+            nonce,
+            abi.encodeWithSelector(IERC20.transfer.selector, address(this), 1e18),
+            uint64(block.chainid),
+            signerAddr,
+            address(this),
+            address(this),
+            address(this),
+            dstTokens,
+            intentAmounts
+        );
+    }
+
+    function _createDepositDestinationData(
+        uint256 nonce,
+        address signerAddr
+    )
+        private
+        view
+        returns (DestinationData memory)
+    {
+        address[] memory dstTokens = new address[](1);
+        dstTokens[0] = address(this);
+        uint256[] memory intentAmounts = new uint256[](1);
+        intentAmounts[0] = 1e18;
+        return DestinationData(
+            nonce,
+            abi.encodeWithSelector(IERC4626.deposit.selector, 1e18, address(this)),
+            uint64(block.chainid),
+            signerAddr,
+            address(this),
+            address(this),
+            address(this),
+            dstTokens,
+            intentAmounts
+        );
+    }
+
+    function _testDestinationDataValidation(
+        address signerAddr,
+        uint48 validUntil,
+        bytes32 root,
+        bytes32[] memory proof,
+        bytes memory signature,
+        DestinationData memory destinationData
+    )
+        private
+        view
+    {
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
+
+        ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
+            data: destinationData.callData,
+            executor: destinationData.executor,
+            dstTokens: destinationData.dstTokens,
+            intentAmounts: destinationData.intentAmounts,
+            account: destinationData.sender,
+            validator: address(validator)
+        });
+        proofDst[0] = ISuperValidator.DstProof({ proof: proof, dstChainId: uint64(block.chainid), info: dstInfo });
+        bytes memory sigDataRaw = abi.encode(false, validUntil, root, proof, proofDst, signature);
+
+        bytes memory destinationDataRaw = abi.encode(
+            destinationData.callData,
+            destinationData.chainId,
+            destinationData.sender,
+            destinationData.executor,
+            destinationData.dstTokens,
+            destinationData.intentAmounts
+        );
+
+        bytes4 validationResult =
+            validator.isValidDestinationSignature(signerAddr, abi.encode(sigDataRaw, destinationDataRaw));
+        assertEq(validationResult, VALID_SIGNATURE, "Sig should be valid");
+    }
+}
