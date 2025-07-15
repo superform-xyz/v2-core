@@ -55,7 +55,35 @@ contract VaultFeeTests is MinimalBaseIntegrationTest {
     function setUp() public override {
         super.setUp();
 
+        underlyingETH_USDC = CHAIN_1_USDC;
+        underlyingETH_sUSDe = CHAIN_1_SUSDE;
+
+        _getTokens(underlyingETH_USDC, accountEth, 1e18);
+        _getTokens(underlyingETH_sUSDe, accountEth, 1e18);
+
+        yieldSource5115AddressSUSDe = CHAIN_1_PendleEthena;
+
+        config = new SuperLedgerConfiguration();
+        executorModule1 = new MockExecutorModule();
+
+        address[] memory executors = new address[](1);
+        executors[0] = address(executorModule1);
+
+        superLedger = new SuperLedger(address(config), executors);
+
+        oracle4626 = new ERC4626YieldSourceOracle(address(superLedger));
+        oracle5115 = new ERC5115YieldSourceOracle(address(superLedger));
+        oracle7540 = new ERC7540YieldSourceOracle(address(superLedger));
+
+        yieldSourceOracleId4626 = bytes32(keccak256("TEST_4626_ORACLE_ID"));
+        yieldSourceOracleId5115 = bytes32(keccak256("TEST_5115_ORACLE_ID"));
+        yieldSourceOracleId7540 = bytes32(keccak256("TEST_7540_ORACLE_ID"));
+
+        feeRecipient = makeAddr("feeRecipient");
         
+        vaultInstance5115ETH = IStandardizedYield(yieldSource5115AddressSUSDe);
+        vaultInstance7540 = IERC7540(yieldSource7540AddressUSDC);
+        vaultInstance4626 = IERC4626(yieldSource4626AddressUSDC);
     }
 
     function test_4626VaultFees() public {
