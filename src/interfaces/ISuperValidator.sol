@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 /// @title ISuperValidator
@@ -40,7 +40,6 @@ interface ISuperValidator {
         uint256[] intentAmounts;
     }
 
-
     /// @notice Structure holding signature data used across validator implementations
     /// @dev Contains all components needed for merkle proof verification and signature validation
     struct SignatureData {
@@ -67,4 +66,9 @@ interface ISuperValidator {
     error NOT_IMPLEMENTED();
     error PROOF_NOT_FOUND();
     error INVALID_CHAIN_ID();
+
+    /*//////////////////////////////////////////////////////////////
+                                 FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
+    function namespace() external pure returns (string memory);
 }

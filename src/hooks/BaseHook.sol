@@ -1,11 +1,12 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // External
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { ISuperHook, ISuperHookSetter, ISuperHookResult } from "../interfaces/ISuperHook.sol";
+import { HookDataDecoder } from "../libraries/HookDataDecoder.sol";
+import { ISuperHook, ISuperHookSetter, ISuperHookResult, ISuperHookInspector } from "../interfaces/ISuperHook.sol";
 
 /// @title BaseHook
 /// @author Superform Labs
@@ -14,7 +15,9 @@ import { ISuperHook, ISuperHookSetter, ISuperHookResult } from "../interfaces/IS
 ///      All specialized hooks should inherit from this base contract
 ///      Implements the ISuperHook interface defined lifecycle methods
 ///      Uses a transient storage pattern for stateful execution context
-abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
+abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult, ISuperHookInspector {
+    using HookDataDecoder for bytes;
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -76,10 +79,6 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     /// @notice Thrown when an address parameter is invalid (e.g., zero address)
     /// @dev Used in validation checks for tokens, accounts, and other addresses
     error ADDRESS_NOT_VALID();
-
-    /// @notice Thrown when the provided data payload is too short for decoding
-    /// @dev Used when validating and parsing hook-specific data parameters
-    error DATA_LENGTH_INSUFFICIENT();
 
     /// @notice Thrown when a caller is not authorized to execute hook methods
     /// @dev Used by security validation to prevent unauthorized hook execution
@@ -209,6 +208,9 @@ abstract contract BaseHook is ISuperHook, ISuperHookSetter, ISuperHookResult {
     function subtype() external view returns (bytes32) {
         return subType;
     }
+
+    /// @inheritdoc ISuperHookInspector
+    function inspect(bytes calldata) external view virtual returns (bytes memory) { }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS

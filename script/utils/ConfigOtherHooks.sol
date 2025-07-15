@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity >=0.8.30;
 
 import "./ConfigBase.sol";
@@ -14,7 +14,6 @@ abstract contract ConfigOtherHooks is ConfigBase {
     /// @notice Sets up protocol-specific router addresses for hooks
     /// @dev Configures router addresses required for protocol integration hooks
     function _setOtherHooksConfiguration() internal {
-
         // ===== OKX ROUTER ADDRESSES =====
         configuration.okxRouters[MAINNET_CHAIN_ID] = OKX_ROUTER_MAINNET;
         configuration.okxRouters[BASE_CHAIN_ID] = OKX_ROUTER_BASE;

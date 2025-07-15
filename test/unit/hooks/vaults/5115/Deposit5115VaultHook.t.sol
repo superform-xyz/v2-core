@@ -8,8 +8,11 @@ import { MockERC20 } from "../../../../mocks/MockERC20.sol";
 import { MockHook } from "../../../../mocks/MockHook.sol";
 import { BaseHook } from "../../../../../src/hooks/BaseHook.sol";
 import { Helpers } from "../../../../utils/Helpers.sol";
+import { BytesLib } from "../../../../../src/vendor/BytesLib.sol";
 
 contract Deposit5115VaultHookTest is Helpers {
+    using BytesLib for bytes;
+
     Deposit5115VaultHook public hook;
 
     bytes32 yieldSourceOracleId;
@@ -120,11 +123,12 @@ contract Deposit5115VaultHookTest is Helpers {
         bytes memory data = _encodeData(false);
         bytes memory argsEncoded = hook.inspect(data);
         assertGt(argsEncoded.length, 0);
+
+        assertEq(BytesLib.toAddress(argsEncoded, 0), yieldSource);
+        assertEq(BytesLib.toAddress(argsEncoded, 20), token);
     }
 
     function _encodeData(bool usePrevHook) internal view returns (bytes memory) {
-        return abi.encodePacked(
-            yieldSourceOracleId, yieldSource, token, amount, amount, usePrevHook
-        );
+        return abi.encodePacked(yieldSourceOracleId, yieldSource, token, amount, amount, usePrevHook);
     }
 }

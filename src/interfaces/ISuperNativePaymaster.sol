@@ -1,7 +1,7 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
-import {PackedUserOperation} from "@ERC4337/account-abstraction/contracts/interfaces/PackedUserOperation.sol";
+import { PackedUserOperation } from "@ERC4337/account-abstraction/contracts/interfaces/PackedUserOperation.sol";
 
 /// @title ISuperNativePaymaster
 /// @author Superform Labs
@@ -45,7 +45,7 @@ interface ISuperNativePaymaster {
     /// @param sender The address receiving the refund
     /// @param refundAmount The amount of native tokens refunded
     /// @param initialRefund The initial refund amount before deposit check
-    event SuperNativePaymsterRefund(address indexed sender, uint256 refundAmount, uint256 initialRefund);
+    event SuperNativePaymasterRefund(address indexed sender, uint256 refundAmount, uint256 initialRefund);
 
     /// @notice Emitted when a batch of user operations is handled
     /// @param sender The address that handled the operations
@@ -89,5 +89,8 @@ interface ISuperNativePaymaster {
         uint256 maxFeePerGas,
         uint256 actualGasCost,
         uint256 nodeOperatorPremium
-    ) external pure returns (uint256 refund);
+    )
+        external
+        pure
+        returns (uint256 refund);
 }

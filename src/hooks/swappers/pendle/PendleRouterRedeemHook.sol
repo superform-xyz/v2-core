@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -11,12 +11,7 @@ import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
-import {
-    ISuperHook,
-    ISuperHookResult,
-    ISuperHookContextAware,
-    ISuperHookInspector
-} from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookResult, ISuperHookContextAware, ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 /// @title PendleRouterRedeemHook
 /// @author Superform Labs
@@ -28,7 +23,7 @@ import {
 /// @notice         uint256 minTokenOut = BytesLib.toUint256(data, 92);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 124);
 /// @notice         bytes output = BytesLib.slice(data, 125, data.length - 125);
-contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     // Offset for bool usePrevHookAmount (after packed amount, YT, tokenOut, minTokenOut)
@@ -56,7 +51,6 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
     error YT_NOT_VALID();
-    error ORDER_NOT_MATURE();
     error RECEIVER_NOT_VALID();
     error TOKEN_OUT_NOT_VALID();
     error MIN_TOKEN_OUT_NOT_VALID();
@@ -92,18 +86,18 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
         executions[0] = Execution({
             target: params.PT,
             value: 0,
-            callData: abi.encodeWithSelector(IERC20.approve.selector, address(pendleRouterV4), finalAmount)
+            callData: abi.encodeCall(IERC20.approve, (address(pendleRouterV4), finalAmount))
         });
         executions[1] = Execution({
             target: params.YT,
             value: 0,
-            callData: abi.encodeWithSelector(IERC20.approve.selector, address(pendleRouterV4), finalAmount)
+            callData: abi.encodeCall(IERC20.approve, (address(pendleRouterV4), finalAmount))
         });
         executions[2] = Execution({
             target: address(pendleRouterV4),
             value: 0,
-            callData: abi.encodeWithSelector(
-                IPendleRouterV4.redeemPyToToken.selector, account, params.YT, finalAmount, params.output
+            callData: abi.encodeCall(
+                IPendleRouterV4.redeemPyToToken, (account, params.YT, finalAmount, params.output)
             )
         });
     }
@@ -119,7 +113,7 @@ contract PendleRouterRedeemHook is BaseHook, ISuperHookContextAware, ISuperHookI
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         DecodedParams memory params = _decodeAndValidateData(data);
         return abi.encodePacked(params.YT, params.PT, params.tokenOut);
     }

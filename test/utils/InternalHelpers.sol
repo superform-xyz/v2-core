@@ -1,21 +1,48 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
+// external
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import "../../src/vendor/1inch/I1InchAggregationRouterV6.sol";
 import { SpectraCommands } from "../../src/vendor/spectra/SpectraCommands.sol";
-import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { UserOpData, AccountInstance, ModuleKitHelpers } from "modulekit/ModuleKit.sol";
-import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+import "forge-std/console2.sol";
+import "forge-std/Test.sol";
+import "forge-std/Vm.sol";
 
-abstract contract InternalHelpers {
+// Superform
+import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
+import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
+
+abstract contract InternalHelpers is Test {
     using ModuleKitHelpers for *;
 
     bytes1 public constant REDEEM_IBT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_IBT_FOR_ASSET));
     bytes1 public constant REDEEM_PT_FOR_ASSET = bytes1(uint8(SpectraCommands.REDEEM_PT_FOR_ASSET));
 
     // -- Rhinestone
+    function executeOpsThroughPaymaster(
+        UserOpData memory userOpData,
+        ISuperNativePaymaster superNativePaymaster,
+        uint256 val
+    )
+        internal
+        returns (ExecutionReturnData memory executionData)
+    {
+        vm.recordLogs();
+
+        // execute 
+        PackedUserOperation[] memory ops = new PackedUserOperation[](1);
+        ops[0] = userOpData.userOp;
+        superNativePaymaster.handleOps{value: val}(ops);
+
+        VmSafe.Log[] memory logs = vm.getRecordedLogs();
+        executionData = ExecutionReturnData({
+            logs: logs
+        });
+    }
 
     function executeOp(UserOpData memory userOpData) public returns (ExecutionReturnData memory) {
         return userOpData.execUserOps();

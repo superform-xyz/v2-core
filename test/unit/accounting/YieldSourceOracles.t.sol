@@ -259,87 +259,9 @@ contract YieldSourceOraclesTest is Helpers {
         assertGt(tvls[1], 0); // Staking vault should have some TVL
     }
 
-    /*//////////////////////////////////////////////////////////////
-                       UNDERLYING ASSET TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_ERC4626_isValidUnderlyingAsset() public view {
-        bool isValid = erc4626YieldSourceOracle.isValidUnderlyingAsset(address(erc4626), address(asset));
-        assertTrue(isValid);
-    }
 
-    function test_ERC7540_isValidUnderlyingAsset() public view {
-        bool isValid = erc7540YieldSourceOracle.isValidUnderlyingAsset(address(erc7540), address(asset));
-        assertTrue(isValid);
-    }
 
-    function test_ERC5115_isValidUnderlyingAsset() public view {
-        bool isValid = erc5115YieldSourceOracle.isValidUnderlyingAsset(address(erc5115), address(asset));
-        assertTrue(isValid);
-    }
 
-    function test_Staking_isValidUnderlyingAsset() public view {
-        bool isValid = stakingYieldSourceOracle.isValidUnderlyingAsset(address(stakingVault), underlying);
-        assertTrue(isValid);
-    }
-
-    /*//////////////////////////////////////////////////////////////
-                       UNDERLYING ASSETS TESTS
-    //////////////////////////////////////////////////////////////*/
-    function test_ERC4626_isValidUnderlyingAssets() public view {
-        address[] memory vaults = new address[](2);
-        address[] memory expectedUnderlying = new address[](2);
-        vaults[0] = address(erc4626);
-        vaults[1] = address(erc4626);
-        expectedUnderlying[0] = address(asset);
-        expectedUnderlying[1] = address(asset);
-
-        bool[] memory isValid = erc4626YieldSourceOracle.isValidUnderlyingAssets(vaults, expectedUnderlying);
-        assertEq(isValid.length, 2);
-        assertTrue(isValid[0]);
-        assertTrue(isValid[1]);
-    }
-
-    function test_ERC7540_isValidUnderlyingAssets() public view {
-        address[] memory vaults = new address[](2);
-        address[] memory expectedUnderlying = new address[](2);
-        vaults[0] = address(erc7540);
-        vaults[1] = address(erc7540);
-        expectedUnderlying[0] = address(asset);
-        expectedUnderlying[1] = address(asset);
-
-        bool[] memory isValid = erc7540YieldSourceOracle.isValidUnderlyingAssets(vaults, expectedUnderlying);
-        assertEq(isValid.length, 2);
-        assertTrue(isValid[0]);
-        assertTrue(isValid[1]);
-    }
-
-    function test_ERC5115_isValidUnderlyingAssets() public view {
-        address[] memory vaults = new address[](2);
-        address[] memory expectedUnderlying = new address[](2);
-        vaults[0] = address(erc5115);
-        vaults[1] = address(erc5115);
-        expectedUnderlying[0] = address(asset);
-        expectedUnderlying[1] = address(asset);
-
-        bool[] memory isValid = erc5115YieldSourceOracle.isValidUnderlyingAssets(vaults, expectedUnderlying);
-        assertEq(isValid.length, 2);
-        assertTrue(isValid[0]);
-        assertTrue(isValid[1]);
-    }
-
-    function test_Staking_isValidUnderlyingAssets() public view {
-        address[] memory vaults = new address[](2);
-        address[] memory expectedUnderlying = new address[](2);
-        vaults[0] = address(stakingVault);
-        vaults[1] = address(stakingVault);
-        expectedUnderlying[0] = stakingVault.stakingToken();
-        expectedUnderlying[1] = stakingVault.stakingToken();
-
-        bool[] memory isValid = stakingYieldSourceOracle.isValidUnderlyingAssets(vaults, expectedUnderlying);
-        assertEq(isValid.length, 2);
-        assertTrue(isValid[0]);
-        assertTrue(isValid[1]);
-    }
 
     /*//////////////////////////////////////////////////////////////
                          BALANCE CHECK TESTS

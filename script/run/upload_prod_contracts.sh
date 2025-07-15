@@ -1,17 +1,17 @@
 #!/bin/bash
 
 ###################################################################################
-# Superform V2 Hooks Upload Script
+# Superform V2 Contracts Upload Script
 ###################################################################################
 # Description:
-#   This script aggregates hooks deployment information from the production output
+#   This script aggregates contract deployment information from the production output
 #   directory and uploads it to an S3 bucket. It is designed to be run after
 #   the main deployment script has completed for the 'prod' environment.
 #
 # Directory Structure Assumption:
 #   script/output/prod/
 #   ├── 1/
-#   │   └── Ethereum-latest.json
+#   │   └─── Ethereum-latest.json
 #   ├── 10/
 #   │   └── Optimism-latest.json
 #   └── 8453/
@@ -21,14 +21,14 @@
 #   A single `latest_deployment.json` file uploaded to s3://<S3_BUCKET_NAME>/prod/latest_deployment.json
 #
 # Usage:
-#   ./upload_prod_hooks_to_s3.sh
+#   ./upload_prod_contracts.sh
 #
 # Requirements:
 #   - jq: For JSON processing
 #   - aws: For S3 operations
 #
 # Environment Variables:
-#   - S3_BUCKET_NAME: The S3 bucket to upload the hooks file to.
+#   - S3_BUCKET_NAME: The S3 bucket to upload the contracts file to.
 #
 ###################################################################################
 
@@ -66,9 +66,13 @@ if [ ! -d "$PROD_OUTPUT_DIR" ]; then
     exit 1
 fi
 
-# Initialize an empty JSON object to store all hooks
-combined_hooks="{}"
-log "INFO" "Starting hooks aggregation from $PROD_OUTPUT_DIR"
+# Initialize an empty JSON object for the networks
+networks_obj="{}"
+log "INFO" "Starting contract aggregation from $PROD_OUTPUT_DIR"
+
+# Get the current timestamp
+current_timestamp=$(date +%s)
+updated_at=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
 # Iterate through each network directory in the production output directory
 for network_dir in "$PROD_OUTPUT_DIR"/*; do
@@ -86,34 +90,49 @@ for network_dir in "$PROD_OUTPUT_DIR"/*; do
 
         log "INFO" "Found deployment file: $json_file"
 
-        # Read the entire JSON file.
-        hooks_data=$(jq '.' "$json_file")
+        # Extract network name from the filename (e.g., "Ethereum" from "Ethereum-latest.json")
+        network_name=$(basename "$json_file" | sed 's/-latest.json//')
+
+        # Read the contracts data from the JSON file
+        contracts_data=$(jq '.' "$json_file")
 
         # Check if the file was empty or contained invalid JSON
-        if [ -z "$hooks_data" ]; then
-            log "WARN" "File $json_file is empty or contains invalid JSON. Skipping."
+        if [ -z "$contracts_data" ] || [ "$contracts_data" = "null" ]; then
+            log "WARN" "File $json_file is empty, does not contain a 'contracts' key, or has invalid JSON. Skipping."
             continue
         fi
 
-        # Add the extracted hooks data to the main JSON object, keyed by the network ID
-        combined_hooks=$(echo "$combined_hooks" | jq \
-            --arg network_id "$network_id" \
-            --argjson hooks "$hooks_data" \
-            '. + {($network_id): $hooks}')
+        # Create the network-specific object with timestamp and contracts
+        network_entry=$(jq -n \
+            --argjson timestamp "$current_timestamp" \
+            --argjson contracts "$contracts_data" \
+            '{ "timestamp": $timestamp, "contracts": $contracts }')
 
-        log "INFO" "Successfully aggregated hooks for network $network_id"
+        # Add this entry to the main networks object
+        networks_obj=$(echo "$networks_obj" | jq \
+            --arg network_name "$network_name" \
+            --argjson network_data "$network_entry" \
+            '. + {($network_name): $network_data}')
+
+        log "INFO" "Successfully aggregated contracts for network $network_name"
     fi
 done
 
-# If no hooks were found in any of the files, exit gracefully.
-if [ "$combined_hooks" = "{}" ]; then
-    log "WARN" "No hooks were found across any network. Exiting without uploading."
+# If no networks were found, exit gracefully.
+if [ "$networks_obj" = "{}" ]; then
+    log "WARN" "No contract data was found across any network. Exiting without uploading."
     exit 0
 fi
 
+# Create the final JSON structure
+final_json=$(jq -n \
+    --argjson networks "$networks_obj" \
+    --arg updated_at "$updated_at" \
+    '{ "networks": $networks, "updated_at": $updated_at }')
+
 # Write the final aggregated JSON to a temporary file for inspection and upload
-echo "$combined_hooks" | jq '.' > "$TEMP_JSON_PATH"
-log "INFO" "Final aggregated hooks JSON created at $TEMP_JSON_PATH:"
+echo "$final_json" | jq '.' > "$TEMP_JSON_PATH"
+log "INFO" "Final aggregated contracts JSON created at $TEMP_JSON_PATH:"
 # Output the final JSON to the console
 cat "$TEMP_JSON_PATH"
 

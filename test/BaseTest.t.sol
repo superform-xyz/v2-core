@@ -8,6 +8,8 @@ import { InternalHelpers } from "./utils/InternalHelpers.sol";
 import { SignatureHelper } from "./utils/SignatureHelper.sol";
 import { MerkleTreeHelper } from "./utils/MerkleTreeHelper.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+
 // Superform interfaces
 import { ISuperRegistry } from "../src/interfaces/ISuperRegistry.sol";
 import { ISuperExecutor } from "../src/interfaces/ISuperExecutor.sol";
@@ -16,6 +18,7 @@ import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLe
 import { ISuperDestinationExecutor } from "../src/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperValidator } from "../src/interfaces/ISuperValidator.sol";
 import { ISuperSenderCreator } from "../src/interfaces/ISuperSenderCreator.sol";
+import { ISuperNativePaymaster } from "../src/interfaces/ISuperNativePaymaster.sol";
 
 // Superform contracts coded
 import { SuperLedger } from "../src/accounting/SuperLedger.sol";
@@ -161,6 +164,8 @@ import { MockBaseHook } from "./mocks/MockBaseHook.sol";
 import { DlnExternalCallLib } from "../lib/pigeon/src/debridge/libraries/DlnExternalCallLib.sol";
 
 import "forge-std/console2.sol";
+import "forge-std/Test.sol";
+import "forge-std/Vm.sol";
 
 struct Addresses {
     ISuperLedger superLedger;

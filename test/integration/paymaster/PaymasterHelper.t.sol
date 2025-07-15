@@ -117,7 +117,6 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
                                  ACCOUNT CREATION METHODS
     //////////////////////////////////////////////////////////////*/
     function _createWithNexus(
-        address registry,
         address[] memory attesters,
         uint8 threshold,
         uint256 value
@@ -125,7 +124,7 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         internal
         returns (address)
     {
-        bytes memory initData = _getNexusInitData(registry, attesters, threshold);
+        bytes memory initData = _getNexusInitData(attesters, threshold);
 
         address computedAddress = nexusFactory.computeAccountAddress(initData, initSalt);
         address deployedAddress = nexusFactory.createAccount{ value: value }(initData, initSalt);
@@ -135,7 +134,6 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
     }
 
     function _getNexusInitData(
-        address registry,
         address[] memory attesters,
         uint8 threshold
     )
@@ -158,7 +156,7 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
         BootstrapConfig[] memory fallbacks = new BootstrapConfig[](0);
 
         return nexusBootstrap.getInitNexusCalldata(
-            validators, executors, hook, fallbacks, IERC7484(registry), attesters, threshold
+            validators, executors, hook, fallbacks, IERC7484(address(0)), attesters, threshold
         );
     }
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -21,7 +21,7 @@ import { IFluidLendingStakingRewards } from "../../../vendor/fluid/IFluidLending
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 52);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-contract FluidUnstakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract FluidUnstakeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;
@@ -72,7 +72,7 @@ contract FluidUnstakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspect
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(data.extractYieldSource());
     }
     /*//////////////////////////////////////////////////////////////

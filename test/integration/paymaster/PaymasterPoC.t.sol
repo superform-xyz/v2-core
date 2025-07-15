@@ -56,7 +56,7 @@ contract PoC is PaymasterHelper {
         TestData memory data;
 
         // create account
-        data.nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+        data.nexusAccount = _createWithNexus(attesters, threshold, 0);
 
         // fund account
         vm.deal(data.nexusAccount, LARGE);
@@ -137,7 +137,7 @@ contract PoC is PaymasterHelper {
         TestData memory data;
 
         // create account
-        data.nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+        data.nexusAccount = _createWithNexus(attesters, threshold, 0);
 
         // fund account
         vm.deal(data.nexusAccount, LARGE);
@@ -216,7 +216,7 @@ contract PoC is PaymasterHelper {
 
     function test_incorrectGas() public {
         // create account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+        address nexusAccount = _createWithNexus(attesters, threshold, 0);
 
         // fund account
         vm.deal(nexusAccount, LARGE);
@@ -300,7 +300,7 @@ contract PoC is PaymasterHelper {
         RefundDOSTestData memory data;
         
         // create account
-        data.nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+        data.nexusAccount = _createWithNexus(attesters, threshold, 0);
 
         // fund account
         vm.deal(data.nexusAccount, LARGE);
@@ -357,7 +357,7 @@ contract PoC is PaymasterHelper {
         data.paymaster.handleOps{gas: data.maxGasLimit, value: address(this).balance}(data.ops);
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
-        bytes32 expectedTopic = keccak256("SuperNativePaymsterRefund(address,uint256,uint256)");
+        bytes32 expectedTopic = keccak256("SuperNativePaymasterRefund(address,uint256,uint256)");
         for (uint256 i; i < entries.length; ++i) {
             Vm.Log memory log = entries[i];
             if (log.topics[0] == expectedTopic) {
@@ -372,7 +372,7 @@ contract PoC is PaymasterHelper {
         RefundDOSTestData memory data;
         
         // create account
-        data.nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+        data.nexusAccount = _createWithNexus(attesters, threshold, 0);
 
         // fund account
         vm.deal(data.nexusAccount, LARGE);
@@ -430,7 +430,7 @@ contract PoC is PaymasterHelper {
         data.paymaster.handleOps{gas: data.maxGasLimit, value: 2e16}(data.ops);
         Vm.Log[] memory entries = vm.getRecordedLogs();
 
-        bytes32 expectedTopic = keccak256("SuperNativePaymsterRefund(address,uint256,uint256)");
+        bytes32 expectedTopic = keccak256("SuperNativePaymasterRefund(address,uint256,uint256)");
         for (uint256 i; i < entries.length; ++i) {
             Vm.Log memory log = entries[i];
             if (log.topics[0] == expectedTopic) {

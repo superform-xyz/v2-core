@@ -3,27 +3,26 @@ pragma solidity >=0.8.30;
 
 // external
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
+import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance } from "modulekit/ModuleKit.sol";
 
 // Superform
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
-import { Helpers } from "../utils/Helpers.sol";
-import { InternalHelpers } from "../utils/InternalHelpers.sol";
-import { RhinestoneModuleKit, ModuleKitHelpers, AccountInstance } from "modulekit/ModuleKit.sol";
-import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/kernel/types/Constants.sol";
+import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
 import { ERC4626YieldSourceOracle } from "../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 import { ERC7540YieldSourceOracle } from "../../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { SuperLedgerConfiguration } from "../../src/accounting/SuperLedgerConfiguration.sol";
 import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
+import { FlatFeeLedger } from "../../src/accounting/FlatFeeLedger.sol";
 import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
-import { ERC5115Ledger } from "../mocks/ERC5115Ledger.sol";
-import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
 import { ApproveERC20Hook } from "../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { Deposit4626VaultHook } from "../../src/hooks/vaults/4626/Deposit4626VaultHook.sol";
 import { ApproveAndDeposit4626VaultHook } from "../../src/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
 import { Redeem4626VaultHook } from "../../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
-import "forge-std/console2.sol";
+import { Helpers } from "../utils/Helpers.sol";
+import { InternalHelpers } from "../utils/InternalHelpers.sol";
 
 /// @dev Forked mainnet test with deposit and redeem flow for a real ERC4626 vault
 abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, InternalHelpers {
@@ -91,7 +90,7 @@ abstract contract MinimalBaseIntegrationTest is Helpers, RhinestoneModuleKit, In
             yieldSourceOracle: address(new ERC5115YieldSourceOracle(address(ledgerConfig))),
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
-            ledger: address(new ERC5115Ledger(address(ledgerConfig), allowedExecutors))
+            ledger: address(new FlatFeeLedger(address(ledgerConfig), allowedExecutors))
         });
         bytes32[] memory salts = new bytes32[](3);
         salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));

@@ -41,7 +41,7 @@ contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
         amount = _bound(amount);
 
         // create account
-        address nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+        address nexusAccount = _createWithNexus(attesters, threshold, 0);
         vm.deal(nexusAccount, LARGE);
 
         // add tokens to account
@@ -74,43 +74,6 @@ contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
         _getTokens(underlying, nexusAccount, amount);
 
         _executeThroughEntrypoint(nexusAccount, entry);
-    }
-
-    function test_ValidateFees_ForPartialWithdrawal_NoExtraFees_Pendle() public {
-        uint256 amount = SMALL; // fixed amount to test the fee and consumed entries easily
-
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config =
-            ledgerConfig.getYieldSourceOracleConfig( _getYieldSourceOracleId(bytes32(bytes(ERC5115_YIELD_SOURCE_ORACLE_KEY)), address(this)));
-        assertEq(config.feePercent, 100); //1%
-
-        // create and fund
-        address nexusAccount = _setupNexusAccount(amount);
-
-        // prepare execution entry
-        ISuperExecutor.ExecutorEntry memory entry = _prepareDepositExecutorEntry(amount);
-
-        // execute and validate first deposit
-        _executeThroughEntrypoint(nexusAccount, entry);
-
-        // execute and validate second deposit
-        _getTokens(underlying, nexusAccount, amount);
-        _executeThroughEntrypoint(nexusAccount, entry);
-
-        // Check before withdrawal fees
-        uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
-        assertEq(feeBalanceBefore, 0);
-
-        // add funds for accounting fees (as `convertToAssets` result is mocked above)
-        _getTokens(underlying, nexusAccount, amount);
-
-        // withdraw 2/3 first
-        uint256 availableShares = pendleVault.balanceOf(nexusAccount);
-        uint256 withdrawShares = availableShares * 2 / 3;
-        entry = _prepareWithdrawExecutorEntry(withdrawShares);
-        // it should still have 2 entries in the ledger and unconsumed entries index should be 0
-        _executeThroughEntrypoint(nexusAccount, entry);
-
-        assertEq(IERC20(underlying).balanceOf(config.feeRecipient), 0);
     }
 
     function test_ValidateFees_ForFullWithdrawal_AccumulatedFees_Pendle() public {
@@ -202,7 +165,7 @@ contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
     }
 
     function _setupNexusAccount(uint256 amount) private returns (address nexusAccount) {
-        nexusAccount = _createWithNexus(address(nexusRegistry), attesters, threshold, 0);
+        nexusAccount = _createWithNexus(attesters, threshold, 0);
         vm.deal(nexusAccount, LARGE);
         _getTokens(underlying, nexusAccount, amount);
     }

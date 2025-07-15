@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -69,16 +69,5 @@ contract StakingYieldSourceOracle is AbstractYieldSourceOracle {
         return IERC20(yieldSourceAddress).totalSupply();
     }
 
-    /// @inheritdoc AbstractYieldSourceOracle
-    function isValidUnderlyingAsset(
-        address yieldSourceAddress,
-        address expectedUnderlying
-    )
-        public
-        view
-        override
-        returns (bool)
-    {
-        return IStakingVault(yieldSourceAddress).stakingToken() == expectedUnderlying;
-    }
+
 }

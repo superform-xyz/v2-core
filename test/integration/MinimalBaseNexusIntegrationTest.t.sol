@@ -1,43 +1,37 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-import { Vm } from "forge-std/Vm.sol";
 // external
 import { Execution } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import "modulekit/accounts/common/lib/ModeLib.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-
 import { Helpers } from "../utils/Helpers.sol";
 import { MerkleTreeHelper } from "../utils/MerkleTreeHelper.sol";
 import { InternalHelpers } from "../utils/InternalHelpers.sol";
-
 import { INexus } from "../../src/vendor/nexus/INexus.sol";
 import { INexusFactory } from "../../src/vendor/nexus/INexusFactory.sol";
 import { BootstrapConfig, INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
 import { IERC7484 } from "../../src/vendor/nexus/IERC7484.sol";
+import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
+import { Vm } from "forge-std/Vm.sol";
 
 // Superform
-
-import { IMinimalEntryPoint, PackedUserOperation } from "../../src/vendor/account-abstraction/IMinimalEntryPoint.sol";
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
-import { SuperMerkleValidator } from "../../src/validators/SuperMerkleValidator.sol";
 import { ISuperValidator } from "../../src/interfaces/ISuperValidator.sol";
+import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
+import { SuperMerkleValidator } from "../../src/validators/SuperMerkleValidator.sol";
 import { SuperLedgerConfiguration } from "../../src/accounting/SuperLedgerConfiguration.sol";
 import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
 import { ERC4626YieldSourceOracle } from "../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 import { ERC7540YieldSourceOracle } from "../../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
-import { ERC5115Ledger } from "../mocks/ERC5115Ledger.sol";
-import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
+import { FlatFeeLedger } from "../../src/accounting/FlatFeeLedger.sol";
 import { ApproveERC20Hook } from "../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { Deposit4626VaultHook } from "../../src/hooks/vaults/4626/Deposit4626VaultHook.sol";
 import { Redeem4626VaultHook } from "../../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
-import { SuperValidatorBase } from "../../src/validators/SuperValidatorBase.sol";
-
-import { ERC4337Helpers } from "modulekit/test/utils/ERC4337Helpers.sol";
 
 abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, InternalHelpers {
     SuperMerkleValidator public superMerkleValidator;
@@ -104,7 +98,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
             yieldSourceOracle: yieldSourceOracle5115,
             feePercent: 100,
             feeRecipient: makeAddr("feeRecipient"),
-            ledger: address(new ERC5115Ledger(address(ledgerConfig), allowedExecutors))
+            ledger: address(new FlatFeeLedger(address(ledgerConfig), allowedExecutors))
         });
         bytes32[] memory salts = new bytes32[](3);
         salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
@@ -121,7 +115,6 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
                                  ACCOUNT CREATION METHODS
     //////////////////////////////////////////////////////////////*/
     function _createWithNexus(
-        address registry,
         address[] memory attesters,
         uint8 threshold,
         uint256 value
@@ -129,7 +122,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         internal
         returns (address)
     {
-        bytes memory initData = _getNexusInitData(registry, attesters, threshold);
+        bytes memory initData = _getNexusInitData(attesters, threshold);
 
         address computedAddress = nexusFactory.computeAccountAddress(initData, initSalt);
         address deployedAddress = nexusFactory.createAccount{ value: value }(initData, initSalt);
@@ -139,7 +132,6 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
     }
 
     function _getNexusInitData(
-        address registry,
         address[] memory attesters,
         uint8 threshold
     )
@@ -162,7 +154,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         BootstrapConfig[] memory fallbacks = new BootstrapConfig[](0);
 
         return nexusBootstrap.getInitNexusCalldata(
-            validators, executors, hook, fallbacks, IERC7484(registry), attesters, threshold
+            validators, executors, hook, fallbacks, IERC7484(address(0)), attesters, threshold
         );
     }
 
@@ -430,7 +422,6 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
                       MALICIOUS HOOK TESTING METHODS
     //////////////////////////////////////////////////////////////*/
     function _createWithNexusWithMaliciousHook(
-        address registry,
         address[] memory attesters,
         uint8 threshold,
         uint256 value,
@@ -439,7 +430,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         internal
         returns (address)
     {
-        bytes memory initData = _getNexusInitDataWithMaliciousHook(registry, attesters, threshold, maliciousHook);
+        bytes memory initData = _getNexusInitDataWithMaliciousHook(attesters, threshold, maliciousHook);
 
         address computedAddress = nexusFactory.computeAccountAddress(initData, initSalt);
         address deployedAddress = nexusFactory.createAccount{ value: value }(initData, initSalt);
@@ -449,7 +440,6 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
     }
 
     function _getNexusInitDataWithMaliciousHook(
-        address registry,
         address[] memory attesters,
         uint8 threshold,
         address maliciousHook
@@ -473,7 +463,7 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
         BootstrapConfig[] memory fallbacks = new BootstrapConfig[](0);
 
         return nexusBootstrap.getInitNexusCalldata(
-            validators, executors, hook, fallbacks, IERC7484(registry), attesters, threshold
+            validators, executors, hook, fallbacks, IERC7484(address(0)), attesters, threshold
         );
     }
 }

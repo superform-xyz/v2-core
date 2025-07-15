@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -26,13 +26,12 @@ import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 /// @notice     bytes nonces = BytesLib.slice(data, 84 + 20 * tokensLength + 32 * tokensLength, 48 * tokensLength);
 /// @notice     bytes signature = BytesLib.slice(data, 84 + 20 * tokensLength + 32 * tokensLength + 48 * tokensLength,
 /// 65);
-contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
+contract BatchTransferFromHook is BaseHook {
     using SafeCast for uint256;
 
     /*//////////////////////////////////////////////////////////////
                                 ERRORS
     //////////////////////////////////////////////////////////////*/
-    error INSUFFICIENT_ALLOWANCE();
     error INSUFFICIENT_BALANCE();
     error INVALID_ARRAY_LENGTH();
 
@@ -144,7 +143,7 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         uint256 tokensLength = BytesLib.toUint256(data, 20);
         bytes memory tokensData = BytesLib.slice(data, 84, 20 * tokensLength);
         address[] memory tokens = new address[](tokensLength);
@@ -192,7 +191,7 @@ contract BatchTransferFromHook is BaseHook, ISuperHookInspector {
                 from: from,
                 to: account,
                 token: token,
-                amount: uint160(amount)
+                amount: amount.toUint160()
             });
         }
         return details;

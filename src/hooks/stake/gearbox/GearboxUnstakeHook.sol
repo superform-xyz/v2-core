@@ -1,8 +1,9 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
 import { BytesLib } from "../../../vendor/BytesLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
@@ -13,7 +14,6 @@ import {
     ISuperHookResultOutflow, ISuperHookContextAware, ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
 import { IGearboxFarmingPool } from "../../../vendor/gearbox/IGearboxFarmingPool.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 /// @title GearboxUnstakeHook
 /// @author Superform Labs
@@ -22,7 +22,7 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 /// @notice         address yieldSource = BytesLib.toAddress(data, 32);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 52);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 84);
-contract GearboxUnstakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspector {
+contract GearboxUnstakeHook is BaseHook, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     uint256 private constant AMOUNT_POSITION = 52;
@@ -70,7 +70,7 @@ contract GearboxUnstakeHook is BaseHook, ISuperHookContextAware, ISuperHookInspe
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         return abi.encodePacked(data.extractYieldSource());
     }
 

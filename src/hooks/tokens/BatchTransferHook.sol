@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -18,7 +18,7 @@ address constant NATIVE_TOKEN = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 /// @dev data has the following structure
 /// @notice         address to = BytesLib.toAddress(data, 0);
 /// @notice         bytes tokensArr = BytesLib.slice(data, 20, data.length - 20);
-contract BatchTransferHook is BaseHook, ISuperHookInspector {
+contract BatchTransferHook is BaseHook {
     error LENGTH_MISMATCH();
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.TOKEN) { }
@@ -65,7 +65,7 @@ contract BatchTransferHook is BaseHook, ISuperHookInspector {
                                  EXTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure returns (bytes memory) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory) {
         // First 20 bytes is the 'to' address
         address to = BytesLib.toAddress(data, 0);
 

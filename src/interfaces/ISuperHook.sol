@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: UNLICENSED
+// SPDX-License-Identifier: Apache-2.0
 pragma solidity 0.8.30;
 
 // external
@@ -19,7 +19,6 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
  *      - INFLOW: Hooks that process deposits or additions to positions
  *      - OUTFLOW: Hooks that process withdrawals or reductions to positions
  */
-
 interface ISuperLockableHook {
     /// @notice The vault bank address used to lock SuperPositions
     /// @dev Only relevant for cross-chain operations where positions are locked
@@ -138,7 +137,7 @@ interface ISuperHookLoans is ISuperHookContextAware {
     /// @dev Used to identify which asset is being borrowed from the lending protocol
     /// @param data The hook-specific data containing loan information
     /// @return The address of the borrowed token
-    function getLoanTokenAddress(bytes memory data) external view returns (address);
+    function getLoanTokenAddress(bytes memory data) external pure returns (address);
 
     /// @notice Gets the address of the token used as collateral
     /// @dev Used to identify which asset is being used to secure the loan
