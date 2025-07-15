@@ -11,11 +11,19 @@ import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { MockAccountingVault } from "../../mocks/MockAccountingVault.sol";
 import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
 import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
+import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
+import { SuperLedger } from "../../../src/accounting/SuperLedger.sol";
 
 contract FeesTest is MinimalBaseIntegrationTest {
     IERC4626 public vaultInstance;
-    address public yieldSourceAddress;
+
+    address public executor1;
+    address public executor2;
     address public underlying;
+    address public yieldSourceAddress;
+
+    SuperLedger public superLedger;
+    SuperLedgerConfiguration public ledgerConfig;
 
     function setUp() public override {
         blockNumber = ETH_BLOCK;
@@ -27,6 +35,18 @@ contract FeesTest is MinimalBaseIntegrationTest {
         vm.label(address(vault), "MockAccountingVault");
         yieldSourceAddress = address(vault);
         vaultInstance = IERC4626(vault);
+        
+        executor1 = makeAddr("executor1");
+        executor2 = makeAddr("executor2");
+
+        address[] memory allowedExecutors = new address[](2);
+        allowedExecutors[0] = executor1;
+        allowedExecutors[1] = executor2;
+
+        ledgerConfig = new SuperLedgerConfiguration();
+        ledgerConfig.setAllowedExecutors(allowedExecutors);
+
+        superLedger = new SuperLedger(address(ledgerConfig), allowedExecutors);
     }
 
     function test_DepositAndSuperLedgerEntries() external {
@@ -252,6 +272,6 @@ contract FeesTest is MinimalBaseIntegrationTest {
     }
 
     function test_FeeAndLedgerConfig_Changes() public {
-        
+
     }
 }
