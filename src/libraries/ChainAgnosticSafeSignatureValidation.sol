@@ -74,6 +74,10 @@ library ChainAgnosticSafeSignatureValidation {
             return false;
         }
 
+        if (signatures.length < threshold * 65) {
+            return false;
+        }
+
         // Account for 20-byte validator address prefix in Safe signature format
         uint256 signatureOffset = 20;
         uint256 actualSignatureLength = signatures.length - signatureOffset;
