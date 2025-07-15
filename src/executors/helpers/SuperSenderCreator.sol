@@ -15,14 +15,10 @@ contract SuperSenderCreator {
     function createSender(bytes calldata initCode) external returns (address sender) {
         address initAddress = address(bytes20(initCode[0 : 20]));
         bytes memory initCallData = initCode[20 :];
-        bool success;
-        /* solhint-disable no-inline-assembly */
-        assembly {
-            success := call(gas(), initAddress, 0, add(initCallData, 0x20), mload(initCallData), 0, 32)
-            sender := mload(0)
-        }
+        (bool success, bytes memory returnData) = initAddress.call(initCallData);
         if (!success) {
             sender = address(0);
         }
+        sender = abi.decode(returnData, (address));
     }
 }

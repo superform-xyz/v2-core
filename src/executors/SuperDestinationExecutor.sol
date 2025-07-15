@@ -161,11 +161,6 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     }
 
     function _validateOrCreateAccount(address account, bytes memory initData) internal returns (address) {
-        if (account.code.length > 0) {
-            string memory accountId = IERC7579Account(account).accountId();
-            if (bytes(accountId).length == 0) revert ADDRESS_NOT_ACCOUNT();
-        }
-
         if (initData.length > 0 && account.code.length == 0) {
             address computedAddress = _createAccount(initData);
             if (account != computedAddress) revert INVALID_ACCOUNT();
