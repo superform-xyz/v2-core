@@ -163,7 +163,7 @@ contract CrosschainTests is BaseTest {
     /*//////////////////////////////////////////////////////////////
                                 SETUP
     //////////////////////////////////////////////////////////////*/
-    function setUp() public override {
+    function setUp() public virtual override {
         super.setUp();
 
         // CORE CHAIN CONTEXT
