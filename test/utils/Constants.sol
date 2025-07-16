@@ -39,6 +39,7 @@ abstract contract Constants {
     uint256 public constant ACCOUNT_COUNT = 30; //should be divisible by 2
 
     address public constant ENTRYPOINT_ADDR = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
+    address public constant SAFE_REGISTRY_ADDR = 0x000000000069E2a187AEFFb852bF3cCdC95151B2;
 
     // rpc
     string public constant ETHEREUM_RPC_URL_KEY = "ETHEREUM_RPC_URL"; // Native token: ETH
@@ -112,6 +113,7 @@ abstract contract Constants {
     string public constant DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY = "DeBridgeSendOrderAndExecuteOnDstHook";
     string public constant DEBRIDGE_CANCEL_ORDER_HOOK_KEY = "DeBridgeCancelOrderHook";
     string public constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
+    string public constant SUPER_SENDER_CREATOR_KEY = "SuperSenderCreator";
     string public constant SUPER_LEDGER_KEY = "SuperLedger";
     string public constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";

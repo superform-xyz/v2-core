@@ -2,11 +2,8 @@
 pragma solidity 0.8.30;
 
 // external
-import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
-
+import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { SuperValidatorBase } from "./SuperValidatorBase.sol";
 
 /// @title SuperDestinationValidator
@@ -52,7 +49,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
         (SignatureData memory sigData, DestinationData memory destinationData) =
             _decodeSignatureAndDestinationData(data, sender);
         // Process signature
-        (address signer,) = _processSignatureAndVerifyLeaf(sigData, destinationData);
+        (address signer,) = _processSignatureAndVerifyLeaf(sender, sigData, destinationData);
 
         // Validate
         bool isValid = _isSignatureValid(signer, sender, sigData.validUntil);
@@ -82,11 +79,13 @@ contract SuperDestinationValidator is SuperValidatorBase {
     /// @notice Processes a signature and verifies it against a merkle proof
     /// @dev Verifies that the leaf is part of the merkle tree specified by the root
     ///      and recovers the signer's address from the signature
+    /// @param sender The sender address to validate the signature against
     /// @param sigData Signature data including merkle root, proofs, and actual signature
     /// @param destinationData The destination execution data to create the leaf hash from
     /// @return signer The address that signed the message
     /// @return leaf The computed leaf hash used in merkle verification
     function _processSignatureAndVerifyLeaf(
+        address sender,
         SignatureData memory sigData,
         DestinationData memory destinationData
     )
@@ -98,10 +97,12 @@ contract SuperDestinationValidator is SuperValidatorBase {
         leaf = _createLeaf(abi.encode(destinationData), sigData.validUntil, false);
         if (!MerkleProof.verify(_extractProof(sigData), sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
-        // Recover signer from signature using standard Ethereum signature recovery
-        bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
-        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
-        signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
+        address owner = _accountOwners[sender];
+        if (_isSafeSigner(owner)) {
+           signer = _processEIP1271Signature(owner, sigData);
+        } else {
+           signer = _processECDSASignature(sigData);
+        }
     }
 
     /// @notice Extracts the proof for the current chain from the signature data

@@ -10,9 +10,6 @@
 [submodule "lib/solady"]
 	path = lib/solady
 	url = https://github.com/Vectorized/solady
-[submodule "lib/modulekit"]
-	path = lib/modulekit
-	url = https://github.com/rhinestonewtf/modulekit
 [submodule "lib/pigeon"]
 	path = lib/pigeon
 	url = https://github.com/exp-table/pigeon
@@ -25,3 +22,12 @@
 [submodule "lib/pendle-core-v2-public"]
 	path = lib/pendle-core-v2-public
 	url = https://github.com/pendle-finance/pendle-core-v2-public
+[submodule "lib/safe-smart-account"]
+	path = lib/safe-smart-account
+	url = https://github.com/safe-global/safe-smart-account
+[submodule "lib/safe7579"]
+	path = lib/safe7579
+	url = https://github.com/rhinestonewtf/safe7579
+[submodule "lib/modulekit"]
+	path = lib/modulekit
+	url = https://github.com/superform-xyz/modulekit.git
