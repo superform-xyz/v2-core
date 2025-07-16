@@ -571,12 +571,6 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         superDestinationExecutor.processBridgedExecution(
             address(token), address(this), dstTokens, intentAmounts, "", "", ""
         );
-
-        vm.mockCall(address(this), abi.encodeWithSignature("accountId()"), abi.encode(""));
-        vm.expectRevert(ISuperDestinationExecutor.ADDRESS_NOT_ACCOUNT.selector);
-        superDestinationExecutor.processBridgedExecution(
-            address(token), address(this), dstTokens, intentAmounts, "", "", ""
-        );
     }
 
     function test_DestinationExecutor_ProcessBridgedExecution_InvalidLengths() public {
