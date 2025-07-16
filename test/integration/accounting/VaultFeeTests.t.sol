@@ -37,10 +37,10 @@ contract VaultFeeTests is MinimalBaseIntegrationTest {
     address public yieldSource7540AddressUSDC;
     address public yieldSource5115AddressSUSDe;
 
-    MockExecutorModule public executorModule1;
-
     SuperLedger public superLedger;
     SuperLedgerConfiguration public config;
+
+    MockExecutorModule public executorModule1;
 
     ERC4626YieldSourceOracle public oracle4626;
     ERC5115YieldSourceOracle public oracle5115;
