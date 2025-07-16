@@ -27,9 +27,9 @@ coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report lcov
 
 coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/vendor/*' --exclude 'test/*'
 
-test-vvv :; forge test --match-test test_POC_IncorrectValidUntilHandling  -vvvv --jobs 10
+test-vvv :; forge test --match-test test_CrossChain_executionA -vvvv --jobs 10
 
-test-integration :; forge test --match-test test_DeBridgeCancelOrderHook -vvvv --jobs 10
+test-integration :; forge test --match-test test_SameChainTx_executionA -vvvv --jobs 10
 
 test-gas-report-user :; forge test --match-test test_gasReport --gas-report --jobs 10
 test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10
