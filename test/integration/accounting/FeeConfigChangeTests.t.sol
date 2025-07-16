@@ -143,9 +143,9 @@ contract FeeConfigChangeTests is BaseTest {
         configSuperLedger.acceptYieldSourceOracleConfigProposal(ids);
 
         // User redeems all shares
-        uint256 feeRecipientBalanceBefore = vaultInstance.balanceOf(feeRecipient);
-        uint256 userShares = vaultInstance.balanceOf(accountEth);
+        uint256 feeRecipientBalanceBefore = IERC20(underlying).balanceOf(feeRecipient);
 
+        uint256 userShares = vaultInstance.balanceOf(accountEth);
         uint256 sharesAsAssets = vaultInstance.convertToAssets(userShares);
 
         (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee20Percent(sharesAsAssets, userShares);
@@ -162,7 +162,9 @@ contract FeeConfigChangeTests is BaseTest {
         UserOpData memory userOpData1 = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry1));
         executeOp(userOpData1);
 
-        assertEq(sharesAsAssets, expectedUserAssets, "User did not receive correct assets after fee");
+        uint256 userBalanceAfter = IERC20(underlying).balanceOf(accountEth);
+
+        assertEq(userBalanceAfter, expectedUserAssets, "User did not receive correct assets after fee");
         uint256 feeRecipientBalance = IERC20(underlying).balanceOf(feeRecipient) - feeRecipientBalanceBefore;
         assertEq(feeRecipientBalance, expectedFee, "Fee recipient did not receive correct shares");
     }
