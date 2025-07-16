@@ -8,6 +8,7 @@ import { ConfigOtherHooks } from "./utils/ConfigOtherHooks.sol";
 
 import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
 import { SuperDestinationExecutor } from "../src/executors/SuperDestinationExecutor.sol";
+import { SuperSenderCreator } from "../src/executors/helpers/SuperSenderCreator.sol";
 import { AcrossV3Adapter } from "../src/adapters/AcrossV3Adapter.sol";
 import { DebridgeAdapter } from "../src/adapters/DebridgeAdapter.sol";
 
@@ -80,6 +81,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         address acrossV3Adapter;
         address debridgeAdapter;
         address superDestinationExecutor;
+        address superSenderCreator;
         address superLedger;
         address flatFeeLedger;
         address superLedgerConfiguration;
@@ -318,6 +320,20 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         require(coreContracts.superDestinationExecutor != address(0), "SUPER_DESTINATION_EXECUTOR_DEPLOYMENT_FAILED");
         require(coreContracts.superDestinationExecutor.code.length > 0, "SUPER_DESTINATION_EXECUTOR_NO_CODE");
         console2.log(" SuperDestinationExecutor deployed and validated");
+
+        // Deploy SuperSenderCreator
+        coreContracts.superSenderCreator = __deployContract(
+            deployer,
+            SUPER_SENDER_CREATOR_KEY,
+            chainId,
+            __getSalt(SUPER_SENDER_CREATOR_KEY),
+            type(SuperSenderCreator).creationCode
+        );
+
+        // Validate SuperSenderCreator was deployed
+        require(coreContracts.superSenderCreator != address(0), "SUPER_SENDER_CREATOR_DEPLOYMENT_FAILED");
+        require(coreContracts.superSenderCreator.code.length > 0, "SUPER_SENDER_CREATOR_NO_CODE");
+        console2.log(" SuperSenderCreator deployed and validated");
 
         // Deploy AcrossV3Adapter - VALIDATED CONSTRUCTOR PARAMETERS
         require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_ADAPTER_SPOKE_POOL_PARAM_ZERO");
