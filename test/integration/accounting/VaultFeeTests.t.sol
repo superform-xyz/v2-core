@@ -22,6 +22,7 @@ import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerCon
 
 // Hooks
 import { RequestDeposit7540VaultHook } from "../../../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
+import { Deposit7540VaultHook } from "../../../src/hooks/vaults/7540/Deposit7540VaultHook.sol";
 import { Deposit5115VaultHook } from "../../../src/hooks/vaults/5115/Deposit5115VaultHook.sol";
 import { Redeem5115VaultHook } from "../../../src/hooks/vaults/5115/Redeem5115VaultHook.sol";
 
