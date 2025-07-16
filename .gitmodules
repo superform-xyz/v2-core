@@ -10,9 +10,6 @@
 [submodule "lib/solady"]
 	path = lib/solady
 	url = https://github.com/Vectorized/solady
-[submodule "lib/modulekit"]
-	path = lib/modulekit
-	url = https://github.com/superform-xyz/modulekit
 [submodule "lib/pigeon"]
 	path = lib/pigeon
 	url = https://github.com/exp-table/pigeon

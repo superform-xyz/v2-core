@@ -17,6 +17,7 @@ import { ISuperLedger } from "../src/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperDestinationExecutor } from "../src/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperValidator } from "../src/interfaces/ISuperValidator.sol";
+import { ISuperSenderCreator } from "../src/interfaces/ISuperSenderCreator.sol";
 import { ISuperNativePaymaster } from "../src/interfaces/ISuperNativePaymaster.sol";
 
 // Superform contracts coded
@@ -25,6 +26,7 @@ import { ERC5115Ledger } from "./mocks/ERC5115Ledger.sol";
 import { SuperLedgerConfiguration } from "../src/accounting/SuperLedgerConfiguration.sol";
 import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
 import { SuperDestinationExecutor } from "../src/executors/SuperDestinationExecutor.sol";
+import { SuperSenderCreator } from "../src/executors/helpers/SuperSenderCreator.sol";
 import { SuperMerkleValidator } from "../src/validators/SuperMerkleValidator.sol";
 import { SuperDestinationValidator } from "../src/validators/SuperDestinationValidator.sol";
 import { SuperValidatorBase } from "../src/validators/SuperValidatorBase.sol";
@@ -172,6 +174,7 @@ struct Addresses {
     ISuperRegistry superRegistry;
     ISuperExecutor superExecutor;
     ISuperExecutor superDestinationExecutor;
+    SuperSenderCreator superSenderCreator;
     AcrossV3Adapter acrossV3Adapter;
     DebridgeAdapter debridgeAdapter;
     ApproveERC20Hook approveErc20Hook;
@@ -506,6 +509,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             vm.label(address(A[i].superDestinationExecutor), SUPER_DESTINATION_EXECUTOR_KEY);
             contractAddresses[chainIds[i]][SUPER_DESTINATION_EXECUTOR_KEY] = address(A[i].superDestinationExecutor);
+
+            A[i].superSenderCreator = new SuperSenderCreator{ salt: SALT }();
+            vm.label(address(A[i].superSenderCreator), SUPER_SENDER_CREATOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_SENDER_CREATOR_KEY] = address(A[i].superSenderCreator);
 
             A[i].acrossV3Adapter = new AcrossV3Adapter{ salt: SALT }(
                 SPOKE_POOL_V3_ADDRESSES[chainIds[i]], address(A[i].superDestinationExecutor)
@@ -1662,7 +1669,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         returns (address)
     {
         (, address account) = _createAccountCreationData_DestinationExecutor(
-            validator, signer, _getContract(chainId, SUPER_DESTINATION_EXECUTOR_KEY), nexusFactory, nexusBootstrap
+            AccountCreationParams({
+                senderCreatorOnDestinationChain: _getContract(chainId, SUPER_SENDER_CREATOR_KEY),
+                validatorOnDestinationChain: validator,
+                theSigner: signer,
+                executorOnDestinationChain: _getContract(chainId, SUPER_DESTINATION_EXECUTOR_KEY),
+                nexusFactory: nexusFactory,
+                nexusBootstrap: nexusBootstrap
+            })
         );
         return account;
     }
@@ -1678,11 +1692,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         bytes memory accountCreationData;
         if (messageData.account == address(0)) {
             (accountCreationData, accountToUse) = _createAccountCreationData_DestinationExecutor(
-                messageData.validator,
-                messageData.signer,
-                _getContract(messageData.chainId, SUPER_DESTINATION_EXECUTOR_KEY),
-                messageData.nexusFactory,
-                messageData.nexusBootstrap
+                AccountCreationParams({
+                    senderCreatorOnDestinationChain: _getContract(messageData.chainId, SUPER_SENDER_CREATOR_KEY),
+                    validatorOnDestinationChain: messageData.validator,
+                    theSigner: messageData.signer,
+                    executorOnDestinationChain: _getContract(messageData.chainId, SUPER_DESTINATION_EXECUTOR_KEY),
+                    nexusFactory: messageData.nexusFactory,
+                    nexusBootstrap: messageData.nexusBootstrap
+                })
             );
             messageData.account = accountToUse; // prefill the account to use
         } else {
@@ -1849,40 +1866,52 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
     }
 
+    struct AccountCreationParams {
+        address senderCreatorOnDestinationChain;
+        address validatorOnDestinationChain;
+        address theSigner;
+        address executorOnDestinationChain;
+        address nexusFactory;
+        address nexusBootstrap;
+    }
     function _createAccountCreationData_DestinationExecutor(
-        address validatorOnDestinationChain,
-        address theSigner,
-        address executorOnDestinationChain,
-        address nexusFactory,
-        address nexusBootstrap
+        AccountCreationParams memory p
     )
         internal
         returns (bytes memory, address)
     {
         // create validators
         BootstrapConfig[] memory validators = new BootstrapConfig[](1);
-        validators[0] = BootstrapConfig({ module: validatorOnDestinationChain, data: abi.encode(theSigner) });
+        validators[0] = BootstrapConfig({ module: p.validatorOnDestinationChain, data: abi.encode(p.theSigner) });
+
         // create executors
         BootstrapConfig[] memory executors = new BootstrapConfig[](1);
-        executors[0] = BootstrapConfig({ module: address(executorOnDestinationChain), data: "" });
+        executors[0] = BootstrapConfig({ module: p.executorOnDestinationChain, data: "" });
+
         // create hooks
         BootstrapConfig memory hook = BootstrapConfig({ module: address(0), data: "" });
+
         // create fallbacks
         BootstrapConfig[] memory fallbacks = new BootstrapConfig[](0);
+
         address[] memory attesters = new address[](1);
         attesters[0] = address(MANAGER);
         uint8 threshold = 1;
+
         MockRegistry nexusRegistry = new MockRegistry();
-        bytes memory initData = INexusBootstrap(nexusBootstrap).getInitNexusCalldata(
+        bytes memory initData = INexusBootstrap(p.nexusBootstrap).getInitNexusCalldata(
             validators, executors, hook, fallbacks, IERC7484(nexusRegistry), attesters, threshold
         );
+
         bytes32 initSalt = bytes32(keccak256("SIGNER_SALT"));
 
-        address precomputedAddress = INexusFactory(nexusFactory).computeAccountAddress(initData, initSalt);
-        return (abi.encode(initData, initSalt), precomputedAddress);
+        address precomputedAddress = INexusFactory(p.nexusFactory).computeAccountAddress(initData, initSalt);
+        bytes memory initFactoryCalldata = abi.encodeWithSelector(INexusFactory.createAccount.selector, initData, initSalt);
+
+    return (abi.encodePacked(p.senderCreatorOnDestinationChain, address(p.nexusFactory), initFactoryCalldata), precomputedAddress);
     }
 
-    function _createAcrossV3ReceiveFundsAndExecuteHookData(
+    function _createAcrossV3ReceiveFundsAndExecuteHookData( 
         address inputToken,
         address outputToken,
         uint256 inputAmount,

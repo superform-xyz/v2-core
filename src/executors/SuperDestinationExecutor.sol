@@ -15,6 +15,7 @@ import { ISuperExecutor } from "../interfaces/ISuperExecutor.sol";
 import { ISuperDestinationExecutor } from "../interfaces/ISuperDestinationExecutor.sol";
 import { ISuperDestinationValidator } from "../interfaces/ISuperDestinationValidator.sol";
 import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
+import { ISuperSenderCreator } from "../interfaces/ISuperSenderCreator.sol";
 import { BytesLib } from "../vendor/BytesLib.sol";
 
 /// @title SuperDestinationExecutor
@@ -160,14 +161,8 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     }
 
     function _validateOrCreateAccount(address account, bytes memory initData) internal returns (address) {
-        if (account.code.length > 0) {
-            string memory accountId = IERC7579Account(account).accountId();
-            if (bytes(accountId).length == 0) revert ADDRESS_NOT_ACCOUNT();
-        }
-
         if (initData.length > 0 && account.code.length == 0) {
-            (bytes memory factoryInitData, bytes32 salt) = abi.decode(initData, (bytes, bytes32));
-            address computedAddress = NEXUS_FACTORY.createAccount(factoryInitData, salt);
+            address computedAddress = _createAccount(initData);
             if (account != computedAddress) revert INVALID_ACCOUNT();
         }
 
@@ -216,5 +211,17 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
             }
         }
         return true;
+    }
+
+    function _createAccount(bytes memory initCode) internal returns (address account) {
+        // SuperSenderCreator contract
+        address senderCreator = BytesLib.toAddress(initCode, 0);
+        if (senderCreator == address(0)) revert ADDRESS_NOT_VALID();
+        if (senderCreator.code.length == 0) revert SENDER_CREATOR_NOT_VALID();
+
+        // This one contains `abi.encodePacked(address, initData)`
+        bytes memory senderData = BytesLib.slice(initCode, 20, initCode.length - 20);
+
+        return ISuperSenderCreator(senderCreator).createSender(senderData);
     }
 }
