@@ -12,4 +12,10 @@ interface INexus {
     /// @dev This function ensures that the execution complies with smart account execution policies and handles errors
     /// appropriately.
     function execute(ModeCode mode, bytes calldata executionCalldata) external payable;
+
+    /// @notice Initializes the smart account with a validator and custom data.
+    /// @dev This method sets up the account for operation, linking it with a validator and initializing it with specific data.
+    /// Can be called directly or via a factory.
+    /// @param initData Encoded data used for the account's configuration during initialization.
+    function initializeAccount(bytes calldata initData) external payable;
 }

@@ -8,7 +8,6 @@ import { InternalHelpers } from "./utils/InternalHelpers.sol";
 import { SignatureHelper } from "./utils/SignatureHelper.sol";
 import { MerkleTreeHelper } from "./utils/MerkleTreeHelper.sol";
 import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
-import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 
 // Superform interfaces
 import { ISuperRegistry } from "../src/interfaces/ISuperRegistry.sol";
@@ -17,8 +16,6 @@ import { ISuperLedger } from "../src/interfaces/accounting/ISuperLedger.sol";
 import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperDestinationExecutor } from "../src/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperValidator } from "../src/interfaces/ISuperValidator.sol";
-import { ISuperSenderCreator } from "../src/interfaces/ISuperSenderCreator.sol";
-import { ISuperNativePaymaster } from "../src/interfaces/ISuperNativePaymaster.sol";
 
 // Superform contracts coded
 import { SuperLedger } from "../src/accounting/SuperLedger.sol";
@@ -27,6 +24,7 @@ import { SuperLedgerConfiguration } from "../src/accounting/SuperLedgerConfigura
 import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
 import { SuperDestinationExecutor } from "../src/executors/SuperDestinationExecutor.sol";
 import { SuperSenderCreator } from "../src/executors/helpers/SuperSenderCreator.sol";
+import { Super7702SenderCreator } from "../src/executors/helpers/Super7702SenderCreator.sol";
 import { SuperMerkleValidator } from "../src/validators/SuperMerkleValidator.sol";
 import { SuperDestinationValidator } from "../src/validators/SuperDestinationValidator.sol";
 import { SuperValidatorBase } from "../src/validators/SuperValidatorBase.sol";
@@ -82,7 +80,6 @@ import { Swap1InchHook } from "../src/hooks/swappers/1inch/Swap1InchHook.sol";
 
 // --- Odos
 import { OdosAPIParser } from "./utils/parsers/OdosAPIParser.sol";
-import { IOdosRouterV2 } from "../src/vendor/odos/IOdosRouterV2.sol";
 import { SwapOdosV2Hook } from "../src/hooks/swappers/odos/SwapOdosV2Hook.sol";
 import { MockApproveAndSwapOdosHook } from "../test/mocks/unused-hooks/MockApproveAndSwapOdosHook.sol";
 import { ApproveAndSwapOdosV2Hook } from "../src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol";
@@ -150,13 +147,12 @@ import { IAccountFactory } from "modulekit/accounts/factory/interface/IAccountFa
 import { getFactory, getHelper, getStorageCompliance } from "modulekit/test/utils/Storage.sol";
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 
-import { BootstrapConfig, INexusBootstrap } from "../src/vendor/nexus/INexusBootstrap.sol";
+import { BootstrapConfig, BootstrapPreValidationHookConfig, RegistryConfig, INexusBootstrap, INexusBootstrap7702 } from "../src/vendor/nexus/INexusBootstrap.sol";
 import { INexusFactory } from "../src/vendor/nexus/INexusFactory.sol";
+import { INexus } from "../src/vendor/nexus/INexus.sol";
 import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "./mocks/MockRegistry.sol";
 
-import { BaseHook } from "../src/hooks/BaseHook.sol";
-import { MockSuperExecutor } from "./mocks/MockSuperExecutor.sol";
 import { MockLockVault } from "./mocks/MockLockVault.sol";
 import { MockTargetExecutor } from "./mocks/MockTargetExecutor.sol";
 import { MockBaseHook } from "./mocks/MockBaseHook.sol";
@@ -175,6 +171,7 @@ struct Addresses {
     ISuperExecutor superExecutor;
     ISuperExecutor superDestinationExecutor;
     SuperSenderCreator superSenderCreator;
+    Super7702SenderCreator super7702SenderCreator;
     AcrossV3Adapter acrossV3Adapter;
     DebridgeAdapter debridgeAdapter;
     ApproveERC20Hook approveErc20Hook;
@@ -324,6 +321,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
     string constant DEFAULT_ACCOUNT = "NEXUS";
 
     bytes32 constant SALT = keccak256("TEST");
+    bytes2 constant INITCODE_EIP7702_MARKER = 0x7702;
 
     address public mockBaseHook;
 
@@ -509,6 +507,10 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             A[i].superSenderCreator = new SuperSenderCreator{ salt: SALT }();
             vm.label(address(A[i].superSenderCreator), SUPER_SENDER_CREATOR_KEY);
             contractAddresses[chainIds[i]][SUPER_SENDER_CREATOR_KEY] = address(A[i].superSenderCreator);
+
+            A[i].super7702SenderCreator = new Super7702SenderCreator{ salt: SALT }();
+            vm.label(address(A[i].super7702SenderCreator), SUPER_7702_SENDER_CREATOR_KEY);
+            contractAddresses[chainIds[i]][SUPER_7702_SENDER_CREATOR_KEY] = address(A[i].super7702SenderCreator);
 
             A[i].acrossV3Adapter = new AcrossV3Adapter{ salt: SALT }(
                 SPOKE_POOL_V3_ADDRESSES[chainIds[i]], address(A[i].superDestinationExecutor)
@@ -1659,7 +1661,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address signer,
         address nexusFactory,
         address nexusBootstrap,
-        uint64 chainId
+        uint64 chainId,
+        bool is7702
     )
         internal
         returns (address)
@@ -1671,30 +1674,33 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 theSigner: signer,
                 executorOnDestinationChain: _getContract(chainId, SUPER_DESTINATION_EXECUTOR_KEY),
                 nexusFactory: nexusFactory,
-                nexusBootstrap: nexusBootstrap
+                nexusBootstrap: nexusBootstrap,
+                is7702: is7702
             })
         );
         return account;
     }
 
-    function _createTargetExecutorMessage(TargetExecutorMessage memory messageData)
+    function _createTargetExecutorMessage(TargetExecutorMessage memory messageData, bool is7702)
         internal
         returns (bytes memory, address)
     {
         bytes memory executionData =
             _createCrosschainExecutionData_DestinationExecutor(messageData.hooksAddresses, messageData.hooksData);
 
+        console2.log("-------------- is7702", is7702);
         address accountToUse;
         bytes memory accountCreationData;
         if (messageData.account == address(0)) {
             (accountCreationData, accountToUse) = _createAccountCreationData_DestinationExecutor(
                 AccountCreationParams({
-                    senderCreatorOnDestinationChain: _getContract(messageData.chainId, SUPER_SENDER_CREATOR_KEY),
+                    senderCreatorOnDestinationChain: is7702 ? _getContract(messageData.chainId, SUPER_7702_SENDER_CREATOR_KEY) : _getContract(messageData.chainId, SUPER_SENDER_CREATOR_KEY),
                     validatorOnDestinationChain: messageData.validator,
                     theSigner: messageData.signer,
                     executorOnDestinationChain: _getContract(messageData.chainId, SUPER_DESTINATION_EXECUTOR_KEY),
                     nexusFactory: messageData.nexusFactory,
-                    nexusBootstrap: messageData.nexusBootstrap
+                    nexusBootstrap: messageData.nexusBootstrap,
+                    is7702: is7702
                 })
             );
             messageData.account = accountToUse; // prefill the account to use
@@ -1822,13 +1828,75 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address executorOnDestinationChain;
         address nexusFactory;
         address nexusBootstrap;
+        bool is7702;
     }
     function _createAccountCreationData_DestinationExecutor(
         AccountCreationParams memory p
     )
         internal
+        virtual
         returns (bytes memory, address)
     {
+        console2.log("----- senderCreatorOnDestinationChain", p.senderCreatorOnDestinationChain);
+        console2.log("-----_createAccountCreationData_DestinationExecutor is7702", p.is7702);
+        if (p.is7702) {
+            return __create7702NexusInitData(p);
+        } 
+        return __createNon7702NexusInitData(p);
+    }
+
+    function __create7702NexusInitData(AccountCreationParams memory p) internal returns (bytes memory, address) {
+        BootstrapConfig[] memory validators = new BootstrapConfig[](1);
+        validators[0] = BootstrapConfig({ module: p.validatorOnDestinationChain, data: abi.encode(p.theSigner) });
+        BootstrapConfig[] memory executors = new BootstrapConfig[](1);
+        executors[0] = BootstrapConfig({ module: p.executorOnDestinationChain, data: "" });
+        BootstrapConfig memory hook = BootstrapConfig({ module: address(0), data: "" });
+        BootstrapConfig[] memory fallbacks = new BootstrapConfig[](0);
+        BootstrapPreValidationHookConfig[] memory preValidationHooks = new BootstrapPreValidationHookConfig[](0);
+
+        MockRegistry nexusRegistry = new MockRegistry();
+        address[] memory attesters = new address[](1);
+        attesters[0] = address(MANAGER);
+        uint8 threshold = 1;
+
+        vm.label(address(nexusRegistry), "nexusRegistry");
+        vm.label(address(p.nexusBootstrap), "NexusBoostrap 7702");
+
+        bytes memory bootstrapCall =  abi.encode(
+            address(p.nexusBootstrap),
+            abi.encodeCall(
+                INexusBootstrap7702.initNexus,
+                (validators, executors, hook, fallbacks, preValidationHooks, 
+                RegistryConfig({
+                    registry: IERC7484(address(nexusRegistry)),
+                    attesters: attesters,
+                    threshold: threshold
+                }))
+            )
+        );
+        
+        bytes memory initData = bytes.concat(
+            bytes20(p.nexusBootstrap),                                 // bootstrap address (20 bytes)
+            bytes12(0),                                          // padding to make it 32 bytes
+            abi.encode(uint256(0x40)),                           // offset to dynamic data (length-prefixed)
+            abi.encode(uint256(bootstrapCall.length)),          // length of bootstrapCall
+            bootstrapCall                                        // the actual call
+        );
+        //bytes memory actual7702CallData = abi.encodeCall(
+        //    INexus.initializeAccount,
+        //    (initData)
+        //);
+    
+        //bytes memory factoryWithMarker = bytes.concat(INITCODE_EIP7702_MARKER, bytes20(address(p.nexusFactory)));
+        bytes memory targetWithMaker = bytes.concat(INITCODE_EIP7702_MARKER, bytes20(address(p.theSigner)));
+        console2.log("---------------- signerEOA", p.theSigner);
+        return (abi.encodePacked(p.senderCreatorOnDestinationChain, targetWithMaker, abi.encodeCall(
+            INexus.initializeAccount,
+            (initData)
+        )), p.theSigner);
+    }
+
+    function __createNon7702NexusInitData(AccountCreationParams memory p) internal returns (bytes memory, address) {
         // create validators
         BootstrapConfig[] memory validators = new BootstrapConfig[](1);
         validators[0] = BootstrapConfig({ module: p.validatorOnDestinationChain, data: abi.encode(p.theSigner) });
@@ -1857,7 +1925,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address precomputedAddress = INexusFactory(p.nexusFactory).computeAccountAddress(initData, initSalt);
         bytes memory initFactoryCalldata = abi.encodeWithSelector(INexusFactory.createAccount.selector, initData, initSalt);
 
-    return (abi.encodePacked(p.senderCreatorOnDestinationChain, address(p.nexusFactory), initFactoryCalldata), precomputedAddress);
+        return (abi.encodePacked(p.senderCreatorOnDestinationChain, address(p.nexusFactory), initFactoryCalldata), precomputedAddress);
     }
 
     function _createAcrossV3ReceiveFundsAndExecuteHookData( 
@@ -1882,7 +1950,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             outputAmount,
             uint256(destinationChainId),
             address(0),
-            uint32(10 minutes), // this can be a max of 360 minutes
+            uint32(300 minutes), // this can be a max of 360 minutes
             uint32(0),
             usePrevHookAmount,
             data

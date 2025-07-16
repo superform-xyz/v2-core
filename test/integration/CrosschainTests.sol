@@ -346,7 +346,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingETH_USDC
             });
 
-            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
 
         // BASE IS SRC
@@ -378,6 +378,83 @@ contract CrosschainTests is BaseTest {
                 srcChainId: BASE,
                 dstChainId: ETH,
                 warpTimestamp: WARP_START_TIME + 30 days,
+                executionData: executionData,
+                relayerType: RELAYER_TYPE.NO_HOOKS,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                root: bytes32(0),
+                account: accountToUse,
+                relayerGas: 0
+            })
+        );
+    }
+
+    function test_Bridge_To_ETH_And_Create_Nexus_Account_7702Flow() public {
+        uint256 _warpStartTime = 1752648279;
+
+        uint256 amountPerVault = 1e8 / 2;
+
+        // ETH IS DST
+        SELECT_FORK_AND_WARP(ETH, _warpStartTime);
+
+        _doEIP7702(validatorSigner, address(0x0000000025a29E0598c88955fd00E256691A089c));
+
+        // PREPARE ETH DATA
+        bytes memory targetExecutorMessage;
+        address accountToUse;
+        TargetExecutorMessage memory messageData;
+        {
+            address[] memory dstHookAddresses = new address[](0);
+            bytes[] memory dstHookData = new bytes[](0);
+
+            messageData = TargetExecutorMessage({
+                hooksAddresses: dstHookAddresses,
+                hooksData: dstHookData,
+                validator: address(destinationValidatorOnETH),
+                signer: validatorSigner,
+                signerPrivateKey: validatorSignerPrivateKey,
+                targetAdapter: address(acrossV3AdapterOnETH),
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: 0x0000000025a29E0598c88955fd00E256691A089c,
+                nexusBootstrap: 0x000000001aafD7ED3B8baf9f46cD592690A5BBE5,
+                chainId: uint64(ETH),
+                amount: amountPerVault,
+                account: address(0),
+                tokenSent: underlyingETH_USDC
+            });
+
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, true);
+        }
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, _warpStartTime + 30 days);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, true, targetExecutorMessage
+        );
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(
+            messageData, srcUserOpData.userOpHash, accountToUse, ETH, address(sourceValidatorOnBase)
+        );
+        srcUserOpData.userOp.signature = signatureData;
+
+        // EXECUTE BASE
+        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
+        _processAcrossV3Message(
+            ProcessAcrossV3MessageParams({
+                srcChainId: BASE,
+                dstChainId: ETH,
+                warpTimestamp: _warpStartTime + 30 days,
                 executionData: executionData,
                 relayerType: RELAYER_TYPE.NO_HOOKS,
                 errorMessage: bytes4(0),
@@ -428,7 +505,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingETH_USDC
             });
 
-            (innerExecutorPayload, accountToUse) = _createTargetExecutorMessage(messageData);
+            (innerExecutorPayload, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
 
         // BASE IS SRC
@@ -575,7 +652,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingETH_USDC
             });
 
-            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
         {
             address share = IERC7540(yieldSource7540AddressETH_USDC).share();
@@ -683,7 +760,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingETH_USDC
             });
 
-            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
 
         // BASE IS SRC
@@ -794,7 +871,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingOP_USDCe
             });
 
-            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
 
         uint256 previewDepositAmountOP = vaultInstance4626OP.previewDeposit(amountPerVault);
@@ -905,7 +982,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingETH_USDC
             });
 
-            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
         {
             address share = IERC7540(yieldSource7540AddressETH_USDC).share();
@@ -998,7 +1075,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingETH_USDC
             });
 
-            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
 
         uint256 initialOutputAmount = amountPerVault / 2;
@@ -1101,7 +1178,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingBase_USDC
             });
 
-            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
 
         // ETH is SRC
@@ -1212,7 +1289,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingBase_USDC
             });
 
-            (params.targetExecutorMessage, params.accountToUse) = _createTargetExecutorMessage(params.messageData);
+            (params.targetExecutorMessage, params.accountToUse) = _createTargetExecutorMessage(params.messageData, false);
         }
 
         _getTokens(underlyingBase_USDC, params.accountToUse, params.previewRedeemAmount);
@@ -1361,7 +1438,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingBase_USDC
             });
 
-            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
 
         // ETH is SRC
@@ -1466,7 +1543,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingETH_USDC
             });
 
-            (innerExecutorPayload, accountToUse) = _createTargetExecutorMessage(messageData);
+            (innerExecutorPayload, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
 
         // BASE IS SRC
@@ -1590,7 +1667,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingETH_USDC
             });
 
-            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
 
         // 2. Update account in restriction manager
@@ -1696,7 +1773,7 @@ contract CrosschainTests is BaseTest {
             account: accountBase,
             tokenSent: underlyingBase_USDC
         });
-        (bytes memory targetExecutorMessage, address accountToUse) = _createTargetExecutorMessage(messageData);
+        (bytes memory targetExecutorMessage, address accountToUse) = _createTargetExecutorMessage(messageData, false);
 
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
@@ -1905,7 +1982,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingBase_USDC
             });
 
-            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
 
         uint256 user_Base_USDC_Balance_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
@@ -2086,7 +2163,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingBase_USDC
             });
 
-            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
 
         // OP IS SRC1
@@ -2194,7 +2271,7 @@ contract CrosschainTests is BaseTest {
                 tokenSent: underlyingBase_USDC
             });
 
-            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
 
         // ETH IS SRC1
@@ -2295,7 +2372,7 @@ contract CrosschainTests is BaseTest {
             tokenSent: underlyingETH_USDC
         });
 
-        (innerExecutorPayload, accountToUse) = _createTargetExecutorMessage(messageData);
+        (innerExecutorPayload, accountToUse) = _createTargetExecutorMessage(messageData, false);
 
         bytes memory debridgeData = _createDebridgeSendFundsAndExecuteHookData(
             DebridgeOrderData({
@@ -2646,5 +2723,11 @@ contract CrosschainTests is BaseTest {
             }
             return _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
         }
+    }
+
+    function _doEIP7702(address account, address accImplementation) internal {
+        if (accImplementation.code.length == 0) revert("NO ACCOUNT");
+        vm.etch(account, abi.encodePacked(hex'ef0100', bytes20(address(accImplementation))));
+        
     }
 }

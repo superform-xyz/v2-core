@@ -17,7 +17,9 @@ contract SuperSenderCreator {
         bytes memory initCallData = initCode[20 :];
         (bool success, bytes memory returnData) = initAddress.call(initCallData);
         if (!success) {
-            return address(0);
+            assembly {
+                revert(add(returnData, 32), mload(returnData))
+            }
         }
         sender = abi.decode(returnData, (address));
     }
