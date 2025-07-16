@@ -143,23 +143,16 @@ fi
 # Set environment for forge scripts
 FORGE_ENV=1  # Default to environment 1 for both local and CI
 
-# --- SPECIAL CASE: main branch, env = 1 (canonical dev deployment) ---
-# If branch is main and env = 1, override bucket and folder logic
-if [ "$BRANCH_NAME" = "main" ] && [ "${FORGE_ENV:-1}" = "1" ]; then
-    log "INFO" "Main branch with env=1 detected: using superform-deployment-state bucket and 'dev' folder."
-    S3_BUCKET_NAME="superform-deployment-state"
-    GITHUB_REF_NAME="dev"
+# Handle branch name logic
+if [ "$BRANCH_NAME" = "local" ]; then
+    log "INFO" "Local branch detected: $BRANCH_NAME. Using local deployment settings."
+    GITHUB_REF_NAME="local"
+    S3_BUCKET_NAME="vnet-state"
 else
-    # Handle branch name logic as before
-    if [ "$BRANCH_NAME" = "local" ]; then
-        log "INFO" "Local branch detected: $BRANCH_NAME. Using local deployment settings."
-        GITHUB_REF_NAME="local"
-        S3_BUCKET_NAME="vnet-state"
-    elif [ "$IS_MAIN_OR_DEV" = "false" ]; then
-        log "INFO" "Custom branch detected: $BRANCH_NAME. Deploying to new VNET with branch name."
-        GITHUB_REF_NAME="$BRANCH_NAME"
-        S3_BUCKET_NAME="vnet-state"
-    fi
+    # For all other branches (including main, dev, and custom branches)
+    log "INFO" "Branch detected: $BRANCH_NAME. Using vnet-state bucket."
+    GITHUB_REF_NAME="$BRANCH_NAME"
+    S3_BUCKET_NAME="vnet-state"
 fi
 
 # Log branch name for debugging
