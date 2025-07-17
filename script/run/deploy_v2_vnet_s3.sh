@@ -406,20 +406,29 @@ check_vnets() {
     
     if [ -n "$vnet_id" ]; then
         log "INFO" "Found existing VNET ID in S3: $vnet_id"
-        # Check if VNET still exists in Tenderly
+        # Check if VNET still exists in Tenderly and has the correct slug
         local tenderly_response=$(curl -s -X GET \
             "${API_BASE_URL}/account/${TENDERLY_ACCOUNT}/project/${TENDERLY_PROJECT}/vnets/${vnet_id}" \
             -H "X-Access-Key: ${TENDERLY_ACCESS_KEY}")
         
         if [ "$(echo "$tenderly_response" | jq -r '.id')" == "$vnet_id" ]; then
-            local admin_rpc=$(echo "$tenderly_response" | jq -r '.rpcs[] | select(.name=="Admin RPC") | .url')
-            if [ -n "$admin_rpc" ]; then
-                log "INFO" "Reusing VNET from S3 state"
-                echo "${admin_rpc}|${vnet_id}"
-                return 0
+            # Validate that the VNET has the expected slug for this branch/network
+            local expected_slug=$(generate_slug "$network_slug")
+            local actual_slug=$(echo "$tenderly_response" | jq -r '.slug')
+            
+            if [ "$actual_slug" == "$expected_slug" ]; then
+                local admin_rpc=$(echo "$tenderly_response" | jq -r '.rpcs[] | select(.name=="Admin RPC") | .url')
+                if [ -n "$admin_rpc" ]; then
+                    log "INFO" "Reusing VNET from S3 state with correct slug: $actual_slug"
+                    echo "${admin_rpc}|${vnet_id}"
+                    return 0
+                fi
+            else
+                log "WARN" "VNET ID $vnet_id exists but has wrong slug. Expected: $expected_slug, Found: $actual_slug"
+                log "WARN" "This indicates S3 file corruption. Will create new VNET with correct slug."
             fi
         fi
-        log "INFO" "VNET ID exists in branch file but not in Tenderly"
+        log "INFO" "VNET ID exists in branch file but not valid for reuse"
     fi
     
     # Step 2: Check if there's already a VNET with this slug in Tenderly (not in our state)
