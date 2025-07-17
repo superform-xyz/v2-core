@@ -29,6 +29,14 @@ import { Deposit7540VaultHook } from "../../../src/hooks/vaults/7540/Deposit7540
 import { Deposit5115VaultHook } from "../../../src/hooks/vaults/5115/Deposit5115VaultHook.sol";
 import { Redeem5115VaultHook } from "../../../src/hooks/vaults/5115/Redeem5115VaultHook.sol";
 
+// -- centrifuge mocks
+import { IRoot } from "../../mocks/centrifuge/IRoot.sol";
+import { ITranche } from "../../mocks/centrifuge/ITranch.sol";
+import { IPoolManager } from "../../mocks/centrifuge/IPoolManager.sol";
+import { IInvestmentManager } from "../../mocks/centrifuge/IInvestmentManager.sol";
+import { RestrictionManagerLike } from "../../mocks/centrifuge/IRestrictionManagerLike.sol";
+
+
 contract VaultFeeTests is BaseTest {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
@@ -36,6 +44,16 @@ contract VaultFeeTests is BaseTest {
     IStandardizedYield public vaultInstance5115ETH;
     IERC7540 public vaultInstance7540;
     IERC4626 public vaultInstance4626;
+    
+    address public rootManager;
+    IRoot public root;
+    IPoolManager public poolManager;
+    uint64 public poolId;
+    bytes16 public trancheId;
+    uint128 public assetId;
+    
+    RestrictionManagerLike public restrictionManager;
+    IInvestmentManager public investmentManager;
 
     address public underlyingETH_USDC;
     address public underlyingETH_sUSDe;
@@ -74,8 +92,8 @@ contract VaultFeeTests is BaseTest {
         underlyingETH_USDC = CHAIN_1_USDC;
         underlyingETH_sUSDe = CHAIN_1_SUSDE;
 
-        _getTokens(underlyingETH_USDC, accountEth, 1e18);
-        _getTokens(underlyingETH_sUSDe, accountEth, 1e18);
+        _getTokens(underlyingETH_USDC, accountEth, 1e16);
+        _getTokens(underlyingETH_sUSDe, accountEth, 1e16);
 
         yieldSource4626AddressUSDC = CHAIN_1_MorphoVault;
         vaultInstance4626 = IERC4626(yieldSource4626AddressUSDC);
@@ -83,8 +101,29 @@ contract VaultFeeTests is BaseTest {
         yieldSource7540AddressUSDC = CHAIN_1_CentrifugeUSDC;
         vaultInstance7540 = IERC7540(yieldSource7540AddressUSDC);
 
+        rootManager = 0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC;
+
+        // ROOT / POOL / TRANCHE SETUP
+        address share = IERC7540(yieldSource7540AddressUSDC).share();
+        address mngr = ITranche(share).hook();
+
+        restrictionManager = RestrictionManagerLike(mngr);
+        vm.startPrank(RestrictionManagerLike(mngr).root());
+        restrictionManager.updateMember(share, accountEth, type(uint64).max);
+        vm.stopPrank();
+
+        poolId = vaultInstance7540.poolId();
+        assertEq(poolId, 4_139_607_887);
+        trancheId = vaultInstance7540.trancheId();
+        assertEq(trancheId, bytes16(0x97aa65f23e7be09fcd62d0554d2e9273));
+
+        poolManager = IPoolManager(0x91808B5E2F6d7483D41A681034D7c9DbB64B9E29);
+        assetId = poolManager.assetToId(underlyingETH_USDC);
+        assertEq(assetId, uint128(242_333_941_209_166_991_950_178_742_833_476_896_417));
+
         yieldSource5115AddressSUSDe = CHAIN_1_PendleEthena;
         vaultInstance5115ETH = IStandardizedYield(yieldSource5115AddressSUSDe);
+        //shareToken5115 = address(vaultInstance5115ETH);
 
         config = new SuperLedgerConfiguration();
         superExecutor = new SuperExecutor(address(config));
@@ -139,9 +178,116 @@ contract VaultFeeTests is BaseTest {
         config.setYieldSourceOracles(yieldSourceOracleSalts, configs);
     }
 
-    function test_4626VaultFees() public { }
+    function test_4626VaultFees() public {
+        uint256 depositAmount = 1e16;
 
-    function test_5115VaultFees() public { }
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSource4626AddressUSDC, depositAmount, false);
+        hooksData[1] = _createDeposit4626HookData(
+            yieldSourceOracleId4626, 
+            yieldSource4626AddressUSDC,
+            depositAmount,
+            false,
+            address(0),
+            0
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry));
+        executeOp(userOpData);
+
+        uint256 userShares = vaultInstance4626.balanceOf(accountEth);
+        uint256 sharesAsAssets = vaultInstance4626.convertToAssets(userShares);
+
+        (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee4626(sharesAsAssets, userShares);
+
+        address[] memory hooksAddressesRedeem = new address[](1);
+        hooksAddressesRedeem[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksDataRedeem = new bytes[](1);
+        hooksDataRedeem[0] =
+            _createRedeem4626HookData(yieldSourceOracleId4626, yieldSource4626AddressUSDC, accountEth, userShares, false);
+
+        ISuperExecutor.ExecutorEntry memory entry1 =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddressesRedeem, hooksData: hooksDataRedeem });
+        UserOpData memory userOpData1 = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry1));
+        executeOp(userOpData1);
+
+        uint256 userBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(accountEth);
+        uint256 feeRecipientBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(feeRecipient);
+
+        assertEq(userBalanceAfter, expectedUserAssets, "User did not receive correct assets after fee");
+        assertEq(feeRecipientBalanceAfter, expectedFee, "Fee recipient did not receive correct shares");
+     }
+
+    function test_5115VaultFees() public { 
+        uint256 depositAmount = 1e16;
+
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_5115_VAULT_HOOK_KEY);
+        // vm.mockCall(
+        //     0x0C1fDfd6a1331a875EA013F3897fc8a76ada5DfC,
+        //     abi.encodeWithSelector(IRoot.endorsed.selector, accountEth),
+        //     abi.encode(true)
+        // );
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(underlyingETH_sUSDe, yieldSource5115AddressSUSDe, depositAmount, false);
+        hooksData[1] = _createDeposit5115VaultHookData(
+            yieldSourceOracleId5115,
+            yieldSource5115AddressSUSDe,
+            underlyingETH_sUSDe,
+            depositAmount,
+            0,
+            false,
+            address(0),
+            0
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry));
+        executeOp(userOpData);
+
+        uint256 userShares = vaultInstance5115ETH.balanceOf(accountEth);
+        //uint256 sharesAsAssets = vaultInstance5115ETH.convertToAssets(userShares);
+
+        (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee5115(sharesAsAssets, userShares);
+
+        console2.log("userShares", userShares);
+    }
 
     function test_7540VaultFees() public { }
+
+    function _calculateExpectedFee4626(uint256 sharesAsAssets, uint256 userShares)
+        internal
+        view
+        returns (uint256 expectedFee, uint256 expectedUserAssets)
+    {
+        expectedFee = superLedger.previewFees(accountEth, yieldSource4626AddressUSDC, sharesAsAssets, userShares, 1000);
+        expectedUserAssets = sharesAsAssets - expectedFee;
+    }
+
+    function _calculateExpectedFee5115(uint256 sharesAsAssets, uint256 userShares)
+        internal
+        view
+        returns (uint256 expectedFee, uint256 expectedUserAssets)
+    {
+        expectedFee = superLedger.previewFees(accountEth, yieldSource5115AddressSUSDe, sharesAsAssets, userShares, 1000);
+        expectedUserAssets = sharesAsAssets - expectedFee;
+    }
+
+    function _calculateExpectedFee7540(uint256 sharesAsAssets, uint256 userShares)
+        internal
+        view
+        returns (uint256 expectedFee, uint256 expectedUserAssets)
+    {
+        expectedFee = superLedger.previewFees(accountEth, yieldSource7540AddressUSDC, sharesAsAssets, userShares, 1000);
+        expectedUserAssets = sharesAsAssets - expectedFee;
+    }
 }
