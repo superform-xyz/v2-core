@@ -1671,9 +1671,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         (, address account) = _createAccountCreationData_DestinationExecutor(
             AccountCreationParams({
                 senderCreatorOnDestinationChain: _getContract(chainId, SUPER_SENDER_CREATOR_KEY),
-                validatorOnDestinationChain: validator,
+                superDstValidator: validator,
+                superMerkleValidator: _getContract(chainId, SUPER_MERKLE_VALIDATOR_KEY),
                 theSigner: signer,
                 executorOnDestinationChain: _getContract(chainId, SUPER_DESTINATION_EXECUTOR_KEY),
+                superExecutor: _getContract(chainId, SUPER_EXECUTOR_KEY),
                 nexusFactory: nexusFactory,
                 nexusBootstrap: nexusBootstrap
             })
@@ -1694,9 +1696,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             (accountCreationData, accountToUse) = _createAccountCreationData_DestinationExecutor(
                 AccountCreationParams({
                     senderCreatorOnDestinationChain: _getContract(messageData.chainId, SUPER_SENDER_CREATOR_KEY),
-                    validatorOnDestinationChain: messageData.validator,
+                    superDstValidator: messageData.validator,
+                    superMerkleValidator: _getContract(messageData.chainId, SUPER_MERKLE_VALIDATOR_KEY),
                     theSigner: messageData.signer,
                     executorOnDestinationChain: _getContract(messageData.chainId, SUPER_DESTINATION_EXECUTOR_KEY),
+                    superExecutor: _getContract(messageData.chainId, SUPER_EXECUTOR_KEY),
                     nexusFactory: messageData.nexusFactory,
                     nexusBootstrap: messageData.nexusBootstrap
                 })
@@ -1868,9 +1872,11 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     struct AccountCreationParams {
         address senderCreatorOnDestinationChain;
-        address validatorOnDestinationChain;
+        address superDstValidator;
+        address superMerkleValidator;
         address theSigner;
         address executorOnDestinationChain;
+        address superExecutor;
         address nexusFactory;
         address nexusBootstrap;
     }
@@ -1881,12 +1887,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         returns (bytes memory, address)
     {
         // create validators
-        BootstrapConfig[] memory validators = new BootstrapConfig[](1);
-        validators[0] = BootstrapConfig({ module: p.validatorOnDestinationChain, data: abi.encode(p.theSigner) });
+        BootstrapConfig[] memory validators = new BootstrapConfig[](2);
+        validators[0] = BootstrapConfig({ module: p.superDstValidator, data: abi.encode(p.theSigner) });
+        validators[1] = BootstrapConfig({ module: p.superMerkleValidator, data: abi.encode(p.theSigner) });
 
         // create executors
-        BootstrapConfig[] memory executors = new BootstrapConfig[](1);
+        BootstrapConfig[] memory executors = new BootstrapConfig[](2);
         executors[0] = BootstrapConfig({ module: p.executorOnDestinationChain, data: "" });
+        executors[1] = BootstrapConfig({ module: p.superExecutor, data: "" });
 
         // create hooks
         BootstrapConfig memory hook = BootstrapConfig({ module: address(0), data: "" });
