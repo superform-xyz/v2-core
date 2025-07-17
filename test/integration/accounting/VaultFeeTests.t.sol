@@ -276,7 +276,7 @@ contract VaultFeeTests is BaseTest {
 
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressUSDC, depositAmount, false);
@@ -319,21 +319,36 @@ contract VaultFeeTests is BaseTest {
 
         // 7540 vaults use .share() for the share token
         uint256 userShares = IERC20(vaultInstance7540.share()).balanceOf(accountEth);
-        uint256 sharesAsAssets = vaultInstance7540.convertToAssets(userShares);
+
+        vm.prank(accountEth);
+        IERC7540(yieldSource7540AddressUSDC).requestRedeem(userShares, accountEth, accountEth);
+
+        uint256 userExpectedAssets = vaultInstance7540.convertToAssets(userShares);
+
+        // FULFILL REDEEM
+        vm.prank(rootManager);
+
+        investmentManager.fulfillRedeemRequest(
+            poolId, trancheId, accountEth, assetId, uint128(userExpectedAssets), uint128(userShares)
+        );
+
+        uint256 maxRedeemAmount = vaultInstance7540.maxRedeem(accountEth);
+
+        uint256 sharesAsAssets = vaultInstance7540.convertToAssets(maxRedeemAmount);
 
         (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee7540(sharesAsAssets, userShares);
 
-        address[] memory hooksAddressesRedeem = new address[](1);
-        hooksAddressesRedeem[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
+        address[] memory hooksAddressesWithdraw = new address[](1);
+        hooksAddressesWithdraw[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
 
-        bytes[] memory hooksDataRedeem = new bytes[](1);
-        hooksDataRedeem[0] =
+        bytes[] memory hooksDataWithdraw = new bytes[](1);
+        hooksDataWithdraw[0] =
             _createWithdraw7540VaultHookData(yieldSourceOracleId7540, yieldSource7540AddressUSDC, sharesAsAssets, false);
 
-        ISuperExecutor.ExecutorEntry memory entry1 =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddressesRedeem, hooksData: hooksDataRedeem });
-        UserOpData memory userOpData1 = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry1));
-        executeOp(userOpData1);
+        ISuperExecutor.ExecutorEntry memory entryWithdraw =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddressesWithdraw, hooksData: hooksDataWithdraw });
+        UserOpData memory userOpDataWithdraw = _getExecOps(instanceOnEth, superExecutor, abi.encode(entryWithdraw));
+        executeOp(userOpDataWithdraw);
 
         uint256 userBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(accountEth);
         uint256 feeRecipientBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(feeRecipient);
