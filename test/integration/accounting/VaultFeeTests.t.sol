@@ -122,7 +122,6 @@ contract VaultFeeTests is BaseTest {
 
         yieldSource5115AddressSUSDe = CHAIN_1_PendleEthena;
         vaultInstance5115ETH = IStandardizedYield(yieldSource5115AddressSUSDe);
-        //shareToken5115 = address(vaultInstance5115ETH);
 
         config = new SuperLedgerConfiguration();
         superExecutor = new SuperExecutor(address(config));
@@ -281,14 +280,42 @@ contract VaultFeeTests is BaseTest {
 
         bytes[] memory hooksData = new bytes[](2);
         hooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressUSDC, depositAmount, false);
-        hooksData[1] = _createDeposit7540VaultHookData(
-            yieldSourceOracleId7540, yieldSource7540AddressUSDC, depositAmount, false, address(0), 0
+        hooksData[1] = _createRequestDeposit7540VaultHookData(
+            yieldSourceOracleId7540, yieldSource7540AddressUSDC, depositAmount, true
         );
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry));
         executeOp(userOpData);
+
+        investmentManager = IInvestmentManager(0xE79f06573d6aF1B66166A926483ba00924285d20);
+
+        vm.startPrank(rootManager);
+
+        uint256 userExpectedShares = vaultInstance7540.convertToShares(depositAmount);
+
+        investmentManager.fulfillDepositRequest(
+            poolId, trancheId, accountEth, assetId, uint128(depositAmount), uint128(userExpectedShares)
+        );
+
+        uint256 maxDeposit = vaultInstance7540.maxDeposit(accountEth);
+        userExpectedShares = vaultInstance7540.convertToShares(maxDeposit);
+
+        vm.stopPrank();
+
+        address[] memory hooksAddressesDeposit = new address[](1);
+        hooksAddressesDeposit[0] = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksDataDeposit = new bytes[](1);
+        hooksDataDeposit[0] = _createDeposit7540VaultHookData(
+            yieldSourceOracleId7540, yieldSource7540AddressUSDC, maxDeposit, false, address(0), 0
+        );
+
+        ISuperExecutor.ExecutorEntry memory entryDeposit =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddressesDeposit, hooksData: hooksDataDeposit });
+        UserOpData memory userOpDataDeposit = _getExecOps(instanceOnEth, superExecutor, abi.encode(entryDeposit));
+        executeOp(userOpDataDeposit);
 
         // 7540 vaults use .share() for the share token
         uint256 userShares = IERC20(vaultInstance7540.share()).balanceOf(accountEth);
