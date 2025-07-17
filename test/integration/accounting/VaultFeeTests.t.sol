@@ -272,7 +272,48 @@ contract VaultFeeTests is BaseTest {
         assertEq(feeRecipientBalanceAfter, expectedFee, "Fee recipient did not receive correct shares");
     }
 
-    function test_7540VaultFees() public { }
+    function test_7540VaultFees() public {
+        uint256 depositAmount = 1e16;
+
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressUSDC, depositAmount, false);
+        hooksData[1] = _createDeposit7540VaultHookData(
+            yieldSourceOracleId7540, yieldSource7540AddressUSDC, depositAmount, false, address(0), 0
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry));
+        executeOp(userOpData);
+
+        // 7540 vaults use .share() for the share token
+        uint256 userShares = IERC20(vaultInstance7540.share()).balanceOf(accountEth);
+        uint256 sharesAsAssets = vaultInstance7540.convertToAssets(userShares);
+
+        (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee7540(sharesAsAssets, userShares);
+
+        address[] memory hooksAddressesRedeem = new address[](1);
+        hooksAddressesRedeem[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksDataRedeem = new bytes[](1);
+        hooksDataRedeem[0] =
+            _createWithdraw7540VaultHookData(yieldSourceOracleId7540, yieldSource7540AddressUSDC, sharesAsAssets, false);
+
+        ISuperExecutor.ExecutorEntry memory entry1 =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddressesRedeem, hooksData: hooksDataRedeem });
+        UserOpData memory userOpData1 = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry1));
+        executeOp(userOpData1);
+
+        uint256 userBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(accountEth);
+        uint256 feeRecipientBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(feeRecipient);
+
+        assertEq(userBalanceAfter, expectedUserAssets, "User did not receive correct assets after fee");
+        assertEq(feeRecipientBalanceAfter, expectedFee, "Fee recipient did not receive correct shares");
+    }
 
     function _calculateExpectedFee4626(
         uint256 sharesAsAssets,
