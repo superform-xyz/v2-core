@@ -6,13 +6,19 @@ import { UserOpData, AccountInstance, ModuleKitHelpers } from "modulekit/ModuleK
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
-import { INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
 import { IERC7540 } from "../../src/vendor/vaults/7540/IERC7540.sol";
 import { IDlnSource } from "../../src/vendor/bridges/debridge/IDlnSource.sol";
-import { ExecutionReturnData } from "modulekit/test/RhinestoneModuleKit.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import "modulekit/test/RhinestoneModuleKit.sol";
+import { IERC7579Account} from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import { BytesLib } from "../../src/vendor/BytesLib.sol";
-
+import { ModeLib, ModeCode } from "modulekit/accounts/common/lib/ModeLib.sol";
+import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { INexus } from "../../src/vendor/nexus/INexus.sol";
+import { INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
+import { INexusFactory } from "../../src/vendor/nexus/INexusFactory.sol";
 
 // Superform
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
@@ -20,6 +26,8 @@ import { IYieldSourceOracle } from "../../src/interfaces/accounting/IYieldSource
 import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaster.sol";
 import { ISuperLedger, ISuperLedgerData } from "../../src/interfaces/accounting/ISuperLedger.sol";
 import { ISuperDestinationExecutor } from "../../src/interfaces/ISuperDestinationExecutor.sol";
+import { ISuperValidator } from "../../src/interfaces/ISuperValidator.sol";
+import { SuperExecutorBase } from  "../../src/executors/SuperExecutorBase.sol";
 import { AcrossV3Adapter } from "../../src/adapters/AcrossV3Adapter.sol";
 import { DebridgeAdapter } from "../../src/adapters/DebridgeAdapter.sol";
 import { SuperValidatorBase } from "../../src/validators/SuperValidatorBase.sol";
@@ -312,8 +320,57 @@ contract CrosschainTests is BaseTest {
     /*//////////////////////////////////////////////////////////////
                           TESTS
     //////////////////////////////////////////////////////////////*/
-    
     // --- THROUGH PAYMASTER ---
+    //  >>>> ACCOUNT MUTABILITY TESTS
+    function test_HaveAnAccount_Uninstall_ReinstallCore_CrossChain() public {
+        // create an account using cross chain flow
+        // - use NexusFactory and NexustBootstrap to create a real account
+        address accountCreated = _createAccountCrossChainFlow();
+
+        uint256 usageTimestamp = WARP_START_TIME + 100 days;
+        SELECT_FORK_AND_WARP(ETH, usageTimestamp);
+        assertGt(accountCreated.code.length, 0);
+        deal(accountCreated, 10 ether);
+
+        // check installed modules
+        // -- check executor
+        // -- check destination validator on chain
+        // -- check source validator on 
+        assertTrue(SuperExecutorBase(address(superExecutorOnETH)).isInitialized(accountCreated), "super executor not installed");
+        assertTrue(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor not installed");
+        assertTrue(SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(accountCreated), "super merkle validator not installed");
+        assertTrue(SuperValidatorBase(address(destinationValidatorOnETH)).isInitialized(accountCreated), "super destinatioin validator not installed");
+
+        // perform defi operations
+        // -- 4626 deposit
+        uint256 obtainedShares = _performAndAssert4626DepositOnETH(accountCreated, 1000e6, true);
+        assertGt(obtainedShares, 0, "no shares were obtained");
+        
+        // uninstall executor
+        bytes memory uninstallData = abi.encode(address(superExecutorOnETH), bytes(""));
+        _uninstallModuleOnAccount(accountCreated, MODULE_TYPE_EXECUTOR, address(superTargetExecutorOnETH), uninstallData, address(sourceValidatorOnETH));
+        assertFalse(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor still installed");
+
+        // assert account still has obtained shares
+        uint256 midTestObtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
+        assertEq(obtainedShares, midTestObtainedShares, "shares should be the same after uninstall");
+
+        // re-install executor 
+        _installModuleOnAccount(accountCreated, MODULE_TYPE_EXECUTOR, address(superTargetExecutorOnETH), "", address(sourceValidatorOnETH));
+        assertTrue(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor not installed");
+
+        // assert account still has obtained shares
+        midTestObtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
+        assertEq(obtainedShares, midTestObtainedShares, "shares should be the same after re-install");
+
+        // perform defi operations
+        // -- 4626 deposit
+        uint256 lastObtainedShares = _performAndAssert4626DepositOnETH(accountCreated, 1000e6, false);
+        assertGt(lastObtainedShares, midTestObtainedShares, "shares should increase after deposit");
+        assertApproxEqRel(
+            lastObtainedShares, midTestObtainedShares * 2, 0.00001e18
+        );
+    }
 
     //  >>>> ACCOUNT CREATION TESTS
     function test_Bridge_To_ETH_And_Create_Nexus_Account() public {
@@ -2431,6 +2488,248 @@ contract CrosschainTests is BaseTest {
     /*//////////////////////////////////////////////////////////////
                           INTERNAL LOGIC HELPERS
     //////////////////////////////////////////////////////////////*/
+    function _createAccountCrossChainFlow() private returns (address) {
+        uint256 amountPerVault = 1e8 / 2;
+
+        // ETH IS DST
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+
+        // PREPARE ETH DATA
+        bytes memory targetExecutorMessage;
+        address accountToUse;
+        TargetExecutorMessage memory messageData;
+        {
+            address[] memory dstHookAddresses = new address[](0);
+            bytes[] memory dstHookData = new bytes[](0);
+
+            messageData = TargetExecutorMessage({
+                hooksAddresses: dstHookAddresses,
+                hooksData: dstHookData,
+                validator: address(destinationValidatorOnETH),
+                signer: validatorSigner,
+                signerPrivateKey: validatorSignerPrivateKey,
+                targetAdapter: address(acrossV3AdapterOnETH),
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: CHAIN_1_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+                chainId: uint64(ETH),
+                amount: amountPerVault,
+                account: address(0),
+                tokenSent: underlyingETH_USDC
+            });
+
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+        }
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, true, targetExecutorMessage
+        );
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(
+            messageData, srcUserOpData.userOpHash, accountToUse, ETH, address(sourceValidatorOnBase)
+        );
+        srcUserOpData.userOp.signature = signatureData;
+
+        // EXECUTE BASE
+        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
+        _processAcrossV3Message(
+            ProcessAcrossV3MessageParams({
+                srcChainId: BASE,
+                dstChainId: ETH,
+                warpTimestamp: WARP_START_TIME + 30 days,
+                executionData: executionData,
+                relayerType: RELAYER_TYPE.NO_HOOKS,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                root: bytes32(0),
+                account: accountToUse,
+                relayerGas: 0
+            })
+        );
+
+        return accountToUse;
+    }
+    function _performAndAssert4626DepositOnETH(address acc, uint256 amount, bool validateBeforeBalance) private returns (uint256 obtainedShares) {
+        _getTokens(underlyingETH_USDC, acc, amount);
+
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount, false);
+        srcHooksData[1] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressEth,
+            amount,
+            false,
+            address(0),
+            0
+        );
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
+        
+        // before op asserts
+        if (validateBeforeBalance) {
+            uint256 accBalanceBefore = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(acc);
+            assertEq(accBalanceBefore, 0);
+        }
+
+        // deposit
+        _executeHooksThroughEntrypoint(acc, address(superExecutorOnETH), address(sourceValidatorOnETH), entry);
+
+        // after op asserts
+        obtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(acc);
+        assertGt(obtainedShares, 0);
+    }
+    function _installModuleOnAccount(address acc, uint256 moduleType, address module, bytes memory initData, address validatorToUse) private {
+        Execution[] memory executions = new Execution[](1);
+        executions[0] = Execution({
+            target: acc,
+            value: 0,
+            callData: abi.encodeCall(IERC7579Account.installModule, (moduleType, module, initData))
+        });
+
+        PackedUserOperation memory userOp = _createPackedUserOperation(
+            acc, 
+            _prepareNonceWithValidator(acc, validatorToUse), 
+            _prepareExecutionCalldata(executions)
+        );
+
+        _signAndSendUserOp(userOp, validatorToUse, acc);
+    }
+    function _uninstallModuleOnAccount(address acc, uint256 moduleType, address module, bytes memory initData, address validatorToUse) private {
+        Execution[] memory executions = new Execution[](1);
+        executions[0] = Execution({
+            target: acc,
+            value: 0,
+            callData: abi.encodeCall(IERC7579Account.uninstallModule, (moduleType, module, initData))
+        });
+
+        PackedUserOperation memory userOp = _createPackedUserOperation(
+            acc, 
+            _prepareNonceWithValidator(acc, validatorToUse), 
+            _prepareExecutionCalldata(executions)
+        );
+
+        _signAndSendUserOp(userOp, validatorToUse, acc);
+    }
+    function _executeHooksThroughEntrypoint(address account, address executor, address validator, ISuperExecutor.ExecutorEntry memory entry) internal {
+        Execution[] memory executions = new Execution[](1);
+        executions[0] = Execution({
+            target: address(executor),
+            value: 0,
+            callData: abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entry))
+        });
+
+        PackedUserOperation memory userOp = _createPackedUserOperation(
+            account, 
+            _prepareNonceWithValidator(account, validator), 
+            _prepareExecutionCalldata(executions)
+        );
+
+        _signAndSendUserOp(userOp, validator, account);
+    }
+    function _signAndSendUserOp(PackedUserOperation memory userOp, address validator, address beneficiary) private {
+        uint48 validUntil = uint48(block.timestamp + 1 hours);
+        bytes32[] memory leaves = new bytes32[](1);
+        leaves[0] = _createSourceValidatorLeaf(
+            IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp),
+            validUntil,
+            false,
+            address(validator)
+        );
+        (bytes32[][] memory _proof, bytes32 _root) = _createValidatorMerkleTree(leaves);
+        bytes memory signature = _getSignature(_root);
+
+        bytes memory sigData = abi.encode(
+            false,
+            validUntil,
+            _root,
+            _proof[0],
+            new ISuperValidator.DstProof[](0),
+            signature
+        );
+
+        userOp.signature = sigData;
+
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = userOp;
+
+        IEntryPoint(ENTRYPOINT_ADDR).handleOps(userOps, payable(beneficiary));
+    }
+    function _prepareExecutionCalldata(Execution[] memory executions)
+        internal
+        pure
+        returns (bytes memory executionCalldata)
+    {
+        ModeCode mode;
+        uint256 length = executions.length;
+
+        if (length == 1) {
+            mode = ModeLib.encodeSimpleSingle();
+            executionCalldata = abi.encodeCall(
+                INexus.execute,
+                (mode, ExecutionLib.encodeSingle(executions[0].target, executions[0].value, executions[0].callData))
+            );
+        } else if (length > 1) {
+            mode = ModeLib.encodeSimpleBatch();
+            executionCalldata = abi.encodeCall(INexus.execute, (mode, ExecutionLib.encodeBatch(executions)));
+        } else {
+            revert("Executions array cannot be empty");
+        }
+    }
+    function _prepareNonceWithValidator(address account, address validator) internal view returns (uint256 nonce) {
+        uint192 nonceKey;
+        bytes32 batchId = bytes3(0);
+        bytes1 vMode = MODE_VALIDATION;
+        assembly {
+            nonceKey := or(shr(88, vMode), validator)
+            nonceKey := or(shr(64, batchId), nonceKey)
+        }
+        nonce = IEntryPoint(ENTRYPOINT_ADDR).getNonce(account, nonceKey);
+    }
+    function _createPackedUserOperation(
+        address account,
+        uint256 nonce,
+        bytes memory callData
+    )
+        internal
+        pure
+        returns (PackedUserOperation memory)
+    {
+        return PackedUserOperation({
+            sender: account,
+            nonce: nonce,
+            initCode: "", //we assume contract is already deployed (following the Bundler flow)
+            callData: callData,
+            accountGasLimits: bytes32(abi.encodePacked(uint128(3e6), uint128(1e6))),
+            preVerificationGas: 3e5,
+            gasFees: bytes32(abi.encodePacked(uint128(3e5), uint128(1e7))),
+            paymasterAndData: "",
+            signature: hex"1234"
+        });
+    }
+    function _getSignature(bytes32 _root) internal view returns (bytes memory) {
+        bytes32 messageHash = keccak256(abi.encode("SuperValidator", _root));
+        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorSignerPrivateKey, ethSignedMessageHash);
+        return abi.encodePacked(r, s, v);
+    }
+
     function _fulfill7540DepositRequest(uint256 amountPerVault, address accountToUse) internal {
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
 
