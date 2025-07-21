@@ -219,6 +219,50 @@ contract VaultFeeTests is BaseTest {
         assertEq(feeRecipientBalanceAfter, expectedFee, "Fee recipient did not receive correct shares");
     }
 
+    function test_4626VaultFees_PartialRedeem_30Percent() public {
+        uint256 depositAmount = 1e16;
+
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSource4626AddressUSDC, depositAmount, false);
+        hooksData[1] = _createDeposit4626HookData(
+            yieldSourceOracleId4626, yieldSource4626AddressUSDC, depositAmount, false, address(0), 0
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry));
+        executeOp(userOpData);
+
+        uint256 userShares = vaultInstance4626.balanceOf(accountEth);
+        uint256 partialShares = (userShares * 30) / 100;
+        uint256 sharesAsAssets = vaultInstance4626.convertToAssets(partialShares);
+
+        (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee4626(sharesAsAssets, partialShares);
+
+        address[] memory hooksAddressesRedeem = new address[](1);
+        hooksAddressesRedeem[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksDataRedeem = new bytes[](1);
+        hooksDataRedeem[0] = _createRedeem4626HookData(
+            yieldSourceOracleId4626, yieldSource4626AddressUSDC, accountEth, partialShares, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry1 =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddressesRedeem, hooksData: hooksDataRedeem });
+        UserOpData memory userOpData1 = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry1));
+        executeOp(userOpData1);
+
+        uint256 userBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(accountEth);
+        uint256 feeRecipientBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(feeRecipient);
+
+        assertEq(userBalanceAfter, expectedUserAssets, "User did not receive correct assets after fee");
+        assertEq(feeRecipientBalanceAfter, expectedFee, "Fee recipient did not receive correct shares");
+    }
+
     function test_5115VaultFees_FullRedeem() public {
         uint256 depositAmount = 1e16;
 
@@ -257,6 +301,57 @@ contract VaultFeeTests is BaseTest {
         bytes[] memory hooksDataRedeem = new bytes[](1);
         hooksDataRedeem[0] = _create5115RedeemHookData(
             yieldSourceOracleId5115, yieldSource5115AddressSUSDe, underlyingETH_sUSDe, userShares, 0, false
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry1 =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddressesRedeem, hooksData: hooksDataRedeem });
+        UserOpData memory userOpData1 = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry1));
+        executeOp(userOpData1);
+
+        uint256 userBalanceAfter = IERC20(underlyingETH_sUSDe).balanceOf(accountEth);
+        uint256 feeRecipientBalanceAfter = IERC20(underlyingETH_sUSDe).balanceOf(feeRecipient);
+
+        assertEq(userBalanceAfter, expectedUserAssets, "User did not receive correct assets after fee");
+        assertEq(feeRecipientBalanceAfter, expectedFee, "Fee recipient did not receive correct shares");
+    }
+
+    function test_5115VaultFees_PartialRedeem_30Percent() public {
+        uint256 depositAmount = 1e16;
+
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_5115_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(underlyingETH_sUSDe, yieldSource5115AddressSUSDe, depositAmount, false);
+        hooksData[1] = _createDeposit5115VaultHookData(
+            yieldSourceOracleId5115,
+            yieldSource5115AddressSUSDe,
+            underlyingETH_sUSDe,
+            depositAmount,
+            0,
+            false,
+            address(0),
+            0
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry));
+        executeOp(userOpData);
+
+        uint256 userShares = vaultInstance5115ETH.balanceOf(accountEth);
+        uint256 partialShares = (userShares * 30) / 100;
+        uint256 sharesAsAssets = vaultInstance5115ETH.previewRedeem(underlyingETH_sUSDe, partialShares);
+
+        (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee5115(sharesAsAssets, partialShares);
+
+        address[] memory hooksAddressesRedeem = new address[](1);
+        hooksAddressesRedeem[0] = _getHookAddress(ETH, REDEEM_5115_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksDataRedeem = new bytes[](1);
+        hooksDataRedeem[0] = _create5115RedeemHookData(
+            yieldSourceOracleId5115, yieldSource5115AddressSUSDe, underlyingETH_sUSDe, partialShares, 0, false
         );
 
         ISuperExecutor.ExecutorEntry memory entry1 =
@@ -337,6 +432,90 @@ contract VaultFeeTests is BaseTest {
         uint256 sharesAsAssets = vaultInstance7540.convertToAssets(maxRedeemAmount);
 
         (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee7540(sharesAsAssets, userShares);
+
+        address[] memory hooksAddressesWithdraw = new address[](1);
+        hooksAddressesWithdraw[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksDataWithdraw = new bytes[](1);
+        hooksDataWithdraw[0] =
+            _createWithdraw7540VaultHookData(yieldSourceOracleId7540, yieldSource7540AddressUSDC, sharesAsAssets, false);
+
+        ISuperExecutor.ExecutorEntry memory entryWithdraw =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddressesWithdraw, hooksData: hooksDataWithdraw });
+        UserOpData memory userOpDataWithdraw = _getExecOps(instanceOnEth, superExecutor, abi.encode(entryWithdraw));
+        executeOp(userOpDataWithdraw);
+
+        uint256 userBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(accountEth);
+        uint256 feeRecipientBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(feeRecipient);
+
+        assertEq(userBalanceAfter, expectedUserAssets, "User did not receive correct assets after fee");
+        assertEq(feeRecipientBalanceAfter, expectedFee, "Fee recipient did not receive correct shares");
+    }
+
+    function test_7540VaultFees_PartialRedeem_30Percent() public {
+        uint256 depositAmount = 1e16;
+
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressUSDC, depositAmount, false);
+        hooksData[1] = _createRequestDeposit7540VaultHookData(
+            yieldSourceOracleId7540, yieldSource7540AddressUSDC, depositAmount, true
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry));
+        executeOp(userOpData);
+
+        investmentManager = IInvestmentManager(0xE79f06573d6aF1B66166A926483ba00924285d20);
+
+        vm.startPrank(rootManager);
+
+        uint256 userExpectedShares = vaultInstance7540.convertToShares(depositAmount);
+
+        investmentManager.fulfillDepositRequest(
+            poolId, trancheId, accountEth, assetId, uint128(depositAmount), uint128(userExpectedShares)
+        );
+
+        uint256 maxDeposit = vaultInstance7540.maxDeposit(accountEth);
+        userExpectedShares = vaultInstance7540.convertToShares(maxDeposit);
+
+        vm.stopPrank();
+
+        address[] memory hooksAddressesDeposit = new address[](1);
+        hooksAddressesDeposit[0] = _getHookAddress(ETH, DEPOSIT_7540_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksDataDeposit = new bytes[](1);
+        hooksDataDeposit[0] = _createDeposit7540VaultHookData(
+            yieldSourceOracleId7540, yieldSource7540AddressUSDC, maxDeposit, false, address(0), 0
+        );
+
+        ISuperExecutor.ExecutorEntry memory entryDeposit =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddressesDeposit, hooksData: hooksDataDeposit });
+        UserOpData memory userOpDataDeposit = _getExecOps(instanceOnEth, superExecutor, abi.encode(entryDeposit));
+        executeOp(userOpDataDeposit);
+
+        uint256 userShares = IERC20(vaultInstance7540.share()).balanceOf(accountEth);
+        uint256 partialShares = (userShares * 30) / 100;
+
+        vm.prank(accountEth);
+        IERC7540(yieldSource7540AddressUSDC).requestRedeem(partialShares, accountEth, accountEth);
+
+        uint256 userExpectedAssets = vaultInstance7540.convertToAssets(partialShares);
+
+        // FULFILL REDEEM
+        vm.prank(rootManager);
+        investmentManager.fulfillRedeemRequest(
+            poolId, trancheId, accountEth, assetId, uint128(userExpectedAssets), uint128(partialShares)
+        );
+
+        uint256 maxRedeemAmount = vaultInstance7540.maxRedeem(accountEth);
+        uint256 sharesAsAssets = vaultInstance7540.convertToAssets(maxRedeemAmount);
+
+        (uint256 expectedFee, uint256 expectedUserAssets) = _calculateExpectedFee7540(sharesAsAssets, partialShares);
 
         address[] memory hooksAddressesWithdraw = new address[](1);
         hooksAddressesWithdraw[0] = _getHookAddress(ETH, WITHDRAW_7540_VAULT_HOOK_KEY);
