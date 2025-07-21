@@ -176,7 +176,7 @@ contract VaultFeeTests is BaseTest {
         config.setYieldSourceOracles(yieldSourceOracleSalts, configs);
     }
 
-    function test_4626VaultFees() public {
+    function test_4626VaultFees_FullRedeem() public {
         uint256 depositAmount = 1e16;
 
         address[] memory hooksAddresses = new address[](2);
@@ -219,7 +219,7 @@ contract VaultFeeTests is BaseTest {
         assertEq(feeRecipientBalanceAfter, expectedFee, "Fee recipient did not receive correct shares");
     }
 
-    function test_5115VaultFees() public {
+    function test_5115VaultFees_FullRedeem() public {
         uint256 depositAmount = 1e16;
 
         address[] memory hooksAddresses = new address[](2);
@@ -271,7 +271,7 @@ contract VaultFeeTests is BaseTest {
         assertEq(feeRecipientBalanceAfter, expectedFee, "Fee recipient did not receive correct shares");
     }
 
-    function test_7540VaultFees() public {
+    function test_7540VaultFees_FullRedeem() public {
         uint256 depositAmount = 1e16;
 
         address[] memory hooksAddresses = new address[](2);
@@ -356,6 +356,10 @@ contract VaultFeeTests is BaseTest {
         assertEq(userBalanceAfter, expectedUserAssets, "User did not receive correct assets after fee");
         assertEq(feeRecipientBalanceAfter, expectedFee, "Fee recipient did not receive correct shares");
     }
+
+    /*//////////////////////////////////////////////////////////////
+                            HELPER FUNCTIONS
+    //////////////////////////////////////////////////////////////*/
 
     function _calculateExpectedFee4626(
         uint256 sharesAsAssets,
