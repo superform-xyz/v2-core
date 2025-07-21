@@ -19,6 +19,9 @@ import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/Mes
 import { INexus } from "../../src/vendor/nexus/INexus.sol";
 import { INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
 import { INexusFactory } from "../../src/vendor/nexus/INexusFactory.sol";
+import { IPermit2 } from "../../src/vendor/uniswap/permit2/IPermit2.sol";
+import { IPermit2Batch } from "../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
+import { IAllowanceTransfer } from "../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
 
 // Superform
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
@@ -27,6 +30,7 @@ import { ISuperNativePaymaster } from "../../src/interfaces/ISuperNativePaymaste
 import { ISuperLedger, ISuperLedgerData } from "../../src/interfaces/accounting/ISuperLedger.sol";
 import { ISuperDestinationExecutor } from "../../src/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperValidator } from "../../src/interfaces/ISuperValidator.sol";
+import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { SuperExecutorBase } from  "../../src/executors/SuperExecutorBase.sol";
 import { AcrossV3Adapter } from "../../src/adapters/AcrossV3Adapter.sol";
 import { DebridgeAdapter } from "../../src/adapters/DebridgeAdapter.sol";
@@ -42,7 +46,6 @@ import { ITranche } from "../mocks/centrifuge/ITranch.sol";
 import { IRoot } from "../mocks/centrifuge/IRoot.sol";
 
 
-
 contract CrosschainTests is BaseTest {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
@@ -50,6 +53,10 @@ contract CrosschainTests is BaseTest {
     address public rootManager;
  
     INexusBootstrap nexusBootstrap;
+
+    IAllowanceTransfer public permit2;
+    IPermit2Batch public permit2Batch;
+    bytes32 public permit2DomainSeparator;
 
     address public validatorSigner;
     uint256 public validatorSignerPrivateKey;
@@ -117,6 +124,13 @@ contract CrosschainTests is BaseTest {
     string public constant YIELD_SOURCE_4626_OP_USDCe_KEY = "YieldSource_4626_OP_USDCe";
     string public constant YIELD_SOURCE_ORACLE_4626_KEY = "YieldSourceOracle_4626";
 
+    bytes32 constant PERMIT2_BATCH_TYPE_HASH = keccak256(
+        "PermitBatch(PermitDetails[] details,address spender,uint256 sigDeadline)PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)"
+    );
+    bytes32 constant PERMIT2_DETAILS_TYPE_HASH = keccak256(
+        "PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)"
+    );
+
     // SUPERFORM CONTRACTS PER CHAIN
     // -- executors
     ISuperExecutor public superExecutorOnBase;
@@ -177,6 +191,7 @@ contract CrosschainTests is BaseTest {
         // CORE CHAIN CONTEXT
         vm.selectFork(FORKS[ETH]);
         CHAIN_1_TIMESTAMP = block.timestamp;
+       
         vm.selectFork(FORKS[OP]);
         CHAIN_10_TIMESTAMP = block.timestamp;
         vm.selectFork(FORKS[BASE]);
@@ -373,6 +388,214 @@ contract CrosschainTests is BaseTest {
     }
 
     //  >>>> ACCOUNT CREATION TESTS
+    function test_CrossChainCreateAccount_OnRamp_Offramp_Flow() public {
+        // create an account that will be later used to test Onramp-offramp flow
+        address accountCreated = _createAccountCrossChainFlow();
+        vm.label(accountCreated, "The account");
+        uint256 usageTimestamp = WARP_START_TIME + 100 days;
+        SELECT_FORK_AND_WARP(ETH, usageTimestamp);
+        assertGt(accountCreated.code.length, 0);
+        deal(accountCreated, 10 ether);
+
+        {
+            // permit2 setup
+            permit2 = IAllowanceTransfer(PERMIT2);
+            permit2Batch = IPermit2Batch(PERMIT2);
+            try IPermit2(PERMIT2).DOMAIN_SEPARATOR() returns (bytes32 domainSeparator) {
+                console2.log("retrieved from permit2");
+                console2.logBytes32(domainSeparator);
+                permit2DomainSeparator = domainSeparator;
+            } catch {
+                console2.log("using hardcoded");
+                permit2DomainSeparator = 0x866a5aba21966af95d6c7ab78eb2b2fc913915c28be3b9aa07cc04ff903e3f28;
+            }
+        }
+        
+        // create execution flow
+        // -- batchTransferFrom EOA to contract
+        // -- perform defi logic
+        // -- batchTransfer back to EOA unused funds + vault shares obtained
+        // -- Test scenario:
+        // ---- Transfer 2000e6 tokens (BatchTransferFrom hook)
+        // ---- Use 1000e6 to deposit to 4626 vault
+        // ---- Transfer everything back to EOA (OfframpTokensHook)
+        // setup
+        uint256 amount = 2000e6;
+        _getTokens(underlyingETH_USDC, validatorSigner, amount);
+
+        // check initial balances
+        uint256 tokenBalanceAccountCreatedBefore = IERC20(underlyingETH_USDC).balanceOf(accountCreated);
+        if (tokenBalanceAccountCreatedBefore > 0) {
+            // make sure account state is clean
+            // tokens exist because of cross chain transfers
+            vm.prank(accountCreated);
+            IERC20(underlyingETH_USDC).transfer(address(0x1), tokenBalanceAccountCreatedBefore);
+        }
+        {
+            uint256 tokenBalanceEOABefore = IERC20(underlyingETH_USDC).balanceOf(validatorSigner);
+            assertEq(tokenBalanceEOABefore, amount, "initial token balance for EOA is wrong");
+            uint256 vaultBalanceEOABefore = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(validatorSigner);
+            assertEq(vaultBalanceEOABefore, 0, "initial vault balance for EOA is wrong");
+
+            uint256 vaultTokenBalanceAccountBefore = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
+            assertEq(vaultTokenBalanceAccountBefore, 0, "initial vault balance for account is wrong");
+        }
+
+        PackedUserOperation[] memory ops;
+        {
+            ISuperExecutor.ExecutorEntry memory entry = _prepareDepositOnOffRampExecution(accountCreated, amount);
+            Execution[] memory executions = new Execution[](1);
+            executions[0] = Execution({
+                target: address(superExecutorOnETH),
+                value: 0,
+                callData: abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entry))
+            });
+            PackedUserOperation memory userOp = _createPackedUserOperation(
+                accountCreated, 
+                _prepareNonceWithValidator(accountCreated, address(sourceValidatorOnETH)), 
+                _prepareExecutionCalldata(executions)
+            );
+            ops = _signAndSendUserOp(userOp, address(sourceValidatorOnETH), accountCreated, false);
+        }
+
+        superNativePaymasterOnETH.handleOps{value: 1 ether}(ops);
+
+        {
+            // check final balances
+            uint256 tokenBalanceEOAAfter = IERC20(underlyingETH_USDC).balanceOf(validatorSigner);
+            assertEq(tokenBalanceEOAAfter, amount/2, "final token balance for EOA is wrong");
+            uint256 vaultBalanceEOAAfter = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(validatorSigner);
+            assertGt(vaultBalanceEOAAfter, 0, "final vault balance for EOA is wrong");
+
+            uint256 tokenBalanceAccountAfter = IERC20(underlyingETH_USDC).balanceOf(accountCreated);
+            assertEq(tokenBalanceAccountAfter, 0, "final token balance for account is wrong");
+            uint256 vaultTokenBalanceAccountAfter = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
+            assertEq(vaultTokenBalanceAccountAfter, 0, "final vault balance for account is wrong");
+        }
+    }
+
+    function test_CrossChainCreateAccount_OnRamp_Offramp_Fees_Flow() public {
+        // create an account that will be later used to test Onramp-offramp flow
+        address accountCreated = _createAccountCrossChainFlow();
+        vm.label(accountCreated, "The account");
+        uint256 usageTimestamp = WARP_START_TIME + 100 days;
+        SELECT_FORK_AND_WARP(ETH, usageTimestamp);
+        assertGt(accountCreated.code.length, 0);
+        deal(accountCreated, 10 ether);
+
+        {
+            // permit2 setup
+            permit2 = IAllowanceTransfer(PERMIT2);
+            permit2Batch = IPermit2Batch(PERMIT2);
+            try IPermit2(PERMIT2).DOMAIN_SEPARATOR() returns (bytes32 domainSeparator) {
+                console2.log("retrieved from permit2");
+                console2.logBytes32(domainSeparator);
+                permit2DomainSeparator = domainSeparator;
+            } catch {
+                console2.log("using hardcoded");
+                permit2DomainSeparator = 0x866a5aba21966af95d6c7ab78eb2b2fc913915c28be3b9aa07cc04ff903e3f28;
+            }
+        }
+        
+        address feeRecipient = makeAddr("newFeeRecipient");
+        // update fee to 1.5%
+        {
+            ISuperLedgerConfiguration configSuperLedger = ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY));
+            // Propose and accept a new config with fee = 150 (1.5%)
+            ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+            configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+                yieldSourceOracle:  _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+                feePercent: 150, // 1.5%
+                feeRecipient: feeRecipient,
+                ledger: _getContract(ETH, SUPER_LEDGER_KEY)
+            });
+            bytes32[] memory ids = new bytes32[](1);
+            ids[0] = _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER);
+            vm.prank(MANAGER);
+            configSuperLedger.proposeYieldSourceOracleConfig(ids, configs);
+
+            // Fast forward timelock
+            vm.warp(block.timestamp + 1 weeks);
+            vm.prank(MANAGER);
+            configSuperLedger.acceptYieldSourceOracleConfigProposal(ids);
+        }
+        
+        // create execution flow
+        // -- batchTransferFrom EOA to contract
+        // -- perform deposit
+        // -- perform withdraw and test fee 
+        // -- batchTransfer back to EOA unused funds
+        // -- Test scenario:
+        // ---- Transfer 2000e6 tokens (BatchTransferFrom hook)
+        // ---- Use 1000e6 to deposit to 4626 vault
+        // ---- Transfer everything back to EOA (OfframpTokensHook)
+        // setup
+        uint256 amount = 2000e6;
+        _getTokens(underlyingETH_USDC, validatorSigner, amount);
+
+        // check initial balances
+        uint256 tokenBalanceAccountCreatedBefore = IERC20(underlyingETH_USDC).balanceOf(accountCreated);
+        if (tokenBalanceAccountCreatedBefore > 0) {
+            // make sure account state is clean
+            // tokens exist because of cross chain transfers
+            vm.prank(accountCreated);
+            IERC20(underlyingETH_USDC).transfer(address(0x1), tokenBalanceAccountCreatedBefore);
+        }
+        {
+            uint256 tokenBalanceEOABefore = IERC20(underlyingETH_USDC).balanceOf(validatorSigner);
+            assertEq(tokenBalanceEOABefore, amount, "initial token balance for EOA is wrong");
+            uint256 vaultBalanceEOABefore = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(validatorSigner);
+            assertEq(vaultBalanceEOABefore, 0, "initial vault balance for EOA is wrong");
+
+            uint256 vaultTokenBalanceAccountBefore = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
+            assertEq(vaultTokenBalanceAccountBefore, 0, "initial vault balance for account is wrong");
+
+            uint256 feeRecipientTokenBalance = IERC20(underlyingETH_USDC).balanceOf(feeRecipient);
+            assertEq(feeRecipientTokenBalance, 0, "initial fee recipient token balance is wrong");
+            uint256 feeRecipientVaultBalance = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(feeRecipient);
+            assertEq(feeRecipientVaultBalance, 0, "initial fee recipient vault balance is wrong");
+        }
+
+        PackedUserOperation[] memory ops;
+        {
+            ISuperExecutor.ExecutorEntry memory entry = _prepareDepositAndRedeemOnOffRampExecution(accountCreated, amount);
+            Execution[] memory executions = new Execution[](1);
+            executions[0] = Execution({
+                target: address(superExecutorOnETH),
+                value: 0,
+                callData: abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entry))
+            });
+            PackedUserOperation memory userOp = _createPackedUserOperation(
+                accountCreated, 
+                _prepareNonceWithValidator(accountCreated, address(sourceValidatorOnETH)), 
+                _prepareExecutionCalldata(executions)
+            );
+            ops = _signAndSendUserOp(userOp, address(sourceValidatorOnETH), accountCreated, false);
+        }
+
+        superNativePaymasterOnETH.handleOps{value: 1 ether}(ops);
+
+        {
+            // check final balances
+            uint256 tokenBalanceEOAAfter = IERC20(underlyingETH_USDC).balanceOf(validatorSigner);
+            assertLt(tokenBalanceEOAAfter, amount, "final token balance for EOA is wrong 1");
+            assertGt(tokenBalanceEOAAfter, amount/2, "final token balance for EOA is wrong 2");
+            uint256 vaultBalanceEOAAfter = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(validatorSigner);
+            assertEq(vaultBalanceEOAAfter, 0, "final vault balance for EOA is wrong");
+
+            uint256 tokenBalanceAccountAfter = IERC20(underlyingETH_USDC).balanceOf(accountCreated);
+            assertEq(tokenBalanceAccountAfter, 0, "final token balance for account is wrong");
+            uint256 vaultTokenBalanceAccountAfter = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
+            assertEq(vaultTokenBalanceAccountAfter, 0, "final vault balance for account is wrong");
+
+            uint256 feeRecipientTokenBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(feeRecipient);
+            assertGt(feeRecipientTokenBalanceAfter, 0, "final fee recipient token balance is wrong");
+            uint256 feeRecipientVaultBalanceAfter = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(feeRecipient);
+            assertEq(feeRecipientVaultBalanceAfter, 0, "final fee recipient vault balance is wrong");
+        }
+    }
+
     function test_Bridge_To_ETH_And_Create_Nexus_Account() public {
         uint256 amountPerVault = 1e8 / 2;
 
@@ -2488,6 +2711,127 @@ contract CrosschainTests is BaseTest {
     /*//////////////////////////////////////////////////////////////
                           INTERNAL LOGIC HELPERS
     //////////////////////////////////////////////////////////////*/
+    function _prepareDepositOnOffRampExecution(address accountCreated, uint256 amount) private returns (ISuperExecutor.ExecutorEntry memory entry) {
+        // permit2 setup
+        address[] memory _tokens = new address[](1);
+        _tokens[0] = underlyingETH_USDC;
+        uint256[] memory _amounts = new uint256[](1);
+        _amounts[0] = amount;
+        uint48[] memory _nonces = new uint48[](1);
+        _nonces[0] = 0;
+        uint256 sigDeadline = block.timestamp + 10 days;
+        IAllowanceTransfer.PermitBatch memory permitBatch = _createPermitBatchData(accountCreated, _tokens, _amounts, uint48(sigDeadline), _nonces);
+        bytes memory permit2Sig = _getPermitBatchSignature(permitBatch, permit2DomainSeparator, PERMIT2_BATCH_TYPE_HASH);
+
+        vm.prank(validatorSigner);
+        IERC20(underlyingETH_USDC).approve(PERMIT2, amount);
+
+        uint256 previewDepositAmount = IERC4626(yieldSourceMorphoUsdcAddressEth).previewDeposit(amount/2);
+
+        address[] memory srcHooksAddresses = new address[](4);
+        srcHooksAddresses[0] = _getHookAddress(ETH, BATCH_TRANSFER_FROM_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[2] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        srcHooksAddresses[3] = _getHookAddress(ETH, OFFRAMP_TOKENS_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](4);
+        srcHooksData[0] = _createBatchTransferFromHookData(validatorSigner, 1, sigDeadline, _tokens, _amounts, _nonces,  permit2Sig);
+        srcHooksData[1] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount/2, false);
+        srcHooksData[2] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressEth,
+            amount/2,
+            false,
+            address(0),
+            0
+        );
+        address[] memory offRampTokens = new address[](2);
+        offRampTokens[0] = underlyingETH_USDC;
+        offRampTokens[1] = yieldSourceMorphoUsdcAddressEth;
+        srcHooksData[3] = _createOfframpTokensHookData(validatorSigner, offRampTokens);
+
+        entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
+    }
+    function _prepareDepositAndRedeemOnOffRampExecution(address accountCreated, uint256 amount) private returns (ISuperExecutor.ExecutorEntry memory entry) {
+        // permit2 setup
+        address[] memory _tokens = new address[](1);
+        _tokens[0] = underlyingETH_USDC;
+        uint256[] memory _amounts = new uint256[](1);
+        _amounts[0] = amount;
+        uint48[] memory _nonces = new uint48[](1);
+        _nonces[0] = 0;
+        uint256 sigDeadline = block.timestamp + 10 days;
+        IAllowanceTransfer.PermitBatch memory permitBatch = _createPermitBatchData(accountCreated, _tokens, _amounts, uint48(sigDeadline), _nonces);
+        bytes memory permit2Sig = _getPermitBatchSignature(permitBatch, permit2DomainSeparator, PERMIT2_BATCH_TYPE_HASH);
+
+        vm.prank(validatorSigner);
+        IERC20(underlyingETH_USDC).approve(PERMIT2, amount);
+
+        uint256 previewDepositAmount = IERC4626(yieldSourceMorphoUsdcAddressEth).previewDeposit(amount/2);
+
+        address[] memory srcHooksAddresses = new address[](5);
+        srcHooksAddresses[0] = _getHookAddress(ETH, BATCH_TRANSFER_FROM_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[2] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        srcHooksAddresses[3] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        srcHooksAddresses[4] = _getHookAddress(ETH, OFFRAMP_TOKENS_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](5);
+        srcHooksData[0] = _createBatchTransferFromHookData(validatorSigner, 1, sigDeadline, _tokens, _amounts, _nonces,  permit2Sig);
+        srcHooksData[1] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount/2, false);
+        srcHooksData[2] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressEth,
+            amount/2,
+            false,
+            address(0),
+            0
+        );
+        srcHooksData[3] = _createRedeem4626HookData(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER), yieldSourceMorphoUsdcAddressEth, accountCreated, previewDepositAmount, false);
+        address[] memory offRampTokens = new address[](1);
+        offRampTokens[0] = underlyingETH_USDC;
+        srcHooksData[4] = _createOfframpTokensHookData(validatorSigner, offRampTokens);
+
+        entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
+    }
+    function _createPermitBatchData(address spender, address[] memory tokens, uint256[] memory amounts, uint48 expiration, uint48[] memory _nonces) private pure returns(IAllowanceTransfer.PermitBatch memory) {
+        IAllowanceTransfer.PermitDetails[] memory details = new IAllowanceTransfer.PermitDetails[](tokens.length);
+        uint256 len = tokens.length;
+        for (uint256 i; i < len; ++i) {
+            details[i] = IAllowanceTransfer.PermitDetails({
+                token: tokens[i],
+                amount: uint160(amounts[i]),
+                expiration: expiration,
+                nonce: _nonces[i]
+            });
+        }
+
+        return IAllowanceTransfer.PermitBatch({ details: details, spender: spender, sigDeadline: expiration });
+    }
+    function _getPermitBatchSignature(IAllowanceTransfer.PermitBatch memory permit, bytes32 domain, bytes32 typeHash) private view returns(bytes memory sig) {
+        uint256 len = permit.details.length;
+        bytes32[] memory permitHashes = new bytes32[](len);
+        for (uint256 i; i < len; ++i) {
+            permitHashes[i] = keccak256(abi.encode(PERMIT2_DETAILS_TYPE_HASH, permit.details[i]));
+        }
+        bytes32 messageHash = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                domain,
+                keccak256(
+                    abi.encode(
+                        typeHash,
+                        keccak256(abi.encodePacked(permitHashes)),
+                        permit.spender,
+                        permit.sigDeadline
+                    )
+                )
+            )
+        );
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(validatorSignerPrivateKey, messageHash);
+        return bytes.concat(r, s, bytes1(v));
+    }
+
     function _createAccountCrossChainFlow() private returns (address) {
         uint256 amountPerVault = 1e8 / 2;
 
@@ -2609,7 +2953,7 @@ contract CrosschainTests is BaseTest {
             _prepareExecutionCalldata(executions)
         );
 
-        _signAndSendUserOp(userOp, validatorToUse, acc);
+        _signAndSendUserOp(userOp, validatorToUse, acc, true);
     }
     function _uninstallModuleOnAccount(address acc, uint256 moduleType, address module, bytes memory initData, address validatorToUse) private {
         Execution[] memory executions = new Execution[](1);
@@ -2625,7 +2969,7 @@ contract CrosschainTests is BaseTest {
             _prepareExecutionCalldata(executions)
         );
 
-        _signAndSendUserOp(userOp, validatorToUse, acc);
+        _signAndSendUserOp(userOp, validatorToUse, acc, true);
     }
     function _executeHooksThroughEntrypoint(address account, address executor, address validator, ISuperExecutor.ExecutorEntry memory entry) internal {
         Execution[] memory executions = new Execution[](1);
@@ -2641,9 +2985,9 @@ contract CrosschainTests is BaseTest {
             _prepareExecutionCalldata(executions)
         );
 
-        _signAndSendUserOp(userOp, validator, account);
+        _signAndSendUserOp(userOp, validator, account, true);
     }
-    function _signAndSendUserOp(PackedUserOperation memory userOp, address validator, address beneficiary) private {
+    function _signAndSendUserOp(PackedUserOperation memory userOp, address validator, address beneficiary, bool execute) private returns (PackedUserOperation[] memory userOps) {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createSourceValidatorLeaf(
@@ -2666,10 +3010,11 @@ contract CrosschainTests is BaseTest {
 
         userOp.signature = sigData;
 
-        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps = new PackedUserOperation[](1);
         userOps[0] = userOp;
-
-        IEntryPoint(ENTRYPOINT_ADDR).handleOps(userOps, payable(beneficiary));
+        if (execute) {
+            IEntryPoint(ENTRYPOINT_ADDR).handleOps(userOps, payable(beneficiary));
+        }
     }
     function _prepareExecutionCalldata(Execution[] memory executions)
         internal
@@ -2716,9 +3061,9 @@ contract CrosschainTests is BaseTest {
             nonce: nonce,
             initCode: "", //we assume contract is already deployed (following the Bundler flow)
             callData: callData,
-            accountGasLimits: bytes32(abi.encodePacked(uint128(3e6), uint128(1e6))),
-            preVerificationGas: 3e5,
-            gasFees: bytes32(abi.encodePacked(uint128(3e5), uint128(1e7))),
+            accountGasLimits: bytes32(abi.encodePacked(uint128(2e6), uint128(2e6))),
+            preVerificationGas: 2e6,
+            gasFees: bytes32(abi.encodePacked(uint128(1), uint128(1))),
             paymasterAndData: "",
             signature: hex"1234"
         });
