@@ -2,9 +2,7 @@
 pragma solidity 0.8.30;
 
 // external
-import { console2 } from "forge-std/console2.sol";
-import { UserOpData } from "modulekit/ModuleKit.sol";
-import { MockERC20 } from "../mocks/MockERC20.sol";
+import { MockVaultBank } from "../mocks/MockVaultBank.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -15,9 +13,9 @@ import { IGearboxFarmingPool } from "../../src/vendor/gearbox/IGearboxFarmingPoo
 // Superform
 import { BaseTest } from "../BaseTest.t.sol";
 import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
-import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
-import { IVaultBank } from "../../src/vendor/superform/IVaultBank.sol";
+import { SuperExecutor } from "../../src/executors/superExecutor.sol";
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
+import { IVaultBank, IVaultBankSource, IVaultBankDestination } from "../../src/vendor/superform/IVaultBank.sol";
 import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { MintSuperPositionsHook } from "../../src/hooks/vaults/vault-bank/MintSuperPositionsHook.sol";
 import { ERC4626YieldSourceOracle } from "../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -30,34 +28,37 @@ contract CompositeHookFlowTests is BaseTest {
 
     uint256 depositAmount = 1e18;
 
-    // IStandardizedYield public vaultInstance5115ETH;
     IERC4626 public vaultInstance4626;
     IGearboxFarmingPool public gearboxStaking;
 
     address public underlyingETH_USDC;
-
-    address public yieldSource4626AddressUSDC;
     address public yieldSourceStakingAddress;
+    address public yieldSource4626AddressUSDC;
 
     address public accountEth;
     address public accountBase;
-
     AccountInstance public instanceOnEth;
     AccountInstance public instanceOnBase;
 
-    address public vaultBank;
+    MockVaultBank public vaultBankETH;
+    MockVaultBank public vaultBankBase;
+
+    address public vaultBankAddressETH;
+    address public vaultBankAddressBase;
+
+    address public manager;
+    address public feeRecipient;
 
     SuperLedger public superLedger;
     SuperLedgerConfiguration public config;
 
-    SuperExecutor public superExecutor;
-    ISuperExecutor public superExecutorInterface;
+    SuperExecutor public superExecutorETH;
+    ISuperExecutor public superExecutorETHInterface;
+    SuperExecutor public superExecutorBase;
+    ISuperExecutor public superExecutorBaseInterface;
 
     ERC4626YieldSourceOracle public oracle4626;
     StakingYieldSourceOracle public oracleStaking;
-
-    address public manager;
-    address public feeRecipient;
 
     bytes32 public yieldSourceOracleId4626;
     bytes32 public yieldSourceOracleIdStaking;
@@ -80,16 +81,19 @@ contract CompositeHookFlowTests is BaseTest {
         yieldSourceStakingAddress = CHAIN_1_GearboxStaking;
         gearboxStaking = IGearboxFarmingPool(yieldSourceStakingAddress);
 
+        vaultBankETH = new MockVaultBank();
+        vaultBankAddressETH = address(vaultBankETH);
+
         config = new SuperLedgerConfiguration();
-        superExecutor = new SuperExecutor(address(config));
-        superExecutorInterface = ISuperExecutor(address(superExecutor));
+        superExecutorETH = new SuperExecutor(address(config));
+        superExecutorETHInterface = ISuperExecutor(address(superExecutorETH));
 
         address[] memory executors = new address[](1);
-        executors[0] = address(superExecutor);
+        executors[0] = address(superExecutorETH);
 
         superLedger = new SuperLedger(address(config), executors);
 
-        instanceOnEth.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
+        instanceOnEth.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorETH), data: "" });
 
         oracle4626 = new ERC4626YieldSourceOracle(address(superLedger));
         oracleStaking = new StakingYieldSourceOracle(address(superLedger));
@@ -126,12 +130,21 @@ contract CompositeHookFlowTests is BaseTest {
         config.setYieldSourceOracles(yieldSourceOracleSalts, configs);
 
         vm.selectFork(FORKS[BASE]);
-        vaultBank = makeAddr("vaultBank");
+
+        // superExecutorBase = new superExecutorETH(address(config));
+        // superExecutorETHInterfaceBase = ISuperExecutor(address(superExecutorBase));
+
+        vaultBankBase = new MockVaultBank();
+        vaultBankAddressBase = address(vaultBankBase);
+
+        // instanceOnBase.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorETH), data: "" });
 
         instanceOnBase = accountInstances[BASE];
         accountBase = instanceOnBase.account;
     }
 
+    // In this test, we lock the staking shares in the VaultBank via the user calling the lockAsset function
+    // and then redeem them back to the ETH chain and assert the correct fee amounts and balances
     function test_CompositeHookFlow_UserLocksAssets() public {
         vm.selectFork(FORKS[ETH]);
 
@@ -152,7 +165,7 @@ contract CompositeHookFlowTests is BaseTest {
         _executeVaultBankLockFlow_UserLocksAssets(userSharesStaking);
 
         // Asynchronous redeem back to ETH & unlock assets
-        _executeVaultBankRedeemFlow_UserUnLocksAssets(userSharesStaking, yieldSourceStakingAddress);
+        _executeVaultBankRedeemFlow_UserUnlocksAssets(userSharesStaking);
 
         // Withdraw from staking protocol
         _executeGearboxUnstakeFlow();
@@ -171,7 +184,9 @@ contract CompositeHookFlowTests is BaseTest {
         assertEq(gearboxStaking.balanceOf(accountEth), 0);
     }
 
-    function test_CompositeHookFlow_SharesLocked_ViaPriorHook() public {
+    // In this test, we lock the staking shares in the VaultBank via the MintSuperPositionsHook
+    // and then redeem them back to the ETH chain and assert the correct fee amounts and balances
+    function test_CompositeHookFlow_SharesLocked_ViaHook() public {
         vm.selectFork(FORKS[ETH]);
 
         // Execute 4626 vault deposit
@@ -186,6 +201,28 @@ contract CompositeHookFlowTests is BaseTest {
         _executeGearboxStakeFlow(userShares);
 
         uint256 userSharesStaking = gearboxStaking.balanceOf(accountEth);
+
+        // Lock staking shares in VaultBank & bridge to another chain
+        _executeVaultBankLockFlow_ViaHook(userSharesStaking);
+
+        // Asynchronous redeem back to ETH & unlock assets
+        _executeVaultBankRedeemFlow_UserUnlocksAssets(userSharesStaking);
+
+        // Withdraw from staking protocol
+        _executeGearboxUnstakeFlow();
+
+        // Redeem from 4626 vault
+        _execute4626RedeemFlow(userShares);
+
+        // Verify fee amounts from redeeming are co rrect
+        uint256 userBalanceAfterRedeem = IERC20(underlyingETH_USDC).balanceOf(accountEth);
+
+        assertEq(userBalanceAfterRedeem, expectedUserAssets);
+        assertEq(IERC20(underlyingETH_USDC).balanceOf(feeRecipient), expectedFee);
+
+        // Verify vault and staking balances are 0
+        assertEq(vaultInstance4626.balanceOf(accountEth), 0);
+        assertEq(gearboxStaking.balanceOf(accountEth), 0);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -216,7 +253,7 @@ contract CompositeHookFlowTests is BaseTest {
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry));
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorETH, abi.encode(entry));
         executeOp(userOpData);
     }
 
@@ -231,36 +268,48 @@ contract CompositeHookFlowTests is BaseTest {
 
         ISuperExecutor.ExecutorEntry memory entryStake =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddressesStake, hooksData: hooksDataStake });
-        UserOpData memory userOpDataStake = _getExecOps(instanceOnEth, superExecutor, abi.encode(entryStake));
+        UserOpData memory userOpDataStake = _getExecOps(instanceOnEth, superExecutorETH, abi.encode(entryStake));
         executeOp(userOpDataStake);
     }
 
     function _executeVaultBankLockFlow_UserLocksAssets(uint256 amount) internal {
-        address[] memory hooksAddresses = new address[](1);
-        hooksAddresses[0] = address(new MintSuperPositionsHook());
+        vm.startPrank(accountEth);
+        IERC20(yieldSourceStakingAddress).approve(vaultBankAddressETH, amount);
 
-        address spToken = yieldSourceStakingAddress;
+        vm.expectEmit(false, false, false, true);
+        emit IVaultBankSource.SharesLocked(yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, uint64(block.chainid), 84_532, 0);
+
+        IVaultBank(vaultBankAddressETH).lockAsset(yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, address(0), amount, 84_532);
+        vm.stopPrank();
+    }
+
+    function _executeVaultBankLockFlow_ViaHook(uint256 amount) internal {
+        address[] memory hooksAddresses = new address[](1);
+        hooksAddresses[0] = _getHookAddress(ETH, MINT_SUPERPOSITIONS_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] =
-            _createMintSuperPositionsHookData(yieldSourceOracleIdVaultBank, spToken, amount, false, vaultBank, 84_532);
+        hooksData[0] = _createMintSuperPositionsHookData(yieldSourceOracleIdStaking, yieldSourceStakingAddress, amount, false, vaultBankAddressETH, 84_532);
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
-        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutor, abi.encode(entry));
+        UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorETH, abi.encode(entry));
         executeOp(userOpData);
     }
 
-    function _executeVaultBankRedeemFlow_UserUnLocksAssets(uint256 amount, address spToken) internal {
+    function _executeVaultBankRedeemFlow_UserUnlocksAssets(uint256 amount) internal {
         vm.selectFork(FORKS[BASE]);
 
-        vm.startPrank(accountBase);
-        // IVaultBank(vaultBank).burnSuperPosition(amount, spToken, 1, yieldSourceOracleIdVaultBank);
-        vm.stopPrank();
+        vm.prank(accountBase);
+        vm.expectEmit(false, false, false, true);
+        emit IVaultBank.SuperpositionsBurned(address(0), address(vaultBankBase), address(0), amount, uint64(block.chainid), 0);
+        IVaultBank(vaultBankAddressBase).burnSuperPosition(amount, vaultBankAddressBase, 84_532, yieldSourceOracleIdStaking);
 
         vm.selectFork(FORKS[ETH]);
-        //IVaultBank(vaultBank).unlockAsset(accountEth, spToken, amount, 84_532, yieldSourceOracleIdVaultBank, "");
-        vm.stopPrank();
+
+        vm.prank(accountEth);
+        vm.expectEmit(false, false, false, true);
+        emit IVaultBankSource.SharesUnlocked(yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, uint64(block.chainid), 84_532, 0);
+        IVaultBank(vaultBankAddressETH).unlockAsset(accountEth, yieldSourceStakingAddress, amount, 84_532, yieldSourceOracleIdStaking, bytes(""));
     }
 
     function _executeGearboxUnstakeFlow() internal {
@@ -276,7 +325,7 @@ contract CompositeHookFlowTests is BaseTest {
 
         ISuperExecutor.ExecutorEntry memory entryUnstake =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddressesUnstake, hooksData: hooksDataUnstake });
-        UserOpData memory userOpDataUnstake = _getExecOps(instanceOnEth, superExecutor, abi.encode(entryUnstake));
+        UserOpData memory userOpDataUnstake = _getExecOps(instanceOnEth, superExecutorETH, abi.encode(entryUnstake));
         executeOp(userOpDataUnstake);
     }
 
@@ -291,7 +340,7 @@ contract CompositeHookFlowTests is BaseTest {
 
         ISuperExecutor.ExecutorEntry memory entryRedeem =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddressesRedeem, hooksData: hooksDataRedeem });
-        UserOpData memory userOpDataRedeem = _getExecOps(instanceOnEth, superExecutor, abi.encode(entryRedeem));
+        UserOpData memory userOpDataRedeem = _getExecOps(instanceOnEth, superExecutorETH, abi.encode(entryRedeem));
         executeOp(userOpDataRedeem);
     }
 }
