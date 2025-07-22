@@ -259,6 +259,7 @@ contract CompositeHookFlowTests is BaseTest {
         executeOp(userOpData);
     }
 
+    /// @notice Executes the Gearbox stake flow via hook executions
     function _executeGearboxStakeFlow(uint256 userShares) internal {
         address[] memory hooksAddressesStake = new address[](1);
         hooksAddressesStake[0] = _getHookAddress(ETH, GEARBOX_APPROVE_AND_STAKE_HOOK_KEY);
@@ -274,6 +275,7 @@ contract CompositeHookFlowTests is BaseTest {
         executeOp(userOpDataStake);
     }
 
+    /// @notice Executes the VaultBank lock flow via user calling the lockAsset function
     function _executeVaultBankLockFlow_UserLocksAssets(uint256 amount) internal {
         vm.startPrank(accountEth);
         IERC20(yieldSourceStakingAddress).approve(vaultBankAddressETH, amount);
@@ -285,6 +287,7 @@ contract CompositeHookFlowTests is BaseTest {
         vm.stopPrank();
     }
 
+    /// @notice Executes the VaultBank lock flow via the MintSuperPositionsHook
     function _executeVaultBankLockFlow_ViaHook(uint256 amount) internal {
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = _getHookAddress(ETH, MINT_SUPERPOSITIONS_HOOK_KEY);
@@ -301,6 +304,7 @@ contract CompositeHookFlowTests is BaseTest {
         executeOp(userOpData);
     }
 
+    /// @notice Executes the VaultBank redeem flow via user calling the burnSuperPosition function
     function _executeVaultBankRedeemFlow_UserUnlocksAssets(uint256 amount) internal {
         vm.selectFork(FORKS[BASE]);
 
@@ -317,6 +321,7 @@ contract CompositeHookFlowTests is BaseTest {
         IVaultBank(vaultBankAddressETH).unlockAsset(accountEth, yieldSourceStakingAddress, amount, 84_532, yieldSourceOracleIdStaking, bytes(""));
     }
 
+    /// @notice Executes the Gearbox unstake flow via hook executions
     function _executeGearboxUnstakeFlow() internal {
         uint256 userStakingBalance = gearboxStaking.balanceOf(accountEth);
 
@@ -334,6 +339,7 @@ contract CompositeHookFlowTests is BaseTest {
         executeOp(userOpDataUnstake);
     }
 
+    /// @notice Executes the 4626 vault redeem flow via hook executions
     function _execute4626RedeemFlow(uint256 userShares) internal {
         address[] memory hooksAddressesRedeem = new address[](1);
         hooksAddressesRedeem[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
