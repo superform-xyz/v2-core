@@ -228,6 +228,7 @@ contract CompositeHookFlowTests is BaseTest {
     /*//////////////////////////////////////////////////////////////
                             HELPER FUNCTIONS
     //////////////////////////////////////////////////////////////*/
+    /// @notice Calculates the expected fee and user assets for the 4626 vault
     function _calculateExpectedFee4626Vault(
         uint256 sharesAsAssets,
         uint256 userShares
@@ -240,6 +241,7 @@ contract CompositeHookFlowTests is BaseTest {
         expectedUserAssets = sharesAsAssets - expectedFee;
     }
 
+    /// @notice Executes the 4626 vault deposit flow via hook executions
     function _execute4626DepositFlow() internal {
         address[] memory hooksAddresses = new address[](2);
         hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
@@ -293,6 +295,9 @@ contract CompositeHookFlowTests is BaseTest {
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorETH, abi.encode(entry));
+
+        vm.expectEmit(false, false, false, true);
+        emit IVaultBankSource.SharesLocked(yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, uint64(block.chainid), 84_532, 0);
         executeOp(userOpData);
     }
 
