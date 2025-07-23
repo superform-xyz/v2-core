@@ -865,4 +865,15 @@ abstract contract InternalHelpers is Test {
     {
         return abi.encodePacked(part1, part2);
     }
+
+    function _createMintSuperPositionsHookData(
+        bytes32 yieldSourceOracleId,
+        address spToken,
+        uint256 amount,
+        bool usePrevHookAmount,
+        address vaultBank,
+        uint256 dstChainId
+    ) internal pure returns (bytes memory) {
+        return abi.encodePacked(yieldSourceOracleId, spToken, amount, usePrevHookAmount, vaultBank, dstChainId);
+    }
 }
