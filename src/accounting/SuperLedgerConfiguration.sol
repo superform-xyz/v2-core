@@ -207,6 +207,26 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
         }
     }
 
+    /// @inheritdoc ISuperLedgerConfiguration
+    function transferManagerRole(bytes32 yieldSourceOracleId, address newManager) external virtual {
+        YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
+        if (config.manager != msg.sender) revert NOT_MANAGER();
+        if (newManager == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
+
+        pendingManager[yieldSourceOracleId] = newManager;
+
+        emit ManagerRoleTransferStarted(yieldSourceOracleId, msg.sender, newManager);
+    }
+
+    /// @inheritdoc ISuperLedgerConfiguration
+    function acceptManagerRole(bytes32 yieldSourceOracleId) external virtual {
+        if (pendingManager[yieldSourceOracleId] != msg.sender) revert NOT_PENDING_MANAGER();
+        yieldSourceOracleConfig[yieldSourceOracleId].manager = msg.sender;
+        delete pendingManager[yieldSourceOracleId];
+
+        emit ManagerRoleTransferAccepted(yieldSourceOracleId, msg.sender);
+    }
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
@@ -239,26 +259,7 @@ contract SuperLedgerConfiguration is ISuperLedgerConfiguration {
             configs[i] = yieldSourceOracleConfig[yieldSourceOracleIds[i]];
         }
     }
-    /// @inheritdoc ISuperLedgerConfiguration
 
-    function transferManagerRole(bytes32 yieldSourceOracleId, address newManager) external virtual {
-        YieldSourceOracleConfig memory config = yieldSourceOracleConfig[yieldSourceOracleId];
-        if (config.manager != msg.sender) revert NOT_MANAGER();
-        if (newManager == address(0)) revert ZERO_ADDRESS_NOT_ALLOWED();
-
-        pendingManager[yieldSourceOracleId] = newManager;
-
-        emit ManagerRoleTransferStarted(yieldSourceOracleId, msg.sender, newManager);
-    }
-
-    /// @inheritdoc ISuperLedgerConfiguration
-    function acceptManagerRole(bytes32 yieldSourceOracleId) external virtual {
-        if (pendingManager[yieldSourceOracleId] != msg.sender) revert NOT_PENDING_MANAGER();
-        yieldSourceOracleConfig[yieldSourceOracleId].manager = msg.sender;
-        delete pendingManager[yieldSourceOracleId];
-
-        emit ManagerRoleTransferAccepted(yieldSourceOracleId, msg.sender);
-    }
     /*//////////////////////////////////////////////////////////////
                             INTERNAL FUNCTIONS
     //////////////////////////////////////////////////////////////*/
