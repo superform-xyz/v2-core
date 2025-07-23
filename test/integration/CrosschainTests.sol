@@ -181,6 +181,16 @@ contract CrosschainTests is BaseTest {
         UserOpData srcUserOpData;
         bytes signatureData;
     }
+    // for test `test_CrossChain_SignatureReplay_Prevention`
+    struct SignatureReplayTestData {
+        uint256 amountPerVault;
+        bytes targetExecutorMessage;
+        address accountToUse;
+        TargetExecutorMessage messageData;
+        address[] srcHooksAddresses;
+        bytes[] srcHooksData;
+        bytes signatureData;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                 SETUP
@@ -596,6 +606,43 @@ contract CrosschainTests is BaseTest {
         }
     }
 
+    function test_Create_ETH_Account_And_Use_As_Source() public {
+        uint256 ethAccountCreationTimestamp = WARP_START_TIME;
+        SELECT_FORK_AND_WARP(ETH, ethAccountCreationTimestamp);
+        
+        address ethAccountCreated = _createAccountCrossChainFlow();
+        vm.label(ethAccountCreated, "ETH Nexus Account");
+
+        SELECT_FORK_AND_WARP(ETH, ethAccountCreationTimestamp + 31 days);
+        assertGt(ethAccountCreated.code.length, 0, "ETH account creation failed");
+        deal(ethAccountCreated, 10 ether);
+        deal(underlyingETH_USDC, ethAccountCreated, 1e8);
+        
+        uint256 depositAmount = 5e7;
+        uint256 vaultBalanceAfter = _executeDepositFromAccount(ethAccountCreated, depositAmount);
+        _executeRedeemFromAccount(ethAccountCreated, vaultBalanceAfter, depositAmount);
+    }
+    
+    function test_Create_ETHandBASE_accounts() public {
+        uint256 startTimestamp = WARP_START_TIME;
+        
+        // create ETH account
+        SELECT_FORK_AND_WARP(ETH, startTimestamp);
+        address ethAccountCreated = _createAccountCrossChainFlow();
+        vm.label(ethAccountCreated, "ETH Nexus Account");
+
+        // assert ETH 
+        SELECT_FORK_AND_WARP(ETH, startTimestamp + 31 days);
+        assertGt(ethAccountCreated.code.length, 0, "ETH account creation failed");
+        deal(ethAccountCreated, 10 ether);
+        deal(underlyingETH_USDC, ethAccountCreated, 1e8);
+    
+        // try base - sig is already stored
+        SELECT_FORK_AND_WARP(BASE, startTimestamp + 60 days);
+        address baseAccountCreated = _createAccountOnBASECrossChainFlow(true);
+        vm.label(baseAccountCreated, "BASE Nexus Account");
+    }
+
     function test_Bridge_To_ETH_And_Create_Nexus_Account() public {
         uint256 amountPerVault = 1e8 / 2;
 
@@ -817,6 +864,15 @@ contract CrosschainTests is BaseTest {
     }
 
     //  >>>> ACROSS
+    function test_CrossChain_SignatureReplay_Prevention() public {
+        SignatureReplayTestData memory testData = _prepareSignatureReplayTest();
+        
+        // same chain replay
+        _testSameChainReplayAttack(testData);
+        // cross chain replay
+        _testCrossChainReplayAttack(testData);
+    }
+
     function test_BASE_to_ETH_And_7540RequestDeposit() public {
         uint256 amountPerVault = 1e8 / 2;
 
@@ -1953,6 +2009,121 @@ contract CrosschainTests is BaseTest {
     /*//////////////////////////////////////////////////////////////
                           INTERNAL CROSS-CHAIN TRANSFERS
     //////////////////////////////////////////////////////////////*/
+    function _prepareSignatureReplayTest() private returns (SignatureReplayTestData memory) {
+        SignatureReplayTestData memory testData;
+        testData.amountPerVault = 1e8 / 2;
+        
+        // ETH IS DST
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+        
+        // PREPARE ETH DATA
+        {
+            address[] memory dstHookAddresses = new address[](0);
+            bytes[] memory dstHookData = new bytes[](0);
+            
+            testData.messageData = TargetExecutorMessage({
+                hooksAddresses: dstHookAddresses,
+                hooksData: dstHookData,
+                validator: address(destinationValidatorOnETH),
+                signer: validatorSigner,
+                signerPrivateKey: validatorSignerPrivateKey,
+                targetAdapter: address(acrossV3AdapterOnETH),
+                targetExecutor: address(superTargetExecutorOnETH),
+                nexusFactory: CHAIN_1_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+                chainId: uint64(ETH),
+                amount: testData.amountPerVault,
+                account: address(0),
+                tokenSent: underlyingETH_USDC
+            });
+            
+            (testData.targetExecutorMessage, testData.accountToUse) = _createTargetExecutorMessage(testData.messageData);
+        }
+        
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+        
+        // PREPARE BASE DATA
+        testData.srcHooksAddresses = new address[](2);
+        testData.srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        testData.srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+        
+        testData.srcHooksData = new bytes[](2);
+        testData.srcHooksData[0] = _createApproveHookData(
+            underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], testData.amountPerVault, false
+        );
+        testData.srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingBase_USDC, underlyingETH_USDC, testData.amountPerVault, testData.amountPerVault, ETH, true, testData.targetExecutorMessage
+        );
+        
+        // Create the original user operation
+        UserOpData memory srcUserOpData = _createUserOpData(testData.srcHooksAddresses, testData.srcHooksData, BASE, true);
+        
+        // Generate valid signature for the operation
+        testData.signatureData = _createMerkleRootAndSignature(
+            testData.messageData, srcUserOpData.userOpHash, testData.accountToUse, ETH, address(sourceValidatorOnBase)
+        );
+        srcUserOpData.userOp.signature = testData.signatureData;
+        
+        // EXECUTE BASE - First execution should succeed
+        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
+        _processAcrossV3Message(
+            ProcessAcrossV3MessageParams({
+                srcChainId: BASE,
+                dstChainId: ETH,
+                warpTimestamp: WARP_START_TIME + 30 days,
+                executionData: executionData,
+                relayerType: RELAYER_TYPE.NO_HOOKS,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                root: bytes32(0),
+                account: testData.accountToUse,
+                relayerGas: 0
+            })
+        );
+        
+        return testData;
+    }
+
+    function _testSameChainReplayAttack(SignatureReplayTestData memory testData) private {
+        // EDGE CASE: Attempt to replay the same signature with a new nonce
+        // This creates a new user operation with same data but different nonce
+        UserOpData memory replayUserOpData = _createUserOpData(testData.srcHooksAddresses, testData.srcHooksData, BASE, true);
+        
+        // Use the original signature - simulating a replay attack
+        replayUserOpData.userOp.signature = testData.signatureData;
+        
+        // The replay should be rejected
+        vm.expectRevert();
+        executeOpsThroughPaymaster(replayUserOpData, superNativePaymasterOnBase, 1e18);
+    }
+    
+    function _testCrossChainReplayAttack(SignatureReplayTestData memory testData) private {
+        // CROSS-CHAIN REPLAY: Attempt to replay the signature on a different chain (OP)
+        SELECT_FORK_AND_WARP(OP, WARP_START_TIME + 30 days);
+        
+        // Setup for OP chain replay attempt
+        address[] memory opHooksAddresses = new address[](2);
+        opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
+        opHooksAddresses[1] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+        
+        bytes[] memory opHooksData = new bytes[](2);
+        opHooksData[0] = _createApproveHookData(
+            underlyingOP_USDC, SPOKE_POOL_V3_ADDRESSES[OP], testData.amountPerVault, false
+        );
+        opHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingOP_USDC, underlyingETH_USDC, testData.amountPerVault, testData.amountPerVault, ETH, true, testData.targetExecutorMessage
+        );
+        
+        // Create operation on OP chain with Base chain signature
+        UserOpData memory crossChainReplayUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP, true);
+        crossChainReplayUserOpData.userOp.signature = testData.signatureData;
+        
+        // This should also be rejected due to chain ID mismatch in signature
+        vm.expectRevert();
+        executeOpsThroughPaymaster(crossChainReplayUserOpData, superNativePaymasterOnOP, 1e18);
+    }
+    
     function _redeem_From_ETH_And_Bridge_Back_To_Base(bool isFullRedeem) internal {
         uint256 amountPerVault = 1e8 / 2;
 
@@ -2711,6 +2882,251 @@ contract CrosschainTests is BaseTest {
     /*//////////////////////////////////////////////////////////////
                           INTERNAL LOGIC HELPERS
     //////////////////////////////////////////////////////////////*/
+    function _createAccountOnBASECrossChainFlow(bool shouldRevert) private returns (address) {
+        uint256 amountPerVault = 1e8 / 2;
+        
+        // First prepare on ETH as the destination
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+        
+        TargetExecutorMessage memory messageData = TargetExecutorMessage({
+            hooksAddresses: new address[](0),
+            hooksData: new bytes[](0),
+            validator: address(destinationValidatorOnETH),
+            signer: validatorSigner,
+            signerPrivateKey: validatorSignerPrivateKey,
+            targetAdapter: address(acrossV3AdapterOnETH),
+            targetExecutor: address(superTargetExecutorOnETH),
+            nexusFactory: CHAIN_1_NEXUS_FACTORY,
+            nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+            chainId: uint64(ETH),
+            amount: amountPerVault,
+            account: address(0), 
+            tokenSent: underlyingETH_USDC
+        });
+        
+        bytes memory targetExecutorMessage;
+        address accountToUse;
+        (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+        
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+        
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+        
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] = _createApproveHookData(
+            underlyingBase_USDC,
+            SPOKE_POOL_V3_ADDRESSES[BASE],
+            amountPerVault,
+            false
+        );
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingBase_USDC,
+            underlyingETH_USDC,
+            amountPerVault,
+            amountPerVault,
+            ETH,
+            true,
+            targetExecutorMessage
+        );
+        
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+        
+        bytes memory signatureData = _createMerkleRootAndSignature(
+            messageData, 
+            srcUserOpData.userOpHash, 
+            accountToUse, 
+            ETH, 
+            address(sourceValidatorOnBase)
+        );
+        srcUserOpData.userOp.signature = signatureData;
+        
+        if (shouldRevert) {
+            vm.expectRevert();
+        }
+        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(
+            srcUserOpData, 
+            superNativePaymasterOnBase, 
+            1e18
+        );
+        
+        if (!shouldRevert) {
+            _processAcrossV3Message(
+                ProcessAcrossV3MessageParams({
+                    srcChainId: BASE,
+                    dstChainId: ETH,
+                    warpTimestamp: WARP_START_TIME + 30 days,
+                    executionData: executionData,
+                    relayerType: RELAYER_TYPE.NO_HOOKS,
+                    errorMessage: bytes4(0),
+                    errorReason: "",
+                    root: bytes32(0),
+                    account: accountToUse,
+                    relayerGas: 0
+                })
+            );
+        }
+        
+        return accountToUse;
+    }
+    
+    function _executeDepositFromAccountOnBASE(address account, uint256 depositAmount) private returns (uint256) {
+        address[] memory depositHooksAddresses = new address[](2);
+        depositHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        depositHooksAddresses[1] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
+        
+        bytes[] memory depositHooksData = new bytes[](2);
+        depositHooksData[0] = _createApproveHookData(
+            underlyingBase_USDC, 
+            yieldSourceMorphoUsdcAddressBase, 
+            depositAmount, 
+            false
+        );
+        depositHooksData[1] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressBase,
+            depositAmount,
+            false,
+            address(0),
+            0
+        );
+        
+        ISuperExecutor.ExecutorEntry memory depositEntry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: depositHooksAddresses, 
+            hooksData: depositHooksData
+        });
+        
+        uint256 tokenBalanceBefore = IERC20(underlyingBase_USDC).balanceOf(account);
+        assertEq(tokenBalanceBefore, 1e8);
+        uint256 vaultBalanceBefore = IERC4626(yieldSourceMorphoUsdcAddressBase).balanceOf(account);
+        assertEq(vaultBalanceBefore, 0);
+        
+        _executeHooksThroughEntrypoint(
+            account, 
+            address(superExecutorOnBase), 
+            address(sourceValidatorOnBase), 
+            depositEntry
+        );
+        
+        uint256 tokenBalanceAfter = IERC20(underlyingBase_USDC).balanceOf(account);
+        assertEq(tokenBalanceAfter, 1e8 - depositAmount);
+        
+        uint256 vaultBalanceAfter = IERC4626(yieldSourceMorphoUsdcAddressBase).balanceOf(account);
+        assertGt(vaultBalanceAfter, 0);
+        
+        return vaultBalanceAfter;
+    }
+    
+    function _executeRedeemFromAccountOnBASE(address account, uint256 redeemShares, uint256 originalDepositAmount) private {
+        address[] memory redeemHooksAddresses = new address[](1);
+        redeemHooksAddresses[0] = _getHookAddress(BASE, REDEEM_4626_VAULT_HOOK_KEY);
+        
+        bytes[] memory redeemHooksData = new bytes[](1);
+        redeemHooksData[0] = _createRedeem4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressBase,
+            account,
+            redeemShares,
+            false
+        );
+        
+        ISuperExecutor.ExecutorEntry memory redeemEntry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: redeemHooksAddresses, 
+            hooksData: redeemHooksData
+        });
+        
+        _executeHooksThroughEntrypoint(
+            account, 
+            address(superExecutorOnBase), 
+            address(sourceValidatorOnBase), 
+            redeemEntry
+        );
+        
+        uint256 vaultBalanceAfterRedeem = IERC4626(yieldSourceMorphoUsdcAddressBase).balanceOf(account);
+        assertEq(vaultBalanceAfterRedeem, 0, "no vault shares after redeem");
+        uint256 tokenBalanceAfterRedeem = IERC20(underlyingBase_USDC).balanceOf(account);
+        assertGt(tokenBalanceAfterRedeem, 1e8 - originalDepositAmount, "received tokens back");
+    }
+    
+    function _executeDepositFromAccount(address account, uint256 depositAmount) private returns (uint256) {
+        address[] memory depositHooksAddresses = new address[](2);
+        depositHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        depositHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        
+        bytes[] memory depositHooksData = new bytes[](2);
+        depositHooksData[0] = _createApproveHookData(
+            underlyingETH_USDC, 
+            yieldSourceMorphoUsdcAddressEth, 
+            depositAmount, 
+            false
+        );
+        depositHooksData[1] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressEth,
+            depositAmount,
+            false,
+            address(0),
+            0
+        );
+        
+        ISuperExecutor.ExecutorEntry memory depositEntry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: depositHooksAddresses, 
+            hooksData: depositHooksData
+        });
+        
+        uint256 tokenBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(account);
+        assertEq(tokenBalanceBefore, 1e8);
+        uint256 vaultBalanceBefore = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(account);
+        assertEq(vaultBalanceBefore, 0);
+        
+        _executeHooksThroughEntrypoint(
+            account, 
+            address(superExecutorOnETH), 
+            address(sourceValidatorOnETH), 
+            depositEntry
+        );
+        
+        uint256 tokenBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(account);
+        assertEq(tokenBalanceAfter, 1e8 - depositAmount);
+        
+        uint256 vaultBalanceAfter = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(account);
+        assertGt(vaultBalanceAfter, 0);
+        
+        return vaultBalanceAfter;
+    }
+    
+    function _executeRedeemFromAccount(address account, uint256 redeemShares, uint256 originalDepositAmount) private {
+        address[] memory redeemHooksAddresses = new address[](1);
+        redeemHooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+        
+        bytes[] memory redeemHooksData = new bytes[](1);
+        redeemHooksData[0] = _createRedeem4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressEth,
+            account,
+            redeemShares,
+            false
+        );
+        
+        ISuperExecutor.ExecutorEntry memory redeemEntry = ISuperExecutor.ExecutorEntry({
+            hooksAddresses: redeemHooksAddresses, 
+            hooksData: redeemHooksData
+        });
+        
+        _executeHooksThroughEntrypoint(
+            account, 
+            address(superExecutorOnETH), 
+            address(sourceValidatorOnETH), 
+            redeemEntry
+        );
+        
+        uint256 vaultBalanceAfterRedeem = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(account);
+        assertEq(vaultBalanceAfterRedeem, 0, "no vault shares after redeem");
+        uint256 tokenBalanceAfterRedeem = IERC20(underlyingETH_USDC).balanceOf(account);
+        assertGt(tokenBalanceAfterRedeem, 1e8 - originalDepositAmount, "received tokens back");
+    }
+    
     function _prepareDepositOnOffRampExecution(address accountCreated, uint256 amount) private returns (ISuperExecutor.ExecutorEntry memory entry) {
         // permit2 setup
         address[] memory _tokens = new address[](1);
@@ -2725,8 +3141,6 @@ contract CrosschainTests is BaseTest {
 
         vm.prank(validatorSigner);
         IERC20(underlyingETH_USDC).approve(PERMIT2, amount);
-
-        uint256 previewDepositAmount = IERC4626(yieldSourceMorphoUsdcAddressEth).previewDeposit(amount/2);
 
         address[] memory srcHooksAddresses = new address[](4);
         srcHooksAddresses[0] = _getHookAddress(ETH, BATCH_TRANSFER_FROM_HOOK_KEY);
