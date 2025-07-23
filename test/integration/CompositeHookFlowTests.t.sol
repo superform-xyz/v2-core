@@ -214,7 +214,7 @@ contract CompositeHookFlowTests is BaseTest {
         // Redeem from 4626 vault
         _execute4626RedeemFlow(userShares);
 
-        // Verify fee amounts from redeeming are co rrect
+        // Verify fee amounts from redeeming are correct
         uint256 userBalanceAfterRedeem = IERC20(underlyingETH_USDC).balanceOf(accountEth);
 
         assertEq(userBalanceAfterRedeem, expectedUserAssets);
