@@ -37,15 +37,6 @@ contract BurnSuperPositionsHook is BaseHook, VaultBankLockableHook, ISuperHookIn
     uint256 private constant AMOUNT_POSITION = 52;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 84;
     
-    /**
-    function burnSuperPosition(
-        uint256 amount_,
-        address spAddress_,
-        uint64 forChainId_,1
-        bytes32 yieldSourceOracleId_
-    )
-    */
-
     error ID_NOT_VALID();
 
     constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.VAULT_BANK) { }
