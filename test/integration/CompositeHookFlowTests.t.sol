@@ -13,7 +13,7 @@ import { IGearboxFarmingPool } from "../../src/vendor/gearbox/IGearboxFarmingPoo
 // Superform
 import { BaseTest } from "../BaseTest.t.sol";
 import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
-import { SuperExecutor } from "../../src/executors/superExecutor.sol";
+import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { IVaultBank, IVaultBankSource, IVaultBankDestination } from "../../src/vendor/superform/IVaultBank.sol";
 import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
