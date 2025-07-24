@@ -2,23 +2,18 @@
 pragma solidity 0.8.30;
 
 // external
-import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
-
-import {MinimalBaseNexusIntegrationTest} from "../MinimalBaseNexusIntegrationTest.t.sol";
-import {INexus} from "../../../src/vendor/nexus/INexus.sol";
-import {MockRegistry} from "../../mocks/MockRegistry.sol";
-import {ISuperExecutor} from "../../../src/interfaces/ISuperExecutor.sol";
-
 import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
-import {SuperNativePaymaster} from "../../../src/paymaster/SuperNativePaymaster.sol";
 import {IEntryPoint} from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import {PaymasterHelper} from "./PaymasterHelper.t.sol";
 import "forge-std/console2.sol";
 import "forge-std/Test.sol";
 
+// Superform
+import {ISuperExecutor} from "../../../src/interfaces/ISuperExecutor.sol";
+import {SuperNativePaymaster} from "../../../src/paymaster/SuperNativePaymaster.sol";
+
+
 contract PoC is PaymasterHelper {
-    MockRegistry public nexusRegistry;
     address[] public attesters;
     uint8 public threshold;
 
@@ -44,7 +39,6 @@ contract PoC is PaymasterHelper {
     function setUp() public override {
         blockNumber = ETH_BLOCK;
         super.setUp();
-        nexusRegistry = new MockRegistry();
         attesters = new address[](1);
         attesters[0] = address(MANAGER);
         threshold = 1;

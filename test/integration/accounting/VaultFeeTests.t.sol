@@ -2,7 +2,6 @@
 pragma solidity 0.8.30;
 
 // external
-import { console2 } from "forge-std/console2.sol";
 import { UserOpData } from "modulekit/ModuleKit.sol";
 import { IERC7540 } from "../../../src/vendor/vaults/7540/IERC7540.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
@@ -22,12 +21,6 @@ import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC462
 import { ERC5115YieldSourceOracle } from "../../../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 import { ERC7540YieldSourceOracle } from "../../../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
 import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
-
-// Hooks
-import { RequestDeposit7540VaultHook } from "../../../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
-import { Deposit7540VaultHook } from "../../../src/hooks/vaults/7540/Deposit7540VaultHook.sol";
-import { Deposit5115VaultHook } from "../../../src/hooks/vaults/5115/Deposit5115VaultHook.sol";
-import { Redeem5115VaultHook } from "../../../src/hooks/vaults/5115/Redeem5115VaultHook.sol";
 
 // -- centrifuge mocks
 import { IRoot } from "../../mocks/centrifuge/IRoot.sol";
