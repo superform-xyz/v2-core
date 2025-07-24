@@ -78,7 +78,7 @@ abstract contract BaseLedger is ISuperLedger {
         public
         view
         returns (uint256 costBasis, uint256 shares)
-    {
+    {   
         uint256 accumulatorShares = usersAccumulatorShares[user][yieldSource];
         uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user][yieldSource];
 
@@ -87,7 +87,7 @@ abstract contract BaseLedger is ISuperLedger {
             usedShares = accumulatorShares;
         }
 
-        costBasis = Math.mulDiv(accumulatorCostBasis, usedShares, accumulatorShares);
+        costBasis = usedShares > 0 ? Math.mulDiv(accumulatorCostBasis, usedShares, accumulatorShares) : 0;
         shares = usedShares;
     }
 

@@ -14,11 +14,10 @@ import "modulekit/test/RhinestoneModuleKit.sol";
 import { IERC7579Account} from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import { BytesLib } from "../../src/vendor/BytesLib.sol";
 import { ModeLib, ModeCode } from "modulekit/accounts/common/lib/ModeLib.sol";
-import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { INexus } from "../../src/vendor/nexus/INexus.sol";
 import { INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
-import { INexusFactory } from "../../src/vendor/nexus/INexusFactory.sol";
 import { IPermit2 } from "../../src/vendor/uniswap/permit2/IPermit2.sol";
 import { IPermit2Batch } from "../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
 import { IAllowanceTransfer } from "../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
@@ -32,9 +31,13 @@ import { ISuperDestinationExecutor } from "../../src/interfaces/ISuperDestinatio
 import { ISuperValidator } from "../../src/interfaces/ISuperValidator.sol";
 import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { SuperExecutorBase } from  "../../src/executors/SuperExecutorBase.sol";
+import { SuperExecutor } from  "../../src/executors/SuperExecutor.sol";
 import { AcrossV3Adapter } from "../../src/adapters/AcrossV3Adapter.sol";
 import { DebridgeAdapter } from "../../src/adapters/DebridgeAdapter.sol";
 import { SuperValidatorBase } from "../../src/validators/SuperValidatorBase.sol";
+import { SuperLedgerConfiguration } from "../../src/accounting/SuperLedgerConfiguration.sol";
+import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
+import { BaseLedger } from "../../src/accounting/BaseLedger.sol";
 import { BaseHook } from "../../src/hooks/BaseHook.sol";
 import { BaseTest } from "../BaseTest.t.sol";
 import { console2 } from "forge-std/console2.sol";
@@ -386,6 +389,106 @@ contract CrosschainTests is BaseTest {
             lastObtainedShares, midTestObtainedShares * 2, 0.00001e18
         );
     }
+
+    function test_HaveAnAccount_Uninstall_ReinstallDifferentCore_CrossChain_CheckSuperLedger() public {
+        // create an account using cross chain flow
+        // - use NexusFactory and NexustBootstrap to create a real account
+        address accountCreated = _createAccountCrossChainFlow();
+
+        uint256 usageTimestamp = WARP_START_TIME + 100 days;
+        SELECT_FORK_AND_WARP(ETH, usageTimestamp);
+        assertGt(accountCreated.code.length, 0);
+        deal(accountCreated, 10 ether);
+
+        // check installed modules
+        // -- check executor
+        // -- check destination validator on chain
+        // -- check source validator on 
+        assertTrue(SuperExecutorBase(address(superExecutorOnETH)).isInitialized(accountCreated), "super executor not installed");
+        assertTrue(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor not installed");
+        assertTrue(SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(accountCreated), "super merkle validator not installed");
+        assertTrue(SuperValidatorBase(address(destinationValidatorOnETH)).isInitialized(accountCreated), "super destinatioin validator not installed");
+
+        // perform defi operations
+        // -- 4626 deposit
+        uint256 obtainedShares = _performAndAssert4626DepositOnETH(accountCreated, 1000e6, true);
+        assertGt(obtainedShares, 0, "no shares were obtained");
+
+        // install a new SuperExecutor (so we can uninstall the old one) 
+        // -- create
+        ISuperLedgerConfiguration superLedgerConfigurationNew =
+                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration{ salt: "Test123" }()));
+        vm.label(address(superLedgerConfigurationNew), "NewSuperLedgerConfiguration");
+        ISuperExecutor superExecutorNew = ISuperExecutor(address(new SuperExecutor{ salt: "Test123" }(address(superLedgerConfigurationNew))));
+        vm.label(address(superExecutorNew), "NewSuperExecutor");
+
+        // -- configure ledger
+        address[] memory allowedExecutors = new address[](1);
+        allowedExecutors[0] = address(superExecutorNew);
+        ISuperLedger superLedgerNew = ISuperLedger(
+            address(new SuperLedger{ salt: "Test123" }(address(superLedgerConfigurationNew), allowedExecutors))
+        );
+
+        address ledgerFeeReceiver = makeAddr("LedgerFeeReceiver");
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+            feePercent: 100,
+            feeRecipient: ledgerFeeReceiver,
+            ledger: address(superLedgerNew)
+        });
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        vm.startPrank(MANAGER);
+        superLedgerConfigurationNew.setYieldSourceOracles(salts, configs);
+        vm.stopPrank();
+
+        // -- install
+        _installModuleOnAccount(accountCreated, MODULE_TYPE_EXECUTOR, address(superExecutorNew), "", address(sourceValidatorOnETH));
+
+        // assert accumulators
+        BaseLedger superLedgerOld = BaseLedger(_getContract(ETH, SUPER_LEDGER_KEY));
+        assertApproxEqRel(superLedgerOld.usersAccumulatorShares(accountCreated, yieldSourceMorphoUsdcAddressEth), obtainedShares, 0.0001e18, "old ledger acc shares is wrong");
+        assertApproxEqRel(superLedgerOld.usersAccumulatorCostBasis(accountCreated, yieldSourceMorphoUsdcAddressEth), 1000e6, 0.0001e18, "old ledger acc cost basis is wrong");
+        assertEq(BaseLedger(address(superLedgerNew)).usersAccumulatorShares(accountCreated, yieldSourceMorphoUsdcAddressEth), 0, "new ledger acc shares is wrong (initial)");
+        assertEq(BaseLedger(address(superLedgerNew)).usersAccumulatorCostBasis(accountCreated, yieldSourceMorphoUsdcAddressEth), 0, "new ledger acc cost basis is wrong (initial)");
+
+        // uninstall old executor
+        bytes memory uninstallData = abi.encode(address(superExecutorOnETH), bytes(""));
+        _uninstallModuleOnAccount(accountCreated, MODULE_TYPE_EXECUTOR, address(superTargetExecutorOnETH), uninstallData, address(sourceValidatorOnETH));
+        assertFalse(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor still installed");
+
+        // assert account still has obtained shares
+        uint256 midTestObtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
+        assertEq(obtainedShares, midTestObtainedShares, "shares should be the same after uninstall");
+
+        // assert account still has obtained shares
+        midTestObtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
+        assertEq(obtainedShares, midTestObtainedShares, "shares should be the same after re-install");
+
+        uint256 feeRecipientBefore = IERC20(underlyingETH_USDC).balanceOf(address(ledgerFeeReceiver));
+        assertEq(feeRecipientBefore, 0, "fee recipient should have no yield before redeem");
+
+        // redeem 4626
+        _performAndAssert4626RedeemOnETH(accountCreated, address(superExecutorNew), obtainedShares, true);
+
+        feeRecipientBefore = IERC20(underlyingETH_USDC).balanceOf(address(ledgerFeeReceiver));
+        assertGt(feeRecipientBefore, 0, "fee recipient should have fees for total amount now");
+
+        // perform defi operations
+        // -- 4626 deposit
+        uint256 lastObtainedShares = _performAndAssert4626DepositOnETH(accountCreated, 1000e6, false);
+        assertGt(lastObtainedShares, 0, "shares should increase after deposit");
+
+        // redeem again 4626
+        _performAndAssert4626RedeemOnETH(accountCreated, address(superExecutorNew), lastObtainedShares, true);
+        uint256 feeRecipientAfter = IERC20(underlyingETH_USDC).balanceOf(address(ledgerFeeReceiver));
+        assertGt(feeRecipientAfter, feeRecipientBefore, "fee recipient should receive yield");
+    }
+
+
+
 
     //  >>>> ACCOUNT CREATION TESTS
     function test_CrossChainCreateAccount_OnRamp_Offramp_Flow() public {
@@ -2938,6 +3041,34 @@ contract CrosschainTests is BaseTest {
         // after op asserts
         obtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(acc);
         assertGt(obtainedShares, 0);
+    }
+    function _performAndAssert4626RedeemOnETH(address acc, address exec, uint256 shares, bool validateBeforeBalance) private returns (uint256 obtainedShares) {
+        address[] memory srcHooksAddresses = new address[](1);
+        srcHooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](1);
+        srcHooksData[0] = _createRedeem4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressEth,
+            acc,
+            shares,
+            false
+        );
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
+        
+        // before op asserts
+        if (validateBeforeBalance) {
+            uint256 accBalanceBefore = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(acc);
+            assertEq(accBalanceBefore, shares);
+        }
+
+        // redeem
+        _executeHooksThroughEntrypoint(acc, address(exec), address(sourceValidatorOnETH), entry);
+
+        // after op asserts
+        obtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(acc);
+        assertEq(obtainedShares, 0);
     }
     function _installModuleOnAccount(address acc, uint256 moduleType, address module, bytes memory initData, address validatorToUse) private {
         Execution[] memory executions = new Execution[](1);
