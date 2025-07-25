@@ -102,6 +102,9 @@ abstract contract InternalHelpers is Test {
     /*//////////////////////////////////////////////////////////////
                                  SWAPPERS
     //////////////////////////////////////////////////////////////*/
+    function _createMarkRootAsUsedHookData(address exec, bytes memory data) internal pure returns (bytes memory) {
+        return abi.encodePacked(bytes32(0), exec, data);
+    }
 
     function _create1InchGenericRouterSwapHookData(
         address dstReceiver,
