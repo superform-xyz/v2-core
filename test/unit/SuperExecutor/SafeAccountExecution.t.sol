@@ -862,13 +862,11 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     function _performDepositAndUninstallValidator(address _account, uint256 _amount, address _validator, address _paymaster, address _executor) private {
         _getTokens(underlyingETH_USDC, _account, _amount);
 
-    console2.log("---------A");
         address[] memory hookAddresses = new address[](3);
         hookAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         hookAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
         hookAddresses[2] = address(mockHook);
 
-    console2.log("---------B");
         bytes[] memory hooksData = new bytes[](3);
         hooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, _amount, false);
         hooksData[1] = _createDeposit4626HookData(
@@ -882,23 +880,19 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         hooksData[2] = "";
 
 
-    console2.log("---------C");
         Execution[] memory _uninstallExecutions = new Execution[](1);
         _uninstallExecutions[0] = Execution({
             target: _account,
             value: 0,
             callData: abi.encodeCall(IERC7579Account.uninstallModule, (MODULE_TYPE_VALIDATOR, _validator, abi.encode(address(validatorOnETH), "")))
         });
-    console2.log("---------D");
         mockHook.setExecutionBytes(abi.encode(_uninstallExecutions));
-    console2.log("---------E");
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hooksData });
-    console2.log("---------F");
+
         UserOpData memory userOpData =
             _getExecOpsWithValidator(instance, ISuperExecutor(_executor), abi.encode(entry), address(_validator));
-    console2.log("---------G");
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData = _createSafeSigData(validUntil, _validator, userOpData.userOpHash, address(_account));
