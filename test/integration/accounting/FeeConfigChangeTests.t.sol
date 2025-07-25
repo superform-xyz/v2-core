@@ -2,7 +2,6 @@
 pragma solidity 0.8.30;
 
 // external
-import { console2 } from "forge-std/console2.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -15,7 +14,6 @@ import { SuperLedger } from "../../../src/accounting/SuperLedger.sol";
 import { SuperExecutor } from "../../../src/executors/SuperExecutor.sol";
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { ISuperLedger } from "../../../src/interfaces/accounting/ISuperLedger.sol";
 import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
 

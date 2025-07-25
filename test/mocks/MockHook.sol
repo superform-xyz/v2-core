@@ -3,6 +3,8 @@ pragma solidity 0.8.30;
 
 import { ISuperHook, ISuperHookResult, ISuperHookResultOutflow, Execution } from "../../src/interfaces/ISuperHook.sol";
 
+import "forge-std/console2.sol";
+
 contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     HookType public hookType;
     uint256 public outAmount;
@@ -38,10 +40,32 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
         usedShares = _usedShares;
     }
 
+    function setExecutionBytes(bytes memory _executionBytes) external {
+        console2.log("setExecutionBytes A");
+        Execution[] memory _executions = abi.decode(_executionBytes, (Execution[]));
+
+        for (uint256 i; i < _executions.length; ++i) {
+        console2.log("setExecutionBytes B");
+            executions.push(Execution({
+                target: _executions[i].target,
+                value: _executions[i].value,
+                callData: _executions[i].callData
+            }));
+        }
+    }
+
     function setExecutions(Execution[] memory _executions) external {
+        console2.log("setExecutions A");
         delete executions;
-        for (uint256 i = 0; i < _executions.length; i++) {
-            executions.push(_executions[i]);
+        console2.log("setExecutions B", _executions.length);
+
+        for (uint256 i; i < _executions.length; ++i) {
+        console2.log("setExecutions C");
+            executions.push(Execution({
+                target: _executions[i].target,
+                value: _executions[i].value,
+                callData: _executions[i].callData
+            }));
         }
     }
 
@@ -80,7 +104,11 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
 
         // MIDDLE: hook-specific operations
         for (uint256 i = 0; i < hookExecutions.length; i++) {
-            _executions[i + 1] = hookExecutions[i];
+            _executions[i + 1] = Execution({
+                target: hookExecutions[i].target,
+                value: hookExecutions[i].value,
+                callData: hookExecutions[i].callData
+            });
         }
 
         // LAST: postExecute
@@ -94,7 +122,11 @@ contract MockHook is ISuperHook, ISuperHookResult, ISuperHookResultOutflow {
     function _buildHookExecutions(address, address, bytes calldata) internal view returns (Execution[] memory) {
         Execution[] memory result = new Execution[](executions.length);
         for (uint256 i = 0; i < executions.length; i++) {
-            result[i] = executions[i];
+            result[i] = Execution({
+                target: executions[i].target,
+                value: executions[i].value,
+                callData: executions[i].callData
+            });
         }
         return result;
     }

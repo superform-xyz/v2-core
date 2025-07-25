@@ -9,9 +9,10 @@ import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // Superform
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { MockAccountingVault } from "../../mocks/MockAccountingVault.sol";
-import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
+import { MinimalBaseIntegrationTest } from "../../integration/MinimalBaseIntegrationTest.t.sol";
 import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
+// Moved from integration test folder because it's more of a unit test rather than an integration one
 contract FeesTest is MinimalBaseIntegrationTest {
     IERC4626 public vaultInstance;
     address public yieldSourceAddress;
