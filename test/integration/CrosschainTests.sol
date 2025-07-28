@@ -18,7 +18,6 @@ import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { INexus } from "../../src/vendor/nexus/INexus.sol";
 import { INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
-import { INexusFactory } from "../../src/vendor/nexus/INexusFactory.sol";
 import { IPermit2 } from "../../src/vendor/uniswap/permit2/IPermit2.sol";
 import { IPermit2Batch } from "../../src/vendor/uniswap/permit2/IPermit2Batch.sol";
 import { IAllowanceTransfer } from "../../src/vendor/uniswap/permit2/IAllowanceTransfer.sol";
@@ -31,10 +30,14 @@ import { ISuperLedger, ISuperLedgerData } from "../../src/interfaces/accounting/
 import { ISuperDestinationExecutor } from "../../src/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperValidator } from "../../src/interfaces/ISuperValidator.sol";
 import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { SuperExecutorBase } from "../../src/executors/SuperExecutorBase.sol";
+import { SuperExecutorBase } from  "../../src/executors/SuperExecutorBase.sol";
+import { SuperExecutor } from  "../../src/executors/SuperExecutor.sol";
 import { AcrossV3Adapter } from "../../src/adapters/AcrossV3Adapter.sol";
 import { DebridgeAdapter } from "../../src/adapters/DebridgeAdapter.sol";
 import { SuperValidatorBase } from "../../src/validators/SuperValidatorBase.sol";
+import { SuperLedgerConfiguration } from "../../src/accounting/SuperLedgerConfiguration.sol";
+import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
+import { BaseLedger } from "../../src/accounting/BaseLedger.sol";
 import { BaseHook } from "../../src/hooks/BaseHook.sol";
 import { SwapOdosV2Hook } from "../../src/hooks/swappers/odos/SwapOdosV2Hook.sol";
 import { BaseTest } from "../BaseTest.t.sol";
@@ -354,6 +357,150 @@ contract CrosschainTests is BaseTest {
     //////////////////////////////////////////////////////////////*/
     // --- THROUGH PAYMASTER ---
     //  >>>> ACCOUNT MUTABILITY TESTS
+    function test_HaveAnAccount_Uninstall_MidExecutionUnistallUnrelatedModule() public {
+        // create an account using cross chain flow
+        // - use NexusFactory and NexustBootstrap to create a real account
+        address accountCreated = _createAccountCrossChainFlow();
+
+        uint256 usageTimestamp = WARP_START_TIME + 100 days;
+        SELECT_FORK_AND_WARP(ETH, usageTimestamp);
+        assertGt(accountCreated.code.length, 0);
+        deal(accountCreated, 10 ether);
+
+        // check installed modules
+        // -- check executor
+        // -- check destination validator on chain
+        // -- check source validator on 
+        assertTrue(SuperExecutorBase(address(superExecutorOnETH)).isInitialized(accountCreated), "super executor not installed");
+        assertTrue(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor not installed");
+        assertTrue(SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(accountCreated), "super merkle validator not installed");
+        assertTrue(SuperValidatorBase(address(destinationValidatorOnETH)).isInitialized(accountCreated), "super destinatioin validator not installed");
+
+        // perform defi operations
+        // -- 4626 deposit
+        uint256 obtainedShares = _performAndAssert4626DepositOnETH(accountCreated, 1000e6, true);
+        assertGt(obtainedShares, 0, "no shares were obtained");
+        obtainedShares = _performAndAssert4626DepositOnETH(accountCreated, 1000e6, false);
+        assertGt(obtainedShares, 0, "no shares were obtained");
+
+        _executeRedeemFromAccount(accountCreated, obtainedShares, 1000e6, false);
+
+        // perform deposit with uninstall during execution
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, 1000e6, false);
+        srcHooksData[1] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressEth,
+            1000e6,
+            false,
+            address(0),
+            0
+        );
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
+
+        bytes memory uninstallData = abi.encode(address(superExecutorOnETH), bytes(""));
+        Execution[] memory executions = new Execution[](2);
+        executions[0] = Execution({
+            target: accountCreated,
+            value: 0,
+            callData: abi.encodeCall(IERC7579Account.uninstallModule, (MODULE_TYPE_EXECUTOR, address(superTargetExecutorOnETH), uninstallData))
+        });
+        executions[1] = Execution({
+            target: address(superExecutorOnETH),
+            value: 0,
+            callData: abi.encodeCall(ISuperExecutor.execute, (abi.encode(entry)))
+        });
+
+        PackedUserOperation memory userOp = _createPackedUserOperation(
+            accountCreated, 
+            _prepareNonceWithValidator(accountCreated, address(sourceValidatorOnETH)), 
+            _prepareExecutionCalldata(executions)
+        );
+
+        _signAndSendUserOp(userOp, address(sourceValidatorOnETH), accountCreated, true, false);
+
+        // assert obtained shares
+        obtainedShares = IERC20(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
+        assertGt(obtainedShares, 0, "no final shares were obtained");
+    }
+
+    function test_HaveAnAccount_Uninstall_MidExecutionUnistallValidatorModule_ValidatorReverts() public {
+        // create an account using cross chain flow
+        // - use NexusFactory and NexustBootstrap to create a real account
+        address accountCreated = _createAccountCrossChainFlow();
+
+        uint256 usageTimestamp = WARP_START_TIME + 100 days;
+        SELECT_FORK_AND_WARP(ETH, usageTimestamp);
+        assertGt(accountCreated.code.length, 0);
+        deal(accountCreated, 10 ether);
+
+        // check installed modules
+        // -- check executor
+        // -- check destination validator on chain
+        // -- check source validator on 
+        assertTrue(SuperExecutorBase(address(superExecutorOnETH)).isInitialized(accountCreated), "super executor not installed");
+        assertTrue(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor not installed");
+        assertTrue(SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(accountCreated), "super merkle validator not installed");
+        assertTrue(SuperValidatorBase(address(destinationValidatorOnETH)).isInitialized(accountCreated), "super destinatioin validator not installed");
+
+        // perform defi operations
+        // -- 4626 deposit
+        uint256 obtainedShares = _performAndAssert4626DepositOnETH(accountCreated, 1000e6, true);
+        assertGt(obtainedShares, 0, "no shares were obtained");
+        obtainedShares = _performAndAssert4626DepositOnETH(accountCreated, 1000e6, false);
+        assertGt(obtainedShares, 0, "no shares were obtained");
+
+        _executeRedeemFromAccount(accountCreated, obtainedShares, 1000e6, false);
+        
+
+        // perform deposit with uninstall during execution
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, 1000e6, false);
+        srcHooksData[1] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressEth,
+            1000e6,
+            false,
+            address(0),
+            0
+        );
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
+
+        bytes memory uninstallData = abi.encode(address(destinationValidatorOnETH), bytes(""));
+        Execution[] memory executions = new Execution[](2);
+        executions[0] = Execution({
+            target: accountCreated,
+            value: 0,
+            callData: abi.encodeCall(IERC7579Account.uninstallModule, (MODULE_TYPE_VALIDATOR, address(sourceValidatorOnETH), uninstallData))
+        });
+        executions[1] = Execution({
+            target: address(superExecutorOnETH),
+            value: 0,
+            callData: abi.encodeCall(ISuperExecutor.execute, (abi.encode(entry)))
+        });
+
+        PackedUserOperation memory userOp = _createPackedUserOperation(
+            accountCreated, 
+            _prepareNonceWithValidator(accountCreated, address(sourceValidatorOnETH)), 
+            _prepareExecutionCalldata(executions)
+        );
+
+        _signAndSendUserOp(userOp, address(sourceValidatorOnETH), accountCreated, true, false);
+
+        // assert obtained shares
+        obtainedShares = IERC20(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
+        assertEq(obtainedShares, 0, "should have reverted");
+    }
 
     function test_HaveAnAccount_Uninstall_ReinstallCore_CrossChain() public {
         // create an account using cross chain flow
@@ -428,6 +575,107 @@ contract CrosschainTests is BaseTest {
         assertApproxEqRel(lastObtainedShares, midTestObtainedShares * 2, 0.00001e18);
     }
 
+    function test_HaveAnAccount_Uninstall_ReinstallDifferentCore_CrossChain_CheckSuperLedger() public {
+        // create an account using cross chain flow
+        // - use NexusFactory and NexustBootstrap to create a real account
+        address accountCreated = _createAccountCrossChainFlow();
+
+        uint256 usageTimestamp = WARP_START_TIME + 100 days;
+        SELECT_FORK_AND_WARP(ETH, usageTimestamp);
+        assertGt(accountCreated.code.length, 0);
+        deal(accountCreated, 10 ether);
+
+        // check installed modules
+        // -- check executor
+        // -- check destination validator on chain
+        // -- check source validator on 
+        assertTrue(SuperExecutorBase(address(superExecutorOnETH)).isInitialized(accountCreated), "super executor not installed");
+        assertTrue(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor not installed");
+        assertTrue(SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(accountCreated), "super merkle validator not installed");
+        assertTrue(SuperValidatorBase(address(destinationValidatorOnETH)).isInitialized(accountCreated), "super destinatioin validator not installed");
+
+        // perform defi operations
+        // -- 4626 deposit
+        uint256 obtainedShares = _performAndAssert4626DepositOnETH(accountCreated, 1000e6, true);
+        assertGt(obtainedShares, 0, "no shares were obtained");
+
+        // install a new SuperExecutor (so we can uninstall the old one) 
+        // -- create
+        ISuperLedgerConfiguration superLedgerConfigurationNew =
+                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration{ salt: "Test123" }()));
+        vm.label(address(superLedgerConfigurationNew), "NewSuperLedgerConfiguration");
+        ISuperExecutor superExecutorNew = ISuperExecutor(address(new SuperExecutor{ salt: "Test123" }(address(superLedgerConfigurationNew))));
+        vm.label(address(superExecutorNew), "NewSuperExecutor");
+
+        // -- configure ledger
+        address[] memory allowedExecutors = new address[](1);
+        allowedExecutors[0] = address(superExecutorNew);
+        ISuperLedger superLedgerNew = ISuperLedger(
+            address(new SuperLedger{ salt: "Test123" }(address(superLedgerConfigurationNew), allowedExecutors))
+        );
+
+        address ledgerFeeReceiver = makeAddr("LedgerFeeReceiver");
+        ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
+                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+        configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
+            yieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+            feePercent: 100,
+            feeRecipient: ledgerFeeReceiver,
+            ledger: address(superLedgerNew)
+        });
+        bytes32[] memory salts = new bytes32[](1);
+        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
+        vm.startPrank(MANAGER);
+        superLedgerConfigurationNew.setYieldSourceOracles(salts, configs);
+        vm.stopPrank();
+
+        // -- install
+        _installModuleOnAccount(accountCreated, MODULE_TYPE_EXECUTOR, address(superExecutorNew), "", address(sourceValidatorOnETH));
+
+        // assert accumulators
+        BaseLedger superLedgerOld = BaseLedger(_getContract(ETH, SUPER_LEDGER_KEY));
+        assertApproxEqRel(superLedgerOld.usersAccumulatorShares(accountCreated, yieldSourceMorphoUsdcAddressEth), obtainedShares, 0.0001e18, "old ledger acc shares is wrong");
+        assertApproxEqRel(superLedgerOld.usersAccumulatorCostBasis(accountCreated, yieldSourceMorphoUsdcAddressEth), 1000e6, 0.0001e18, "old ledger acc cost basis is wrong");
+        assertEq(BaseLedger(address(superLedgerNew)).usersAccumulatorShares(accountCreated, yieldSourceMorphoUsdcAddressEth), 0, "new ledger acc shares is wrong (initial)");
+        assertEq(BaseLedger(address(superLedgerNew)).usersAccumulatorCostBasis(accountCreated, yieldSourceMorphoUsdcAddressEth), 0, "new ledger acc cost basis is wrong (initial)");
+
+        // uninstall old executor
+        bytes memory uninstallData = abi.encode(address(superExecutorOnETH), bytes(""));
+        _uninstallModuleOnAccount(accountCreated, MODULE_TYPE_EXECUTOR, address(superTargetExecutorOnETH), uninstallData, address(sourceValidatorOnETH));
+        assertFalse(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor still installed");
+
+        // assert account still has obtained shares
+        uint256 midTestObtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
+        assertEq(obtainedShares, midTestObtainedShares, "shares should be the same after uninstall");
+
+        // assert account still has obtained shares
+        midTestObtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
+        assertEq(obtainedShares, midTestObtainedShares, "shares should be the same after re-install");
+
+        uint256 feeRecipientBefore = IERC20(underlyingETH_USDC).balanceOf(address(ledgerFeeReceiver));
+        assertEq(feeRecipientBefore, 0, "fee recipient should have no yield before redeem");
+
+        // redeem 4626
+        _performAndAssert4626RedeemOnETH(accountCreated, address(superExecutorNew), obtainedShares, true);
+
+        feeRecipientBefore = IERC20(underlyingETH_USDC).balanceOf(address(ledgerFeeReceiver));
+        assertGt(feeRecipientBefore, 0, "fee recipient should have fees for total amount now");
+
+        // perform defi operations
+        // -- 4626 deposit
+        uint256 lastObtainedShares = _performAndAssert4626DepositOnETH(accountCreated, 1000e6, false);
+        assertGt(lastObtainedShares, 0, "shares should increase after deposit");
+
+        // redeem again 4626
+        _performAndAssert4626RedeemOnETH(accountCreated, address(superExecutorNew), lastObtainedShares, true);
+        uint256 feeRecipientAfter = IERC20(underlyingETH_USDC).balanceOf(address(ledgerFeeReceiver));
+        assertGt(feeRecipientAfter, feeRecipientBefore, "fee recipient should receive yield");
+    }
+
+
+
+
+
     //  >>>> ACCOUNT CREATION TESTS
     function test_CrossChainCreateAccount_OnRamp_Offramp_Flow() public {
         // create an account that will be later used to test Onramp-offramp flow
@@ -496,7 +744,7 @@ contract CrosschainTests is BaseTest {
                 _prepareNonceWithValidator(accountCreated, address(sourceValidatorOnETH)),
                 _prepareExecutionCalldata(executions)
             );
-            ops = _signAndSendUserOp(userOp, address(sourceValidatorOnETH), accountCreated, false);
+            ops = _signAndSendUserOp(userOp, address(sourceValidatorOnETH), accountCreated, false, false);
         }
 
         superNativePaymasterOnETH.handleOps{ value: 1 ether }(ops);
@@ -614,7 +862,7 @@ contract CrosschainTests is BaseTest {
                 _prepareNonceWithValidator(accountCreated, address(sourceValidatorOnETH)),
                 _prepareExecutionCalldata(executions)
             );
-            ops = _signAndSendUserOp(userOp, address(sourceValidatorOnETH), accountCreated, false);
+            ops = _signAndSendUserOp(userOp, address(sourceValidatorOnETH), accountCreated, false, false);
         }
 
         superNativePaymasterOnETH.handleOps{ value: 1 ether }(ops);
@@ -653,7 +901,7 @@ contract CrosschainTests is BaseTest {
 
         uint256 depositAmount = 5e7;
         uint256 vaultBalanceAfter = _executeDepositFromAccount(ethAccountCreated, depositAmount);
-        _executeRedeemFromAccount(ethAccountCreated, vaultBalanceAfter, depositAmount);
+        _executeRedeemFromAccount(ethAccountCreated, vaultBalanceAfter, depositAmount, true);
     }
 
     function test_Create_ETHandBASE_accounts() public {
@@ -861,6 +1109,71 @@ contract CrosschainTests is BaseTest {
         assertNotEq(pricePerShare, 1);
     }
 
+    function test_ETH_Bridge_With_Debridge_NoExecution() public {
+         uint256 amountPerVault = 1e8;
+
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+        uint256 balanceOnDestinationBefore = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], amountPerVault, false);
+
+        uint256 msgValue = IDlnSource(DEBRIDGE_DLN_ADDRESSES[BASE]).globalFixedNativeFee();
+
+        bytes memory debridgeData = _createDebridgeSendFundsAndExecuteHookData(
+            DebridgeOrderData({
+                usePrevHookAmount: false, //usePrevHookAmount
+                value: msgValue, //value
+                giveTokenAddress: underlyingBase_USDC, //giveTokenAddress
+                giveAmount: amountPerVault, //giveAmount
+                version: 1, //envelope.version
+                fallbackAddress: accountETH, //envelope.fallbackAddress
+                executorAddress: address(accountETH), //envelope.executorAddress
+                executionFee: uint160(0), //envelope.executionFee
+                allowDelayedExecution: false, //envelope.allowDelayedExecution
+                requireSuccessfulExecution: true, //envelope.requireSuccessfulExecution
+                payload: "", //envelope.payload
+                takeTokenAddress: underlyingETH_USDC, //takeTokenAddress
+                takeAmount: amountPerVault - amountPerVault * 1e4 / 1e5, //takeAmount
+                takeChainId: ETH, //takeChainId
+                // receiverDst must be the Debridge Adapter on the destination chain
+                receiverDst: address(accountETH),
+                givePatchAuthoritySrc: address(0), //givePatchAuthoritySrc
+                orderAuthorityAddressDst: abi.encodePacked(accountETH), //orderAuthorityAddressDst
+                allowedTakerDst: "", //allowedTakerDst
+                allowedCancelBeneficiarySrc: "", //allowedCancelBeneficiarySrc
+                affiliateFee: "", //affiliateFee
+                referralCode: 0 //referralCode
+             })
+        );
+        srcHooksData[1] = debridgeData;
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+    
+        bytes memory signatureData = _createNoDestinationExecutionMerkleRootAndSignature(
+            validatorSigners[BASE], validatorSignerPrivateKeys[BASE], srcUserOpData.userOpHash, address(sourceValidatorOnBase)
+        );
+        srcUserOpData.userOp.signature = signatureData;
+
+        // EXECUTE BASE
+        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
+        _processDebridgeDlnMessage(BASE, ETH, executionData);
+
+        // check destination
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME + 50 days);
+        uint256 balanceOnDestination = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+        assertEq(balanceOnDestination - balanceOnDestinationBefore, amountPerVault * 9e4/1e5, "AAA");
+    }
+
     function test_DeBridgeCancelOrderHook() public {
         uint256 amountPerVault = 1e8;
 
@@ -899,6 +1212,63 @@ contract CrosschainTests is BaseTest {
         console2.log("CANCELLED ORDER");
         //console2.log(IERC20(underlyingBase_USDC).balanceOf(accountETH));
         // assertEq(IERC20(underlyingBase_USDC).balanceOf(accountETH), amountPerVault);
+    }
+
+    function test_DeBridgeCancelOrderHook_AndMarkRootAsUsed() public {
+        uint256 amountPerVault = 1e8;
+
+        bytes memory sigData = _sendDeBridgeOrder();
+
+        // Cancel order on ETH
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+
+        address[] memory cancelOrderHooksAddresses = new address[](1);
+        cancelOrderHooksAddresses[0] = _getHookAddress(ETH, DEBRIDGE_CANCEL_ORDER_HOOK_KEY);
+
+        uint256 value = IDlnSource(DEBRIDGE_DLN_ADDRESSES[ETH]).globalFixedNativeFee();
+
+        bytes[] memory cancelData = new bytes[](1);
+        cancelData[0] = _createDebrigeCancelOrderData(
+            accountBase,
+            address(debridgeAdapterOnETH),
+            address(0),
+            accountETH,
+            address(0),
+            accountETH, // ✅ Should match allowedCancelBeneficiarySrc from order creation (now accountETH)
+            underlyingBase_USDC,
+            underlyingETH_USDC,
+            value,
+            amountPerVault,
+            amountPerVault,
+            BASE, // giveChainId - the chain where the order was created
+            uint256(ETH) // takeChainId - the destination chain
+        );
+
+        UserOpData memory cancelOrderUserOpData = _createUserOpData(cancelOrderHooksAddresses, cancelData, ETH, false);
+
+        // accountETH
+        executeOpsThroughPaymaster(cancelOrderUserOpData, superNativePaymasterOnETH, 1e18);
+
+        {
+            bytes32 merkleRoot = BytesLib.toBytes32(BytesLib.slice(sigData, 64, 32), 0);
+            bool rootStatusBefore = ISuperDestinationExecutor(superTargetExecutorOnETH).isMerkleRootUsed(accountETH, merkleRoot);
+            assertFalse(rootStatusBefore, "root is not marked here");
+
+            cancelOrderHooksAddresses = new address[](1);
+            cancelOrderHooksAddresses[0] = _getHookAddress(ETH, MARK_ROOT_AS_USED_HOOK_KEY);
+
+            cancelData = new bytes[](1);
+            bytes32[] memory roots = new bytes32[](1);
+            roots[0] = merkleRoot;
+            cancelData[0] = _createMarkRootAsUsedHookData(address(superTargetExecutorOnETH), abi.encode(roots));
+
+            cancelOrderUserOpData = _createUserOpData(cancelOrderHooksAddresses, cancelData, ETH, false);
+
+            executeOpsThroughPaymaster(cancelOrderUserOpData, superNativePaymasterOnETH, 1e18);
+
+            bool rootStatusAfter = ISuperDestinationExecutor(superTargetExecutorOnETH).isMerkleRootUsed(accountETH, merkleRoot);
+            assertTrue(rootStatusAfter, "root is marked here");   
+        }
     }
 
     //  >>>> ACROSS
@@ -1227,6 +1597,54 @@ contract CrosschainTests is BaseTest {
 
         vm.selectFork(FORKS[OP]);
         assertEq(vaultInstance4626OP.balanceOf(accountOP), previewDepositAmountOP, "B");
+    }
+
+
+    function test_bridge_To_OP_NoExecution() public {
+        uint256 amount = 1e8 / 2;
+
+
+        SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
+        uint256 balanceOPBefore =  IERC20(underlyingOP_USDCe).balanceOf(accountBase);
+        assertEq(balanceOPBefore, 0);
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME);
+
+        uint256 userBalanceBaseUSDCBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddressesOP = new address[](2);
+        srcHooksAddressesOP[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddressesOP[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksDataOP = new bytes[](2);
+        srcHooksDataOP[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amount, false);
+        srcHooksDataOP[1] = _createAcrossV3ReceiveFundsNoExecution(
+            accountBase, underlyingBase_USDC, underlyingOP_USDCe, amount, amount, OP, true, bytes("")
+        );
+
+        UserOpData memory srcUserOpDataOP = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE, true);
+
+        bytes memory signatureData = _createNoDestinationExecutionMerkleRootAndSignature(
+            validatorSigners[BASE], validatorSignerPrivateKeys[BASE], srcUserOpDataOP.userOpHash, address(sourceValidatorOnBase)
+        );
+        srcUserOpDataOP.userOp.signature = signatureData;
+
+        // EXECUTE OP
+        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpDataOP, superNativePaymasterOnBase, 1e18); 
+        _processAcrossV3MessageWithoutDestinationAccount(
+            BASE,
+            OP,
+            WARP_START_TIME,
+            executionData
+        );
+
+        assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), userBalanceBaseUSDCBefore - amount, "A");
+
+        SELECT_FORK_AND_WARP(OP, WARP_START_TIME + 10 days);
+        assertEq(IERC20(underlyingOP_USDCe).balanceOf(accountBase), amount, "B");
     }
 
     function test_OP_Bridge_Deposit_Redeem_Flow() public {
@@ -2777,7 +3195,7 @@ contract CrosschainTests is BaseTest {
         }
     }
 
-    function _sendDeBridgeOrder() internal {
+    function _sendDeBridgeOrder() internal returns (bytes memory) {
         uint256 amountPerVault = 1e8;
 
         // Base is src
@@ -2945,6 +3363,8 @@ contract CrosschainTests is BaseTest {
             bytes32(uint256(keccak256(abi.encode(orderId, uint256(1)))) + 2), // next slot for giveChainId
             bytes32(uint256(BASE)) // giveChainId = BASE (what cancel hook now uses)
         );
+        
+        return signatureData;
     }
 
     // Sandwich scenario on a cross-chain swap. Have an attacker front-run a user’s swap to inflate price so the
@@ -3234,8 +3654,8 @@ contract CrosschainTests is BaseTest {
 
         return vaultBalanceAfter;
     }
-
-    function _executeRedeemFromAccount(address account, uint256 redeemShares, uint256 originalDepositAmount) private {
+    
+    function _executeRedeemFromAccount(address account, uint256 redeemShares, uint256 originalDepositAmount, bool asserts) private {
         address[] memory redeemHooksAddresses = new address[](1);
         redeemHooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
 
@@ -3255,8 +3675,10 @@ contract CrosschainTests is BaseTest {
 
         uint256 vaultBalanceAfterRedeem = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(account);
         assertEq(vaultBalanceAfterRedeem, 0, "no vault shares after redeem");
-        uint256 tokenBalanceAfterRedeem = IERC20(underlyingETH_USDC).balanceOf(account);
-        assertGt(tokenBalanceAfterRedeem, 1e8 - originalDepositAmount, "received tokens back");
+        if (asserts) {
+            uint256 tokenBalanceAfterRedeem = IERC20(underlyingETH_USDC).balanceOf(account);
+            assertGt(tokenBalanceAfterRedeem, 1e8 - originalDepositAmount, "received tokens back");
+        }
     }
 
     function _prepareDepositOnOffRampExecution(
@@ -3532,16 +3954,35 @@ contract CrosschainTests is BaseTest {
         obtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(acc);
         assertGt(obtainedShares, 0);
     }
+    function _performAndAssert4626RedeemOnETH(address acc, address exec, uint256 shares, bool validateBeforeBalance) private returns (uint256 obtainedShares) {
+        address[] memory srcHooksAddresses = new address[](1);
+        srcHooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
 
-    function _installModuleOnAccount(
-        address acc,
-        uint256 moduleType,
-        address module,
-        bytes memory initData,
-        address validatorToUse
-    )
-        private
-    {
+        bytes[] memory srcHooksData = new bytes[](1);
+        srcHooksData[0] = _createRedeem4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressEth,
+            acc,
+            shares,
+            false
+        );
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
+        
+        // before op asserts
+        if (validateBeforeBalance) {
+            uint256 accBalanceBefore = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(acc);
+            assertEq(accBalanceBefore, shares);
+        }
+
+        // redeem
+        _executeHooksThroughEntrypoint(acc, address(exec), address(sourceValidatorOnETH), entry);
+
+        // after op asserts
+        obtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(acc);
+        assertEq(obtainedShares, 0);
+    }
+    function _installModuleOnAccount(address acc, uint256 moduleType, address module, bytes memory initData, address validatorToUse) private {
         Execution[] memory executions = new Execution[](1);
         executions[0] = Execution({
             target: acc,
@@ -3553,7 +3994,7 @@ contract CrosschainTests is BaseTest {
             acc, _prepareNonceWithValidator(acc, validatorToUse), _prepareExecutionCalldata(executions)
         );
 
-        _signAndSendUserOp(userOp, validatorToUse, acc, true);
+        _signAndSendUserOp(userOp, validatorToUse, acc, true, false);
     }
 
     function _uninstallModuleOnAccount(
@@ -3576,7 +4017,7 @@ contract CrosschainTests is BaseTest {
             acc, _prepareNonceWithValidator(acc, validatorToUse), _prepareExecutionCalldata(executions)
         );
 
-        _signAndSendUserOp(userOp, validatorToUse, acc, true);
+        _signAndSendUserOp(userOp, validatorToUse, acc, true, false);
     }
 
     function _executeHooksThroughEntrypoint(
@@ -3598,18 +4039,9 @@ contract CrosschainTests is BaseTest {
             account, _prepareNonceWithValidator(account, validator), _prepareExecutionCalldata(executions)
         );
 
-        _signAndSendUserOp(userOp, validator, account, true);
+        _signAndSendUserOp(userOp, validator, account, true, false);
     }
-
-    function _signAndSendUserOp(
-        PackedUserOperation memory userOp,
-        address validator,
-        address beneficiary,
-        bool execute
-    )
-        private
-        returns (PackedUserOperation[] memory userOps)
-    {
+    function _signAndSendUserOp(PackedUserOperation memory userOp, address validator, address beneficiary, bool execute, bool shouldRevert) private returns (PackedUserOperation[] memory userOps) {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createSourceValidatorLeaf(
@@ -3626,6 +4058,9 @@ contract CrosschainTests is BaseTest {
         userOps = new PackedUserOperation[](1);
         userOps[0] = userOp;
         if (execute) {
+            if (shouldRevert) {
+                vm.expectRevert();
+            }
             IEntryPoint(ENTRYPOINT_ADDR).handleOps(userOps, payable(beneficiary));
         }
     }

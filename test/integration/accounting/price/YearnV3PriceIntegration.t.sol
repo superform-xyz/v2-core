@@ -5,16 +5,14 @@ pragma solidity 0.8.30;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 
+// Superform
 import { MinimalBaseNexusIntegrationTest } from "../../MinimalBaseNexusIntegrationTest.t.sol";
-import { MockRegistry } from "../../../mocks/MockRegistry.sol";
 import { ISuperExecutor } from "../../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperLedgerConfiguration } from "../../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
-
 import { ERC4626YieldSourceOracle } from "../../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 
 // 4626 vault
 contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
-    MockRegistry public nexusRegistry;
     address[] public attesters;
     uint8 public threshold;
 
@@ -27,7 +25,6 @@ contract YearnV3PriceIntegration is MinimalBaseNexusIntegrationTest {
         blockNumber = ETH_BLOCK;
         super.setUp();
 
-        nexusRegistry = new MockRegistry();
         attesters = new address[](1);
 
         attesters[0] = address(MANAGER);

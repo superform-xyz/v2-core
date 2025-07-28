@@ -72,6 +72,9 @@ import { SpectraPTYieldSourceOracle } from "../src/accounting/oracles/SpectraPTY
 import { StakingYieldSourceOracle } from "../src/accounting/oracles/StakingYieldSourceOracle.sol";
 import { SuperYieldSourceOracle } from "../src/accounting/oracles/SuperYieldSourceOracle.sol";
 
+// -- superform 
+import { MarkRootAsUsedHook } from "../src/hooks/superform/MarkRootAsUsedHook.sol";
+
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { console2 } from "forge-std/console2.sol";
 
@@ -123,6 +126,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         address ethenaCooldownSharesHook;
         address ethenaUnstakeHook;
         address mintSuperPositionHook;
+        address markRootAsUsedHook;
     }
 
     struct HookDeployment {
@@ -645,7 +649,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
     {
         console2.log("Starting hook deployment with comprehensive dependency validation...");
 
-        uint256 len = 32;
+        uint256 len = 33;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -757,6 +761,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         hooks[29] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, type(CancelRedeemHook).creationCode);
         hooks[30] = HookDeployment(OFFRAMP_TOKENS_HOOK_KEY, type(OfframpTokensHook).creationCode);
         hooks[31] = HookDeployment(MINT_SUPERPOSITIONS_HOOK_KEY, type(MintSuperPositionsHook).creationCode);
+        hooks[32] = HookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, type(MarkRootAsUsedHook).creationCode);
 
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying", len, "hooks with parameter validation...");
@@ -835,6 +840,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             Strings.equal(hooks[30].name, OFFRAMP_TOKENS_HOOK_KEY) ? addresses[30] : address(0);
         hookAddresses.mintSuperPositionHook =
             Strings.equal(hooks[31].name, MINT_SUPERPOSITIONS_HOOK_KEY) ? addresses[31] : address(0);
+        hookAddresses.markRootAsUsedHook =
+            Strings.equal(hooks[32].name, MARK_ROOT_AS_USED_HOOK_KEY) ? addresses[32] : address(0);
 
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");
@@ -894,6 +901,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         require(hookAddresses.ethenaUnstakeHook != address(0), "ETHENA_UNSTAKE_HOOK_NOT_ASSIGNED");
         require(hookAddresses.offrampTokensHook != address(0), "OFFRAMP_TOKENS_HOOK_NOT_ASSIGNED");
         require(hookAddresses.mintSuperPositionHook != address(0), "MINT_SUPERPOSITION_HOOK_NOT_ASSIGNED");
+        
+        require(hookAddresses.markRootAsUsedHook != address(0), "MARK_ROOT_AS_USED_HOOK_NOT_ASSIGNED");
 
         console2.log(" All hooks deployed and validated successfully with comprehensive dependency checking! ");
 

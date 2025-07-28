@@ -1,15 +1,19 @@
 // SPDX-License-Identifier: MIT
 pragma solidity >=0.8.30;
 
-// Tests
+// external
+import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { UserOpData } from "modulekit/ModuleKit.sol";
-import { MockERC20 } from "../../mocks/MockERC20.sol";
-import { MockSpectraRouter, MockSpectraRedeemRouter } from "../../mocks/MockSpectraRouter.sol";
+
+// Superform
 import { SpectraExchangeDepositHook } from "../../../src/hooks/swappers/spectra/SpectraExchangeDepositHook.sol";
 import { SpectraExchangeRedeemHook } from "../../../src/hooks/swappers/spectra/SpectraExchangeRedeemHook.sol";
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
-import { IERC20 } from "openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
 import { MinimalBaseIntegrationTest } from "../MinimalBaseIntegrationTest.t.sol";
+
+// -- mock used when `useRealOdosRouter` is false
+import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { MockSpectraRouter, MockSpectraRedeemRouter } from "../../mocks/MockSpectraRouter.sol";
 
 contract SpectraExchangeHooksIntegrationTest is MinimalBaseIntegrationTest {
     address public spectraRouter;

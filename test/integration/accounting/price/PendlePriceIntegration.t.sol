@@ -4,19 +4,19 @@ pragma solidity 0.8.30;
 // external
 import {IERC20} from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
+import {IStandardizedYield} from "../../../../src/vendor/pendle/IStandardizedYield.sol";
 
+// Superform
 import {MinimalBaseNexusIntegrationTest} from "../../MinimalBaseNexusIntegrationTest.t.sol";
-import {MockRegistry} from "../../../mocks/MockRegistry.sol";
 import {ISuperExecutor} from "../../../../src/interfaces/ISuperExecutor.sol";
 import {ISuperLedgerConfiguration} from "../../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import {IStandardizedYield} from "../../../../src/vendor/pendle/IStandardizedYield.sol";
 
 import {ERC5115YieldSourceOracle} from "../../../../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
 import {Deposit5115VaultHook} from "../../../../src/hooks/vaults/5115/Deposit5115VaultHook.sol";
 import {Redeem5115VaultHook} from "../../../../src/hooks/vaults/5115/Redeem5115VaultHook.sol";
 
+
 contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
-    MockRegistry public nexusRegistry;
     address[] public attesters;
     uint8 public threshold;
 
@@ -27,7 +27,6 @@ contract PendlePriceIntegration is MinimalBaseNexusIntegrationTest {
         blockNumber = ETH_BLOCK;
         super.setUp();
 
-        nexusRegistry = new MockRegistry();
         attesters = new address[](1);
 
         attesters[0] = address(MANAGER);
