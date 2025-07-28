@@ -1071,6 +1071,71 @@ contract CrosschainTests is BaseTest {
         assertNotEq(pricePerShare, 1);
     }
 
+    function test_ETH_Bridge_With_Debridge_NoExecution() public {
+         uint256 amountPerVault = 1e8;
+
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+        uint256 balanceOnDestinationBefore = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], amountPerVault, false);
+
+        uint256 msgValue = IDlnSource(DEBRIDGE_DLN_ADDRESSES[BASE]).globalFixedNativeFee();
+
+        bytes memory debridgeData = _createDebridgeSendFundsAndExecuteHookData(
+            DebridgeOrderData({
+                usePrevHookAmount: false, //usePrevHookAmount
+                value: msgValue, //value
+                giveTokenAddress: underlyingBase_USDC, //giveTokenAddress
+                giveAmount: amountPerVault, //giveAmount
+                version: 1, //envelope.version
+                fallbackAddress: accountETH, //envelope.fallbackAddress
+                executorAddress: address(accountETH), //envelope.executorAddress
+                executionFee: uint160(0), //envelope.executionFee
+                allowDelayedExecution: false, //envelope.allowDelayedExecution
+                requireSuccessfulExecution: true, //envelope.requireSuccessfulExecution
+                payload: "", //envelope.payload
+                takeTokenAddress: underlyingETH_USDC, //takeTokenAddress
+                takeAmount: amountPerVault - amountPerVault * 1e4 / 1e5, //takeAmount
+                takeChainId: ETH, //takeChainId
+                // receiverDst must be the Debridge Adapter on the destination chain
+                receiverDst: address(accountETH),
+                givePatchAuthoritySrc: address(0), //givePatchAuthoritySrc
+                orderAuthorityAddressDst: abi.encodePacked(accountETH), //orderAuthorityAddressDst
+                allowedTakerDst: "", //allowedTakerDst
+                allowedCancelBeneficiarySrc: "", //allowedCancelBeneficiarySrc
+                affiliateFee: "", //affiliateFee
+                referralCode: 0 //referralCode
+             })
+        );
+        srcHooksData[1] = debridgeData;
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+    
+        bytes memory signatureData = _createNoDestinationExecutionMerkleRootAndSignature(
+            validatorSigners[BASE], validatorSignerPrivateKeys[BASE], srcUserOpData.userOpHash, address(sourceValidatorOnBase)
+        );
+        srcUserOpData.userOp.signature = signatureData;
+
+        // EXECUTE BASE
+        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
+        _processDebridgeDlnMessage(BASE, ETH, executionData);
+
+        // check destination
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME + 50 days);
+        uint256 balanceOnDestination = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+        assertEq(balanceOnDestination - balanceOnDestinationBefore, amountPerVault * 9e4/1e5, "AAA");
+    }
+
     function test_DeBridgeCancelOrderHook() public {
         uint256 amountPerVault = 1e8;
 
