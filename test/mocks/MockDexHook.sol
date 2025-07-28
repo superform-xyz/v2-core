@@ -19,8 +19,8 @@ import { MockDex } from "./MockDex.sol";
 ///         address inputToken = BytesLib.toAddress(data, 0);
 ///         uint256 inputAmount = BytesLib.toUint256(data, 20);
 ///         address outputToken = BytesLib.toAddress(data, 52);
-///         uint256 outputAmount = BytesLib.toUint256(data, 84);
-///         bool usePrevHookAmount = _decodeBool(data, 116);
+///         uint256 outputAmount = BytesLib.toUint256(data, 72);
+///         bool usePrevHookAmount = _decodeBool(data, 104);
 contract MockDexHook is BaseHook {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
