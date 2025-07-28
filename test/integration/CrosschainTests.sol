@@ -1148,6 +1148,71 @@ contract CrosschainTests is BaseTest {
         assertNotEq(pricePerShare, 1);
     }
 
+    function test_ETH_Bridge_With_Debridge_NoExecution() public {
+         uint256 amountPerVault = 1e8;
+
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+        uint256 balanceOnDestinationBefore = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], amountPerVault, false);
+
+        uint256 msgValue = IDlnSource(DEBRIDGE_DLN_ADDRESSES[BASE]).globalFixedNativeFee();
+
+        bytes memory debridgeData = _createDebridgeSendFundsAndExecuteHookData(
+            DebridgeOrderData({
+                usePrevHookAmount: false, //usePrevHookAmount
+                value: msgValue, //value
+                giveTokenAddress: underlyingBase_USDC, //giveTokenAddress
+                giveAmount: amountPerVault, //giveAmount
+                version: 1, //envelope.version
+                fallbackAddress: accountETH, //envelope.fallbackAddress
+                executorAddress: address(accountETH), //envelope.executorAddress
+                executionFee: uint160(0), //envelope.executionFee
+                allowDelayedExecution: false, //envelope.allowDelayedExecution
+                requireSuccessfulExecution: true, //envelope.requireSuccessfulExecution
+                payload: "", //envelope.payload
+                takeTokenAddress: underlyingETH_USDC, //takeTokenAddress
+                takeAmount: amountPerVault - amountPerVault * 1e4 / 1e5, //takeAmount
+                takeChainId: ETH, //takeChainId
+                // receiverDst must be the Debridge Adapter on the destination chain
+                receiverDst: address(accountETH),
+                givePatchAuthoritySrc: address(0), //givePatchAuthoritySrc
+                orderAuthorityAddressDst: abi.encodePacked(accountETH), //orderAuthorityAddressDst
+                allowedTakerDst: "", //allowedTakerDst
+                allowedCancelBeneficiarySrc: "", //allowedCancelBeneficiarySrc
+                affiliateFee: "", //affiliateFee
+                referralCode: 0 //referralCode
+             })
+        );
+        srcHooksData[1] = debridgeData;
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+    
+        bytes memory signatureData = _createNoDestinationExecutionMerkleRootAndSignature(
+            validatorSigners[BASE], validatorSignerPrivateKeys[BASE], srcUserOpData.userOpHash, address(sourceValidatorOnBase)
+        );
+        srcUserOpData.userOp.signature = signatureData;
+
+        // EXECUTE BASE
+        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
+        _processDebridgeDlnMessage(BASE, ETH, executionData);
+
+        // check destination
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME + 50 days);
+        uint256 balanceOnDestination = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+        assertEq(balanceOnDestination - balanceOnDestinationBefore, amountPerVault * 9e4/1e5, "AAA");
+    }
+
     function test_DeBridgeCancelOrderHook() public {
         uint256 amountPerVault = 1e8;
 
@@ -1186,6 +1251,63 @@ contract CrosschainTests is BaseTest {
         console2.log("CANCELLED ORDER");
         //console2.log(IERC20(underlyingBase_USDC).balanceOf(accountETH));
         // assertEq(IERC20(underlyingBase_USDC).balanceOf(accountETH), amountPerVault);
+    }
+
+    function test_DeBridgeCancelOrderHook_AndMarkRootAsUsed() public {
+        uint256 amountPerVault = 1e8;
+
+        bytes memory sigData = _sendDeBridgeOrder();
+
+        // Cancel order on ETH
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+
+        address[] memory cancelOrderHooksAddresses = new address[](1);
+        cancelOrderHooksAddresses[0] = _getHookAddress(ETH, DEBRIDGE_CANCEL_ORDER_HOOK_KEY);
+
+        uint256 value = IDlnSource(DEBRIDGE_DLN_ADDRESSES[ETH]).globalFixedNativeFee();
+
+        bytes[] memory cancelData = new bytes[](1);
+        cancelData[0] = _createDebrigeCancelOrderData(
+            accountBase,
+            address(debridgeAdapterOnETH),
+            address(0),
+            accountETH,
+            address(0),
+            accountETH, // ✅ Should match allowedCancelBeneficiarySrc from order creation (now accountETH)
+            underlyingBase_USDC,
+            underlyingETH_USDC,
+            value,
+            amountPerVault,
+            amountPerVault,
+            BASE, // giveChainId - the chain where the order was created
+            uint256(ETH) // takeChainId - the destination chain
+        );
+
+        UserOpData memory cancelOrderUserOpData = _createUserOpData(cancelOrderHooksAddresses, cancelData, ETH, false);
+
+        // accountETH
+        executeOpsThroughPaymaster(cancelOrderUserOpData, superNativePaymasterOnETH, 1e18);
+
+        {
+            bytes32 merkleRoot = BytesLib.toBytes32(BytesLib.slice(sigData, 64, 32), 0);
+            bool rootStatusBefore = ISuperDestinationExecutor(superTargetExecutorOnETH).isMerkleRootUsed(accountETH, merkleRoot);
+            assertFalse(rootStatusBefore, "root is not marked here");
+
+            cancelOrderHooksAddresses = new address[](1);
+            cancelOrderHooksAddresses[0] = _getHookAddress(ETH, MARK_ROOT_AS_USED_HOOK_KEY);
+
+            cancelData = new bytes[](1);
+            bytes32[] memory roots = new bytes32[](1);
+            roots[0] = merkleRoot;
+            cancelData[0] = _createMarkRootAsUsedHookData(address(superTargetExecutorOnETH), abi.encode(roots));
+
+            cancelOrderUserOpData = _createUserOpData(cancelOrderHooksAddresses, cancelData, ETH, false);
+
+            executeOpsThroughPaymaster(cancelOrderUserOpData, superNativePaymasterOnETH, 1e18);
+
+            bool rootStatusAfter = ISuperDestinationExecutor(superTargetExecutorOnETH).isMerkleRootUsed(accountETH, merkleRoot);
+            assertTrue(rootStatusAfter, "root is marked here");   
+        }
     }
 
     //  >>>> ACROSS
@@ -1505,6 +1627,54 @@ contract CrosschainTests is BaseTest {
 
         vm.selectFork(FORKS[OP]);
         assertEq(vaultInstance4626OP.balanceOf(accountOP), previewDepositAmountOP, "B");
+    }
+
+
+    function test_bridge_To_OP_NoExecution() public {
+        uint256 amount = 1e8 / 2;
+
+
+        SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
+        uint256 balanceOPBefore =  IERC20(underlyingOP_USDCe).balanceOf(accountBase);
+        assertEq(balanceOPBefore, 0);
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME);
+
+        uint256 userBalanceBaseUSDCBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddressesOP = new address[](2);
+        srcHooksAddressesOP[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddressesOP[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksDataOP = new bytes[](2);
+        srcHooksDataOP[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amount, false);
+        srcHooksDataOP[1] = _createAcrossV3ReceiveFundsNoExecution(
+            accountBase, underlyingBase_USDC, underlyingOP_USDCe, amount, amount, OP, true, bytes("")
+        );
+
+        UserOpData memory srcUserOpDataOP = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE, true);
+
+        bytes memory signatureData = _createNoDestinationExecutionMerkleRootAndSignature(
+            validatorSigners[BASE], validatorSignerPrivateKeys[BASE], srcUserOpDataOP.userOpHash, address(sourceValidatorOnBase)
+        );
+        srcUserOpDataOP.userOp.signature = signatureData;
+
+        // EXECUTE OP
+        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpDataOP, superNativePaymasterOnBase, 1e18); 
+        _processAcrossV3MessageWithoutDestinationAccount(
+            BASE,
+            OP,
+            WARP_START_TIME,
+            executionData
+        );
+
+        assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), userBalanceBaseUSDCBefore - amount, "A");
+
+        SELECT_FORK_AND_WARP(OP, WARP_START_TIME + 10 days);
+        assertEq(IERC20(underlyingOP_USDCe).balanceOf(accountBase), amount, "B");
     }
 
     function test_OP_Bridge_Deposit_Redeem_Flow() public {
@@ -3034,7 +3204,7 @@ contract CrosschainTests is BaseTest {
         }
     }
 
-    function _sendDeBridgeOrder() internal {
+    function _sendDeBridgeOrder() internal returns (bytes memory) {
         uint256 amountPerVault = 1e8;
 
         // Base is src
@@ -3202,6 +3372,8 @@ contract CrosschainTests is BaseTest {
             bytes32(uint256(keccak256(abi.encode(orderId, uint256(1)))) + 2), // next slot for giveChainId
             bytes32(uint256(BASE)) // giveChainId = BASE (what cancel hook now uses)
         );
+        
+        return signatureData;
     }
 
     /*//////////////////////////////////////////////////////////////

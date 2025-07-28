@@ -158,6 +158,18 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         emit SuperDestinationExecutorExecuted(account);
     }
 
+    /// @inheritdoc ISuperDestinationExecutor
+    function markRootsAsUsed(bytes32[] memory roots) external {
+        uint256 length = roots.length;
+        for (uint256 i; i < length; ++i) {
+            usedMerkleRoots[msg.sender][roots[i]] = true;
+        }
+        emit SuperDestinationExecutorMarkRootsAsUsed(msg.sender, roots);
+    }
+    
+    /*//////////////////////////////////////////////////////////////
+                          INTERNAL
+    //////////////////////////////////////////////////////////////*/
     function _shouldSkipCalldata(bytes memory executorCalldata) internal pure returns (bool) {
         bytes4 selector = bytes4(BytesLib.slice(executorCalldata, 0, 4));
         if (selector != ISuperExecutor.execute.selector) return true;

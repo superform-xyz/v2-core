@@ -308,6 +308,9 @@ contract DeBridgeSendOrderAndExecuteOnDstHook is BaseHook, ISuperHookContextAwar
     }
 
     function _buildExternalCall(ExternalCallParams memory params) internal pure returns (bytes memory) {
+        if (params.destinationMessage.length == 0) return bytes("");
+
+        // append signature to `destinationMessage` and build call data
         (
             bytes memory initData,
             bytes memory executorCalldata,

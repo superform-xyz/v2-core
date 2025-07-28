@@ -121,6 +121,9 @@ import { BatchTransferFromHook } from "../src/hooks/tokens/permit2/BatchTransfer
 // --- Offramp
 import { OfframpTokensHook } from "../src/hooks/tokens/OfframpTokensHook.sol";
 
+// --- Superform
+import { MarkRootAsUsedHook } from "../src/hooks/superform/MarkRootAsUsedHook.sol";
+
 // action oracles
 import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
@@ -225,6 +228,7 @@ struct Addresses {
     BatchTransferFromHook batchTransferFromHook;
     OfframpTokensHook offrampTokensHook;
     MintSuperPositionsHook mintSuperPositionsHook;
+    MarkRootAsUsedHook markRootAsUsedHook;
     ERC4626YieldSourceOracle erc4626YieldSourceOracle;
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     ERC7540YieldSourceOracle erc7540YieldSourceOracle;
@@ -233,6 +237,7 @@ struct Addresses {
     SuperDestinationValidator superDestinationValidator;
     SuperNativePaymaster superNativePaymaster;
     MockTargetExecutor mockTargetExecutor;
+
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser, InternalHelpers {
@@ -570,7 +575,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](49);
+            address[] memory hooksAddresses = new address[](50);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }();
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -1188,6 +1193,20 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 hooks[chainIds[i]][MINT_SUPERPOSITIONS_HOOK_KEY]
             );
             hooksAddresses[48] = address(A[i].mintSuperPositionsHook);
+
+
+            A[i].markRootAsUsedHook = new MarkRootAsUsedHook{ salt: SALT }();
+            vm.label(address(A[i].markRootAsUsedHook), MARK_ROOT_AS_USED_HOOK_KEY);
+            hookAddresses[chainIds[i]][MARK_ROOT_AS_USED_HOOK_KEY] = address(A[i].markRootAsUsedHook);
+            hooks[chainIds[i]][MARK_ROOT_AS_USED_HOOK_KEY] = Hook(
+                MARK_ROOT_AS_USED_HOOK_KEY,
+                HookCategory.TokenApprovals,
+                HookCategory.None,
+                address(A[i].markRootAsUsedHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][MARK_ROOT_AS_USED_HOOK_KEY]);
+            hooksAddresses[49] = address(A[i].markRootAsUsedHook);
 
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);
@@ -1847,6 +1866,40 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
     }
 
+
+    function _createNoDestinationExecutionMerkleRootAndSignature(
+        address signer,
+        uint256 signerPrvKey,
+        bytes32 userOpHash,
+        address srcValidator
+    )
+        internal
+        view
+        returns (bytes memory sig)
+    {
+        MerkleContext memory ctx;
+
+        ctx.validUntil = uint48(block.timestamp + 100 days);
+      
+        ctx.leaves = new bytes32[](1);
+        ctx.leaves[0] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, false, srcValidator);
+
+        (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
+
+        ctx.signature = _createSignature(
+            SuperValidatorBase(srcValidator).namespace(),
+            ctx.merkleRoot,
+            signer,
+            signerPrvKey
+        );
+
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+
+        sig = _createSignatureData_DestinationExecutor(
+            false, ctx.validUntil, ctx.merkleRoot, ctx.merkleProof[0], proofDst, ctx.signature
+        );
+    }
+
     function _createSignatureData_DestinationExecutor(
         bool validateDstProof,
         uint48 validUntil,
@@ -1990,6 +2043,35 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         return (abi.encodePacked(p.senderCreatorOnDestinationChain, address(p.nexusFactory), initFactoryCalldata), precomputedAddress);
     }
 
+    function _createAcrossV3ReceiveFundsNoExecution( 
+        address receiver,
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint64 destinationChainId,
+        bool usePrevHookAmount,
+        bytes memory data
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(
+            uint256(0),
+            receiver,
+            inputToken,
+            outputToken,
+            inputAmount,
+            outputAmount,
+            uint256(destinationChainId),
+            address(0),
+            uint32(10 minutes), // this can be a max of 360 minutes
+            uint32(0),
+            usePrevHookAmount,
+            data
+        );
+    }
 
     function _createAcrossV3ReceiveFundsAndExecuteHookData( 
         address inputToken,

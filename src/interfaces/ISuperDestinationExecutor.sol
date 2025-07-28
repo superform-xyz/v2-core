@@ -46,6 +46,11 @@ interface ISuperDestinationExecutor {
         address indexed account, address indexed token, uint256 intentAmount
     );
 
+    /// @notice Emitted when a list of merkle roots is marked as used
+    /// @param account The account that marked the merkle roots as used
+    /// @param roots Array of merkle roots that were marked as used
+    event SuperDestinationExecutorMarkRootsAsUsed(address indexed account, bytes32[] roots);
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -110,4 +115,10 @@ interface ISuperDestinationExecutor {
         bytes memory userSignatureData
     )
         external;
+    
+    /// @notice Marks a list of merkle roots as used by the account
+    /// @dev Used to prevent replay attacks in cross-chain message verification
+    ///      Each valid merkle root should only be usable once per user account
+    /// @param roots Array of merkle roots to mark as used
+    function markRootsAsUsed(bytes32[] memory roots) external;
 }
