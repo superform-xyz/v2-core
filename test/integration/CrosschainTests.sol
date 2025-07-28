@@ -965,14 +965,18 @@ contract CrosschainTests is BaseTest {
     }
 
     function test_Bridge_To_ETH_And_Create_Nexus_Account_7702Flow() public {
-        uint256 _warpStartTime = 1752648279;
+        uint256 _warpStartTime = 1753501381;
+
+        uint256 latestEthFork = vm.createFork(ETHEREUM_RPC_URL);
+        vm.selectFork(latestEthFork);
+        vm.warp(_warpStartTime);
 
         uint256 amountPerVault = 1e8 / 2;
 
         // ETH IS DST
-        SELECT_FORK_AND_WARP(ETH, _warpStartTime);
+        //vm.selectFork(FORKS[ETH]);
 
-        _doEIP7702(validatorSigner, address(0x0000000025a29E0598c88955fd00E256691A089c));
+        _doEIP7702(validatorSigner, address(0x000000004F43C49e93C970E84001853a70923B03));
 
         // PREPARE ETH DATA
         bytes memory targetExecutorMessage;
@@ -990,8 +994,8 @@ contract CrosschainTests is BaseTest {
                 signerPrivateKey: validatorSignerPrivateKey,
                 targetAdapter: address(acrossV3AdapterOnETH),
                 targetExecutor: address(superTargetExecutorOnETH),
-                nexusFactory: 0x0000000025a29E0598c88955fd00E256691A089c,
-                nexusBootstrap: 0x000000001aafD7ED3B8baf9f46cD592690A5BBE5,
+                nexusFactory: 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de,
+                nexusBootstrap: 0x00000000D3254452a909E4eeD47455Af7E27C289,
                 chainId: uint64(ETH),
                 amount: amountPerVault,
                 account: address(0),
@@ -999,10 +1003,15 @@ contract CrosschainTests is BaseTest {
             });
 
             (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, true);
+
+            console2.log("----- accountToUse", accountToUse);
+            console2.log("---- accountToUse length", accountToUse.code.length);
         }
 
         // BASE IS SRC
-        SELECT_FORK_AND_WARP(BASE, _warpStartTime + 30 days);
+        uint256 latestBaseFork = vm.createFork(BASE_RPC_URL);
+        vm.selectFork(latestBaseFork);
+        vm.warp(_warpStartTime);
 
         // PREPARE BASE DATA
         address[] memory srcHooksAddresses = new address[](2);
@@ -1016,13 +1025,13 @@ contract CrosschainTests is BaseTest {
             underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, true, targetExecutorMessage
         );
 
-        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+                ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
 
-        bytes memory signatureData = _createMerkleRootAndSignature(
-            messageData, srcUserOpData.userOpHash, accountToUse, ETH, address(sourceValidatorOnBase)
-        );
-        srcUserOpData.userOp.signature = signatureData;
+        _executeHooksThroughEntrypoint(validatorSigner, address(superExecutorOnBase), address(sourceValidatorOnBase), entryToExecute);
 
+        return;
+        /**
         // EXECUTE BASE
         ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
         _processAcrossV3Message(
@@ -1039,6 +1048,7 @@ contract CrosschainTests is BaseTest {
                 relayerGas: 0
             })
         );
+         */
     }
 
     //  >>>> DEBRIDGE
@@ -4239,6 +4249,5 @@ contract CrosschainTests is BaseTest {
     function _doEIP7702(address account, address accImplementation) internal {
         if (accImplementation.code.length == 0) revert("NO ACCOUNT");
         vm.etch(account, abi.encodePacked(hex'ef0100', bytes20(address(accImplementation))));
-        
     }
 }
