@@ -1176,6 +1176,63 @@ contract CrosschainTests is BaseTest {
         // assertEq(IERC20(underlyingBase_USDC).balanceOf(accountETH), amountPerVault);
     }
 
+    function test_DeBridgeCancelOrderHook_AndMarkRootAsUsed() public {
+        uint256 amountPerVault = 1e8;
+
+        bytes memory sigData = _sendDeBridgeOrder();
+
+        // Cancel order on ETH
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+
+        address[] memory cancelOrderHooksAddresses = new address[](1);
+        cancelOrderHooksAddresses[0] = _getHookAddress(ETH, DEBRIDGE_CANCEL_ORDER_HOOK_KEY);
+
+        uint256 value = IDlnSource(DEBRIDGE_DLN_ADDRESSES[ETH]).globalFixedNativeFee();
+
+        bytes[] memory cancelData = new bytes[](1);
+        cancelData[0] = _createDebrigeCancelOrderData(
+            accountBase,
+            address(debridgeAdapterOnETH),
+            address(0),
+            accountETH,
+            address(0),
+            accountETH, // ✅ Should match allowedCancelBeneficiarySrc from order creation (now accountETH)
+            underlyingBase_USDC,
+            underlyingETH_USDC,
+            value,
+            amountPerVault,
+            amountPerVault,
+            BASE, // giveChainId - the chain where the order was created
+            uint256(ETH) // takeChainId - the destination chain
+        );
+
+        UserOpData memory cancelOrderUserOpData = _createUserOpData(cancelOrderHooksAddresses, cancelData, ETH, false);
+
+        // accountETH
+        executeOpsThroughPaymaster(cancelOrderUserOpData, superNativePaymasterOnETH, 1e18);
+
+        {
+            bytes32 merkleRoot = BytesLib.toBytes32(BytesLib.slice(sigData, 64, 32), 0);
+            bool rootStatusBefore = ISuperDestinationExecutor(superTargetExecutorOnETH).isMerkleRootUsed(accountETH, merkleRoot);
+            assertFalse(rootStatusBefore, "root is not marked here");
+
+            cancelOrderHooksAddresses = new address[](1);
+            cancelOrderHooksAddresses[0] = _getHookAddress(ETH, MARK_ROOT_AS_USED_HOOK_KEY);
+
+            cancelData = new bytes[](1);
+            bytes32[] memory roots = new bytes32[](1);
+            roots[0] = merkleRoot;
+            cancelData[0] = _createMarkRootAsUsedHookData(address(superTargetExecutorOnETH), abi.encode(roots));
+
+            cancelOrderUserOpData = _createUserOpData(cancelOrderHooksAddresses, cancelData, ETH, false);
+
+            executeOpsThroughPaymaster(cancelOrderUserOpData, superNativePaymasterOnETH, 1e18);
+
+            bool rootStatusAfter = ISuperDestinationExecutor(superTargetExecutorOnETH).isMerkleRootUsed(accountETH, merkleRoot);
+            assertTrue(rootStatusAfter, "root is marked here");   
+        }
+    }
+
     //  >>>> ACROSS
     function test_CrossChain_SignatureReplay_Prevention() public {
         SignatureReplayTestData memory testData = _prepareSignatureReplayTest();
@@ -3070,7 +3127,7 @@ contract CrosschainTests is BaseTest {
         }
     }
 
-    function _sendDeBridgeOrder() internal {
+    function _sendDeBridgeOrder() internal returns (bytes memory) {
         uint256 amountPerVault = 1e8;
 
         // Base is src
@@ -3238,6 +3295,8 @@ contract CrosschainTests is BaseTest {
             bytes32(uint256(keccak256(abi.encode(orderId, uint256(1)))) + 2), // next slot for giveChainId
             bytes32(uint256(BASE)) // giveChainId = BASE (what cancel hook now uses)
         );
+        
+        return signatureData;
     }
 
     /*//////////////////////////////////////////////////////////////
