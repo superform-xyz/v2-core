@@ -230,6 +230,8 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     function _createAccount(bytes memory initCode) internal returns (address account) {
         // SuperSenderCreator contract
         address senderCreator = BytesLib.toAddress(initCode, 0);
+        if (senderCreator == address(0)) revert ADDRESS_NOT_VALID();
+        if (senderCreator.code.length == 0) revert SENDER_CREATOR_NOT_VALID();
 
         // This one contains `abi.encodePacked(address, initData)`
         bytes memory senderData = BytesLib.slice(initCode, 20, initCode.length - 20);

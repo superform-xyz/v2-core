@@ -3,13 +3,19 @@ pragma solidity 0.8.30;
 
 // external
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
-import { ISuperSignatureStorage } from "../interfaces/ISuperSignatureStorage.sol";
+import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+
+// Superform
+import { ChainAgnosticSafeSignatureValidation } from "../libraries/ChainAgnosticSafeSignatureValidation.sol";
 import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
 
 /// @title SuperValidatorBase
 /// @author Superform Labs
 /// @notice A base contract for all Superform validators
 abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
+    using ChainAgnosticSafeSignatureValidation for address;
+    
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -141,6 +147,29 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         return keccak256(abi.encode(namespace(), merkleRoot));
     }
 
+    /// @notice Processes an EOA signature and returns the signer
+    /// @param sigData Signature data including merkle root, proofs, and actual signature
+    /// @return signer The address that signed the message
+    function _processECDSASignature(SignatureData memory sigData) internal pure returns (address signer) {
+        bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
+        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
+
+        signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
+    }
+
+    /// @notice Processes a contract signature using chain-agnostic validation
+    /// @dev Bypasses Safe's native EIP-712 validation to enable cross-chain compatibility
+    /// @param safe The Safe account address
+    /// @param sigData Signature data including merkle root, proofs, and actual signature
+    /// @return The Safe address if validation succeeds, address(0) if it fails
+    function _processEIP1271Signature(address safe, SignatureData memory sigData) internal view returns (address) {
+        // Use chain-agnostic validation instead of Safe's native isValidSignature
+        if (safe.validateChainAgnosticMultisig(sigData, _createMessageHash(sigData.merkleRoot))) {
+            return safe;
+        }
+        return address(0);
+    }
+
     /// @notice Validates if a signature is valid based on signer and expiration time
     /// @dev Checks that the signer matches the registered account owner and signature hasn't expired
     /// @param signer The address recovered from the signature
@@ -160,5 +189,15 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         /// @dev block.timestamp could vary between chains
         /// @dev validUntil = 0 means infinite validity
         return signer == _accountOwners[sender] && (validUntil == 0 || validUntil >= block.timestamp);
+    }
+
+    /// @notice Checks if an address is a Safe signer
+    /// @param addr The address to check
+    /// @return True if the address is a Safe signer, false otherwise
+    function _isSafeSigner(address addr) internal view returns (bool) {
+        (bool success, bytes memory result) = addr.staticcall(
+            abi.encodeWithSignature("getOwners()")
+        );
+        return success && result.length > 0;
     }
 }

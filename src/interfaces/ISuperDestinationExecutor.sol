@@ -67,6 +67,9 @@ interface ISuperDestinationExecutor {
     /// @notice Emitted when the merkle root is already used
     error MERKLE_ROOT_ALREADY_USED();
 
+    /// @notice Emitted when the sender creator is not valid
+    error SENDER_CREATOR_NOT_VALID();
+
     /*//////////////////////////////////////////////////////////////
                                  VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/

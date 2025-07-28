@@ -181,7 +181,14 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
     /// @param account The smart account executing the operation
     /// @param hook The hook that was just executed
     /// @param hookData The data provided to the hook for execution
-    function _updateAccounting(address account, address hook, bytes memory hookData) internal virtual {
+    function _updateAccounting(
+        address account,
+        address hook,
+        bytes memory hookData
+    )
+        internal
+        virtual
+    {
         uint256 feeAmount;
         ISuperHook.HookType _type = ISuperHookResult(hook).hookType();
         if (_type == ISuperHook.HookType.INFLOW || _type == ISuperHook.HookType.OUTFLOW) {

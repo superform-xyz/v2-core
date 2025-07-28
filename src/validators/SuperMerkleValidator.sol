@@ -2,14 +2,13 @@
 pragma solidity 0.8.30;
 
 // external
-import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
-import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
-import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
+import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
+import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
 import { SuperValidatorBase } from "./SuperValidatorBase.sol";
 import { ISuperSignatureStorage } from "../interfaces/ISuperSignatureStorage.sol";
+import { SignatureTransientStorage } from "../libraries/SignatureTransientStorage.sol";
 
 /// @title SuperMerkleValidator
 /// @author Superform Labs
@@ -17,6 +16,8 @@ import { ISuperSignatureStorage } from "../interfaces/ISuperSignatureStorage.sol
 /// @dev Implements EIP-1271 and ERC-4337 signature validation mechanisms
 ///      Uses transient storage for signature data management
 contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
+    using SignatureTransientStorage for uint256;
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -24,17 +25,13 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     /// @dev The value 0x1626ba7e is specified by the EIP-1271 standard
     bytes4 public constant VALID_SIGNATURE = bytes4(0x1626ba7e);
 
-    /// @notice Storage key for transient signature data
-    /// @dev Uses the transient storage pattern to store signature data temporarily
-    ///      This is more gas efficient than regular storage for temporary data
-    bytes32 internal constant SIGNATURE_KEY_STORAGE = keccak256("transient.signature.bytes.mapping");
-
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
     /// @inheritdoc ISuperSignatureStorage
     function retrieveSignatureData(address account) external view returns (bytes memory) {
-        return _loadSignature(uint256(uint160(account)));
+        uint256 identifier = uint256(uint160(account));
+        return identifier.loadSignature();
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -56,7 +53,8 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
 
         // Verify source data
-        (address signer,) = _processSignatureAndVerifyLeaf(sigData, _userOpHash);
+        (address signer,) = _processSignatureAndVerifyLeaf(_userOp.sender, sigData, _userOpHash);
+
         // Validate
         bool isValid = _isSignatureValid(signer, _userOp.sender, sigData.validUntil);
 
@@ -83,7 +81,8 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
             }
 
             // store signature in transient storage to be retrieved during bridge execution
-            _storeSignature(uint256(uint160(_userOp.sender)), _userOp.signature);
+            uint256 identifier = uint256(uint160(_userOp.sender));
+            identifier.storeSignature(_userOp.signature);
         }
 
         return _packValidationData(!isValid, sigData.validUntil, 0);
@@ -107,7 +106,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         SignatureData memory sigData = _decodeSignatureData(sigDataRaw);
 
         // Process signature
-        (address signer,) = _processSignatureAndVerifyLeaf(sigData, dataHash);
+        (address signer,) = _processSignatureAndVerifyLeaf(msg.sender, sigData, dataHash);
 
         // Validate
         bool isValid = _isSignatureValid(signer, msg.sender, sigData.validUntil);
@@ -147,11 +146,13 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
     /// @notice Processes a signature and verifies it against a merkle proof
     /// @dev Verifies the user operation hash is part of the merkle tree and recovers the signer
     ///      Uses the source proof (proofSrc) for verification
+    /// @param sender The sender address to validate the signature against
     /// @param sigData Signature data including merkle root, proofs, and actual signature
     /// @param userOpHash The hash of the user operation being verified
     /// @return signer The address that signed the message
     /// @return leaf The computed leaf hash used in merkle verification
     function _processSignatureAndVerifyLeaf(
+        address sender,
         SignatureData memory sigData,
         bytes32 userOpHash
     )
@@ -163,71 +164,14 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         leaf = _createLeaf(abi.encode(userOpHash), sigData.validUntil, sigData.validateDstProof);
         if (!MerkleProof.verify(sigData.proofSrc, sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
-        // Recover signer from signature using standard Ethereum signature recovery
-        bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
-        bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);
-        signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
-    }
+        address owner = _accountOwners[sender];
 
-    /// @notice Generates a storage key for transient storage
-    /// @dev Combines the base storage key with an identifier (usually account address)
-    ///      to create a unique storage location
-    /// @param identifier The unique identifier (typically derived from account address)
-    /// @return A unique storage key for the transient storage system
-    function _makeKey(uint256 identifier) private pure returns (bytes32) {
-        return keccak256(abi.encodePacked(SIGNATURE_KEY_STORAGE, identifier));
-    }
-
-    /// @notice Stores signature data in transient storage
-    /// @dev Uses EVM assembly for efficient transient storage operations
-    ///      First stores the length, then each 32-byte chunk of the signature data
-    ///      Transient storage (tstore) is used for gas efficiency and temporary data
-    /// @param identifier The unique identifier for this signature (derived from account address)
-    /// @param data The signature data to store
-    function _storeSignature(uint256 identifier, bytes calldata data) private {
-        bytes32 storageKey = _makeKey(identifier);
-
-        // only one userOp per account is being executed
-        uint256 stored;
-        assembly {
-            stored := tload(storageKey)
-        }
-
-        if (stored != 0) revert INVALID_USER_OP();
-
-        uint256 len = data.length;
-
-        assembly {
-            tstore(storageKey, len)
-        }
-
-        for (uint256 i; i < len; i += 32) {
-            bytes32 word;
-            assembly {
-                word := calldataload(add(data.offset, i))
-                tstore(add(storageKey, div(add(i, 32), 32)), word)
-            }
+        if (_isSafeSigner(owner)) {
+           signer = _processEIP1271Signature(owner, sigData);
+        } else {
+           signer = _processECDSASignature(sigData);
         }
     }
 
-    function _loadSignature(uint256 identifier) private view returns (bytes memory out) {
-        bytes32 storageKey = _makeKey(identifier);
-        uint256 len;
-        assembly {
-            len := tload(storageKey)
-        }
 
-        out = new bytes(len);
-
-        for (uint256 i; i < len; i += 32) {
-            bytes32 word;
-            assembly {
-                word := tload(add(storageKey, div(add(i, 32), 32)))
-            }
-
-            assembly {
-                mstore(add(add(out, 0x20), i), word)
-            }
-        }
-    }
 }
