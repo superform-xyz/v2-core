@@ -29,15 +29,13 @@ contract MockDex {
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
-    /// @notice Mock balances for the DEX (simulates infinite liquidity)
-    mapping(address => uint256) public mockBalances;
 
     /*//////////////////////////////////////////////////////////////
                                  CONSTRUCTOR
     //////////////////////////////////////////////////////////////*/
     constructor() {
-        // Initialize with some mock balances for popular tokens
-        // In a real DEX this would be actual liquidity
+        // MockDex contract ready for testing
+        // Token balances are managed via deal() cheatcode in tests
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -81,49 +79,12 @@ contract MockDex {
     }
 
     /*//////////////////////////////////////////////////////////////
-                                 ADMIN FUNCTIONS
-    //////////////////////////////////////////////////////////////*/
-
-    /// @notice Add mock liquidity to the DEX (for testing purposes)
-    /// @param token Token address to add liquidity for
-    /// @param amount Amount of tokens to add
-    function addMockLiquidity(address token, uint256 amount) external payable {
-        if (token == address(0)) {
-            // Handle ETH
-            require(msg.value == amount, "MockDex: ETH amount mismatch");
-        } else {
-            IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
-        }
-        mockBalances[token] += amount;
-    }
-
-    /// @notice Withdraw tokens from the DEX (for testing purposes)
-    /// @param token Token address to withdraw
-    /// @param amount Amount to withdraw
-    /// @param to Address to send tokens to
-    function withdraw(address token, uint256 amount, address to) external {
-        if (token == address(0)) {
-            (bool success,) = to.call{ value: amount }("");
-            if (!success) revert TRANSFER_FAILED();
-        } else {
-            IERC20(token).safeTransfer(to, amount);
-        }
-        mockBalances[token] -= amount;
-    }
-
-    /*//////////////////////////////////////////////////////////////
                                  VIEW FUNCTIONS
     //////////////////////////////////////////////////////////////*/
 
-    /// @notice Get mock balance for a token
-    /// @param token Token address
-    /// @return balance Mock balance
-    function getMockBalance(address token) external view returns (uint256 balance) {
-        return mockBalances[token];
-    }
-
     /// @notice Allow contract to receive ETH
     receive() external payable {
-        mockBalances[address(0)] += msg.value;
+        // Contract can receive ETH for swaps
+        // Balance tracking is handled by deal() in tests
     }
 }
