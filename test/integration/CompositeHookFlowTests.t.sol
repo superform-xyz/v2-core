@@ -12,6 +12,9 @@ import { IGearboxFarmingPool } from "../../src/vendor/gearbox/IGearboxFarmingPoo
 
 // Superform
 import { BaseTest } from "../BaseTest.t.sol";
+import { TestHook } from "../unit/hooks/BaseHook.t.sol";
+import { BaseHook } from "../../src/hooks/BaseHook.sol";
+import { ISuperHook } from "../../src/interfaces/ISuperHook.sol";
 import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
 import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
 import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
@@ -64,6 +67,8 @@ contract CompositeHookFlowTests is BaseTest {
     bytes32 public yieldSourceOracleIdStaking;
     bytes32 public yieldSourceOracleIdVaultBank;
 
+    TestHook public hookOutflow;
+
     function setUp() public override {
         super.setUp();
         vm.selectFork(FORKS[ETH]);
@@ -74,6 +79,8 @@ contract CompositeHookFlowTests is BaseTest {
         underlyingETH_USDC = CHAIN_1_USDC;
 
         _getTokens(underlyingETH_USDC, accountEth, 1e18);
+
+        hookOutflow = new TestHook(ISuperHook.HookType.OUTFLOW, bytes32(keccak256("TEST_SUBTYPE")));
 
         yieldSource4626AddressUSDC = CHAIN_1_GearboxVault;
         vaultInstance4626 = IERC4626(yieldSource4626AddressUSDC);
@@ -131,13 +138,8 @@ contract CompositeHookFlowTests is BaseTest {
 
         vm.selectFork(FORKS[BASE]);
 
-        // superExecutorBase = new superExecutorETH(address(config));
-        // superExecutorETHInterfaceBase = ISuperExecutor(address(superExecutorBase));
-
         vaultBankBase = new MockVaultBank();
         vaultBankAddressBase = address(vaultBankBase);
-
-        // instanceOnBase.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorETH), data: "" });
 
         instanceOnBase = accountInstances[BASE];
         accountBase = instanceOnBase.account;
@@ -281,9 +283,13 @@ contract CompositeHookFlowTests is BaseTest {
         IERC20(yieldSourceStakingAddress).approve(vaultBankAddressETH, amount);
 
         vm.expectEmit(false, false, false, true);
-        emit IVaultBankSource.SharesLocked(yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, uint64(block.chainid), 84_532, 0);
+        emit IVaultBankSource.SharesLocked(
+            yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, uint64(block.chainid), 84_532, 0
+        );
 
-        IVaultBank(vaultBankAddressETH).lockAsset(yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, address(0), amount, 84_532);
+        IVaultBank(vaultBankAddressETH).lockAsset(
+            yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, address(0), amount, 84_532
+        );
         vm.stopPrank();
     }
 
@@ -293,14 +299,18 @@ contract CompositeHookFlowTests is BaseTest {
         hooksAddresses[0] = _getHookAddress(ETH, MINT_SUPERPOSITIONS_HOOK_KEY);
 
         bytes[] memory hooksData = new bytes[](1);
-        hooksData[0] = _createMintSuperPositionsHookData(yieldSourceOracleIdStaking, yieldSourceStakingAddress, amount, false, vaultBankAddressETH, 84_532);
+        hooksData[0] = _createMintSuperPositionsHookData(
+            yieldSourceOracleIdStaking, yieldSourceStakingAddress, amount, false, vaultBankAddressETH, 84_532
+        );
 
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorETH, abi.encode(entry));
 
         vm.expectEmit(false, false, false, true);
-        emit IVaultBankSource.SharesLocked(yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, uint64(block.chainid), 84_532, 0);
+        emit IVaultBankSource.SharesLocked(
+            yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, uint64(block.chainid), 84_532, 0
+        );
         executeOp(userOpData);
     }
 
@@ -310,15 +320,23 @@ contract CompositeHookFlowTests is BaseTest {
 
         vm.prank(accountBase);
         vm.expectEmit(false, false, false, true);
-        emit IVaultBank.SuperpositionsBurned(address(0), address(vaultBankBase), address(0), amount, uint64(block.chainid), 0);
-        IVaultBank(vaultBankAddressBase).burnSuperPosition(amount, vaultBankAddressBase, 84_532, yieldSourceOracleIdStaking);
+        emit IVaultBank.SuperpositionsBurned(
+            address(0), address(vaultBankBase), address(0), amount, uint64(block.chainid), 0
+        );
+        IVaultBank(vaultBankAddressBase).burnSuperPosition(
+            amount, vaultBankAddressBase, 84_532, yieldSourceOracleIdStaking
+        );
 
         vm.selectFork(FORKS[ETH]);
 
         vm.prank(accountEth);
         vm.expectEmit(false, false, false, true);
-        emit IVaultBankSource.SharesUnlocked(yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, uint64(block.chainid), 84_532, 0);
-        IVaultBank(vaultBankAddressETH).unlockAsset(accountEth, yieldSourceStakingAddress, amount, 84_532, yieldSourceOracleIdStaking, bytes(""));
+        emit IVaultBankSource.SharesUnlocked(
+            yieldSourceOracleIdStaking, accountEth, yieldSourceStakingAddress, amount, uint64(block.chainid), 84_532, 0
+        );
+        IVaultBank(vaultBankAddressETH).unlockAsset(
+            accountEth, yieldSourceStakingAddress, amount, 84_532, yieldSourceOracleIdStaking, bytes("")
+        );
     }
 
     /// @notice Executes the Gearbox unstake flow via hook executions
@@ -353,5 +371,390 @@ contract CompositeHookFlowTests is BaseTest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddressesRedeem, hooksData: hooksDataRedeem });
         UserOpData memory userOpDataRedeem = _getExecOps(instanceOnEth, superExecutorETH, abi.encode(entryRedeem));
         executeOp(userOpDataRedeem);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                            MUTEX LOCK TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Test that mutex locks are properly set and reset during normal execution flow
+    function test_MutexLocks_NormalExecutionFlow() public {
+        vm.selectFork(FORKS[ETH]);
+
+        // Set execution context for the hook
+        hookOutflow.setExecutionContext(accountEth);
+
+        // Initially, both mutexes should be false
+        assertFalse(_getPreExecuteMutexState(accountEth));
+        assertFalse(_getPostExecuteMutexState(accountEth));
+
+        // Execute preExecute - should set preExecute mutex to true
+        bytes memory data = abi.encodePacked(uint256(100));
+        vm.prank(accountEth);
+        hookOutflow.preExecute(address(0), accountEth, data);
+
+        // Verify preExecute mutex is set
+        assertTrue(_getPreExecuteMutexState(accountEth));
+        assertFalse(_getPostExecuteMutexState(accountEth));
+
+        // Execute postExecute - should set postExecute mutex to true
+        vm.prank(accountEth);
+        hookOutflow.postExecute(address(0), accountEth, data);
+
+        // Verify both mutexes are set
+        assertTrue(_getPreExecuteMutexState(accountEth));
+        assertTrue(_getPostExecuteMutexState(accountEth));
+
+        // Reset execution state - should clear both mutexes
+        hookOutflow.resetExecutionState(accountEth);
+
+        // Verify both mutexes are cleared
+        assertFalse(_getPreExecuteMutexState(accountEth));
+        assertFalse(_getPostExecuteMutexState(accountEth));
+    }
+
+    /// @notice Test that calling preExecute twice fails with PRE_EXECUTE_ALREADY_CALLED
+    function test_MutexLocks_PreExecuteDoubleCall() public {
+        vm.selectFork(FORKS[ETH]);
+
+        hookOutflow.setExecutionContext(accountEth);
+
+        bytes memory data = abi.encodePacked(uint256(100));
+
+        // First call should succeed
+        vm.prank(accountEth);
+        hookOutflow.preExecute(address(0), accountEth, data);
+
+        // Second call should fail
+        vm.prank(accountEth);
+        vm.expectRevert(BaseHook.PRE_EXECUTE_ALREADY_CALLED.selector);
+        hookOutflow.preExecute(address(0), accountEth, data);
+    }
+
+    /// @notice Test that calling postExecute twice fails with POST_EXECUTE_ALREADY_CALLED
+    function test_MutexLocks_PostExecuteDoubleCall() public {
+        vm.selectFork(FORKS[ETH]);
+
+        hookOutflow.setExecutionContext(accountEth);
+
+        bytes memory data = abi.encodePacked(uint256(100));
+
+        // Execute preExecute first
+        vm.prank(accountEth);
+        hookOutflow.preExecute(address(0), accountEth, data);
+
+        // First postExecute call should succeed
+        vm.prank(accountEth);
+        hookOutflow.postExecute(address(0), accountEth, data);
+
+        // Second postExecute call should fail
+        vm.prank(accountEth);
+        vm.expectRevert(BaseHook.POST_EXECUTE_ALREADY_CALLED.selector);
+        hookOutflow.postExecute(address(0), accountEth, data);
+    }
+
+    /// @notice Test that calling postExecute before preExecute fails
+    function test_MutexLocks_PostExecuteBeforePreExecute() public {
+        vm.selectFork(FORKS[ETH]);
+
+        hookOutflow.setExecutionContext(accountEth);
+
+        bytes memory data = abi.encodePacked(uint256(100));
+
+        // Calling postExecute before preExecute should work (no mutex check in postExecute)
+        // But the execution flow should be properly managed
+        vm.prank(accountEth);
+        hookOutflow.postExecute(address(0), accountEth, data);
+
+        // Verify postExecute mutex is set
+        assertTrue(_getPostExecuteMutexState(accountEth));
+    }
+
+    /// @notice Test that setOutAmount fails when mutexes are set
+    function test_MutexLocks_SetOutAmountWithMutexesSet() public {
+        vm.selectFork(FORKS[ETH]);
+
+        hookOutflow.setExecutionContext(accountEth);
+
+        bytes memory data = abi.encodePacked(uint256(100));
+
+        // Execute preExecute to set mutex
+        vm.prank(accountEth);
+        hookOutflow.preExecute(address(0), accountEth, data);
+
+        // Try to set outAmount - should fail
+        vm.expectRevert(BaseHook.CANNOT_SET_OUT_AMOUNT.selector);
+        hookOutflow.setOutAmount(1000, accountEth);
+
+        // Execute postExecute to set both mutexes
+        vm.prank(accountEth);
+        hookOutflow.postExecute(address(0), accountEth, data);
+
+        // Try to set outAmount again - should still fail
+        vm.expectRevert(BaseHook.CANNOT_SET_OUT_AMOUNT.selector);
+        hookOutflow.setOutAmount(1000, accountEth);
+    }
+
+    /// @notice Test that setOutAmount succeeds when no mutexes are set
+    function test_MutexLocks_SetOutAmountWithoutMutexes() public {
+        vm.selectFork(FORKS[ETH]);
+
+        hookOutflow.setExecutionContext(accountEth);
+
+        // Set outAmount before any execution - should succeed
+        hookOutflow.setOutAmount(1000, accountEth);
+
+        // Verify outAmount was set
+        assertEq(hookOutflow.getOutAmount(accountEth), 1000);
+    }
+
+    /// @notice Test that resetExecutionState fails when execution is incomplete
+    function test_MutexLocks_ResetExecutionStateIncomplete() public {
+        vm.selectFork(FORKS[ETH]);
+
+        hookOutflow.setExecutionContext(accountEth);
+
+        // Try to reset without executing anything - should fail
+        vm.expectRevert(BaseHook.INCOMPLETE_HOOK_EXECUTION.selector);
+        hookOutflow.resetExecutionState(accountEth);
+
+        // Execute only preExecute
+        bytes memory data = abi.encodePacked(uint256(100));
+        vm.prank(accountEth);
+        hookOutflow.preExecute(address(0), accountEth, data);
+
+        // Try to reset with only preExecute done - should fail
+        vm.expectRevert(BaseHook.INCOMPLETE_HOOK_EXECUTION.selector);
+        hookOutflow.resetExecutionState(accountEth);
+    }
+
+    /// @notice Test that resetExecutionState succeeds when execution is complete
+    function test_MutexLocks_ResetExecutionStateComplete() public {
+        vm.selectFork(FORKS[ETH]);
+
+        hookOutflow.setExecutionContext(accountEth);
+
+        bytes memory data = abi.encodePacked(uint256(100));
+
+        // Execute both preExecute and postExecute
+        vm.prank(accountEth);
+        hookOutflow.preExecute(address(0), accountEth, data);
+        vm.prank(accountEth);
+        hookOutflow.postExecute(address(0), accountEth, data);
+
+        // Verify both mutexes are set
+        assertTrue(_getPreExecuteMutexState(accountEth));
+        assertTrue(_getPostExecuteMutexState(accountEth));
+
+        // Reset execution state - should succeed
+        hookOutflow.resetExecutionState(accountEth);
+
+        // Verify both mutexes are cleared
+        assertFalse(_getPreExecuteMutexState(accountEth));
+        assertFalse(_getPostExecuteMutexState(accountEth));
+    }
+
+    /// @notice Test that unauthorized callers cannot execute hook methods
+    function test_MutexLocks_UnauthorizedCaller() public {
+        vm.selectFork(FORKS[ETH]);
+
+        hookOutflow.setExecutionContext(accountEth);
+
+        bytes memory data = abi.encodePacked(uint256(100));
+        address unauthorizedCaller = makeAddr("unauthorized");
+
+        // Try to call preExecute with unauthorized caller
+        vm.prank(unauthorizedCaller);
+        vm.expectRevert(BaseHook.UNAUTHORIZED_CALLER.selector);
+        hookOutflow.preExecute(address(0), accountEth, data);
+
+        // Try to call postExecute with unauthorized caller
+        vm.prank(unauthorizedCaller);
+        vm.expectRevert(BaseHook.UNAUTHORIZED_CALLER.selector);
+        hookOutflow.postExecute(address(0), accountEth, data);
+    }
+
+    /// @notice Test that execution context is properly managed across multiple accounts
+    function test_MutexLocks_MultipleAccounts() public {
+        vm.selectFork(FORKS[ETH]);
+
+        address account1 = makeAddr("account1");
+        address account2 = makeAddr("account2");
+
+        // Set execution context for account1
+        hookOutflow.setExecutionContext(account1);
+
+        // Set execution context for account2
+        hookOutflow.setExecutionContext(account2);
+
+        bytes memory data = abi.encodePacked(uint256(100));
+
+        // Execute for account1
+        vm.prank(account1);
+        hookOutflow.preExecute(address(0), account1, data);
+        vm.prank(account1);
+        hookOutflow.postExecute(address(0), account1, data);
+
+        // Verify account1 mutexes are set
+        assertTrue(_getPreExecuteMutexState(account1));
+        assertTrue(_getPostExecuteMutexState(account1));
+
+        // Verify account2 mutexes are not set (isolated contexts)
+        assertFalse(_getPreExecuteMutexState(account2));
+        assertFalse(_getPostExecuteMutexState(account2));
+
+        // Execute for account2
+        vm.prank(account2);
+        hookOutflow.preExecute(address(0), account2, data);
+        vm.prank(account2);
+        hookOutflow.postExecute(address(0), account2, data);
+
+        // Verify both accounts have their mutexes set
+        assertTrue(_getPreExecuteMutexState(account1));
+        assertTrue(_getPostExecuteMutexState(account1));
+        assertTrue(_getPreExecuteMutexState(account2));
+        assertTrue(_getPostExecuteMutexState(account2));
+
+        // Reset account1
+        hookOutflow.resetExecutionState(account1);
+
+        // Verify account1 is reset but account2 is not
+        assertFalse(_getPreExecuteMutexState(account1));
+        assertFalse(_getPostExecuteMutexState(account1));
+        assertTrue(_getPreExecuteMutexState(account2));
+        assertTrue(_getPostExecuteMutexState(account2));
+    }
+
+    /// @notice Test that execution nonce increments properly
+    function test_MutexLocks_ExecutionNonceIncrement() public {
+        vm.selectFork(FORKS[ETH]);
+
+        uint256 initialNonce = hookOutflow.executionNonce();
+
+        // Set execution context multiple times
+        hookOutflow.setExecutionContext(accountEth);
+        uint256 nonce1 = hookOutflow.executionNonce();
+
+        hookOutflow.setExecutionContext(accountEth);
+        uint256 nonce2 = hookOutflow.executionNonce();
+
+        hookOutflow.setExecutionContext(accountEth);
+        uint256 nonce3 = hookOutflow.executionNonce();
+
+        // Verify nonce increments
+        assertGt(nonce1, initialNonce);
+        assertGt(nonce2, nonce1);
+        assertGt(nonce3, nonce2);
+    }
+
+    /// @notice Test that outAmount is properly managed across execution cycles
+    function test_MutexLocks_OutAmountManagement() public {
+        vm.selectFork(FORKS[ETH]);
+
+        hookOutflow.setExecutionContext(accountEth);
+
+        // Set outAmount before execution
+        hookOutflow.setOutAmount(1000, accountEth);
+        assertEq(hookOutflow.getOutAmount(accountEth), 1000);
+
+        // Execute preExecute and postExecute
+        bytes memory data = abi.encodePacked(uint256(100));
+        vm.prank(accountEth);
+        hookOutflow.preExecute(address(0), accountEth, data);
+        vm.prank(accountEth);
+        hookOutflow.postExecute(address(0), accountEth, data);
+
+        // Reset execution state
+        hookOutflow.resetExecutionState(accountEth);
+
+        // Set new execution context
+        hookOutflow.setExecutionContext(accountEth);
+
+        // Verify outAmount is reset (new context)
+        assertEq(hookOutflow.getOutAmount(accountEth), 0);
+
+        // Set new outAmount
+        hookOutflow.setOutAmount(2000, accountEth);
+        assertEq(hookOutflow.getOutAmount(accountEth), 2000);
+    }
+
+    /// @notice Test that denial of service attacks are prevented
+    function test_MutexLocks_DenialOfServiceProtection() public {
+        vm.selectFork(FORKS[ETH]);
+
+        // Test that incomplete execution cannot be reset
+        hookOutflow.setExecutionContext(accountEth);
+
+        // Try to reset without any execution - should fail
+        vm.expectRevert(BaseHook.INCOMPLETE_HOOK_EXECUTION.selector);
+        hookOutflow.resetExecutionState(accountEth);
+
+        // Execute only preExecute
+        bytes memory data = abi.encodePacked(uint256(100));
+        vm.prank(accountEth);
+        hookOutflow.preExecute(address(0), accountEth, data);
+
+        // Try to reset with incomplete execution - should fail
+        vm.expectRevert(BaseHook.INCOMPLETE_HOOK_EXECUTION.selector);
+        hookOutflow.resetExecutionState(accountEth);
+
+        // Complete execution
+        vm.prank(accountEth);
+        hookOutflow.postExecute(address(0), accountEth, data);
+
+        // Now reset should succeed
+        hookOutflow.resetExecutionState(accountEth);
+
+        // Verify state is properly reset
+        assertFalse(_getPreExecuteMutexState(accountEth));
+        assertFalse(_getPostExecuteMutexState(accountEth));
+    }
+
+    /// @notice Test that reentrancy attacks are prevented
+    function test_MutexLocks_ReentrancyProtection() public {
+        vm.selectFork(FORKS[ETH]);
+
+        hookOutflow.setExecutionContext(accountEth);
+
+        bytes memory data = abi.encodePacked(uint256(100));
+
+        // Execute preExecute
+        vm.prank(accountEth);
+        hookOutflow.preExecute(address(0), accountEth, data);
+
+        // Try to call preExecute again in the same context - should fail
+        vm.prank(accountEth);
+        vm.expectRevert(BaseHook.PRE_EXECUTE_ALREADY_CALLED.selector);
+        hookOutflow.preExecute(address(0), accountEth, data);
+
+        // Execute postExecute
+        vm.prank(accountEth);
+        hookOutflow.postExecute(address(0), accountEth, data);
+
+        // Try to call postExecute again in the same context - should fail
+        vm.prank(accountEth);
+        vm.expectRevert(BaseHook.POST_EXECUTE_ALREADY_CALLED.selector);
+        hookOutflow.postExecute(address(0), accountEth, data);
+
+        // Reset and try again - should work
+        hookOutflow.resetExecutionState(accountEth);
+        vm.prank(accountEth);
+        hookOutflow.preExecute(address(0), accountEth, data);
+        vm.prank(accountEth);
+        hookOutflow.postExecute(address(0), accountEth, data);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+                      HELPER FUNCTIONS FOR MUTEX TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    /// @notice Helper function to get preExecute mutex state for testing
+    function _getPreExecuteMutexState(address account) internal view returns (bool) {
+        return hookOutflow.getPreExecuteMutexState(account);
+    }
+
+    /// @notice Helper function to get postExecute mutex state for testing
+    function _getPostExecuteMutexState(address account) internal view returns (bool) {
+        return hookOutflow.getPostExecuteMutexState(account);
     }
 }

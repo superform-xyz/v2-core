@@ -40,6 +40,37 @@ contract TestHook is BaseHook {
     {
         return _replaceCalldataAmount(data, amount, offset);
     }
+
+    // Test-specific mutex state getters using direct transient storage access
+    function getPreExecuteMutexState(address account) external view returns (bool) {
+        bytes32 accountKey = keccak256(abi.encodePacked(keccak256("hook.account.context"), account));
+        uint256 context;
+        assembly {
+            context := tload(accountKey)
+        }
+
+        bytes32 mutexKey = keccak256(abi.encodePacked(keccak256("hook.execution.state"), context, uint256(2)));
+        bool value;
+        assembly {
+            value := tload(mutexKey)
+        }
+        return value;
+    }
+
+    function getPostExecuteMutexState(address account) external view returns (bool) {
+        bytes32 accountKey = keccak256(abi.encodePacked(keccak256("hook.account.context"), account));
+        uint256 context;
+        assembly {
+            context := tload(accountKey)
+        }
+
+        bytes32 mutexKey = keccak256(abi.encodePacked(keccak256("hook.execution.state"), context, uint256(3)));
+        bool value;
+        assembly {
+            value := tload(mutexKey)
+        }
+        return value;
+    }
 }
 
 contract BaseHookTest is Helpers {
