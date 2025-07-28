@@ -1838,6 +1838,40 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
     }
 
+
+    function _createNoDestinationExecutionMerkleRootAndSignature(
+        address signer,
+        uint256 signerPrvKey,
+        bytes32 userOpHash,
+        address srcValidator
+    )
+        internal
+        view
+        returns (bytes memory sig)
+    {
+        MerkleContext memory ctx;
+
+        ctx.validUntil = uint48(block.timestamp + 100 days);
+      
+        ctx.leaves = new bytes32[](1);
+        ctx.leaves[0] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, false, srcValidator);
+
+        (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
+
+        ctx.signature = _createSignature(
+            SuperValidatorBase(srcValidator).namespace(),
+            ctx.merkleRoot,
+            signer,
+            signerPrvKey
+        );
+
+        ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
+
+        sig = _createSignatureData_DestinationExecutor(
+            false, ctx.validUntil, ctx.merkleRoot, ctx.merkleProof[0], proofDst, ctx.signature
+        );
+    }
+
     function _createSignatureData_DestinationExecutor(
         bool validateDstProof,
         uint48 validUntil,
@@ -1917,6 +1951,36 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         bytes memory initFactoryCalldata = abi.encodeWithSelector(INexusFactory.createAccount.selector, initData, initSalt);
 
     return (abi.encodePacked(p.senderCreatorOnDestinationChain, address(p.nexusFactory), initFactoryCalldata), precomputedAddress);
+    }
+
+    function _createAcrossV3ReceiveFundsNoExecution( 
+        address receiver,
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint64 destinationChainId,
+        bool usePrevHookAmount,
+        bytes memory data
+    )
+        internal
+        pure
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(
+            uint256(0),
+            receiver,
+            inputToken,
+            outputToken,
+            inputAmount,
+            outputAmount,
+            uint256(destinationChainId),
+            address(0),
+            uint32(10 minutes), // this can be a max of 360 minutes
+            uint32(0),
+            usePrevHookAmount,
+            data
+        );
     }
 
     function _createAcrossV3ReceiveFundsAndExecuteHookData( 

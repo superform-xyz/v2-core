@@ -241,7 +241,7 @@ contract MultiVaultDepositFlow is MinimalBaseIntegrationTest {
     function _verifyDepositRequestCancelled(
         IInvestmentManager investmentManager_,
         uint256 amount_
-    ) private {
+    ) private view {
         // Check that there's no pending deposit request after cancellation
         bool isPending = investmentManager_.pendingCancelDepositRequest(yieldSource7540AddressUSDC, accountEth);
         assertFalse(isPending, "request should be cancelled");

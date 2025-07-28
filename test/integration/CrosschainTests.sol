@@ -14,7 +14,7 @@ import "modulekit/test/RhinestoneModuleKit.sol";
 import { IERC7579Account} from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import { BytesLib } from "../../src/vendor/BytesLib.sol";
 import { ModeLib, ModeCode } from "modulekit/accounts/common/lib/ModeLib.sol";
-import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { INexus } from "../../src/vendor/nexus/INexus.sol";
 import { INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
@@ -1428,6 +1428,54 @@ contract CrosschainTests is BaseTest {
 
         vm.selectFork(FORKS[OP]);
         assertEq(vaultInstance4626OP.balanceOf(accountOP), previewDepositAmountOP, "B");
+    }
+
+
+    function test_bridge_To_OP_NoExecution() public {
+        uint256 amount = 1e8 / 2;
+
+
+        SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
+        uint256 balanceOPBefore =  IERC20(underlyingOP_USDCe).balanceOf(accountBase);
+        assertEq(balanceOPBefore, 0);
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME);
+
+        uint256 userBalanceBaseUSDCBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddressesOP = new address[](2);
+        srcHooksAddressesOP[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddressesOP[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksDataOP = new bytes[](2);
+        srcHooksDataOP[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amount, false);
+        srcHooksDataOP[1] = _createAcrossV3ReceiveFundsNoExecution(
+            accountBase, underlyingBase_USDC, underlyingOP_USDCe, amount, amount, OP, true, bytes("")
+        );
+
+        UserOpData memory srcUserOpDataOP = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE, true);
+
+        bytes memory signatureData = _createNoDestinationExecutionMerkleRootAndSignature(
+            validatorSigners[BASE], validatorSignerPrivateKeys[BASE], srcUserOpDataOP.userOpHash, address(sourceValidatorOnBase)
+        );
+        srcUserOpDataOP.userOp.signature = signatureData;
+
+        // EXECUTE OP
+        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpDataOP, superNativePaymasterOnBase, 1e18); 
+        _processAcrossV3MessageWithoutDestinationAccount(
+            BASE,
+            OP,
+            WARP_START_TIME,
+            executionData
+        );
+
+        assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), userBalanceBaseUSDCBefore - amount, "A");
+
+        SELECT_FORK_AND_WARP(OP, WARP_START_TIME + 10 days);
+        assertEq(IERC20(underlyingOP_USDCe).balanceOf(accountBase), amount, "B");
     }
 
     function test_OP_Bridge_Deposit_Redeem_Flow() public {
