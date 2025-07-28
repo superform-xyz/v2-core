@@ -168,13 +168,13 @@ contract BurnSuperPositionsHookTest is Helpers {
         burnSuperPositionsHook.build(zeroDstChainIdMock, address(this), data);
     }
 
-    function test_DecodeAmount() public {
+    function test_DecodeAmount() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
         uint256 decodedAmount = burnSuperPositionsHook.decodeAmount(data);
         assertEq(decodedAmount, amount);
     }
 
-    function test_DecodeUsePrevHookAmount() public {
+    function test_DecodeUsePrevHookAmount() public view {
         bytes memory dataWithUsePrev = abi.encodePacked(yieldSourceOracleId, spToken, amount, true, vaultBank, dstChainId);
         bool usePrev = burnSuperPositionsHook.decodeUsePrevHookAmount(dataWithUsePrev);
         assertTrue(usePrev);
@@ -184,7 +184,7 @@ contract BurnSuperPositionsHookTest is Helpers {
         assertFalse(usePrev);
     }
 
-    function test_Inspect() public {
+    function test_Inspect() public view {
         bytes memory data = abi.encodePacked(yieldSourceOracleId, spToken, amount, false, vaultBank, dstChainId);
         bytes memory inspectResult = burnSuperPositionsHook.inspect(data);
         

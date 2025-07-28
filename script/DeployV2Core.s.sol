@@ -16,7 +16,7 @@ import { SuperLedger } from "../src/accounting/SuperLedger.sol";
 import { FlatFeeLedger } from "../src/accounting/FlatFeeLedger.sol";
 import { SuperLedgerConfiguration } from "../src/accounting/SuperLedgerConfiguration.sol";
 import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { SuperMerkleValidator } from "../src/validators/SuperMerkleValidator.sol";
+import { SuperValidator } from "../src/validators/SuperValidator.sol";
 import { SuperDestinationValidator } from "../src/validators/SuperDestinationValidator.sol";
 import { SuperNativePaymaster } from "../src/paymaster/SuperNativePaymaster.sol";
 
@@ -257,19 +257,19 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         require(coreContracts.superLedgerConfiguration.code.length > 0, "SUPER_LEDGER_CONFIGURATION_NO_CODE");
         console2.log(" SuperLedgerConfiguration deployed and validated");
 
-        // Deploy SuperMerkleValidator
+        // Deploy SuperValidator
         coreContracts.superMerkleValidator = __deployContract(
             deployer,
             SUPER_MERKLE_VALIDATOR_KEY,
             chainId,
             __getSalt(SUPER_MERKLE_VALIDATOR_KEY),
-            type(SuperMerkleValidator).creationCode
+            type(SuperValidator).creationCode
         );
 
-        // Validate SuperMerkleValidator was deployed
+        // Validate SuperValidator was deployed
         require(coreContracts.superMerkleValidator != address(0), "SUPER_MERKLE_VALIDATOR_DEPLOYMENT_FAILED");
         require(coreContracts.superMerkleValidator.code.length > 0, "SUPER_MERKLE_VALIDATOR_NO_CODE");
-        console2.log(" SuperMerkleValidator deployed and validated");
+        console2.log(" SuperValidator deployed and validated");
 
         // Deploy SuperDestinationValidator
         coreContracts.superDestinationValidator = __deployContract(

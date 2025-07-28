@@ -10,12 +10,12 @@ import { SuperValidatorBase } from "./SuperValidatorBase.sol";
 import { ISuperSignatureStorage } from "../interfaces/ISuperSignatureStorage.sol";
 import { SignatureTransientStorage } from "../libraries/SignatureTransientStorage.sol";
 
-/// @title SuperMerkleValidator
+/// @title SuperValidator
 /// @author Superform Labs
 /// @notice Validates user operations using merkle proofs for smart account signatures
 /// @dev Implements EIP-1271 and ERC-4337 signature validation mechanisms
 ///      Uses transient storage for signature data management
-contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
+contract SuperValidator is SuperValidatorBase, ISuperSignatureStorage {
     using SignatureTransientStorage for uint256;
 
     /*//////////////////////////////////////////////////////////////
