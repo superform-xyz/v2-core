@@ -14,7 +14,7 @@ import "modulekit/test/RhinestoneModuleKit.sol";
 import { IERC7579Account} from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import { BytesLib } from "../../src/vendor/BytesLib.sol";
 import { ModeLib, ModeCode } from "modulekit/accounts/common/lib/ModeLib.sol";
-import { MODULE_TYPE_EXECUTOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
+import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { INexus } from "../../src/vendor/nexus/INexus.sol";
 import { INexusBootstrap } from "../../src/vendor/nexus/INexusBootstrap.sol";
@@ -1071,6 +1071,71 @@ contract CrosschainTests is BaseTest {
         assertNotEq(pricePerShare, 1);
     }
 
+    function test_ETH_Bridge_With_Debridge_NoExecution() public {
+         uint256 amountPerVault = 1e8;
+
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
+        uint256 balanceOnDestinationBefore = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(BASE, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, DEBRIDGE_DLN_ADDRESSES[BASE], amountPerVault, false);
+
+        uint256 msgValue = IDlnSource(DEBRIDGE_DLN_ADDRESSES[BASE]).globalFixedNativeFee();
+
+        bytes memory debridgeData = _createDebridgeSendFundsAndExecuteHookData(
+            DebridgeOrderData({
+                usePrevHookAmount: false, //usePrevHookAmount
+                value: msgValue, //value
+                giveTokenAddress: underlyingBase_USDC, //giveTokenAddress
+                giveAmount: amountPerVault, //giveAmount
+                version: 1, //envelope.version
+                fallbackAddress: accountETH, //envelope.fallbackAddress
+                executorAddress: address(accountETH), //envelope.executorAddress
+                executionFee: uint160(0), //envelope.executionFee
+                allowDelayedExecution: false, //envelope.allowDelayedExecution
+                requireSuccessfulExecution: true, //envelope.requireSuccessfulExecution
+                payload: "", //envelope.payload
+                takeTokenAddress: underlyingETH_USDC, //takeTokenAddress
+                takeAmount: amountPerVault - amountPerVault * 1e4 / 1e5, //takeAmount
+                takeChainId: ETH, //takeChainId
+                // receiverDst must be the Debridge Adapter on the destination chain
+                receiverDst: address(accountETH),
+                givePatchAuthoritySrc: address(0), //givePatchAuthoritySrc
+                orderAuthorityAddressDst: abi.encodePacked(accountETH), //orderAuthorityAddressDst
+                allowedTakerDst: "", //allowedTakerDst
+                allowedCancelBeneficiarySrc: "", //allowedCancelBeneficiarySrc
+                affiliateFee: "", //affiliateFee
+                referralCode: 0 //referralCode
+             })
+        );
+        srcHooksData[1] = debridgeData;
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
+    
+        bytes memory signatureData = _createNoDestinationExecutionMerkleRootAndSignature(
+            validatorSigners[BASE], validatorSignerPrivateKeys[BASE], srcUserOpData.userOpHash, address(sourceValidatorOnBase)
+        );
+        srcUserOpData.userOp.signature = signatureData;
+
+        // EXECUTE BASE
+        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
+        _processDebridgeDlnMessage(BASE, ETH, executionData);
+
+        // check destination
+        SELECT_FORK_AND_WARP(ETH, WARP_START_TIME + 50 days);
+        uint256 balanceOnDestination = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+        assertEq(balanceOnDestination - balanceOnDestinationBefore, amountPerVault * 9e4/1e5, "AAA");
+    }
+
     function test_DeBridgeCancelOrderHook() public {
         uint256 amountPerVault = 1e8;
 
@@ -1428,6 +1493,54 @@ contract CrosschainTests is BaseTest {
 
         vm.selectFork(FORKS[OP]);
         assertEq(vaultInstance4626OP.balanceOf(accountOP), previewDepositAmountOP, "B");
+    }
+
+
+    function test_bridge_To_OP_NoExecution() public {
+        uint256 amount = 1e8 / 2;
+
+
+        SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
+        uint256 balanceOPBefore =  IERC20(underlyingOP_USDCe).balanceOf(accountBase);
+        assertEq(balanceOPBefore, 0);
+
+        // BASE IS SRC
+        SELECT_FORK_AND_WARP(BASE, WARP_START_TIME);
+
+        uint256 userBalanceBaseUSDCBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+
+        // PREPARE BASE DATA
+        address[] memory srcHooksAddressesOP = new address[](2);
+        srcHooksAddressesOP[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddressesOP[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksDataOP = new bytes[](2);
+        srcHooksDataOP[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amount, false);
+        srcHooksDataOP[1] = _createAcrossV3ReceiveFundsNoExecution(
+            accountBase, underlyingBase_USDC, underlyingOP_USDCe, amount, amount, OP, true, bytes("")
+        );
+
+        UserOpData memory srcUserOpDataOP = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE, true);
+
+        bytes memory signatureData = _createNoDestinationExecutionMerkleRootAndSignature(
+            validatorSigners[BASE], validatorSignerPrivateKeys[BASE], srcUserOpDataOP.userOpHash, address(sourceValidatorOnBase)
+        );
+        srcUserOpDataOP.userOp.signature = signatureData;
+
+        // EXECUTE OP
+        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpDataOP, superNativePaymasterOnBase, 1e18); 
+        _processAcrossV3MessageWithoutDestinationAccount(
+            BASE,
+            OP,
+            WARP_START_TIME,
+            executionData
+        );
+
+        assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), userBalanceBaseUSDCBefore - amount, "A");
+
+        SELECT_FORK_AND_WARP(OP, WARP_START_TIME + 10 days);
+        assertEq(IERC20(underlyingOP_USDCe).balanceOf(accountBase), amount, "B");
     }
 
     function test_OP_Bridge_Deposit_Redeem_Flow() public {
