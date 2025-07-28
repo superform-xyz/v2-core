@@ -745,7 +745,7 @@ contract CompositeHookFlowTests is BaseTest {
     }
 
     /*//////////////////////////////////////////////////////////////
-                            HELPER FUNCTIONS FOR MUTEX TESTS
+                      HELPER FUNCTIONS FOR MUTEX TESTS
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Helper function to get preExecute mutex state for testing
