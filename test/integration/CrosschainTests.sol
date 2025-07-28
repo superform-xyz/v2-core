@@ -36,8 +36,13 @@ import { AcrossV3Adapter } from "../../src/adapters/AcrossV3Adapter.sol";
 import { DebridgeAdapter } from "../../src/adapters/DebridgeAdapter.sol";
 import { SuperValidatorBase } from "../../src/validators/SuperValidatorBase.sol";
 import { BaseHook } from "../../src/hooks/BaseHook.sol";
+import { SwapOdosV2Hook } from "../../src/hooks/swappers/odos/SwapOdosV2Hook.sol";
 import { BaseTest } from "../BaseTest.t.sol";
 import { console2 } from "forge-std/console2.sol";
+
+// -- mock Odos Router that checks output min
+import { MockOdosSwap } from "../mocks/MockOdosSwap.sol";
+
 // -- centrifuge mocks
 import { RestrictionManagerLike } from "../mocks/centrifuge/IRestrictionManagerLike.sol";
 import { IInvestmentManager } from "../mocks/centrifuge/IInvestmentManager.sol";
@@ -161,6 +166,9 @@ contract CrosschainTests is BaseTest {
     ISuperNativePaymaster public superNativePaymasterOnBase;
     ISuperNativePaymaster public superNativePaymasterOnETH;
     ISuperNativePaymaster public superNativePaymasterOnOP;
+
+    // -- mock Odos Router that checks output min
+    MockOdosSwap public mockOdosSwapOutputMin;
 
     // STACK-TOO-DEEP structs
     /// @notice Struct to hold test parameters for test_Bridge_Deposit4626_UsedRoot_Because_Frontrunning test to avoid
@@ -328,6 +336,9 @@ contract CrosschainTests is BaseTest {
         // BALANCES
         vm.selectFork(FORKS[BASE]);
         balance_Base_USDC_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+
+        // -- mock Odos Router that checks output min
+        mockOdosSwapOutputMin = new MockOdosSwap();
 
         // CUSTOM DEAL SETUP
         vm.selectFork(FORKS[OP]);
@@ -2940,45 +2951,105 @@ contract CrosschainTests is BaseTest {
     // user’s minAmount fails. Ensure the user’s original operation reverts safely and the user is refunded on the
     // source chain
     function test_CrossChain_SandwhichAttack_Handling() public {
-        // Prepare src data
-        vm.selectFork(ETH);
-        address[] memory srcHooksAddresses = new address[](1);
-        srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        // We do not need to simulate the attacker price manipulation, as the mock Odos Router will revert if the
+        // output min is not met.
 
-        bytes[] memory srcHooksData = new bytes[](1);
-        srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, 1e8, false);
-
-        // Set up attacker account
-        SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP + 1 days);
-        address attacker = makeAddr("attacker");
-        deal(underlyingBase_USDC, attacker, 1e10);
-
-        // Attacker manipulates the pool to worsen price (front-run)
-        
         // Base is dst
         SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP + 2 days);
 
-        // Prepare swap data
-        address[] memory swapHookAddresses = new address[](1);
-        swapHookAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
-        swapHookAddresses[1] = _getHookAddress(BASE, MOCK_SWAP_ODOS_HOOK_KEY);
+        uint256 accountBaseBalanceBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
 
-        bytes[] memory swapHookData = new bytes[](2);
-        swapHookData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, 1e8, false);
-        swapHookData[1] = _createMockOdosSwapHookData(
-            underlyingBase_USDC,
-            1e8,
-            accountETH,
-            underlyingBase_WETH,
-            1e8,
-            1e1, // output min
-            bytes(""),
-            address(0),
-            0,
-            false
+        address accountToUse;
+        bytes memory targetExecutorMessage;
+        TargetExecutorMessage memory messageData;
+        // Prepare dst data
+        {
+            // Prepare swap data
+            address[] memory swapHookAddresses = new address[](2);
+            swapHookAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+            swapHookAddresses[1] = address(new SwapOdosV2Hook(address(mockOdosSwapOutputMin)));
+
+            bytes[] memory swapHookData = new bytes[](2);
+            swapHookData[0] = _createApproveHookData(underlyingBase_USDC, address(mockOdosSwapOutputMin), 1e8, false);
+            swapHookData[1] = _createOdosSwapHookData(
+                underlyingBase_USDC,
+                1e8,
+                address(this),
+                underlyingBase_WETH,
+                1e8,
+                1e10,
+                bytes(""),
+                address(mockOdosSwapOutputMin),
+                0,
+                false
+            );
+
+            messageData = TargetExecutorMessage({
+                hooksAddresses: swapHookAddresses,
+                hooksData: swapHookData,
+                validator: address(destinationValidatorOnBase),
+                signer: validatorSigners[BASE],
+                signerPrivateKey: validatorSignerPrivateKeys[BASE],
+                targetAdapter: address(acrossV3AdapterOnBase),
+                targetExecutor: address(superTargetExecutorOnBase),
+                nexusFactory: CHAIN_8453_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
+                chainId: uint64(BASE),
+                amount: 1e8,
+                account: accountBase,
+                tokenSent: underlyingBase_USDC
+            });
+
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
+        }
+
+        // ETH is src
+        SELECT_FORK_AND_WARP(ETH, CHAIN_1_TIMESTAMP + 2 days);
+
+        uint256 accountETHBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+
+        // Prepare src data
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 1e8, false);
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingETH_USDC, underlyingBase_USDC, 1e4, 1e4, BASE, false, targetExecutorMessage
         );
 
-        UserOpData memory swapUserOpData = _createUserOpData(swapHookAddresses, swapHookData, BASE, false);
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, ETH, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(
+            messageData, srcUserOpData.userOpHash, accountToUse, BASE, address(sourceValidatorOnETH)
+        );
+        srcUserOpData.userOp.signature = signatureData;
+
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnETH, 1e8);
+
+        // a revert occurs on dst chain
+        _processAcrossV3Message(
+            ProcessAcrossV3MessageParams({
+                srcChainId: ETH,
+                dstChainId: BASE,
+                warpTimestamp: block.timestamp,
+                executionData: executionData,
+                relayerType: RELAYER_TYPE.REVERT,
+                errorMessage: bytes4(0),
+                errorReason: "MockOdosSwap: output min not met",
+                account: accountBase,
+                root: bytes32(0),
+                relayerGas: 0
+            })
+        );
+
+        assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), accountBaseBalanceBefore);
+
+        vm.stopBroadcast();
+        vm.selectFork(FORKS[ETH]);
+        assertEq(IERC20(underlyingETH_USDC).balanceOf(accountETH), accountETHBalanceBefore - 1e4);
     }
 
     /*//////////////////////////////////////////////////////////////
