@@ -143,6 +143,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         bytes creationCode;
     }
 
+    uint256 private _deployed;
+    uint256 private _total;
+
     /// @notice Sets up complete configuration for core contracts with hook support
     /// @param env Environment (0 is prod, 1 is dev, 2 is staging)
     /// @param saltNamespace Salt namespace for deployment (if empty, uses production default)
@@ -157,30 +160,228 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         _setOtherHooksConfiguration();
     }
 
-    function run(uint256 env, uint64 chainId) public broadcast(env) {
+    // this is used by deploy_v2_staging_prod for env 0 and 2
+    function run(bool check, uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
-        console2.log("Deploying V2 Core (Early Access) on chainId: ", chainId);
+        console2.log("V2 Core (Early Access) on chainId: ", chainId);
 
         _deployDeployer();
 
+        if (check) {
+            _checkV2CoreAddresses(chainId);
+        } else {
+            console2.log("Deploying V2 Core (Early Access) on chainId: ", chainId);
+            // deploy core contracts
+            _deployCoreContracts(chainId, env);
+            // Write all exported contracts for this chain
+            _writeExportedContracts(chainId);
+        }
+    }
+
+    // used by tenderly vnets (constantly changing salt)
+    function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
+        _setConfiguration(env, saltNamespace);
+        console2.log("V2 Core (Early Access) on chainId: ", chainId);
+
+        _deployDeployer();
+
+        console2.log("Deploying V2 Core (Early Access) on chainId: ", chainId);
         // deploy core contracts
         _deployCoreContracts(chainId, env);
-
         // Write all exported contracts for this chain
         _writeExportedContracts(chainId);
     }
 
-    function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
-        _setConfiguration(env, saltNamespace);
-        console2.log("Deploying V2 Core (Early Access) on chainId: ", chainId);
+    /// @notice Public function to configure SuperLedger after deployment (for production/staging)
+    /// @dev This function reads contract addresses from output files and configures the ledger
+    /// @dev Meant to be called by Fireblocks MPC wallet via separate script
+    /// @param env Environment (0 = prod, 2 = staging)
+    /// @param chainId Target chain ID
+    function runLedgerConfigurations(uint256 env, uint64 chainId) public broadcast(env) {
+        console2.log(" Configuring SuperLedger for production/staging environment...");
+        console2.log("   Environment:", env == 0 ? "Production" : "Staging");
+        console2.log("   Chain ID:", chainId);
 
-        _deployDeployer();
+        // Set configuration to get correct environment settings
+        _setConfiguration(env, "");
 
-        // deploy core contracts
-        _deployCoreContracts(chainId, env);
+        // Configure SuperLedger by reading contracts from output files
+        _setupSuperLedgerConfiguration(chainId, true, env);
 
-        // Write all exported contracts for this chain
-        _writeExportedContracts(chainId);
+        console2.log(" SuperLedger configuration completed successfully!");
+    }
+
+    /// @notice Check V2 Core contract addresses before deployment
+    /// @param chainId The target chain ID
+    function _checkV2CoreAddresses(uint64 chainId) internal {
+        console2.log("====== V2 Core Address Verification ======");
+        console2.log("Chain ID:", chainId);
+        console2.log("");
+
+        // retrieve deployer
+        ISuperDeployer deployer = ISuperDeployer(configuration.deployer);
+        console2.log("SuperDeployer:", address(deployer));
+
+        // Reset counters
+        _deployed = 0;
+        _total = 0;
+
+        _checkCoreContracts(deployer);
+        _checkHookContracts(deployer);
+        _checkOracleContracts(deployer);
+
+        // ===== SUMMARY =====
+        console2.log("");
+        console2.log("=====> On this chain we have", _deployed, "contracts already deployed out of", _total);
+        console2.log("======================================");
+    }
+
+    /// @notice Check core contract addresses
+    function _checkCoreContracts(ISuperDeployer deployer) internal {
+        console2.log("=== Core Contracts ===");
+
+        // SuperLedgerConfiguration
+        _checkContract(deployer, SUPER_LEDGER_CONFIGURATION_KEY);
+
+        // SuperMerkleValidator
+        _checkContract(deployer, SUPER_MERKLE_VALIDATOR_KEY);
+
+        // SuperDestinationValidator
+        _checkContract(deployer, SUPER_DESTINATION_VALIDATOR_KEY);
+
+        // SuperExecutor
+        _checkContract(deployer, SUPER_EXECUTOR_KEY);
+
+        // SuperDestinationExecutor
+        _checkContract(deployer, SUPER_DESTINATION_EXECUTOR_KEY);
+
+        // SuperSenderCreator
+        _checkContract(deployer, SUPER_SENDER_CREATOR_KEY);
+
+        _checkAdapterContracts(deployer);
+        _checkLedgerContracts(deployer);
+        _checkPaymasterContracts(deployer);
+    }
+
+    /// @notice Check adapter contracts
+    function _checkAdapterContracts(ISuperDeployer deployer) internal {
+        // AcrossV3Adapter
+        _checkContract(deployer, ACROSS_V3_ADAPTER_KEY);
+
+        // DebridgeAdapter
+        _checkContract(deployer, DEBRIDGE_ADAPTER_KEY);
+    }
+
+    /// @notice Check ledger contracts
+    function _checkLedgerContracts(ISuperDeployer deployer) internal {
+        // SuperLedger
+        _checkContract(deployer, SUPER_LEDGER_KEY);
+
+        // FlatFeeLedger
+        _checkContract(deployer, FLAT_FEE_LEDGER_KEY);
+    }
+
+    /// @notice Check paymaster contracts
+    function _checkPaymasterContracts(ISuperDeployer deployer) internal {
+        // SuperNativePaymaster
+        _checkContract(deployer, SUPER_NATIVE_PAYMASTER_KEY);
+    }
+
+    /// @notice Check hook contracts
+    function _checkHookContracts(ISuperDeployer deployer) internal {
+        console2.log("");
+        console2.log("=== Hooks ===");
+
+        // Basic hooks without dependencies
+        _checkContract(deployer, APPROVE_ERC20_HOOK_KEY);
+        _checkContract(deployer, TRANSFER_ERC20_HOOK_KEY);
+        _checkContract(deployer, BATCH_TRANSFER_HOOK_KEY);
+
+        // BatchTransferFromHook with Permit2
+        _checkContract(deployer, BATCH_TRANSFER_FROM_HOOK_KEY);
+
+        // 4626 Vault hooks
+        _checkContract(deployer, DEPOSIT_4626_VAULT_HOOK_KEY);
+        _checkContract(deployer, APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY);
+        _checkContract(deployer, REDEEM_4626_VAULT_HOOK_KEY);
+
+        // 5115 Vault hooks
+        _checkContract(deployer, DEPOSIT_5115_VAULT_HOOK_KEY);
+        _checkContract(deployer, APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY);
+        _checkContract(deployer, REDEEM_5115_VAULT_HOOK_KEY);
+
+        // 7540 Vault hooks
+        _checkContract(deployer, REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+        _checkContract(deployer, APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY);
+        _checkContract(deployer, APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
+        _checkContract(deployer, REDEEM_7540_VAULT_HOOK_KEY);
+        _checkContract(deployer, REQUEST_REDEEM_7540_VAULT_HOOK_KEY);
+        _checkContract(deployer, DEPOSIT_7540_VAULT_HOOK_KEY);
+        _checkContract(deployer, WITHDRAW_7540_VAULT_HOOK_KEY);
+        _checkContract(deployer, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY);
+        _checkContract(deployer, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY);
+        _checkContract(deployer, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY);
+        _checkContract(deployer, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY);
+
+        // Swap hooks with router dependencies
+        _checkContract(deployer, SWAP_1INCH_HOOK_KEY);
+        _checkContract(deployer, SWAP_ODOSV2_HOOK_KEY);
+        _checkContract(deployer, APPROVE_AND_SWAP_ODOSV2_HOOK_KEY);
+
+        // Bridge hooks
+        _checkContract(deployer, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+        _checkContract(deployer, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY);
+        _checkContract(deployer, DEBRIDGE_CANCEL_ORDER_HOOK_KEY);
+
+        // Protocol-specific hooks
+        _checkContract(deployer, ETHENA_COOLDOWN_SHARES_HOOK_KEY);
+        _checkContract(deployer, ETHENA_UNSTAKE_HOOK_KEY);
+        _checkContract(deployer, CANCEL_REDEEM_HOOK_KEY);
+        _checkContract(deployer, OFFRAMP_TOKENS_HOOK_KEY);
+        _checkContract(deployer, MINT_SUPERPOSITIONS_HOOK_KEY);
+        _checkContract(deployer, MARK_ROOT_AS_USED_HOOK_KEY);
+    }
+
+    /// @notice Check oracle contracts
+    function _checkOracleContracts(ISuperDeployer deployer) internal {
+        console2.log("");
+        console2.log("=== Oracles ===");
+
+        _checkContract(deployer, ERC4626_YIELD_SOURCE_ORACLE_KEY);
+        _checkContract(deployer, ERC5115_YIELD_SOURCE_ORACLE_KEY);
+        _checkContract(deployer, ERC7540_YIELD_SOURCE_ORACLE_KEY);
+        _checkContract(deployer, PENDLE_PT_YIELD_SOURCE_ORACLE_KEY);
+        _checkContract(deployer, SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY);
+        _checkContract(deployer, STAKING_YIELD_SOURCE_ORACLE_KEY);
+        _checkContract(deployer, SUPER_YIELD_SOURCE_ORACLE_KEY);
+    }
+
+    /// @notice Helper function to check individual contract deployment status
+    /// @param deployer The SuperDeployer instance
+    /// @param contractKey The contract key for salt generation
+    function _checkContract(ISuperDeployer deployer, string memory contractKey) internal {
+        bytes32 salt = __getSalt(contractKey);
+        address predictedAddr = deployer.getDeployed(salt);
+
+        uint256 codeSize;
+        assembly {
+            codeSize := extcodesize(predictedAddr)
+        }
+
+        _checkDeployed(codeSize);
+
+        // Log contract info
+        console2.log(string(abi.encodePacked(contractKey, " Addr: ")), predictedAddr, " || >> Code Size: ", codeSize);
+        console2.log("");
+    }
+
+    /// @notice Helper function to track deployment status
+    /// @param codeSize The code size at the predicted address
+    function _checkDeployed(uint256 codeSize) internal {
+        if (codeSize > 0) {
+            _deployed++;
+        }
+        _total++;
     }
 
     function _deployCoreContracts(uint64 chainId, uint256 env) internal {
@@ -469,25 +670,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             console2.log("Skipping SuperLedger configuration for production/staging environment");
             console2.log("Configuration will be done separately via runLedgerConfigurations script");
         }
-    }
-
-    /// @notice Public function to configure SuperLedger after deployment (for production/staging)
-    /// @dev This function reads contract addresses from output files and configures the ledger
-    /// @dev Meant to be called by Fireblocks MPC wallet via separate script
-    /// @param env Environment (0 = prod, 2 = staging)
-    /// @param chainId Target chain ID
-    function runLedgerConfigurations(uint256 env, uint64 chainId) public broadcast(env) {
-        console2.log(" Configuring SuperLedger for production/staging environment...");
-        console2.log("   Environment:", env == 0 ? "Production" : "Staging");
-        console2.log("   Chain ID:", chainId);
-
-        // Set configuration to get correct environment settings
-        _setConfiguration(env, "");
-
-        // Configure SuperLedger by reading contracts from output files
-        _setupSuperLedgerConfiguration(chainId, true, env);
-
-        console2.log(" SuperLedger configuration completed successfully!");
     }
 
     /// @notice Internal function to setup SuperLedger configuration

@@ -805,7 +805,7 @@ deploy_contracts() {
     # Deploy Core contracts on Ethereum Mainnet
     log "INFO" "Deploying V2 Core on Ethereum Mainnet..."
     if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
-        --sig 'run(uint256,uint64,string)' $FORGE_ENV $ETH_CHAIN_ID "$ETH_SALT" \
+        --sig 'run(bool,uint256,uint64,string)' false $FORGE_ENV $ETH_CHAIN_ID "$ETH_SALT" \
         --verify \
         --verifier-url $ETH_MAINNET_VERIFIER_URL \
         --rpc-url $ETH_MAINNET \
@@ -821,7 +821,7 @@ deploy_contracts() {
     # Deploy Core contracts on Base Mainnet
     log "INFO" "Deploying V2 Core on Base Mainnet..."
     if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
-        --sig 'run(uint256,uint64,string)' $FORGE_ENV $BASE_CHAIN_ID "$BASE_SALT" \
+        --sig 'run(bool,uint256,uint64,string)' false $FORGE_ENV $BASE_CHAIN_ID "$BASE_SALT" \
         --verify \
         --verifier-url $BASE_MAINNET_VERIFIER_URL \
         --rpc-url $BASE_MAINNET \
@@ -837,7 +837,7 @@ deploy_contracts() {
     # Deploy Core contracts on Optimism Mainnet
     log "INFO" "Deploying V2 Core on Optimism Mainnet..."
     if ! forge script script/DeployV2Core.s.sol:DeployV2Core \
-        --sig 'run(uint256,uint64,string)' $FORGE_ENV $OPTIMISM_CHAIN_ID "$OPTIMISM_SALT" \
+        --sig 'run(bool,uint256,uint64,string)' false $FORGE_ENV $OPTIMISM_CHAIN_ID "$OPTIMISM_SALT" \
         --verify \
         --verifier-url $OPTIMISM_MAINNET_VERIFIER_URL \
         --rpc-url $OPTIMISM_MAINNET \
