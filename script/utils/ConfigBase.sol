@@ -12,7 +12,6 @@ abstract contract ConfigBase is Constants {
 
     /// @notice Base environment data structure for common configuration
     struct EnvironmentData {
-        address deployer;
         address owner;
         address treasury;
         address validator;
@@ -59,8 +58,7 @@ abstract contract ConfigBase is Constants {
                 // Staging environment - use staging salt
                 SALT_NAMESPACE = bytes(STAGING_SALT_NAMESPACE);
             } else {
-                // Test environment - use production salt as default
-                SALT_NAMESPACE = bytes(PRODUCTION_SALT_NAMESPACE);
+                revert("INVALID_ENVIRONMENT");
             }
         } else {
             SALT_NAMESPACE = bytes(saltNamespace);

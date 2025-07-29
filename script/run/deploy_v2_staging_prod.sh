@@ -59,6 +59,110 @@ get_network_name() {
     esac
 }
 
+# Function to validate locked bytecode files
+validate_locked_bytecode() {
+    log "INFO" "Validating locked bytecode artifacts..."
+    
+    # Define required contracts (same as in update_locked_bytecode.sh)
+    local CORE_CONTRACTS=(
+        "SuperExecutor"
+        "SuperDestinationExecutor" 
+        "SuperSenderCreator"
+        "AcrossV3Adapter"
+        "DebridgeAdapter"
+        "SuperLedger"
+        "FlatFeeLedger"
+        "SuperLedgerConfiguration"
+        "SuperMerkleValidator"
+        "SuperDestinationValidator"
+        "SuperNativePaymaster"
+    )
+    
+    local HOOK_CONTRACTS=(
+        "ApproveERC20Hook"
+        "TransferERC20Hook"
+        "BatchTransferHook"
+        "BatchTransferFromHook"
+        "Deposit4626VaultHook"
+        "ApproveAndDeposit4626VaultHook"
+        "Redeem4626VaultHook"
+        "Deposit5115VaultHook"
+        "ApproveAndDeposit5115VaultHook"
+        "Redeem5115VaultHook"
+        "RequestDeposit7540VaultHook"
+        "ApproveAndRequestDeposit7540VaultHook"
+        "ApproveAndRequestRedeem7540VaultHook"
+        "Redeem7540VaultHook"
+        "RequestRedeem7540VaultHook"
+        "Deposit7540VaultHook"
+        "Withdraw7540VaultHook"
+        "CancelDepositRequest7540Hook"
+        "CancelRedeemRequest7540Hook"
+        "ClaimCancelDepositRequest7540Hook"
+        "ClaimCancelRedeemRequest7540Hook"
+        "Swap1InchHook"
+        "SwapOdosV2Hook"
+        "ApproveAndSwapOdosV2Hook"
+        "AcrossSendFundsAndExecuteOnDstHook"
+        "DeBridgeSendOrderAndExecuteOnDstHook"
+        "DeBridgeCancelOrderHook"
+        "EthenaCooldownSharesHook"
+        "EthenaUnstakeHook"
+        "CancelRedeemHook"
+        "OfframpTokensHook"
+        "MintSuperPositionsHook"
+        "MarkRootAsUsedHook"
+    )
+    
+    local ORACLE_CONTRACTS=(
+        "ERC4626YieldSourceOracle"
+        "ERC5115YieldSourceOracle"
+        "ERC7540YieldSourceOracle"
+        "PendlePTYieldSourceOracle"
+        "SpectraPTYieldSourceOracle"
+        "StakingYieldSourceOracle"
+        "SuperYieldSourceOracle"
+    )
+    
+    local missing_files=()
+    
+    # Check core contracts
+    for contract in "${CORE_CONTRACTS[@]}"; do
+        local file_path="script/locked-bytecode/${contract}.json"
+        if [ ! -f "$file_path" ]; then
+            missing_files+=("$file_path")
+        fi
+    done
+    
+    # Check hook contracts
+    for contract in "${HOOK_CONTRACTS[@]}"; do
+        local file_path="script/locked-bytecode/${contract}.json"
+        if [ ! -f "$file_path" ]; then
+            missing_files+=("$file_path")
+        fi
+    done
+    
+    # Check oracle contracts
+    for contract in "${ORACLE_CONTRACTS[@]}"; do
+        local file_path="script/locked-bytecode/${contract}.json"
+        if [ ! -f "$file_path" ]; then
+            missing_files+=("$file_path")
+        fi
+    done
+    
+    if [ ${#missing_files[@]} -gt 0 ]; then
+        echo -e "${RED}❌ Missing locked bytecode files:${NC}"
+        for file in "${missing_files[@]}"; do
+            echo -e "${RED}   - $file${NC}"
+        done
+        echo -e "${YELLOW}💡 Run './script/run/update_locked_bytecode.sh' to generate missing files${NC}"
+        return 1
+    fi
+    
+    echo -e "${GREEN}✅ All required locked bytecode files are present${NC}"
+    return 0
+}
+
 # Function to read latest file from S3
 read_latest_from_s3() {
     local environment=$1
@@ -265,6 +369,15 @@ FORGE_ENV=0
 echo -e "${GREEN}✅ Configuration loaded successfully${NC}"
 echo -e "${CYAN}   • Using Tenderly private verification mode${NC}"
 echo -e "${CYAN}   • Environment: $ENVIRONMENT${NC}"
+print_separator
+
+# ===== LOCKED BYTECODE VALIDATION =====
+echo -e "${BLUE}🔍 Validating locked bytecode artifacts...${NC}"
+if ! validate_locked_bytecode; then
+    echo -e "${RED}❌ Locked bytecode validation failed${NC}"
+    echo -e "${YELLOW}Please ensure all required contract artifacts are present before deployment.${NC}"
+    exit 1
+fi
 print_separator
 
 # ===== ADDRESS CHECKING PHASE =====

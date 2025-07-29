@@ -6,12 +6,15 @@ import { Script } from "forge-std/Script.sol";
 import "forge-std/console2.sol";
 
 // Superform
-import { SuperDeployer } from "../src/SuperDeployer.sol";
-import { ISuperDeployer } from "../src/interfaces/ISuperDeployer.sol";
+import { DeterministicDeployerLib } from "../src/vendor/nexus/DeterministicDeployerLib.sol";
 import { ConfigBase } from "./utils/ConfigBase.sol";
 
 abstract contract DeployV2Base is Script, ConfigBase {
     mapping(uint64 chainId => mapping(string contractName => address contractAddress)) public contractAddresses;
+
+    // Deployed and total counters for checking
+    uint256 internal deployed;
+    uint256 internal total;
 
     modifier broadcast(uint256 env) {
         if (env == 1) {
@@ -28,52 +31,51 @@ abstract contract DeployV2Base is Script, ConfigBase {
         }
     }
 
-    function _deployDeployer() internal {
-        bytes32 salt = __getSalt(SUPER_DEPLOYER_KEY);
-
-        // Predict the address using CREATE2
-        address predictedAddr = vm.computeCreate2Address(salt, keccak256(type(SuperDeployer).creationCode));
-
-        if (predictedAddr.code.length > 0) {
-            console2.log("SuperDeployer already deployed at:", predictedAddr);
-            console2.log("Skipping deployment...");
-        } else {
-            address superDeployer = address(new SuperDeployer{ salt: salt }());
-            console2.log("SuperDeployer deployed at:", superDeployer);
-            require(superDeployer == predictedAddr, "Address mismatch");
-        }
-
-        configuration.deployer = predictedAddr;
-        console2.log("Using SuperDeployer at:", configuration.deployer);
-    }
-
     function _getContract(uint64 chainId, string memory contractName) internal view returns (address) {
         return contractAddresses[chainId][contractName];
     }
 
+    /// @notice Deploy a contract using DeterministicDeployerLib - Nexus style
+    /// @param contractName Name of the contract for logging
+    /// @param chainId Chain ID for tracking
+    /// @param salt Salt for deterministic deployment
+    /// @param creationCode Bytecode with constructor args
+    /// @return deployedAddr Address of the deployed contract
     function __deployContract(
-        ISuperDeployer deployer,
         string memory contractName,
         uint64 chainId,
         bytes32 salt,
         bytes memory creationCode
     )
         internal
-        returns (address)
+        returns (address deployedAddr)
     {
         console2.log("[!] Deploying %s...", contractName);
 
-        // Check if already deployed (Nexus-style pattern)
-        if (deployer.isDeployed(salt)) {
-            address expectedAddr = deployer.getDeployed(salt);
-            console2.log("[!] %s already deployed at:", contractName, expectedAddr);
-            console2.log("      skipping...");
-            contractAddresses[chainId][contractName] = expectedAddr;
-            _exportContract(contractName, expectedAddr, chainId);
-            return expectedAddr;
+        // Predict address first
+        address predictedAddr = DeterministicDeployerLib.computeAddress(creationCode, salt);
+
+        // Check if already deployed using assembly like Nexus
+        uint256 codeSize;
+        assembly {
+            codeSize := extcodesize(predictedAddr)
         }
 
-        address deployedAddr = deployer.deploy(salt, creationCode);
+        if (codeSize > 0) {
+            console2.log("[!] %s already deployed at:", contractName, predictedAddr);
+            console2.log("      skipping...");
+            contractAddresses[chainId][contractName] = predictedAddr;
+            _exportContract(contractName, predictedAddr, chainId);
+            return predictedAddr;
+        }
+
+        // Deploy using DeterministicDeployerLib
+        deployedAddr = DeterministicDeployerLib.deploy(creationCode, salt);
+
+        // Verify deployment
+        require(deployedAddr == predictedAddr, "Address mismatch after deployment");
+        require(deployedAddr.code.length > 0, "Deployment failed - no code");
+
         console2.log("  [+] %s deployed at:", contractName, deployedAddr);
         contractAddresses[chainId][contractName] = deployedAddr;
         _exportContract(contractName, deployedAddr, chainId);
@@ -81,6 +83,49 @@ abstract contract DeployV2Base is Script, ConfigBase {
         return deployedAddr;
     }
 
+    /// @notice Check if a contract is deployed using bytecode from locked artifacts
+    /// @param contractName Name of the contract
+    /// @param salt Salt used for deployment
+    /// @param args Constructor arguments (empty if none)
+    /// @return isDeployed Whether the contract is deployed
+    /// @return contractAddr Address of the contract
+    function __checkContract(
+        string memory contractName,
+        bytes32 salt,
+        bytes memory args
+    )
+        internal
+        returns (bool isDeployed, address contractAddr)
+    {
+        // Get bytecode from locked artifacts (Nexus style)
+        string memory artifactPath = string(abi.encodePacked("script/locked-bytecode/", contractName, ".json"));
+        bytes memory bytecode = vm.getCode(artifactPath);
+
+        // Compute address
+        contractAddr = DeterministicDeployerLib.computeAddress(bytecode, args, salt);
+
+        // Check if deployed using assembly (Nexus style)
+        uint256 codeSize;
+        assembly {
+            codeSize := extcodesize(contractAddr)
+        }
+
+        isDeployed = codeSize > 0;
+
+        // Update counters
+        if (isDeployed) {
+            deployed++;
+        }
+        total++;
+
+        // Log status
+        console2.log(string(abi.encodePacked(contractName, " Addr: ")), contractAddr, " || >> Code Size: ", codeSize);
+        console2.log("");
+    }
+
+    /// @notice Generate salt using the same pattern as current system
+    /// @param name Contract name
+    /// @return Salt for deployment
     function __getSalt(string memory name) internal view returns (bytes32) {
         // Use configurable salt namespace for deployment
         // This allows for different salt namespaces for production vs test/vnet deployments
