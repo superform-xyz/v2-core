@@ -16,7 +16,6 @@ import {
 } from "../../../interfaces/ISuperHook.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
-import { BaseClaimRewardHook } from "../BaseClaimRewardHook.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 
 /// @title MerklClaimRewardHook
@@ -24,24 +23,35 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @dev data has the following structure
 /// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
 /// @notice         address distributor = BytesLib.toAddress(data, 32);
-/// @notice         uint256 usersLength = BytesLib.toUint256(data, 52);
-/// @notice         address[] users = BytesLib.slice(data, 64, usersLength * 20);
-/// @notice         uint256 tokensLength = BytesLib.toUint256(data, 64 + usersLength * 20, 32);
-/// @notice         address[] tokens = BytesLib.slice(data, 64 + usersLength * 20 + 32, tokensLength * 20);
-/// @notice         uint256 amountsLength = BytesLib.toUint256(data, 64 + usersLength * 20 + 32 + tokensLength * 20, 32);
-/// @notice         uint256[] amounts = BytesLib.slice(data, 64 + usersLength * 20 + tokensLength * 20 + 64, amountsLength * 32);
-/// @notice         uint256 proofsLength = BytesLib.toUint256(data, 64 + usersLength * 20 + tokensLength * 20 + amountsLength * 32 + 64, 32);
-/// @notice         bytes32[][] proofs = BytesLib.slice(data, 64 + usersLength * 20 + tokensLength * 20 + amountsLength * 32 + 96, data.length - proofsLength * 32);
+/// @notice         uint256 arraysLength = BytesLib.toUint256(data, 52);
+/// @notice         address[] users = BytesLib.slice(data, 84, arrayLength * 20);
+/// @notice         address[] tokens = BytesLib.slice(data, 84 + arrayLength * 20, tokensLength * 20);
+/// @notice         uint256[] amounts = BytesLib.slice(data, 84 + arrayLength * 20 + tokensLength * 20, amountsLength * 32);
+/// @notice         bytes proofBlob = BytesLib.slice(data, 84 + arrayLength * 20 + tokensLength * 20 + amountsLength * 32, data.length - (84 + arrayLength * 20 + tokensLength * 20 + amountsLength * 32));
 contract MerklClaimRewardHook is
     BaseHook,
-    BaseClaimRewardHook,
     ISuperHookInflowOutflow,
     ISuperHookOutflow,
     ISuperHookContextAware
 {
     using HookDataDecoder for bytes;
 
+    /*//////////////////////////////////////////////////////////////
+                                STORAGE
+    //////////////////////////////////////////////////////////////*/
     error INVALID_PROOF();
+    error INVALID_LENGTH();
+    error LENGTH_MISMATCH();
+    error INVALID_ENCODING();
+
+    struct ClaimParams {
+        address distributor;
+        uint256 arrayLength;
+        address[] users;
+        address[] tokens;
+        uint256[] amounts;
+        bytes32[][] proofs;
+    }
 
     constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) { }
 
@@ -59,9 +69,10 @@ contract MerklClaimRewardHook is
         override
         returns (Execution[] memory executions)
     {
-        (address distributor, address[] memory users, address[] memory tokens, uint256[] memory amounts, bytes32[][] memory proofs) = _decodeClaimParams(data);
+        ClaimParams memory params = _decodeClaimParams(data);
 
-        return _build(distributor, abi.encodeCall(IDistributor.claim, (users, tokens, amounts, proofs)));
+        executions = new Execution[](1);
+        executions[0] = Execution({ target: params.distributor, value: 0, callData: abi.encodeCall(IDistributor.claim, (params.users, params.tokens, params.amounts, params.proofs)) });
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
@@ -81,52 +92,128 @@ contract MerklClaimRewardHook is
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        (address distributor, address[] memory users, address[] memory tokens,,) = _decodeClaimParams(data);
-        return abi.encodePacked(distributor, users, tokens);
+        ClaimParams memory params = _decodeClaimParams(data);
+
+        bytes memory addressData = abi.encodePacked(params.distributor);
+        for (uint256 i = 0; i < params.users.length; i++) {
+            addressData = bytes.concat(addressData, bytes20(params.users[i]));
+        }
+
+        for (uint256 i = 0; i < params.tokens.length; i++) {
+            addressData = bytes.concat(addressData, bytes20(params.tokens[i]));
+        }
+
+        return addressData;
     }
 
     /*//////////////////////////////////////////////////////////////
                             INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    function _preExecute(address, address account, bytes calldata data) internal override {
-        _setOutAmount(_getBalance(data, account), account);
+    function _preExecute(address, address account, bytes calldata) internal override {
+        _setOutAmount(0, account);
     }
 
-    function _postExecute(address, address account, bytes calldata data) internal override {
-        _setOutAmount(_getBalance(data, account) - getOutAmount(account), account);
+    function _postExecute(address, address account, bytes calldata) internal override {
+        _setOutAmount(0, account);
     }
 
-    function _decodeClaimParams(bytes calldata data) internal pure returns (address distributor, address[] memory users, address[] memory tokens, uint256[] memory amounts, bytes32[][] memory proofs) {
-        distributor = data.extractYieldSource();
-        if (distributor == address(0)) revert ADDRESS_NOT_VALID();
+    function _decodeClaimParams(bytes calldata data) internal pure returns (ClaimParams memory params) {
+        // decode distributor address
+        params.distributor = BytesLib.toAddress(data, 32);
+        if (params.distributor == address(0)) revert ADDRESS_NOT_VALID();
 
-        uint256 users_paramLength = BytesLib.toUint256(data, 52);
-        for (uint256 i = 0; i < users_paramLength; i++) {
-            address user = BytesLib.toAddress(data, 64 + i * 32);
+        // decode users
+        (uint256 cursorAfterUsers, address[] memory users) = _decodeUsers(data);
+        params.users = users;
+
+        // decode tokens and amounts
+        (
+            uint256 cursorAfterAmounts,
+            address[] memory tokens,
+            uint256[] memory amounts
+        ) = _decodeTokensAndAmounts(data, cursorAfterUsers);
+
+        params.tokens = tokens;
+        params.amounts = amounts;
+
+        // decode proofs
+        params.proofs = _decodeProofs(data, cursorAfterAmounts);
+    }
+
+    function _decodeUsers(bytes calldata data) internal pure returns (uint256 cursor, address[] memory users) {
+        // decode array length
+        uint256 arrayLength = BytesLib.toUint256(data, 52);
+
+        cursor = 84;
+        users = new address[](arrayLength);
+        for (uint256 i = 0; i < arrayLength; i++) {
+            address user = BytesLib.toAddress(data, cursor);
+            cursor += 20;
+
             if (user == address(0)) revert ADDRESS_NOT_VALID();
             users[i] = user;
         }
+    }
 
-        uint256 tokens_paramLength = BytesLib.toUint256(data, 64 + users_paramLength);
-        for (uint256 i = 0; i < tokens_paramLength; i++) {
-            address token = BytesLib.toAddress(data, 64 + users_paramLength + i * 32);
+    function _decodeTokensAndAmounts(
+        bytes calldata data,
+        uint256 cursorAfterUsers
+    )
+        internal
+        pure
+        returns (
+            uint256 cursor,
+            address[] memory tokens,
+            uint256[] memory amounts
+        )
+    {   
+        uint256 arrayLength = BytesLib.toUint256(data, 52);
+
+        cursor = cursorAfterUsers;
+
+        tokens = new address[](arrayLength); 
+        for (uint256 i = 0; i < arrayLength; i++) {
+            address token = BytesLib.toAddress(data, cursor);
+            cursor += 20;
+
             if (token == address(0)) revert ADDRESS_NOT_VALID();
             tokens[i] = token;
         }
-        
-        uint256 amounts_paramLength = BytesLib.toUint256(data, 64 + users_paramLength + tokens_paramLength);
-        for (uint256 i = 0; i < amounts_paramLength; i++) {
-            uint256 amount = BytesLib.toUint256(data, 64 + users_paramLength + tokens_paramLength + i * 32);
+
+        amounts = new uint256[](arrayLength);
+        for (uint256 i = 0; i < arrayLength; i++) {
+            uint256 amount = BytesLib.toUint256(data, cursor);
+            cursor += 32;
+
             if (amount == 0) revert AMOUNT_NOT_VALID();
             amounts[i] = amount;
         }
-
-        uint256 proofs_paramLength = BytesLib.toUint256(data, 64 + users_paramLength + tokens_paramLength + amounts_paramLength);
-        for (uint256 i = 0; i < proofs_paramLength; i++) {
-            bytes32 proof = BytesLib.toBytes32(data, 64 + users_paramLength + tokens_paramLength + amounts_paramLength + i * 32);
-            if (proof == bytes32(0)) revert INVALID_PROOF();
-            proofs[i] = proof;
-        }
     }
 
+    function _decodeProofs(
+        bytes calldata data,
+        uint256 cursor
+    )
+        internal
+        pure
+        returns (bytes32[][] memory proofs)
+    {
+        uint256 arrayLength = BytesLib.toUint256(data, 52);
+        proofs = new bytes32[][](arrayLength);
+
+        for (uint256 i; i < arrayLength; ++i) {
+            uint256 innerLength = BytesLib.toUint256(data, cursor);
+            cursor += 32;
+
+            bytes32[] memory proof = new bytes32[](innerLength);
+            for (uint256 j; j < innerLength; ++j) {
+                proof[j] = BytesLib.toBytes32(data, cursor);
+                cursor += 32;
+            }
+            proofs[i] = proof;
+        }
+
+        // sanity‑check: cursor should now equal data.length
+        if (cursor != data.length) revert INVALID_ENCODING();
+    }
 }
