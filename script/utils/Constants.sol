@@ -2,7 +2,7 @@
 pragma solidity >=0.8.30;
 
 abstract contract Constants {
-    address internal constant ENTRY_POINT = 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108; // 0.8
+    address internal constant ENTRY_POINT = 0x0000000071727De22E5E9d8BAf0edAc6f37da032; // 0.7
     // chain names
     string internal constant ETHEREUM_KEY = "Ethereum";
     string internal constant BASE_KEY = "Base";
@@ -169,7 +169,7 @@ abstract contract Constants {
     string internal constant CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "ClaimCancelDepositRequest7540Hook";
     string internal constant CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "ClaimCancelRedeemRequest7540Hook";
     string internal constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
-    string internal constant MARK_ROOT_AS_USED_HOOK_KEY = "MarkAsUsedHook";
+    string internal constant MARK_ROOT_AS_USED_HOOK_KEY = "MarkRootAsUsedHook";
 
     // Mock hooks (dev environment only)
     string internal constant MOCK_DEX_KEY = "MockDex";

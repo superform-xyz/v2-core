@@ -148,6 +148,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         _checkCoreContracts(chainId);
 
+        // Log comprehensive deployment summary
+        _logDeploymentSummary(chainId);
+
         // ===== SUMMARY =====
         console2.log("");
         console2.log("=====> On this chain we have", deployed, "contracts already deployed out of", total);
@@ -438,8 +441,51 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         __checkContract(SUPER_YIELD_SOURCE_ORACLE_KEY, __getSalt(SUPER_YIELD_SOURCE_ORACLE_KEY), "");
     }
 
+    /// @notice Populate CoreContracts struct with addresses from deployment status
+    /// @param chainId Chain ID
+    /// @param coreContracts CoreContracts struct to populate
+    function _populateCoreContractsFromStatus(uint64 chainId, CoreContracts memory coreContracts) internal view {
+        ContractStatus memory status;
+
+        status = _getContractStatus(chainId, SUPER_EXECUTOR_KEY);
+        if (status.isDeployed) coreContracts.superExecutor = status.contractAddress;
+
+        status = _getContractStatus(chainId, ACROSS_V3_ADAPTER_KEY);
+        if (status.isDeployed) coreContracts.acrossV3Adapter = status.contractAddress;
+
+        status = _getContractStatus(chainId, DEBRIDGE_ADAPTER_KEY);
+        if (status.isDeployed) coreContracts.debridgeAdapter = status.contractAddress;
+
+        status = _getContractStatus(chainId, SUPER_DESTINATION_EXECUTOR_KEY);
+        if (status.isDeployed) coreContracts.superDestinationExecutor = status.contractAddress;
+
+        status = _getContractStatus(chainId, SUPER_SENDER_CREATOR_KEY);
+        if (status.isDeployed) coreContracts.superSenderCreator = status.contractAddress;
+
+        status = _getContractStatus(chainId, SUPER_LEDGER_KEY);
+        if (status.isDeployed) coreContracts.superLedger = status.contractAddress;
+
+        status = _getContractStatus(chainId, FLAT_FEE_LEDGER_KEY);
+        if (status.isDeployed) coreContracts.flatFeeLedger = status.contractAddress;
+
+        status = _getContractStatus(chainId, SUPER_LEDGER_CONFIGURATION_KEY);
+        if (status.isDeployed) coreContracts.superLedgerConfiguration = status.contractAddress;
+
+        status = _getContractStatus(chainId, SUPER_MERKLE_VALIDATOR_KEY);
+        if (status.isDeployed) coreContracts.superMerkleValidator = status.contractAddress;
+
+        status = _getContractStatus(chainId, SUPER_DESTINATION_VALIDATOR_KEY);
+        if (status.isDeployed) coreContracts.superDestinationValidator = status.contractAddress;
+
+        status = _getContractStatus(chainId, SUPER_NATIVE_PAYMASTER_KEY);
+        if (status.isDeployed) coreContracts.superNativePaymaster = status.contractAddress;
+    }
+
     function _deployCoreContracts(uint64 chainId, uint256 env) internal {
         CoreContracts memory coreContracts;
+
+        // Pre-populate core contracts with existing deployed addresses
+        _populateCoreContractsFromStatus(chainId, coreContracts);
 
         // ===== VALIDATION PHASE =====
         // Validate critical dependencies before deployment
@@ -490,7 +536,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // ===== DEPLOYMENT PHASE =====
 
         // Deploy SuperLedgerConfiguration
-        coreContracts.superLedgerConfiguration = __deployContract(
+        coreContracts.superLedgerConfiguration = __deployContractIfNeeded(
             SUPER_LEDGER_CONFIGURATION_KEY,
             chainId,
             __getSalt(SUPER_LEDGER_CONFIGURATION_KEY),
@@ -503,7 +549,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log(" SuperLedgerConfiguration deployed and validated");
 
         // Deploy SuperMerkleValidator
-        coreContracts.superMerkleValidator = __deployContract(
+        coreContracts.superMerkleValidator = __deployContractIfNeeded(
             SUPER_MERKLE_VALIDATOR_KEY,
             chainId,
             __getSalt(SUPER_MERKLE_VALIDATOR_KEY),
@@ -516,7 +562,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log(" SuperMerkleValidator deployed and validated");
 
         // Deploy SuperDestinationValidator
-        coreContracts.superDestinationValidator = __deployContract(
+        coreContracts.superDestinationValidator = __deployContractIfNeeded(
             SUPER_DESTINATION_VALIDATOR_KEY,
             chainId,
             __getSalt(SUPER_DESTINATION_VALIDATOR_KEY),
@@ -530,7 +576,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // Deploy SuperExecutor - VALIDATED CONSTRUCTOR PARAMETERS
         require(coreContracts.superLedgerConfiguration != address(0), "SUPER_EXECUTOR_LEDGER_CONFIG_PARAM_ZERO");
-        coreContracts.superExecutor = __deployContract(
+        coreContracts.superExecutor = __deployContractIfNeeded(
             SUPER_EXECUTOR_KEY,
             chainId,
             __getSalt(SUPER_EXECUTOR_KEY),
@@ -550,7 +596,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(coreContracts.superDestinationValidator != address(0), "SUPER_DEST_EXECUTOR_VALIDATOR_PARAM_ZERO");
         require(configuration.nexusFactories[chainId] != address(0), "SUPER_DEST_EXECUTOR_NEXUS_FACTORY_PARAM_ZERO");
 
-        coreContracts.superDestinationExecutor = __deployContract(
+        coreContracts.superDestinationExecutor = __deployContractIfNeeded(
             SUPER_DESTINATION_EXECUTOR_KEY,
             chainId,
             __getSalt(SUPER_DESTINATION_EXECUTOR_KEY),
@@ -570,7 +616,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log(" SuperDestinationExecutor deployed and validated");
 
         // Deploy SuperSenderCreator
-        coreContracts.superSenderCreator = __deployContract(
+        coreContracts.superSenderCreator = __deployContractIfNeeded(
             SUPER_SENDER_CREATOR_KEY,
             chainId,
             __getSalt(SUPER_SENDER_CREATOR_KEY),
@@ -586,7 +632,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_ADAPTER_SPOKE_POOL_PARAM_ZERO");
         require(coreContracts.superDestinationExecutor != address(0), "ACROSS_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
 
-        coreContracts.acrossV3Adapter = __deployContract(
+        coreContracts.acrossV3Adapter = __deployContractIfNeeded(
             ACROSS_V3_ADAPTER_KEY,
             chainId,
             __getSalt(ACROSS_V3_ADAPTER_KEY),
@@ -605,7 +651,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(configuration.debridgeDstDln[chainId] != address(0), "DEBRIDGE_ADAPTER_DST_DLN_PARAM_ZERO");
         require(coreContracts.superDestinationExecutor != address(0), "DEBRIDGE_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
 
-        coreContracts.debridgeAdapter = __deployContract(
+        coreContracts.debridgeAdapter = __deployContractIfNeeded(
             DEBRIDGE_ADAPTER_KEY,
             chainId,
             __getSalt(DEBRIDGE_ADAPTER_KEY),
@@ -635,7 +681,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Deploy SuperLedger - VALIDATED CONSTRUCTOR PARAMETERS
         require(coreContracts.superLedgerConfiguration != address(0), "SUPER_LEDGER_CONFIG_PARAM_ZERO");
 
-        coreContracts.superLedger = __deployContract(
+        coreContracts.superLedger = __deployContractIfNeeded(
             SUPER_LEDGER_KEY,
             chainId,
             __getSalt(SUPER_LEDGER_KEY),
@@ -653,7 +699,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Deploy FlatFeeLedger - VALIDATED CONSTRUCTOR PARAMETERS
         require(coreContracts.superLedgerConfiguration != address(0), "FLAT_FEE_LEDGER_CONFIG_PARAM_ZERO");
 
-        coreContracts.flatFeeLedger = __deployContract(
+        coreContracts.flatFeeLedger = __deployContractIfNeeded(
             FLAT_FEE_LEDGER_KEY,
             chainId,
             __getSalt(FLAT_FEE_LEDGER_KEY),
@@ -671,7 +717,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Deploy SuperNativePaymaster - VALIDATED CONSTRUCTOR PARAMETERS
         require(ENTRY_POINT != address(0), "PAYMASTER_ENTRY_POINT_PARAM_ZERO");
 
-        coreContracts.superNativePaymaster = __deployContract(
+        coreContracts.superNativePaymaster = __deployContractIfNeeded(
             SUPER_NATIVE_PAYMASTER_KEY,
             chainId,
             __getSalt(SUPER_NATIVE_PAYMASTER_KEY),
@@ -1028,7 +1074,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             HookDeployment memory hook = hooks[i];
             console2.log("Deploying hook:", hook.name);
 
-            addresses[i] = __deployContract(hook.name, chainId, __getSalt(hook.name), hook.creationCode);
+            addresses[i] = __deployContractIfNeeded(hook.name, chainId, __getSalt(hook.name), hook.creationCode);
 
             // Validate each hook was deployed successfully
             require(addresses[i] != address(0), string(abi.encodePacked("HOOK_DEPLOYMENT_FAILED_", hook.name)));
@@ -1227,7 +1273,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             OracleDeployment memory oracle = oracles[i];
             console2.log("Deploying oracle:", oracle.name);
 
-            oracleAddresses[i] = __deployContract(oracle.name, chainId, __getSalt(oracle.name), oracle.creationCode);
+            oracleAddresses[i] =
+                __deployContractIfNeeded(oracle.name, chainId, __getSalt(oracle.name), oracle.creationCode);
 
             // Validate each oracle was deployed successfully
             require(
@@ -1247,7 +1294,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log("Starting mock contracts deployment for development environment...");
 
         // Deploy MockDex first
-        address mockDex = __deployContract(MOCK_DEX_KEY, chainId, __getSalt(MOCK_DEX_KEY), type(MockDex).creationCode);
+        address mockDex =
+            __deployContractIfNeeded(MOCK_DEX_KEY, chainId, __getSalt(MOCK_DEX_KEY), type(MockDex).creationCode);
 
         // Validate MockDex deployment
         require(mockDex != address(0), "MOCK_DEX_DEPLOYMENT_FAILED");
@@ -1255,7 +1303,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log(" MockDex deployed and validated at:", mockDex);
 
         // Deploy MockDexHook with MockDex address as constructor parameter
-        address mockDexHook = __deployContract(
+        address mockDexHook = __deployContractIfNeeded(
             MOCK_DEX_HOOK_KEY,
             chainId,
             __getSalt(MOCK_DEX_HOOK_KEY),
