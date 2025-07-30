@@ -72,8 +72,12 @@ import { SpectraPTYieldSourceOracle } from "../src/accounting/oracles/SpectraPTY
 import { StakingYieldSourceOracle } from "../src/accounting/oracles/StakingYieldSourceOracle.sol";
 import { SuperYieldSourceOracle } from "../src/accounting/oracles/SuperYieldSourceOracle.sol";
 
-// -- superform 
+// -- superform
 import { MarkRootAsUsedHook } from "../src/hooks/superform/MarkRootAsUsedHook.sol";
+
+// -- mocks (dev environment only)
+import { MockDex } from "../test/mocks/MockDex.sol";
+import { MockDexHook } from "../test/mocks/MockDexHook.sol";
 
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { console2 } from "forge-std/console2.sol";
@@ -447,6 +451,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
 
         // Deploy Hooks
         _deployHooks(deployer, chainId);
+
+        // Deploy Mock Contracts (only for development environment)
+        if (env == 1) {
+            _deployMockContracts(deployer, chainId);
+        }
 
         // Deploy Oracles
         _deployOracles(deployer, chainId);
@@ -901,7 +910,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         require(hookAddresses.ethenaUnstakeHook != address(0), "ETHENA_UNSTAKE_HOOK_NOT_ASSIGNED");
         require(hookAddresses.offrampTokensHook != address(0), "OFFRAMP_TOKENS_HOOK_NOT_ASSIGNED");
         require(hookAddresses.mintSuperPositionHook != address(0), "MINT_SUPERPOSITION_HOOK_NOT_ASSIGNED");
-        
+
         require(hookAddresses.markRootAsUsedHook != address(0), "MARK_ROOT_AS_USED_HOOK_NOT_ASSIGNED");
 
         console2.log(" All hooks deployed and validated successfully with comprehensive dependency checking! ");
@@ -973,5 +982,37 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
 
         console2.log(" All oracles deployed and validated successfully! ");
         return oracleAddresses;
+    }
+
+    /// @notice Deploy mock contracts for development environment only
+    /// @param deployer The SuperDeployer instance
+    /// @param chainId The target chain ID
+    function _deployMockContracts(ISuperDeployer deployer, uint64 chainId) private {
+        console2.log("Starting mock contracts deployment for development environment...");
+
+        // Deploy MockDex first
+        address mockDex =
+            __deployContract(deployer, MOCK_DEX_KEY, chainId, __getSalt(MOCK_DEX_KEY), type(MockDex).creationCode);
+
+        // Validate MockDex deployment
+        require(mockDex != address(0), "MOCK_DEX_DEPLOYMENT_FAILED");
+        require(mockDex.code.length > 0, "MOCK_DEX_NO_CODE");
+        console2.log(" MockDex deployed and validated at:", mockDex);
+
+        // Deploy MockDexHook with MockDex address as constructor parameter
+        address mockDexHook = __deployContract(
+            deployer,
+            MOCK_DEX_HOOK_KEY,
+            chainId,
+            __getSalt(MOCK_DEX_HOOK_KEY),
+            abi.encodePacked(type(MockDexHook).creationCode, abi.encode(mockDex))
+        );
+
+        // Validate MockDexHook deployment
+        require(mockDexHook != address(0), "MOCK_DEX_HOOK_DEPLOYMENT_FAILED");
+        require(mockDexHook.code.length > 0, "MOCK_DEX_HOOK_NO_CODE");
+        console2.log(" MockDexHook deployed and validated at:", mockDexHook);
+
+        console2.log(" All mock contracts deployed successfully for development environment! ");
     }
 }
