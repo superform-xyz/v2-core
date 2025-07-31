@@ -85,6 +85,10 @@ contract CompositeHookFlowTests is BaseTest {
 
         underlyingETH_USDC = CHAIN_1_USDC;
 
+        merklDistributorAddress = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
+        merklDistributor = IDistributor(merklDistributorAddress);
+
+        _getTokens(underlyingETH_USDC, merklDistributorAddress, 1e18);
         _getTokens(underlyingETH_USDC, accountEth, 1e18);
 
         hookOutflow = new TestHook(ISuperHook.HookType.OUTFLOW, bytes32(keccak256("TEST_SUBTYPE")));
@@ -146,16 +150,8 @@ contract CompositeHookFlowTests is BaseTest {
         // Base chain setup
         vm.selectFork(FORKS[BASE]);
 
-        underlyingBase_USDC = CHAIN_8453_USDC;
-        merklClaimRewardHook = new MerklClaimRewardHook();
-
         vaultBankBase = new MockVaultBank();
         vaultBankAddressBase = address(vaultBankBase);
-
-        merklDistributorAddress = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
-        merklDistributor = IDistributor(merklDistributorAddress);
-
-        _getTokens(underlyingBase_USDC, merklDistributorAddress, 1e18);
 
         instanceOnBase = accountInstances[BASE];
         accountBase = instanceOnBase.account;
@@ -765,15 +761,15 @@ contract CompositeHookFlowTests is BaseTest {
     //////////////////////////////////////////////////////////////*/
 
     function test_MerklClaimRewardsHook_ViaMockCalls() public {
-        vm.selectFork(FORKS[BASE]);
+        vm.selectFork(FORKS[ETH]);
 
-        uint256 balanceBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+        uint256 balanceBefore = IERC20(underlyingETH_USDC).balanceOf(accountEth);
 
         address[] memory users = new address[](1);
-        users[0] = accountBase;
+        users[0] = accountEth;
 
         address[] memory tokens = new address[](1);
-        tokens[0] = underlyingBase_USDC;
+        tokens[0] = underlyingETH_USDC;
 
         uint256[] memory amounts = new uint256[](1);
         amounts[0] = 100e6;
@@ -782,20 +778,18 @@ contract CompositeHookFlowTests is BaseTest {
         proofs[0] = _updateTreeAndGetProof(users[0], tokens[0], amounts[0]);
 
         address[] memory hooks = new address[](1);
-        hooks[0] = _getHookAddress(BASE, MERKL_CLAIM_REWARD_HOOK_KEY);
+        hooks[0] = _getHookAddress(ETH, MERKL_CLAIM_REWARD_HOOK_KEY);
 
         bytes[] memory data = new bytes[](1);
         data[0] = _createMerklClaimRewardHookData(merklDistributorAddress, users, tokens, amounts, proofs);
 
         ISuperExecutor.ExecutorEntry memory entryClaim =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
-        UserOpData memory userOpDataClaim = _getExecOps(instanceOnBase, superExecutorBase, abi.encode(entryClaim));
+        UserOpData memory userOpDataClaim = _getExecOps(instanceOnEth, superExecutorETH, abi.encode(entryClaim));
 
         executeOp(userOpDataClaim);
-        // vm.prank(accountBase);
-        // merklDistributor.claim(users, tokens, amounts, proofs);
 
-        uint256 balanceAfter = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+        uint256 balanceAfter = IERC20(underlyingETH_USDC).balanceOf(accountEth);
 
         assertEq(balanceAfter - balanceBefore, 100e6);
     }
@@ -826,8 +820,8 @@ contract CompositeHookFlowTests is BaseTest {
         bytes32 leaf0 = keccak256(abi.encode(user, token, amount));
         bytes32 leaf1 = keccak256(abi.encode(makeAddr("user1"), token, amount));
 
-        assertEq(leaf1 < leaf0, true);
-        bytes32 root = keccak256(abi.encode(leaf1, leaf0)); // leaf1 is to the left
+        assertEq(leaf0 < leaf1, true);
+        bytes32 root = keccak256(abi.encode(leaf0, leaf1)); // leaf1 is the right child
 
         IDistributor.MerkleTree memory tree = IDistributor.MerkleTree({
             merkleRoot: root,
