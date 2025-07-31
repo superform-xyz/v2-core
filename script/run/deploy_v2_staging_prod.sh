@@ -59,6 +59,110 @@ get_network_name() {
     esac
 }
 
+# Function to validate locked bytecode files
+validate_locked_bytecode() {
+    log "INFO" "Validating locked bytecode artifacts..."
+    
+    # Define required contracts (same as in update_locked_bytecode.sh)
+    local CORE_CONTRACTS=(
+        "SuperExecutor"
+        "SuperDestinationExecutor" 
+        "SuperSenderCreator"
+        "AcrossV3Adapter"
+        "DebridgeAdapter"
+        "SuperLedger"
+        "FlatFeeLedger"
+        "SuperLedgerConfiguration"
+        "SuperMerkleValidator"
+        "SuperDestinationValidator"
+        "SuperNativePaymaster"
+    )
+    
+    local HOOK_CONTRACTS=(
+        "ApproveERC20Hook"
+        "TransferERC20Hook"
+        "BatchTransferHook"
+        "BatchTransferFromHook"
+        "Deposit4626VaultHook"
+        "ApproveAndDeposit4626VaultHook"
+        "Redeem4626VaultHook"
+        "Deposit5115VaultHook"
+        "ApproveAndDeposit5115VaultHook"
+        "Redeem5115VaultHook"
+        "RequestDeposit7540VaultHook"
+        "ApproveAndRequestDeposit7540VaultHook"
+        "ApproveAndRequestRedeem7540VaultHook"
+        "Redeem7540VaultHook"
+        "RequestRedeem7540VaultHook"
+        "Deposit7540VaultHook"
+        "Withdraw7540VaultHook"
+        "CancelDepositRequest7540Hook"
+        "CancelRedeemRequest7540Hook"
+        "ClaimCancelDepositRequest7540Hook"
+        "ClaimCancelRedeemRequest7540Hook"
+        "Swap1InchHook"
+        "SwapOdosV2Hook"
+        "ApproveAndSwapOdosV2Hook"
+        "AcrossSendFundsAndExecuteOnDstHook"
+        "DeBridgeSendOrderAndExecuteOnDstHook"
+        "DeBridgeCancelOrderHook"
+        "EthenaCooldownSharesHook"
+        "EthenaUnstakeHook"
+        "CancelRedeemHook"
+        "OfframpTokensHook"
+        "MintSuperPositionsHook"
+        "MarkRootAsUsedHook"
+    )
+    
+    local ORACLE_CONTRACTS=(
+        "ERC4626YieldSourceOracle"
+        "ERC5115YieldSourceOracle"
+        "ERC7540YieldSourceOracle"
+        "PendlePTYieldSourceOracle"
+        "SpectraPTYieldSourceOracle"
+        "StakingYieldSourceOracle"
+        "SuperYieldSourceOracle"
+    )
+    
+    local missing_files=()
+    
+    # Check core contracts
+    for contract in "${CORE_CONTRACTS[@]}"; do
+        local file_path="script/locked-bytecode/${contract}.json"
+        if [ ! -f "$file_path" ]; then
+            missing_files+=("$file_path")
+        fi
+    done
+    
+    # Check hook contracts
+    for contract in "${HOOK_CONTRACTS[@]}"; do
+        local file_path="script/locked-bytecode/${contract}.json"
+        if [ ! -f "$file_path" ]; then
+            missing_files+=("$file_path")
+        fi
+    done
+    
+    # Check oracle contracts
+    for contract in "${ORACLE_CONTRACTS[@]}"; do
+        local file_path="script/locked-bytecode/${contract}.json"
+        if [ ! -f "$file_path" ]; then
+            missing_files+=("$file_path")
+        fi
+    done
+    
+    if [ ${#missing_files[@]} -gt 0 ]; then
+        echo -e "${RED}❌ Missing locked bytecode files:${NC}"
+        for file in "${missing_files[@]}"; do
+            echo -e "${RED}   - $file${NC}"
+        done
+        echo -e "${YELLOW}💡 Run './script/run/update_locked_bytecode.sh' to generate missing files${NC}"
+        return 1
+    fi
+    
+    echo -e "${GREEN}✅ All required locked bytecode files are present${NC}"
+    return 0
+}
+
 # Function to read latest file from S3
 read_latest_from_s3() {
     local environment=$1
@@ -170,6 +274,22 @@ upload_to_s3() {
     fi
 }
 
+# Function to check V2 Core addresses on a network
+check_v2_addresses() {
+    local network_id=$1
+    local network_name=$2
+    local rpc_url_var=$3
+    local verifier_url_var=$4
+    
+    echo -e "${CYAN}Checking V2 Core addresses for $network_name (Chain ID: $network_id)...${NC}"
+    
+    forge script script/DeployV2Core.s.sol:DeployV2Core \
+        --sig 'run(bool,uint256,uint64)' true $FORGE_ENV $network_id \
+        --rpc-url ${!rpc_url_var} \
+        --chain $network_id \
+        -vv | grep -e "Addr" -e "already deployed" -e "Code Size" -e "====" -e "====>"
+}
+
 print_header
 
 # Check if arguments are provided
@@ -251,10 +371,43 @@ echo -e "${CYAN}   • Using Tenderly private verification mode${NC}"
 echo -e "${CYAN}   • Environment: $ENVIRONMENT${NC}"
 print_separator
 
-# Check counters and get confirmation for each network
-BASE_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "Base" 8453)
-BNB_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "BNB" 56)
-ARBITRUM_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "Arbitrum" 42161)
+# ===== LOCKED BYTECODE VALIDATION =====
+echo -e "${BLUE}🔍 Validating locked bytecode artifacts...${NC}"
+if ! validate_locked_bytecode; then
+    echo -e "${RED}❌ Locked bytecode validation failed${NC}"
+    echo -e "${YELLOW}Please ensure all required contract artifacts are present before deployment.${NC}"
+    exit 1
+fi
+print_separator
+
+# ===== ADDRESS CHECKING PHASE =====
+echo -e "${BLUE}🔍 Checking V2 Core contract addresses...${NC}"
+echo -e "${CYAN}This will show you which contracts are already deployed and which need to be deployed.${NC}"
+echo ""
+
+# Check addresses on all networks
+check_v2_addresses 8453 "Base" "BASE_MAINNET" "BASE_VERIFIER_URL"
+echo ""
+check_v2_addresses 56 "BNB" "BSC_MAINNET" "BSC_VERIFIER_URL"
+echo ""
+check_v2_addresses 42161 "Arbitrum" "ARBITRUM_MAINNET" "ARBITRUM_VERIFIER_URL"
+echo ""
+
+# Prompt user for confirmation
+echo -e "${WHITE}Do you want to proceed with the addresses above? (y/n): ${NC}"
+read -r proceed
+
+if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
+    echo -e "${YELLOW}Deployment cancelled by user${NC}"
+    exit 1
+fi
+
+# Check counters and get confirmation for each network (only for deploy mode)
+if [ "$MODE" = "deploy" ]; then
+    BASE_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "Base" 8453)
+    BNB_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "BNB" 56)
+    ARBITRUM_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "Arbitrum" 42161)
+fi
 
 print_separator
 
@@ -263,12 +416,14 @@ print_network_header "BASE MAINNET"
 echo -e "${CYAN}   Chain ID: ${WHITE}8453${NC}"
 echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
 echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-echo -e "${CYAN}   Counter: ${WHITE}$BASE_COUNTER${NC}"
+if [ "$MODE" = "deploy" ]; then
+    echo -e "${CYAN}   Counter: ${WHITE}$BASE_COUNTER${NC}"
+fi
 echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
 echo -e "${YELLOW}   Executing forge script...${NC}"
 
 forge script script/DeployV2Core.s.sol:DeployV2Core \
-    --sig 'run(uint256,uint64)' $FORGE_ENV 8453 \
+    --sig 'run(bool,uint256,uint64)' false $FORGE_ENV 8453 \
     --account v2 \
     --rpc-url $BASE_MAINNET \
     --chain 8453 \
@@ -292,12 +447,14 @@ print_network_header "BSC MAINNET"
 echo -e "${CYAN}   Chain ID: ${WHITE}56${NC}"
 echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
 echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-echo -e "${CYAN}   Counter: ${WHITE}$BNB_COUNTER${NC}"
+if [ "$MODE" = "deploy" ]; then
+    echo -e "${CYAN}   Counter: ${WHITE}$BNB_COUNTER${NC}"
+fi
 echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
 echo -e "${YELLOW}   Executing forge script...${NC}"
 
 forge script script/DeployV2Core.s.sol:DeployV2Core \
-    --sig 'run(uint256,uint64)' $FORGE_ENV 56 \
+    --sig 'run(bool,uint256,uint64)' false $FORGE_ENV 56 \
     --account v2 \
     --rpc-url $BSC_MAINNET \
     --chain 56 \
@@ -312,7 +469,7 @@ echo -e "${GREEN}✅ BSC Mainnet deployment completed successfully!${NC}"
 
 # Upload to S3 only if in deploy mode
 if [ "$MODE" = "deploy" ]; then
-            upload_to_s3 "$ENVIRONMENT" "BNB" 56 "$BNB_COUNTER"
+    upload_to_s3 "$ENVIRONMENT" "BNB" 56 "$BNB_COUNTER"
 fi
 
 wait
@@ -322,12 +479,14 @@ print_network_header "ARBITRUM MAINNET"
 echo -e "${CYAN}   Chain ID: ${WHITE}42161${NC}"
 echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
 echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-echo -e "${CYAN}   Counter: ${WHITE}$ARBITRUM_COUNTER${NC}"
+if [ "$MODE" = "deploy" ]; then
+    echo -e "${CYAN}   Counter: ${WHITE}$ARBITRUM_COUNTER${NC}"
+fi
 echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
 echo -e "${YELLOW}   Executing forge script...${NC}"
 
 forge script script/DeployV2Core.s.sol:DeployV2Core \
-    --sig 'run(uint256,uint64)' $FORGE_ENV 42161 \
+    --sig 'run(bool,uint256,uint64)' false $FORGE_ENV 42161 \
     --account v2 \
     --rpc-url $ARBITRUM_MAINNET \
     --chain 42161 \
