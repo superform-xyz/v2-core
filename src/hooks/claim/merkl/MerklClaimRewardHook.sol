@@ -53,7 +53,7 @@ contract MerklClaimRewardHook is
         bytes32[][] proofs;
     }
 
-    constructor() BaseHook(HookType.OUTFLOW, HookSubTypes.CLAIM) { }
+    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM) { }
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS

@@ -48,7 +48,7 @@ contract MerklClaimRewardsHookTest is Helpers {
     }
 
     function test_Constructor() public view {
-        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.OUTFLOW));
+        assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
     function test_decodeAmount() public view {
