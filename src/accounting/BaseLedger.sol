@@ -78,7 +78,7 @@ abstract contract BaseLedger is ISuperLedger {
         public
         view
         returns (uint256 costBasis, uint256 shares)
-    {   
+    {
         uint256 accumulatorShares = usersAccumulatorShares[user][yieldSource];
         uint256 accumulatorCostBasis = usersAccumulatorCostBasis[user][yieldSource];
 
@@ -165,9 +165,8 @@ abstract contract BaseLedger is ISuperLedger {
         uint256 usedShares
     )
         internal
-        returns (uint256 costBasis)
+        returns (uint256 costBasis, uint256 updatedUsedShares)
     {
-        uint256 updatedUsedShares;
         (costBasis, updatedUsedShares) = calculateCostBasisView(user, yieldSource, usedShares);
         if (updatedUsedShares != usedShares) {
             emit UsedSharesCapped(usedShares, updatedUsedShares);
@@ -185,19 +184,30 @@ abstract contract BaseLedger is ISuperLedger {
     /// @param amountAssets Current value of the shares in asset terms
     /// @param usedShares Amount of shares being consumed
     /// @param config Configuration for the yield source oracle
+    /// @param pps Price per share of the yield source
+    /// @param decimals Decimals of the yield source
     /// @return feeAmount The calculated fee amount based on yield generated
     function _processOutflow(
         address user,
         address yieldSource,
         uint256 amountAssets,
         uint256 usedShares,
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config,
+        uint256 pps,
+        uint8 decimals
     )
         internal
         virtual
         returns (uint256 feeAmount)
     {
-        uint256 costBasis = _calculateCostBasis(user, yieldSource, usedShares);
+        (uint256 costBasis, uint256 updatedUsedShares) = _calculateCostBasis(user, yieldSource, usedShares);
+
+        /// @dev if a user performs a deposit outside superform, his shares were truncated in L87. Likewise we use the
+        /// truncated shares to roll back to the original asset amount that belongs to an action done through superform
+        /// core v2
+        if (usedShares != updatedUsedShares) {
+            amountAssets = Math.mulDiv(updatedUsedShares, pps, 10 ** decimals);
+        }
         if (config.feePercent > 0) {
             feeAmount = _calculateFees(costBasis, amountAssets, config.feePercent);
         }
@@ -275,14 +285,10 @@ abstract contract BaseLedger is ISuperLedger {
 
             emit AccountingInflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, pps);
         } else {
-            uint256 amountAssets = _getOutflowProcessVolume(
-                amountSharesOrAssets,
-                usedShares,
-                pps,
-                IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource)
-            );
+            uint8 decimals = IYieldSourceOracle(config.yieldSourceOracle).decimals(yieldSource);
+            uint256 amountAssets = _getOutflowProcessVolume(amountSharesOrAssets, usedShares, pps, decimals);
 
-            feeAmount = _processOutflow(user, yieldSource, amountAssets, usedShares, config);
+            feeAmount = _processOutflow(user, yieldSource, amountAssets, usedShares, config, pps, decimals);
 
             emit AccountingOutflow(user, config.yieldSourceOracle, yieldSource, amountSharesOrAssets, feeAmount);
             return feeAmount;

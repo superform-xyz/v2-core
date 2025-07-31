@@ -52,7 +52,9 @@ contract MockBaseLedger is BaseLedger {
         address,
         uint256 amountAssets,
         uint256,
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config,
+        uint256,
+        uint8
     )
         internal
         pure
@@ -73,7 +75,7 @@ contract LedgerTests is Helpers {
         address feeRecipient;
         address ledger;
     }
-    
+
     // Additional struct for user data in tests
     struct UserTestData {
         address user;
@@ -83,7 +85,7 @@ contract LedgerTests is Helpers {
         uint256 usedShares1;
         uint256 usedShares2;
     }
-    
+
     MockLedger public mockLedger;
     MockExecutorModule public exec;
     SuperLedger public superLedger;
@@ -559,10 +561,10 @@ contract LedgerTests is Helpers {
         newConfig.feePercent = 1500;
         newConfig.feeRecipient = address(0xabc);
         newConfig.ledger = address(flatFeeLedger);
-        
+
         // Get the complete oracle ID
         newConfig.oracleId = _getYieldSourceOracleId(initialConfig.oracleId, address(this));
-        
+
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: newConfig.oracle,
             feePercent: newConfig.feePercent,
@@ -582,7 +584,12 @@ contract LedgerTests is Helpers {
 
         vm.expectEmit(true, true, false, true);
         emit ISuperLedgerConfiguration.YieldSourceOracleConfigAccepted(
-            newConfig.oracleId, newConfig.oracle, newConfig.feePercent, newConfig.feeRecipient, address(this), newConfig.ledger
+            newConfig.oracleId,
+            newConfig.oracle,
+            newConfig.feePercent,
+            newConfig.feeRecipient,
+            address(this),
+            newConfig.ledger
         );
         config.acceptYieldSourceOracleConfigProposal(oracleIds);
 
@@ -1117,7 +1124,6 @@ contract LedgerTests is Helpers {
         assertEq(storedConfig.feeRecipient, feeRecipient);
         assertEq(storedConfig.ledger, honestLedger);
     }
-
 
     function testOrion_setYieldSourceOracles_Invalid_Id_DoS_works() public {
         // Step 1: Honest user sets up oracle configuration
@@ -1723,7 +1729,6 @@ contract LedgerTests is Helpers {
         uint256 usedShares = 1000e18;
         oracleId = _getYieldSourceOracleId(oracleId, address(this));
 
-
         // First do an inflow to set up shares
         vm.prank(address(exec));
         mockBaseLedger.updateAccounting(
@@ -1844,15 +1849,13 @@ contract LedgerTests is Helpers {
 
         // Test cost basis calculation for half of total shares
         (uint256 costBasis,) = mockBaseLedger.calculateCostBasisView(
-            userData.user, 
-            userData.yieldSource, 
-            (userData.usedShares1 + userData.usedShares2) / 2
+            userData.user, userData.yieldSource, (userData.usedShares1 + userData.usedShares2) / 2
         );
 
         // Expected cost basis should be half of total amount
         assertEq(
-            costBasis, 
-            (userData.amountAssets1 + userData.amountAssets2) / 2, 
+            costBasis,
+            (userData.amountAssets1 + userData.amountAssets2) / 2,
             "Cost basis calculation incorrect for multiple inflows"
         );
     }
@@ -2154,5 +2157,4 @@ contract LedgerTests is Helpers {
     function _getYieldSourceOracleId(bytes32 id, address sender) internal pure returns (bytes32) {
         return keccak256(abi.encodePacked(id, sender));
     }
-
 }

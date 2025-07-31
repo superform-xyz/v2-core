@@ -23,7 +23,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address superLedger;
         address flatFeeLedger;
         address superLedgerConfiguration;
-        address superMerkleValidator;
+        address superValidator;
         address superDestinationValidator;
         address superNativePaymaster;
     }
@@ -165,9 +165,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         (, address superLedgerConfig) =
             __checkContract(SUPER_LEDGER_CONFIGURATION_KEY, __getSalt(SUPER_LEDGER_CONFIGURATION_KEY), "");
 
-        // SuperMerkleValidator (no constructor args)
-        (, address superMerkleValidator) =
-            __checkContract(SUPER_MERKLE_VALIDATOR_KEY, __getSalt(SUPER_MERKLE_VALIDATOR_KEY), "");
+        // SuperValidator (no constructor args)
+        (, address superValidator) = __checkContract(SUPER_VALIDATOR_KEY, __getSalt(SUPER_VALIDATOR_KEY), "");
 
         // SuperDestinationValidator (no constructor args)
         (, address superDestValidator) =
@@ -203,7 +202,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         _checkAdapterContracts(chainId, superDestExecutor);
         _checkLedgerContracts(superLedgerConfig, superExecutor, superDestExecutor);
         _checkPaymasterContracts();
-        _checkHookContracts(chainId, superMerkleValidator);
+        _checkHookContracts(chainId, superValidator);
         _checkOracleContracts(superLedgerConfig);
     }
 
@@ -275,7 +274,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     }
 
     /// @notice Check hook contracts
-    function _checkHookContracts(uint64 chainId, address superMerkleValidator) internal {
+    function _checkHookContracts(uint64 chainId, address superValidator) internal {
         console2.log("");
         console2.log("=== Hooks ===");
 
@@ -355,21 +354,21 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         }
 
         // Bridge hooks
-        if (configuration.acrossSpokePoolV3s[chainId] != address(0) && superMerkleValidator != address(0)) {
+        if (configuration.acrossSpokePoolV3s[chainId] != address(0) && superValidator != address(0)) {
             __checkContract(
                 ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
                 __getSalt(ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY),
-                abi.encode(configuration.acrossSpokePoolV3s[chainId], superMerkleValidator)
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
             );
         } else {
             revert("ACROSS_HOOK_CHECK_FAILED_MISSING_DEPENDENCIES");
         }
 
-        if (DEBRIDGE_DLN_SRC != address(0) && superMerkleValidator != address(0)) {
+        if (DEBRIDGE_DLN_SRC != address(0) && superValidator != address(0)) {
             __checkContract(
                 DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
                 __getSalt(DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY),
-                abi.encode(DEBRIDGE_DLN_SRC, superMerkleValidator)
+                abi.encode(DEBRIDGE_DLN_SRC, superValidator)
             );
         } else {
             __checkContract(
@@ -471,8 +470,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         status = _getContractStatus(chainId, SUPER_LEDGER_CONFIGURATION_KEY);
         if (status.isDeployed) coreContracts.superLedgerConfiguration = status.contractAddress;
 
-        status = _getContractStatus(chainId, SUPER_MERKLE_VALIDATOR_KEY);
-        if (status.isDeployed) coreContracts.superMerkleValidator = status.contractAddress;
+        status = _getContractStatus(chainId, SUPER_VALIDATOR_KEY);
+        if (status.isDeployed) coreContracts.superValidator = status.contractAddress;
 
         status = _getContractStatus(chainId, SUPER_DESTINATION_VALIDATOR_KEY);
         if (status.isDeployed) coreContracts.superDestinationValidator = status.contractAddress;
@@ -548,18 +547,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(coreContracts.superLedgerConfiguration.code.length > 0, "SUPER_LEDGER_CONFIGURATION_NO_CODE");
         console2.log(" SuperLedgerConfiguration deployed and validated");
 
-        // Deploy SuperMerkleValidator
-        coreContracts.superMerkleValidator = __deployContractIfNeeded(
-            SUPER_MERKLE_VALIDATOR_KEY,
+        // Deploy SuperValidator
+        coreContracts.superValidator = __deployContractIfNeeded(
+            SUPER_VALIDATOR_KEY,
             chainId,
-            __getSalt(SUPER_MERKLE_VALIDATOR_KEY),
-            vm.getCode("script/locked-bytecode/SuperMerkleValidator.json")
+            __getSalt(SUPER_VALIDATOR_KEY),
+            vm.getCode("script/locked-bytecode/SuperValidator.json")
         );
 
-        // Validate SuperMerkleValidator was deployed
-        require(coreContracts.superMerkleValidator != address(0), "SUPER_MERKLE_VALIDATOR_DEPLOYMENT_FAILED");
-        require(coreContracts.superMerkleValidator.code.length > 0, "SUPER_MERKLE_VALIDATOR_NO_CODE");
-        console2.log(" SuperMerkleValidator deployed and validated");
+        // Validate SuperValidator was deployed
+        require(coreContracts.superValidator != address(0), "SUPER_MERKLE_VALIDATOR_DEPLOYMENT_FAILED");
+        require(coreContracts.superValidator.code.length > 0, "SUPER_MERKLE_VALIDATOR_NO_CODE");
+        console2.log(" SuperValidator deployed and validated");
 
         // Deploy SuperDestinationValidator
         coreContracts.superDestinationValidator = __deployContractIfNeeded(
@@ -1010,28 +1009,28 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_HOOK_SPOKE_POOL_PARAM_ZERO");
         require(configuration.acrossSpokePoolV3s[chainId].code.length > 0, "ACROSS_HOOK_SPOKE_POOL_NOT_DEPLOYED");
 
-        address superMerkleValidator = _getContract(chainId, SUPER_MERKLE_VALIDATOR_KEY);
-        require(superMerkleValidator != address(0), "ACROSS_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
-        require(superMerkleValidator.code.length > 0, "ACROSS_HOOK_MERKLE_VALIDATOR_NOT_DEPLOYED");
+        address superValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
+        require(superValidator != address(0), "ACROSS_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
+        require(superValidator.code.length > 0, "ACROSS_HOOK_MERKLE_VALIDATOR_NOT_DEPLOYED");
 
         hooks[20] = HookDeployment(
             ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
                 vm.getCode("script/locked-bytecode/AcrossSendFundsAndExecuteOnDstHook.json"),
-                abi.encode(configuration.acrossSpokePoolV3s[chainId], superMerkleValidator)
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
             )
         );
 
         // DeBridge hooks - Validate constants and Merkle Validator
         require(DEBRIDGE_DLN_SRC != address(0), "DEBRIDGE_SEND_HOOK_DLN_SRC_PARAM_ZERO");
         require(DEBRIDGE_DLN_DST != address(0), "DEBRIDGE_CANCEL_HOOK_DLN_DST_PARAM_ZERO");
-        require(superMerkleValidator != address(0), "DEBRIDGE_SEND_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
+        require(superValidator != address(0), "DEBRIDGE_SEND_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
 
         hooks[21] = HookDeployment(
             DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
                 vm.getCode("script/locked-bytecode/DeBridgeSendOrderAndExecuteOnDstHook.json"),
-                abi.encode(DEBRIDGE_DLN_SRC, superMerkleValidator)
+                abi.encode(DEBRIDGE_DLN_SRC, superValidator)
             )
         );
         hooks[22] = HookDeployment(

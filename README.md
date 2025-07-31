@@ -67,14 +67,14 @@ graph TD
 Smart accounts that interact with Superform must install four essential ERC7579 modules:
 
 - SuperExecutor / SuperDestinationExecutor: Installs hooks and executes operations.
-- SuperMerkleValidator / SuperDestinationValidator: Validates userOps against a Merkle root.
+- SuperValidator / SuperDestinationValidator: Validates userOps against a Merkle root.
 
 ```mermaid
 sequenceDiagram
     participant User as User/DApp
     participant Frontend as Superform Frontend
     participant SmartAccount as Smart Account
-    participant SuperMerkle as SuperMerkleValidator
+    participant SuperMerkle as SuperValidator
     participant SuperExecutor as SuperExecutor
     participant Bridge as Bridge Adapter
     participant DestExecutor as SuperDestinationExecutor
@@ -167,11 +167,11 @@ Key Points for Auditors:
 
 SuperValidatorBase is the base contract providing core validation functionality used across all validator implementations, including signature validation and account ownership verification.
 
-#### SuperMerkleValidator and SuperDestinationValidator
+#### SuperValidator and SuperDestinationValidator
 
-SuperMerkleValidator and SuperDestinationValidator are used to validate operations through Merkle proof verification, ensuring only authorized operations are executed. They leverage a single owner signature over a Merkle root representing a batch of operations.
+SuperValidator and SuperDestinationValidator are used to validate operations through Merkle proof verification, ensuring only authorized operations are executed. They leverage a single owner signature over a Merkle root representing a batch of operations.
 
-SuperMerkleValidator:
+SuperValidator:
 - Role: A validator contract for ERC4337 entrypoint actions. It enables users to sign once for multiple user operations using merkle proofs, enhancing the chain abstraction experience.
 - Usage: Designed for standard ERC-4337 `EntryPoint` interactions. Validates `UserOperation` hashes (`userOpHash`) provided within a Merkle proof, typically constructed by the SuperBundler. Implements `validateUserOp` and EIP-1271 `isValidSignatureWithSender`.
 
@@ -343,7 +343,7 @@ graph TD
    - Each leaf contains chain-specific data (chain ID, execution parameters, expiration time)
 
 2. **Source Chain Execution**:
-   - On the source chain, the SuperMerkleValidator verifies the user's signature against the merkle root
+   - On the source chain, the SuperValidator verifies the user's signature against the merkle root
    - The source chain operations are executed through the merkle proof for that chain
    - Typically includes bridging assets to destination chains
 

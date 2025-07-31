@@ -66,12 +66,8 @@ abstract contract DeployV2Base is Script, ConfigBase {
         address predictedAddr = DeterministicDeployerLib.computeAddress(creationCode, salt);
 
         // Check if already deployed using assembly like Nexus
-        uint256 codeSize;
-        assembly {
-            codeSize := extcodesize(predictedAddr)
-        }
 
-        if (codeSize > 0) {
+        if (predictedAddr.code.length > 0) {
             console2.log("[!] %s already deployed at:", contractName, predictedAddr);
             console2.log("      skipping...");
             contractAddresses[chainId][contractName] = predictedAddr;
@@ -166,10 +162,7 @@ abstract contract DeployV2Base is Script, ConfigBase {
         contractAddr = DeterministicDeployerLib.computeAddress(bytecode, args, salt);
 
         // Check if deployed using assembly (Nexus style)
-        uint256 codeSize;
-        assembly {
-            codeSize := extcodesize(contractAddr)
-        }
+        uint256 codeSize = contractAddr.code.length;
 
         isDeployed = codeSize > 0;
 

@@ -53,7 +53,7 @@ import { Redeem4626VaultHook } from "../../../src/hooks/vaults/4626/Redeem4626Va
 import { SuperLedger } from "../../../src/accounting/SuperLedger.sol";
 import { MockSwapOdosHook } from "../../mocks/unused-hooks/MockSwapOdosHook.sol";
 import { MockOdosRouterV2 } from "../../mocks/MockOdosRouterV2.sol";
-import { SuperMerkleValidator } from "../../../src/validators/SuperMerkleValidator.sol";
+import { SuperValidator } from "../../../src/validators/SuperValidator.sol";
 import { SuperValidatorBase } from "../../../src/validators/SuperValidatorBase.sol";
 
 contract SuperExecutor_sameChainFlow is
@@ -94,7 +94,7 @@ contract SuperExecutor_sameChainFlow is
     address mockSwapOdosHook;
     address mockOdosRouter;
     address mintSuperPositionsHook;
-    SuperMerkleValidator public validator;
+    SuperValidator public validator;
 
     address public signer;
     uint256 public signerPrvKey;
@@ -113,7 +113,7 @@ contract SuperExecutor_sameChainFlow is
         instance = makeAccountInstance(keccak256(abi.encode("acc1")));
         account = instance.account;
 
-        validator = new SuperMerkleValidator();
+        validator = new SuperValidator();
         vm.label(address(validator), "Validator source");
 
         _getTokens(underlying, account, 1e18);

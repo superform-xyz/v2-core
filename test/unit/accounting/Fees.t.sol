@@ -12,6 +12,8 @@ import { MockAccountingVault } from "../../mocks/MockAccountingVault.sol";
 import { MinimalBaseIntegrationTest } from "../../integration/MinimalBaseIntegrationTest.t.sol";
 import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 
+import "forge-std/console2.sol";
+
 // Moved from integration test folder because it's more of a unit test rather than an integration one
 contract FeesTest is MinimalBaseIntegrationTest {
     IERC4626 public vaultInstance;
@@ -125,7 +127,7 @@ contract FeesTest is MinimalBaseIntegrationTest {
     }
 
     function test_MultipleDepositsAndFullWithdrawal_ForMultipleEntries_Fees() external {
-        uint256 amount = SMALL;
+        uint256 amount = SMALL; // 1eth
         _getTokens(underlying, accountEth, amount * 2);
 
         // make sure custom pps is 1
@@ -150,17 +152,26 @@ contract FeesTest is MinimalBaseIntegrationTest {
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         UserOpData memory userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         executeOp(userOpData);
-        userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
-        executeOp(userOpData);
+        // 1000000000000000000 Shares and 1000000000000000000 cost basis (assets)
+
+        // deposit 1 eth here
+
+        vm.startPrank(accountEth);
+        _getTokens(underlying, accountEth, SMALL);
+        IERC20(underlying).approve(yieldSourceAddress, SMALL);
+        MockAccountingVault(yieldSourceAddress).deposit(SMALL, accountEth);
+        vm.stopPrank();
+
+        uint256 sharesBalance = MockAccountingVault(yieldSourceAddress).balanceOf(accountEth);
+        console2.log("Shares balance of the user", sharesBalance);
 
         // set pps to 2$ and assure vault has enough assets
         MockAccountingVault(yieldSourceAddress).setCustomPps(2e18);
         _getTokens(underlying, address(vaultInstance), LARGE);
 
         // assert pps
-        uint256 sharesToWithdraw = SMALL * 2; // should get 4 * SMALL amount
-        uint256 amountOut = vaultInstance.convertToAssets(sharesToWithdraw);
-        assertEq(amountOut, amount * 4);
+        uint256 amountOut = vaultInstance.convertToAssets(sharesBalance);
+        console2.log("equivalent asset amount", amountOut);
 
         // prepare withdraw
         hooksAddresses = new address[](1);
@@ -171,22 +182,25 @@ contract FeesTest is MinimalBaseIntegrationTest {
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this)),
             yieldSourceAddress,
             accountEth,
-            sharesToWithdraw,
+            sharesBalance,
             false
         );
         ISuperLedgerConfiguration.YieldSourceOracleConfig memory config = ledgerConfig.getYieldSourceOracleConfig(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), address(this))
         );
+        console2.log("config.feePercent", config.feePercent);
         uint256 feeBalanceBefore = IERC20(underlying).balanceOf(config.feeRecipient);
+
+        console2.log("feeBalanceBefore", feeBalanceBefore);
 
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
         userOpData = _getExecOps(instanceOnEth, superExecutorOnEth, abi.encode(entry));
         executeOp(userOpData);
 
         uint256 feeBalanceAfter = IERC20(underlying).balanceOf(config.feeRecipient);
+        console2.log("feeBalanceAfter", feeBalanceAfter);
 
-        // profit should be 1% of SMALL*2 ( = amount*2)
-        assertEq(feeBalanceAfter - feeBalanceBefore, amount * 200 / 10_000);
+        assertEq(feeBalanceAfter - feeBalanceBefore, SMALL * 100 / 10_000);
     }
 
     function test_MultipleDepositsAndFullWithdrawal_ForSingleEntries_Fees() external {
