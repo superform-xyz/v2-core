@@ -1207,7 +1207,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][MARK_ROOT_AS_USED_HOOK_KEY]);
             hooksAddresses[49] = address(A[i].markRootAsUsedHook);
 
-            A[i].merklClaimRewardHook = new MerklClaimRewardHook{ salt: SALT }();
+            A[i].merklClaimRewardHook = new MerklClaimRewardHook{ salt: SALT }(MERKL_DISTRIBUTOR);
             vm.label(address(A[i].merklClaimRewardHook), MERKL_CLAIM_REWARD_HOOK_KEY);
             hookAddresses[chainIds[i]][MERKL_CLAIM_REWARD_HOOK_KEY] = address(A[i].merklClaimRewardHook);
             hooks[chainIds[i]][MERKL_CLAIM_REWARD_HOOK_KEY] = Hook(

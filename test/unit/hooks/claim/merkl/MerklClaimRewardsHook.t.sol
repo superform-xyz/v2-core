@@ -26,7 +26,7 @@ contract MerklClaimRewardsHookTest is Helpers {
     bytes32[][] public proofs;
 
     function setUp() public {
-        distributor = makeAddr("distributor");
+        distributor = MERKL_DISTRIBUTOR;
         address user = makeAddr("user");
         users = [user, user, user];
 
@@ -44,7 +44,7 @@ contract MerklClaimRewardsHookTest is Helpers {
             [keccak256(abi.encodePacked(user, address(_mockToken3), uint256(3000)))]
         ];
 
-        hook = new MerklClaimRewardHook();
+        hook = new MerklClaimRewardHook(distributor);
     }
 
     function test_Constructor() public view {
@@ -135,7 +135,7 @@ contract MerklClaimRewardsHookTest is Helpers {
     }
 
     function _encodeData() internal view returns (bytes memory data) {
-        data = abi.encodePacked(bytes32(0), distributor, uint256(users.length));
+        data = abi.encodePacked(bytes32(0), uint256(users.length));
 
         for (uint256 i = 0; i < users.length; i++) {
             data = bytes.concat(data, bytes20(users[i]));

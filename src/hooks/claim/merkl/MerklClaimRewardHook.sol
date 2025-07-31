@@ -22,14 +22,13 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @author Superform Labs
 /// @dev data has the following structure
 /// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
-/// @notice         address distributor = BytesLib.toAddress(data, 32);
-/// @notice         uint256 arraysLength = BytesLib.toUint256(data, 52);
-/// @notice         address[] users = BytesLib.slice(data, 84, arrayLength * 20);
-/// @notice         address[] tokens = BytesLib.slice(data, 84 + arrayLength * 20, tokensLength * 20);
-/// @notice         uint256[] amounts = BytesLib.slice(data, 84 + arrayLength * 20 + tokensLength * 20, amountsLength *
+/// @notice         uint256 arraysLength = BytesLib.toUint256(data, 32);
+/// @notice         address[] users = BytesLib.slice(data, 64, arrayLength * 20);
+/// @notice         address[] tokens = BytesLib.slice(data, 64 + arrayLength * 20, tokensLength * 20);
+/// @notice         uint256[] amounts = BytesLib.slice(data, 64 + arrayLength * 20 + tokensLength * 20, amountsLength *
 /// 32);
-/// @notice         bytes proofBlob = BytesLib.slice(data, 84 + arrayLength * 20 + tokensLength * 20 + amountsLength *
-/// 32, data.length - (84 + arrayLength * 20 + tokensLength * 20 + amountsLength * 32));
+/// @notice         bytes proofBlob = BytesLib.slice(data, 64 + arrayLength * 20 + tokensLength * 20 + amountsLength *
+/// 32, data.length - (64 + arrayLength * 20 + tokensLength * 20 + amountsLength * 32));
 contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
@@ -41,8 +40,9 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
     error LENGTH_MISMATCH();
     error INVALID_ENCODING();
 
+    address public immutable distributor;
+
     struct ClaimParams {
-        address distributor;
         uint256 arrayLength;
         address[] users;
         address[] tokens;
@@ -50,7 +50,9 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
         bytes32[][] proofs;
     }
 
-    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM) { }
+    constructor(address _distributor) BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM) {
+        distributor = _distributor;
+    }
 
     /*//////////////////////////////////////////////////////////////
                               VIEW METHODS
@@ -62,7 +64,7 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
         bytes calldata data
     )
         internal
-        pure
+        view
         override
         returns (Execution[] memory executions)
     {
@@ -70,7 +72,7 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
 
         executions = new Execution[](1);
         executions[0] = Execution({
-            target: params.distributor,
+            target: distributor,
             value: 0,
             callData: abi.encodeCall(IDistributor.claim, (params.users, params.tokens, params.amounts, params.proofs))
         });
@@ -92,10 +94,10 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external pure override returns (bytes memory) {
+    function inspect(bytes calldata data) external view override returns (bytes memory) {
         ClaimParams memory params = _decodeClaimParams(data);
 
-        bytes memory addressData = abi.encodePacked(params.distributor);
+        bytes memory addressData = abi.encodePacked(distributor);
         for (uint256 i = 0; i < params.users.length; i++) {
             addressData = bytes.concat(addressData, bytes20(params.users[i]));
         }
@@ -119,10 +121,6 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
     }
 
     function _decodeClaimParams(bytes calldata data) internal pure returns (ClaimParams memory params) {
-        // decode distributor address
-        params.distributor = BytesLib.toAddress(data, 32);
-        if (params.distributor == address(0)) revert ADDRESS_NOT_VALID();
-
         // decode users
         (uint256 cursorAfterUsers, address[] memory users) = _decodeUsers(data);
         params.users = users;
@@ -140,9 +138,9 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
 
     function _decodeUsers(bytes calldata data) internal pure returns (uint256 cursor, address[] memory users) {
         // decode array length
-        uint256 arrayLength = BytesLib.toUint256(data, 52);
+        uint256 arrayLength = BytesLib.toUint256(data, 32);
 
-        cursor = 84;
+        cursor = 64;
         users = new address[](arrayLength);
         for (uint256 i = 0; i < arrayLength; i++) {
             address user = BytesLib.toAddress(data, cursor);
@@ -161,7 +159,7 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
         pure
         returns (uint256 cursor, address[] memory tokens, uint256[] memory amounts)
     {
-        uint256 arrayLength = BytesLib.toUint256(data, 52);
+        uint256 arrayLength = BytesLib.toUint256(data, 32);
 
         cursor = cursorAfterUsers;
 
@@ -185,7 +183,7 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
     }
 
     function _decodeProofs(bytes calldata data, uint256 cursor) internal pure returns (bytes32[][] memory proofs) {
-        uint256 arrayLength = BytesLib.toUint256(data, 52);
+        uint256 arrayLength = BytesLib.toUint256(data, 32);
         proofs = new bytes32[][](arrayLength);
 
         for (uint256 i; i < arrayLength; ++i) {

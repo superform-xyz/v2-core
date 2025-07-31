@@ -179,6 +179,9 @@ abstract contract Constants {
     address public constant MORPHO_IRM = 0x46415998764C29aB2a25CbeA6254146D50D22687;
     address public constant MORPHO_ORACLE = 0xD09048c8B568Dbf5f189302beA26c9edABFC4858;
 
+    // merkl
+    address public constant MERKL_DISTRIBUTOR = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
+
     // vaults
     string public constant ERC4626_VAULT_KEY = "ERC4626";
     string public constant ERC5115_VAULT_KEY = "ERC5115";
