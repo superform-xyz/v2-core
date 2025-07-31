@@ -879,4 +879,42 @@ abstract contract InternalHelpers is Test {
     ) internal pure returns (bytes memory) {
         return abi.encodePacked(yieldSourceOracleId, spToken, amount, usePrevHookAmount, vaultBank, dstChainId);
     }
+
+    function _createMerklClaimRewardHookData(
+        address distributor,
+        address[] memory users,
+        address[] memory tokens,
+        uint256[] memory amounts,
+        bytes32[][] memory proofs
+    ) internal pure returns (bytes memory data) {
+        data = abi.encodePacked(bytes32(0), distributor, uint256(users.length));
+
+        for (uint256 i = 0; i < users.length; i++) {
+            data = bytes.concat(data, bytes20(users[i]));
+        }
+
+        for (uint256 i = 0; i < tokens.length; i++) {
+            data = bytes.concat(data, bytes20(tokens[i]));
+        }
+
+        for (uint256 i = 0; i < amounts.length; i++) {
+            data = bytes.concat(data, abi.encodePacked(amounts[i]));
+        }
+
+        data = bytes.concat(data, _flattenProofs(proofs));
+    }
+
+    function _flattenProofs(bytes32[][] memory proofsToFlatten) internal pure returns (bytes memory) {
+        bytes memory flattenedProofs;
+
+        for (uint256 i = 0; i < proofsToFlatten.length; i++) {
+            flattenedProofs = bytes.concat(flattenedProofs, abi.encodePacked(uint256(proofsToFlatten[i].length))); // inner array length
+
+            for (uint256 j; j < proofsToFlatten[i].length; ++j) {
+                flattenedProofs = bytes.concat(flattenedProofs, proofsToFlatten[i][j]);
+            }
+        }
+
+        return flattenedProofs;
+    }
 }
