@@ -22,7 +22,7 @@ import { InternalHelpers } from "../../utils/InternalHelpers.sol";
 // Circle Gateway
 import { GatewayWallet } from "../../../lib/evm-gateway-contracts/src/GatewayWallet.sol";
 import { GatewayMinter } from "../../../lib/evm-gateway-contracts/src/GatewayMinter.sol";
-import { TransferSpec } from "../../../lib/evm-gateway-contracts/src/lib/TransferSpec.sol";
+import { MultichainTestUtils } from "../../../lib/evm-gateway-contracts/test/util/MultichainTestUtils.sol";
 
 // Test hooks
 import { CircleGatewayWalletHook } from "../../mocks/unused-hooks/CircleGatewayWalletHook.sol";
@@ -32,7 +32,7 @@ import { CircleGatewayMinterHook } from "../../mocks/unused-hooks/CircleGatewayM
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";
 
 /// @dev Integration test for Circle Gateway cross-chain bridging functionality
-abstract contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers {
+abstract contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers, MultichainTestUtils {
     using ModuleKitHelpers for *;
 
     /*//////////////////////////////////////////////////////////////
@@ -90,6 +90,8 @@ abstract contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, Intern
     ApproveAndDeposit4626VaultHook public approveAndDeposit4626Hook;
 
     Mock4626Vault public mockVault;
+    GatewayWallet public gatewayWallet;
+    GatewayMinter public gatewayMinter;
 
     function setUp() public virtual {
         // Setup test accounts
@@ -248,43 +250,7 @@ abstract contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, Intern
         });
     }
 
-    /// @notice Mock function to sign burn intent (would be done off-chain)
-    /// @param transferSpec The transfer specification
-    /// @param signerKey The private key to sign with
-    /// @return encodedBurnIntent The encoded burn intent
-    /// @return burnSignature The burn signature
-    function _signBurnIntentWithTransferSpec(
-        TransferSpec memory transferSpec,
-        uint256 signerKey
-    ) internal pure returns (bytes memory encodedBurnIntent, bytes memory burnSignature) {
-        // This is a simplified mock implementation
-        // In reality, this would follow Circle Gateway's BurnIntent specification
-        encodedBurnIntent = abi.encode(transferSpec);
-        
-        // Mock signature creation
-        bytes32 messageHash = keccak256(encodedBurnIntent);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(signerKey, messageHash);
-        burnSignature = abi.encodePacked(r, s, v);
-    }
-
-    /// @notice Mock function to sign attestation (would be done off-chain by Circle)
-    /// @param transferSpec The transfer specification
-    /// @param attestationSignerKey The Circle attestation signer key
-    /// @return encodedAttestation The encoded attestation
-    /// @return attestationSignature The attestation signature
-    function _signAttestationWithTransferSpec(
-        TransferSpec memory transferSpec,
-        uint256 attestationSignerKey
-    ) internal view returns (bytes memory encodedAttestation, bytes memory attestationSignature) {
-        // This is a simplified mock implementation
-        // In reality, this would follow Circle Gateway's Attestation specification
-        encodedAttestation = abi.encode(transferSpec, block.number + 1000); // Add expiry
-        
-        // Mock signature creation
-        bytes32 messageHash = keccak256(encodedAttestation);
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(attestationSignerKey, messageHash);
-        attestationSignature = abi.encodePacked(r, s, v);
-    }
+    // Note: Burn intent and attestation signing methods are inherited from SignatureTestUtils
 
     /*//////////////////////////////////////////////////////////////
                                  TEST FUNCTIONS
@@ -319,9 +285,10 @@ abstract contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, Intern
         );
 
         // Step 3: Sign burn intent (off-chain simulation)
-        // Note: This would be done off-chain in a real implementation
-        // _signBurnIntentWithTransferSpec(transferSpec, depositorPrivateKey);
-
+        // Note: In a real implementation, this would be done off-chain
+        // For testing, we need a mock GatewayWallet instance
+        // Skip this step for now as it requires a deployed Gateway contract
+        
         // Step 4: Sign attestation (off-chain Circle simulation)
         (bytes memory encodedAttestation, bytes memory attestationSignature) = 
             _signAttestationWithTransferSpec(transferSpec, 0x999999); // Mock Circle key
