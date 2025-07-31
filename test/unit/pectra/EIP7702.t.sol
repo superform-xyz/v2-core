@@ -33,7 +33,6 @@ import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { SuperExecutorBase } from  "../../../src/executors/SuperExecutorBase.sol";
 import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
-import { Super7702SenderCreator } from "../../../src/executors/helpers/Super7702SenderCreator.sol";
 import { SuperExecutor } from  "../../../src/executors/SuperExecutor.sol";
 import { SuperDestinationExecutor } from "../../../src/executors/SuperDestinationExecutor.sol";
 import { SuperValidatorBase } from "../../../src/validators/SuperValidatorBase.sol";
@@ -101,8 +100,6 @@ contract EIP7702Test is BaseTest {
 
     SuperDestinationValidator public superDestinationValidator_Base;
     SuperDestinationExecutor public superDestinationExecutor_Base;
-    Super7702SenderCreator public super7702SenderCreator;
-
 
     function setUp() public override {
         warpStartTime = 1753501381;
@@ -121,11 +118,6 @@ contract EIP7702Test is BaseTest {
         THRESHOLD = 1;
 
         super.setUp();
-
-        super7702SenderCreator = new Super7702SenderCreator();
-        vm.label(address(super7702SenderCreator), "Super7702SenderCreator");
-        vm.makePersistent(address(super7702SenderCreator));
-
 
         // create BASE fork data
         _useBaseFork(0);
@@ -780,8 +772,8 @@ contract EIP7702Test is BaseTest {
             registry: REGISTRY_BASE
         }));
         bytes memory initData = abi.encodeWithSelector(NexusAccountFactory.createAccount.selector, initCalldata, bytes32(keccak256("SIGNER_SALT")));
-        initData = bytes.concat(abi.encodePacked(address(super7702SenderCreator)), INITCODE_EIP7702_MARKER, abi.encodePacked(address(FACTORY_BASE)), initData);
-        console2.log("super7702SenderCreator length", address(super7702SenderCreator).code.length);
+        initData = bytes.concat(abi.encodePacked(address(0)), INITCODE_EIP7702_MARKER, abi.encodePacked(address(FACTORY_BASE)), initData);
+        //console2.log("super7702SenderCreator length", address(super7702SenderCreator).code.length);
 
         address[] memory dstTokens = new address[](1);
         dstTokens[0] = underlyingBase_USDC;

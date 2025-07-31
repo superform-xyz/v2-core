@@ -26,7 +26,6 @@ import { SuperLedgerConfiguration } from "../src/accounting/SuperLedgerConfigura
 import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
 import { SuperDestinationExecutor } from "../src/executors/SuperDestinationExecutor.sol";
 import { SuperSenderCreator } from "../src/executors/helpers/SuperSenderCreator.sol";
-import { Super7702SenderCreator } from "../src/executors/helpers/Super7702SenderCreator.sol";
 import { SuperMerkleValidator } from "../src/validators/SuperMerkleValidator.sol";
 import { SuperDestinationValidator } from "../src/validators/SuperDestinationValidator.sol";
 import { SuperValidatorBase } from "../src/validators/SuperValidatorBase.sol";
@@ -176,7 +175,6 @@ struct Addresses {
     ISuperExecutor superExecutor;
     ISuperExecutor superDestinationExecutor;
     SuperSenderCreator superSenderCreator;
-    Super7702SenderCreator super7702SenderCreator;
     AcrossV3Adapter acrossV3Adapter;
     DebridgeAdapter debridgeAdapter;
     ApproveERC20Hook approveErc20Hook;
@@ -518,10 +516,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             A[i].superSenderCreator = new SuperSenderCreator{ salt: SALT }();
             vm.label(address(A[i].superSenderCreator), SUPER_SENDER_CREATOR_KEY);
             contractAddresses[chainIds[i]][SUPER_SENDER_CREATOR_KEY] = address(A[i].superSenderCreator);
-
-            A[i].super7702SenderCreator = new Super7702SenderCreator{ salt: SALT }();
-            vm.label(address(A[i].super7702SenderCreator), SUPER_7702_SENDER_CREATOR_KEY);
-            contractAddresses[chainIds[i]][SUPER_7702_SENDER_CREATOR_KEY] = address(A[i].super7702SenderCreator);
 
             A[i].acrossV3Adapter = new AcrossV3Adapter{ salt: SALT }(
                 SPOKE_POOL_V3_ADDRESSES[chainIds[i]], address(A[i].superDestinationExecutor)
