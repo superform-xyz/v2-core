@@ -27,6 +27,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     /// @dev Used to verify signatures against the correct owner address
     mapping(address account => address owner) internal _accountOwners;
 
+    /// @notice Prefix for 7702 authority -> https://eip7702.io/
     bytes3 internal constant EIP7702_PREFIX = bytes3(0xef0100);
 
     /*//////////////////////////////////////////////////////////////

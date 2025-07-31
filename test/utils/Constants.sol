@@ -39,7 +39,6 @@ abstract contract Constants {
     uint256 public constant ACCOUNT_COUNT = 30; //should be divisible by 2
 
     address public constant ENTRYPOINT_ADDR = 0x0000000071727De22E5E9d8BAf0edAc6f37da032;
-    address public constant ENTRYPOINT_ADDR_V8 = 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108; // v0.8
     address public constant SAFE_REGISTRY_ADDR = 0x000000000069E2a187AEFFb852bF3cCdC95151B2;
 
     // rpc

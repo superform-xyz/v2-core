@@ -2088,7 +2088,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             outputAmount,
             uint256(destinationChainId),
             address(0),
-            uint32(300 minutes), // this can be a max of 360 minutes
+            uint32(10 minutes), // this can be a max of 360 minutes
             uint32(0),
             usePrevHookAmount,
             data

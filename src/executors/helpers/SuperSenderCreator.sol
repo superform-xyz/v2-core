@@ -17,9 +17,9 @@ contract SuperSenderCreator {
         bytes memory initCallData = initCode[20 :];
         (bool success, bytes memory returnData) = initAddress.call(initCallData);
         if (!success) {
-            assembly {
-                revert(add(returnData, 32), mload(returnData))
-            }
+            // In case account creation failed
+            // we return address(0) because it's validated in `SuperDestinationExecutor`
+            return address(0);
         }
         sender = abi.decode(returnData, (address));
     }
