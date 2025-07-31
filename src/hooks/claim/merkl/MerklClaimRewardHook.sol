@@ -72,7 +72,11 @@ contract MerklClaimRewardHook is
         ClaimParams memory params = _decodeClaimParams(data);
 
         executions = new Execution[](1);
-        executions[0] = Execution({ target: params.distributor, value: 0, callData: abi.encodeCall(IDistributor.claim, (params.users, params.tokens, params.amounts, params.proofs)) });
+        executions[0] = Execution({ 
+            target: params.distributor, 
+            value: 0, 
+            callData: abi.encodeCall(IDistributor.claim, (params.users, params.tokens, params.amounts, params.proofs)) 
+        });
     }
 
     /// @inheritdoc ISuperHookInflowOutflow
