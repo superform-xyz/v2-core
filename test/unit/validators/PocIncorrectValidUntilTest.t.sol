@@ -2,7 +2,7 @@
 pragma solidity 0.8.30;
 
 import { BaseTest } from "../../BaseTest.t.sol";
-import { SuperMerkleValidator } from "../../../src/validators/SuperMerkleValidator.sol";
+import { SuperValidator } from "../../../src/validators/SuperValidator.sol";
 import { IERC7579Account } from "../../../lib/modulekit/src/accounts/common/interfaces/IERC7579Account.sol";
 import { ModeCode } from "../../../lib/modulekit/src/accounts/common/lib/ModeLib.sol";
 import { Execution } from "../../../lib/modulekit/src/accounts/common/interfaces/IERC7579Account.sol";
@@ -30,7 +30,7 @@ contract POC_IncorrectValidUntilTest is BaseTest {
 
         // Initialize validator for user
         vm.startPrank(address(user));
-        SuperMerkleValidator(validator).onInstall(abi.encode(signer));
+        SuperValidator(validator).onInstall(abi.encode(signer));
 
         // Create merkle tree data
         bytes32[] memory leaves = new bytes32[](1);
@@ -58,7 +58,7 @@ contract POC_IncorrectValidUntilTest is BaseTest {
 
         // Try to validate the signature
         // This should return 0x1626ba7e (VALID_SIGNATURE) and now will succeed with the correct signature format
-        bytes4 result = SuperMerkleValidator(validator).isValidSignatureWithSender(
+        bytes4 result = SuperValidator(validator).isValidSignatureWithSender(
             address(user), userOpHash, abi.encode(sigDataRaw)
         );
 

@@ -132,7 +132,7 @@ generate_constructor_args() {
     local super_ledger_config=$(get_contract_address "$chain_id" "SuperLedgerConfiguration")
     local super_executor=$(get_contract_address "$chain_id" "SuperExecutor")
     local super_destination_executor=$(get_contract_address "$chain_id" "SuperDestinationExecutor")
-    local super_merkle_validator=$(get_contract_address "$chain_id" "SuperMerkleValidator")
+    local super_merkle_validator=$(get_contract_address "$chain_id" "SuperValidator")
     local super_destination_validator=$(get_contract_address "$chain_id" "SuperDestinationValidator")
     
     # Network-specific addresses (these would need to be configured per network)
@@ -177,7 +177,7 @@ generate_constructor_args() {
     # Generate constructor arguments based on contract type
     case $contract_name in
         # Core contracts with no constructor args
-        "SuperLedgerConfiguration"|"SuperMerkleValidator"|"SuperDestinationValidator"|"SuperYieldSourceOracle")
+        "SuperLedgerConfiguration"|"SuperValidator"|"SuperDestinationValidator"|"SuperYieldSourceOracle")
             echo "$(cast abi-encode "constructor()")"
             ;;
         
@@ -246,7 +246,7 @@ get_contract_source() {
         "SuperLedger") echo "src/core/accounting/SuperLedger.sol" ;;
         "FlatFeeLedger") echo "src/core/accounting/FlatFeeLedger.sol" ;;
         "SuperLedgerConfiguration") echo "src/core/accounting/SuperLedgerConfiguration.sol" ;;
-        "SuperMerkleValidator") echo "src/core/validators/SuperMerkleValidator.sol" ;;
+        "SuperValidator") echo "src/core/validators/SuperValidator.sol" ;;
         "SuperDestinationValidator") echo "src/core/validators/SuperDestinationValidator.sol" ;;
         "SuperNativePaymaster") echo "src/core/paymaster/SuperNativePaymaster.sol" ;;
         

@@ -32,7 +32,7 @@ contract MarkRootAsUsedHookTest is Helpers {
         assertEq(uint256(hook.subType()), uint256(HookSubTypes.MISC));
     }
     
-    function test_BuildABC() public {
+    function test_BuildABC() public view {
         bytes memory data = _encodeData(destinationExecutor, merkleRoots);
         
         Execution[] memory executions = hook.build(address(0), address(0), data);
@@ -51,14 +51,14 @@ contract MarkRootAsUsedHookTest is Helpers {
         hook.build(address(0), address(0), data);
     }
     
-    function test_Inspector() public {
+    function test_Inspector() public view {
         bytes memory data = _encodeData(destinationExecutor, merkleRoots);
         bytes memory inspectionResult = hook.inspect(data);
         
         assertEq(BytesLib.toAddress(inspectionResult, 0), destinationExecutor);
     }
 
-    function test_DataDecoding() public {
+    function test_DataDecoding() public view {
         bytes memory data = _encodeData(destinationExecutor, merkleRoots);
         
         address extractedExecutor = BytesLib.toAddress(data, 32);

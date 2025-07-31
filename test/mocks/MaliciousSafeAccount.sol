@@ -2,7 +2,7 @@
 pragma solidity 0.8.30;
 
 /// @title MaliciousSafeAccount
-/// @notice Impersonates a safe account to pass SuperMerkleValidator validation
+/// @notice Impersonates a safe account to pass SuperValidator validation
 /// @dev Implements required functions to mimic Safe's behavior for signature validation
 contract MaliciousSafeAccount {
     // Store owners array

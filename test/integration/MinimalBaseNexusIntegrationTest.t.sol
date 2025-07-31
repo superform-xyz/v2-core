@@ -21,7 +21,7 @@ import { ISuperExecutor } from "../../src/interfaces/ISuperExecutor.sol";
 import { ISuperValidator } from "../../src/interfaces/ISuperValidator.sol";
 import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
 import { ISuperLedger } from "../../src/interfaces/accounting/ISuperLedger.sol";
-import { SuperMerkleValidator } from "../../src/validators/SuperMerkleValidator.sol";
+import { SuperValidator } from "../../src/validators/SuperValidator.sol";
 import { SuperLedgerConfiguration } from "../../src/accounting/SuperLedgerConfiguration.sol";
 import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
 import { ERC4626YieldSourceOracle } from "../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -34,7 +34,7 @@ import { Deposit4626VaultHook } from "../../src/hooks/vaults/4626/Deposit4626Vau
 import { Redeem4626VaultHook } from "../../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
 
 abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, InternalHelpers {
-    SuperMerkleValidator public superMerkleValidator;
+    SuperValidator public superMerkleValidator;
     INexusFactory public nexusFactory;
     INexusBootstrap public nexusBootstrap;
     SuperExecutor public superExecutorModule;
@@ -61,8 +61,8 @@ abstract contract MinimalBaseNexusIntegrationTest is Helpers, MerkleTreeHelper, 
 
         initSalt = keccak256(abi.encode("test"));
 
-        superMerkleValidator = new SuperMerkleValidator();
-        vm.label(address(superMerkleValidator), "SuperMerkleValidator");
+        superMerkleValidator = new SuperValidator();
+        vm.label(address(superMerkleValidator), "SuperValidator");
         nexusFactory = INexusFactory(CHAIN_1_NEXUS_FACTORY);
         vm.label(address(nexusFactory), "NexusFactory");
         nexusBootstrap = INexusBootstrap(CHAIN_1_NEXUS_BOOTSTRAP);
