@@ -38,7 +38,9 @@ contract FlatFeeLedger is BaseLedger {
         address,
         uint256 amountAssets,
         uint256,
-        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config
+        ISuperLedgerConfiguration.YieldSourceOracleConfig memory config,
+        uint256,
+        uint8
     )
         internal
         virtual
