@@ -31,3 +31,6 @@
 [submodule "lib/modulekit"]
 	path = lib/modulekit
 	url = https://github.com/superform-xyz/modulekit.git
+[submodule "lib/nexus-main"]
+	path = lib/nexus-main
+	url = https://github.com/superform-xyz/nexus-main.git

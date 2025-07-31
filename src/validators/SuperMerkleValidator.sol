@@ -47,7 +47,9 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         override
         returns (ValidationData)
     {
-        if (!_initialized[_userOp.sender]) revert NOT_INITIALIZED();
+        if (!_is7702Account(_userOp.sender.code) && !_initialized[_userOp.sender]) {
+            revert NOT_INITIALIZED();
+        } 
 
         // Decode signature
         SignatureData memory sigData = _decodeSignatureData(_userOp.signature);
@@ -73,6 +75,7 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
                     dstTokens: dstProof.info.dstTokens,
                     intentAmounts: dstProof.info.intentAmounts
                 });
+
                 bytes32 dstLeaf = _createDestinationLeaf(dstData, sigData.validUntil, dstProof.info.validator);
 
                 if (!MerkleProof.verify(dstProof.proof, sigData.merkleRoot, dstLeaf)) {
@@ -99,7 +102,9 @@ contract SuperMerkleValidator is SuperValidatorBase, ISuperSignatureStorage {
         override
         returns (bytes4)
     {
-        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
+        if (!_is7702Account(msg.sender.code) && !_initialized[msg.sender]) {
+            revert NOT_INITIALIZED();
+        }
 
         // Decode data
         bytes memory sigDataRaw = abi.decode(data, (bytes));

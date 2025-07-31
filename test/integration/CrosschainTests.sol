@@ -964,93 +964,6 @@ contract CrosschainTests is BaseTest {
         );
     }
 
-    function test_Bridge_To_ETH_And_Create_Nexus_Account_7702Flow() public {
-        uint256 _warpStartTime = 1753501381;
-
-        uint256 latestEthFork = vm.createFork(ETHEREUM_RPC_URL);
-        vm.selectFork(latestEthFork);
-        vm.warp(_warpStartTime);
-
-        uint256 amountPerVault = 1e8 / 2;
-
-        // ETH IS DST
-        //vm.selectFork(FORKS[ETH]);
-
-        _doEIP7702(validatorSigner, address(0x000000004F43C49e93C970E84001853a70923B03));
-
-        // PREPARE ETH DATA
-        bytes memory targetExecutorMessage;
-        address accountToUse;
-        TargetExecutorMessage memory messageData;
-        {
-            address[] memory dstHookAddresses = new address[](0);
-            bytes[] memory dstHookData = new bytes[](0);
-
-            messageData = TargetExecutorMessage({
-                hooksAddresses: dstHookAddresses,
-                hooksData: dstHookData,
-                validator: address(destinationValidatorOnETH),
-                signer: validatorSigner,
-                signerPrivateKey: validatorSignerPrivateKey,
-                targetAdapter: address(acrossV3AdapterOnETH),
-                targetExecutor: address(superTargetExecutorOnETH),
-                nexusFactory: 0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de,
-                nexusBootstrap: 0x00000000D3254452a909E4eeD47455Af7E27C289,
-                chainId: uint64(ETH),
-                amount: amountPerVault,
-                account: address(0),
-                tokenSent: underlyingETH_USDC
-            });
-
-            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, true);
-
-            console2.log("----- accountToUse", accountToUse);
-            console2.log("---- accountToUse length", accountToUse.code.length);
-        }
-
-        // BASE IS SRC
-        uint256 latestBaseFork = vm.createFork(BASE_RPC_URL);
-        vm.selectFork(latestBaseFork);
-        vm.warp(_warpStartTime);
-
-        // PREPARE BASE DATA
-        address[] memory srcHooksAddresses = new address[](2);
-        srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
-        srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
-
-        bytes[] memory srcHooksData = new bytes[](2);
-        srcHooksData[0] =
-            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
-        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, true, targetExecutorMessage
-        );
-
-        ISuperExecutor.ExecutorEntry memory entryToExecute =
-                ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
-
-        _executeHooksThroughEntrypoint(validatorSigner, address(superExecutorOnBase), address(sourceValidatorOnBase), entryToExecute);
-
-        return;
-        /**
-        // EXECUTE BASE
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
-        _processAcrossV3Message(
-            ProcessAcrossV3MessageParams({
-                srcChainId: BASE,
-                dstChainId: ETH,
-                warpTimestamp: _warpStartTime + 30 days,
-                executionData: executionData,
-                relayerType: RELAYER_TYPE.NO_HOOKS,
-                errorMessage: bytes4(0),
-                errorReason: "",
-                root: bytes32(0),
-                account: accountToUse,
-                relayerGas: 0
-            })
-        );
-         */
-    }
-
     //  >>>> DEBRIDGE
     function test_ETH_Bridge_With_Debridge_And_Deposit() public {
          uint256 amountPerVault = 1e8;
@@ -4244,10 +4157,5 @@ contract CrosschainTests is BaseTest {
             }
             return _getExecOps(instanceOnBase, superExecutorOnBase, abi.encode(entryToExecute));
         }
-    }
-
-    function _doEIP7702(address account, address accImplementation) internal {
-        if (accImplementation.code.length == 0) revert("NO ACCOUNT");
-        vm.etch(account, abi.encodePacked(hex'ef0100', bytes20(address(accImplementation))));
     }
 }

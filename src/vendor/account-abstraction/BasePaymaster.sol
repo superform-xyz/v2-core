@@ -25,7 +25,7 @@ abstract contract BasePaymaster is IPaymaster, Ownable2Step {
     uint256 internal constant PAYMASTER_DATA_OFFSET = UserOperationLib.PAYMASTER_DATA_OFFSET;
 
     constructor(IEntryPoint _entryPoint) Ownable(msg.sender) {
-        _validateEntryPointInterface(_entryPoint);
+        //_validateEntryPointInterface(_entryPoint);
         entryPoint = _entryPoint;
     }
 

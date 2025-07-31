@@ -27,6 +27,8 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     /// @dev Used to verify signatures against the correct owner address
     mapping(address account => address owner) internal _accountOwners;
 
+    bytes3 internal constant EIP7702_PREFIX = bytes3(0xef0100);
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -188,7 +190,12 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     {
         /// @dev block.timestamp could vary between chains
         /// @dev validUntil = 0 means infinite validity
-        return signer == _accountOwners[sender] && (validUntil == 0 || validUntil >= block.timestamp);
+        bool isValid = (validUntil == 0 || validUntil >= block.timestamp);
+        if (_is7702Account(sender.code)) {
+            // in case of 7702 owner is the account itself (the EOA)
+            return signer == sender && isValid;
+        }
+        return signer == _accountOwners[sender] && isValid;
     }
 
     /// @notice Checks if an address is a Safe signer
@@ -199,5 +206,12 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
             abi.encodeWithSignature("getOwners()")
         );
         return success && result.length > 0;
+    }
+    
+    /// @notice Checks if an address is a 7702 signer
+    /// @param code The code of the address to check
+    /// @return True if the address is a 7702 signer, false otherwise
+    function _is7702Account(bytes memory code) internal pure returns (bool) {
+        return bytes3(code) == EIP7702_PREFIX;
     }
 }

@@ -5,6 +5,7 @@ pragma solidity 0.8.30;
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { INexusFactory } from "../vendor/nexus/INexusFactory.sol";
+import { IAccountInitializer } from "../vendor/superform/IAccountInitializer.sol";
 
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
@@ -16,8 +17,6 @@ import { ISuperDestinationValidator } from "../interfaces/ISuperDestinationValid
 import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
 import { ISuperSenderCreator } from "../interfaces/ISuperSenderCreator.sol";
 import { BytesLib } from "../vendor/BytesLib.sol";
-
-import "forge-std/console2.sol";
 
 /// @title SuperDestinationExecutor
 /// @author Superform Labs
@@ -50,9 +49,6 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /// `bytes4(keccak256("isValidDestinationSignature(address,bytes)")) = 0x5c2ec0f3`
     bytes4 internal constant SIGNATURE_MAGIC_VALUE = bytes4(0x5c2ec0f3);
 
-    /// @notice Marker for EIP-7702-style init code
-    bytes2 internal constant INITCODE_EIP7702_MARKER = 0x7702;
-
     /// @notice Length of an empty execution data structure
     /// @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays
     ///      plus the 4 bytes of the `execute` function selector
@@ -78,7 +74,7 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
             revert ADDRESS_NOT_VALID();
         }
         SUPER_DESTINATION_VALIDATOR = superDestinationValidator_;
-        NEXUS_FACTORY = INexusFactory(nexusFactory_);
+        NEXUS_FACTORY = INexusFactory(nexusFactory_); //TODO: remove
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -177,23 +173,13 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     }
 
     function _validateOrCreateAccount(address account, bytes memory initData) internal returns (address) {
-        console2.log("----- SuperDestinationExecutor _validateOrCreateAccount initData.length", initData.length > 0);
-        if (initData.length > 0) {
-            bool shouldCreate = account.code.length == 0;
-            if (!shouldCreate) {
-                // check if it's 7702
-                bytes2 marker = bytes2(BytesLib.slice(initData, 20, 2));
-                shouldCreate = marker == INITCODE_EIP7702_MARKER;
-            }
-
-            console2.log("----- SuperDestinationExecutor _validateOrCreateAccount shouldCreate", shouldCreate);
-            if (shouldCreate) {
-                address computedAddress = _createAccount(initData);
-                if (account != computedAddress) revert INVALID_ACCOUNT();
-            }
+        if (initData.length > 0 && account.code.length == 0) {
+            address computedAddress = _createAccount(initData);
+            if (account != computedAddress) revert INVALID_ACCOUNT();
         }
 
         if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();
+
         return account;
     }
 
