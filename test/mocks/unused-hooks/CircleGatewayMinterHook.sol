@@ -29,14 +29,16 @@ contract CircleGatewayMinterHook is BaseHook {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Circle Gateway Minter contract address
-    address public constant GATEWAY_MINTER = 0x0022222ABE238Cc2C7Bb1f21003F0a260052475B;
+    address public immutable GATEWAY_MINTER;
 
-    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) { }
+    constructor(address gatewayMinterAddress) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
+        GATEWAY_MINTER = gatewayMinterAddress;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    
+
     /// @inheritdoc BaseHook
     function _buildHookExecutions(
         address,
@@ -44,7 +46,7 @@ contract CircleGatewayMinterHook is BaseHook {
         bytes calldata data
     )
         internal
-        pure
+        view
         override
         returns (Execution[] memory executions)
     {
@@ -56,7 +58,7 @@ contract CircleGatewayMinterHook is BaseHook {
         }
 
         executions = new Execution[](1);
-        
+
         // Call gatewayMint with attestation and signature
         executions[0] = Execution({
             target: GATEWAY_MINTER,
@@ -73,14 +75,18 @@ contract CircleGatewayMinterHook is BaseHook {
     /// @param data The hook data containing attestation payload and signature
     /// @return attestationPayload The attestation payload
     /// @return signature The signature
-    function decodeAttestationData(bytes memory data) external pure returns (bytes memory attestationPayload, bytes memory signature) {
+    function decodeAttestationData(bytes memory data)
+        external
+        pure
+        returns (bytes memory attestationPayload, bytes memory signature)
+    {
         return _decodeAttestationData(data);
     }
 
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    
+
     function _preExecute(address, address, bytes calldata) internal override {
         // No pre-execution logic needed
     }
@@ -94,21 +100,25 @@ contract CircleGatewayMinterHook is BaseHook {
     /// @param data The encoded data containing both attestation payload and signature
     /// @return attestationPayload The decoded attestation payload
     /// @return signature The decoded signature
-    function _decodeAttestationData(bytes memory data) internal pure returns (bytes memory attestationPayload, bytes memory signature) {
+    function _decodeAttestationData(bytes memory data)
+        internal
+        pure
+        returns (bytes memory attestationPayload, bytes memory signature)
+    {
         if (data.length < 32) {
             revert("Invalid data length");
         }
 
         // First 32 bytes contain the length of attestationPayload
         uint256 attestationPayloadLength = BytesLib.toUint256(data, 0);
-        
+
         if (data.length < 32 + attestationPayloadLength) {
             revert("Data too short for attestation payload");
         }
 
         // Extract attestation payload
         attestationPayload = BytesLib.slice(data, 32, attestationPayloadLength);
-        
+
         // Extract signature (remaining bytes)
         uint256 signatureStart = 32 + attestationPayloadLength;
         uint256 signatureLength = data.length - signatureStart;

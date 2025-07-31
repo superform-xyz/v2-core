@@ -8,6 +8,9 @@ ifeq ($(ENVIRONMENT), local)
 	export OPTIMISM_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/OPTIMISM_RPC_URL/credential)
 	export BASE_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential)
 	export ONE_INCH_API_KEY := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/OneInch/credential)
+	export SEPOLIA_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/SEPOLIA_RPC_URL/credential)
+	export BASE_SEPOLIA_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_SEPOLIA_RPC_URL/credential)
+	export FUJI_RPC_URL := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/FUJI_RPC_URL/credential)
 endif
 
 
@@ -27,7 +30,7 @@ coverage :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report lcov
 
 coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report lcov && genhtml lcov.info --branch-coverage --output-dir coverage --ignore-errors inconsistent,corrupt --exclude 'src/vendor/*' --exclude 'test/*'
 
-test-vvv :; forge test --match-test test_HaveAnAccount_Uninstall_ReinstallDifferentCore_CrossChain_CheckSuperLedger -vvv --jobs 10
+test-vvv :; forge test --match-test test_crossChainTransferWithVaultDeposit -vvvv --jobs 10
 
 test-integration :; forge test --match-test test_SameChainTx_executionA -vvvv --jobs 10
 

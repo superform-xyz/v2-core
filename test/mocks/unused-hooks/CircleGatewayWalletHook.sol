@@ -2,14 +2,14 @@
 pragma solidity 0.8.30;
 
 // external
-import { BytesLib } from "../../../src/vendor/BytesLib.sol";
-import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import {BytesLib} from "../../../src/vendor/BytesLib.sol";
+import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { BaseHook } from "../../../src/hooks/BaseHook.sol";
-import { HookSubTypes } from "../../../src/libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../src/interfaces/ISuperHook.sol";
+import {BaseHook} from "../../../src/hooks/BaseHook.sol";
+import {HookSubTypes} from "../../../src/libraries/HookSubTypes.sol";
+import {ISuperHookResult, ISuperHookContextAware} from "../../../src/interfaces/ISuperHook.sol";
 
 // Circle Gateway
 interface IGatewayWallet {
@@ -31,23 +31,21 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
     //////////////////////////////////////////////////////////////*/
 
     /// @notice Circle Gateway Wallet contract address
-    address public constant GATEWAY_WALLET = 0x0077777d7EBA4688BDeF3E311b846F25870A19B9;
+    address public immutable GATEWAY_WALLET;
 
     uint256 private constant AMOUNT_POSITION = 20;
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
 
-    constructor() BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) { }
+    constructor(address gatewayWalletAddress) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
+        GATEWAY_WALLET = gatewayWalletAddress;
+    }
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
     //////////////////////////////////////////////////////////////*/
-    
+
     /// @inheritdoc BaseHook
-    function _buildHookExecutions(
-        address prevHook,
-        address account,
-        bytes calldata data
-    )
+    function _buildHookExecutions(address prevHook, address account, bytes calldata data)
         internal
         view
         override
@@ -66,21 +64,15 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
 
         // Build executions: approve(0), approve(amount), deposit
         executions = new Execution[](3);
-        
+
         // First reset approval to 0
-        executions[0] = Execution({
-            target: token,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (GATEWAY_WALLET, 0))
-        });
-        
+        executions[0] =
+            Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (GATEWAY_WALLET, 0))});
+
         // Then approve the actual amount
-        executions[1] = Execution({
-            target: token,
-            value: 0,
-            callData: abi.encodeCall(IERC20.approve, (GATEWAY_WALLET, amount))
-        });
-        
+        executions[1] =
+            Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (GATEWAY_WALLET, amount))});
+
         // Finally deposit to Gateway Wallet
         executions[2] = Execution({
             target: GATEWAY_WALLET,
@@ -115,7 +107,7 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
     /*//////////////////////////////////////////////////////////////
                                  INTERNAL METHODS
     //////////////////////////////////////////////////////////////*/
-    
+
     function _preExecute(address, address, bytes calldata) internal override {
         // No pre-execution logic needed
     }
