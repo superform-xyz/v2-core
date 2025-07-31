@@ -314,8 +314,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
                 type(SuperDestinationExecutor).creationCode,
                 abi.encode(
                     coreContracts.superLedgerConfiguration,
-                    coreContracts.superDestinationValidator,
-                    configuration.nexusFactories[chainId]
+                    coreContracts.superDestinationValidator
                 )
             )
         );

@@ -825,7 +825,7 @@ contract EIP7702Test is BaseTest {
                 ISuperLedgerConfiguration(address(new SuperLedgerConfiguration{ salt: "Test123" }()));
         vm.label(address(superLedgerConfigurationNew), "NewSuperLedgerConfiguration");
 
-        ISuperDestinationExecutor superDestinationExecutorNew = ISuperDestinationExecutor(address(new SuperDestinationExecutor{ salt: "Test123" }(address(superLedgerConfigurationNew), address(superDestinationValidator_Base), address(FACTORY_BASE))));
+        ISuperDestinationExecutor superDestinationExecutorNew = ISuperDestinationExecutor(address(new SuperDestinationExecutor{ salt: "Test123" }(address(superLedgerConfigurationNew), address(superDestinationValidator_Base))));
         vm.label(address(superDestinationExecutorNew), "NewSuperDestinationExecutor");
 
         return address(superDestinationExecutorNew);

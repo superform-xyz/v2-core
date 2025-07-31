@@ -34,10 +34,6 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /// @dev Used to validate signatures in the processBridgedExecution method
     address public immutable SUPER_DESTINATION_VALIDATOR;
 
-    /// @notice Factory contract used to create new smart accounts when needed
-    /// @dev Creates deterministic smart accounts during cross-chain operations
-    INexusFactory public immutable NEXUS_FACTORY;
-
     /// @notice Tracks which merkle roots have been used by each user address
     /// @dev Prevents replay attacks by ensuring each merkle root can only be used once per user
     mapping(address user => mapping(bytes32 merkleRoot => bool used)) public usedMerkleRoots;
@@ -61,20 +57,17 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /// @notice Initializes the SuperDestinationExecutor with required references
     /// @param ledgerConfiguration_ Address of the ledger configuration contract for fee calculations
     /// @param superDestinationValidator_ Address of the validator contract used to verify cross-chain messages
-    /// @param nexusFactory_ Address of the account factory used to create new smart accounts
     constructor(
         address ledgerConfiguration_,
-        address superDestinationValidator_,
-        address nexusFactory_
+        address superDestinationValidator_
     )
         SuperExecutorBase(ledgerConfiguration_)
     {
         // Validate critical contract references
-        if (superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) {
+        if (superDestinationValidator_ == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
         SUPER_DESTINATION_VALIDATOR = superDestinationValidator_;
-        NEXUS_FACTORY = INexusFactory(nexusFactory_); //TODO: remove
     }
 
     /*//////////////////////////////////////////////////////////////

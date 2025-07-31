@@ -505,8 +505,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 address(
                     new SuperDestinationExecutor{ salt: SALT }(
                         address(A[i].superLedgerConfiguration),
-                        address(A[i].superDestinationValidator),
-                        NEXUS_FACTORY_ADDRESSES[chainIds[i]]
+                        address(A[i].superDestinationValidator)
                     )
                 )
             );
