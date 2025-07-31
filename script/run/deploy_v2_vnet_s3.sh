@@ -775,6 +775,17 @@ else
 fi
 
 ###################################################################################
+# Update Locked Bytecode
+###################################################################################
+
+# Update locked bytecode before deployment for VNET environments
+log "INFO" "Updating locked bytecode artifacts for deployment..."
+if ! ./script/run/update_locked_bytecode.sh; then
+    log "ERROR" "Failed to update locked bytecode artifacts"
+    exit 1
+fi
+
+###################################################################################
 # Contract Deployment
 ###################################################################################
 

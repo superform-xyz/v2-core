@@ -3,7 +3,6 @@ pragma solidity ^0.8.23;
 
 /* solhint-disable reason-string */
 
-import { Ownable2Step, Ownable } from "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/introspection/IERC165.sol";
 import { UserOperationLib } from "modulekit/external/ERC4337.sol";
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
@@ -11,21 +10,21 @@ import { IPaymaster } from "@ERC4337/account-abstraction/contracts/interfaces/IP
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 
 /// @dev Taken from @account-abstraction/core/BasePaymaster.sol"
-/// Removed `deposit()` method as it does not perform a refund and changed to ownable2step
+/// Removed `deposit()` method as it does not perform a refund and removed ownable and all methods that use onlyOwner
 /**
  * Helper class for creating a paymaster.
  * provides helper methods for staking.
  * Validates that the postOp is called only by the entryPoint.
  */
-abstract contract BasePaymaster is IPaymaster, Ownable2Step {
+abstract contract BasePaymaster is IPaymaster {
     IEntryPoint public immutable entryPoint;
 
     uint256 internal constant PAYMASTER_VALIDATION_GAS_OFFSET = UserOperationLib.PAYMASTER_VALIDATION_GAS_OFFSET;
     uint256 internal constant PAYMASTER_POSTOP_GAS_OFFSET = UserOperationLib.PAYMASTER_POSTOP_GAS_OFFSET;
     uint256 internal constant PAYMASTER_DATA_OFFSET = UserOperationLib.PAYMASTER_DATA_OFFSET;
 
-    constructor(IEntryPoint _entryPoint) Ownable(msg.sender) {
-        //_validateEntryPointInterface(_entryPoint);
+    constructor(IEntryPoint _entryPoint) {
+        _validateEntryPointInterface(_entryPoint);
         entryPoint = _entryPoint;
     }
 
@@ -111,45 +110,10 @@ abstract contract BasePaymaster is IPaymaster, Ownable2Step {
     }
 
     /**
-     * Withdraw value from the deposit.
-     * @param withdrawAddress - Target to send to.
-     * @param amount          - Amount to withdraw.
-     */
-    function withdrawTo(address payable withdrawAddress, uint256 amount) public onlyOwner {
-        entryPoint.withdrawTo(withdrawAddress, amount);
-    }
-
-    /**
-     * Add stake for this paymaster.
-     * This method can also carry eth value to add to the current stake.
-     * @param unstakeDelaySec - The unstake delay for this paymaster. Can only be increased.
-     */
-    function addStake(uint32 unstakeDelaySec) external payable onlyOwner {
-        entryPoint.addStake{ value: msg.value }(unstakeDelaySec);
-    }
-
-    /**
      * Return current paymaster's deposit on the entryPoint.
      */
     function getDeposit() public view returns (uint256) {
         return entryPoint.balanceOf(address(this));
-    }
-
-    /**
-     * Unlock the stake, in order to withdraw it.
-     * The paymaster can't serve requests once unlocked, until it calls addStake again
-     */
-    function unlockStake() external onlyOwner {
-        entryPoint.unlockStake();
-    }
-
-    /**
-     * Withdraw the entire paymaster's stake.
-     * stake must be unlocked first (and then wait for the unstakeDelay to be over)
-     * @param withdrawAddress - The address to send withdrawn value.
-     */
-    function withdrawStake(address payable withdrawAddress) external onlyOwner {
-        entryPoint.withdrawStake(withdrawAddress);
     }
 
     /**

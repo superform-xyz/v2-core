@@ -2,8 +2,8 @@
 pragma solidity >=0.8.30;
 
 abstract contract Constants {
-    address internal constant ENTRY_POINT = 0x4337084D9E255Ff0702461CF8895CE9E3b5Ff108;
-    string internal constant SUPER_DEPLOYER_KEY = "SuperDeployer";
+    address internal constant ENTRY_POINT = 0x0000000071727De22E5E9d8BAf0edAc6f37da032; // 0.7
+    
     // chain names
     string internal constant ETHEREUM_KEY = "Ethereum";
     string internal constant BASE_KEY = "Base";
@@ -23,7 +23,7 @@ abstract contract Constants {
     string internal constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
     string internal constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
     string internal constant SUPER_LEDGER_KEY = "SuperLedger";
-    string internal constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
+    string internal constant ERC1155_LEDGER_KEY = "ERC1155Ledger";
     string internal constant FLAT_FEE_LEDGER_KEY = "FlatFeeLedger";
     string internal constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";
     string internal constant SUPER_POSITION_KEY = "SuperPosition";
@@ -121,8 +121,6 @@ abstract contract Constants {
     string internal constant ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY = "AcrossSendFundsAndExecuteOnDstHook";
     string internal constant FLUID_CLAIM_REWARD_HOOK_KEY = "FluidClaimRewardHook";
     string internal constant GEARBOX_CLAIM_REWARD_HOOK_KEY = "GearboxClaimRewardHook";
-    string internal constant SOMELIER_CLAIM_ALL_REWARDS_HOOK_KEY = "SomelierClaimAllRewardsHook";
-    string internal constant SOMELIER_CLAIM_ONE_REWARD_HOOK_KEY = "SomelierClaimOneRewardHook";
     string internal constant YEARN_CLAIM_ALL_REWARDS_HOOK_KEY = "YearnClaimAllRewardsHook";
     string internal constant YEARN_CLAIM_ONE_REWARD_HOOK_KEY = "YearnClaimOneRewardHook";
     string internal constant APPROVE_ERC20_HOOK_KEY = "ApproveERC20Hook";
@@ -161,7 +159,7 @@ abstract contract Constants {
     string internal constant SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY = "SpectraExchangeDepositHook";
     string internal constant SPECTRA_EXCHANGE_REDEEM_HOOK_KEY = "SpectraExchangeRedeemHook";
     string internal constant PENDLE_ROUTER_SWAP_HOOK_KEY = "PendleRouterSwapHook";
-    string internal constant MORPHO_BORROW_HOOK_KEY = "MorphoSupplyAndBorrowHook";
+    string internal constant MORPHO_BORROW_HOOK_KEY = "MorphoBorrowHook";
     string internal constant MORPHO_REPAY_HOOK_KEY = "MorphoRepayHook";
     string internal constant MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY = "MorphoRepayAndWithdrawHook";
     string internal constant MORPHO_BORROW_ONLY_HOOK_KEY = "MorphoBorrowHook";
@@ -172,12 +170,17 @@ abstract contract Constants {
     string internal constant CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY = "ClaimCancelDepositRequest7540Hook";
     string internal constant CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY = "ClaimCancelRedeemRequest7540Hook";
     string internal constant CANCEL_REDEEM_HOOK_KEY = "CancelRedeemHook";
-    string internal constant MARK_ROOT_AS_USED_HOOK_KEY = "MarkAsUsedHook";
+    string internal constant MARK_ROOT_AS_USED_HOOK_KEY = "MarkRootAsUsedHook";
+
+    // Mock hooks (dev environment only)
+    string internal constant MOCK_DEX_KEY = "MockDex";
+    string internal constant MOCK_DEX_HOOK_KEY = "MockDexHook";
+
     string internal constant SUPER_VAULT_AGGREGATOR_KEY = "SuperVaultAggregator";
     string internal constant SUPER_VAULT_REGISTRY_KEY = "SuperAssetRegistry";
     string internal constant SUPER_VAULT_FACTORY_KEY = "SuperVaultFactory";
     string internal constant HOOK_FACTORY_KEY = "HookRegistry";
-    string internal constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
+    string internal constant SUPER_VALIDATOR_KEY = "SuperValidator";
     string internal constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";
     string internal constant ECDSAPPS_ORACLE_KEY = "ECDSAPPSOracle";
     string internal constant SUPER_YIELD_SOURCE_ORACLE_KEY = "SuperYieldSourceOracle";

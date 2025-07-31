@@ -77,8 +77,6 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _setConfiguration(env, "");
         console2.log("Deploying V2 Other Hooks on chainId: ", chainId);
 
-        _deployDeployer();
-
         // deploy other hooks
         _deployOtherHooks(chainId);
 
@@ -90,8 +88,6 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
         _setConfiguration(env, saltNamespace);
         console2.log("Deploying V2 Other Hooks on chainId: ", chainId);
 
-        _deployDeployer();
-
         // deploy other hooks
         _deployOtherHooks(chainId);
 
@@ -100,82 +96,79 @@ contract DeployV2OtherHooks is DeployV2Base, ConfigOtherHooks {
     }
 
     function _deployOtherHooks(uint64 chainId) internal {
-        // retrieve deployer
-        ISuperDeployer deployer = ISuperDeployer(configuration.deployer);
-
         // Deploy Other Hooks
-        _deployHooksSet(deployer, chainId);
+        _deployHooksSet(chainId);
     }
 
-    function _deployHooksSet(
-        ISuperDeployer deployer,
-        uint64 chainId
-    )
-        private
-        returns (OtherHookAddresses memory hookAddresses)
-    {
+    function _deployHooksSet(uint64 chainId) private returns (OtherHookAddresses memory hookAddresses) {
         uint256 len = 17;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
         // Claim hooks
-        hooks[0] = HookDeployment(FLUID_CLAIM_REWARD_HOOK_KEY, type(FluidClaimRewardHook).creationCode);
-        hooks[1] = HookDeployment(GEARBOX_CLAIM_REWARD_HOOK_KEY, type(GearboxClaimRewardHook).creationCode);
-        hooks[2] = HookDeployment(YEARN_CLAIM_ONE_REWARD_HOOK_KEY, type(YearnClaimOneRewardHook).creationCode);
+        hooks[0] = HookDeployment(
+            FLUID_CLAIM_REWARD_HOOK_KEY, vm.getCode("script/locked-bytecode-other/FluidClaimRewardHook.json")
+        );
+        hooks[1] = HookDeployment(
+            GEARBOX_CLAIM_REWARD_HOOK_KEY, vm.getCode("script/locked-bytecode-other/GearboxClaimRewardHook.json")
+        );
+        hooks[2] = HookDeployment(
+            YEARN_CLAIM_ONE_REWARD_HOOK_KEY, vm.getCode("script/locked-bytecode-other/YearnClaimOneRewardHook.json")
+        );
 
         // Stake hooks
-        hooks[3] = HookDeployment(FLUID_STAKE_HOOK_KEY, type(FluidStakeHook).creationCode);
-        hooks[4] = HookDeployment(APPROVE_AND_FLUID_STAKE_HOOK_KEY, type(ApproveAndFluidStakeHook).creationCode);
-        hooks[5] = HookDeployment(FLUID_UNSTAKE_HOOK_KEY, type(FluidUnstakeHook).creationCode);
-        hooks[6] = HookDeployment(GEARBOX_STAKE_HOOK_KEY, type(GearboxStakeHook).creationCode);
-        hooks[7] = HookDeployment(GEARBOX_APPROVE_AND_STAKE_HOOK_KEY, type(ApproveAndGearboxStakeHook).creationCode);
-        hooks[8] = HookDeployment(GEARBOX_UNSTAKE_HOOK_KEY, type(GearboxUnstakeHook).creationCode);
+        hooks[3] = HookDeployment(FLUID_STAKE_HOOK_KEY, vm.getCode("script/locked-bytecode-other/FluidStakeHook.json"));
+        hooks[4] = HookDeployment(APPROVE_AND_FLUID_STAKE_HOOK_KEY, vm.getCode("script/locked-bytecode-other/ApproveAndFluidStakeHook.json"));
+        hooks[5] = HookDeployment(FLUID_UNSTAKE_HOOK_KEY, vm.getCode("script/locked-bytecode-other/FluidUnstakeHook.json"));
+        hooks[6] = HookDeployment(GEARBOX_STAKE_HOOK_KEY, vm.getCode("script/locked-bytecode-other/GearboxStakeHook.json"));
+        hooks[7] = HookDeployment(GEARBOX_APPROVE_AND_STAKE_HOOK_KEY, vm.getCode("script/locked-bytecode-other/ApproveAndGearboxStakeHook.json"));
+        hooks[8] = HookDeployment(GEARBOX_UNSTAKE_HOOK_KEY, vm.getCode("script/locked-bytecode-other/GearboxUnstakeHook.json"));
 
         // Spectra swapper hooks
         hooks[9] = HookDeployment(
             SPECTRA_EXCHANGE_DEPOSIT_HOOK_KEY,
             abi.encodePacked(
-                type(SpectraExchangeDepositHook).creationCode, abi.encode(configuration.spectraRouters[chainId])
+                vm.getCode("script/locked-bytecode-other/SpectraExchangeDepositHook.json"), abi.encode(configuration.spectraRouters[chainId])
             )
         );
         hooks[10] = HookDeployment(
             SPECTRA_EXCHANGE_REDEEM_HOOK_KEY,
             abi.encodePacked(
-                type(SpectraExchangeRedeemHook).creationCode, abi.encode(configuration.spectraRouters[chainId])
+                vm.getCode("script/locked-bytecode-other/SpectraExchangeRedeemHook.json"), abi.encode(configuration.spectraRouters[chainId])
             )
         );
 
         // Pendle swapper hooks
         hooks[11] = HookDeployment(
             PENDLE_ROUTER_SWAP_HOOK_KEY,
-            abi.encodePacked(type(PendleRouterSwapHook).creationCode, abi.encode(configuration.pendleRouters[chainId]))
+            abi.encodePacked(vm.getCode("script/locked-bytecode-other/PendleRouterSwapHook.json"), abi.encode(configuration.pendleRouters[chainId]))
         );
         hooks[12] = HookDeployment(
             PENDLE_ROUTER_REDEEM_HOOK_KEY,
             abi.encodePacked(
-                type(PendleRouterRedeemHook).creationCode, abi.encode(configuration.pendleRouters[chainId])
+                vm.getCode("script/locked-bytecode-other/PendleRouterRedeemHook.json"), abi.encode(configuration.pendleRouters[chainId])
             )
         );
 
         // Morpho loan hooks
         hooks[13] = HookDeployment(
             MORPHO_SUPPLY_AND_BORROW_HOOK_KEY,
-            abi.encodePacked(type(MorphoSupplyAndBorrowHook).creationCode, abi.encode(MORPHO))
+            abi.encodePacked(vm.getCode("script/locked-bytecode-other/MorphoSupplyAndBorrowHook.json"), abi.encode(MORPHO))
         );
         hooks[14] = HookDeployment(
-            MORPHO_REPAY_HOOK_KEY, abi.encodePacked(type(MorphoRepayHook).creationCode, abi.encode(MORPHO))
+            MORPHO_REPAY_HOOK_KEY, abi.encodePacked(vm.getCode("script/locked-bytecode-other/MorphoRepayHook.json"), abi.encode(MORPHO))
         );
         hooks[15] = HookDeployment(
             MORPHO_REPAY_AND_WITHDRAW_HOOK_KEY,
-            abi.encodePacked(type(MorphoRepayAndWithdrawHook).creationCode, abi.encode(MORPHO))
+            abi.encodePacked(vm.getCode("script/locked-bytecode-other/MorphoRepayAndWithdrawHook.json"), abi.encode(MORPHO))
         );
         hooks[16] = HookDeployment(
-            MORPHO_BORROW_ONLY_HOOK_KEY, abi.encodePacked(type(MorphoBorrowHook).creationCode, abi.encode(MORPHO))
+            MORPHO_BORROW_ONLY_HOOK_KEY, abi.encodePacked(vm.getCode("script/locked-bytecode-other/MorphoBorrowHook.json"), abi.encode(MORPHO))
         );
 
         for (uint256 i = 0; i < len; ++i) {
             HookDeployment memory hook = hooks[i];
-            addresses[i] = __deployContract(deployer, hook.name, chainId, __getSalt(hook.name), hook.creationCode);
+            addresses[i] = __deployContract(hook.name, chainId, __getSalt(hook.name), hook.creationCode);
         }
 
         // Assign hook addresses

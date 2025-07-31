@@ -73,7 +73,4 @@ quote_style = "double"
 tab_width = 4
 wrap_comments = true
 
-[etherscan]
-11155111 = { key = "${ETHERSCANV2_API_KEY_TEST}" }
-11155420 = { key = "${ETHERSCANV2_API_KEY_TEST}" }
-84532 = { key = "${ETHERSCANV2_API_KEY_TEST}" }
+

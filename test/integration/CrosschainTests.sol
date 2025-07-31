@@ -11,7 +11,7 @@ import { IDlnSource } from "../../src/vendor/bridges/debridge/IDlnSource.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import "modulekit/test/RhinestoneModuleKit.sol";
-import { IERC7579Account} from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
+import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 import { BytesLib } from "../../src/vendor/BytesLib.sol";
 import { ModeLib, ModeCode } from "modulekit/accounts/common/lib/ModeLib.sol";
 import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
@@ -30,8 +30,8 @@ import { ISuperLedger, ISuperLedgerData } from "../../src/interfaces/accounting/
 import { ISuperDestinationExecutor } from "../../src/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperValidator } from "../../src/interfaces/ISuperValidator.sol";
 import { ISuperLedgerConfiguration } from "../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { SuperExecutorBase } from  "../../src/executors/SuperExecutorBase.sol";
-import { SuperExecutor } from  "../../src/executors/SuperExecutor.sol";
+import { SuperExecutorBase } from "../../src/executors/SuperExecutorBase.sol";
+import { SuperExecutor } from "../../src/executors/SuperExecutor.sol";
 import { AcrossV3Adapter } from "../../src/adapters/AcrossV3Adapter.sol";
 import { DebridgeAdapter } from "../../src/adapters/DebridgeAdapter.sol";
 import { SuperValidatorBase } from "../../src/validators/SuperValidatorBase.sol";
@@ -39,8 +39,13 @@ import { SuperLedgerConfiguration } from "../../src/accounting/SuperLedgerConfig
 import { SuperLedger } from "../../src/accounting/SuperLedger.sol";
 import { BaseLedger } from "../../src/accounting/BaseLedger.sol";
 import { BaseHook } from "../../src/hooks/BaseHook.sol";
+import { SwapOdosV2Hook } from "../../src/hooks/swappers/odos/SwapOdosV2Hook.sol";
 import { BaseTest } from "../BaseTest.t.sol";
 import { console2 } from "forge-std/console2.sol";
+
+// -- mock Odos Router that checks output min
+import { MockOdosSwap } from "../mocks/MockOdosSwap.sol";
+
 // -- centrifuge mocks
 import { RestrictionManagerLike } from "../mocks/centrifuge/IRestrictionManagerLike.sol";
 import { IInvestmentManager } from "../mocks/centrifuge/IInvestmentManager.sol";
@@ -48,13 +53,12 @@ import { IPoolManager } from "../mocks/centrifuge/IPoolManager.sol";
 import { ITranche } from "../mocks/centrifuge/ITranch.sol";
 import { IRoot } from "../mocks/centrifuge/IRoot.sol";
 
-
 contract CrosschainTests is BaseTest {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
 
     address public rootManager;
- 
+
     INexusBootstrap nexusBootstrap;
 
     IAllowanceTransfer public permit2;
@@ -68,7 +72,6 @@ contract CrosschainTests is BaseTest {
     uint256 public CHAIN_10_TIMESTAMP;
     uint256 public CHAIN_8453_TIMESTAMP;
     uint256 public constant WARP_START_TIME = 1_740_559_708;
-
 
     // ACCOUNTS PER CHAIN
     AccountInstance public instanceOnBase;
@@ -84,7 +87,7 @@ contract CrosschainTests is BaseTest {
     address public underlyingOP_USDC;
 
     address public underlyingOP_USDCe;
-    
+
     address public underlyingBase_WETH;
 
     IERC4626 public vaultInstance4626OP;
@@ -112,7 +115,7 @@ contract CrosschainTests is BaseTest {
     uint64 public poolId;
     bytes16 public trancheId;
     uint128 public assetId;
-    
+
     RestrictionManagerLike public restrictionManager;
     IInvestmentManager public investmentManager;
 
@@ -130,9 +133,8 @@ contract CrosschainTests is BaseTest {
     bytes32 constant PERMIT2_BATCH_TYPE_HASH = keccak256(
         "PermitBatch(PermitDetails[] details,address spender,uint256 sigDeadline)PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)"
     );
-    bytes32 constant PERMIT2_DETAILS_TYPE_HASH = keccak256(
-        "PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)"
-    );
+    bytes32 constant PERMIT2_DETAILS_TYPE_HASH =
+        keccak256("PermitDetails(address token,uint160 amount,uint48 expiration,uint48 nonce)");
 
     // SUPERFORM CONTRACTS PER CHAIN
     // -- executors
@@ -150,7 +152,7 @@ contract CrosschainTests is BaseTest {
     DebridgeAdapter public debridgeAdapterOnBase;
     DebridgeAdapter public debridgeAdapterOnETH;
     DebridgeAdapter public debridgeAdapterOnOP;
-    
+
     // -- validators
     IValidator public destinationValidatorOnBase;
     IValidator public destinationValidatorOnETH;
@@ -168,8 +170,12 @@ contract CrosschainTests is BaseTest {
     ISuperNativePaymaster public superNativePaymasterOnETH;
     ISuperNativePaymaster public superNativePaymasterOnOP;
 
+    // -- mock Odos Router that checks output min
+    MockOdosSwap public mockOdosSwapOutputMin;
+
     // STACK-TOO-DEEP structs
-    /// @notice Struct to hold test parameters for test_Bridge_Deposit4626_UsedRoot_Because_Frontrunning test to avoid stack too deep
+    /// @notice Struct to hold test parameters for test_Bridge_Deposit4626_UsedRoot_Because_Frontrunning test to avoid
+    /// stack too deep
     struct BridgeDeposit4626UsedRootParams {
         uint256 amount;
         uint256 previewRedeemAmount;
@@ -185,6 +191,7 @@ contract CrosschainTests is BaseTest {
         bytes signatureData;
     }
     // for test `test_CrossChain_SignatureReplay_Prevention`
+
     struct SignatureReplayTestData {
         uint256 amountPerVault;
         bytes targetExecutorMessage;
@@ -204,7 +211,7 @@ contract CrosschainTests is BaseTest {
         // CORE CHAIN CONTEXT
         vm.selectFork(FORKS[ETH]);
         CHAIN_1_TIMESTAMP = block.timestamp;
-       
+
         vm.selectFork(FORKS[OP]);
         CHAIN_10_TIMESTAMP = block.timestamp;
         vm.selectFork(FORKS[BASE]);
@@ -243,8 +250,7 @@ contract CrosschainTests is BaseTest {
         vm.label(yieldSource7540AddressETH_USDC, YIELD_SOURCE_7540_ETH_USDC_KEY);
         vaultInstance7540ETH = IERC7540(yieldSource7540AddressETH_USDC);
 
-        yieldSource4626AddressOP_USDCe =
-            realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY];
+        yieldSource4626AddressOP_USDCe = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY];
         vaultInstance4626OP = IERC4626(yieldSource4626AddressOP_USDCe);
         vm.label(yieldSource4626AddressOP_USDCe, YIELD_SOURCE_4626_OP_USDCe_KEY);
 
@@ -253,13 +259,11 @@ contract CrosschainTests is BaseTest {
         vaultInstance4626Base_USDC = IERC4626(yieldSource4626AddressBase_USDC);
         vm.label(yieldSource4626AddressBase_USDC, YIELD_SOURCE_4626_BASE_USDC_KEY);
 
-        yieldSource4626AddressBase_WETH =
-            realVaultAddresses[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY];
+        yieldSource4626AddressBase_WETH = realVaultAddresses[BASE][ERC4626_VAULT_KEY][AAVE_BASE_WETH][WETH_KEY];
         vaultInstance4626Base_WETH = IERC4626(yieldSource4626AddressBase_WETH);
         vm.label(yieldSource4626AddressBase_WETH, YIELD_SOURCE_4626_BASE_WETH_KEY);
 
-        yieldSourceMorphoUsdcAddressEth =
-            realVaultAddresses[ETH][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY];
+        yieldSourceMorphoUsdcAddressEth = realVaultAddresses[ETH][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY];
         vaultInstanceMorphoEth = IERC4626(yieldSourceMorphoUsdcAddressEth);
         vm.label(yieldSourceMorphoUsdcAddressEth, "YIELD_SOURCE_MORPHO_USDC_ETH");
 
@@ -336,6 +340,9 @@ contract CrosschainTests is BaseTest {
         vm.selectFork(FORKS[BASE]);
         balance_Base_USDC_Before = IERC20(underlyingBase_USDC).balanceOf(accountBase);
 
+        // -- mock Odos Router that checks output min
+        mockOdosSwapOutputMin = new MockOdosSwap();
+
         // CUSTOM DEAL SETUP
         vm.selectFork(FORKS[OP]);
         deal(underlyingOP_USDC, mockOdosRouters[OP], 1e18);
@@ -344,12 +351,13 @@ contract CrosschainTests is BaseTest {
         deal(underlyingBase_WETH, mockOdosRouters[BASE], 1e12);
     }
 
-    receive() external payable {}
+    receive() external payable { }
     /*//////////////////////////////////////////////////////////////
                           TESTS
     //////////////////////////////////////////////////////////////*/
     // --- THROUGH PAYMASTER ---
     //  >>>> ACCOUNT MUTABILITY TESTS
+
     function test_HaveAnAccount_Uninstall_MidExecutionUnistallUnrelatedModule() public {
         // create an account using cross chain flow
         // - use NexusFactory and NexustBootstrap to create a real account
@@ -363,11 +371,22 @@ contract CrosschainTests is BaseTest {
         // check installed modules
         // -- check executor
         // -- check destination validator on chain
-        // -- check source validator on 
-        assertTrue(SuperExecutorBase(address(superExecutorOnETH)).isInitialized(accountCreated), "super executor not installed");
-        assertTrue(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor not installed");
-        assertTrue(SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(accountCreated), "super merkle validator not installed");
-        assertTrue(SuperValidatorBase(address(destinationValidatorOnETH)).isInitialized(accountCreated), "super destinatioin validator not installed");
+        // -- check source validator on
+        assertTrue(
+            SuperExecutorBase(address(superExecutorOnETH)).isInitialized(accountCreated), "super executor not installed"
+        );
+        assertTrue(
+            SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated),
+            "super destination executor not installed"
+        );
+        assertTrue(
+            SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(accountCreated),
+            "super merkle validator not installed"
+        );
+        assertTrue(
+            SuperValidatorBase(address(destinationValidatorOnETH)).isInitialized(accountCreated),
+            "super destinatioin validator not installed"
+        );
 
         // perform defi operations
         // -- 4626 deposit
@@ -401,7 +420,9 @@ contract CrosschainTests is BaseTest {
         executions[0] = Execution({
             target: accountCreated,
             value: 0,
-            callData: abi.encodeCall(IERC7579Account.uninstallModule, (MODULE_TYPE_EXECUTOR, address(superTargetExecutorOnETH), uninstallData))
+            callData: abi.encodeCall(
+                IERC7579Account.uninstallModule, (MODULE_TYPE_EXECUTOR, address(superTargetExecutorOnETH), uninstallData)
+            )
         });
         executions[1] = Execution({
             target: address(superExecutorOnETH),
@@ -410,8 +431,8 @@ contract CrosschainTests is BaseTest {
         });
 
         PackedUserOperation memory userOp = _createPackedUserOperation(
-            accountCreated, 
-            _prepareNonceWithValidator(accountCreated, address(sourceValidatorOnETH)), 
+            accountCreated,
+            _prepareNonceWithValidator(accountCreated, address(sourceValidatorOnETH)),
             _prepareExecutionCalldata(executions)
         );
 
@@ -435,11 +456,22 @@ contract CrosschainTests is BaseTest {
         // check installed modules
         // -- check executor
         // -- check destination validator on chain
-        // -- check source validator on 
-        assertTrue(SuperExecutorBase(address(superExecutorOnETH)).isInitialized(accountCreated), "super executor not installed");
-        assertTrue(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor not installed");
-        assertTrue(SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(accountCreated), "super merkle validator not installed");
-        assertTrue(SuperValidatorBase(address(destinationValidatorOnETH)).isInitialized(accountCreated), "super destinatioin validator not installed");
+        // -- check source validator on
+        assertTrue(
+            SuperExecutorBase(address(superExecutorOnETH)).isInitialized(accountCreated), "super executor not installed"
+        );
+        assertTrue(
+            SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated),
+            "super destination executor not installed"
+        );
+        assertTrue(
+            SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(accountCreated),
+            "super merkle validator not installed"
+        );
+        assertTrue(
+            SuperValidatorBase(address(destinationValidatorOnETH)).isInitialized(accountCreated),
+            "super destinatioin validator not installed"
+        );
 
         // perform defi operations
         // -- 4626 deposit
@@ -449,7 +481,6 @@ contract CrosschainTests is BaseTest {
         assertGt(obtainedShares, 0, "no shares were obtained");
 
         _executeRedeemFromAccount(accountCreated, obtainedShares, 1000e6, false);
-        
 
         // perform deposit with uninstall during execution
         address[] memory srcHooksAddresses = new address[](2);
@@ -474,7 +505,9 @@ contract CrosschainTests is BaseTest {
         executions[0] = Execution({
             target: accountCreated,
             value: 0,
-            callData: abi.encodeCall(IERC7579Account.uninstallModule, (MODULE_TYPE_VALIDATOR, address(sourceValidatorOnETH), uninstallData))
+            callData: abi.encodeCall(
+                IERC7579Account.uninstallModule, (MODULE_TYPE_VALIDATOR, address(sourceValidatorOnETH), uninstallData)
+            )
         });
         executions[1] = Execution({
             target: address(superExecutorOnETH),
@@ -483,8 +516,8 @@ contract CrosschainTests is BaseTest {
         });
 
         PackedUserOperation memory userOp = _createPackedUserOperation(
-            accountCreated, 
-            _prepareNonceWithValidator(accountCreated, address(sourceValidatorOnETH)), 
+            accountCreated,
+            _prepareNonceWithValidator(accountCreated, address(sourceValidatorOnETH)),
             _prepareExecutionCalldata(executions)
         );
 
@@ -508,29 +541,54 @@ contract CrosschainTests is BaseTest {
         // check installed modules
         // -- check executor
         // -- check destination validator on chain
-        // -- check source validator on 
-        assertTrue(SuperExecutorBase(address(superExecutorOnETH)).isInitialized(accountCreated), "super executor not installed");
-        assertTrue(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor not installed");
-        assertTrue(SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(accountCreated), "super merkle validator not installed");
-        assertTrue(SuperValidatorBase(address(destinationValidatorOnETH)).isInitialized(accountCreated), "super destinatioin validator not installed");
+        // -- check source validator on
+        assertTrue(
+            SuperExecutorBase(address(superExecutorOnETH)).isInitialized(accountCreated), "super executor not installed"
+        );
+        assertTrue(
+            SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated),
+            "super destination executor not installed"
+        );
+        assertTrue(
+            SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(accountCreated),
+            "super merkle validator not installed"
+        );
+        assertTrue(
+            SuperValidatorBase(address(destinationValidatorOnETH)).isInitialized(accountCreated),
+            "super destinatioin validator not installed"
+        );
 
         // perform defi operations
         // -- 4626 deposit
         uint256 obtainedShares = _performAndAssert4626DepositOnETH(accountCreated, 1000e6, true);
         assertGt(obtainedShares, 0, "no shares were obtained");
-        
+
         // uninstall executor
         bytes memory uninstallData = abi.encode(address(superExecutorOnETH), bytes(""));
-        _uninstallModuleOnAccount(accountCreated, MODULE_TYPE_EXECUTOR, address(superTargetExecutorOnETH), uninstallData, address(sourceValidatorOnETH));
-        assertFalse(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor still installed");
+        _uninstallModuleOnAccount(
+            accountCreated,
+            MODULE_TYPE_EXECUTOR,
+            address(superTargetExecutorOnETH),
+            uninstallData,
+            address(sourceValidatorOnETH)
+        );
+        assertFalse(
+            SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated),
+            "super destination executor still installed"
+        );
 
         // assert account still has obtained shares
         uint256 midTestObtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
         assertEq(obtainedShares, midTestObtainedShares, "shares should be the same after uninstall");
 
-        // re-install executor 
-        _installModuleOnAccount(accountCreated, MODULE_TYPE_EXECUTOR, address(superTargetExecutorOnETH), "", address(sourceValidatorOnETH));
-        assertTrue(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor not installed");
+        // re-install executor
+        _installModuleOnAccount(
+            accountCreated, MODULE_TYPE_EXECUTOR, address(superTargetExecutorOnETH), "", address(sourceValidatorOnETH)
+        );
+        assertTrue(
+            SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated),
+            "super destination executor not installed"
+        );
 
         // assert account still has obtained shares
         midTestObtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
@@ -540,9 +598,7 @@ contract CrosschainTests is BaseTest {
         // -- 4626 deposit
         uint256 lastObtainedShares = _performAndAssert4626DepositOnETH(accountCreated, 1000e6, false);
         assertGt(lastObtainedShares, midTestObtainedShares, "shares should increase after deposit");
-        assertApproxEqRel(
-            lastObtainedShares, midTestObtainedShares * 2, 0.00001e18
-        );
+        assertApproxEqRel(lastObtainedShares, midTestObtainedShares * 2, 0.00001e18);
     }
 
     function test_HaveAnAccount_Uninstall_ReinstallDifferentCore_CrossChain_CheckSuperLedger() public {
@@ -558,23 +614,35 @@ contract CrosschainTests is BaseTest {
         // check installed modules
         // -- check executor
         // -- check destination validator on chain
-        // -- check source validator on 
-        assertTrue(SuperExecutorBase(address(superExecutorOnETH)).isInitialized(accountCreated), "super executor not installed");
-        assertTrue(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor not installed");
-        assertTrue(SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(accountCreated), "super merkle validator not installed");
-        assertTrue(SuperValidatorBase(address(destinationValidatorOnETH)).isInitialized(accountCreated), "super destinatioin validator not installed");
+        // -- check source validator on
+        assertTrue(
+            SuperExecutorBase(address(superExecutorOnETH)).isInitialized(accountCreated), "super executor not installed"
+        );
+        assertTrue(
+            SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated),
+            "super destination executor not installed"
+        );
+        assertTrue(
+            SuperValidatorBase(address(sourceValidatorOnETH)).isInitialized(accountCreated),
+            "super merkle validator not installed"
+        );
+        assertTrue(
+            SuperValidatorBase(address(destinationValidatorOnETH)).isInitialized(accountCreated),
+            "super destinatioin validator not installed"
+        );
 
         // perform defi operations
         // -- 4626 deposit
         uint256 obtainedShares = _performAndAssert4626DepositOnETH(accountCreated, 1000e6, true);
         assertGt(obtainedShares, 0, "no shares were obtained");
 
-        // install a new SuperExecutor (so we can uninstall the old one) 
+        // install a new SuperExecutor (so we can uninstall the old one)
         // -- create
         ISuperLedgerConfiguration superLedgerConfigurationNew =
-                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration{ salt: "Test123" }()));
+            ISuperLedgerConfiguration(address(new SuperLedgerConfiguration{ salt: "Test123" }()));
         vm.label(address(superLedgerConfigurationNew), "NewSuperLedgerConfiguration");
-        ISuperExecutor superExecutorNew = ISuperExecutor(address(new SuperExecutor{ salt: "Test123" }(address(superLedgerConfigurationNew))));
+        ISuperExecutor superExecutorNew =
+            ISuperExecutor(address(new SuperExecutor{ salt: "Test123" }(address(superLedgerConfigurationNew))));
         vm.label(address(superExecutorNew), "NewSuperExecutor");
 
         // -- configure ledger
@@ -586,7 +654,7 @@ contract CrosschainTests is BaseTest {
 
         address ledgerFeeReceiver = makeAddr("LedgerFeeReceiver");
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
@@ -600,19 +668,50 @@ contract CrosschainTests is BaseTest {
         vm.stopPrank();
 
         // -- install
-        _installModuleOnAccount(accountCreated, MODULE_TYPE_EXECUTOR, address(superExecutorNew), "", address(sourceValidatorOnETH));
+        _installModuleOnAccount(
+            accountCreated, MODULE_TYPE_EXECUTOR, address(superExecutorNew), "", address(sourceValidatorOnETH)
+        );
 
         // assert accumulators
         BaseLedger superLedgerOld = BaseLedger(_getContract(ETH, SUPER_LEDGER_KEY));
-        assertApproxEqRel(superLedgerOld.usersAccumulatorShares(accountCreated, yieldSourceMorphoUsdcAddressEth), obtainedShares, 0.0001e18, "old ledger acc shares is wrong");
-        assertApproxEqRel(superLedgerOld.usersAccumulatorCostBasis(accountCreated, yieldSourceMorphoUsdcAddressEth), 1000e6, 0.0001e18, "old ledger acc cost basis is wrong");
-        assertEq(BaseLedger(address(superLedgerNew)).usersAccumulatorShares(accountCreated, yieldSourceMorphoUsdcAddressEth), 0, "new ledger acc shares is wrong (initial)");
-        assertEq(BaseLedger(address(superLedgerNew)).usersAccumulatorCostBasis(accountCreated, yieldSourceMorphoUsdcAddressEth), 0, "new ledger acc cost basis is wrong (initial)");
+        assertApproxEqRel(
+            superLedgerOld.usersAccumulatorShares(accountCreated, yieldSourceMorphoUsdcAddressEth),
+            obtainedShares,
+            0.0001e18,
+            "old ledger acc shares is wrong"
+        );
+        assertApproxEqRel(
+            superLedgerOld.usersAccumulatorCostBasis(accountCreated, yieldSourceMorphoUsdcAddressEth),
+            1000e6,
+            0.0001e18,
+            "old ledger acc cost basis is wrong"
+        );
+        assertEq(
+            BaseLedger(address(superLedgerNew)).usersAccumulatorShares(accountCreated, yieldSourceMorphoUsdcAddressEth),
+            0,
+            "new ledger acc shares is wrong (initial)"
+        );
+        assertEq(
+            BaseLedger(address(superLedgerNew)).usersAccumulatorCostBasis(
+                accountCreated, yieldSourceMorphoUsdcAddressEth
+            ),
+            0,
+            "new ledger acc cost basis is wrong (initial)"
+        );
 
         // uninstall old executor
         bytes memory uninstallData = abi.encode(address(superExecutorOnETH), bytes(""));
-        _uninstallModuleOnAccount(accountCreated, MODULE_TYPE_EXECUTOR, address(superTargetExecutorOnETH), uninstallData, address(sourceValidatorOnETH));
-        assertFalse(SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated), "super destination executor still installed");
+        _uninstallModuleOnAccount(
+            accountCreated,
+            MODULE_TYPE_EXECUTOR,
+            address(superTargetExecutorOnETH),
+            uninstallData,
+            address(sourceValidatorOnETH)
+        );
+        assertFalse(
+            SuperExecutorBase(address(superTargetExecutorOnETH)).isInitialized(accountCreated),
+            "super destination executor still installed"
+        );
 
         // assert account still has obtained shares
         uint256 midTestObtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(accountCreated);
@@ -623,27 +722,18 @@ contract CrosschainTests is BaseTest {
         assertEq(obtainedShares, midTestObtainedShares, "shares should be the same after re-install");
 
         uint256 feeRecipientBefore = IERC20(underlyingETH_USDC).balanceOf(address(ledgerFeeReceiver));
-        assertEq(feeRecipientBefore, 0, "fee recipient should have no yield before redeem");
+        assertEq(feeRecipientBefore, 0, "fee recipient should have no fee before redeem");
 
         // redeem 4626
         _performAndAssert4626RedeemOnETH(accountCreated, address(superExecutorNew), obtainedShares, true);
 
         feeRecipientBefore = IERC20(underlyingETH_USDC).balanceOf(address(ledgerFeeReceiver));
-        assertGt(feeRecipientBefore, 0, "fee recipient should have fees for total amount now");
-
-        // perform defi operations
-        // -- 4626 deposit
-        uint256 lastObtainedShares = _performAndAssert4626DepositOnETH(accountCreated, 1000e6, false);
-        assertGt(lastObtainedShares, 0, "shares should increase after deposit");
-
-        // redeem again 4626
-        _performAndAssert4626RedeemOnETH(accountCreated, address(superExecutorNew), lastObtainedShares, true);
-        uint256 feeRecipientAfter = IERC20(underlyingETH_USDC).balanceOf(address(ledgerFeeReceiver));
-        assertGt(feeRecipientAfter, feeRecipientBefore, "fee recipient should receive yield");
+        assertEq(
+            feeRecipientBefore,
+            0,
+            "fee recipient should have no fee as well after redeem (because deposit was done in another ledger)"
+        );
     }
-
-
-
 
     //  >>>> ACCOUNT CREATION TESTS
     function test_CrossChainCreateAccount_OnRamp_Offramp_Flow() public {
@@ -668,7 +758,7 @@ contract CrosschainTests is BaseTest {
                 permit2DomainSeparator = 0x866a5aba21966af95d6c7ab78eb2b2fc913915c28be3b9aa07cc04ff903e3f28;
             }
         }
-        
+
         // create execution flow
         // -- batchTransferFrom EOA to contract
         // -- perform defi logic
@@ -709,19 +799,19 @@ contract CrosschainTests is BaseTest {
                 callData: abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entry))
             });
             PackedUserOperation memory userOp = _createPackedUserOperation(
-                accountCreated, 
-                _prepareNonceWithValidator(accountCreated, address(sourceValidatorOnETH)), 
+                accountCreated,
+                _prepareNonceWithValidator(accountCreated, address(sourceValidatorOnETH)),
                 _prepareExecutionCalldata(executions)
             );
             ops = _signAndSendUserOp(userOp, address(sourceValidatorOnETH), accountCreated, false, false);
         }
 
-        superNativePaymasterOnETH.handleOps{value: 1 ether}(ops);
+        superNativePaymasterOnETH.handleOps{ value: 1 ether }(ops);
 
         {
             // check final balances
             uint256 tokenBalanceEOAAfter = IERC20(underlyingETH_USDC).balanceOf(validatorSigner);
-            assertEq(tokenBalanceEOAAfter, amount/2, "final token balance for EOA is wrong");
+            assertEq(tokenBalanceEOAAfter, amount / 2, "final token balance for EOA is wrong");
             uint256 vaultBalanceEOAAfter = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(validatorSigner);
             assertGt(vaultBalanceEOAAfter, 0, "final vault balance for EOA is wrong");
 
@@ -754,16 +844,17 @@ contract CrosschainTests is BaseTest {
                 permit2DomainSeparator = 0x866a5aba21966af95d6c7ab78eb2b2fc913915c28be3b9aa07cc04ff903e3f28;
             }
         }
-        
+
         address feeRecipient = makeAddr("newFeeRecipient");
         // update fee to 1.5%
         {
-            ISuperLedgerConfiguration configSuperLedger = ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY));
+            ISuperLedgerConfiguration configSuperLedger =
+                ISuperLedgerConfiguration(_getContract(ETH, SUPER_LEDGER_CONFIGURATION_KEY));
             // Propose and accept a new config with fee = 150 (1.5%)
             ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
                 new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
             configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
-                yieldSourceOracle:  _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
+                yieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
                 feePercent: 150, // 1.5%
                 feeRecipient: feeRecipient,
                 ledger: _getContract(ETH, SUPER_LEDGER_KEY)
@@ -778,11 +869,11 @@ contract CrosschainTests is BaseTest {
             vm.prank(MANAGER);
             configSuperLedger.acceptYieldSourceOracleConfigProposal(ids);
         }
-        
+
         // create execution flow
         // -- batchTransferFrom EOA to contract
         // -- perform deposit
-        // -- perform withdraw and test fee 
+        // -- perform withdraw and test fee
         // -- batchTransfer back to EOA unused funds
         // -- Test scenario:
         // ---- Transfer 2000e6 tokens (BatchTransferFrom hook)
@@ -817,7 +908,8 @@ contract CrosschainTests is BaseTest {
 
         PackedUserOperation[] memory ops;
         {
-            ISuperExecutor.ExecutorEntry memory entry = _prepareDepositAndRedeemOnOffRampExecution(accountCreated, amount);
+            ISuperExecutor.ExecutorEntry memory entry =
+                _prepareDepositAndRedeemOnOffRampExecution(accountCreated, amount);
             Execution[] memory executions = new Execution[](1);
             executions[0] = Execution({
                 target: address(superExecutorOnETH),
@@ -825,20 +917,20 @@ contract CrosschainTests is BaseTest {
                 callData: abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entry))
             });
             PackedUserOperation memory userOp = _createPackedUserOperation(
-                accountCreated, 
-                _prepareNonceWithValidator(accountCreated, address(sourceValidatorOnETH)), 
+                accountCreated,
+                _prepareNonceWithValidator(accountCreated, address(sourceValidatorOnETH)),
                 _prepareExecutionCalldata(executions)
             );
             ops = _signAndSendUserOp(userOp, address(sourceValidatorOnETH), accountCreated, false, false);
         }
 
-        superNativePaymasterOnETH.handleOps{value: 1 ether}(ops);
+        superNativePaymasterOnETH.handleOps{ value: 1 ether }(ops);
 
         {
             // check final balances
             uint256 tokenBalanceEOAAfter = IERC20(underlyingETH_USDC).balanceOf(validatorSigner);
             assertLt(tokenBalanceEOAAfter, amount, "final token balance for EOA is wrong 1");
-            assertGt(tokenBalanceEOAAfter, amount/2, "final token balance for EOA is wrong 2");
+            assertGt(tokenBalanceEOAAfter, amount / 2, "final token balance for EOA is wrong 2");
             uint256 vaultBalanceEOAAfter = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(validatorSigner);
             assertEq(vaultBalanceEOAAfter, 0, "final vault balance for EOA is wrong");
 
@@ -857,7 +949,7 @@ contract CrosschainTests is BaseTest {
     function test_Create_ETH_Account_And_Use_As_Source() public {
         uint256 ethAccountCreationTimestamp = WARP_START_TIME;
         SELECT_FORK_AND_WARP(ETH, ethAccountCreationTimestamp);
-        
+
         address ethAccountCreated = _createAccountCrossChainFlow();
         vm.label(ethAccountCreated, "ETH Nexus Account");
 
@@ -865,26 +957,26 @@ contract CrosschainTests is BaseTest {
         assertGt(ethAccountCreated.code.length, 0, "ETH account creation failed");
         deal(ethAccountCreated, 10 ether);
         deal(underlyingETH_USDC, ethAccountCreated, 1e8);
-        
+
         uint256 depositAmount = 5e7;
         uint256 vaultBalanceAfter = _executeDepositFromAccount(ethAccountCreated, depositAmount);
         _executeRedeemFromAccount(ethAccountCreated, vaultBalanceAfter, depositAmount, true);
     }
-    
+
     function test_Create_ETHandBASE_accounts() public {
         uint256 startTimestamp = WARP_START_TIME;
-        
+
         // create ETH account
         SELECT_FORK_AND_WARP(ETH, startTimestamp);
         address ethAccountCreated = _createAccountCrossChainFlow();
         vm.label(ethAccountCreated, "ETH Nexus Account");
 
-        // assert ETH 
+        // assert ETH
         SELECT_FORK_AND_WARP(ETH, startTimestamp + 31 days);
         assertGt(ethAccountCreated.code.length, 0, "ETH account creation failed");
         deal(ethAccountCreated, 10 ether);
         deal(underlyingETH_USDC, ethAccountCreated, 1e8);
-    
+
         // try base - sig is already stored
         SELECT_FORK_AND_WARP(BASE, startTimestamp + 60 days);
         address baseAccountCreated = _createAccountOnBASECrossChainFlow(true);
@@ -947,7 +1039,8 @@ contract CrosschainTests is BaseTest {
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE BASE
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: BASE,
@@ -966,7 +1059,7 @@ contract CrosschainTests is BaseTest {
 
     //  >>>> DEBRIDGE
     function test_ETH_Bridge_With_Debridge_And_Deposit() public {
-         uint256 amountPerVault = 1e8;
+        uint256 amountPerVault = 1e8;
 
         // ETH IS DST
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
@@ -984,7 +1077,10 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER), yieldSource7540AddressETH_USDC, amountPerVault, true
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+                yieldSource7540AddressETH_USDC,
+                amountPerVault,
+                true
             );
 
             messageData = TargetExecutorMessage({
@@ -1056,7 +1152,8 @@ contract CrosschainTests is BaseTest {
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE BASE
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
         _processDebridgeDlnMessage(BASE, ETH, executionData);
 
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), balance_Base_USDC_Before - amountPerVault);
@@ -1072,7 +1169,7 @@ contract CrosschainTests is BaseTest {
     }
 
     function test_ETH_Bridge_With_Debridge_NoExecution() public {
-         uint256 amountPerVault = 1e8;
+        uint256 amountPerVault = 1e8;
 
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
         uint256 balanceOnDestinationBefore = IERC20(underlyingETH_USDC).balanceOf(accountETH);
@@ -1120,20 +1217,24 @@ contract CrosschainTests is BaseTest {
         srcHooksData[1] = debridgeData;
 
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
-    
+
         bytes memory signatureData = _createNoDestinationExecutionMerkleRootAndSignature(
-            validatorSigners[BASE], validatorSignerPrivateKeys[BASE], srcUserOpData.userOpHash, address(sourceValidatorOnBase)
+            validatorSigners[BASE],
+            validatorSignerPrivateKeys[BASE],
+            srcUserOpData.userOpHash,
+            address(sourceValidatorOnBase)
         );
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE BASE
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
         _processDebridgeDlnMessage(BASE, ETH, executionData);
 
         // check destination
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME + 50 days);
         uint256 balanceOnDestination = IERC20(underlyingETH_USDC).balanceOf(accountETH);
-        assertEq(balanceOnDestination - balanceOnDestinationBefore, amountPerVault * 9e4/1e5, "AAA");
+        assertEq(balanceOnDestination - balanceOnDestinationBefore, amountPerVault * 9e4 / 1e5, "AAA");
     }
 
     function test_DeBridgeCancelOrderHook() public {
@@ -1213,7 +1314,8 @@ contract CrosschainTests is BaseTest {
 
         {
             bytes32 merkleRoot = BytesLib.toBytes32(BytesLib.slice(sigData, 64, 32), 0);
-            bool rootStatusBefore = ISuperDestinationExecutor(superTargetExecutorOnETH).isMerkleRootUsed(accountETH, merkleRoot);
+            bool rootStatusBefore =
+                ISuperDestinationExecutor(superTargetExecutorOnETH).isMerkleRootUsed(accountETH, merkleRoot);
             assertFalse(rootStatusBefore, "root is not marked here");
 
             cancelOrderHooksAddresses = new address[](1);
@@ -1228,15 +1330,16 @@ contract CrosschainTests is BaseTest {
 
             executeOpsThroughPaymaster(cancelOrderUserOpData, superNativePaymasterOnETH, 1e18);
 
-            bool rootStatusAfter = ISuperDestinationExecutor(superTargetExecutorOnETH).isMerkleRootUsed(accountETH, merkleRoot);
-            assertTrue(rootStatusAfter, "root is marked here");   
+            bool rootStatusAfter =
+                ISuperDestinationExecutor(superTargetExecutorOnETH).isMerkleRootUsed(accountETH, merkleRoot);
+            assertTrue(rootStatusAfter, "root is marked here");
         }
     }
 
     //  >>>> ACROSS
     function test_CrossChain_SignatureReplay_Prevention() public {
         SignatureReplayTestData memory testData = _prepareSignatureReplayTest();
-        
+
         // same chain replay
         _testSameChainReplayAttack(testData);
         // cross chain replay
@@ -1262,7 +1365,10 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault / 2, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER), yieldSource7540AddressETH_USDC, amountPerVault / 2, true
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+                yieldSource7540AddressETH_USDC,
+                amountPerVault / 2,
+                true
             );
 
             messageData = TargetExecutorMessage({
@@ -1328,7 +1434,8 @@ contract CrosschainTests is BaseTest {
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE ETH
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: BASE,
@@ -1370,7 +1477,10 @@ contract CrosschainTests is BaseTest {
             eth7540HooksData[0] =
                 _createApproveHookData(underlyingETH_USDC, yieldSource7540AddressETH_USDC, amountPerVault, false);
             eth7540HooksData[1] = _createRequestDeposit7540VaultHookData(
-                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER), yieldSource7540AddressETH_USDC, amountPerVault, true
+                _getYieldSourceOracleId(bytes32(bytes(ERC7540_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+                yieldSource7540AddressETH_USDC,
+                amountPerVault,
+                true
             );
 
             messageData = TargetExecutorMessage({
@@ -1414,7 +1524,8 @@ contract CrosschainTests is BaseTest {
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE ETH
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: BASE,
@@ -1530,7 +1641,8 @@ contract CrosschainTests is BaseTest {
         srcUserOpDataOP.userOp.signature = signatureData;
 
         // EXECUTE OP
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpDataOP, superNativePaymasterOnBase, 1e18); 
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpDataOP, superNativePaymasterOnBase, 1e18);
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: BASE,
@@ -1552,13 +1664,11 @@ contract CrosschainTests is BaseTest {
         assertEq(vaultInstance4626OP.balanceOf(accountOP), previewDepositAmountOP, "B");
     }
 
-
     function test_bridge_To_OP_NoExecution() public {
         uint256 amount = 1e8 / 2;
 
-
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
-        uint256 balanceOPBefore =  IERC20(underlyingOP_USDCe).balanceOf(accountBase);
+        uint256 balanceOPBefore = IERC20(underlyingOP_USDCe).balanceOf(accountBase);
         assertEq(balanceOPBefore, 0);
 
         // BASE IS SRC
@@ -1572,8 +1682,7 @@ contract CrosschainTests is BaseTest {
         srcHooksAddressesOP[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         bytes[] memory srcHooksDataOP = new bytes[](2);
-        srcHooksDataOP[0] =
-            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amount, false);
+        srcHooksDataOP[0] = _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amount, false);
         srcHooksDataOP[1] = _createAcrossV3ReceiveFundsNoExecution(
             accountBase, underlyingBase_USDC, underlyingOP_USDCe, amount, amount, OP, true, bytes("")
         );
@@ -1581,18 +1690,17 @@ contract CrosschainTests is BaseTest {
         UserOpData memory srcUserOpDataOP = _createUserOpData(srcHooksAddressesOP, srcHooksDataOP, BASE, true);
 
         bytes memory signatureData = _createNoDestinationExecutionMerkleRootAndSignature(
-            validatorSigners[BASE], validatorSignerPrivateKeys[BASE], srcUserOpDataOP.userOpHash, address(sourceValidatorOnBase)
+            validatorSigners[BASE],
+            validatorSignerPrivateKeys[BASE],
+            srcUserOpDataOP.userOpHash,
+            address(sourceValidatorOnBase)
         );
         srcUserOpDataOP.userOp.signature = signatureData;
 
         // EXECUTE OP
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpDataOP, superNativePaymasterOnBase, 1e18); 
-        _processAcrossV3MessageWithoutDestinationAccount(
-            BASE,
-            OP,
-            WARP_START_TIME,
-            executionData
-        );
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpDataOP, superNativePaymasterOnBase, 1e18);
+        _processAcrossV3MessageWithoutDestinationAccount(BASE, OP, WARP_START_TIME, executionData);
 
         assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), userBalanceBaseUSDCBefore - amount, "A");
 
@@ -1614,7 +1722,7 @@ contract CrosschainTests is BaseTest {
         test_bridge_To_OP_And_Deposit_Test_And_Helper();
         _warped_Redeem_From_OP();
     }
-    
+
     function test_CrossChainDepositWithSlippage() public {
         SELECT_FORK_AND_WARP(ETH, CHAIN_1_TIMESTAMP + 1 days);
         _sendFundsFromOpToBase();
@@ -1705,7 +1813,8 @@ contract CrosschainTests is BaseTest {
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE ETH
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: BASE,
@@ -1787,7 +1896,8 @@ contract CrosschainTests is BaseTest {
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE ETH
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: BASE,
@@ -1900,7 +2010,8 @@ contract CrosschainTests is BaseTest {
         );
         srcUserOpData.userOp.signature = signatureData;
 
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnETH, 1e18);
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnETH, 1e18);
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: ETH,
@@ -2046,7 +2157,8 @@ contract CrosschainTests is BaseTest {
         // now the actual bridge message arrives
         SELECT_FORK_AND_WARP(ETH, block.timestamp + 1 days);
         bytes32 _merkleRoot = bytes32(BytesLib.slice(params.signatureData, 64, 32));
-        ExecutionReturnData memory _paymasterExecutionData = executeOpsThroughPaymaster(params.srcUserOpData, superNativePaymasterOnETH, 1e18);
+        ExecutionReturnData memory _paymasterExecutionData =
+            executeOpsThroughPaymaster(params.srcUserOpData, superNativePaymasterOnETH, 1e18);
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: ETH,
@@ -2069,7 +2181,7 @@ contract CrosschainTests is BaseTest {
         // tokens should have been sent to the acount even when merkle root was marked as used
         assertEq(tokensAmountAfterBridgeMessage, params.previewRedeemAmount);
     }
-     
+
     function test_InvalidDestinationFlow() public {
         SELECT_FORK_AND_WARP(ETH, block.timestamp);
 
@@ -2160,7 +2272,8 @@ contract CrosschainTests is BaseTest {
         );
         srcUserOpData.userOp.signature = signatureData;
 
-        ExecutionReturnData memory _paymasterExecutionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnETH, 1e18);
+        ExecutionReturnData memory _paymasterExecutionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnETH, 1e18);
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: ETH,
@@ -2176,7 +2289,6 @@ contract CrosschainTests is BaseTest {
             })
         );
     }
-
 
     // --- NO PAYMASTER ---
     function test_FAILS_ETH_Bridge_With_Debridge_And_Deposit() public {
@@ -2430,15 +2542,15 @@ contract CrosschainTests is BaseTest {
     function _prepareSignatureReplayTest() private returns (SignatureReplayTestData memory) {
         SignatureReplayTestData memory testData;
         testData.amountPerVault = 1e8 / 2;
-        
+
         // ETH IS DST
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
-        
+
         // PREPARE ETH DATA
         {
             address[] memory dstHookAddresses = new address[](0);
             bytes[] memory dstHookData = new bytes[](0);
-            
+
             testData.messageData = TargetExecutorMessage({
                 hooksAddresses: dstHookAddresses,
                 hooksData: dstHookData,
@@ -2457,34 +2569,41 @@ contract CrosschainTests is BaseTest {
             
             (testData.targetExecutorMessage, testData.accountToUse) = _createTargetExecutorMessage(testData.messageData, false);
         }
-        
+
         // BASE IS SRC
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
-        
+
         // PREPARE BASE DATA
         testData.srcHooksAddresses = new address[](2);
         testData.srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
         testData.srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
-        
+
         testData.srcHooksData = new bytes[](2);
-        testData.srcHooksData[0] = _createApproveHookData(
-            underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], testData.amountPerVault, false
-        );
+        testData.srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], testData.amountPerVault, false);
         testData.srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBase_USDC, underlyingETH_USDC, testData.amountPerVault, testData.amountPerVault, ETH, true, testData.targetExecutorMessage
+            underlyingBase_USDC,
+            underlyingETH_USDC,
+            testData.amountPerVault,
+            testData.amountPerVault,
+            ETH,
+            true,
+            testData.targetExecutorMessage
         );
-        
+
         // Create the original user operation
-        UserOpData memory srcUserOpData = _createUserOpData(testData.srcHooksAddresses, testData.srcHooksData, BASE, true);
-        
+        UserOpData memory srcUserOpData =
+            _createUserOpData(testData.srcHooksAddresses, testData.srcHooksData, BASE, true);
+
         // Generate valid signature for the operation
         testData.signatureData = _createMerkleRootAndSignature(
             testData.messageData, srcUserOpData.userOpHash, testData.accountToUse, ETH, address(sourceValidatorOnBase)
         );
         srcUserOpData.userOp.signature = testData.signatureData;
-        
+
         // EXECUTE BASE - First execution should succeed
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: BASE,
@@ -2499,49 +2618,55 @@ contract CrosschainTests is BaseTest {
                 relayerGas: 0
             })
         );
-        
+
         return testData;
     }
 
     function _testSameChainReplayAttack(SignatureReplayTestData memory testData) private {
         // EDGE CASE: Attempt to replay the same signature with a new nonce
         // This creates a new user operation with same data but different nonce
-        UserOpData memory replayUserOpData = _createUserOpData(testData.srcHooksAddresses, testData.srcHooksData, BASE, true);
-        
+        UserOpData memory replayUserOpData =
+            _createUserOpData(testData.srcHooksAddresses, testData.srcHooksData, BASE, true);
+
         // Use the original signature - simulating a replay attack
         replayUserOpData.userOp.signature = testData.signatureData;
-        
+
         // The replay should be rejected
         vm.expectRevert();
         executeOpsThroughPaymaster(replayUserOpData, superNativePaymasterOnBase, 1e18);
     }
-    
+
     function _testCrossChainReplayAttack(SignatureReplayTestData memory testData) private {
         // CROSS-CHAIN REPLAY: Attempt to replay the signature on a different chain (OP)
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME + 30 days);
-        
+
         // Setup for OP chain replay attempt
         address[] memory opHooksAddresses = new address[](2);
         opHooksAddresses[0] = _getHookAddress(OP, APPROVE_ERC20_HOOK_KEY);
         opHooksAddresses[1] = _getHookAddress(OP, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
-        
+
         bytes[] memory opHooksData = new bytes[](2);
-        opHooksData[0] = _createApproveHookData(
-            underlyingOP_USDC, SPOKE_POOL_V3_ADDRESSES[OP], testData.amountPerVault, false
-        );
+        opHooksData[0] =
+            _createApproveHookData(underlyingOP_USDC, SPOKE_POOL_V3_ADDRESSES[OP], testData.amountPerVault, false);
         opHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingOP_USDC, underlyingETH_USDC, testData.amountPerVault, testData.amountPerVault, ETH, true, testData.targetExecutorMessage
+            underlyingOP_USDC,
+            underlyingETH_USDC,
+            testData.amountPerVault,
+            testData.amountPerVault,
+            ETH,
+            true,
+            testData.targetExecutorMessage
         );
-        
+
         // Create operation on OP chain with Base chain signature
         UserOpData memory crossChainReplayUserOpData = _createUserOpData(opHooksAddresses, opHooksData, OP, true);
         crossChainReplayUserOpData.userOp.signature = testData.signatureData;
-        
+
         // This should also be rejected due to chain ID mismatch in signature
         vm.expectRevert();
         executeOpsThroughPaymaster(crossChainReplayUserOpData, superNativePaymasterOnOP, 1e18);
     }
-    
+
     function _redeem_From_ETH_And_Bridge_Back_To_Base(bool isFullRedeem) internal {
         uint256 amountPerVault = 1e8 / 2;
 
@@ -2626,7 +2751,8 @@ contract CrosschainTests is BaseTest {
         );
         ethUserOpData.userOp.signature = signatureData;
 
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(ethUserOpData, superNativePaymasterOnETH, 1e18); 
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(ethUserOpData, superNativePaymasterOnETH, 1e18);
 
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
@@ -2699,14 +2825,14 @@ contract CrosschainTests is BaseTest {
 
         uint256 feeBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(TREASURY);
 
-        executeOpsThroughPaymaster(redeemOpData, superNativePaymasterOnETH, 1e18); 
+        executeOpsThroughPaymaster(redeemOpData, superNativePaymasterOnETH, 1e18);
 
         _assertFeeDerivation(expectedFee, feeBalanceBefore, IERC20(underlyingETH_USDC).balanceOf(TREASURY));
 
         userAssets = IERC20(underlyingETH_USDC).balanceOf(accountETH);
     }
 
-        function _redeem_From_OP() internal returns (uint256) {
+    function _redeem_From_OP() internal returns (uint256) {
         uint256 amountPerVault = 1e8 / 2;
 
         SELECT_FORK_AND_WARP(OP, WARP_START_TIME);
@@ -2828,8 +2954,9 @@ contract CrosschainTests is BaseTest {
         );
         opUserOpData.userOp.signature = signatureData;
 
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(opUserOpData, superNativePaymasterOnOP, 1e18);
-    
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(opUserOpData, superNativePaymasterOnOP, 1e18);
+
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: OP,
@@ -2898,7 +3025,7 @@ contract CrosschainTests is BaseTest {
         emit ISuperLedgerData.AccountingOutflow(
             accountOP, addressOracleOP, yieldSource4626AddressOP_USDCe, expectedAssetOutAmount, expectedFee
         );
-        executeOpsThroughPaymaster(opUserOpData, superNativePaymasterOnOP, 1e18); 
+        executeOpsThroughPaymaster(opUserOpData, superNativePaymasterOnOP, 1e18);
 
         _assertFeeDerivation(expectedFee, feeBalanceBefore, IERC20(underlyingOP_USDCe).balanceOf(TREASURY));
 
@@ -2988,7 +3115,8 @@ contract CrosschainTests is BaseTest {
 
         console2.log("sending from op to base");
         // not enough balance is received
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(src1UserOpData, superNativePaymasterOnOP, 1e18);
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(src1UserOpData, superNativePaymasterOnOP, 1e18);
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: OP,
@@ -3094,7 +3222,8 @@ contract CrosschainTests is BaseTest {
         );
         src1UserOpData.userOp.signature = signatureData;
 
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(src1UserOpData, superNativePaymasterOnETH, 1e18);
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(src1UserOpData, superNativePaymasterOnETH, 1e18);
         // enough balance is received
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
@@ -3201,7 +3330,7 @@ contract CrosschainTests is BaseTest {
         );
         baseUserOpData.userOp.signature = signatureData;
 
-        executeOpsThroughPaymaster(baseUserOpData, superNativePaymasterOnBase, 1e18); 
+        executeOpsThroughPaymaster(baseUserOpData, superNativePaymasterOnBase, 1e18);
 
         // =============== MOCK THE ORDER REGISTRATION ON DESTINATION CHAIN ===============
         // In real DeBridge, orders only get registered on destination when fulfilled
@@ -3295,8 +3424,113 @@ contract CrosschainTests is BaseTest {
             bytes32(uint256(keccak256(abi.encode(orderId, uint256(1)))) + 2), // next slot for giveChainId
             bytes32(uint256(BASE)) // giveChainId = BASE (what cancel hook now uses)
         );
-        
+
         return signatureData;
+    }
+
+    // Sandwich scenario on a cross-chain swap. Have an attacker front-run a user’s swap to inflate price so the
+    // user’s minAmount fails. Ensure the user’s original operation reverts safely and the user is refunded on the
+    // source chain
+    function test_CrossChain_SandwhichAttack_Handling() public {
+        // We do not need to simulate the attacker price manipulation, as the mock Odos Router will revert if the
+        // output min is not met.
+
+        // Base is dst
+        SELECT_FORK_AND_WARP(BASE, CHAIN_8453_TIMESTAMP + 2 days);
+
+        uint256 accountBaseBalanceBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+
+        address accountToUse;
+        bytes memory targetExecutorMessage;
+        TargetExecutorMessage memory messageData;
+        // Prepare dst data
+        {
+            // Prepare swap data
+            address[] memory swapHookAddresses = new address[](2);
+            swapHookAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+            swapHookAddresses[1] = address(new SwapOdosV2Hook(address(mockOdosSwapOutputMin)));
+
+            bytes[] memory swapHookData = new bytes[](2);
+            swapHookData[0] = _createApproveHookData(underlyingBase_USDC, address(mockOdosSwapOutputMin), 1e8, false);
+            swapHookData[1] = _createOdosSwapHookData(
+                underlyingBase_USDC,
+                1e8,
+                address(this),
+                underlyingBase_WETH,
+                1e8,
+                1e10,
+                bytes(""),
+                address(mockOdosSwapOutputMin),
+                0,
+                false
+            );
+
+            messageData = TargetExecutorMessage({
+                hooksAddresses: swapHookAddresses,
+                hooksData: swapHookData,
+                validator: address(destinationValidatorOnBase),
+                signer: validatorSigners[BASE],
+                signerPrivateKey: validatorSignerPrivateKeys[BASE],
+                targetAdapter: address(acrossV3AdapterOnBase),
+                targetExecutor: address(superTargetExecutorOnBase),
+                nexusFactory: CHAIN_8453_NEXUS_FACTORY,
+                nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
+                chainId: uint64(BASE),
+                amount: 1e8,
+                account: accountBase,
+                tokenSent: underlyingBase_USDC
+            });
+
+            (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
+        }
+
+        // ETH is src
+        SELECT_FORK_AND_WARP(ETH, CHAIN_1_TIMESTAMP + 2 days);
+
+        uint256 accountETHBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(accountETH);
+
+        // Prepare src data
+        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        srcHooksAddresses[1] = _getHookAddress(ETH, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        bytes[] memory srcHooksData = new bytes[](2);
+        srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 1e8, false);
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingETH_USDC, underlyingBase_USDC, 1e4, 1e4, BASE, false, targetExecutorMessage
+        );
+
+        UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, ETH, true);
+
+        bytes memory signatureData = _createMerkleRootAndSignature(
+            messageData, srcUserOpData.userOpHash, accountToUse, BASE, address(sourceValidatorOnETH)
+        );
+        srcUserOpData.userOp.signature = signatureData;
+
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnETH, 1e8);
+
+        // a revert occurs on dst chain
+        _processAcrossV3Message(
+            ProcessAcrossV3MessageParams({
+                srcChainId: ETH,
+                dstChainId: BASE,
+                warpTimestamp: block.timestamp,
+                executionData: executionData,
+                relayerType: RELAYER_TYPE.REVERT,
+                errorMessage: bytes4(0),
+                errorReason: "MockOdosSwap: output min not met",
+                account: accountBase,
+                root: bytes32(0),
+                relayerGas: 0
+            })
+        );
+
+        assertEq(IERC20(underlyingBase_USDC).balanceOf(accountBase), accountBaseBalanceBefore);
+
+        vm.stopBroadcast();
+        vm.selectFork(FORKS[ETH]);
+        assertEq(IERC20(underlyingETH_USDC).balanceOf(accountETH), accountETHBalanceBefore - 1e4);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -3304,10 +3538,10 @@ contract CrosschainTests is BaseTest {
     //////////////////////////////////////////////////////////////*/
     function _createAccountOnBASECrossChainFlow(bool shouldRevert) private returns (address) {
         uint256 amountPerVault = 1e8 / 2;
-        
+
         // First prepare on ETH as the destination
         SELECT_FORK_AND_WARP(ETH, WARP_START_TIME);
-        
+
         TargetExecutorMessage memory messageData = TargetExecutorMessage({
             hooksAddresses: new address[](0),
             hooksData: new bytes[](0),
@@ -3320,57 +3554,40 @@ contract CrosschainTests is BaseTest {
             nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
             chainId: uint64(ETH),
             amount: amountPerVault,
-            account: address(0), 
+            account: address(0),
             tokenSent: underlyingETH_USDC
         });
-        
+
         bytes memory targetExecutorMessage;
         address accountToUse;
         (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData, false);
         
         SELECT_FORK_AND_WARP(BASE, WARP_START_TIME + 30 days);
-        
+
         address[] memory srcHooksAddresses = new address[](2);
         srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
         srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
-        
+
         bytes[] memory srcHooksData = new bytes[](2);
-        srcHooksData[0] = _createApproveHookData(
-            underlyingBase_USDC,
-            SPOKE_POOL_V3_ADDRESSES[BASE],
-            amountPerVault,
-            false
-        );
+        srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amountPerVault, false);
         srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBase_USDC,
-            underlyingETH_USDC,
-            amountPerVault,
-            amountPerVault,
-            ETH,
-            true,
-            targetExecutorMessage
+            underlyingBase_USDC, underlyingETH_USDC, amountPerVault, amountPerVault, ETH, true, targetExecutorMessage
         );
-        
+
         UserOpData memory srcUserOpData = _createUserOpData(srcHooksAddresses, srcHooksData, BASE, true);
-        
+
         bytes memory signatureData = _createMerkleRootAndSignature(
-            messageData, 
-            srcUserOpData.userOpHash, 
-            accountToUse, 
-            ETH, 
-            address(sourceValidatorOnBase)
+            messageData, srcUserOpData.userOpHash, accountToUse, ETH, address(sourceValidatorOnBase)
         );
         srcUserOpData.userOp.signature = signatureData;
-        
+
         if (shouldRevert) {
             vm.expectRevert();
         }
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(
-            srcUserOpData, 
-            superNativePaymasterOnBase, 
-            1e18
-        );
-        
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
+
         if (!shouldRevert) {
             _processAcrossV3Message(
                 ProcessAcrossV3MessageParams({
@@ -3387,22 +3604,18 @@ contract CrosschainTests is BaseTest {
                 })
             );
         }
-        
+
         return accountToUse;
     }
-    
+
     function _executeDepositFromAccountOnBASE(address account, uint256 depositAmount) private returns (uint256) {
         address[] memory depositHooksAddresses = new address[](2);
         depositHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
         depositHooksAddresses[1] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
-        
+
         bytes[] memory depositHooksData = new bytes[](2);
-        depositHooksData[0] = _createApproveHookData(
-            underlyingBase_USDC, 
-            yieldSourceMorphoUsdcAddressBase, 
-            depositAmount, 
-            false
-        );
+        depositHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, depositAmount, false);
         depositHooksData[1] = _createDeposit4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSourceMorphoUsdcAddressBase,
@@ -3411,37 +3624,38 @@ contract CrosschainTests is BaseTest {
             address(0),
             0
         );
-        
-        ISuperExecutor.ExecutorEntry memory depositEntry = ISuperExecutor.ExecutorEntry({
-            hooksAddresses: depositHooksAddresses, 
-            hooksData: depositHooksData
-        });
-        
+
+        ISuperExecutor.ExecutorEntry memory depositEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: depositHooksAddresses, hooksData: depositHooksData });
+
         uint256 tokenBalanceBefore = IERC20(underlyingBase_USDC).balanceOf(account);
         assertEq(tokenBalanceBefore, 1e8);
         uint256 vaultBalanceBefore = IERC4626(yieldSourceMorphoUsdcAddressBase).balanceOf(account);
         assertEq(vaultBalanceBefore, 0);
-        
+
         _executeHooksThroughEntrypoint(
-            account, 
-            address(superExecutorOnBase), 
-            address(sourceValidatorOnBase), 
-            depositEntry
+            account, address(superExecutorOnBase), address(sourceValidatorOnBase), depositEntry
         );
-        
+
         uint256 tokenBalanceAfter = IERC20(underlyingBase_USDC).balanceOf(account);
         assertEq(tokenBalanceAfter, 1e8 - depositAmount);
-        
+
         uint256 vaultBalanceAfter = IERC4626(yieldSourceMorphoUsdcAddressBase).balanceOf(account);
         assertGt(vaultBalanceAfter, 0);
-        
+
         return vaultBalanceAfter;
     }
-    
-    function _executeRedeemFromAccountOnBASE(address account, uint256 redeemShares, uint256 originalDepositAmount) private {
+
+    function _executeRedeemFromAccountOnBASE(
+        address account,
+        uint256 redeemShares,
+        uint256 originalDepositAmount
+    )
+        private
+    {
         address[] memory redeemHooksAddresses = new address[](1);
         redeemHooksAddresses[0] = _getHookAddress(BASE, REDEEM_4626_VAULT_HOOK_KEY);
-        
+
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createRedeem4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
@@ -3450,37 +3664,28 @@ contract CrosschainTests is BaseTest {
             redeemShares,
             false
         );
-        
-        ISuperExecutor.ExecutorEntry memory redeemEntry = ISuperExecutor.ExecutorEntry({
-            hooksAddresses: redeemHooksAddresses, 
-            hooksData: redeemHooksData
-        });
-        
+
+        ISuperExecutor.ExecutorEntry memory redeemEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: redeemHooksAddresses, hooksData: redeemHooksData });
+
         _executeHooksThroughEntrypoint(
-            account, 
-            address(superExecutorOnBase), 
-            address(sourceValidatorOnBase), 
-            redeemEntry
+            account, address(superExecutorOnBase), address(sourceValidatorOnBase), redeemEntry
         );
-        
+
         uint256 vaultBalanceAfterRedeem = IERC4626(yieldSourceMorphoUsdcAddressBase).balanceOf(account);
         assertEq(vaultBalanceAfterRedeem, 0, "no vault shares after redeem");
         uint256 tokenBalanceAfterRedeem = IERC20(underlyingBase_USDC).balanceOf(account);
         assertGt(tokenBalanceAfterRedeem, 1e8 - originalDepositAmount, "received tokens back");
     }
-    
+
     function _executeDepositFromAccount(address account, uint256 depositAmount) private returns (uint256) {
         address[] memory depositHooksAddresses = new address[](2);
         depositHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
         depositHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-        
+
         bytes[] memory depositHooksData = new bytes[](2);
-        depositHooksData[0] = _createApproveHookData(
-            underlyingETH_USDC, 
-            yieldSourceMorphoUsdcAddressEth, 
-            depositAmount, 
-            false
-        );
+        depositHooksData[0] =
+            _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, depositAmount, false);
         depositHooksData[1] = _createDeposit4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSourceMorphoUsdcAddressEth,
@@ -3489,37 +3694,39 @@ contract CrosschainTests is BaseTest {
             address(0),
             0
         );
-        
-        ISuperExecutor.ExecutorEntry memory depositEntry = ISuperExecutor.ExecutorEntry({
-            hooksAddresses: depositHooksAddresses, 
-            hooksData: depositHooksData
-        });
-        
+
+        ISuperExecutor.ExecutorEntry memory depositEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: depositHooksAddresses, hooksData: depositHooksData });
+
         uint256 tokenBalanceBefore = IERC20(underlyingETH_USDC).balanceOf(account);
         assertEq(tokenBalanceBefore, 1e8);
         uint256 vaultBalanceBefore = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(account);
         assertEq(vaultBalanceBefore, 0);
-        
+
         _executeHooksThroughEntrypoint(
-            account, 
-            address(superExecutorOnETH), 
-            address(sourceValidatorOnETH), 
-            depositEntry
+            account, address(superExecutorOnETH), address(sourceValidatorOnETH), depositEntry
         );
-        
+
         uint256 tokenBalanceAfter = IERC20(underlyingETH_USDC).balanceOf(account);
         assertEq(tokenBalanceAfter, 1e8 - depositAmount);
-        
+
         uint256 vaultBalanceAfter = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(account);
         assertGt(vaultBalanceAfter, 0);
-        
+
         return vaultBalanceAfter;
     }
-    
-    function _executeRedeemFromAccount(address account, uint256 redeemShares, uint256 originalDepositAmount, bool asserts) private {
+
+    function _executeRedeemFromAccount(
+        address account,
+        uint256 redeemShares,
+        uint256 originalDepositAmount,
+        bool asserts
+    )
+        private
+    {
         address[] memory redeemHooksAddresses = new address[](1);
         redeemHooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
-        
+
         bytes[] memory redeemHooksData = new bytes[](1);
         redeemHooksData[0] = _createRedeem4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
@@ -3528,19 +3735,12 @@ contract CrosschainTests is BaseTest {
             redeemShares,
             false
         );
-        
-        ISuperExecutor.ExecutorEntry memory redeemEntry = ISuperExecutor.ExecutorEntry({
-            hooksAddresses: redeemHooksAddresses, 
-            hooksData: redeemHooksData
-        });
-        
-        _executeHooksThroughEntrypoint(
-            account, 
-            address(superExecutorOnETH), 
-            address(sourceValidatorOnETH), 
-            redeemEntry
-        );
-        
+
+        ISuperExecutor.ExecutorEntry memory redeemEntry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: redeemHooksAddresses, hooksData: redeemHooksData });
+
+        _executeHooksThroughEntrypoint(account, address(superExecutorOnETH), address(sourceValidatorOnETH), redeemEntry);
+
         uint256 vaultBalanceAfterRedeem = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(account);
         assertEq(vaultBalanceAfterRedeem, 0, "no vault shares after redeem");
         if (asserts) {
@@ -3548,8 +3748,14 @@ contract CrosschainTests is BaseTest {
             assertGt(tokenBalanceAfterRedeem, 1e8 - originalDepositAmount, "received tokens back");
         }
     }
-    
-    function _prepareDepositOnOffRampExecution(address accountCreated, uint256 amount) private returns (ISuperExecutor.ExecutorEntry memory entry) {
+
+    function _prepareDepositOnOffRampExecution(
+        address accountCreated,
+        uint256 amount
+    )
+        private
+        returns (ISuperExecutor.ExecutorEntry memory entry)
+    {
         // permit2 setup
         address[] memory _tokens = new address[](1);
         _tokens[0] = underlyingETH_USDC;
@@ -3558,7 +3764,8 @@ contract CrosschainTests is BaseTest {
         uint48[] memory _nonces = new uint48[](1);
         _nonces[0] = 0;
         uint256 sigDeadline = block.timestamp + 10 days;
-        IAllowanceTransfer.PermitBatch memory permitBatch = _createPermitBatchData(accountCreated, _tokens, _amounts, uint48(sigDeadline), _nonces);
+        IAllowanceTransfer.PermitBatch memory permitBatch =
+            _createPermitBatchData(accountCreated, _tokens, _amounts, uint48(sigDeadline), _nonces);
         bytes memory permit2Sig = _getPermitBatchSignature(permitBatch, permit2DomainSeparator, PERMIT2_BATCH_TYPE_HASH);
 
         vm.prank(validatorSigner);
@@ -3571,12 +3778,13 @@ contract CrosschainTests is BaseTest {
         srcHooksAddresses[3] = _getHookAddress(ETH, OFFRAMP_TOKENS_HOOK_KEY);
 
         bytes[] memory srcHooksData = new bytes[](4);
-        srcHooksData[0] = _createBatchTransferFromHookData(validatorSigner, 1, sigDeadline, _tokens, _amounts, _nonces,  permit2Sig);
-        srcHooksData[1] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount/2, false);
+        srcHooksData[0] =
+            _createBatchTransferFromHookData(validatorSigner, 1, sigDeadline, _tokens, _amounts, _nonces, permit2Sig);
+        srcHooksData[1] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount / 2, false);
         srcHooksData[2] = _createDeposit4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSourceMorphoUsdcAddressEth,
-            amount/2,
+            amount / 2,
             false,
             address(0),
             0
@@ -3588,7 +3796,14 @@ contract CrosschainTests is BaseTest {
 
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
     }
-    function _prepareDepositAndRedeemOnOffRampExecution(address accountCreated, uint256 amount) private returns (ISuperExecutor.ExecutorEntry memory entry) {
+
+    function _prepareDepositAndRedeemOnOffRampExecution(
+        address accountCreated,
+        uint256 amount
+    )
+        private
+        returns (ISuperExecutor.ExecutorEntry memory entry)
+    {
         // permit2 setup
         address[] memory _tokens = new address[](1);
         _tokens[0] = underlyingETH_USDC;
@@ -3597,13 +3812,14 @@ contract CrosschainTests is BaseTest {
         uint48[] memory _nonces = new uint48[](1);
         _nonces[0] = 0;
         uint256 sigDeadline = block.timestamp + 10 days;
-        IAllowanceTransfer.PermitBatch memory permitBatch = _createPermitBatchData(accountCreated, _tokens, _amounts, uint48(sigDeadline), _nonces);
+        IAllowanceTransfer.PermitBatch memory permitBatch =
+            _createPermitBatchData(accountCreated, _tokens, _amounts, uint48(sigDeadline), _nonces);
         bytes memory permit2Sig = _getPermitBatchSignature(permitBatch, permit2DomainSeparator, PERMIT2_BATCH_TYPE_HASH);
 
         vm.prank(validatorSigner);
         IERC20(underlyingETH_USDC).approve(PERMIT2, amount);
 
-        uint256 previewDepositAmount = IERC4626(yieldSourceMorphoUsdcAddressEth).previewDeposit(amount/2);
+        uint256 previewDepositAmount = IERC4626(yieldSourceMorphoUsdcAddressEth).previewDeposit(amount / 2);
 
         address[] memory srcHooksAddresses = new address[](5);
         srcHooksAddresses[0] = _getHookAddress(ETH, BATCH_TRANSFER_FROM_HOOK_KEY);
@@ -3613,24 +3829,42 @@ contract CrosschainTests is BaseTest {
         srcHooksAddresses[4] = _getHookAddress(ETH, OFFRAMP_TOKENS_HOOK_KEY);
 
         bytes[] memory srcHooksData = new bytes[](5);
-        srcHooksData[0] = _createBatchTransferFromHookData(validatorSigner, 1, sigDeadline, _tokens, _amounts, _nonces,  permit2Sig);
-        srcHooksData[1] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount/2, false);
+        srcHooksData[0] =
+            _createBatchTransferFromHookData(validatorSigner, 1, sigDeadline, _tokens, _amounts, _nonces, permit2Sig);
+        srcHooksData[1] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, amount / 2, false);
         srcHooksData[2] = _createDeposit4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSourceMorphoUsdcAddressEth,
-            amount/2,
+            amount / 2,
             false,
             address(0),
             0
         );
-        srcHooksData[3] = _createRedeem4626HookData(_getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER), yieldSourceMorphoUsdcAddressEth, accountCreated, previewDepositAmount, false);
+        srcHooksData[3] = _createRedeem4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressEth,
+            accountCreated,
+            previewDepositAmount,
+            false
+        );
         address[] memory offRampTokens = new address[](1);
         offRampTokens[0] = underlyingETH_USDC;
         srcHooksData[4] = _createOfframpTokensHookData(validatorSigner, offRampTokens);
 
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
     }
-    function _createPermitBatchData(address spender, address[] memory tokens, uint256[] memory amounts, uint48 expiration, uint48[] memory _nonces) private pure returns(IAllowanceTransfer.PermitBatch memory) {
+
+    function _createPermitBatchData(
+        address spender,
+        address[] memory tokens,
+        uint256[] memory amounts,
+        uint48 expiration,
+        uint48[] memory _nonces
+    )
+        private
+        pure
+        returns (IAllowanceTransfer.PermitBatch memory)
+    {
         IAllowanceTransfer.PermitDetails[] memory details = new IAllowanceTransfer.PermitDetails[](tokens.length);
         uint256 len = tokens.length;
         for (uint256 i; i < len; ++i) {
@@ -3644,7 +3878,16 @@ contract CrosschainTests is BaseTest {
 
         return IAllowanceTransfer.PermitBatch({ details: details, spender: spender, sigDeadline: expiration });
     }
-    function _getPermitBatchSignature(IAllowanceTransfer.PermitBatch memory permit, bytes32 domain, bytes32 typeHash) private view returns(bytes memory sig) {
+
+    function _getPermitBatchSignature(
+        IAllowanceTransfer.PermitBatch memory permit,
+        bytes32 domain,
+        bytes32 typeHash
+    )
+        private
+        view
+        returns (bytes memory sig)
+    {
         uint256 len = permit.details.length;
         bytes32[] memory permitHashes = new bytes32[](len);
         for (uint256 i; i < len; ++i) {
@@ -3655,12 +3898,7 @@ contract CrosschainTests is BaseTest {
                 "\x19\x01",
                 domain,
                 keccak256(
-                    abi.encode(
-                        typeHash,
-                        keccak256(abi.encodePacked(permitHashes)),
-                        permit.spender,
-                        permit.sigDeadline
-                    )
+                    abi.encode(typeHash, keccak256(abi.encodePacked(permitHashes)), permit.spender, permit.sigDeadline)
                 )
             )
         );
@@ -3724,7 +3962,8 @@ contract CrosschainTests is BaseTest {
         srcUserOpData.userOp.signature = signatureData;
 
         // EXECUTE BASE
-        ExecutionReturnData memory executionData = executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18); 
+        ExecutionReturnData memory executionData =
+            executeOpsThroughPaymaster(srcUserOpData, superNativePaymasterOnBase, 1e18);
         _processAcrossV3Message(
             ProcessAcrossV3MessageParams({
                 srcChainId: BASE,
@@ -3742,7 +3981,15 @@ contract CrosschainTests is BaseTest {
 
         return accountToUse;
     }
-    function _performAndAssert4626DepositOnETH(address acc, uint256 amount, bool validateBeforeBalance) private returns (uint256 obtainedShares) {
+
+    function _performAndAssert4626DepositOnETH(
+        address acc,
+        uint256 amount,
+        bool validateBeforeBalance
+    )
+        private
+        returns (uint256 obtainedShares)
+    {
         _getTokens(underlyingETH_USDC, acc, amount);
 
         address[] memory srcHooksAddresses = new address[](2);
@@ -3761,7 +4008,7 @@ contract CrosschainTests is BaseTest {
         );
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
-        
+
         // before op asserts
         if (validateBeforeBalance) {
             uint256 accBalanceBefore = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(acc);
@@ -3775,7 +4022,16 @@ contract CrosschainTests is BaseTest {
         obtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(acc);
         assertGt(obtainedShares, 0);
     }
-    function _performAndAssert4626RedeemOnETH(address acc, address exec, uint256 shares, bool validateBeforeBalance) private returns (uint256 obtainedShares) {
+
+    function _performAndAssert4626RedeemOnETH(
+        address acc,
+        address exec,
+        uint256 shares,
+        bool validateBeforeBalance
+    )
+        private
+        returns (uint256 obtainedShares)
+    {
         address[] memory srcHooksAddresses = new address[](1);
         srcHooksAddresses[0] = _getHookAddress(ETH, REDEEM_4626_VAULT_HOOK_KEY);
 
@@ -3789,7 +4045,7 @@ contract CrosschainTests is BaseTest {
         );
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
-        
+
         // before op asserts
         if (validateBeforeBalance) {
             uint256 accBalanceBefore = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(acc);
@@ -3803,7 +4059,16 @@ contract CrosschainTests is BaseTest {
         obtainedShares = IERC4626(yieldSourceMorphoUsdcAddressEth).balanceOf(acc);
         assertEq(obtainedShares, 0);
     }
-    function _installModuleOnAccount(address acc, uint256 moduleType, address module, bytes memory initData, address validatorToUse) private {
+
+    function _installModuleOnAccount(
+        address acc,
+        uint256 moduleType,
+        address module,
+        bytes memory initData,
+        address validatorToUse
+    )
+        private
+    {
         Execution[] memory executions = new Execution[](1);
         executions[0] = Execution({
             target: acc,
@@ -3812,14 +4077,21 @@ contract CrosschainTests is BaseTest {
         });
 
         PackedUserOperation memory userOp = _createPackedUserOperation(
-            acc, 
-            _prepareNonceWithValidator(acc, validatorToUse), 
-            _prepareExecutionCalldata(executions)
+            acc, _prepareNonceWithValidator(acc, validatorToUse), _prepareExecutionCalldata(executions)
         );
 
         _signAndSendUserOp(userOp, validatorToUse, acc, true, false);
     }
-    function _uninstallModuleOnAccount(address acc, uint256 moduleType, address module, bytes memory initData, address validatorToUse) private {
+
+    function _uninstallModuleOnAccount(
+        address acc,
+        uint256 moduleType,
+        address module,
+        bytes memory initData,
+        address validatorToUse
+    )
+        private
+    {
         Execution[] memory executions = new Execution[](1);
         executions[0] = Execution({
             target: acc,
@@ -3828,14 +4100,20 @@ contract CrosschainTests is BaseTest {
         });
 
         PackedUserOperation memory userOp = _createPackedUserOperation(
-            acc, 
-            _prepareNonceWithValidator(acc, validatorToUse), 
-            _prepareExecutionCalldata(executions)
+            acc, _prepareNonceWithValidator(acc, validatorToUse), _prepareExecutionCalldata(executions)
         );
 
         _signAndSendUserOp(userOp, validatorToUse, acc, true, false);
     }
-    function _executeHooksThroughEntrypoint(address account, address executor, address validator, ISuperExecutor.ExecutorEntry memory entry) internal {
+
+    function _executeHooksThroughEntrypoint(
+        address account,
+        address executor,
+        address validator,
+        ISuperExecutor.ExecutorEntry memory entry
+    )
+        internal
+    {
         Execution[] memory executions = new Execution[](1);
         executions[0] = Execution({
             target: address(executor),
@@ -3844,33 +4122,32 @@ contract CrosschainTests is BaseTest {
         });
 
         PackedUserOperation memory userOp = _createPackedUserOperation(
-            account, 
-            _prepareNonceWithValidator(account, validator), 
-            _prepareExecutionCalldata(executions)
+            account, _prepareNonceWithValidator(account, validator), _prepareExecutionCalldata(executions)
         );
 
         _signAndSendUserOp(userOp, validator, account, true, false);
     }
-    function _signAndSendUserOp(PackedUserOperation memory userOp, address validator, address beneficiary, bool execute, bool shouldRevert) private returns (PackedUserOperation[] memory userOps) {
+
+    function _signAndSendUserOp(
+        PackedUserOperation memory userOp,
+        address validator,
+        address beneficiary,
+        bool execute,
+        bool shouldRevert
+    )
+        private
+        returns (PackedUserOperation[] memory userOps)
+    {
         uint48 validUntil = uint48(block.timestamp + 1 hours);
         bytes32[] memory leaves = new bytes32[](1);
         leaves[0] = _createSourceValidatorLeaf(
-            IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp),
-            validUntil,
-            false,
-            address(validator)
+            IEntryPoint(ENTRYPOINT_ADDR).getUserOpHash(userOp), validUntil, false, address(validator)
         );
         (bytes32[][] memory _proof, bytes32 _root) = _createValidatorMerkleTree(leaves);
         bytes memory signature = _getSignature(_root);
 
-        bytes memory sigData = abi.encode(
-            false,
-            validUntil,
-            _root,
-            _proof[0],
-            new ISuperValidator.DstProof[](0),
-            signature
-        );
+        bytes memory sigData =
+            abi.encode(false, validUntil, _root, _proof[0], new ISuperValidator.DstProof[](0), signature);
 
         userOp.signature = sigData;
 
@@ -3883,6 +4160,7 @@ contract CrosschainTests is BaseTest {
             IEntryPoint(ENTRYPOINT_ADDR).handleOps(userOps, payable(beneficiary));
         }
     }
+
     function _prepareExecutionCalldata(Execution[] memory executions)
         internal
         pure
@@ -3904,6 +4182,7 @@ contract CrosschainTests is BaseTest {
             revert("Executions array cannot be empty");
         }
     }
+
     function _prepareNonceWithValidator(address account, address validator) internal view returns (uint256 nonce) {
         uint192 nonceKey;
         bytes32 batchId = bytes3(0);
@@ -3914,6 +4193,7 @@ contract CrosschainTests is BaseTest {
         }
         nonce = IEntryPoint(ENTRYPOINT_ADDR).getNonce(account, nonceKey);
     }
+
     function _createPackedUserOperation(
         address account,
         uint256 nonce,
@@ -3935,6 +4215,7 @@ contract CrosschainTests is BaseTest {
             signature: hex"1234"
         });
     }
+
     function _getSignature(bytes32 _root) internal view returns (bytes memory) {
         bytes32 messageHash = keccak256(abi.encode("SuperValidator", _root));
         bytes32 ethSignedMessageHash = MessageHashUtils.toEthSignedMessageHash(messageHash);

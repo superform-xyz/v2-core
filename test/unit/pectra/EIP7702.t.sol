@@ -39,7 +39,7 @@ import { SuperValidatorBase } from "../../../src/validators/SuperValidatorBase.s
 import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
 import { SuperLedger } from "../../../src/accounting/SuperLedger.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
-import { SuperMerkleValidator } from "../../../src/validators/SuperMerkleValidator.sol";
+import { SuperValidator } from "../../../src/validators/SuperValidator.sol";
 import { SuperDestinationValidator } from "../../../src/validators/SuperDestinationValidator.sol";
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
@@ -862,7 +862,7 @@ contract EIP7702Test is BaseTest {
         return address(superExecutorNew);
     }
     function _createSuperValidator() internal returns (address superValidator) {
-        return address(new SuperMerkleValidator());
+        return address(new SuperValidator());
     }
 
     struct CrosschainSigParams {

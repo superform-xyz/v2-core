@@ -12,7 +12,7 @@ import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 // Superform
-import {SuperMerkleValidator} from "../../../src/validators/SuperMerkleValidator.sol";
+import {SuperValidator} from "../../../src/validators/SuperValidator.sol";
 import {SuperValidatorBase} from "../../../src/validators/SuperValidatorBase.sol";
 import {ISuperValidator} from "../../../src/interfaces/ISuperValidator.sol";
 
@@ -25,10 +25,10 @@ import "forge-std/console2.sol";
 
 // Helper contract to test transient sig storage
 contract SignatureTransientTester {
-    SuperMerkleValidator public validator;
+    SuperValidator public validator;
 
     constructor(address _validator) {
-        validator = SuperMerkleValidator(_validator);
+        validator = SuperValidator(_validator);
     }
 
     function validateAndRetrieve(PackedUserOperation calldata userOp, bytes32 userOpHash)
@@ -48,7 +48,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
     AccountInstance public instance;
     address public account;
 
-    SuperMerkleValidator public validator;
+    SuperValidator public validator;
     bytes public validSigData;
 
     UserOpData approveUserOp;
@@ -62,7 +62,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
     bytes4 constant VALID_SIGNATURE = bytes4(0x1626ba7e);
 
     function setUp() public {
-        validator = new SuperMerkleValidator();
+        validator = new SuperValidator();
 
         (signerAddr, privateKey) = makeAddrAndKey("The signer");
         vm.label(signerAddr, "The signer");
@@ -540,7 +540,7 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
         vm.stopPrank();
 
         // Deploy another validator contract
-        SuperMerkleValidator attackerValidator = new SuperMerkleValidator();
+        SuperValidator attackerValidator = new SuperValidator();
 
         // Install the attacker's validator on the same account
         vm.startPrank(account);
@@ -638,9 +638,9 @@ contract SuperMerkleValidatorTest is MerkleTreeHelper, RhinestoneModuleKit {
 }
 
   contract MaliciousContract {
-        SuperMerkleValidator public validator;
+        SuperValidator public validator;
         
-        constructor(SuperMerkleValidator _validator) {
+        constructor(SuperValidator _validator) {
             validator = _validator;
         }
         

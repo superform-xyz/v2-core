@@ -20,7 +20,7 @@ import { IERC7484 } from "../../../src/vendor/nexus/IERC7484.sol";
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
-import { SuperMerkleValidator } from "../../../src/validators/SuperMerkleValidator.sol";
+import { SuperValidator } from "../../../src/validators/SuperValidator.sol";
 import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
 import { SuperExecutor } from "../../../src/executors/SuperExecutor.sol";
 import { ERC4626YieldSourceOracle } from "../../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
@@ -36,7 +36,7 @@ import { Deposit4626VaultHook } from "../../../src/hooks/vaults/4626/Deposit4626
 import { Redeem4626VaultHook } from "../../../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
 
 abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers {
-    SuperMerkleValidator public superMerkleValidator;
+    SuperValidator public superMerkleValidator;
     INexusFactory public nexusFactory;
     INexusBootstrap public nexusBootstrap;
     SuperExecutor public superExecutorModule;
@@ -63,8 +63,8 @@ abstract contract PaymasterHelper is Helpers, MerkleTreeHelper, InternalHelpers 
 
         initSalt = keccak256(abi.encode("test"));
 
-        superMerkleValidator = new SuperMerkleValidator();
-        vm.label(address(superMerkleValidator), "SuperMerkleValidator");
+        superMerkleValidator = new SuperValidator();
+        vm.label(address(superMerkleValidator), "SuperValidator");
         nexusFactory = INexusFactory(CHAIN_1_NEXUS_FACTORY);
         vm.label(address(nexusFactory), "NexusFactory");
         nexusBootstrap = INexusBootstrap(CHAIN_1_NEXUS_BOOTSTRAP);

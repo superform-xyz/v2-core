@@ -26,7 +26,7 @@ import { SuperLedgerConfiguration } from "../src/accounting/SuperLedgerConfigura
 import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
 import { SuperDestinationExecutor } from "../src/executors/SuperDestinationExecutor.sol";
 import { SuperSenderCreator } from "../src/executors/helpers/SuperSenderCreator.sol";
-import { SuperMerkleValidator } from "../src/validators/SuperMerkleValidator.sol";
+import { SuperValidator } from "../src/validators/SuperValidator.sol";
 import { SuperDestinationValidator } from "../src/validators/SuperDestinationValidator.sol";
 import { SuperValidatorBase } from "../src/validators/SuperValidatorBase.sol";
 
@@ -231,7 +231,7 @@ struct Addresses {
     ERC5115YieldSourceOracle erc5115YieldSourceOracle;
     ERC7540YieldSourceOracle erc7540YieldSourceOracle;
     StakingYieldSourceOracle stakingYieldSourceOracle;
-    SuperMerkleValidator superMerkleValidator;
+    SuperValidator superMerkleValidator;
     SuperDestinationValidator superDestinationValidator;
     SuperNativePaymaster superNativePaymaster;
     MockTargetExecutor mockTargetExecutor;
@@ -378,7 +378,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         vm.warp(timestamp);
     }
 
-    /// @dev in case we want to make accounts with SuperMerkleValidator
+    /// @dev in case we want to make accounts with SuperValidator
     function _makeAccount(uint64 chainId, string memory accountNameString) internal returns (AccountInstance memory) {
         bytes32 accountName = keccak256(abi.encode(accountNameString));
 
@@ -480,7 +480,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             vm.label(address(A[i].superNativePaymaster), SUPER_NATIVE_PAYMASTER_KEY);
             contractAddresses[chainIds[i]][SUPER_NATIVE_PAYMASTER_KEY] = address(A[i].superNativePaymaster);
 
-            A[i].superMerkleValidator = new SuperMerkleValidator();
+            A[i].superMerkleValidator = new SuperValidator();
             vm.label(address(A[i].superMerkleValidator), SUPER_MERKLE_VALIDATOR_KEY);
             contractAddresses[chainIds[i]][SUPER_MERKLE_VALIDATOR_KEY] = address(A[i].superMerkleValidator);
 

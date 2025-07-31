@@ -124,7 +124,7 @@ abstract contract Constants {
     string public constant MOCK_TARGET_EXECUTOR_KEY = "MockTargetExecutor";
     string public constant ACROSS_V3_ADAPTER_KEY = "AcrossV3Adapter";
     string public constant DEBRIDGE_ADAPTER_KEY = "DebridgeAdapter";
-    string public constant SUPER_MERKLE_VALIDATOR_KEY = "SuperMerkleValidator";
+    string public constant SUPER_MERKLE_VALIDATOR_KEY = "SuperValidator";
     string public constant SUPER_DESTINATION_VALIDATOR_KEY = "SuperDestinationValidator";
     string public constant ERC4626_YIELD_SOURCE_ORACLE_KEY = "ERC4626YieldSourceOracle";
     string public constant ERC5115_YIELD_SOURCE_ORACLE_KEY = "ERC5115YieldSourceOracle";
