@@ -26,14 +26,11 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 arraysLength = BytesLib.toUint256(data, 52);
 /// @notice         address[] users = BytesLib.slice(data, 84, arrayLength * 20);
 /// @notice         address[] tokens = BytesLib.slice(data, 84 + arrayLength * 20, tokensLength * 20);
-/// @notice         uint256[] amounts = BytesLib.slice(data, 84 + arrayLength * 20 + tokensLength * 20, amountsLength * 32);
-/// @notice         bytes proofBlob = BytesLib.slice(data, 84 + arrayLength * 20 + tokensLength * 20 + amountsLength * 32, data.length - (84 + arrayLength * 20 + tokensLength * 20 + amountsLength * 32));
-contract MerklClaimRewardHook is
-    BaseHook,
-    ISuperHookInflowOutflow,
-    ISuperHookOutflow,
-    ISuperHookContextAware
-{
+/// @notice         uint256[] amounts = BytesLib.slice(data, 84 + arrayLength * 20 + tokensLength * 20, amountsLength *
+/// 32);
+/// @notice         bytes proofBlob = BytesLib.slice(data, 84 + arrayLength * 20 + tokensLength * 20 + amountsLength *
+/// 32, data.length - (84 + arrayLength * 20 + tokensLength * 20 + amountsLength * 32));
+contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -72,10 +69,10 @@ contract MerklClaimRewardHook is
         ClaimParams memory params = _decodeClaimParams(data);
 
         executions = new Execution[](1);
-        executions[0] = Execution({ 
-            target: params.distributor, 
-            value: 0, 
-            callData: abi.encodeCall(IDistributor.claim, (params.users, params.tokens, params.amounts, params.proofs)) 
+        executions[0] = Execution({
+            target: params.distributor,
+            value: 0,
+            callData: abi.encodeCall(IDistributor.claim, (params.users, params.tokens, params.amounts, params.proofs))
         });
     }
 
@@ -131,11 +128,8 @@ contract MerklClaimRewardHook is
         params.users = users;
 
         // decode tokens and amounts
-        (
-            uint256 cursorAfterAmounts,
-            address[] memory tokens,
-            uint256[] memory amounts
-        ) = _decodeTokensAndAmounts(data, cursorAfterUsers);
+        (uint256 cursorAfterAmounts, address[] memory tokens, uint256[] memory amounts) =
+            _decodeTokensAndAmounts(data, cursorAfterUsers);
 
         params.tokens = tokens;
         params.amounts = amounts;
@@ -165,17 +159,13 @@ contract MerklClaimRewardHook is
     )
         internal
         pure
-        returns (
-            uint256 cursor,
-            address[] memory tokens,
-            uint256[] memory amounts
-        )
-    {   
+        returns (uint256 cursor, address[] memory tokens, uint256[] memory amounts)
+    {
         uint256 arrayLength = BytesLib.toUint256(data, 52);
 
         cursor = cursorAfterUsers;
 
-        tokens = new address[](arrayLength); 
+        tokens = new address[](arrayLength);
         for (uint256 i = 0; i < arrayLength; i++) {
             address token = BytesLib.toAddress(data, cursor);
             cursor += 20;
@@ -194,14 +184,7 @@ contract MerklClaimRewardHook is
         }
     }
 
-    function _decodeProofs(
-        bytes calldata data,
-        uint256 cursor
-    )
-        internal
-        pure
-        returns (bytes32[][] memory proofs)
-    {
+    function _decodeProofs(bytes calldata data, uint256 cursor) internal pure returns (bytes32[][] memory proofs) {
         uint256 arrayLength = BytesLib.toUint256(data, 52);
         proofs = new bytes32[][](arrayLength);
 

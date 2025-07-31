@@ -156,7 +156,8 @@ contract MerklClaimRewardsHookTest is Helpers {
         bytes memory flattenedProofs;
 
         for (uint256 i = 0; i < proofsToFlatten.length; i++) {
-            flattenedProofs = bytes.concat(flattenedProofs, abi.encodePacked(uint256(proofsToFlatten[i].length))); // inner array length
+            flattenedProofs = bytes.concat(flattenedProofs, abi.encodePacked(uint256(proofsToFlatten[i].length))); // inner
+                // array length
 
             for (uint256 j; j < proofsToFlatten[i].length; ++j) {
                 flattenedProofs = bytes.concat(flattenedProofs, proofsToFlatten[i][j]);
