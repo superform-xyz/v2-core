@@ -10,11 +10,6 @@ ifeq ($(ENVIRONMENT), local)
 	export ONE_INCH_API_KEY := $(shell op read op://5ylebqljbh3x6zomdxi3qd7tsa/OneInch/credential)
 endif
 
-# Testnet RPC URLs for Circle Gateway testing
-export ETHEREUM_SEPOLIA_RPC_URL := https://eth-sepolia.g.alchemy.com/v2/jGYwODqnDhcEWA7ROnS6NGaniJ6TB7cT
-export BASE_SEPOLIA_RPC_URL := https://base-sepolia.g.alchemy.com/v2/jGYwODqnDhcEWA7ROnS6NGaniJ6TB7cT
-export AVALANCHE_FUJI_RPC_URL := https://avalanche-fuji-c-chain-rpc.publicnode.com
-
 
 build :; forge build && $(MAKE) generate
 
