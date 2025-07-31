@@ -84,7 +84,7 @@ type PackedUserOperation struct {
 
 // SuperNativePaymasterMetaData contains all meta data concerning the SuperNativePaymaster contract.
 var SuperNativePaymasterMetaData = &bind.MetaData{
-	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"_entryPoint\",\"type\":\"address\",\"internalType\":\"contractIEntryPoint\"}],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"acceptOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"addStake\",\"inputs\":[{\"name\":\"unstakeDelaySec\",\"type\":\"uint32\",\"internalType\":\"uint32\"}],\"outputs\":[],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"calculateRefund\",\"inputs\":[{\"name\":\"maxGasLimit\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"maxFeePerGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"actualGasCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"nodeOperatorPremium\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"refund\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"entryPoint\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractIEntryPoint\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getDeposit\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"handleOps\",\"inputs\":[{\"name\":\"ops\",\"type\":\"tuple[]\",\"internalType\":\"structPackedUserOperation[]\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"outputs\":[],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"owner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"pendingOwner\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"address\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"postOp\",\"inputs\":[{\"name\":\"mode\",\"type\":\"uint8\",\"internalType\":\"enumIPaymaster.PostOpMode\"},{\"name\":\"context\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"actualGasCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"actualUserOpFeePerGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"renounceOwnership\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"simulateHandleOp\",\"inputs\":[{\"name\":\"op\",\"type\":\"tuple\",\"internalType\":\"structPackedUserOperation\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIEntryPointSimulations.ExecutionResult\",\"components\":[{\"name\":\"preOpGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"paid\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"accountValidationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"paymasterValidationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"targetSuccess\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"targetResult\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"simulateValidation\",\"inputs\":[{\"name\":\"op\",\"type\":\"tuple\",\"internalType\":\"structPackedUserOperation\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIEntryPointSimulations.ValidationResult\",\"components\":[{\"name\":\"returnInfo\",\"type\":\"tuple\",\"internalType\":\"structIEntryPoint.ReturnInfo\",\"components\":[{\"name\":\"preOpGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"prefund\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"accountValidationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"paymasterValidationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"paymasterContext\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"name\":\"senderInfo\",\"type\":\"tuple\",\"internalType\":\"structIStakeManager.StakeInfo\",\"components\":[{\"name\":\"stake\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"unstakeDelaySec\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"name\":\"factoryInfo\",\"type\":\"tuple\",\"internalType\":\"structIStakeManager.StakeInfo\",\"components\":[{\"name\":\"stake\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"unstakeDelaySec\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"name\":\"paymasterInfo\",\"type\":\"tuple\",\"internalType\":\"structIStakeManager.StakeInfo\",\"components\":[{\"name\":\"stake\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"unstakeDelaySec\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"name\":\"aggregatorInfo\",\"type\":\"tuple\",\"internalType\":\"structIEntryPoint.AggregatorStakeInfo\",\"components\":[{\"name\":\"aggregator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"stakeInfo\",\"type\":\"tuple\",\"internalType\":\"structIStakeManager.StakeInfo\",\"components\":[{\"name\":\"stake\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"unstakeDelaySec\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]}]}]}],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"transferOwnership\",\"inputs\":[{\"name\":\"newOwner\",\"type\":\"address\",\"internalType\":\"address\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"unlockStake\",\"inputs\":[],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"validatePaymasterUserOp\",\"inputs\":[{\"name\":\"userOp\",\"type\":\"tuple\",\"internalType\":\"structPackedUserOperation\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"name\":\"userOpHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"maxCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"context\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"validationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"withdrawStake\",\"inputs\":[{\"name\":\"withdrawAddress\",\"type\":\"address\",\"internalType\":\"addresspayable\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"withdrawTo\",\"inputs\":[{\"name\":\"withdrawAddress\",\"type\":\"address\",\"internalType\":\"addresspayable\"},{\"name\":\"amount\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"OwnershipTransferStarted\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"OwnershipTransferred\",\"inputs\":[{\"name\":\"previousOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"newOwner\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperNativePaymasterPostOp\",\"inputs\":[{\"name\":\"context\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperNativePaymsterRefund\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"refundAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"initialRefund\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UserOperationsHandled\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"numOps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"initialAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"withdrawnAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"EMPTY_MESSAGE_VALUE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_MAX_GAS_LIMIT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_NODE_OPERATOR_PREMIUM\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"OwnableInvalidOwner\",\"inputs\":[{\"name\":\"owner\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"OwnableUnauthorizedAccount\",\"inputs\":[{\"name\":\"account\",\"type\":\"address\",\"internalType\":\"address\"}]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]}]",
+	ABI: "[{\"type\":\"constructor\",\"inputs\":[{\"name\":\"_entryPoint\",\"type\":\"address\",\"internalType\":\"contractIEntryPoint\"}],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"calculateRefund\",\"inputs\":[{\"name\":\"maxGasLimit\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"maxFeePerGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"actualGasCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"nodeOperatorPremium\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"refund\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"pure\"},{\"type\":\"function\",\"name\":\"entryPoint\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"address\",\"internalType\":\"contractIEntryPoint\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"getDeposit\",\"inputs\":[],\"outputs\":[{\"name\":\"\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"view\"},{\"type\":\"function\",\"name\":\"handleOps\",\"inputs\":[{\"name\":\"ops\",\"type\":\"tuple[]\",\"internalType\":\"structPackedUserOperation[]\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"outputs\":[],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"postOp\",\"inputs\":[{\"name\":\"mode\",\"type\":\"uint8\",\"internalType\":\"enumIPaymaster.PostOpMode\"},{\"name\":\"context\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"actualGasCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"actualUserOpFeePerGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[],\"stateMutability\":\"nonpayable\"},{\"type\":\"function\",\"name\":\"simulateHandleOp\",\"inputs\":[{\"name\":\"op\",\"type\":\"tuple\",\"internalType\":\"structPackedUserOperation\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"name\":\"target\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIEntryPointSimulations.ExecutionResult\",\"components\":[{\"name\":\"preOpGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"paid\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"accountValidationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"paymasterValidationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"targetSuccess\",\"type\":\"bool\",\"internalType\":\"bool\"},{\"name\":\"targetResult\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"simulateValidation\",\"inputs\":[{\"name\":\"op\",\"type\":\"tuple\",\"internalType\":\"structPackedUserOperation\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]}],\"outputs\":[{\"name\":\"\",\"type\":\"tuple\",\"internalType\":\"structIEntryPointSimulations.ValidationResult\",\"components\":[{\"name\":\"returnInfo\",\"type\":\"tuple\",\"internalType\":\"structIEntryPoint.ReturnInfo\",\"components\":[{\"name\":\"preOpGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"prefund\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"accountValidationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"paymasterValidationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"paymasterContext\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"name\":\"senderInfo\",\"type\":\"tuple\",\"internalType\":\"structIStakeManager.StakeInfo\",\"components\":[{\"name\":\"stake\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"unstakeDelaySec\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"name\":\"factoryInfo\",\"type\":\"tuple\",\"internalType\":\"structIStakeManager.StakeInfo\",\"components\":[{\"name\":\"stake\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"unstakeDelaySec\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"name\":\"paymasterInfo\",\"type\":\"tuple\",\"internalType\":\"structIStakeManager.StakeInfo\",\"components\":[{\"name\":\"stake\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"unstakeDelaySec\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]},{\"name\":\"aggregatorInfo\",\"type\":\"tuple\",\"internalType\":\"structIEntryPoint.AggregatorStakeInfo\",\"components\":[{\"name\":\"aggregator\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"stakeInfo\",\"type\":\"tuple\",\"internalType\":\"structIStakeManager.StakeInfo\",\"components\":[{\"name\":\"stake\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"unstakeDelaySec\",\"type\":\"uint256\",\"internalType\":\"uint256\"}]}]}]}],\"stateMutability\":\"payable\"},{\"type\":\"function\",\"name\":\"validatePaymasterUserOp\",\"inputs\":[{\"name\":\"userOp\",\"type\":\"tuple\",\"internalType\":\"structPackedUserOperation\",\"components\":[{\"name\":\"sender\",\"type\":\"address\",\"internalType\":\"address\"},{\"name\":\"nonce\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"initCode\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"callData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"accountGasLimits\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"preVerificationGas\",\"type\":\"uint256\",\"internalType\":\"uint256\"},{\"name\":\"gasFees\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"paymasterAndData\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"signature\",\"type\":\"bytes\",\"internalType\":\"bytes\"}]},{\"name\":\"userOpHash\",\"type\":\"bytes32\",\"internalType\":\"bytes32\"},{\"name\":\"maxCost\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"outputs\":[{\"name\":\"context\",\"type\":\"bytes\",\"internalType\":\"bytes\"},{\"name\":\"validationData\",\"type\":\"uint256\",\"internalType\":\"uint256\"}],\"stateMutability\":\"nonpayable\"},{\"type\":\"event\",\"name\":\"SuperNativePaymasterPostOp\",\"inputs\":[{\"name\":\"context\",\"type\":\"bytes\",\"indexed\":false,\"internalType\":\"bytes\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"SuperNativePaymasterRefund\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"refundAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"initialRefund\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"event\",\"name\":\"UserOperationsHandled\",\"inputs\":[{\"name\":\"sender\",\"type\":\"address\",\"indexed\":true,\"internalType\":\"address\"},{\"name\":\"numOps\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"initialAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"},{\"name\":\"withdrawnAmount\",\"type\":\"uint256\",\"indexed\":false,\"internalType\":\"uint256\"}],\"anonymous\":false},{\"type\":\"error\",\"name\":\"EMPTY_MESSAGE_VALUE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INSUFFICIENT_BALANCE\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_MAX_GAS_LIMIT\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"INVALID_NODE_OPERATOR_PREMIUM\",\"inputs\":[]},{\"type\":\"error\",\"name\":\"ZERO_ADDRESS\",\"inputs\":[]}]",
 }
 
 // SuperNativePaymasterABI is the input ABI used to generate the binding from.
@@ -326,110 +326,6 @@ func (_SuperNativePaymaster *SuperNativePaymasterCallerSession) GetDeposit() (*b
 	return _SuperNativePaymaster.Contract.GetDeposit(&_SuperNativePaymaster.CallOpts)
 }
 
-// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
-//
-// Solidity: function owner() view returns(address)
-func (_SuperNativePaymaster *SuperNativePaymasterCaller) Owner(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _SuperNativePaymaster.contract.Call(opts, &out, "owner")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
-//
-// Solidity: function owner() view returns(address)
-func (_SuperNativePaymaster *SuperNativePaymasterSession) Owner() (common.Address, error) {
-	return _SuperNativePaymaster.Contract.Owner(&_SuperNativePaymaster.CallOpts)
-}
-
-// Owner is a free data retrieval call binding the contract method 0x8da5cb5b.
-//
-// Solidity: function owner() view returns(address)
-func (_SuperNativePaymaster *SuperNativePaymasterCallerSession) Owner() (common.Address, error) {
-	return _SuperNativePaymaster.Contract.Owner(&_SuperNativePaymaster.CallOpts)
-}
-
-// PendingOwner is a free data retrieval call binding the contract method 0xe30c3978.
-//
-// Solidity: function pendingOwner() view returns(address)
-func (_SuperNativePaymaster *SuperNativePaymasterCaller) PendingOwner(opts *bind.CallOpts) (common.Address, error) {
-	var out []interface{}
-	err := _SuperNativePaymaster.contract.Call(opts, &out, "pendingOwner")
-
-	if err != nil {
-		return *new(common.Address), err
-	}
-
-	out0 := *abi.ConvertType(out[0], new(common.Address)).(*common.Address)
-
-	return out0, err
-
-}
-
-// PendingOwner is a free data retrieval call binding the contract method 0xe30c3978.
-//
-// Solidity: function pendingOwner() view returns(address)
-func (_SuperNativePaymaster *SuperNativePaymasterSession) PendingOwner() (common.Address, error) {
-	return _SuperNativePaymaster.Contract.PendingOwner(&_SuperNativePaymaster.CallOpts)
-}
-
-// PendingOwner is a free data retrieval call binding the contract method 0xe30c3978.
-//
-// Solidity: function pendingOwner() view returns(address)
-func (_SuperNativePaymaster *SuperNativePaymasterCallerSession) PendingOwner() (common.Address, error) {
-	return _SuperNativePaymaster.Contract.PendingOwner(&_SuperNativePaymaster.CallOpts)
-}
-
-// AcceptOwnership is a paid mutator transaction binding the contract method 0x79ba5097.
-//
-// Solidity: function acceptOwnership() returns()
-func (_SuperNativePaymaster *SuperNativePaymasterTransactor) AcceptOwnership(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _SuperNativePaymaster.contract.Transact(opts, "acceptOwnership")
-}
-
-// AcceptOwnership is a paid mutator transaction binding the contract method 0x79ba5097.
-//
-// Solidity: function acceptOwnership() returns()
-func (_SuperNativePaymaster *SuperNativePaymasterSession) AcceptOwnership() (*types.Transaction, error) {
-	return _SuperNativePaymaster.Contract.AcceptOwnership(&_SuperNativePaymaster.TransactOpts)
-}
-
-// AcceptOwnership is a paid mutator transaction binding the contract method 0x79ba5097.
-//
-// Solidity: function acceptOwnership() returns()
-func (_SuperNativePaymaster *SuperNativePaymasterTransactorSession) AcceptOwnership() (*types.Transaction, error) {
-	return _SuperNativePaymaster.Contract.AcceptOwnership(&_SuperNativePaymaster.TransactOpts)
-}
-
-// AddStake is a paid mutator transaction binding the contract method 0x0396cb60.
-//
-// Solidity: function addStake(uint32 unstakeDelaySec) payable returns()
-func (_SuperNativePaymaster *SuperNativePaymasterTransactor) AddStake(opts *bind.TransactOpts, unstakeDelaySec uint32) (*types.Transaction, error) {
-	return _SuperNativePaymaster.contract.Transact(opts, "addStake", unstakeDelaySec)
-}
-
-// AddStake is a paid mutator transaction binding the contract method 0x0396cb60.
-//
-// Solidity: function addStake(uint32 unstakeDelaySec) payable returns()
-func (_SuperNativePaymaster *SuperNativePaymasterSession) AddStake(unstakeDelaySec uint32) (*types.Transaction, error) {
-	return _SuperNativePaymaster.Contract.AddStake(&_SuperNativePaymaster.TransactOpts, unstakeDelaySec)
-}
-
-// AddStake is a paid mutator transaction binding the contract method 0x0396cb60.
-//
-// Solidity: function addStake(uint32 unstakeDelaySec) payable returns()
-func (_SuperNativePaymaster *SuperNativePaymasterTransactorSession) AddStake(unstakeDelaySec uint32) (*types.Transaction, error) {
-	return _SuperNativePaymaster.Contract.AddStake(&_SuperNativePaymaster.TransactOpts, unstakeDelaySec)
-}
-
 // HandleOps is a paid mutator transaction binding the contract method 0x57956b58.
 //
 // Solidity: function handleOps((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes)[] ops) payable returns()
@@ -470,27 +366,6 @@ func (_SuperNativePaymaster *SuperNativePaymasterSession) PostOp(mode uint8, con
 // Solidity: function postOp(uint8 mode, bytes context, uint256 actualGasCost, uint256 actualUserOpFeePerGas) returns()
 func (_SuperNativePaymaster *SuperNativePaymasterTransactorSession) PostOp(mode uint8, context []byte, actualGasCost *big.Int, actualUserOpFeePerGas *big.Int) (*types.Transaction, error) {
 	return _SuperNativePaymaster.Contract.PostOp(&_SuperNativePaymaster.TransactOpts, mode, context, actualGasCost, actualUserOpFeePerGas)
-}
-
-// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
-//
-// Solidity: function renounceOwnership() returns()
-func (_SuperNativePaymaster *SuperNativePaymasterTransactor) RenounceOwnership(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _SuperNativePaymaster.contract.Transact(opts, "renounceOwnership")
-}
-
-// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
-//
-// Solidity: function renounceOwnership() returns()
-func (_SuperNativePaymaster *SuperNativePaymasterSession) RenounceOwnership() (*types.Transaction, error) {
-	return _SuperNativePaymaster.Contract.RenounceOwnership(&_SuperNativePaymaster.TransactOpts)
-}
-
-// RenounceOwnership is a paid mutator transaction binding the contract method 0x715018a6.
-//
-// Solidity: function renounceOwnership() returns()
-func (_SuperNativePaymaster *SuperNativePaymasterTransactorSession) RenounceOwnership() (*types.Transaction, error) {
-	return _SuperNativePaymaster.Contract.RenounceOwnership(&_SuperNativePaymaster.TransactOpts)
 }
 
 // SimulateHandleOp is a paid mutator transaction binding the contract method 0x97b2dcb9.
@@ -535,48 +410,6 @@ func (_SuperNativePaymaster *SuperNativePaymasterTransactorSession) SimulateVali
 	return _SuperNativePaymaster.Contract.SimulateValidation(&_SuperNativePaymaster.TransactOpts, op)
 }
 
-// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
-//
-// Solidity: function transferOwnership(address newOwner) returns()
-func (_SuperNativePaymaster *SuperNativePaymasterTransactor) TransferOwnership(opts *bind.TransactOpts, newOwner common.Address) (*types.Transaction, error) {
-	return _SuperNativePaymaster.contract.Transact(opts, "transferOwnership", newOwner)
-}
-
-// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
-//
-// Solidity: function transferOwnership(address newOwner) returns()
-func (_SuperNativePaymaster *SuperNativePaymasterSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
-	return _SuperNativePaymaster.Contract.TransferOwnership(&_SuperNativePaymaster.TransactOpts, newOwner)
-}
-
-// TransferOwnership is a paid mutator transaction binding the contract method 0xf2fde38b.
-//
-// Solidity: function transferOwnership(address newOwner) returns()
-func (_SuperNativePaymaster *SuperNativePaymasterTransactorSession) TransferOwnership(newOwner common.Address) (*types.Transaction, error) {
-	return _SuperNativePaymaster.Contract.TransferOwnership(&_SuperNativePaymaster.TransactOpts, newOwner)
-}
-
-// UnlockStake is a paid mutator transaction binding the contract method 0xbb9fe6bf.
-//
-// Solidity: function unlockStake() returns()
-func (_SuperNativePaymaster *SuperNativePaymasterTransactor) UnlockStake(opts *bind.TransactOpts) (*types.Transaction, error) {
-	return _SuperNativePaymaster.contract.Transact(opts, "unlockStake")
-}
-
-// UnlockStake is a paid mutator transaction binding the contract method 0xbb9fe6bf.
-//
-// Solidity: function unlockStake() returns()
-func (_SuperNativePaymaster *SuperNativePaymasterSession) UnlockStake() (*types.Transaction, error) {
-	return _SuperNativePaymaster.Contract.UnlockStake(&_SuperNativePaymaster.TransactOpts)
-}
-
-// UnlockStake is a paid mutator transaction binding the contract method 0xbb9fe6bf.
-//
-// Solidity: function unlockStake() returns()
-func (_SuperNativePaymaster *SuperNativePaymasterTransactorSession) UnlockStake() (*types.Transaction, error) {
-	return _SuperNativePaymaster.Contract.UnlockStake(&_SuperNativePaymaster.TransactOpts)
-}
-
 // ValidatePaymasterUserOp is a paid mutator transaction binding the contract method 0x52b7512c.
 //
 // Solidity: function validatePaymasterUserOp((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes) userOp, bytes32 userOpHash, uint256 maxCost) returns(bytes context, uint256 validationData)
@@ -596,354 +429,6 @@ func (_SuperNativePaymaster *SuperNativePaymasterSession) ValidatePaymasterUserO
 // Solidity: function validatePaymasterUserOp((address,uint256,bytes,bytes,bytes32,uint256,bytes32,bytes,bytes) userOp, bytes32 userOpHash, uint256 maxCost) returns(bytes context, uint256 validationData)
 func (_SuperNativePaymaster *SuperNativePaymasterTransactorSession) ValidatePaymasterUserOp(userOp PackedUserOperation, userOpHash [32]byte, maxCost *big.Int) (*types.Transaction, error) {
 	return _SuperNativePaymaster.Contract.ValidatePaymasterUserOp(&_SuperNativePaymaster.TransactOpts, userOp, userOpHash, maxCost)
-}
-
-// WithdrawStake is a paid mutator transaction binding the contract method 0xc23a5cea.
-//
-// Solidity: function withdrawStake(address withdrawAddress) returns()
-func (_SuperNativePaymaster *SuperNativePaymasterTransactor) WithdrawStake(opts *bind.TransactOpts, withdrawAddress common.Address) (*types.Transaction, error) {
-	return _SuperNativePaymaster.contract.Transact(opts, "withdrawStake", withdrawAddress)
-}
-
-// WithdrawStake is a paid mutator transaction binding the contract method 0xc23a5cea.
-//
-// Solidity: function withdrawStake(address withdrawAddress) returns()
-func (_SuperNativePaymaster *SuperNativePaymasterSession) WithdrawStake(withdrawAddress common.Address) (*types.Transaction, error) {
-	return _SuperNativePaymaster.Contract.WithdrawStake(&_SuperNativePaymaster.TransactOpts, withdrawAddress)
-}
-
-// WithdrawStake is a paid mutator transaction binding the contract method 0xc23a5cea.
-//
-// Solidity: function withdrawStake(address withdrawAddress) returns()
-func (_SuperNativePaymaster *SuperNativePaymasterTransactorSession) WithdrawStake(withdrawAddress common.Address) (*types.Transaction, error) {
-	return _SuperNativePaymaster.Contract.WithdrawStake(&_SuperNativePaymaster.TransactOpts, withdrawAddress)
-}
-
-// WithdrawTo is a paid mutator transaction binding the contract method 0x205c2878.
-//
-// Solidity: function withdrawTo(address withdrawAddress, uint256 amount) returns()
-func (_SuperNativePaymaster *SuperNativePaymasterTransactor) WithdrawTo(opts *bind.TransactOpts, withdrawAddress common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _SuperNativePaymaster.contract.Transact(opts, "withdrawTo", withdrawAddress, amount)
-}
-
-// WithdrawTo is a paid mutator transaction binding the contract method 0x205c2878.
-//
-// Solidity: function withdrawTo(address withdrawAddress, uint256 amount) returns()
-func (_SuperNativePaymaster *SuperNativePaymasterSession) WithdrawTo(withdrawAddress common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _SuperNativePaymaster.Contract.WithdrawTo(&_SuperNativePaymaster.TransactOpts, withdrawAddress, amount)
-}
-
-// WithdrawTo is a paid mutator transaction binding the contract method 0x205c2878.
-//
-// Solidity: function withdrawTo(address withdrawAddress, uint256 amount) returns()
-func (_SuperNativePaymaster *SuperNativePaymasterTransactorSession) WithdrawTo(withdrawAddress common.Address, amount *big.Int) (*types.Transaction, error) {
-	return _SuperNativePaymaster.Contract.WithdrawTo(&_SuperNativePaymaster.TransactOpts, withdrawAddress, amount)
-}
-
-// SuperNativePaymasterOwnershipTransferStartedIterator is returned from FilterOwnershipTransferStarted and is used to iterate over the raw logs and unpacked data for OwnershipTransferStarted events raised by the SuperNativePaymaster contract.
-type SuperNativePaymasterOwnershipTransferStartedIterator struct {
-	Event *SuperNativePaymasterOwnershipTransferStarted // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperNativePaymasterOwnershipTransferStartedIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperNativePaymasterOwnershipTransferStarted)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperNativePaymasterOwnershipTransferStarted)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperNativePaymasterOwnershipTransferStartedIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperNativePaymasterOwnershipTransferStartedIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperNativePaymasterOwnershipTransferStarted represents a OwnershipTransferStarted event raised by the SuperNativePaymaster contract.
-type SuperNativePaymasterOwnershipTransferStarted struct {
-	PreviousOwner common.Address
-	NewOwner      common.Address
-	Raw           types.Log // Blockchain specific contextual infos
-}
-
-// FilterOwnershipTransferStarted is a free log retrieval operation binding the contract event 0x38d16b8cac22d99fc7c124b9cd0de2d3fa1faef420bfe791d8c362d765e22700.
-//
-// Solidity: event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)
-func (_SuperNativePaymaster *SuperNativePaymasterFilterer) FilterOwnershipTransferStarted(opts *bind.FilterOpts, previousOwner []common.Address, newOwner []common.Address) (*SuperNativePaymasterOwnershipTransferStartedIterator, error) {
-
-	var previousOwnerRule []interface{}
-	for _, previousOwnerItem := range previousOwner {
-		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
-	}
-	var newOwnerRule []interface{}
-	for _, newOwnerItem := range newOwner {
-		newOwnerRule = append(newOwnerRule, newOwnerItem)
-	}
-
-	logs, sub, err := _SuperNativePaymaster.contract.FilterLogs(opts, "OwnershipTransferStarted", previousOwnerRule, newOwnerRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperNativePaymasterOwnershipTransferStartedIterator{contract: _SuperNativePaymaster.contract, event: "OwnershipTransferStarted", logs: logs, sub: sub}, nil
-}
-
-// WatchOwnershipTransferStarted is a free log subscription operation binding the contract event 0x38d16b8cac22d99fc7c124b9cd0de2d3fa1faef420bfe791d8c362d765e22700.
-//
-// Solidity: event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)
-func (_SuperNativePaymaster *SuperNativePaymasterFilterer) WatchOwnershipTransferStarted(opts *bind.WatchOpts, sink chan<- *SuperNativePaymasterOwnershipTransferStarted, previousOwner []common.Address, newOwner []common.Address) (event.Subscription, error) {
-
-	var previousOwnerRule []interface{}
-	for _, previousOwnerItem := range previousOwner {
-		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
-	}
-	var newOwnerRule []interface{}
-	for _, newOwnerItem := range newOwner {
-		newOwnerRule = append(newOwnerRule, newOwnerItem)
-	}
-
-	logs, sub, err := _SuperNativePaymaster.contract.WatchLogs(opts, "OwnershipTransferStarted", previousOwnerRule, newOwnerRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperNativePaymasterOwnershipTransferStarted)
-				if err := _SuperNativePaymaster.contract.UnpackLog(event, "OwnershipTransferStarted", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseOwnershipTransferStarted is a log parse operation binding the contract event 0x38d16b8cac22d99fc7c124b9cd0de2d3fa1faef420bfe791d8c362d765e22700.
-//
-// Solidity: event OwnershipTransferStarted(address indexed previousOwner, address indexed newOwner)
-func (_SuperNativePaymaster *SuperNativePaymasterFilterer) ParseOwnershipTransferStarted(log types.Log) (*SuperNativePaymasterOwnershipTransferStarted, error) {
-	event := new(SuperNativePaymasterOwnershipTransferStarted)
-	if err := _SuperNativePaymaster.contract.UnpackLog(event, "OwnershipTransferStarted", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
-}
-
-// SuperNativePaymasterOwnershipTransferredIterator is returned from FilterOwnershipTransferred and is used to iterate over the raw logs and unpacked data for OwnershipTransferred events raised by the SuperNativePaymaster contract.
-type SuperNativePaymasterOwnershipTransferredIterator struct {
-	Event *SuperNativePaymasterOwnershipTransferred // Event containing the contract specifics and raw log
-
-	contract *bind.BoundContract // Generic contract to use for unpacking event data
-	event    string              // Event name to use for unpacking event data
-
-	logs chan types.Log        // Log channel receiving the found contract events
-	sub  ethereum.Subscription // Subscription for errors, completion and termination
-	done bool                  // Whether the subscription completed delivering logs
-	fail error                 // Occurred error to stop iteration
-}
-
-// Next advances the iterator to the subsequent event, returning whether there
-// are any more events found. In case of a retrieval or parsing error, false is
-// returned and Error() can be queried for the exact failure.
-func (it *SuperNativePaymasterOwnershipTransferredIterator) Next() bool {
-	// If the iterator failed, stop iterating
-	if it.fail != nil {
-		return false
-	}
-	// If the iterator completed, deliver directly whatever's available
-	if it.done {
-		select {
-		case log := <-it.logs:
-			it.Event = new(SuperNativePaymasterOwnershipTransferred)
-			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-				it.fail = err
-				return false
-			}
-			it.Event.Raw = log
-			return true
-
-		default:
-			return false
-		}
-	}
-	// Iterator still in progress, wait for either a data or an error event
-	select {
-	case log := <-it.logs:
-		it.Event = new(SuperNativePaymasterOwnershipTransferred)
-		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
-			it.fail = err
-			return false
-		}
-		it.Event.Raw = log
-		return true
-
-	case err := <-it.sub.Err():
-		it.done = true
-		it.fail = err
-		return it.Next()
-	}
-}
-
-// Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperNativePaymasterOwnershipTransferredIterator) Error() error {
-	return it.fail
-}
-
-// Close terminates the iteration process, releasing any pending underlying
-// resources.
-func (it *SuperNativePaymasterOwnershipTransferredIterator) Close() error {
-	it.sub.Unsubscribe()
-	return nil
-}
-
-// SuperNativePaymasterOwnershipTransferred represents a OwnershipTransferred event raised by the SuperNativePaymaster contract.
-type SuperNativePaymasterOwnershipTransferred struct {
-	PreviousOwner common.Address
-	NewOwner      common.Address
-	Raw           types.Log // Blockchain specific contextual infos
-}
-
-// FilterOwnershipTransferred is a free log retrieval operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
-//
-// Solidity: event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
-func (_SuperNativePaymaster *SuperNativePaymasterFilterer) FilterOwnershipTransferred(opts *bind.FilterOpts, previousOwner []common.Address, newOwner []common.Address) (*SuperNativePaymasterOwnershipTransferredIterator, error) {
-
-	var previousOwnerRule []interface{}
-	for _, previousOwnerItem := range previousOwner {
-		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
-	}
-	var newOwnerRule []interface{}
-	for _, newOwnerItem := range newOwner {
-		newOwnerRule = append(newOwnerRule, newOwnerItem)
-	}
-
-	logs, sub, err := _SuperNativePaymaster.contract.FilterLogs(opts, "OwnershipTransferred", previousOwnerRule, newOwnerRule)
-	if err != nil {
-		return nil, err
-	}
-	return &SuperNativePaymasterOwnershipTransferredIterator{contract: _SuperNativePaymaster.contract, event: "OwnershipTransferred", logs: logs, sub: sub}, nil
-}
-
-// WatchOwnershipTransferred is a free log subscription operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
-//
-// Solidity: event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
-func (_SuperNativePaymaster *SuperNativePaymasterFilterer) WatchOwnershipTransferred(opts *bind.WatchOpts, sink chan<- *SuperNativePaymasterOwnershipTransferred, previousOwner []common.Address, newOwner []common.Address) (event.Subscription, error) {
-
-	var previousOwnerRule []interface{}
-	for _, previousOwnerItem := range previousOwner {
-		previousOwnerRule = append(previousOwnerRule, previousOwnerItem)
-	}
-	var newOwnerRule []interface{}
-	for _, newOwnerItem := range newOwner {
-		newOwnerRule = append(newOwnerRule, newOwnerItem)
-	}
-
-	logs, sub, err := _SuperNativePaymaster.contract.WatchLogs(opts, "OwnershipTransferred", previousOwnerRule, newOwnerRule)
-	if err != nil {
-		return nil, err
-	}
-	return event.NewSubscription(func(quit <-chan struct{}) error {
-		defer sub.Unsubscribe()
-		for {
-			select {
-			case log := <-logs:
-				// New log arrived, parse the event and forward to the user
-				event := new(SuperNativePaymasterOwnershipTransferred)
-				if err := _SuperNativePaymaster.contract.UnpackLog(event, "OwnershipTransferred", log); err != nil {
-					return err
-				}
-				event.Raw = log
-
-				select {
-				case sink <- event:
-				case err := <-sub.Err():
-					return err
-				case <-quit:
-					return nil
-				}
-			case err := <-sub.Err():
-				return err
-			case <-quit:
-				return nil
-			}
-		}
-	}), nil
-}
-
-// ParseOwnershipTransferred is a log parse operation binding the contract event 0x8be0079c531659141344cd1fd0a4f28419497f9722a3daafe3b4186f6b6457e0.
-//
-// Solidity: event OwnershipTransferred(address indexed previousOwner, address indexed newOwner)
-func (_SuperNativePaymaster *SuperNativePaymasterFilterer) ParseOwnershipTransferred(log types.Log) (*SuperNativePaymasterOwnershipTransferred, error) {
-	event := new(SuperNativePaymasterOwnershipTransferred)
-	if err := _SuperNativePaymaster.contract.UnpackLog(event, "OwnershipTransferred", log); err != nil {
-		return nil, err
-	}
-	event.Raw = log
-	return event, nil
 }
 
 // SuperNativePaymasterSuperNativePaymasterPostOpIterator is returned from FilterSuperNativePaymasterPostOp and is used to iterate over the raw logs and unpacked data for SuperNativePaymasterPostOp events raised by the SuperNativePaymaster contract.
@@ -1080,9 +565,9 @@ func (_SuperNativePaymaster *SuperNativePaymasterFilterer) ParseSuperNativePayma
 	return event, nil
 }
 
-// SuperNativePaymasterSuperNativePaymsterRefundIterator is returned from FilterSuperNativePaymsterRefund and is used to iterate over the raw logs and unpacked data for SuperNativePaymsterRefund events raised by the SuperNativePaymaster contract.
-type SuperNativePaymasterSuperNativePaymsterRefundIterator struct {
-	Event *SuperNativePaymasterSuperNativePaymsterRefund // Event containing the contract specifics and raw log
+// SuperNativePaymasterSuperNativePaymasterRefundIterator is returned from FilterSuperNativePaymasterRefund and is used to iterate over the raw logs and unpacked data for SuperNativePaymasterRefund events raised by the SuperNativePaymaster contract.
+type SuperNativePaymasterSuperNativePaymasterRefundIterator struct {
+	Event *SuperNativePaymasterSuperNativePaymasterRefund // Event containing the contract specifics and raw log
 
 	contract *bind.BoundContract // Generic contract to use for unpacking event data
 	event    string              // Event name to use for unpacking event data
@@ -1096,7 +581,7 @@ type SuperNativePaymasterSuperNativePaymsterRefundIterator struct {
 // Next advances the iterator to the subsequent event, returning whether there
 // are any more events found. In case of a retrieval or parsing error, false is
 // returned and Error() can be queried for the exact failure.
-func (it *SuperNativePaymasterSuperNativePaymsterRefundIterator) Next() bool {
+func (it *SuperNativePaymasterSuperNativePaymasterRefundIterator) Next() bool {
 	// If the iterator failed, stop iterating
 	if it.fail != nil {
 		return false
@@ -1105,7 +590,7 @@ func (it *SuperNativePaymasterSuperNativePaymsterRefundIterator) Next() bool {
 	if it.done {
 		select {
 		case log := <-it.logs:
-			it.Event = new(SuperNativePaymasterSuperNativePaymsterRefund)
+			it.Event = new(SuperNativePaymasterSuperNativePaymasterRefund)
 			if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 				it.fail = err
 				return false
@@ -1120,7 +605,7 @@ func (it *SuperNativePaymasterSuperNativePaymsterRefundIterator) Next() bool {
 	// Iterator still in progress, wait for either a data or an error event
 	select {
 	case log := <-it.logs:
-		it.Event = new(SuperNativePaymasterSuperNativePaymsterRefund)
+		it.Event = new(SuperNativePaymasterSuperNativePaymasterRefund)
 		if err := it.contract.UnpackLog(it.Event, it.event, log); err != nil {
 			it.fail = err
 			return false
@@ -1136,53 +621,53 @@ func (it *SuperNativePaymasterSuperNativePaymsterRefundIterator) Next() bool {
 }
 
 // Error returns any retrieval or parsing error occurred during filtering.
-func (it *SuperNativePaymasterSuperNativePaymsterRefundIterator) Error() error {
+func (it *SuperNativePaymasterSuperNativePaymasterRefundIterator) Error() error {
 	return it.fail
 }
 
 // Close terminates the iteration process, releasing any pending underlying
 // resources.
-func (it *SuperNativePaymasterSuperNativePaymsterRefundIterator) Close() error {
+func (it *SuperNativePaymasterSuperNativePaymasterRefundIterator) Close() error {
 	it.sub.Unsubscribe()
 	return nil
 }
 
-// SuperNativePaymasterSuperNativePaymsterRefund represents a SuperNativePaymsterRefund event raised by the SuperNativePaymaster contract.
-type SuperNativePaymasterSuperNativePaymsterRefund struct {
+// SuperNativePaymasterSuperNativePaymasterRefund represents a SuperNativePaymasterRefund event raised by the SuperNativePaymaster contract.
+type SuperNativePaymasterSuperNativePaymasterRefund struct {
 	Sender        common.Address
 	RefundAmount  *big.Int
 	InitialRefund *big.Int
 	Raw           types.Log // Blockchain specific contextual infos
 }
 
-// FilterSuperNativePaymsterRefund is a free log retrieval operation binding the contract event 0xdcd9e4f1277b422146a795332836d6261d5f9ddaeb7ca22636435ab6a435cea0.
+// FilterSuperNativePaymasterRefund is a free log retrieval operation binding the contract event 0xf311b1f65baf2e52d246ec3fc2cb4f5698f0622142592e4e5794b09746e0d06b.
 //
-// Solidity: event SuperNativePaymsterRefund(address indexed sender, uint256 refundAmount, uint256 initialRefund)
-func (_SuperNativePaymaster *SuperNativePaymasterFilterer) FilterSuperNativePaymsterRefund(opts *bind.FilterOpts, sender []common.Address) (*SuperNativePaymasterSuperNativePaymsterRefundIterator, error) {
+// Solidity: event SuperNativePaymasterRefund(address indexed sender, uint256 refundAmount, uint256 initialRefund)
+func (_SuperNativePaymaster *SuperNativePaymasterFilterer) FilterSuperNativePaymasterRefund(opts *bind.FilterOpts, sender []common.Address) (*SuperNativePaymasterSuperNativePaymasterRefundIterator, error) {
 
 	var senderRule []interface{}
 	for _, senderItem := range sender {
 		senderRule = append(senderRule, senderItem)
 	}
 
-	logs, sub, err := _SuperNativePaymaster.contract.FilterLogs(opts, "SuperNativePaymsterRefund", senderRule)
+	logs, sub, err := _SuperNativePaymaster.contract.FilterLogs(opts, "SuperNativePaymasterRefund", senderRule)
 	if err != nil {
 		return nil, err
 	}
-	return &SuperNativePaymasterSuperNativePaymsterRefundIterator{contract: _SuperNativePaymaster.contract, event: "SuperNativePaymsterRefund", logs: logs, sub: sub}, nil
+	return &SuperNativePaymasterSuperNativePaymasterRefundIterator{contract: _SuperNativePaymaster.contract, event: "SuperNativePaymasterRefund", logs: logs, sub: sub}, nil
 }
 
-// WatchSuperNativePaymsterRefund is a free log subscription operation binding the contract event 0xdcd9e4f1277b422146a795332836d6261d5f9ddaeb7ca22636435ab6a435cea0.
+// WatchSuperNativePaymasterRefund is a free log subscription operation binding the contract event 0xf311b1f65baf2e52d246ec3fc2cb4f5698f0622142592e4e5794b09746e0d06b.
 //
-// Solidity: event SuperNativePaymsterRefund(address indexed sender, uint256 refundAmount, uint256 initialRefund)
-func (_SuperNativePaymaster *SuperNativePaymasterFilterer) WatchSuperNativePaymsterRefund(opts *bind.WatchOpts, sink chan<- *SuperNativePaymasterSuperNativePaymsterRefund, sender []common.Address) (event.Subscription, error) {
+// Solidity: event SuperNativePaymasterRefund(address indexed sender, uint256 refundAmount, uint256 initialRefund)
+func (_SuperNativePaymaster *SuperNativePaymasterFilterer) WatchSuperNativePaymasterRefund(opts *bind.WatchOpts, sink chan<- *SuperNativePaymasterSuperNativePaymasterRefund, sender []common.Address) (event.Subscription, error) {
 
 	var senderRule []interface{}
 	for _, senderItem := range sender {
 		senderRule = append(senderRule, senderItem)
 	}
 
-	logs, sub, err := _SuperNativePaymaster.contract.WatchLogs(opts, "SuperNativePaymsterRefund", senderRule)
+	logs, sub, err := _SuperNativePaymaster.contract.WatchLogs(opts, "SuperNativePaymasterRefund", senderRule)
 	if err != nil {
 		return nil, err
 	}
@@ -1192,8 +677,8 @@ func (_SuperNativePaymaster *SuperNativePaymasterFilterer) WatchSuperNativePayms
 			select {
 			case log := <-logs:
 				// New log arrived, parse the event and forward to the user
-				event := new(SuperNativePaymasterSuperNativePaymsterRefund)
-				if err := _SuperNativePaymaster.contract.UnpackLog(event, "SuperNativePaymsterRefund", log); err != nil {
+				event := new(SuperNativePaymasterSuperNativePaymasterRefund)
+				if err := _SuperNativePaymaster.contract.UnpackLog(event, "SuperNativePaymasterRefund", log); err != nil {
 					return err
 				}
 				event.Raw = log
@@ -1214,12 +699,12 @@ func (_SuperNativePaymaster *SuperNativePaymasterFilterer) WatchSuperNativePayms
 	}), nil
 }
 
-// ParseSuperNativePaymsterRefund is a log parse operation binding the contract event 0xdcd9e4f1277b422146a795332836d6261d5f9ddaeb7ca22636435ab6a435cea0.
+// ParseSuperNativePaymasterRefund is a log parse operation binding the contract event 0xf311b1f65baf2e52d246ec3fc2cb4f5698f0622142592e4e5794b09746e0d06b.
 //
-// Solidity: event SuperNativePaymsterRefund(address indexed sender, uint256 refundAmount, uint256 initialRefund)
-func (_SuperNativePaymaster *SuperNativePaymasterFilterer) ParseSuperNativePaymsterRefund(log types.Log) (*SuperNativePaymasterSuperNativePaymsterRefund, error) {
-	event := new(SuperNativePaymasterSuperNativePaymsterRefund)
-	if err := _SuperNativePaymaster.contract.UnpackLog(event, "SuperNativePaymsterRefund", log); err != nil {
+// Solidity: event SuperNativePaymasterRefund(address indexed sender, uint256 refundAmount, uint256 initialRefund)
+func (_SuperNativePaymaster *SuperNativePaymasterFilterer) ParseSuperNativePaymasterRefund(log types.Log) (*SuperNativePaymasterSuperNativePaymasterRefund, error) {
+	event := new(SuperNativePaymasterSuperNativePaymasterRefund)
+	if err := _SuperNativePaymaster.contract.UnpackLog(event, "SuperNativePaymasterRefund", log); err != nil {
 		return nil, err
 	}
 	event.Raw = log
