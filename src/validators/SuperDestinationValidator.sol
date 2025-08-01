@@ -2,8 +2,8 @@
 pragma solidity 0.8.30;
 
 // external
-import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { SuperValidatorBase } from "./SuperValidatorBase.sol";
 
 /// @title SuperDestinationValidator
@@ -98,10 +98,12 @@ contract SuperDestinationValidator is SuperValidatorBase {
         if (!MerkleProof.verify(_extractProof(sigData), sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
         address owner = _accountOwners[sender];
-        if (_isSafeSigner(owner)) {
-           signer = _processEIP1271Signature(owner, sigData);
+
+        // Support any EIP-1271 compatible smart contract, not just Safe multisigs
+        if (_isEIP1271Signer(owner)) {
+            signer = _processEIP1271Signature(owner, sigData);
         } else {
-           signer = _processECDSASignature(sigData);
+            signer = _processECDSASignature(sigData);
         }
     }
 
