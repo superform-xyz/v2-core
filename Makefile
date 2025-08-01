@@ -29,7 +29,7 @@ coverage-genhtml :; FOUNDRY_PROFILE=coverage forge coverage --jobs 10 --report l
 
 test-vvv :; forge test --match-test test_HaveAnAccount_Uninstall_ReinstallDifferentCore_CrossChain_CheckSuperLedger -vvv --jobs 10
 
-test-integration :; forge test --match-test test_SameChainTx_executionA -vvvv --jobs 10
+test-integration :; forge test --match-test test_SameChainTx_execution -vvvv --jobs 10
 
 test-gas-report-user :; forge test --match-test test_gasReport --gas-report --jobs 10
 test-gas-report-2vaults :; forge test --match-test test_gasReport_TwoVaults --gas-report --jobs 10

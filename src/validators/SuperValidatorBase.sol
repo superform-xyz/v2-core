@@ -5,6 +5,7 @@ pragma solidity 0.8.30;
 import { ERC7579ValidatorBase } from "modulekit/Modules.sol";
 import { MessageHashUtils } from "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { IERC1271 } from "@openzeppelin/contracts/interfaces/IERC1271.sol";
 
 // Superform
 import { ChainAgnosticSafeSignatureValidation } from "../libraries/ChainAgnosticSafeSignatureValidation.sol";
@@ -15,7 +16,7 @@ import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
 /// @notice A base contract for all Superform validators
 abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     using ChainAgnosticSafeSignatureValidation for address;
-    
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -34,6 +35,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     error INVALID_PROOF();
     error ALREADY_INITIALIZED();
     error INVALID_DESTINATION_PROOF(); // thrown on source
+    error NOT_EIP1271_SIGNER();
 
     /*//////////////////////////////////////////////////////////////
                                  VIEW METHODS
@@ -157,17 +159,33 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         signer = ECDSA.recover(ethSignedMessageHash, sigData.signature);
     }
 
-    /// @notice Processes a contract signature using chain-agnostic validation
-    /// @dev Bypasses Safe's native EIP-712 validation to enable cross-chain compatibility
-    /// @param safe The Safe account address
+    /// @notice Processes an EIP-1271 contract signature with chain-agnostic validation
+    /// @dev First tries Safe-specific chain-agnostic validation, then falls back to generic EIP-1271
+    /// @param contractSigner The EIP-1271 compatible contract address
     /// @param sigData Signature data including merkle root, proofs, and actual signature
-    /// @return The Safe address if validation succeeds, address(0) if it fails
-    function _processEIP1271Signature(address safe, SignatureData memory sigData) internal view returns (address) {
-        // Use chain-agnostic validation instead of Safe's native isValidSignature
-        if (safe.validateChainAgnosticMultisig(sigData, _createMessageHash(sigData.merkleRoot))) {
-            return safe;
+    /// @return The contract address if validation succeeds, address(0) if it fails
+    function _processEIP1271Signature(
+        address contractSigner,
+        SignatureData memory sigData
+    )
+        internal
+        view
+        returns (address)
+    {
+        // For Safe contracts: Try chain-agnostic validation first (cross-chain compatibility)
+        if (contractSigner.validateChainAgnosticMultisig(sigData, _createMessageHash(sigData.merkleRoot))) {
+            return contractSigner;
         }
-        return address(0);
+
+        // Generic EIP-1271 validation (works for ALL EIP-1271 contracts including Safe fallback)
+        bytes32 messageHash = _createMessageHash(sigData.merkleRoot);
+        try IERC1271(contractSigner).isValidSignature(messageHash, sigData.signature) returns (bytes4 result) {
+            if (result == IERC1271.isValidSignature.selector) {
+                return contractSigner;
+            }
+        } catch { }
+
+        revert NOT_EIP1271_SIGNER();
     }
 
     /// @notice Validates if a signature is valid based on signer and expiration time
@@ -191,13 +209,23 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         return signer == _accountOwners[sender] && (validUntil == 0 || validUntil >= block.timestamp);
     }
 
-    /// @notice Checks if an address is a Safe signer
+    /// @notice Checks if an address supports EIP-1271 signature validation
     /// @param addr The address to check
-    /// @return True if the address is a Safe signer, false otherwise
-    function _isSafeSigner(address addr) internal view returns (bool) {
-        (bool success, bytes memory result) = addr.staticcall(
-            abi.encodeWithSignature("getOwners()")
-        );
-        return success && result.length > 0;
+    /// @return True if the address supports EIP-1271, false otherwise
+    function _isEIP1271Signer(address addr) internal view returns (bool) {
+        if (addr.code.length == 0) return false; // EOA
+
+        // Try calling isValidSignature with properly formatted dummy data
+        // Safe7579 expects: [20 bytes validator address][signature data]
+        // Use address(0) as validator (falls back to Safe's checkSignatures) + 1 byte signature
+        bytes memory testSignature = abi.encodePacked(address(0), hex"00");
+        bytes memory callData = abi.encodeWithSelector(IERC1271.isValidSignature.selector, bytes32(0), testSignature);
+        (bool success, bytes memory returnData) = addr.staticcall{ gas: 50_000 }(callData);
+
+        // Function exists if:
+        // 1. Call succeeds (function exists and validation passed)
+        // 2. Call fails but returns data (function exists but validation failed)
+        // 3. Call fails with no data = function doesn't exist
+        return success || returnData.length > 0;
     }
 }

@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { ISafeConfiguration } from "../vendor/gnosis/ISafeConfiguration.sol";
+import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 // Superform
 import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
@@ -12,7 +13,7 @@ library ChainAgnosticSafeSignatureValidation {
     /// @dev Uses a fixed domain without chainId for cross-chain compatibility
     // keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
     bytes32 private constant CHAIN_AGNOSTIC_DOMAIN_TYPEHASH =
-        0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f; 
+        0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
     /// @notice Fixed chain ID for cross-chain signature 1271 compatibility
     uint256 private constant FIXED_CHAIN_ID = 1;
     /// @notice Domain name and version for cross-chain 1271 signatures
@@ -21,7 +22,33 @@ library ChainAgnosticSafeSignatureValidation {
     /// @notice Magic value for EIP-1271 validation
     bytes4 internal constant MAGIC_VALUE_EIP1271 = bytes4(0x1626ba7e);
 
-    function validateChainAgnosticMultisig(address safe, ISuperValidator.SignatureData memory sigData, bytes32 rawHash) internal view returns (bool) {
+    function validateChainAgnosticMultisig(
+        address safe,
+        ISuperValidator.SignatureData memory sigData,
+        bytes32 rawHash
+    )
+        internal
+        view
+        returns (bool)
+    {
+        // Try to get Safe configuration - if it fails, this is not a Safe multisig
+        address[] memory owners;
+        uint256 threshold;
+
+        try ISafeConfiguration(safe).getOwners() returns (address[] memory _owners) {
+            owners = _owners;
+        } catch {
+            // Not a Safe multisig, return false to continue with fallback EIP-1271 validation
+            return false;
+        }
+
+        try ISafeConfiguration(safe).getThreshold() returns (uint256 _threshold) {
+            threshold = _threshold;
+        } catch {
+            // Not a Safe multisig, return false to continue with fallback EIP-1271 validation
+            return false;
+        }
+
         // Get the chain-agnostic message hash
         bytes32 domainSeparator = keccak256(
             abi.encode(
@@ -40,10 +67,6 @@ library ChainAgnosticSafeSignatureValidation {
                 keccak256(abi.encode(keccak256("SafeMessage(bytes message)"), keccak256(abi.encode(rawHash))))
             )
         );
-
-        // Get Safe configuration
-        address[] memory owners = ISafeConfiguration(safe).getOwners();
-        uint256 threshold = ISafeConfiguration(safe).getThreshold();
 
         // Validate signatures against the multisig configuration
         return _verifyMultisigSignatures(chainAgnosticHash, sigData.signature, owners, threshold);
@@ -93,46 +116,43 @@ library ChainAgnosticSafeSignatureValidation {
         for (uint256 i = 0; i < threshold; i++) {
             // Calculate signature position (skip the 20-byte validator prefix)
             uint256 pos = 20 + (i * 65);
-            
+
             // Make sure we don't go out of bounds
             if (pos + 65 > signatures.length) {
                 return false;
             }
-            
-            // Extract signature components
-            bytes32 r;
-            bytes32 s;
-            uint8 v;
-            
-            // Extract r, s, v components with proper offset calculations
+
+            // Extract signature components for this iteration
+            bytes memory currentSignature = new bytes(65);
+
+            // Copy the 65-byte signature from the signatures array
             assembly {
                 // Calculate memory position for this signature
                 // signatures pointer + 0x20 (to skip length) + pos
                 let signaturePos := add(add(signatures, 0x20), pos)
-                
-                // Load r, s components
-                r := mload(signaturePos)                      // First 32 bytes
-                s := mload(add(signaturePos, 32))             // Next 32 bytes
-                
-                // Extract v from the 65th byte (first byte of the next word)
-                v := byte(0, mload(add(signaturePos, 64)))   // 65th byte
+                let currentSigPos := add(currentSignature, 0x20)
+
+                // Copy 65 bytes (r + s + v)
+                mstore(currentSigPos, mload(signaturePos))
+                mstore(add(currentSigPos, 0x20), mload(add(signaturePos, 0x20)))
+                mstore8(add(currentSigPos, 0x40), byte(0, mload(add(signaturePos, 0x40))))
             }
-            
-            // Skip empty signatures
-            if (v == 0 && r == bytes32(0) && s == bytes32(0)) {
+
+            // Skip empty signatures (check first 32 bytes for zero)
+            bytes32 r;
+            assembly {
+                r := mload(add(currentSignature, 0x20))
+            }
+            if (r == bytes32(0)) {
                 continue;
             }
 
-            // Adjust v for Ethereum signed messages (some clients use 0/1 instead of 27/28)
-            if (v < 27) {
-                v += 27;
-            }
-            
-            // Recover signer address
-            address currentOwner = ecrecover(messageHash, v, r, s);
-            
-            // Make sure we have a valid recovered address
-            if (currentOwner == address(0)) {
+            // Use OpenZeppelin's secure ECDSA recovery with proper validation
+            // tryRecover performs all security checks: s-value malleability, v validation, etc.
+            (address currentOwner, ECDSA.RecoverError error,) = ECDSA.tryRecover(messageHash, currentSignature);
+
+            // If signature recovery failed, return false
+            if (error != ECDSA.RecoverError.NoError) {
                 return false;
             }
 
@@ -142,7 +162,7 @@ library ChainAgnosticSafeSignatureValidation {
                 if (currentOwner <= lastOwner) {
                     return false; // Signatures not in ascending order
                 }
-                
+
                 validSignatures++;
                 lastOwner = currentOwner;
             }
