@@ -153,7 +153,6 @@ import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/I
 
 import { BootstrapConfig, BootstrapPreValidationHookConfig, RegistryConfig, INexusBootstrap, INexusBootstrap7702 } from "../src/vendor/nexus/INexusBootstrap.sol";
 import { INexusFactory } from "../src/vendor/nexus/INexusFactory.sol";
-import { INexus } from "../src/vendor/nexus/INexus.sol";
 import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "./mocks/MockRegistry.sol";
 
@@ -2018,6 +2017,37 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         hookData = abi.encodePacked(
             uint256(0),
             receiver,
+            inputToken,
+            outputToken,
+            inputAmount,
+            outputAmount,
+            uint256(destinationChainId),
+            address(0),
+            uint32(10 minutes), // this can be a max of 360 minutes
+            uint32(0),
+            usePrevHookAmount,
+            data
+        );
+    }
+
+
+     function _createAcrossV3ReceiveFundsAndExecuteHookDataAdapter( 
+        address adapter,
+        address inputToken,
+        address outputToken,
+        uint256 inputAmount,
+        uint256 outputAmount,
+        uint64 destinationChainId,
+        bool usePrevHookAmount,
+        bytes memory data
+    )
+        internal
+        view
+        returns (bytes memory hookData)
+    {
+        hookData = abi.encodePacked(
+            uint256(0),
+            adapter,
             inputToken,
             outputToken,
             inputAmount,

@@ -47,6 +47,8 @@ import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestina
 import { ISuperLedger, ISuperLedgerData } from "../../../src/interfaces/accounting/ISuperLedger.sol";
 import { ApproveERC20Hook } from "../../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
 import { AcrossSendFundsAndExecuteOnDstHook } from "../../../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+import { AcrossV3Adapter } from "../../../src/adapters/AcrossV3Adapter.sol";
+
 import { MockHook } from "../../mocks/MockHook.sol";
 import { BaseTest } from "../../BaseTest.t.sol";
 
@@ -133,18 +135,14 @@ contract EIP7702Test is BaseTest {
 
         DEFAULT_VALIDATOR_MODULE_BASE = new SuperDestinationValidator();
         vm.label(address(DEFAULT_VALIDATOR_MODULE_BASE), "SuperDestinationValidator-Base");
-        vm.makePersistent(address(DEFAULT_VALIDATOR_MODULE_BASE));
         ACCOUNT_IMPLEMENTATION_BASE = new Nexus(address(ENTRYPOINT), address(DEFAULT_VALIDATOR_MODULE_BASE), abi.encode(address(0xeEeEeEeE)));
         vm.label(address(ACCOUNT_IMPLEMENTATION_BASE), "ACCOUNT_IMPLEMENTATION-Base");
-        vm.makePersistent(address(ACCOUNT_IMPLEMENTATION_BASE));
         FACTORY_BASE = new NexusAccountFactory(address(ACCOUNT_IMPLEMENTATION_BASE), factoryOwner);
         vm.label(address(FACTORY_BASE), "FACTORY-Base");
-        vm.makePersistent(address(FACTORY_BASE));
         REGISTRY_BASE = new MockRegistry();
         vm.label(address(REGISTRY_BASE), "REGISTRY-Base");
         BOOTSTRAPPER_BASE = new NexusBootstrap(address(DEFAULT_VALIDATOR_MODULE_BASE), abi.encode(address(0xa11ce)));
         vm.label(address(BOOTSTRAPPER_BASE), "BOOTSTRAPPER-Base");
-        vm.makePersistent(address(BOOTSTRAPPER_BASE));
 
         mockValidator_Base = new MockValidator();
         vm.label(address(mockValidator_Base), "MockValidator-Base");
@@ -155,9 +153,7 @@ contract EIP7702Test is BaseTest {
 
         superDestinationValidator_Base = new SuperDestinationValidator();
         vm.label(address(superDestinationValidator_Base), "SuperDestinationValidator-Base");
-        vm.makePersistent(address(superDestinationValidator_Base));
-        superDestinationExecutor_Base = SuperDestinationExecutor(_createSuperDestinationExecutor());
-        vm.makePersistent(address(superDestinationExecutor_Base));
+        superDestinationExecutor_Base = SuperDestinationExecutor(_createSuperDestinationExecutor(address(superDestinationValidator_Base)));
         vm.label(address(superDestinationExecutor_Base), "SuperDestinationExecutor-Base");
       
         // create ETH fork data
@@ -174,18 +170,14 @@ contract EIP7702Test is BaseTest {
         vm.label(address(REGISTRY), "REGISTRY");
         BOOTSTRAPPER = new NexusBootstrap(address(DEFAULT_VALIDATOR_MODULE), abi.encodePacked(address(0xa11ce)));
         vm.label(address(BOOTSTRAPPER), "BOOTSTRAPPER");
-        vm.makePersistent(address(BOOTSTRAPPER));       
         mockValidator = new MockValidator();
         vm.label(address(mockValidator), "MockValidator");
         mockExecutor = new MockExecutor();
         vm.label(address(mockExecutor), "MockExecutor");
         mockPreValidationHook = new MockPreValidationHook();
         vm.label(address(mockPreValidationHook), "MockPreValidationHook");
-        vm.makePersistent(address(mockPreValidationHook));
         target = new MockTarget();
         vm.label(address(target), "MockTarget");
-
-       
 
         // Superform
         underlyingBase_USDC = existingUnderlyingTokens[BASE][USDC_KEY];
@@ -504,7 +496,7 @@ contract EIP7702Test is BaseTest {
 
 
         // ETH IS SRC
-        _getTokens(underlyingETH_USDC, account, 1e6);
+        _getTokens(underlyingETH_USDC, account, 1000e6);
 
         address approveERC20HookAddressEth = address(new ApproveERC20Hook());
         vm.label(approveERC20HookAddressEth, "ApproveERC20Hook");
@@ -517,9 +509,9 @@ contract EIP7702Test is BaseTest {
 
         bytes[] memory srcHooksData = new bytes[](2);
         srcHooksData[0] =
-            _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 1e6, false);
+            _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 1000e6, false);
         srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingETH_USDC, underlyingBase_USDC, 1e6, 1e6, BASE, true, ""
+            underlyingETH_USDC, underlyingBase_USDC, 1000e6, 1000e6, BASE, true, ""
         );
         ISuperExecutor.ExecutorEntry memory entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
@@ -541,7 +533,7 @@ contract EIP7702Test is BaseTest {
        
         {
             uint256 balanceBefore = IERC20(underlyingETH_USDC).balanceOf(account);
-            assertEq(balanceBefore, 1e6);
+            assertEq(balanceBefore, 1000e6);
         }
         {
             PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
@@ -554,10 +546,27 @@ contract EIP7702Test is BaseTest {
         }
     }
 
-
+    struct CrosschainTest {
+        uint256 eoaKey;
+        address account;
+        address executorBase;
+        address validatorBase;
+        address dstExecutorBase;
+        address executorEth;
+        address validatorEth;
+        address dstValidatorBase;
+    }
     function test_CrossChain_InitializePrereq_Execution() public {
-        uint256 eoaKey = uint256(8);
-        address account = vm.addr(eoaKey);
+        CrosschainTest memory test = CrosschainTest({
+            eoaKey: uint256(8),
+            account: vm.addr(uint256(8)),
+            executorBase: address(0),
+            validatorBase: address(0),
+            dstExecutorBase: address(0),
+            executorEth: address(0),
+            validatorEth: address(0),
+            dstValidatorBase: address(0)
+        });
 
         console2.log("------------------------------------------------");
         console2.log("test_CrossChain_InitializePrereq_Execution");
@@ -565,16 +574,15 @@ contract EIP7702Test is BaseTest {
 
         // ----- PRE-REQUISITES ----
         // BASE is dst - initialize and delegate
-        (address executorBase, address validatorBase) = _initializeBaseAccount(eoaKey);
-        console2.log("executorBase", executorBase);
-        console2.log("validatorBase", validatorBase);
-
+        (test.executorBase, test.validatorBase, test.dstExecutorBase, test.dstValidatorBase) = _initializeBaseAccount(test.eoaKey);
+        address acrossV3Adapter = address(new AcrossV3Adapter(
+            SPOKE_POOL_V3_ADDRESSES[BASE], address(test.dstExecutorBase)
+        ));
+        vm.label(acrossV3Adapter, "AcrossV3Adapter-EIP7702");
 
         // ETH is src - initalize and delegate
-        (address executorEth, address validatorEth) = _initializeEthAccount(eoaKey);
-        console2.log("executorEth", executorEth);
-        console2.log("validatorEth", validatorEth);
-
+        (test.executorEth, test.validatorEth) = _initializeEthAccount(test.eoaKey);
+     
         // ----- Check account states ----
         _useBaseFork(1 days);
         address acrossV3Helper = address(new AcrossV3Helper());
@@ -582,52 +590,51 @@ contract EIP7702Test is BaseTest {
         vm.allowCheatcodes(acrossV3Helper);
         vm.makePersistent(acrossV3Helper);
 
-        _executeSameChainAccountStateTest(eoaKey, executorBase, validatorBase, 1);   
-        console2.log("------------- account.code.length", account.code.length);     
+        _executeSameChainAccountStateTest(test.eoaKey, test.executorBase, test.validatorBase, 1);   
 
         _useEthFork(1 days);
-        _executeSameChainAccountStateTest(eoaKey, executorEth, validatorEth, 1);
+        _executeSameChainAccountStateTest(test.eoaKey, test.executorEth, test.validatorEth, 1);
         
         // ----- Cross-chain call ----
         // create source data
-        bytes memory destinationHookData = _getDestinationMessageInitialize(account);
-        ISuperExecutor.ExecutorEntry memory entryToExecute = _createSourceEntry(destinationHookData, validatorEth);
+        bytes memory destinationHookData = _getDestinationMessageInitialize(test.account);
+        ISuperExecutor.ExecutorEntry memory entryToExecute = _createSourceEntry(destinationHookData, test.validatorEth, acrossV3Adapter);
         Execution[] memory executions = new Execution[](1);
-        executions[0] = Execution({ target: address(executorEth), value: 0, callData: abi.encodeCall(ISuperExecutor.execute, abi.encode(entryToExecute)) });
+        executions[0] = Execution({ target: address(test.executorEth), value: 0, callData: abi.encodeCall(ISuperExecutor.execute, abi.encode(entryToExecute)) });
 
         // create userOp
-        PackedUserOperation memory userOp = _createPackedUserOp(account, executions);
+        PackedUserOperation memory userOp = _createPackedUserOp(test.account, executions);
         bytes32 userOpHash = ENTRYPOINT.getUserOpHash(userOp);
+
+        console2.log("----------address(test.validatorBase)", address(test.validatorBase));
+        console2.log("----------address(test.validatorEth)", address(test.validatorEth));
         userOp.signature = _createCrosschainSig(CrosschainSigParams({
             userOpHash: userOpHash,
-            accountToUse: account,
+            accountToUse: test.account,
             dstChainId: BASE,
-            srcValidator: validatorEth,
-            dstValidator: address(validatorBase),
+            srcValidator: test.validatorEth,
+            dstValidator: address(test.dstValidatorBase),
             dstExecutionData: destinationHookData,
-            signer: account,
-            signerPrivateKey: eoaKey
+            signer: test.account,
+            signerPrivateKey: test.eoaKey,
+            dstExecutor: address(test.dstExecutorBase)
         }));
 
         // get tokens for across call
-        _getTokens(underlyingETH_USDC, account, 1e6);
+        _getTokens(underlyingETH_USDC, test.account, 1000e6);
 
         vm.recordLogs();
 
-        _executeOps(userOp);
-        //PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
-        //userOps[0] = userOp;
+        PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
+        userOps[0] = userOp;
 
-        //ENTRYPOINT.handleOps(userOps, payable(address(0x69)));
+        ENTRYPOINT.handleOps(userOps, payable(address(0x69)));
 
         VmSafe.Log[] memory logs = vm.getRecordedLogs();
         ExecutionReturnData memory executionData = ExecutionReturnData({
             logs: logs
         });
-
     
-        console2.log("--- processing cross-chain pigeon call");
-      
         _processAcrossV3MessageWithSpecificDestinationFork(
             uint64(ETH),
             uint64(BASE),
@@ -636,8 +643,10 @@ contract EIP7702Test is BaseTest {
             latestBaseFork,
             acrossV3Helper
         );
-        console2.log("--- processed");
 
+        _useBaseFork(10 days);
+        uint256 allowance = IERC20(underlyingBase_USDC).allowance(test.account, address(this));
+        assertEq(allowance, 1000e6, "allowance not right");
     }
 
 
@@ -701,16 +710,16 @@ contract EIP7702Test is BaseTest {
     }
 
     
-    function _initializeBaseAccount(uint256 eoaKey) public returns (address, address) {
+    function _initializeBaseAccount(uint256 eoaKey) public returns (address executor, address validator, address dstExecutor, address dstValidator) {
         _useBaseFork(0);
         address account = vm.addr(eoaKey);
         vm.label(account, "AccountBase");
         vm.deal(account, 100 ether);
 
-        address executor = _createSuperExecutor();
-        address dstExecutor = _createSuperDestinationExecutor();
-        address validator = _createSuperValidator();
-        address dstValidator = _createSuperDestinationValidator();
+        executor = _createSuperExecutor();
+        validator = _createSuperValidator();
+        dstValidator = _createSuperDestinationValidator();
+        dstExecutor = _createSuperDestinationExecutor(dstValidator);
         
         ACCOUNT_IMPLEMENTATION_BASE = new Nexus(address(ENTRYPOINT), address(validator), abi.encode(address(account)));
         vm.label(address(ACCOUNT_IMPLEMENTATION_BASE), "AccountImplementationBase");
@@ -738,7 +747,6 @@ contract EIP7702Test is BaseTest {
             bytes memory userOpCalldataBase = abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executionsBase)));
             _initializeBaseAccountExecuteUserOp(account, validator, eoaKey, userOpCalldataBase);
         }
-        return (executor, validator);
     }
     function _initializeBaseAccountExecuteUserOp(address account, address validator, uint256 eoaKey, bytes memory userOpCalldataBase) internal {
         uint256 nonce = _getNonce(account, MODE_VALIDATION, address(0), 0);
@@ -820,88 +828,81 @@ contract EIP7702Test is BaseTest {
         userOp.sender = address(account);
     }
     function _createDestinationEntry() internal returns (ISuperExecutor.ExecutorEntry memory entryToExecute) {
+        _useBaseFork(1 days);
         address approveERC20HookAddressBase = address(new ApproveERC20Hook());
         vm.label(approveERC20HookAddressBase, "ApproveERC20Hook-Base");
-        
+
+        _useEthFork(1 days);
         address[] memory hookAddresses = new address[](1);
         hookAddresses[0] = approveERC20HookAddressBase;
 
         bytes[] memory hookData = new bytes[](1);
         hookData[0] =
-            _createApproveHookData(underlyingBase_USDC, address(this), 1e6, false);
+            _createApproveHookData(underlyingBase_USDC, address(this), 1000e6, false);
 
         entryToExecute =
                 ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookData });
-    }
-    function _getDestinationMessage(address _account) internal returns (bytes memory) {
-        // get execution data
-        ISuperExecutor.ExecutorEntry memory entryToExecute = _createDestinationEntry();
-        bytes memory destinationExecutionData = abi.encodeWithSelector(ISuperExecutor.execute.selector, entryToExecute);
-
-        // get cross chain init data
-        bytes memory initCalldata = _getInitData(InitData({
-            executor: address(superDestinationExecutor_Base),
-            validator: address(superDestinationValidator_Base),
-            signer: address(0),
-            prevalidationHook: address(mockPreValidationHook_Base),
-            bootstrap: BOOTSTRAPPER_BASE,
-            registry: REGISTRY_BASE
-        }));
-        bytes memory initData = abi.encodeWithSelector(NexusAccountFactory.createAccount.selector, initCalldata, bytes32(keccak256("SIGNER_SALT")));
-        initData = bytes.concat(abi.encodePacked(address(0)), INITCODE_EIP7702_MARKER, abi.encodePacked(address(FACTORY_BASE)), initData);
-        //console2.log("super7702SenderCreator length", address(super7702SenderCreator).code.length);
-
-        address[] memory dstTokens = new address[](1);
-        dstTokens[0] = underlyingBase_USDC;
-        uint256[] memory intentAmounts = new uint256[](1);
-        intentAmounts[0] = 1e6;
-        
-        return abi.encode(initData, destinationExecutionData, _account, dstTokens, intentAmounts);
     }
 
     function _getDestinationMessageInitialize(address _account) internal returns (bytes memory) {
         // get execution data
         ISuperExecutor.ExecutorEntry memory entryToExecute = _createDestinationEntry();
-        bytes memory destinationExecutionData = abi.encodeWithSelector(ISuperExecutor.execute.selector, entryToExecute);
+        bytes memory destinationExecutionData = abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
         
-        bytes memory initData = abi.encodePacked(address(0), INITCODE_EIP7702_MARKER);
+        bytes memory initData = "";
 
         address[] memory dstTokens = new address[](1);
         dstTokens[0] = underlyingBase_USDC;
         uint256[] memory intentAmounts = new uint256[](1);
-        intentAmounts[0] = 1e6;
+        intentAmounts[0] = 1000e6;
         
         return abi.encode(initData, destinationExecutionData, _account, dstTokens, intentAmounts);
     }
 
-    function _createSourceEntry(bytes memory _destinationMessage, address _validator) internal returns (ISuperExecutor.ExecutorEntry memory entryToExecute) {
-        address approveERC20HookAddressEth = address(new ApproveERC20Hook());
-        vm.label(approveERC20HookAddressEth, "ApproveERC20Hook-Eth");
-        address acrossSendFundsAndExecuteOnDstHookAddressEth = address(new AcrossSendFundsAndExecuteOnDstHook(SPOKE_POOL_V3_ADDRESSES[ETH], _validator));
-        vm.label(acrossSendFundsAndExecuteOnDstHookAddressEth, "AcrossSendFundsAndExecuteOnDstHook-Eth");
+    function _createSourceEntry(bytes memory _destinationMessage, address _validator, address _adapter) internal returns (ISuperExecutor.ExecutorEntry memory entryToExecute) {
+        (address[] memory srcHooksAddresses, bytes[] memory srcHooksData) = _prepareSourceEntryData(_destinationMessage, _validator, _adapter);
+        
+        entryToExecute = ISuperExecutor.ExecutorEntry({ 
+            hooksAddresses: srcHooksAddresses, 
+            hooksData: srcHooksData 
+        });
+    }
+    function _prepareSourceEntryData(bytes memory _destinationMessage, address _validator, address _adapter) internal returns (address[] memory srcHooksAddresses, bytes[] memory srcHooksData) {
+        (address approveERC20HookAddressEth, address acrossSendFundsAndExecuteOnDstHookAddressEth) = _createSourceEntryHooks(_validator);
+        address adapter = _getContract(BASE, ACROSS_V3_ADAPTER_KEY);
 
-        address[] memory srcHooksAddresses = new address[](2);
+        srcHooksAddresses = new address[](2);
         srcHooksAddresses[0] = approveERC20HookAddressEth;
         srcHooksAddresses[1] = acrossSendFundsAndExecuteOnDstHookAddressEth;
 
-        bytes[] memory srcHooksData = new bytes[](2);
-        srcHooksData[0] =
-            _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 1e6, false);
-        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingETH_USDC, underlyingBase_USDC, 1e6, 1e6, BASE, true, _destinationMessage
+        srcHooksData = new bytes[](2);
+        srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 1000e6, false);
+        srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookDataAdapter(
+            _adapter, 
+            underlyingETH_USDC, 
+            underlyingBase_USDC, 
+            1000e6, 
+            1000e6, 
+            BASE, 
+            true, 
+            _destinationMessage
         );
-        entryToExecute =
-                ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
+    }
+    function _createSourceEntryHooks(address _validator) private returns (address approveERC20HookAddressEth, address acrossSendFundsAndExecuteOnDstHookAddressEth) {
+        approveERC20HookAddressEth = address(new ApproveERC20Hook());
+        vm.label(approveERC20HookAddressEth, "ApproveERC20Hook-Eth");
+        acrossSendFundsAndExecuteOnDstHookAddressEth = address(new AcrossSendFundsAndExecuteOnDstHook(SPOKE_POOL_V3_ADDRESSES[ETH], _validator));
+        vm.label(acrossSendFundsAndExecuteOnDstHookAddressEth, "AcrossSendFundsAndExecuteOnDstHook-Eth");
     }
 
-    function _createSuperDestinationExecutor() internal returns (address superDestinationExecutor) {
+    function _createSuperDestinationExecutor(address _validator) internal returns (address superDestinationExecutor) {
       // install a new SuperDestinationExecutor (so we can uninstall the old one) 
         // -- create
         ISuperLedgerConfiguration superLedgerConfigurationNew =
                 ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
         vm.label(address(superLedgerConfigurationNew), "NewSuperLedgerConfiguration");
 
-        ISuperDestinationExecutor superDestinationExecutorNew = ISuperDestinationExecutor(address(new SuperDestinationExecutor(address(superLedgerConfigurationNew), address(superDestinationValidator_Base))));
+        ISuperDestinationExecutor superDestinationExecutorNew = ISuperDestinationExecutor(address(new SuperDestinationExecutor(address(superLedgerConfigurationNew), address(_validator))));
         vm.label(address(superDestinationExecutorNew), "NewSuperDestinationExecutor");
 
         return address(superDestinationExecutorNew);
@@ -953,6 +954,7 @@ contract EIP7702Test is BaseTest {
         bytes dstExecutionData;
         address signer;
         uint256 signerPrivateKey;
+        address dstExecutor;
     }
     function _createCrosschainSig(
         CrosschainSigParams memory params
@@ -967,21 +969,25 @@ contract EIP7702Test is BaseTest {
         ctx.executionData = params.dstExecutionData;
 
         ctx.leaves = new bytes32[](2);
-        ctx.dstTokens = new address[](1);
-        ctx.dstTokens[0] = underlyingBase_USDC;
-        ctx.intentAmounts = new uint256[](1);
-        ctx.intentAmounts[0] = 1e6;
-
+        (, ctx.executionData, ,ctx.dstTokens, ctx.intentAmounts) = abi.decode(params.dstExecutionData, (bytes, bytes, address, address[], uint256[]));
         ctx.leaves[0] = _createDestinationValidatorLeaf(
             ctx.executionData,
             params.dstChainId,
             params.accountToUse,
-            address(superDestinationExecutor_Base),
+            params.dstExecutor,
             ctx.dstTokens,
             ctx.intentAmounts,
             ctx.validUntil,
             params.dstValidator
         );
+        console2.log("ctx.executionData length", ctx.executionData.length);
+        console2.log("params.dstChainId", params.dstChainId);
+        console2.log("params.accountToUse", params.accountToUse);
+        console2.log("params.dstExecutor", params.dstExecutor);
+        console2.log("params.dstTokens", ctx.dstTokens.length);
+        console2.log("params.intentAmounts", ctx.intentAmounts.length);
+        console2.log("params.validUntil", uint256(ctx.validUntil));
+        console2.log("params.dstValidator", params.dstValidator);
         ctx.leaves[1] = _createSourceValidatorLeaf(params.userOpHash, ctx.validUntil, true, params.srcValidator);
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
@@ -996,7 +1002,7 @@ contract EIP7702Test is BaseTest {
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
         ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
             data: ctx.executionData,
-            executor: address(superDestinationExecutor_Base),
+            executor: params.dstExecutor,
             dstTokens: ctx.dstTokens,
             intentAmounts: ctx.intentAmounts,
             account: params.accountToUse,
