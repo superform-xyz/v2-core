@@ -2,78 +2,9 @@
 pragma solidity >=0.8.30;
 
 import { DeployV2Base } from "./DeployV2Base.s.sol";
-import { ISuperDeployer } from "../src/interfaces/ISuperDeployer.sol";
 import { ConfigCore } from "./utils/ConfigCore.sol";
-import { ConfigOtherHooks } from "./utils/ConfigOtherHooks.sol";
 
-import { SuperExecutor } from "../src/executors/SuperExecutor.sol";
-import { SuperDestinationExecutor } from "../src/executors/SuperDestinationExecutor.sol";
-import { SuperSenderCreator } from "../src/executors/helpers/SuperSenderCreator.sol";
-import { AcrossV3Adapter } from "../src/adapters/AcrossV3Adapter.sol";
-import { DebridgeAdapter } from "../src/adapters/DebridgeAdapter.sol";
-
-import { SuperLedger } from "../src/accounting/SuperLedger.sol";
-import { FlatFeeLedger } from "../src/accounting/FlatFeeLedger.sol";
-import { SuperLedgerConfiguration } from "../src/accounting/SuperLedgerConfiguration.sol";
 import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { SuperMerkleValidator } from "../src/validators/SuperMerkleValidator.sol";
-import { SuperDestinationValidator } from "../src/validators/SuperDestinationValidator.sol";
-import { SuperNativePaymaster } from "../src/paymaster/SuperNativePaymaster.sol";
-
-// -- hooks
-// ---- | swappers
-import { Swap1InchHook } from "../src/hooks/swappers/1inch/Swap1InchHook.sol";
-import { SwapOdosV2Hook } from "../src/hooks/swappers/odos/SwapOdosV2Hook.sol";
-import { ApproveAndSwapOdosV2Hook } from "../src/hooks/swappers/odos/ApproveAndSwapOdosV2Hook.sol";
-
-// ---- | tokens
-import { ApproveERC20Hook } from "../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
-import { TransferERC20Hook } from "../src/hooks/tokens/erc20/TransferERC20Hook.sol";
-import { BatchTransferHook } from "../src/hooks/tokens/BatchTransferHook.sol";
-import { BatchTransferFromHook } from "../src/hooks/tokens/permit2/BatchTransferFromHook.sol";
-import { OfframpTokensHook } from "../src/hooks/tokens/OfframpTokensHook.sol";
-import { MintSuperPositionsHook } from "../src/hooks/vaults/vault-bank/MintSuperPositionsHook.sol";
-
-// ---- | vault
-import { Deposit4626VaultHook } from "../src/hooks/vaults/4626/Deposit4626VaultHook.sol";
-import { ApproveAndDeposit4626VaultHook } from "../src/hooks/vaults/4626/ApproveAndDeposit4626VaultHook.sol";
-import { Redeem4626VaultHook } from "../src/hooks/vaults/4626/Redeem4626VaultHook.sol";
-import { Deposit5115VaultHook } from "../src/hooks/vaults/5115/Deposit5115VaultHook.sol";
-import { ApproveAndDeposit5115VaultHook } from "../src/hooks/vaults/5115/ApproveAndDeposit5115VaultHook.sol";
-import { Redeem5115VaultHook } from "../src/hooks/vaults/5115/Redeem5115VaultHook.sol";
-import { RequestDeposit7540VaultHook } from "../src/hooks/vaults/7540/RequestDeposit7540VaultHook.sol";
-import { ApproveAndRequestDeposit7540VaultHook } from
-    "../src/hooks/vaults/7540/ApproveAndRequestDeposit7540VaultHook.sol";
-import { ApproveAndRequestRedeem7540VaultHook } from "../src/hooks/vaults/7540/ApproveAndRequestRedeem7540VaultHook.sol";
-import { Deposit7540VaultHook } from "../src/hooks/vaults/7540/Deposit7540VaultHook.sol";
-import { Redeem7540VaultHook } from "../src/hooks/vaults/7540/Redeem7540VaultHook.sol";
-import { RequestRedeem7540VaultHook } from "../src/hooks/vaults/7540/RequestRedeem7540VaultHook.sol";
-import { Withdraw7540VaultHook } from "../src/hooks/vaults/7540/Withdraw7540VaultHook.sol";
-import { CancelDepositRequest7540Hook } from "../src/hooks/vaults/7540/CancelDepositRequest7540Hook.sol";
-import { CancelRedeemRequest7540Hook } from "../src/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol";
-import { ClaimCancelDepositRequest7540Hook } from "../src/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol";
-import { ClaimCancelRedeemRequest7540Hook } from "../src/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol";
-import { CancelRedeemHook } from "../src/hooks/vaults/super-vault/CancelRedeemHook.sol";
-
-// ---- | bridges
-import { AcrossSendFundsAndExecuteOnDstHook } from "../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
-import { DeBridgeSendOrderAndExecuteOnDstHook } from
-    "../src/hooks/bridges/debridge/DeBridgeSendOrderAndExecuteOnDstHook.sol";
-import { DeBridgeCancelOrderHook } from "../src/hooks/bridges/debridge/DeBridgeCancelOrderHook.sol";
-import { EthenaCooldownSharesHook } from "../src/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
-import { EthenaUnstakeHook } from "../src/hooks/vaults/ethena/EthenaUnstakeHook.sol";
-
-// -- oracles
-import { ERC4626YieldSourceOracle } from "../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
-import { ERC5115YieldSourceOracle } from "../src/accounting/oracles/ERC5115YieldSourceOracle.sol";
-import { ERC7540YieldSourceOracle } from "../src/accounting/oracles/ERC7540YieldSourceOracle.sol";
-import { PendlePTYieldSourceOracle } from "../src/accounting/oracles/PendlePTYieldSourceOracle.sol";
-import { SpectraPTYieldSourceOracle } from "../src/accounting/oracles/SpectraPTYieldSourceOracle.sol";
-import { StakingYieldSourceOracle } from "../src/accounting/oracles/StakingYieldSourceOracle.sol";
-import { SuperYieldSourceOracle } from "../src/accounting/oracles/SuperYieldSourceOracle.sol";
-
-// -- superform
-import { MarkRootAsUsedHook } from "../src/hooks/superform/MarkRootAsUsedHook.sol";
 
 // -- mocks (dev environment only)
 import { MockDex } from "../test/mocks/MockDex.sol";
@@ -82,7 +13,7 @@ import { MockDexHook } from "../test/mocks/MockDexHook.sol";
 import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
 import { console2 } from "forge-std/console2.sol";
 
-contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
+contract DeployV2Core is DeployV2Base, ConfigCore {
     struct CoreContracts {
         address superExecutor;
         address acrossV3Adapter;
@@ -92,7 +23,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         address superLedger;
         address flatFeeLedger;
         address superLedgerConfiguration;
-        address superMerkleValidator;
+        address superValidator;
         address superDestinationValidator;
         address superNativePaymaster;
     }
@@ -143,6 +74,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         bytes creationCode;
     }
 
+    uint256 private _deployed;
+    uint256 private _total;
+
     /// @notice Sets up complete configuration for core contracts with hook support
     /// @param env Environment (0 is prod, 1 is dev, 2 is staging)
     /// @param saltNamespace Salt namespace for deployment (if empty, uses production default)
@@ -152,52 +86,409 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
 
         // Set core contract dependencies
         _setCoreConfiguration();
-
-        // Set protocol router addresses for hooks
-        _setOtherHooksConfiguration();
     }
 
-    function run(uint256 env, uint64 chainId) public broadcast(env) {
+    // this is used by deploy_v2_staging_prod for env 0 and 2
+    function run(bool check, uint256 env, uint64 chainId) public broadcast(env) {
         _setConfiguration(env, "");
-        console2.log("Deploying V2 Core (Early Access) on chainId: ", chainId);
+        console2.log("V2 Core (Early Access) on chainId: ", chainId);
 
-        _deployDeployer();
-
-        // deploy core contracts
-        _deployCoreContracts(chainId, env);
-
-        // Write all exported contracts for this chain
-        _writeExportedContracts(chainId);
+        if (check) {
+            _checkV2CoreAddresses(chainId);
+        } else {
+            console2.log("Deploying V2 Core (Early Access) on chainId: ", chainId);
+            // deploy core contracts
+            _deployCoreContracts(chainId, env);
+            // Write all exported contracts for this chain
+            _writeExportedContracts(chainId);
+        }
     }
 
+    // used by tenderly vnets (constantly changing salt)
     function run(uint256 env, uint64 chainId, string memory saltNamespace) public broadcast(env) {
         _setConfiguration(env, saltNamespace);
+        console2.log("V2 Core (Early Access) on chainId: ", chainId);
+
         console2.log("Deploying V2 Core (Early Access) on chainId: ", chainId);
-
-        _deployDeployer();
-
         // deploy core contracts
         _deployCoreContracts(chainId, env);
-
         // Write all exported contracts for this chain
         _writeExportedContracts(chainId);
+    }
+
+    /// @notice Public function to configure SuperLedger after deployment (for production/staging)
+    /// @dev This function reads contract addresses from output files and configures the ledger
+    /// @dev Meant to be called by Fireblocks MPC wallet via separate script
+    /// @param env Environment (0 = prod, 2 = staging)
+    /// @param chainId Target chain ID
+    function runLedgerConfigurations(uint256 env, uint64 chainId) public broadcast(env) {
+        console2.log(" Configuring SuperLedger for production/staging environment...");
+        console2.log("   Environment:", env == 0 ? "Production" : "Staging");
+        console2.log("   Chain ID:", chainId);
+
+        // Set configuration to get correct environment settings
+        _setConfiguration(env, "");
+
+        // Configure SuperLedger by reading contracts from output files
+        _setupSuperLedgerConfiguration(chainId, true, env);
+
+        console2.log(" SuperLedger configuration completed successfully!");
+    }
+
+    /// @notice Check V2 Core contract addresses before deployment
+    /// @param chainId The target chain ID
+    function _checkV2CoreAddresses(uint64 chainId) internal {
+        console2.log("====== V2 Core Address Verification ======");
+        console2.log("Chain ID:", chainId);
+        console2.log("");
+
+        // Reset counters
+        deployed = 0;
+        total = 0;
+
+        _checkCoreContracts(chainId);
+
+        // Log comprehensive deployment summary
+        _logDeploymentSummary(chainId);
+
+        // ===== SUMMARY =====
+        console2.log("");
+        console2.log("=====> On this chain we have", deployed, "contracts already deployed out of", total);
+        console2.log("======================================");
+    }
+
+    /// @notice Check core contract addresses
+    function _checkCoreContracts(uint64 chainId) internal {
+        console2.log("=== Core Contracts ===");
+
+        // SuperLedgerConfiguration (no constructor args)
+        (, address superLedgerConfig) =
+            __checkContract(SUPER_LEDGER_CONFIGURATION_KEY, __getSalt(SUPER_LEDGER_CONFIGURATION_KEY), "");
+
+        // SuperValidator (no constructor args)
+        (, address superValidator) = __checkContract(SUPER_VALIDATOR_KEY, __getSalt(SUPER_VALIDATOR_KEY), "");
+
+        // SuperDestinationValidator (no constructor args)
+        (, address superDestValidator) =
+            __checkContract(SUPER_DESTINATION_VALIDATOR_KEY, __getSalt(SUPER_DESTINATION_VALIDATOR_KEY), "");
+
+        // SuperExecutor (requires superLedgerConfiguration)
+        address superExecutor;
+        if (superLedgerConfig != address(0)) {
+            (, superExecutor) =
+                __checkContract(SUPER_EXECUTOR_KEY, __getSalt(SUPER_EXECUTOR_KEY), abi.encode(superLedgerConfig));
+        } else {
+            revert("SUPER_EXECUTOR_CHECK_FAILED_MISSING_SUPER_LEDGER_CONFIG");
+        }
+
+        // SuperDestinationExecutor (requires superLedgerConfiguration, superDestinationValidator, nexusFactory)
+        address superDestExecutor;
+        if (
+            superLedgerConfig != address(0) && superDestValidator != address(0)
+                && configuration.nexusFactories[chainId] != address(0)
+        ) {
+            (, superDestExecutor) = __checkContract(
+                SUPER_DESTINATION_EXECUTOR_KEY,
+                __getSalt(SUPER_DESTINATION_EXECUTOR_KEY),
+                abi.encode(superLedgerConfig, superDestValidator, configuration.nexusFactories[chainId])
+            );
+        } else {
+            revert("SUPER_DEST_EXECUTOR_CHECK_FAILED_MISSING_DEPENDENCIES");
+        }
+
+        // SuperSenderCreator (no constructor args)
+        __checkContract(SUPER_SENDER_CREATOR_KEY, __getSalt(SUPER_SENDER_CREATOR_KEY), "");
+
+        _checkAdapterContracts(chainId, superDestExecutor);
+        _checkLedgerContracts(superLedgerConfig, superExecutor, superDestExecutor);
+        _checkPaymasterContracts();
+        _checkHookContracts(chainId, superValidator);
+        _checkOracleContracts(superLedgerConfig);
+    }
+
+    /// @notice Check adapter contracts
+    function _checkAdapterContracts(uint64 chainId, address superDestExecutor) internal {
+        // AcrossV3Adapter (requires acrossSpokePoolV3 and superDestinationExecutor)
+        if (configuration.acrossSpokePoolV3s[chainId] != address(0) && superDestExecutor != address(0)) {
+            __checkContract(
+                ACROSS_V3_ADAPTER_KEY,
+                __getSalt(ACROSS_V3_ADAPTER_KEY),
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superDestExecutor)
+            );
+        } else {
+            revert("ACROSS_V3_ADAPTER_CHECK_FAILED_MISSING_DEPENDENCIES");
+        }
+
+        // DebridgeAdapter (requires debridgeDstDln and superDestinationExecutor)
+        if (configuration.debridgeDstDln[chainId] != address(0) && superDestExecutor != address(0)) {
+            __checkContract(
+                DEBRIDGE_ADAPTER_KEY,
+                __getSalt(DEBRIDGE_ADAPTER_KEY),
+                abi.encode(configuration.debridgeDstDln[chainId], superDestExecutor)
+            );
+        } else {
+            revert("DEBRIDGE_ADAPTER_CHECK_FAILED_MISSING_DEPENDENCIES");
+        }
+    }
+
+    /// @notice Check ledger contracts
+    function _checkLedgerContracts(
+        address superLedgerConfig,
+        address superExecutor,
+        address superDestExecutor
+    )
+        internal
+    {
+        // Build allowedExecutors array like in deployment
+        address[] memory allowedExecutors = new address[](2);
+        allowedExecutors[0] = superExecutor;
+        allowedExecutors[1] = superDestExecutor;
+
+        // SuperLedger (requires superLedgerConfiguration and allowedExecutors)
+        if (superLedgerConfig != address(0) && superExecutor != address(0) && superDestExecutor != address(0)) {
+            __checkContract(
+                SUPER_LEDGER_KEY, __getSalt(SUPER_LEDGER_KEY), abi.encode(superLedgerConfig, allowedExecutors)
+            );
+        } else {
+            revert("SUPER_LEDGER_CHECK_FAILED_MISSING_DEPENDENCIES");
+        }
+
+        // FlatFeeLedger (requires superLedgerConfiguration and allowedExecutors)
+        if (superLedgerConfig != address(0) && superExecutor != address(0) && superDestExecutor != address(0)) {
+            __checkContract(
+                FLAT_FEE_LEDGER_KEY, __getSalt(FLAT_FEE_LEDGER_KEY), abi.encode(superLedgerConfig, allowedExecutors)
+            );
+        } else {
+            revert("FLAT_FEE_LEDGER_CHECK_FAILED_MISSING_DEPENDENCIES");
+        }
+    }
+
+    /// @notice Check paymaster contracts
+    function _checkPaymasterContracts() internal {
+        // SuperNativePaymaster (requires ENTRY_POINT)
+        if (ENTRY_POINT != address(0)) {
+            __checkContract(SUPER_NATIVE_PAYMASTER_KEY, __getSalt(SUPER_NATIVE_PAYMASTER_KEY), abi.encode(ENTRY_POINT));
+        } else {
+            revert("SUPER_NATIVE_PAYMASTER_CHECK_FAILED_MISSING_ENTRY_POINT");
+        }
+    }
+
+    /// @notice Check hook contracts
+    function _checkHookContracts(uint64 chainId, address superValidator) internal {
+        console2.log("");
+        console2.log("=== Hooks ===");
+
+        // Basic hooks without dependencies
+        __checkContract(APPROVE_ERC20_HOOK_KEY, __getSalt(APPROVE_ERC20_HOOK_KEY), "");
+        __checkContract(TRANSFER_ERC20_HOOK_KEY, __getSalt(TRANSFER_ERC20_HOOK_KEY), "");
+        __checkContract(BATCH_TRANSFER_HOOK_KEY, __getSalt(BATCH_TRANSFER_HOOK_KEY), "");
+
+        // BatchTransferFromHook with Permit2
+        if (configuration.permit2s[chainId] != address(0)) {
+            __checkContract(
+                BATCH_TRANSFER_FROM_HOOK_KEY,
+                __getSalt(BATCH_TRANSFER_FROM_HOOK_KEY),
+                abi.encode(configuration.permit2s[chainId])
+            );
+        } else {
+            revert("BATCH_TRANSFER_FROM_HOOK_CHECK_FAILED_MISSING_PERMIT2");
+        }
+
+        // 4626 Vault hooks
+        __checkContract(DEPOSIT_4626_VAULT_HOOK_KEY, __getSalt(DEPOSIT_4626_VAULT_HOOK_KEY), "");
+        __checkContract(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY, __getSalt(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY), "");
+        __checkContract(REDEEM_4626_VAULT_HOOK_KEY, __getSalt(REDEEM_4626_VAULT_HOOK_KEY), "");
+
+        // 5115 Vault hooks
+        __checkContract(DEPOSIT_5115_VAULT_HOOK_KEY, __getSalt(DEPOSIT_5115_VAULT_HOOK_KEY), "");
+        __checkContract(APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY, __getSalt(APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY), "");
+        __checkContract(REDEEM_5115_VAULT_HOOK_KEY, __getSalt(REDEEM_5115_VAULT_HOOK_KEY), "");
+
+        // 7540 Vault hooks
+        __checkContract(REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, __getSalt(REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY), "");
+        __checkContract(
+            APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
+            __getSalt(APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY),
+            ""
+        );
+        __checkContract(
+            APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY,
+            __getSalt(APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY),
+            ""
+        );
+        __checkContract(REDEEM_7540_VAULT_HOOK_KEY, __getSalt(REDEEM_7540_VAULT_HOOK_KEY), "");
+        __checkContract(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, __getSalt(REQUEST_REDEEM_7540_VAULT_HOOK_KEY), "");
+        __checkContract(DEPOSIT_7540_VAULT_HOOK_KEY, __getSalt(DEPOSIT_7540_VAULT_HOOK_KEY), "");
+        __checkContract(WITHDRAW_7540_VAULT_HOOK_KEY, __getSalt(WITHDRAW_7540_VAULT_HOOK_KEY), "");
+        __checkContract(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, __getSalt(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY), "");
+        __checkContract(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, __getSalt(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY), "");
+        __checkContract(
+            CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, __getSalt(CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY), ""
+        );
+        __checkContract(
+            CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, __getSalt(CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY), ""
+        );
+
+        // Swap hooks with router dependencies
+        if (configuration.aggregationRouters[chainId] != address(0)) {
+            __checkContract(
+                SWAP_1INCH_HOOK_KEY,
+                __getSalt(SWAP_1INCH_HOOK_KEY),
+                abi.encode(configuration.aggregationRouters[chainId])
+            );
+        } else {
+            revert("SWAP_1INCH_HOOK_CHECK_FAILED_MISSING_AGGREGATION_ROUTER");
+        }
+
+        if (configuration.odosRouters[chainId] != address(0)) {
+            __checkContract(
+                SWAP_ODOSV2_HOOK_KEY, __getSalt(SWAP_ODOSV2_HOOK_KEY), abi.encode(configuration.odosRouters[chainId])
+            );
+            __checkContract(
+                APPROVE_AND_SWAP_ODOSV2_HOOK_KEY,
+                __getSalt(APPROVE_AND_SWAP_ODOSV2_HOOK_KEY),
+                abi.encode(configuration.odosRouters[chainId])
+            );
+        } else {
+            revert("SWAP_ODOS_HOOKS_CHECK_FAILED_MISSING_ODOS_ROUTER");
+        }
+
+        // Bridge hooks
+        if (configuration.acrossSpokePoolV3s[chainId] != address(0) && superValidator != address(0)) {
+            __checkContract(
+                ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
+                __getSalt(ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY),
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
+            );
+        } else {
+            revert("ACROSS_HOOK_CHECK_FAILED_MISSING_DEPENDENCIES");
+        }
+
+        if (DEBRIDGE_DLN_SRC != address(0) && superValidator != address(0)) {
+            __checkContract(
+                DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
+                __getSalt(DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY),
+                abi.encode(DEBRIDGE_DLN_SRC, superValidator)
+            );
+        } else {
+            __checkContract(
+                DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
+                __getSalt(DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY),
+                ""
+            );
+        }
+
+        if (DEBRIDGE_DLN_DST != address(0)) {
+            __checkContract(
+                DEBRIDGE_CANCEL_ORDER_HOOK_KEY, __getSalt(DEBRIDGE_CANCEL_ORDER_HOOK_KEY), abi.encode(DEBRIDGE_DLN_DST)
+            );
+        } else {
+            revert("DEBRIDGE_CANCEL_HOOK_CHECK_FAILED_MISSING_DLN_DST");
+        }
+
+        // Protocol-specific hooks
+        __checkContract(ETHENA_COOLDOWN_SHARES_HOOK_KEY, __getSalt(ETHENA_COOLDOWN_SHARES_HOOK_KEY), "");
+        __checkContract(ETHENA_UNSTAKE_HOOK_KEY, __getSalt(ETHENA_UNSTAKE_HOOK_KEY), "");
+        __checkContract(CANCEL_REDEEM_HOOK_KEY, __getSalt(CANCEL_REDEEM_HOOK_KEY), "");
+        __checkContract(OFFRAMP_TOKENS_HOOK_KEY, __getSalt(OFFRAMP_TOKENS_HOOK_KEY), "");
+        __checkContract(MINT_SUPERPOSITIONS_HOOK_KEY, __getSalt(MINT_SUPERPOSITIONS_HOOK_KEY), "");
+        __checkContract(MARK_ROOT_AS_USED_HOOK_KEY, __getSalt(MARK_ROOT_AS_USED_HOOK_KEY), "");
+    }
+
+    /// @notice Check oracle contracts
+    function _checkOracleContracts(address superLedgerConfig) internal {
+        console2.log("");
+        console2.log("=== Oracles ===");
+
+        // Oracles that require superLedgerConfiguration
+        if (superLedgerConfig != address(0)) {
+            __checkContract(
+                ERC4626_YIELD_SOURCE_ORACLE_KEY,
+                __getSalt(ERC4626_YIELD_SOURCE_ORACLE_KEY),
+                abi.encode(superLedgerConfig)
+            );
+            __checkContract(
+                ERC5115_YIELD_SOURCE_ORACLE_KEY,
+                __getSalt(ERC5115_YIELD_SOURCE_ORACLE_KEY),
+                abi.encode(superLedgerConfig)
+            );
+            __checkContract(
+                ERC7540_YIELD_SOURCE_ORACLE_KEY,
+                __getSalt(ERC7540_YIELD_SOURCE_ORACLE_KEY),
+                abi.encode(superLedgerConfig)
+            );
+            __checkContract(
+                PENDLE_PT_YIELD_SOURCE_ORACLE_KEY,
+                __getSalt(PENDLE_PT_YIELD_SOURCE_ORACLE_KEY),
+                abi.encode(superLedgerConfig)
+            );
+            __checkContract(
+                SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY,
+                __getSalt(SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY),
+                abi.encode(superLedgerConfig)
+            );
+            __checkContract(
+                STAKING_YIELD_SOURCE_ORACLE_KEY,
+                __getSalt(STAKING_YIELD_SOURCE_ORACLE_KEY),
+                abi.encode(superLedgerConfig)
+            );
+        } else {
+            revert("ORACLES_CHECK_FAILED_MISSING_SUPER_LEDGER_CONFIG");
+        }
+
+        // SuperYieldSourceOracle (no constructor args)
+        __checkContract(SUPER_YIELD_SOURCE_ORACLE_KEY, __getSalt(SUPER_YIELD_SOURCE_ORACLE_KEY), "");
+    }
+
+    /// @notice Populate CoreContracts struct with addresses from deployment status
+    /// @param chainId Chain ID
+    /// @param coreContracts CoreContracts struct to populate
+    function _populateCoreContractsFromStatus(uint64 chainId, CoreContracts memory coreContracts) internal view {
+        ContractStatus memory status;
+
+        status = _getContractStatus(chainId, SUPER_EXECUTOR_KEY);
+        if (status.isDeployed) coreContracts.superExecutor = status.contractAddress;
+
+        status = _getContractStatus(chainId, ACROSS_V3_ADAPTER_KEY);
+        if (status.isDeployed) coreContracts.acrossV3Adapter = status.contractAddress;
+
+        status = _getContractStatus(chainId, DEBRIDGE_ADAPTER_KEY);
+        if (status.isDeployed) coreContracts.debridgeAdapter = status.contractAddress;
+
+        status = _getContractStatus(chainId, SUPER_DESTINATION_EXECUTOR_KEY);
+        if (status.isDeployed) coreContracts.superDestinationExecutor = status.contractAddress;
+
+        status = _getContractStatus(chainId, SUPER_SENDER_CREATOR_KEY);
+        if (status.isDeployed) coreContracts.superSenderCreator = status.contractAddress;
+
+        status = _getContractStatus(chainId, SUPER_LEDGER_KEY);
+        if (status.isDeployed) coreContracts.superLedger = status.contractAddress;
+
+        status = _getContractStatus(chainId, FLAT_FEE_LEDGER_KEY);
+        if (status.isDeployed) coreContracts.flatFeeLedger = status.contractAddress;
+
+        status = _getContractStatus(chainId, SUPER_LEDGER_CONFIGURATION_KEY);
+        if (status.isDeployed) coreContracts.superLedgerConfiguration = status.contractAddress;
+
+        status = _getContractStatus(chainId, SUPER_VALIDATOR_KEY);
+        if (status.isDeployed) coreContracts.superValidator = status.contractAddress;
+
+        status = _getContractStatus(chainId, SUPER_DESTINATION_VALIDATOR_KEY);
+        if (status.isDeployed) coreContracts.superDestinationValidator = status.contractAddress;
+
+        status = _getContractStatus(chainId, SUPER_NATIVE_PAYMASTER_KEY);
+        if (status.isDeployed) coreContracts.superNativePaymaster = status.contractAddress;
     }
 
     function _deployCoreContracts(uint64 chainId, uint256 env) internal {
         CoreContracts memory coreContracts;
 
-        // retrieve deployer
-        ISuperDeployer deployer = ISuperDeployer(configuration.deployer);
+        // Pre-populate core contracts with existing deployed addresses
+        _populateCoreContractsFromStatus(chainId, coreContracts);
 
         // ===== VALIDATION PHASE =====
         // Validate critical dependencies before deployment
         console2.log("Validating deployment dependencies for chain:", chainId);
-
-        // ===== COMPREHENSIVE PARAMETER ASSERTIONS =====
-        // Validate deployer is set and functional
-        require(configuration.deployer != address(0), "DEPLOYER_ADDRESS_ZERO");
-        require(configuration.deployer.code.length > 0, "DEPLOYER_NOT_DEPLOYED");
-        console2.log(" Deployer:", configuration.deployer);
 
         // Validate treasury and owner addresses
         require(configuration.treasury != address(0), "TREASURY_ADDRESS_ZERO");
@@ -236,24 +527,19 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
 
         // Validate EntryPoint address
         require(ENTRY_POINT != address(0), "ENTRY_POINT_ADDRESS_ZERO");
+        require(ENTRY_POINT.code.length > 0, "ENTRY_POINT_NOT_DEPLOYED");
         console2.log(" EntryPoint:", ENTRY_POINT);
 
         console2.log("All critical dependencies validated successfully");
 
-        // ===== EXPORT SUPER DEPLOYER =====
-        // Ensure SuperDeployer is tracked in exported contracts
-        _exportContract(SUPER_DEPLOYER_KEY, address(deployer), chainId);
-        console2.log("SuperDeployer exported to JSON:", address(deployer));
-
         // ===== DEPLOYMENT PHASE =====
 
         // Deploy SuperLedgerConfiguration
-        coreContracts.superLedgerConfiguration = __deployContract(
-            deployer,
+        coreContracts.superLedgerConfiguration = __deployContractIfNeeded(
             SUPER_LEDGER_CONFIGURATION_KEY,
             chainId,
             __getSalt(SUPER_LEDGER_CONFIGURATION_KEY),
-            type(SuperLedgerConfiguration).creationCode
+            vm.getCode("script/locked-bytecode/SuperLedgerConfiguration.json")
         );
 
         // Validate SuperLedgerConfiguration was deployed
@@ -261,27 +547,25 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         require(coreContracts.superLedgerConfiguration.code.length > 0, "SUPER_LEDGER_CONFIGURATION_NO_CODE");
         console2.log(" SuperLedgerConfiguration deployed and validated");
 
-        // Deploy SuperMerkleValidator
-        coreContracts.superMerkleValidator = __deployContract(
-            deployer,
-            SUPER_MERKLE_VALIDATOR_KEY,
+        // Deploy SuperValidator
+        coreContracts.superValidator = __deployContractIfNeeded(
+            SUPER_VALIDATOR_KEY,
             chainId,
-            __getSalt(SUPER_MERKLE_VALIDATOR_KEY),
-            type(SuperMerkleValidator).creationCode
+            __getSalt(SUPER_VALIDATOR_KEY),
+            vm.getCode("script/locked-bytecode/SuperValidator.json")
         );
 
-        // Validate SuperMerkleValidator was deployed
-        require(coreContracts.superMerkleValidator != address(0), "SUPER_MERKLE_VALIDATOR_DEPLOYMENT_FAILED");
-        require(coreContracts.superMerkleValidator.code.length > 0, "SUPER_MERKLE_VALIDATOR_NO_CODE");
-        console2.log(" SuperMerkleValidator deployed and validated");
+        // Validate SuperValidator was deployed
+        require(coreContracts.superValidator != address(0), "SUPER_MERKLE_VALIDATOR_DEPLOYMENT_FAILED");
+        require(coreContracts.superValidator.code.length > 0, "SUPER_MERKLE_VALIDATOR_NO_CODE");
+        console2.log(" SuperValidator deployed and validated");
 
         // Deploy SuperDestinationValidator
-        coreContracts.superDestinationValidator = __deployContract(
-            deployer,
+        coreContracts.superDestinationValidator = __deployContractIfNeeded(
             SUPER_DESTINATION_VALIDATOR_KEY,
             chainId,
             __getSalt(SUPER_DESTINATION_VALIDATOR_KEY),
-            type(SuperDestinationValidator).creationCode
+            vm.getCode("script/locked-bytecode/SuperDestinationValidator.json")
         );
 
         // Validate SuperDestinationValidator was deployed
@@ -291,12 +575,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
 
         // Deploy SuperExecutor - VALIDATED CONSTRUCTOR PARAMETERS
         require(coreContracts.superLedgerConfiguration != address(0), "SUPER_EXECUTOR_LEDGER_CONFIG_PARAM_ZERO");
-        coreContracts.superExecutor = __deployContract(
-            deployer,
+        coreContracts.superExecutor = __deployContractIfNeeded(
             SUPER_EXECUTOR_KEY,
             chainId,
             __getSalt(SUPER_EXECUTOR_KEY),
-            abi.encodePacked(type(SuperExecutor).creationCode, abi.encode(coreContracts.superLedgerConfiguration))
+            abi.encodePacked(
+                vm.getCode("script/locked-bytecode/SuperExecutor.json"),
+                abi.encode(coreContracts.superLedgerConfiguration)
+            )
         );
 
         // Validate SuperExecutor was deployed
@@ -309,13 +595,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         require(coreContracts.superDestinationValidator != address(0), "SUPER_DEST_EXECUTOR_VALIDATOR_PARAM_ZERO");
         require(configuration.nexusFactories[chainId] != address(0), "SUPER_DEST_EXECUTOR_NEXUS_FACTORY_PARAM_ZERO");
 
-        coreContracts.superDestinationExecutor = __deployContract(
-            deployer,
+        coreContracts.superDestinationExecutor = __deployContractIfNeeded(
             SUPER_DESTINATION_EXECUTOR_KEY,
             chainId,
             __getSalt(SUPER_DESTINATION_EXECUTOR_KEY),
             abi.encodePacked(
-                type(SuperDestinationExecutor).creationCode,
+                vm.getCode("script/locked-bytecode/SuperDestinationExecutor.json"),
                 abi.encode(
                     coreContracts.superLedgerConfiguration,
                     coreContracts.superDestinationValidator,
@@ -330,12 +615,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         console2.log(" SuperDestinationExecutor deployed and validated");
 
         // Deploy SuperSenderCreator
-        coreContracts.superSenderCreator = __deployContract(
-            deployer,
+        coreContracts.superSenderCreator = __deployContractIfNeeded(
             SUPER_SENDER_CREATOR_KEY,
             chainId,
             __getSalt(SUPER_SENDER_CREATOR_KEY),
-            type(SuperSenderCreator).creationCode
+            vm.getCode("script/locked-bytecode/SuperSenderCreator.json")
         );
 
         // Validate SuperSenderCreator was deployed
@@ -347,13 +631,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_ADAPTER_SPOKE_POOL_PARAM_ZERO");
         require(coreContracts.superDestinationExecutor != address(0), "ACROSS_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
 
-        coreContracts.acrossV3Adapter = __deployContract(
-            deployer,
+        coreContracts.acrossV3Adapter = __deployContractIfNeeded(
             ACROSS_V3_ADAPTER_KEY,
             chainId,
             __getSalt(ACROSS_V3_ADAPTER_KEY),
             abi.encodePacked(
-                type(AcrossV3Adapter).creationCode,
+                vm.getCode("script/locked-bytecode/AcrossV3Adapter.json"),
                 abi.encode(configuration.acrossSpokePoolV3s[chainId], coreContracts.superDestinationExecutor)
             )
         );
@@ -367,13 +650,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         require(configuration.debridgeDstDln[chainId] != address(0), "DEBRIDGE_ADAPTER_DST_DLN_PARAM_ZERO");
         require(coreContracts.superDestinationExecutor != address(0), "DEBRIDGE_ADAPTER_DEST_EXECUTOR_PARAM_ZERO");
 
-        coreContracts.debridgeAdapter = __deployContract(
-            deployer,
+        coreContracts.debridgeAdapter = __deployContractIfNeeded(
             DEBRIDGE_ADAPTER_KEY,
             chainId,
             __getSalt(DEBRIDGE_ADAPTER_KEY),
             abi.encodePacked(
-                type(DebridgeAdapter).creationCode,
+                vm.getCode("script/locked-bytecode/DebridgeAdapter.json"),
                 abi.encode(configuration.debridgeDstDln[chainId], coreContracts.superDestinationExecutor)
             )
         );
@@ -398,13 +680,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         // Deploy SuperLedger - VALIDATED CONSTRUCTOR PARAMETERS
         require(coreContracts.superLedgerConfiguration != address(0), "SUPER_LEDGER_CONFIG_PARAM_ZERO");
 
-        coreContracts.superLedger = __deployContract(
-            deployer,
+        coreContracts.superLedger = __deployContractIfNeeded(
             SUPER_LEDGER_KEY,
             chainId,
             __getSalt(SUPER_LEDGER_KEY),
             abi.encodePacked(
-                type(SuperLedger).creationCode, abi.encode(coreContracts.superLedgerConfiguration, allowedExecutors)
+                vm.getCode("script/locked-bytecode/SuperLedger.json"),
+                abi.encode(coreContracts.superLedgerConfiguration, allowedExecutors)
             )
         );
 
@@ -416,13 +698,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         // Deploy FlatFeeLedger - VALIDATED CONSTRUCTOR PARAMETERS
         require(coreContracts.superLedgerConfiguration != address(0), "FLAT_FEE_LEDGER_CONFIG_PARAM_ZERO");
 
-        coreContracts.flatFeeLedger = __deployContract(
-            deployer,
+        coreContracts.flatFeeLedger = __deployContractIfNeeded(
             FLAT_FEE_LEDGER_KEY,
             chainId,
             __getSalt(FLAT_FEE_LEDGER_KEY),
             abi.encodePacked(
-                type(FlatFeeLedger).creationCode, abi.encode(coreContracts.superLedgerConfiguration, allowedExecutors)
+                vm.getCode("script/locked-bytecode/FlatFeeLedger.json"),
+                abi.encode(coreContracts.superLedgerConfiguration, allowedExecutors)
             )
         );
 
@@ -434,12 +716,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         // Deploy SuperNativePaymaster - VALIDATED CONSTRUCTOR PARAMETERS
         require(ENTRY_POINT != address(0), "PAYMASTER_ENTRY_POINT_PARAM_ZERO");
 
-        coreContracts.superNativePaymaster = __deployContract(
-            deployer,
+        coreContracts.superNativePaymaster = __deployContractIfNeeded(
             SUPER_NATIVE_PAYMASTER_KEY,
             chainId,
             __getSalt(SUPER_NATIVE_PAYMASTER_KEY),
-            abi.encodePacked(type(SuperNativePaymaster).creationCode, abi.encode(ENTRY_POINT))
+            abi.encodePacked(vm.getCode("script/locked-bytecode/SuperNativePaymaster.json"), abi.encode(ENTRY_POINT))
         );
 
         // Validate SuperNativePaymaster was deployed
@@ -450,15 +731,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         console2.log(" All core contracts deployment completed successfully with full validation ");
 
         // Deploy Hooks
-        _deployHooks(deployer, chainId);
+        _deployHooks(chainId);
 
         // Deploy Mock Contracts (only for development environment)
         if (env == 1) {
-            _deployMockContracts(deployer, chainId);
+            _deployMockContracts(chainId);
         }
 
         // Deploy Oracles
-        _deployOracles(deployer, chainId);
+        _deployOracles(chainId);
 
         // Setup SuperLedger configuration with oracle mappings - CONDITIONAL BASED ON ENVIRONMENT
         if (env == 1) {
@@ -469,25 +750,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             console2.log("Skipping SuperLedger configuration for production/staging environment");
             console2.log("Configuration will be done separately via runLedgerConfigurations script");
         }
-    }
-
-    /// @notice Public function to configure SuperLedger after deployment (for production/staging)
-    /// @dev This function reads contract addresses from output files and configures the ledger
-    /// @dev Meant to be called by Fireblocks MPC wallet via separate script
-    /// @param env Environment (0 = prod, 2 = staging)
-    /// @param chainId Target chain ID
-    function runLedgerConfigurations(uint256 env, uint64 chainId) public broadcast(env) {
-        console2.log(" Configuring SuperLedger for production/staging environment...");
-        console2.log("   Environment:", env == 0 ? "Production" : "Staging");
-        console2.log("   Chain ID:", chainId);
-
-        // Set configuration to get correct environment settings
-        _setConfiguration(env, "");
-
-        // Configure SuperLedger by reading contracts from output files
-        _setupSuperLedgerConfiguration(chainId, true, env);
-
-        console2.log(" SuperLedger configuration completed successfully!");
     }
 
     /// @notice Internal function to setup SuperLedger configuration
@@ -649,13 +911,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         return vm.readFile(outputPath);
     }
 
-    function _deployHooks(
-        ISuperDeployer deployer,
-        uint64 chainId
-    )
-        private
-        returns (HookAddresses memory hookAddresses)
-    {
+    function _deployHooks(uint64 chainId) private returns (HookAddresses memory hookAddresses) {
         console2.log("Starting hook deployment with comprehensive dependency validation...");
 
         uint256 len = 33;
@@ -663,9 +919,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         address[] memory addresses = new address[](len);
 
         // ===== HOOKS WITHOUT DEPENDENCIES =====
-        hooks[0] = HookDeployment(APPROVE_ERC20_HOOK_KEY, type(ApproveERC20Hook).creationCode);
-        hooks[1] = HookDeployment(TRANSFER_ERC20_HOOK_KEY, type(TransferERC20Hook).creationCode);
-        hooks[2] = HookDeployment(BATCH_TRANSFER_HOOK_KEY, type(BatchTransferHook).creationCode);
+        hooks[0] = HookDeployment(APPROVE_ERC20_HOOK_KEY, vm.getCode("script/locked-bytecode/ApproveERC20Hook.json"));
+        hooks[1] = HookDeployment(TRANSFER_ERC20_HOOK_KEY, vm.getCode("script/locked-bytecode/TransferERC20Hook.json"));
+        hooks[2] = HookDeployment(BATCH_TRANSFER_HOOK_KEY, vm.getCode("script/locked-bytecode/BatchTransferHook.json"));
 
         // ===== HOOKS WITH VALIDATED DEPENDENCIES =====
 
@@ -674,29 +930,50 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         require(configuration.permit2s[chainId].code.length > 0, "BATCH_TRANSFER_FROM_HOOK_PERMIT2_NOT_DEPLOYED");
         hooks[3] = HookDeployment(
             BATCH_TRANSFER_FROM_HOOK_KEY,
-            abi.encodePacked(type(BatchTransferFromHook).creationCode, abi.encode(configuration.permit2s[chainId]))
+            abi.encodePacked(
+                vm.getCode("script/locked-bytecode/BatchTransferFromHook.json"),
+                abi.encode(configuration.permit2s[chainId])
+            )
         );
 
         // Vault hooks (no external dependencies)
-        hooks[4] = HookDeployment(DEPOSIT_4626_VAULT_HOOK_KEY, type(Deposit4626VaultHook).creationCode);
-        hooks[5] =
-            HookDeployment(APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY, type(ApproveAndDeposit4626VaultHook).creationCode);
-        hooks[6] = HookDeployment(REDEEM_4626_VAULT_HOOK_KEY, type(Redeem4626VaultHook).creationCode);
-        hooks[7] = HookDeployment(DEPOSIT_5115_VAULT_HOOK_KEY, type(Deposit5115VaultHook).creationCode);
-        hooks[8] =
-            HookDeployment(APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY, type(ApproveAndDeposit5115VaultHook).creationCode);
-        hooks[9] = HookDeployment(REDEEM_5115_VAULT_HOOK_KEY, type(Redeem5115VaultHook).creationCode);
-        hooks[10] = HookDeployment(REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, type(RequestDeposit7540VaultHook).creationCode);
+        hooks[4] =
+            HookDeployment(DEPOSIT_4626_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Deposit4626VaultHook.json"));
+        hooks[5] = HookDeployment(
+            APPROVE_AND_DEPOSIT_4626_VAULT_HOOK_KEY,
+            vm.getCode("script/locked-bytecode/ApproveAndDeposit4626VaultHook.json")
+        );
+        hooks[6] =
+            HookDeployment(REDEEM_4626_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Redeem4626VaultHook.json"));
+        hooks[7] =
+            HookDeployment(DEPOSIT_5115_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Deposit5115VaultHook.json"));
+        hooks[8] = HookDeployment(
+            APPROVE_AND_DEPOSIT_5115_VAULT_HOOK_KEY,
+            vm.getCode("script/locked-bytecode/ApproveAndDeposit5115VaultHook.json")
+        );
+        hooks[9] =
+            HookDeployment(REDEEM_5115_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Redeem5115VaultHook.json"));
+        hooks[10] = HookDeployment(
+            REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/RequestDeposit7540VaultHook.json")
+        );
         hooks[11] = HookDeployment(
-            APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY, type(ApproveAndRequestDeposit7540VaultHook).creationCode
+            APPROVE_AND_REQUEST_DEPOSIT_7540_VAULT_HOOK_KEY,
+            vm.getCode("script/locked-bytecode/ApproveAndRequestDeposit7540VaultHook.json")
         );
         hooks[12] = HookDeployment(
-            APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(ApproveAndRequestRedeem7540VaultHook).creationCode
+            APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_KEY,
+            vm.getCode("script/locked-bytecode/ApproveAndRequestRedeem7540VaultHook.json")
         );
-        hooks[13] = HookDeployment(REDEEM_7540_VAULT_HOOK_KEY, type(Redeem7540VaultHook).creationCode);
-        hooks[14] = HookDeployment(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, type(RequestRedeem7540VaultHook).creationCode);
-        hooks[15] = HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, type(Deposit7540VaultHook).creationCode);
-        hooks[16] = HookDeployment(WITHDRAW_7540_VAULT_HOOK_KEY, type(Withdraw7540VaultHook).creationCode);
+        hooks[13] =
+            HookDeployment(REDEEM_7540_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Redeem7540VaultHook.json"));
+        hooks[14] = HookDeployment(
+            REQUEST_REDEEM_7540_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/RequestRedeem7540VaultHook.json")
+        );
+        hooks[15] =
+            HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Deposit7540VaultHook.json"));
+        hooks[16] = HookDeployment(
+            WITHDRAW_7540_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Withdraw7540VaultHook.json")
+        );
 
         // ===== HOOKS WITH EXTERNAL ROUTER DEPENDENCIES =====
 
@@ -705,7 +982,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         require(configuration.aggregationRouters[chainId].code.length > 0, "SWAP_1INCH_HOOK_ROUTER_NOT_DEPLOYED");
         hooks[17] = HookDeployment(
             SWAP_1INCH_HOOK_KEY,
-            abi.encodePacked(type(Swap1InchHook).creationCode, abi.encode(configuration.aggregationRouters[chainId]))
+            abi.encodePacked(
+                vm.getCode("script/locked-bytecode/Swap1InchHook.json"),
+                abi.encode(configuration.aggregationRouters[chainId])
+            )
         );
 
         // ODOS Swap Hooks - Validate ODOS router (already validated in core deployment)
@@ -713,12 +993,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         require(configuration.odosRouters[chainId].code.length > 0, "SWAP_ODOS_HOOK_ROUTER_NOT_DEPLOYED");
         hooks[18] = HookDeployment(
             SWAP_ODOSV2_HOOK_KEY,
-            abi.encodePacked(type(SwapOdosV2Hook).creationCode, abi.encode(configuration.odosRouters[chainId]))
+            abi.encodePacked(
+                vm.getCode("script/locked-bytecode/SwapOdosV2Hook.json"), abi.encode(configuration.odosRouters[chainId])
+            )
         );
         hooks[19] = HookDeployment(
             APPROVE_AND_SWAP_ODOSV2_HOOK_KEY,
             abi.encodePacked(
-                type(ApproveAndSwapOdosV2Hook).creationCode, abi.encode(configuration.odosRouters[chainId])
+                vm.getCode("script/locked-bytecode/ApproveAndSwapOdosV2Hook.json"),
+                abi.encode(configuration.odosRouters[chainId])
             )
         );
 
@@ -726,51 +1009,63 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         require(configuration.acrossSpokePoolV3s[chainId] != address(0), "ACROSS_HOOK_SPOKE_POOL_PARAM_ZERO");
         require(configuration.acrossSpokePoolV3s[chainId].code.length > 0, "ACROSS_HOOK_SPOKE_POOL_NOT_DEPLOYED");
 
-        address superMerkleValidator = _getContract(chainId, SUPER_MERKLE_VALIDATOR_KEY);
-        require(superMerkleValidator != address(0), "ACROSS_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
-        require(superMerkleValidator.code.length > 0, "ACROSS_HOOK_MERKLE_VALIDATOR_NOT_DEPLOYED");
+        address superValidator = _getContract(chainId, SUPER_VALIDATOR_KEY);
+        require(superValidator != address(0), "ACROSS_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
+        require(superValidator.code.length > 0, "ACROSS_HOOK_MERKLE_VALIDATOR_NOT_DEPLOYED");
 
         hooks[20] = HookDeployment(
             ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
-                type(AcrossSendFundsAndExecuteOnDstHook).creationCode,
-                abi.encode(configuration.acrossSpokePoolV3s[chainId], superMerkleValidator)
+                vm.getCode("script/locked-bytecode/AcrossSendFundsAndExecuteOnDstHook.json"),
+                abi.encode(configuration.acrossSpokePoolV3s[chainId], superValidator)
             )
         );
 
         // DeBridge hooks - Validate constants and Merkle Validator
         require(DEBRIDGE_DLN_SRC != address(0), "DEBRIDGE_SEND_HOOK_DLN_SRC_PARAM_ZERO");
         require(DEBRIDGE_DLN_DST != address(0), "DEBRIDGE_CANCEL_HOOK_DLN_DST_PARAM_ZERO");
-        require(superMerkleValidator != address(0), "DEBRIDGE_SEND_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
+        require(superValidator != address(0), "DEBRIDGE_SEND_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
 
         hooks[21] = HookDeployment(
             DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
-                type(DeBridgeSendOrderAndExecuteOnDstHook).creationCode,
-                abi.encode(DEBRIDGE_DLN_SRC, superMerkleValidator)
+                vm.getCode("script/locked-bytecode/DeBridgeSendOrderAndExecuteOnDstHook.json"),
+                abi.encode(DEBRIDGE_DLN_SRC, superValidator)
             )
         );
         hooks[22] = HookDeployment(
             DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
-            abi.encodePacked(type(DeBridgeCancelOrderHook).creationCode, abi.encode(DEBRIDGE_DLN_DST))
+            abi.encodePacked(
+                vm.getCode("script/locked-bytecode/DeBridgeCancelOrderHook.json"), abi.encode(DEBRIDGE_DLN_DST)
+            )
         );
 
         // Protocol-specific hooks (no external dependencies)
-        hooks[23] = HookDeployment(ETHENA_COOLDOWN_SHARES_HOOK_KEY, type(EthenaCooldownSharesHook).creationCode);
-        hooks[24] = HookDeployment(ETHENA_UNSTAKE_HOOK_KEY, type(EthenaUnstakeHook).creationCode);
-        hooks[25] =
-            HookDeployment(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(CancelDepositRequest7540Hook).creationCode);
-        hooks[26] = HookDeployment(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(CancelRedeemRequest7540Hook).creationCode);
+        hooks[23] = HookDeployment(
+            ETHENA_COOLDOWN_SHARES_HOOK_KEY, vm.getCode("script/locked-bytecode/EthenaCooldownSharesHook.json")
+        );
+        hooks[24] = HookDeployment(ETHENA_UNSTAKE_HOOK_KEY, vm.getCode("script/locked-bytecode/EthenaUnstakeHook.json"));
+        hooks[25] = HookDeployment(
+            CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, vm.getCode("script/locked-bytecode/CancelDepositRequest7540Hook.json")
+        );
+        hooks[26] = HookDeployment(
+            CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, vm.getCode("script/locked-bytecode/CancelRedeemRequest7540Hook.json")
+        );
         hooks[27] = HookDeployment(
-            CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, type(ClaimCancelDepositRequest7540Hook).creationCode
+            CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY,
+            vm.getCode("script/locked-bytecode/ClaimCancelDepositRequest7540Hook.json")
         );
         hooks[28] = HookDeployment(
-            CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, type(ClaimCancelRedeemRequest7540Hook).creationCode
+            CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
+            vm.getCode("script/locked-bytecode/ClaimCancelRedeemRequest7540Hook.json")
         );
-        hooks[29] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, type(CancelRedeemHook).creationCode);
-        hooks[30] = HookDeployment(OFFRAMP_TOKENS_HOOK_KEY, type(OfframpTokensHook).creationCode);
-        hooks[31] = HookDeployment(MINT_SUPERPOSITIONS_HOOK_KEY, type(MintSuperPositionsHook).creationCode);
-        hooks[32] = HookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, type(MarkRootAsUsedHook).creationCode);
+        hooks[29] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, vm.getCode("script/locked-bytecode/CancelRedeemHook.json"));
+        hooks[30] = HookDeployment(OFFRAMP_TOKENS_HOOK_KEY, vm.getCode("script/locked-bytecode/OfframpTokensHook.json"));
+        hooks[31] = HookDeployment(
+            MINT_SUPERPOSITIONS_HOOK_KEY, vm.getCode("script/locked-bytecode/MintSuperPositionsHook.json")
+        );
+        hooks[32] =
+            HookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, vm.getCode("script/locked-bytecode/MarkRootAsUsedHook.json"));
 
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying", len, "hooks with parameter validation...");
@@ -778,7 +1073,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             HookDeployment memory hook = hooks[i];
             console2.log("Deploying hook:", hook.name);
 
-            addresses[i] = __deployContract(deployer, hook.name, chainId, __getSalt(hook.name), hook.creationCode);
+            addresses[i] = __deployContractIfNeeded(hook.name, chainId, __getSalt(hook.name), hook.creationCode);
 
             // Validate each hook was deployed successfully
             require(addresses[i] != address(0), string(abi.encodePacked("HOOK_DEPLOYMENT_FAILED_", hook.name)));
@@ -918,13 +1213,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         return hookAddresses;
     }
 
-    function _deployOracles(
-        ISuperDeployer deployer,
-        uint64 chainId
-    )
-        private
-        returns (address[] memory oracleAddresses)
-    {
+    function _deployOracles(uint64 chainId) private returns (address[] memory oracleAddresses) {
         console2.log("Starting oracle deployment with parameter validation...");
 
         uint256 len = 7;
@@ -940,29 +1229,43 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         // Deploy oracles with validated constructor parameters
         oracles[0] = OracleDeployment(
             ERC4626_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(ERC4626YieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
+            abi.encodePacked(
+                vm.getCode("script/locked-bytecode/ERC4626YieldSourceOracle.json"), abi.encode(superLedgerConfig)
+            )
         );
         oracles[1] = OracleDeployment(
             ERC5115_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(ERC5115YieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
+            abi.encodePacked(
+                vm.getCode("script/locked-bytecode/ERC5115YieldSourceOracle.json"), abi.encode(superLedgerConfig)
+            )
         );
         oracles[2] = OracleDeployment(
             ERC7540_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(ERC7540YieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
+            abi.encodePacked(
+                vm.getCode("script/locked-bytecode/ERC7540YieldSourceOracle.json"), abi.encode(superLedgerConfig)
+            )
         );
         oracles[3] = OracleDeployment(
             PENDLE_PT_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(PendlePTYieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
+            abi.encodePacked(
+                vm.getCode("script/locked-bytecode/PendlePTYieldSourceOracle.json"), abi.encode(superLedgerConfig)
+            )
         );
         oracles[4] = OracleDeployment(
             SPECTRA_PT_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(SpectraPTYieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
+            abi.encodePacked(
+                vm.getCode("script/locked-bytecode/SpectraPTYieldSourceOracle.json"), abi.encode(superLedgerConfig)
+            )
         );
         oracles[5] = OracleDeployment(
             STAKING_YIELD_SOURCE_ORACLE_KEY,
-            abi.encodePacked(type(StakingYieldSourceOracle).creationCode, abi.encode(superLedgerConfig))
+            abi.encodePacked(
+                vm.getCode("script/locked-bytecode/StakingYieldSourceOracle.json"), abi.encode(superLedgerConfig)
+            )
         );
-        oracles[6] = OracleDeployment(SUPER_YIELD_SOURCE_ORACLE_KEY, type(SuperYieldSourceOracle).creationCode);
+        oracles[6] = OracleDeployment(
+            SUPER_YIELD_SOURCE_ORACLE_KEY, vm.getCode("script/locked-bytecode/SuperYieldSourceOracle.json")
+        );
 
         console2.log("Deploying", len, "oracles with parameter validation...");
         for (uint256 i = 0; i < len; ++i) {
@@ -970,7 +1273,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
             console2.log("Deploying oracle:", oracle.name);
 
             oracleAddresses[i] =
-                __deployContract(deployer, oracle.name, chainId, __getSalt(oracle.name), oracle.creationCode);
+                __deployContractIfNeeded(oracle.name, chainId, __getSalt(oracle.name), oracle.creationCode);
 
             // Validate each oracle was deployed successfully
             require(
@@ -985,14 +1288,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
     }
 
     /// @notice Deploy mock contracts for development environment only
-    /// @param deployer The SuperDeployer instance
     /// @param chainId The target chain ID
-    function _deployMockContracts(ISuperDeployer deployer, uint64 chainId) private {
+    function _deployMockContracts(uint64 chainId) private {
         console2.log("Starting mock contracts deployment for development environment...");
 
         // Deploy MockDex first
         address mockDex =
-            __deployContract(deployer, MOCK_DEX_KEY, chainId, __getSalt(MOCK_DEX_KEY), type(MockDex).creationCode);
+            __deployContractIfNeeded(MOCK_DEX_KEY, chainId, __getSalt(MOCK_DEX_KEY), type(MockDex).creationCode);
 
         // Validate MockDex deployment
         require(mockDex != address(0), "MOCK_DEX_DEPLOYMENT_FAILED");
@@ -1000,8 +1302,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore, ConfigOtherHooks {
         console2.log(" MockDex deployed and validated at:", mockDex);
 
         // Deploy MockDexHook with MockDex address as constructor parameter
-        address mockDexHook = __deployContract(
-            deployer,
+        address mockDexHook = __deployContractIfNeeded(
             MOCK_DEX_HOOK_KEY,
             chainId,
             __getSalt(MOCK_DEX_HOOK_KEY),

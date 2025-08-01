@@ -38,7 +38,7 @@ import { ApproveERC20Hook } from "../../../src/hooks/tokens/erc20/ApproveERC20Ho
 import { AcrossV3Adapter } from "../../../src/adapters/AcrossV3Adapter.sol";
 import { MockERC20 } from "../../mocks/MockERC20.sol";
 import { MaliciousSafeAccount } from "../../mocks/MaliciousSafeAccount.sol";
-import { SuperMerkleValidator } from "../../../src/validators/SuperMerkleValidator.sol";
+import { SuperValidator } from "../../../src/validators/SuperValidator.sol";
 import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
 import { ISuperValidator } from "../../../src/interfaces/ISuperValidator.sol";
@@ -126,7 +126,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     SuperLedgerConfiguration superLedgerConfiguration;
     SuperExecutor superExecutor;
     MockERC20 mockERC20;
-    SuperMerkleValidator validator;
+    SuperValidator validator;
     // -- cross-chain
     address underlyingOpUsdce;
     address underlyingBaseUsdc;
@@ -160,7 +160,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         mockERC20 = new MockERC20("MockERC20", "MOCK", 18);
         superLedgerConfiguration = new SuperLedgerConfiguration();
         superExecutor = new SuperExecutor(address(superLedgerConfiguration));
-        validator = new SuperMerkleValidator();
+        validator = new SuperValidator();
 
         // -- cross-chain
         underlyingOpUsdce = existingUnderlyingTokens[OP][USDCe_KEY];
@@ -1149,7 +1149,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
 
     function _getSafeSignature(bytes32 merkleRoot, address _account, address _validator) internal view returns (bytes memory) {
         SignatureData memory sigData;
-        sigData.rawHash = keccak256(abi.encode(SuperMerkleValidator(_validator).namespace(), merkleRoot));
+        sigData.rawHash = keccak256(abi.encode(SuperValidator(_validator).namespace(), merkleRoot));
 
         // Use chain-agnostic domain separator instead of Safe's native one
         sigData.domainSeparator = _getChainAgnosticDomainSeparator(_account);
