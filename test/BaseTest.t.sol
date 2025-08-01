@@ -1988,12 +1988,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             abi.encode(uint256(bootstrapCall.length)),          // length of bootstrapCall
             bootstrapCall                                        // the actual call
         );
-        //bytes memory actual7702CallData = abi.encodeCall(
-        //    INexus.initializeAccount,
-        //    (initData)
-        //);
-    
-        //bytes memory factoryWithMarker = bytes.concat(INITCODE_EIP7702_MARKER, bytes20(address(p.nexusFactory)));
+  
         bytes memory targetWithMaker = bytes.concat(INITCODE_EIP7702_MARKER, bytes20(address(p.theSigner)));
         console2.log("---------------- signerEOA", p.theSigner);
         return (abi.encodePacked(p.senderCreatorOnDestinationChain, targetWithMaker, abi.encodeCall(
