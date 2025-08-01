@@ -30,7 +30,6 @@ remappings = [
   "@pendle/=lib/pendle-core-v2-public/contracts/",
   "@safe/=lib/safe-smart-account/contracts/",
   "@safe7579/=lib/safe7579/src/",
-
   "@nexus/=lib/nexus/contracts/",
   "sentinellist/=lib/nexus/node_modules/sentinellist/src/",
   "solady/=lib/solady/src/",
@@ -41,6 +40,7 @@ remappings = [
   "composability/=lib/nexus/node_modules/@biconomy/composability/contracts/",
   "erc7739Validator/=lib/nexus/node_modules/erc7739-validator-base/src/",
   "account-abstraction-v0.6/=lib/nexus/node_modules/account-abstraction-v0.6/contracts/",
+  "test/mock_fiattoken/=lib/evm-gateway-contracts/test/mock_fiattoken/"
 ]
 dynamic_test_linking = true
 gas_limit = "18446744073709551615"

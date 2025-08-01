@@ -28,6 +28,7 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address okxRouter) okxRouters;
         mapping(uint64 chainId => address spectraRouter) spectraRouters;
         mapping(uint64 chainId => address pendleRouter) pendleRouters;
+        mapping(uint64 chainId => address merklDistributor) merklDistributors;
     }
 
     EnvironmentData public configuration;
