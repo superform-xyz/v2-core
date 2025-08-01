@@ -1943,58 +1943,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         virtual
         returns (bytes memory, address)
     {
-        console2.log("----- senderCreatorOnDestinationChain", p.senderCreatorOnDestinationChain);
-        console2.log("-----_createAccountCreationData_DestinationExecutor is7702", p.is7702);
-        if (p.is7702) {
-            return __create7702NexusInitData(p);
-        } 
         return __createNon7702NexusInitData(p);
-    }
-
-    function __create7702NexusInitData(AccountCreationParams memory p) internal returns (bytes memory, address) {
-        BootstrapConfig[] memory validators = new BootstrapConfig[](1);
-        validators[0] = BootstrapConfig({ module: p.validatorOnDestinationChain, data: abi.encode(p.theSigner) });
-        BootstrapConfig[] memory executors = new BootstrapConfig[](1);
-        executors[0] = BootstrapConfig({ module: p.executorOnDestinationChain, data: "" });
-        BootstrapConfig memory hook = BootstrapConfig({ module: address(0), data: "" });
-        BootstrapConfig[] memory fallbacks = new BootstrapConfig[](0);
-        BootstrapPreValidationHookConfig[] memory preValidationHooks = new BootstrapPreValidationHookConfig[](0);
-
-        MockRegistry nexusRegistry = new MockRegistry();
-        address[] memory attesters = new address[](1);
-        attesters[0] = address(MANAGER);
-        uint8 threshold = 1;
-
-        vm.label(address(nexusRegistry), "nexusRegistry");
-        vm.label(address(p.nexusBootstrap), "NexusBoostrap 7702");
-
-        bytes memory bootstrapCall =  abi.encode(
-            address(p.nexusBootstrap),
-            abi.encodeCall(
-                INexusBootstrap7702.initNexus,
-                (validators, executors, hook, fallbacks, preValidationHooks, 
-                RegistryConfig({
-                    registry: IERC7484(address(nexusRegistry)),
-                    attesters: attesters,
-                    threshold: threshold
-                }))
-            )
-        );
-        
-        bytes memory initData = bytes.concat(
-            bytes20(p.nexusBootstrap),                                 // bootstrap address (20 bytes)
-            bytes12(0),                                          // padding to make it 32 bytes
-            abi.encode(uint256(0x40)),                           // offset to dynamic data (length-prefixed)
-            abi.encode(uint256(bootstrapCall.length)),          // length of bootstrapCall
-            bootstrapCall                                        // the actual call
-        );
-  
-        bytes memory targetWithMaker = bytes.concat(INITCODE_EIP7702_MARKER, bytes20(address(p.theSigner)));
-        console2.log("---------------- signerEOA", p.theSigner);
-        return (abi.encodePacked(p.senderCreatorOnDestinationChain, targetWithMaker, abi.encodeCall(
-            INexus.initializeAccount,
-            (initData)
-        )), p.theSigner);
     }
 
     function __createNon7702NexusInitData(AccountCreationParams memory p) internal returns (bytes memory, address) {
