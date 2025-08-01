@@ -8,10 +8,6 @@ import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
 import {
-    ISuperHookResultOutflow,
-    ISuperHookInflowOutflow,
-    ISuperHookOutflow,
-    ISuperHookContextAware,
     ISuperHookInspector
 } from "../../../interfaces/ISuperHook.sol";
 import { BaseHook } from "../../BaseHook.sol";
@@ -26,7 +22,7 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         address[] tokens = BytesLib.slice(data, 64, arraysLength * 20);
 /// @notice         uint256[] amounts = BytesLib.slice(data, 64 + arraysLength * 20, arraysLength * 32);
 /// @notice         bytes proofBlob = BytesLib.slice(data, 64 + arraysLength * 20 + arraysLength * 32, data.length - (64 + arraysLength * 20 + arraysLength * 32));
-contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
+contract MerklClaimRewardHook is BaseHook {
     using HookDataDecoder for bytes;
 
     /*//////////////////////////////////////////////////////////////
@@ -44,6 +40,7 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
     }
 
     constructor(address _distributor) BaseHook(HookType.NONACCOUNTING, HookSubTypes.CLAIM) {
+        if (_distributor == address(0)) revert ADDRESS_NOT_VALID();
         distributor = _distributor;
     }
 
@@ -76,21 +73,6 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
             value: 0,
             callData: abi.encodeCall(IDistributor.claim, (params.users, params.tokens, params.amounts, params.proofs))
         });
-    }
-
-    /// @inheritdoc ISuperHookInflowOutflow
-    function decodeAmount(bytes memory) external pure returns (uint256) {
-        return 0;
-    }
-
-    /// @inheritdoc ISuperHookContextAware
-    function decodeUsePrevHookAmount(bytes memory) external pure returns (bool) {
-        return false;
-    }
-
-    /// @inheritdoc ISuperHookOutflow
-    function replaceCalldataAmount(bytes memory data, uint256) external pure returns (bytes memory) {
-        return data;
     }
 
     /// @inheritdoc ISuperHookInspector
