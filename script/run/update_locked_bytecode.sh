@@ -105,6 +105,7 @@ HOOK_CONTRACTS=(
     "OfframpTokensHook"
     "MintSuperPositionsHook"
     "MarkRootAsUsedHook"
+    "MerklClaimRewardHook"
 )
 
 # Oracle contracts from accounting/oracles

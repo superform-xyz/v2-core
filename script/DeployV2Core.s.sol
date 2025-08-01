@@ -62,6 +62,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address ethenaUnstakeHook;
         address mintSuperPositionHook;
         address markRootAsUsedHook;
+        address merklClaimRewardHook;
     }
 
     struct HookDeployment {
@@ -386,6 +387,15 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             revert("DEBRIDGE_CANCEL_HOOK_CHECK_FAILED_MISSING_DLN_DST");
         }
 
+        // Merkl claim reward hook
+        if (configuration.merklDistributors[chainId] != address(0)) {
+            __checkContract(
+                MERKL_CLAIM_REWARD_HOOK_KEY, __getSalt(MERKL_CLAIM_REWARD_HOOK_KEY), abi.encode(configuration.merklDistributors[chainId])
+            );
+        } else {
+            revert("MERKL_CLAIM_REWARD_HOOK_CHECK_FAILED_MISSING_MERKL_DISTRIBUTOR");
+        }
+
         // Protocol-specific hooks
         __checkContract(ETHENA_COOLDOWN_SHARES_HOOK_KEY, __getSalt(ETHENA_COOLDOWN_SHARES_HOOK_KEY), "");
         __checkContract(ETHENA_UNSTAKE_HOOK_KEY, __getSalt(ETHENA_UNSTAKE_HOOK_KEY), "");
@@ -524,6 +534,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(configuration.odosRouters[chainId] != address(0), "ODOS_ROUTER_ADDRESS_ZERO");
         require(configuration.odosRouters[chainId].code.length > 0, "ODOS_ROUTER_NOT_DEPLOYED");
         console2.log(" ODOS Router:", configuration.odosRouters[chainId]);
+
+        // Check Merkl distributor
+        require(configuration.merklDistributors[chainId] != address(0), "MERKL_DISTRIBUTOR_ADDRESS_ZERO");
+        require(configuration.merklDistributors[chainId].code.length > 0, "MERKL_DISTRIBUTOR_NOT_DEPLOYED");
+        console2.log(" Merkl Distributor:", configuration.merklDistributors[chainId]);
 
         // Validate EntryPoint address
         require(ENTRY_POINT != address(0), "ENTRY_POINT_ADDRESS_ZERO");
@@ -914,7 +929,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     function _deployHooks(uint64 chainId) private returns (HookAddresses memory hookAddresses) {
         console2.log("Starting hook deployment with comprehensive dependency validation...");
 
-        uint256 len = 33;
+        uint256 len = 34;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -1066,6 +1081,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         );
         hooks[32] =
             HookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, vm.getCode("script/locked-bytecode/MarkRootAsUsedHook.json"));
+        hooks[33] = HookDeployment(
+            MERKL_CLAIM_REWARD_HOOK_KEY,
+            vm.getCode("script/locked-bytecode/MerklClaimRewardHook.json")
+        );
 
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
         console2.log("Deploying", len, "hooks with parameter validation...");
@@ -1146,6 +1165,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[31].name, MINT_SUPERPOSITIONS_HOOK_KEY) ? addresses[31] : address(0);
         hookAddresses.markRootAsUsedHook =
             Strings.equal(hooks[32].name, MARK_ROOT_AS_USED_HOOK_KEY) ? addresses[32] : address(0);
+        hookAddresses.merklClaimRewardHook =
+            Strings.equal(hooks[33].name, MERKL_CLAIM_REWARD_HOOK_KEY) ? addresses[33] : address(0);
 
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");
@@ -1207,6 +1228,8 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(hookAddresses.mintSuperPositionHook != address(0), "MINT_SUPERPOSITION_HOOK_NOT_ASSIGNED");
 
         require(hookAddresses.markRootAsUsedHook != address(0), "MARK_ROOT_AS_USED_HOOK_NOT_ASSIGNED");
+
+        require(hookAddresses.merklClaimRewardHook != address(0), "MERKL_CLAIM_REWARD_HOOK_NOT_ASSIGNED");
 
         console2.log(" All hooks deployed and validated successfully with comprehensive dependency checking! ");
 
