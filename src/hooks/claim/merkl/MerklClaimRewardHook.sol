@@ -74,7 +74,7 @@ contract MerklClaimRewardHook is BaseHook {
     }
 
     /// @inheritdoc ISuperHookInspector
-    function inspect(bytes calldata data) external view override returns (bytes memory addressData) {
+    function inspect(bytes calldata data) external pure override returns (bytes memory addressData) {
         (address[] memory tokens,,) = _decodeClaimParams(data);
 
         uint256 length = tokens.length;

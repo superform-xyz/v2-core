@@ -1083,7 +1083,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             HookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, vm.getCode("script/locked-bytecode/MarkRootAsUsedHook.json"));
         hooks[33] = HookDeployment(
             MERKL_CLAIM_REWARD_HOOK_KEY,
-            vm.getCode("script/locked-bytecode/MerklClaimRewardHook.json")
+            abi.encodePacked(
+                vm.getCode("script/locked-bytecode/MerklClaimRewardHook.json"),
+                abi.encode(configuration.merklDistributors[chainId])
+            )
         );
 
         // ===== DEPLOY ALL HOOKS WITH VALIDATION =====
