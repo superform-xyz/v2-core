@@ -34,15 +34,11 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
     /*//////////////////////////////////////////////////////////////
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
-    error INVALID_PROOF();
-    error INVALID_LENGTH();
-    error LENGTH_MISMATCH();
     error INVALID_ENCODING();
-
+    
     address public immutable distributor;
 
     struct ClaimParams {
-        uint256 arrayLength;
         address[] users;
         address[] tokens;
         uint256[] amounts;
@@ -72,7 +68,7 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
         // decode users
         address[] memory users = _setUsersArray(account, data);
         params.users = users;
-        
+
         // decode other params
         (params.tokens, params.amounts, params.proofs) = _decodeClaimParams(data);
 
@@ -104,7 +100,7 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
         (address[] memory tokens,,) = _decodeClaimParams(data);
 
         bytes memory addressData = abi.encodePacked(distributor);
-        
+
         uint256 length = tokens.length;
         for (uint256 i; i < length; i++) {
             addressData = bytes.concat(addressData, bytes20(tokens[i]));
@@ -124,7 +120,11 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
         _setOutAmount(0, account);
     }
 
-    function _decodeClaimParams(bytes calldata data) internal pure returns (address[] memory tokens, uint256[] memory amounts, bytes32[][] memory proofs) {
+    function _decodeClaimParams(bytes calldata data)
+        internal
+        pure
+        returns (address[] memory tokens, uint256[] memory amounts, bytes32[][] memory proofs)
+    {
         // decode tokens and amounts
         (uint256 cursorAfterAmounts, address[] memory _tokens, uint256[] memory _amounts) =
             _decodeTokensAndAmounts(data);
@@ -147,9 +147,7 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
         }
     }
 
-    function _decodeTokensAndAmounts(
-        bytes calldata data
-    )
+    function _decodeTokensAndAmounts(bytes calldata data)
         internal
         pure
         returns (uint256 cursor, address[] memory tokens, uint256[] memory amounts)
