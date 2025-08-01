@@ -30,6 +30,7 @@ remappings = [
   "@pendle/=lib/pendle-core-v2-public/contracts/",
   "@safe/=lib/safe-smart-account/contracts/",
   "@safe7579/=lib/safe7579/src/",
+  "test/mock_fiattoken/=lib/evm-gateway-contracts/test/mock_fiattoken/"
 ]
 dynamic_test_linking = true
 gas_limit = "18446744073709551615"
