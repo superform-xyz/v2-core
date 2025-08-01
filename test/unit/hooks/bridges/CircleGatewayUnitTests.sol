@@ -10,13 +10,13 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { BaseTest } from "../../BaseTest.t.sol";
-import { CircleGatewayWalletHook } from "../../mocks/unused-hooks/CircleGatewayWalletHook.sol";
-import { CircleGatewayMinterHook } from "../../mocks/unused-hooks/CircleGatewayMinterHook.sol";
-import { ISuperHook, ISuperHookResult } from "../../../src/interfaces/ISuperHook.sol";
+import { BaseTest } from "../../../BaseTest.t.sol";
+import { CircleGatewayWalletHook } from "../../../../src/hooks/bridges/circle/CircleGatewayWalletHook.sol";
+import { CircleGatewayMinterHook } from "../../../../src/hooks/bridges/circle/CircleGatewayMinterHook.sol";
+import { ISuperHook, ISuperHookResult } from "../../../../src/interfaces/ISuperHook.sol";
 
 // Test mocks
-import { MockERC20 } from "../../mocks/MockERC20.sol";
+import { MockERC20 } from "../../../mocks/MockERC20.sol";
 
 /// @title CircleGatewayUnitTests
 /// @author Superform Labs

@@ -31,8 +31,8 @@ import {
 } from "../../../lib/evm-gateway-contracts/test/util/MultichainTestUtils.sol";
 
 // Test hooks
-import { CircleGatewayWalletHook } from "../../mocks/unused-hooks/CircleGatewayWalletHook.sol";
-import { CircleGatewayMinterHook } from "../../mocks/unused-hooks/CircleGatewayMinterHook.sol";
+import { CircleGatewayWalletHook } from "../../../src/hooks/bridges/circle/CircleGatewayWalletHook.sol";
+import { CircleGatewayMinterHook } from "../../../src/hooks/bridges/circle/CircleGatewayMinterHook.sol";
 
 // Test utilities
 import { Mock4626Vault } from "../../mocks/Mock4626Vault.sol";

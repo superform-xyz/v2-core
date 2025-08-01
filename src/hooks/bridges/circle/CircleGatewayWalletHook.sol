@@ -2,16 +2,16 @@
 pragma solidity 0.8.30;
 
 // external
-import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import { BaseHook } from "../../../src/hooks/BaseHook.sol";
-import { HookSubTypes } from "../../../src/libraries/HookSubTypes.sol";
-import { ISuperHookResult, ISuperHookContextAware } from "../../../src/interfaces/ISuperHook.sol";
+import { BaseHook } from "../../../hooks/BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperHookResult, ISuperHookContextAware } from "../../../interfaces/ISuperHook.sol";
 
-import { IGatewayWallet } from "../../../src/vendor/circle/IGatewayWallet.sol";
+import { IGatewayWallet } from "../../../vendor/circle/IGatewayWallet.sol";
 
 /// @title CircleGatewayWalletHook
 /// @author Superform Labs

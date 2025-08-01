@@ -2,19 +2,19 @@
 pragma solidity 0.8.30;
 
 // external
-import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+import { BytesLib } from "../../../vendor/BytesLib.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 // Superform
-import { BaseHook } from "../../../src/hooks/BaseHook.sol";
-import { HookSubTypes } from "../../../src/libraries/HookSubTypes.sol";
-import { ISuperHookInspector } from "../../../src/interfaces/ISuperHook.sol";
+import { BaseHook } from "../../../hooks/BaseHook.sol";
+import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
+import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 
 // Circle Gateway
-import { AttestationLib } from "../../../lib/evm-gateway-contracts/src/lib/AttestationLib.sol";
-import { TransferSpecLib } from "../../../lib/evm-gateway-contracts/src/lib/TransferSpecLib.sol";
-import { AddressLib } from "../../../lib/evm-gateway-contracts/src/lib/AddressLib.sol";
+import { AttestationLib } from "../../../../lib/evm-gateway-contracts/src/lib/AttestationLib.sol";
+import { TransferSpecLib } from "../../../../lib/evm-gateway-contracts/src/lib/TransferSpecLib.sol";
+import { AddressLib } from "../../../../lib/evm-gateway-contracts/src/lib/AddressLib.sol";
 
 interface IGatewayMinter {
     function gatewayMint(bytes memory attestationPayload, bytes memory signature) external;
