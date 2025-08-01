@@ -42,6 +42,13 @@ abstract contract ConfigCore is ConfigBase {
         configuration.permit2s[ARBITRUM_CHAIN_ID] = PERMIT2_ARBITRUM;
         configuration.permit2s[BNB_CHAIN_ID] = PERMIT2_BNB;
 
+        // ===== MERKL DISTRIBUTOR ADDRESSES =====
+        configuration.merklDistributors[MAINNET_CHAIN_ID] = MERKL_DISTRIBUTOR_MAINNET;
+        configuration.merklDistributors[BASE_CHAIN_ID] = MERKL_DISTRIBUTOR_BASE;
+        configuration.merklDistributors[OPTIMISM_CHAIN_ID] = MERKL_DISTRIBUTOR_OPTIMISM;
+        configuration.merklDistributors[ARBITRUM_CHAIN_ID] = MERKL_DISTRIBUTOR_ARBITRUM;
+        configuration.merklDistributors[BNB_CHAIN_ID] = MERKL_DISTRIBUTOR_BNB;
+
         // ===== CRITICAL ROUTER ADDRESSES FOR CORE HOOKS =====
         // These are required for core hook deployments
         configuration.aggregationRouters[MAINNET_CHAIN_ID] = AGGREGATION_ROUTER_MAINNET;

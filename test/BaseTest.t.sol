@@ -106,6 +106,9 @@ import { GearboxClaimRewardHook } from "../src/hooks/claim/gearbox/GearboxClaimR
 // --- Yearn
 import { YearnClaimOneRewardHook } from "../src/hooks/claim/yearn/YearnClaimOneRewardHook.sol";
 
+// --- Merkl
+import { MerklClaimRewardHook } from "../src/hooks/claim/merkl/MerklClaimRewardHook.sol";
+
 // --- Ethena
 import { EthenaCooldownSharesHook } from "../src/hooks/vaults/ethena/EthenaCooldownSharesHook.sol";
 import { EthenaUnstakeHook } from "../src/hooks/vaults/ethena/EthenaUnstakeHook.sol";
@@ -221,6 +224,7 @@ struct Addresses {
     FluidClaimRewardHook fluidClaimRewardHook;
     GearboxClaimRewardHook gearboxClaimRewardHook;
     YearnClaimOneRewardHook yearnClaimOneRewardHook;
+    MerklClaimRewardHook merklClaimRewardHook;
     EthenaCooldownSharesHook ethenaCooldownSharesHook;
     EthenaUnstakeHook ethenaUnstakeHook;
     BatchTransferFromHook batchTransferFromHook;
@@ -235,7 +239,6 @@ struct Addresses {
     SuperDestinationValidator superDestinationValidator;
     SuperNativePaymaster superNativePaymaster;
     MockTargetExecutor mockTargetExecutor;
-
 }
 
 contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHelper, OdosAPIParser, InternalHelpers {
@@ -568,7 +571,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         for (uint256 i = 0; i < chainIds.length; ++i) {
             vm.selectFork(FORKS[chainIds[i]]);
 
-            address[] memory hooksAddresses = new address[](50);
+            address[] memory hooksAddresses = new address[](51);
 
             A[i].approveErc20Hook = new ApproveERC20Hook{ salt: SALT }();
             vm.label(address(A[i].approveErc20Hook), APPROVE_ERC20_HOOK_KEY);
@@ -1200,6 +1203,19 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][MARK_ROOT_AS_USED_HOOK_KEY]);
             hooksAddresses[49] = address(A[i].markRootAsUsedHook);
+
+            A[i].merklClaimRewardHook = new MerklClaimRewardHook{ salt: SALT }(MERKL_DISTRIBUTOR);
+            vm.label(address(A[i].merklClaimRewardHook), MERKL_CLAIM_REWARD_HOOK_KEY);
+            hookAddresses[chainIds[i]][MERKL_CLAIM_REWARD_HOOK_KEY] = address(A[i].merklClaimRewardHook);
+            hooks[chainIds[i]][MERKL_CLAIM_REWARD_HOOK_KEY] = Hook(
+                MERKL_CLAIM_REWARD_HOOK_KEY,
+                HookCategory.Claims,
+                HookCategory.None,
+                address(A[i].merklClaimRewardHook),
+                ""
+            );
+            hooksByCategory[chainIds[i]][HookCategory.Claims].push(hooks[chainIds[i]][MERKL_CLAIM_REWARD_HOOK_KEY]);
+            hooksAddresses[50] = address(A[i].merklClaimRewardHook);
 
             hookListPerChain[chainIds[i]] = hooksAddresses;
             _createHooksTree(chainIds[i], hooksAddresses);

@@ -3,6 +3,7 @@ pragma solidity 0.8.30;
 
 // external
 import { MockVaultBank } from "../mocks/MockVaultBank.sol";
+import { IDistributor } from "../../src/vendor/merkl/IDistributor.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
@@ -24,6 +25,7 @@ import { MintSuperPositionsHook } from "../../src/hooks/vaults/vault-bank/MintSu
 import { ERC4626YieldSourceOracle } from "../../src/accounting/oracles/ERC4626YieldSourceOracle.sol";
 import { StakingYieldSourceOracle } from "../../src/accounting/oracles/StakingYieldSourceOracle.sol";
 import { SuperLedgerConfiguration } from "../../src/accounting/SuperLedgerConfiguration.sol";
+import { MerklClaimRewardHook } from "../../src/hooks/claim/merkl/MerklClaimRewardHook.sol";
 
 contract CompositeHookFlowTests is BaseTest {
     using ModuleKitHelpers for *;
@@ -34,7 +36,11 @@ contract CompositeHookFlowTests is BaseTest {
     IERC4626 public vaultInstance4626;
     IGearboxFarmingPool public gearboxStaking;
 
+    IDistributor public merklDistributor;
+    address public merklDistributorAddress;
+
     address public underlyingETH_USDC;
+    address public underlyingBase_USDC;
     address public yieldSourceStakingAddress;
     address public yieldSource4626AddressUSDC;
 
@@ -68,6 +74,7 @@ contract CompositeHookFlowTests is BaseTest {
     bytes32 public yieldSourceOracleIdVaultBank;
 
     TestHook public hookOutflow;
+    MerklClaimRewardHook public merklClaimRewardHook;
 
     function setUp() public override {
         super.setUp();
@@ -78,6 +85,10 @@ contract CompositeHookFlowTests is BaseTest {
 
         underlyingETH_USDC = CHAIN_1_USDC;
 
+        merklDistributorAddress = 0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae;
+        merklDistributor = IDistributor(merklDistributorAddress);
+
+        _getTokens(underlyingETH_USDC, merklDistributorAddress, 1e18);
         _getTokens(underlyingETH_USDC, accountEth, 1e18);
 
         hookOutflow = new TestHook(ISuperHook.HookType.OUTFLOW, bytes32(keccak256("TEST_SUBTYPE")));
@@ -136,6 +147,7 @@ contract CompositeHookFlowTests is BaseTest {
         vm.prank(manager);
         config.setYieldSourceOracles(yieldSourceOracleSalts, configs);
 
+        // Base chain setup
         vm.selectFork(FORKS[BASE]);
 
         vaultBankBase = new MockVaultBank();
@@ -745,6 +757,44 @@ contract CompositeHookFlowTests is BaseTest {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        MERKL CLAIM REWARDS TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function test_MerklClaimRewardsHook_ViaMockCalls() public {
+        vm.selectFork(FORKS[ETH]);
+
+        uint256 balanceBefore = IERC20(underlyingETH_USDC).balanceOf(accountEth);
+
+        address[] memory users = new address[](1);
+        users[0] = accountEth;
+
+        address[] memory tokens = new address[](1);
+        tokens[0] = underlyingETH_USDC;
+
+        uint256[] memory amounts = new uint256[](1);
+        amounts[0] = 100e6;
+
+        bytes32[][] memory proofs = new bytes32[][](1);
+        proofs[0] = _updateTreeAndGetProof(users[0], tokens[0], amounts[0]);
+
+        address[] memory hooks = new address[](1);
+        hooks[0] = _getHookAddress(ETH, MERKL_CLAIM_REWARD_HOOK_KEY);
+
+        bytes[] memory data = new bytes[](1);
+        data[0] = _createMerklClaimRewardHookData(tokens, amounts, proofs);
+
+        ISuperExecutor.ExecutorEntry memory entryClaim =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
+        UserOpData memory userOpDataClaim = _getExecOps(instanceOnEth, superExecutorETH, abi.encode(entryClaim));
+
+        executeOp(userOpDataClaim);
+
+        uint256 balanceAfter = IERC20(underlyingETH_USDC).balanceOf(accountEth);
+
+        assertEq(balanceAfter - balanceBefore, 100e6);
+    }
+
+    /*//////////////////////////////////////////////////////////////
                       HELPER FUNCTIONS FOR MUTEX TESTS
     //////////////////////////////////////////////////////////////*/
 
@@ -756,5 +806,36 @@ contract CompositeHookFlowTests is BaseTest {
     /// @notice Helper function to get postExecute mutex state for testing
     function _getPostExecuteMutexState(address account) internal view returns (bool) {
         return hookOutflow.getPostExecuteMutexState(account);
+    }
+
+    /*//////////////////////////////////////////////////////////////
+            HELPER FUNCTIONS FOR MERKL CLAIM REWARDS TESTS
+    //////////////////////////////////////////////////////////////*/
+
+    function _updateTreeAndGetProof(address user, address token, uint256 amount) internal returns (bytes32[] memory) {
+        address canUpdateTree = 0x435046800Fb9149eE65159721A92cB7d50a7534b;
+
+        uint256 epochDuration = 3600;
+
+        bytes32 leaf0 = keccak256(abi.encode(user, token, amount));
+        bytes32 leaf1 = keccak256(abi.encode(makeAddr("user1"), token, amount));
+
+        assertEq(leaf0 < leaf1, true);
+        bytes32 root = keccak256(abi.encode(leaf0, leaf1)); // leaf1 is the right child
+
+        IDistributor.MerkleTree memory tree = IDistributor.MerkleTree({
+            merkleRoot: root,
+            ipfsHash: 0x0000000000000000000000000000000000000000000000000000000000000000
+        });
+
+        vm.prank(canUpdateTree);
+        merklDistributor.updateTree(tree);
+
+        vm.warp(block.timestamp + epochDuration * 10 hours);
+
+        bytes32[] memory proof = new bytes32[](1);
+        proof[0] = leaf1; // Sibling of leaf0
+
+        return proof;
     }
 }
