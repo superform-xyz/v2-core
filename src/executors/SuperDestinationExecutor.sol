@@ -15,7 +15,6 @@ import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
 import { ISuperSenderCreator } from "../interfaces/ISuperSenderCreator.sol";
 import { BytesLib } from "../vendor/BytesLib.sol";
 
-import "forge-std/console2.sol";
 /// @title SuperDestinationExecutor
 /// @author Superform Labs
 /// @notice Generic executor for destination chains of Superform, processing bridged executions
@@ -113,40 +112,32 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
         account = _validateOrCreateAccount(account, initData);
         bytes32 merkleRoot = _decodeMerkleRoot(userSignatureData);
 
-        console2.log("------A");
-
         // --- Signature Validation ---
         // DestinationData encodes executor calldata, current chain id, account, current executor, destination tokens
         // and intent amounts
         bytes memory destinationData =
             abi.encode(executorCalldata, uint64(block.chainid), account, address(this), dstTokens, intentAmounts);
-        console2.log("------B");
 
         // The userSignatureData is passed directly from the adapter
         bytes4 validationResult = ISuperDestinationValidator(SUPER_DESTINATION_VALIDATOR).isValidDestinationSignature(
             account, abi.encode(userSignatureData, destinationData)
         );
-        console2.log("------C");
 
         if (validationResult != SIGNATURE_MAGIC_VALUE) revert INVALID_SIGNATURE();
 
-        console2.log("------D");
         if (!_validateBalances(account, dstTokens, intentAmounts)) return;
-        console2.log("------E");
 
         if (usedMerkleRoots[account][merkleRoot]) {
             emit SuperDestinationExecutorReceivedButRootUsedAlready(account, merkleRoot);
             return;
         }
 
-        console2.log("------F");
         usedMerkleRoots[account][merkleRoot] = true;
 
         if (_shouldSkipCalldata(executorCalldata)) {
             emit SuperDestinationExecutorReceivedButNoHooks(account);
             return;
         }
-        console2.log("------G");
 
         Execution[] memory execs = new Execution[](1);
         execs[0] = Execution({ target: address(this), value: 0, callData: executorCalldata });
@@ -174,17 +165,9 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     }
 
     function _validateOrCreateAccount(address account, bytes memory initData) internal returns (address) {
-        if (initData.length > 0) {
-            bytes2 marker = bytes2(BytesLib.slice(initData, 20, 2));
-            if (marker == INITCODE_EIP7702_MARKER) {
-                // if it's 7702, we don't need to create the account
-                // it should be already initialized
-                return account;
-            }
-            if (account.code.length == 0) {
-                address computedAddress = _createAccount(initData);
-                if (account != computedAddress) revert INVALID_ACCOUNT();
-            }
+        if (initData.length > 0 && account.code.length == 0) {
+            address computedAddress = _createAccount(initData);
+            if (account != computedAddress) revert INVALID_ACCOUNT();
         }
 
         if (account == address(0) || account.code.length == 0) revert ACCOUNT_NOT_CREATED();

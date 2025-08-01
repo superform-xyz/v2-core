@@ -103,7 +103,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         view
         virtual
         returns (bytes32)
-    {
+    {   
         // Note: destinationData.initData is not included because it is not needed for the leaf.
         // If precomputed account is != than the executing account, the entire execution reverts
         // before this method is called. Check SuperDestinationExecutor for more details.
