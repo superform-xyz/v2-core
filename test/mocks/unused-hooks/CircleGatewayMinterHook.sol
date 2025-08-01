@@ -24,9 +24,10 @@ interface IGatewayMinter {
 /// @author Superform Labs
 /// @notice Hook for minting tokens from Circle Gateway Minter
 /// @dev data has the following structure:
-/// @notice         bytes attestationPayload = bytes(data[0:attestationPayloadLength]);
-/// @notice         bytes signature = bytes(data[attestationPayloadLength:]);
-/// @notice         The first 32 bytes contain the length of attestationPayload
+/// @notice         uint256 attestationPayloadLength = BytesLib.toUint256(data, 0);
+/// @notice         bytes attestationPayload = BytesLib.slice(data, 32, attestationPayloadLength);
+/// @notice         uint256 signatureLength = BytesLib.toUint256(data, 32 + attestationPayloadLength);
+/// @notice         bytes signature = BytesLib.slice(data, 64 + attestationPayloadLength, signatureLength);
 contract CircleGatewayMinterHook is BaseHook {
     using BytesLib for bytes;
 
@@ -37,16 +38,17 @@ contract CircleGatewayMinterHook is BaseHook {
     /// @notice Circle Gateway Minter contract address
     address public immutable GATEWAY_MINTER;
 
-    /// @notice Error for token address not being valid
+    /// @notice Error for usdc address not being valid
     error TOKEN_ADDRESS_INVALID();
 
     /// @notice Error for invalid data length
     error INVALID_DATA_LENGTH();
 
     /// @notice Error for attestation payload being too short
-    error ATTESTATION_PAYLOAD_TOO_SHORT();
+    error LENGTH_MISMATCH();
 
     constructor(address gatewayMinterAddress) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
+        if (gatewayMinterAddress == address(0)) revert ADDRESS_NOT_VALID();
         GATEWAY_MINTER = gatewayMinterAddress;
     }
 
@@ -68,8 +70,12 @@ contract CircleGatewayMinterHook is BaseHook {
         // Decode attestation payload and signature from data
         (bytes memory attestationPayload, bytes memory signature) = _decodeAttestationData(data);
 
-        if (attestationPayload.length == 0 || signature.length == 0) {
-            revert AMOUNT_NOT_VALID(); // Reusing error for invalid data
+        if (attestationPayload.length == 0) {
+            revert INVALID_DATA_LENGTH();
+        }
+
+        if (signature.length == 0) {
+            revert INVALID_DATA_LENGTH();
         }
 
         executions = new Execution[](1);
@@ -84,9 +90,9 @@ contract CircleGatewayMinterHook is BaseHook {
 
     /// @inheritdoc ISuperHookInspector
     function inspect(bytes calldata data) external pure override returns (bytes memory) {
-        // Extract token address from attestation payload
-        address token = _extractTokenFromAttestation(data);
-        return abi.encodePacked(token);
+        // Extract usdc address from attestation payload
+        address usdc = _extractTokenFromAttestation(data);
+        return abi.encodePacked(usdc);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -110,24 +116,24 @@ contract CircleGatewayMinterHook is BaseHook {
     //////////////////////////////////////////////////////////////*/
 
     function _preExecute(address, address account, bytes calldata data) internal override {
-        // Extract token address from attestation payload
-        address token = _extractTokenFromAttestation(data);
-        if (token == address(0)) revert TOKEN_ADDRESS_INVALID();
+        // Extract usdc address from attestation payload
+        address usdc = _extractTokenFromAttestation(data);
+        if (usdc == address(0)) revert TOKEN_ADDRESS_INVALID();
 
-        // Store the token address for later use
-        asset = token;
+        // Store the usdc address for later use
+        asset = usdc;
 
         // Record initial balance before minting
-        uint256 initialBalance = IERC20(token).balanceOf(account);
+        uint256 initialBalance = IERC20(usdc).balanceOf(account);
         _setOutAmount(initialBalance, account);
     }
 
     function _postExecute(address, address account, bytes calldata data) internal override {
-        // Extract token address from attestation payload
-        address token = _extractTokenFromAttestation(data);
+        // Extract usdc address from attestation payload
+        address usdc = _extractTokenFromAttestation(data);
 
         // Get final balance after minting
-        uint256 finalBalance = IERC20(token).balanceOf(account);
+        uint256 finalBalance = IERC20(usdc).balanceOf(account);
 
         // Calculate the difference (minted amount)
         uint256 initialBalance = getOutAmount(account);
@@ -146,30 +152,47 @@ contract CircleGatewayMinterHook is BaseHook {
         pure
         returns (bytes memory attestationPayload, bytes memory signature)
     {
-        if (data.length < 32) {
+        if (data.length < 64) {
             revert INVALID_DATA_LENGTH();
         }
 
-        // First 32 bytes contain the length of attestationPayload
-        uint256 attestationPayloadLength = BytesLib.toUint256(data, 0);
+        uint256 offset = 0;
 
-        if (data.length < 32 + attestationPayloadLength) {
-            revert ATTESTATION_PAYLOAD_TOO_SHORT();
+        // First 32 bytes contain the length of attestationPayload
+        uint256 attestationPayloadLength = BytesLib.toUint256(data, offset);
+        offset += 32;
+
+        // Validate there's sufficient data for the attestation payload and signature length
+        if (data.length < offset + attestationPayloadLength + 32) {
+            revert INVALID_DATA_LENGTH();
         }
 
         // Extract attestation payload
-        attestationPayload = BytesLib.slice(data, 32, attestationPayloadLength);
+        attestationPayload = BytesLib.slice(data, offset, attestationPayloadLength);
+        offset += attestationPayloadLength;
 
-        // Extract signature (remaining bytes)
-        uint256 signatureStart = 32 + attestationPayloadLength;
-        uint256 signatureLength = data.length - signatureStart;
-        signature = BytesLib.slice(data, signatureStart, signatureLength);
+        // Next 32 bytes contain the length of signature
+        uint256 signatureLength = BytesLib.toUint256(data, offset);
+        offset += 32;
+
+        // Validate there's sufficient data for the signature
+        if (data.length < offset + signatureLength) {
+            revert INVALID_DATA_LENGTH();
+        }
+
+        // Validate minimum signature length (ECDSA signatures should be at least 65 bytes)
+        if (signatureLength < 65) {
+            revert INVALID_DATA_LENGTH();
+        }
+
+        // Extract signature
+        signature = BytesLib.slice(data, offset, signatureLength);
     }
 
-    /// @notice Extract token address from the attestation payload
+    /// @notice Extract usdc address from the attestation payload
     /// @param data The hook data containing attestation payload and signature
-    /// @return token The destination token address from the attestation
-    function _extractTokenFromAttestation(bytes memory data) internal pure returns (address token) {
+    /// @return usdc The destination usdc address from the attestation
+    function _extractTokenFromAttestation(bytes memory data) internal pure returns (address usdc) {
         // Decode attestation payload from data
         (bytes memory attestationPayload,) = _decodeAttestationData(data);
 
@@ -179,10 +202,12 @@ contract CircleGatewayMinterHook is BaseHook {
         // Get the transfer spec from the attestation
         bytes29 transferSpec = AttestationLib.getTransferSpec(attestationView);
 
-        // Extract the destination token from the transfer spec
-        bytes32 destinationToken = TransferSpecLib.getDestinationToken(transferSpec);
+        // Extract the destination usdc from the transfer spec
+        bytes32 usdcBytes32 = TransferSpecLib.getDestinationToken(transferSpec);
 
         // Convert bytes32 to address
-        token = AddressLib._bytes32ToAddress(destinationToken);
+        usdc = AddressLib._bytes32ToAddress(usdcBytes32);
+
+        if (usdc == address(0)) revert TOKEN_ADDRESS_INVALID();
     }
 }

@@ -394,6 +394,7 @@ contract CrosschainTestsGateway is Helpers, RhinestoneModuleKit, InternalHelpers
         hooksData[0] = abi.encodePacked(
             uint256(encodedAttestation.length), // attestation payload length
             encodedAttestation, // attestation payload
+            uint256(attestationSignature.length), // signature length
             attestationSignature // signature
         );
 

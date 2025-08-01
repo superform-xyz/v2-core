@@ -2,25 +2,22 @@
 pragma solidity 0.8.30;
 
 // external
-import {BytesLib} from "../../../src/vendor/BytesLib.sol";
-import {IERC20} from "@openzeppelin/contracts/interfaces/IERC20.sol";
-import {Execution} from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
+import { BytesLib } from "../../../src/vendor/BytesLib.sol";
+import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
+import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import {BaseHook} from "../../../src/hooks/BaseHook.sol";
-import {HookSubTypes} from "../../../src/libraries/HookSubTypes.sol";
-import {ISuperHookResult, ISuperHookContextAware} from "../../../src/interfaces/ISuperHook.sol";
+import { BaseHook } from "../../../src/hooks/BaseHook.sol";
+import { HookSubTypes } from "../../../src/libraries/HookSubTypes.sol";
+import { ISuperHookResult, ISuperHookContextAware } from "../../../src/interfaces/ISuperHook.sol";
 
-// Circle Gateway
-interface IGatewayWallet {
-    function deposit(address token, uint256 value) external;
-}
+import { IGatewayWallet } from "../../../src/vendor/circle/IGatewayWallet.sol";
 
 /// @title CircleGatewayWalletHook
 /// @author Superform Labs
 /// @notice Hook for approving and depositing tokens to Circle Gateway Wallet
 /// @dev data has the following structure:
-/// @notice         address token = BytesLib.toAddress(data, 0);
+/// @notice         address usdc = BytesLib.toAddress(data, 0);
 /// @notice         uint256 amount = BytesLib.toUint256(data, 20);
 /// @notice         bool usePrevHookAmount = _decodeBool(data, 52);
 contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
@@ -37,6 +34,7 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
     uint256 private constant USE_PREV_HOOK_AMOUNT_POSITION = 52;
 
     constructor(address gatewayWalletAddress) BaseHook(HookType.NONACCOUNTING, HookSubTypes.BRIDGE) {
+        if (gatewayWalletAddress == address(0)) revert ADDRESS_NOT_VALID();
         GATEWAY_WALLET = gatewayWalletAddress;
     }
 
@@ -45,13 +43,17 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
     //////////////////////////////////////////////////////////////*/
 
     /// @inheritdoc BaseHook
-    function _buildHookExecutions(address prevHook, address account, bytes calldata data)
+    function _buildHookExecutions(
+        address prevHook,
+        address account,
+        bytes calldata data
+    )
         internal
         view
         override
         returns (Execution[] memory executions)
     {
-        address token = BytesLib.toAddress(data, 0);
+        address usdc = BytesLib.toAddress(data, 0);
         uint256 amount = BytesLib.toUint256(data, AMOUNT_POSITION);
         bool usePrevHookAmount = _decodeBool(data, USE_PREV_HOOK_AMOUNT_POSITION);
 
@@ -59,26 +61,29 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
             amount = ISuperHookResult(prevHook).getOutAmount(account);
         }
 
-        if (token == address(0)) revert ADDRESS_NOT_VALID();
+        if (usdc == address(0)) revert ADDRESS_NOT_VALID();
         if (amount == 0) revert AMOUNT_NOT_VALID();
 
-        // Build executions: approve(0), approve(amount), deposit
-        executions = new Execution[](3);
+        executions = new Execution[](4);
 
         // First reset approval to 0
         executions[0] =
-            Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (GATEWAY_WALLET, 0))});
+            Execution({ target: usdc, value: 0, callData: abi.encodeCall(IERC20.approve, (GATEWAY_WALLET, 0)) });
 
         // Then approve the actual amount
         executions[1] =
-            Execution({target: token, value: 0, callData: abi.encodeCall(IERC20.approve, (GATEWAY_WALLET, amount))});
+            Execution({ target: usdc, value: 0, callData: abi.encodeCall(IERC20.approve, (GATEWAY_WALLET, amount)) });
 
         // Finally deposit to Gateway Wallet
         executions[2] = Execution({
             target: GATEWAY_WALLET,
             value: 0,
-            callData: abi.encodeCall(IGatewayWallet.deposit, (token, amount))
+            callData: abi.encodeCall(IGatewayWallet.deposit, (usdc, amount))
         });
+
+        // Reset approval to 0
+        executions[3] =
+            Execution({ target: usdc, value: 0, callData: abi.encodeCall(IERC20.approve, (GATEWAY_WALLET, 0)) });
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -97,9 +102,9 @@ contract CircleGatewayWalletHook is BaseHook, ISuperHookContextAware {
         return BytesLib.toUint256(data, AMOUNT_POSITION);
     }
 
-    /// @notice Decode the token from hook data
+    /// @notice Decode the usdc from hook data
     /// @param data The hook data to decode
-    /// @return The token address
+    /// @return The usdc address
     function decodeToken(bytes memory data) external pure returns (address) {
         return BytesLib.toAddress(data, 0);
     }
