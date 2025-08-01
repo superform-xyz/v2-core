@@ -31,16 +31,16 @@ remappings = [
   "@safe/=lib/safe-smart-account/contracts/",
   "@safe7579/=lib/safe7579/src/",
 
-  "@nexus/=lib/nexus-main/contracts/",
-  "sentinellist/=lib/nexus-main/node_modules/sentinellist/src/",
+  "@nexus/=lib/nexus/contracts/",
+  "sentinellist/=lib/nexus/node_modules/sentinellist/src/",
   "solady/=lib/solady/src/",
-  "solarray/=lib/nexus-main/node_modules/solarray/src/",
-  "account-abstraction/=lib/nexus-main/node_modules/account-abstraction/contracts/",
+  "solarray/=lib/nexus/node_modules/solarray/src/",
+  "account-abstraction/=lib/nexus/node_modules/account-abstraction/contracts/",
   "excessively-safe-call/=lib/ExcessivelySafeCall/src/",
-  "lib-prep/=lib/nexus-main/node_modules/prep/src/",
-  "composability/=lib/nexus-main/node_modules/@biconomy/composability/contracts/",
-  "erc7739Validator/=lib/nexus-main/node_modules/erc7739-validator-base/src/",
-  "account-abstraction-v0.6/=lib/nexus-main/node_modules/account-abstraction-v0.6/contracts/",
+  "lib-prep/=lib/nexus/node_modules/prep/src/",
+  "composability/=lib/nexus/node_modules/@biconomy/composability/contracts/",
+  "erc7739Validator/=lib/nexus/node_modules/erc7739-validator-base/src/",
+  "account-abstraction-v0.6/=lib/nexus/node_modules/account-abstraction-v0.6/contracts/",
 ]
 dynamic_test_linking = true
 gas_limit = "18446744073709551615"
