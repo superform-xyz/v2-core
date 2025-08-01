@@ -7,9 +7,7 @@ import { IDistributor } from "../../../vendor/merkl/IDistributor.sol";
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 
 // Superform
-import {
-    ISuperHookInspector
-} from "../../../interfaces/ISuperHook.sol";
+import { ISuperHookInspector } from "../../../interfaces/ISuperHook.sol";
 import { BaseHook } from "../../BaseHook.sol";
 import { HookSubTypes } from "../../../libraries/HookSubTypes.sol";
 import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
@@ -20,7 +18,8 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @notice         uint256 arraysLength = BytesLib.toUint256(data, 0);
 /// @notice         address[] tokens = BytesLib.slice(data, 32, arraysLength * 20);
 /// @notice         uint256[] amounts = BytesLib.slice(data, 32 + arraysLength * 20, arraysLength * 32);
-/// @notice         bytes proofBlob = BytesLib.slice(data, 32 + arraysLength * 20 + arraysLength * 32, data.length - (32 + arraysLength * 20 + arraysLength * 32));
+/// @notice         bytes proofBlob = BytesLib.slice(data, 32 + arraysLength * 20 + arraysLength * 32, data.length - (32
+/// + arraysLength * 20 + arraysLength * 32));
 contract MerklClaimRewardHook is BaseHook {
     using HookDataDecoder for bytes;
 
@@ -28,7 +27,7 @@ contract MerklClaimRewardHook is BaseHook {
                                 STORAGE
     //////////////////////////////////////////////////////////////*/
     error INVALID_ENCODING();
-    
+
     address public immutable distributor;
 
     struct ClaimParams {
