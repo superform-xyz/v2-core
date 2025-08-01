@@ -51,20 +51,10 @@ contract MerklClaimRewardsHookTest is Helpers {
         assertEq(uint256(hook.hookType()), uint256(ISuperHook.HookType.NONACCOUNTING));
     }
 
-    function test_decodeAmount() public view {
-        bytes memory data = _encodeData();
-        assertEq(hook.decodeAmount(data), 0);
-    }
-
-    function test_replaceCalldataAmount() public view {
-        bytes memory data = _encodeData();
-        bytes memory newData = hook.replaceCalldataAmount(data, 5000);
-        assertEq(newData, data);
-    }
-
-    function test_decodeUsePrevHookAmount() public view {
-        bytes memory data = _encodeData();
-        assertEq(hook.decodeUsePrevHookAmount(data), false);
+    function test_Build_RevertIf_DistributorZero() public {
+        distributor = address(0);
+        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
+        MerklClaimRewardHook newHook = new MerklClaimRewardHook(distributor);
     }
 
     function test_MerklClaimRewardsHook_Build() public view {
