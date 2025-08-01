@@ -141,7 +141,7 @@ contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOu
 
         uint256 cursor = 64;
         users = new address[](arrayLength);
-        for (uint256 i = 0; i < arrayLength; i++) {
+        for (uint256 i; i < arrayLength; i++) {
             users[i] = account;
             cursor += 20;
         }
