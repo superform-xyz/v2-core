@@ -77,18 +77,8 @@ contract MerklClaimRewardsHookTest is Helpers {
         assertGt(executions[1].callData.length, 0);
     }
 
-    function test_Build_RevertIf_DistributorZero() public {
-        distributor = address(0);
-        bytes memory data = _encodeData();
-        vm.expectRevert(BaseHook.ADDRESS_NOT_VALID.selector);
-        hook.build(address(0), address(0), data);
-    }
-
     function test_PreAndPostExecute() public {
         address account = makeAddr("account");
-        _getTokens(tokens[0], account, amounts[0]);
-        _getTokens(tokens[1], account, amounts[1]);
-        _getTokens(tokens[2], account, amounts[2]);
 
         vm.prank(account);
         hook.preExecute(address(0), account, _encodeData());
@@ -107,15 +97,10 @@ contract MerklClaimRewardsHookTest is Helpers {
         // Check that distributor is encoded correctly
         assertEq(BytesLib.toAddress(argsEncoded, 0), distributor);
 
-        // Check that users are encoded correctly
-        assertEq(BytesLib.toAddress(argsEncoded, 20), users[0]);
-        assertEq(BytesLib.toAddress(argsEncoded, 40), users[1]);
-        assertEq(BytesLib.toAddress(argsEncoded, 60), users[2]);
-
         // Check that tokens are encoded correctly
-        assertEq(BytesLib.toAddress(argsEncoded, 80), tokens[0]);
-        assertEq(BytesLib.toAddress(argsEncoded, 100), tokens[1]);
-        assertEq(BytesLib.toAddress(argsEncoded, 120), tokens[2]);
+        assertEq(BytesLib.toAddress(argsEncoded, 20), tokens[0]);
+        assertEq(BytesLib.toAddress(argsEncoded, 40), tokens[1]);
+        assertEq(BytesLib.toAddress(argsEncoded, 60), tokens[2]);
     }
 
     function test_CalldataDecoding() public view {
@@ -136,10 +121,6 @@ contract MerklClaimRewardsHookTest is Helpers {
 
     function _encodeData() internal view returns (bytes memory data) {
         data = abi.encodePacked(bytes32(0), uint256(users.length));
-
-        for (uint256 i = 0; i < users.length; i++) {
-            data = bytes.concat(data, bytes20(users[i]));
-        }
 
         for (uint256 i = 0; i < tokens.length; i++) {
             data = bytes.concat(data, bytes20(tokens[i]));

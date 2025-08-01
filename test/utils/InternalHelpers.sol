@@ -881,7 +881,6 @@ abstract contract InternalHelpers is Test {
     }
 
     function _createMerklClaimRewardHookData(
-        address[] memory users,
         address[] memory tokens,
         uint256[] memory amounts,
         bytes32[][] memory proofs
@@ -890,11 +889,7 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory data)
     {
-        data = abi.encodePacked(bytes32(0), uint256(users.length));
-
-        for (uint256 i = 0; i < users.length; i++) {
-            data = bytes.concat(data, bytes20(users[i]));
-        }
+        data = abi.encodePacked(bytes32(0), uint256(tokens.length));
 
         for (uint256 i = 0; i < tokens.length; i++) {
             data = bytes.concat(data, bytes20(tokens[i]));

@@ -781,7 +781,7 @@ contract CompositeHookFlowTests is BaseTest {
         hooks[0] = _getHookAddress(ETH, MERKL_CLAIM_REWARD_HOOK_KEY);
 
         bytes[] memory data = new bytes[](1);
-        data[0] = _createMerklClaimRewardHookData(users, tokens, amounts, proofs);
+        data[0] = _createMerklClaimRewardHookData(tokens, amounts, proofs);
 
         ISuperExecutor.ExecutorEntry memory entryClaim =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hooks, hooksData: data });
