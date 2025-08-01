@@ -889,7 +889,7 @@ abstract contract InternalHelpers is Test {
         pure
         returns (bytes memory data)
     {
-        data = abi.encodePacked(bytes32(0), uint256(tokens.length));
+        data = abi.encodePacked(uint256(tokens.length));
 
         for (uint256 i = 0; i < tokens.length; i++) {
             data = bytes.concat(data, bytes20(tokens[i]));

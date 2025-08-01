@@ -17,11 +17,10 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @title MerklClaimRewardHook
 /// @author Superform Labs
 /// @dev data has the following structure
-/// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
-/// @notice         uint256 arraysLength = BytesLib.toUint256(data, 32);
-/// @notice         address[] tokens = BytesLib.slice(data, 64, arraysLength * 20);
-/// @notice         uint256[] amounts = BytesLib.slice(data, 64 + arraysLength * 20, arraysLength * 32);
-/// @notice         bytes proofBlob = BytesLib.slice(data, 64 + arraysLength * 20 + arraysLength * 32, data.length - (64 + arraysLength * 20 + arraysLength * 32));
+/// @notice         uint256 arraysLength = BytesLib.toUint256(data, 0);
+/// @notice         address[] tokens = BytesLib.slice(data, 32, arraysLength * 20);
+/// @notice         uint256[] amounts = BytesLib.slice(data, 32 + arraysLength * 20, arraysLength * 32);
+/// @notice         bytes proofBlob = BytesLib.slice(data, 32 + arraysLength * 20 + arraysLength * 32, data.length - (32 + arraysLength * 20 + arraysLength * 32));
 contract MerklClaimRewardHook is BaseHook {
     using HookDataDecoder for bytes;
 
@@ -117,13 +116,11 @@ contract MerklClaimRewardHook is BaseHook {
     }
 
     function _setUsersArray(address account, bytes calldata data) internal pure returns (address[] memory users) {
-        uint256 arrayLength = BytesLib.toUint256(data, 32);
+        uint256 arrayLength = BytesLib.toUint256(data, 0);
 
-        uint256 cursor = 64;
         users = new address[](arrayLength);
         for (uint256 i; i < arrayLength; i++) {
             users[i] = account;
-            cursor += 20;
         }
     }
 
@@ -132,8 +129,8 @@ contract MerklClaimRewardHook is BaseHook {
         pure
         returns (uint256 cursor, address[] memory tokens, uint256[] memory amounts)
     {
-        uint256 arrayLength = BytesLib.toUint256(data, 32);
-        cursor = 64;
+        uint256 arrayLength = BytesLib.toUint256(data, 0);
+        cursor = 32;
 
         tokens = new address[](arrayLength);
         for (uint256 i; i < arrayLength; i++) {
@@ -155,7 +152,7 @@ contract MerklClaimRewardHook is BaseHook {
     }
 
     function _decodeProofs(bytes calldata data, uint256 cursor) internal pure returns (bytes32[][] memory proofs) {
-        uint256 arrayLength = BytesLib.toUint256(data, 32);
+        uint256 arrayLength = BytesLib.toUint256(data, 0);
         proofs = new bytes32[][](arrayLength);
 
         for (uint256 i; i < arrayLength; ++i) {
