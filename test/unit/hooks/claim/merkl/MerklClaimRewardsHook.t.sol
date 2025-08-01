@@ -84,13 +84,10 @@ contract MerklClaimRewardsHookTest is Helpers {
         bytes memory argsEncoded = hook.inspect(data);
         assertGt(argsEncoded.length, 0);
 
-        // Check that distributor is encoded correctly
-        assertEq(BytesLib.toAddress(argsEncoded, 0), distributor);
-
         // Check that tokens are encoded correctly
-        assertEq(BytesLib.toAddress(argsEncoded, 20), tokens[0]);
-        assertEq(BytesLib.toAddress(argsEncoded, 40), tokens[1]);
-        assertEq(BytesLib.toAddress(argsEncoded, 60), tokens[2]);
+        assertEq(BytesLib.toAddress(argsEncoded, 0), tokens[0]);
+        assertEq(BytesLib.toAddress(argsEncoded, 20), tokens[1]);
+        assertEq(BytesLib.toAddress(argsEncoded, 40), tokens[2]);
     }
 
     function test_CalldataDecoding() public view {
