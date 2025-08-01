@@ -1621,6 +1621,27 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
         }
     }
+    function _processAcrossV3MessageWithSpecificDestinationFork(
+        uint64 srcChainId,
+        uint64 dstChainId,
+        uint256 warpTimestamp,
+        ExecutionReturnData memory executionData,
+        uint256 dstForkId,
+        address acrossHelper
+    )
+        internal
+    {
+        AcrossV3Helper(acrossHelper).help(
+            SPOKE_POOL_V3_ADDRESSES[srcChainId],
+            SPOKE_POOL_V3_ADDRESSES[dstChainId],
+            ACROSS_RELAYER,
+            warpTimestamp,
+            dstForkId,
+            dstChainId,
+            srcChainId,
+            executionData.logs
+        );
+    }
 
     function _processAcrossV3MessageWithoutDestinationAccount(
         uint64 srcChainId,

@@ -37,6 +37,9 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
     address internal constant NATIVE_TOKEN_SENTINEL = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
+    /// @notice Prefix for 7702 authority -> https://eip7702.io/
+    bytes3 internal constant EIP7702_PREFIX = bytes3(0xef0100);
+
     /*//////////////////////////////////////////////////////////////
                                  STORAGE
     //////////////////////////////////////////////////////////////*/
@@ -103,7 +106,9 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
     /// @inheritdoc ISuperExecutor
     function execute(bytes calldata data) external virtual {
-        if (!_initialized[msg.sender]) revert NOT_INITIALIZED();
+        if (!_is7702Account(address(msg.sender).code) && !_initialized[msg.sender]) {
+            revert NOT_INITIALIZED();
+        }
         _execute(msg.sender, abi.decode(data, (ExecutorEntry)));
     }
 
@@ -338,5 +343,12 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
         } catch {
             return false;
         }
+    }
+
+    /// @notice Checks if an address is a 7702 signer
+    /// @param code The code of the address to check
+    /// @return True if the address is a 7702 signer, false otherwise
+    function _is7702Account(bytes memory code) internal pure returns (bool) {
+        return bytes3(code) == EIP7702_PREFIX;
     }
 }
