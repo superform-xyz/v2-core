@@ -11,6 +11,7 @@ import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
 library ChainAgnosticSafeSignatureValidation {
     /// @notice Chain-agnostic domain separator type hash
     /// @dev Uses a fixed domain without chainId for cross-chain compatibility
+    /// @notice verifyingContract is the safe smart account address
     // keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)")
     bytes32 private constant CHAIN_AGNOSTIC_DOMAIN_TYPEHASH =
         0x8b73c3c69bb8fe3d512ecc4cf759cc79239f7b179b0ffacaa9a75d522b39400f;
@@ -149,12 +150,7 @@ library ChainAgnosticSafeSignatureValidation {
 
             // Use OpenZeppelin's secure ECDSA recovery with proper validation
             // tryRecover performs all security checks: s-value malleability, v validation, etc.
-            (address currentOwner, ECDSA.RecoverError error,) = ECDSA.tryRecover(messageHash, currentSignature);
-
-            // If signature recovery failed, return false
-            if (error != ECDSA.RecoverError.NoError) {
-                return false;
-            }
+            address currentOwner = ECDSA.recover(messageHash, currentSignature);
 
             // Check if recovered address is a valid owner and maintains ascending order
             if (_isOwner(currentOwner, owners)) {

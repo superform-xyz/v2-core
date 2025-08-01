@@ -220,7 +220,9 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         // Use address(0) as validator (falls back to Safe's checkSignatures) + 1 byte signature
         bytes memory testSignature = abi.encodePacked(address(0), hex"00");
         bytes memory callData = abi.encodeWithSelector(IERC1271.isValidSignature.selector, bytes32(0), testSignature);
-        (bool success, bytes memory returnData) = addr.staticcall{ gas: 50_000 }(callData);
+        
+        /// @dev note to auditors: check if this call can be grieved (but would rug the user)
+        (bool success, bytes memory returnData) = addr.staticcall(callData);
 
         // Function exists if:
         // 1. Call succeeds (function exists and validation passed)
