@@ -23,11 +23,9 @@ import { HookDataDecoder } from "../../../libraries/HookDataDecoder.sol";
 /// @dev data has the following structure
 /// @notice         bytes32 placeholder = bytes32(BytesLib.slice(data, 0, 32), 0);
 /// @notice         uint256 arraysLength = BytesLib.toUint256(data, 32);
-/// @notice         address[] tokens = BytesLib.slice(data, 64 + arrayLength * 20, tokensLength * 20);
-/// @notice         uint256[] amounts = BytesLib.slice(data, 64 + arrayLength * 20 + tokensLength * 20, amountsLength *
-/// 32);
-/// @notice         bytes proofBlob = BytesLib.slice(data, 64 + arrayLength * 20 + tokensLength * 20 + amountsLength *
-/// 32, data.length - (64 + arrayLength * 20 + tokensLength * 20 + amountsLength * 32));
+/// @notice         address[] tokens = BytesLib.slice(data, 64, arraysLength * 20);
+/// @notice         uint256[] amounts = BytesLib.slice(data, 64 + arraysLength * 20, arraysLength * 32);
+/// @notice         bytes proofBlob = BytesLib.slice(data, 64 + arraysLength * 20 + arraysLength * 32, data.length - (64 + arraysLength * 20 + arraysLength * 32));
 contract MerklClaimRewardHook is BaseHook, ISuperHookInflowOutflow, ISuperHookOutflow, ISuperHookContextAware {
     using HookDataDecoder for bytes;
 
