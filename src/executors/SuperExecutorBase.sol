@@ -106,7 +106,7 @@ abstract contract SuperExecutorBase is ERC7579ExecutorBase, ISuperExecutor, Reen
 
     /// @inheritdoc ISuperExecutor
     function execute(bytes calldata data) external virtual {
-        if (!_is7702Account(address(msg.sender).code) && !_initialized[msg.sender]) {
+        if (!_initialized[msg.sender]) {
             revert NOT_INITIALIZED();
         }
         _execute(msg.sender, abi.decode(data, (ExecutorEntry)));
