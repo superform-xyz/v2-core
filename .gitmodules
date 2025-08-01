@@ -33,4 +33,5 @@
 	url = https://github.com/superform-xyz/modulekit.git
 [submodule "lib/nexus-main"]
 	path = lib/nexus-main
-	url = https://github.com/superform-xyz/nexus-main.git
+	url = https://github.com/superform-xyz/nexus
+	branch = feat/removeHardhatFixversion
