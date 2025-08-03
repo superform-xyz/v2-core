@@ -1,5 +1,5 @@
 # Security Policy
-This section outlines the security policy and known limitations of the Superform V2 core protocol.
+This section outlines the security policy and known limitations of the Superform v2 core protocol.
 
 ## Known Issues
 The protocol includes a few accepted trade-offs and architectural decisions that integrators and users should be aware of and handle accordingly.
@@ -7,9 +7,7 @@ The protocol includes a few accepted trade-offs and architectural decisions that
 #### 1. Cross-Bridge replay attack
 There is a low-likelihood scenario where a user's signed bridging intent may still be executed on the destination chain even after it has been canceled on the source chain.
 
-**Prerequisites:** 
-
-The user must still have sufficient balance on their smart account on the destination chain.
+Given the user must still have sufficient balance on their smart account on the destination chain, this is deemed to be a non-issue as it suffices to better UX and intended behavior to simplify core actions. 
 
 A working proof-of-concept for this issue is available in the [test/integration/attacks](./test/integration/attacks/CrossBridgeReplayAfterCancellation.t.sol) directory.
 
@@ -31,10 +29,10 @@ Superform is tested and optimized for Nexus and Safe smart accounts. Other ERC-7
 The protocol uses a fixed chain ID to enable a single signature for cross-chain execution. This makes it partially non-compliant with EIP-1271 in certain contexts.
 
 #### 7. Cost basis caching
-Superform uses a cached cost basis when a user's smart account withdraws directly from a vault. This is intended behavior. Any unpaid fees will be recovered from future interactions.
+Superform uses a cached cost basis when a user's smart account withdraws directly from a vault. This is intended behavior. 
 
-#### 8. Oracle dependency
-Superform relies on vaults exposing accurate `convertToAssets()` and related functions for pricing. Misconfigured or non-compliant vaults may lead to issues such as failed deposits or withdrawals. Proper integration is essential to avoid disruptions.
+#### 8. Vault integration dependencies
+Superform relies on vaults exposing accurate functions for pricing, like `convertToAssets()` in ERC-4626. Misconfigured or non-compliant vaults may lead to issues such as failed deposits or withdrawals. For vaults with timelocks, special hooks must be used before normal actions. Proper integration is essential to avoid disruptions.
 
 #### 9. Fee skipping
 There are multiple edge cases where protocol fees may be bypassed. While this is an accepted trade-off, it should be noted when designing or integrating with the system.
@@ -46,7 +44,7 @@ The destination executor supports only one leaf per destination in the Merkle ro
 The protocol allows signatures with no expiration. While convenient, these signatures can pose risks in certain operational contexts and should be used carefully.
 
 #### 12. Multiple valid execution paths
-Once an intent is signed, there are several valid methods to execute it — even in cases where the associated bridge transaction has not completed successfully. This provides flexibility but requires careful handling by integrators to avoid unintended consequences.
+Once an intent is signed, there are several valid methods to execute it, even in cases where the associated bridge transaction has not completed successfully. This provides flexibility but requires careful handling by integrators to avoid unintended consequences.
 
 
 
