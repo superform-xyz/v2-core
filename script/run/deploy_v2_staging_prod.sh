@@ -155,7 +155,6 @@ validate_locked_bytecode() {
         for file in "${missing_files[@]}"; do
             echo -e "${RED}   - $file${NC}"
         done
-        echo -e "${YELLOW}💡 Run './script/run/update_locked_bytecode.sh' to generate missing files${NC}"
         return 1
     fi
     
