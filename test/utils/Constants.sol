@@ -116,6 +116,7 @@ abstract contract Constants {
     string public constant DEBRIDGE_CANCEL_ORDER_HOOK_KEY = "DeBridgeCancelOrderHook";
     string public constant SUPER_DESTINATION_EXECUTOR_KEY = "SuperDestinationExecutor";
     string public constant SUPER_SENDER_CREATOR_KEY = "SuperSenderCreator";
+    string public constant SUPER_7702_SENDER_CREATOR_KEY = "Super7702SenderCreator";
     string public constant SUPER_LEDGER_KEY = "SuperLedger";
     string public constant ERC1155_LEDGER_KEY = "ERC5115Ledger";
     string public constant SUPER_LEDGER_CONFIGURATION_KEY = "SuperLedgerConfiguration";

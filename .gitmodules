@@ -31,6 +31,10 @@
 [submodule "lib/modulekit"]
 	path = lib/modulekit
 	url = https://github.com/superform-xyz/modulekit.git
+[submodule "lib/nexus"]
+	path = lib/nexus
+	url = https://github.com/superform-xyz/nexus
+	branch = feat/removeHardhatFixversion
 [submodule "lib/evm-gateway-contracts"]
 	path = lib/evm-gateway-contracts
 	url = https://github.com/circlefin/evm-gateway-contracts

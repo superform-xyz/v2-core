@@ -51,7 +51,7 @@ contract CrossBridgeReplayAfterCancellation is CrosschainTests {
                 tokenSent: underlyingETH_USDC
             });
 
-            (innerExecutorPayload, accountToUse) = _createTargetExecutorMessage(messageData);
+            (innerExecutorPayload, accountToUse) = _createTargetExecutorMessage(messageData, false);
         }
 
         // BASE IS SRC

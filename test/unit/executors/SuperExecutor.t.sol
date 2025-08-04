@@ -76,7 +76,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
         superDestinationValidator = new SuperDestinationValidator();
         superSourceExecutor = new SuperExecutor(address(ledgerConfig));
         superDestinationExecutor = new SuperDestinationExecutor(
-            address(ledgerConfig), address(superDestinationValidator), address(nexusFactory)
+            address(ledgerConfig), address(superDestinationValidator)
         );
 
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superSourceExecutor), data: "" });
@@ -514,10 +514,7 @@ contract SuperExecutorTest is Helpers, RhinestoneModuleKit, InternalHelpers, Sig
 
     function test_DestinationExecutor_Constructor() public {
         vm.expectRevert(ISuperExecutor.ADDRESS_NOT_VALID.selector);
-        new SuperDestinationExecutor(address(this), address(0), address(this));
-
-        vm.expectRevert(ISuperExecutor.ADDRESS_NOT_VALID.selector);
-        new SuperDestinationExecutor(address(this), address(this), address(0));
+        new SuperDestinationExecutor(address(this), address(0));
     }
 
     function test_DestinationExecutor_IsMerkleTreeUsed() public view {
