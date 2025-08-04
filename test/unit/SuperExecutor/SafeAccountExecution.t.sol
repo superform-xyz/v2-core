@@ -1133,7 +1133,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             tokenSent: underlyingOpUsdce
         });
 
-        (vars.targetExecutorMessage, vars.accountToUse) = _createTargetExecutorMessage(vars.messageData);
+        (vars.targetExecutorMessage, vars.accountToUse) = _createTargetExecutorMessage(vars.messageData, false);
         vars.previewDepositAmountOP = vaultInstance4626OP.previewDeposit(vars.amountPerVault);
     }
     /**

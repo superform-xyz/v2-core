@@ -97,13 +97,18 @@ contract SuperDestinationValidator is SuperValidatorBase {
         leaf = _createLeaf(abi.encode(destinationData), sigData.validUntil, false);
         if (!MerkleProof.verify(_extractProof(sigData), sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
-        address owner = _accountOwners[sender];
-
-        // Support any EIP-1271 compatible smart contract, not just Safe multisigs
-        if (_isEIP1271Signer(owner)) {
-            signer = _processEIP1271Signature(owner, sigData);
-        } else {
+        // For EIP-7702 accounts, the signer is the account itself (EOA with delegated code)
+        if (_is7702Account(sender.code)) {
             signer = _processECDSASignature(sigData);
+        } else {
+            address owner = _accountOwners[sender];
+
+            // Support any EIP-1271 compatible smart contract, not just Safe multisigs
+            if (_isEIP1271Signer(owner)) {
+                signer = _processEIP1271Signature(owner, sigData);
+            } else {
+                signer = _processECDSASignature(sigData);
+            }
         }
     }
 

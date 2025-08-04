@@ -4,10 +4,7 @@ pragma solidity 0.8.30;
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
-import { INexusFactory } from "../vendor/nexus/INexusFactory.sol";
-
 import { Execution } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
-import { IERC7579Account } from "modulekit/accounts/common/interfaces/IERC7579Account.sol";
 
 // Superform
 import { SuperExecutorBase } from "./SuperExecutorBase.sol";
@@ -34,10 +31,6 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /// @dev Used to validate signatures in the processBridgedExecution method
     address public immutable SUPER_DESTINATION_VALIDATOR;
 
-    /// @notice Factory contract used to create new smart accounts when needed
-    /// @dev Creates deterministic smart accounts during cross-chain operations
-    INexusFactory public immutable NEXUS_FACTORY;
-
     /// @notice Tracks which merkle roots have been used by each user address
     /// @dev Prevents replay attacks by ensuring each merkle root can only be used once per user
     mapping(address user => mapping(bytes32 merkleRoot => bool used)) public usedMerkleRoots;
@@ -48,6 +41,9 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /// @dev From `SuperDestinationValidator`:
     /// `bytes4(keccak256("isValidDestinationSignature(address,bytes)")) = 0x5c2ec0f3`
     bytes4 internal constant SIGNATURE_MAGIC_VALUE = bytes4(0x5c2ec0f3);
+    
+    /// @notice Marker for EIP-7702 initcode
+    bytes2 internal constant INITCODE_EIP7702_MARKER = 0x7702;
 
     /// @notice Length of an empty execution data structure
     /// @dev 228 represents the length of the ExecutorEntry object (hooksAddresses, hooksData) for empty arrays
@@ -61,20 +57,17 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     /// @notice Initializes the SuperDestinationExecutor with required references
     /// @param ledgerConfiguration_ Address of the ledger configuration contract for fee calculations
     /// @param superDestinationValidator_ Address of the validator contract used to verify cross-chain messages
-    /// @param nexusFactory_ Address of the account factory used to create new smart accounts
     constructor(
         address ledgerConfiguration_,
-        address superDestinationValidator_,
-        address nexusFactory_
+        address superDestinationValidator_
     )
         SuperExecutorBase(ledgerConfiguration_)
     {
         // Validate critical contract references
-        if (superDestinationValidator_ == address(0) || nexusFactory_ == address(0)) {
+        if (superDestinationValidator_ == address(0)) {
             revert ADDRESS_NOT_VALID();
         }
         SUPER_DESTINATION_VALIDATOR = superDestinationValidator_;
-        NEXUS_FACTORY = INexusFactory(nexusFactory_);
     }
 
     /*//////////////////////////////////////////////////////////////
@@ -115,9 +108,8 @@ contract SuperDestinationExecutor is SuperExecutorBase, ISuperDestinationExecuto
     {
         uint256 dstTokensLen = dstTokens.length;
         if (dstTokensLen != intentAmounts.length) revert ARRAY_LENGTH_MISMATCH();
-
+        
         account = _validateOrCreateAccount(account, initData);
-
         bytes32 merkleRoot = _decodeMerkleRoot(userSignatureData);
 
         // --- Signature Validation ---

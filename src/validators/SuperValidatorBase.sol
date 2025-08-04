@@ -28,6 +28,9 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     /// @dev Used to verify signatures against the correct owner address
     mapping(address account => address owner) internal _accountOwners;
 
+    /// @notice Prefix for 7702 authority -> https://eip7702.io/
+    bytes3 internal constant EIP7702_PREFIX = bytes3(0xef0100);
+
     /*//////////////////////////////////////////////////////////////
                                  ERRORS
     //////////////////////////////////////////////////////////////*/
@@ -102,7 +105,7 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         view
         virtual
         returns (bytes32)
-    {
+    {   
         // Note: destinationData.initData is not included because it is not needed for the leaf.
         // If precomputed account is != than the executing account, the entire execution reverts
         // before this method is called. Check SuperDestinationExecutor for more details.
@@ -206,7 +209,12 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
     {
         /// @dev block.timestamp could vary between chains
         /// @dev validUntil = 0 means infinite validity
-        return signer == _accountOwners[sender] && (validUntil == 0 || validUntil >= block.timestamp);
+        bool isValid = (validUntil == 0 || validUntil >= block.timestamp);
+        if (_is7702Account(sender.code)) {
+            // in case of 7702 owner is the account itself (the EOA)
+            return signer == sender && isValid;
+        }
+        return signer == _accountOwners[sender] && isValid;
     }
 
     /// @notice Checks if an address supports EIP-1271 signature validation
@@ -229,5 +237,12 @@ abstract contract SuperValidatorBase is ERC7579ValidatorBase, ISuperValidator {
         // 2. Call fails but returns data (function exists but validation failed)
         // 3. Call fails with no data = function doesn't exist
         return success || returnData.length > 0;
+    }
+    
+    /// @notice Checks if an address is a 7702 signer
+    /// @param code The code of the address to check
+    /// @return True if the address is a 7702 signer, false otherwise
+    function _is7702Account(bytes memory code) internal pure returns (bool) {
+        return bytes3(code) == EIP7702_PREFIX;
     }
 }

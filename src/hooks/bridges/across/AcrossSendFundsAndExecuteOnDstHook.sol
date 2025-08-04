@@ -128,6 +128,7 @@ contract AcrossSendFundsAndExecuteOnDstHook is BaseHook, ISuperHookContextAware 
         // if `destinationMessage` is present append signature to it
         if (acrossV3DepositAndExecuteData.destinationMessage.length > 0) {
             bytes memory signature = ISuperSignatureStorage(_validator).retrieveSignatureData(account);
+
             (
                 bytes memory initData,
                 bytes memory executorCalldata,

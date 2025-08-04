@@ -224,6 +224,13 @@ forge install
 ```bash
 cd lib/modulekit
 pnpm install
+cd ../..
+cd lib/safe7579
+pnpm install
+cd ../..
+cd lib/nexus
+yarn
+cd ../..
 ```
 
 Note: This requires pnpm and will not work with npm. Install it using:

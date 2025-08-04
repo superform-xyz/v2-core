@@ -618,8 +618,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
                 vm.getCode("script/locked-bytecode/SuperDestinationExecutor.json"),
                 abi.encode(
                     coreContracts.superLedgerConfiguration,
-                    coreContracts.superDestinationValidator,
-                    configuration.nexusFactories[chainId]
+                    coreContracts.superDestinationValidator
                 )
             )
         );
