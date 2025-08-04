@@ -43,6 +43,9 @@ log() {
 get_network_name() {
     local network_id=$1
     case "$network_id" in
+        1)
+            echo "Ethereum"
+            ;;
         8453)
             echo "Base"
             ;;
@@ -73,7 +76,7 @@ validate_locked_bytecode() {
         "SuperLedger"
         "FlatFeeLedger"
         "SuperLedgerConfiguration"
-        "SuperMerkleValidator"
+        "SuperValidator"
         "SuperDestinationValidator"
         "SuperNativePaymaster"
     )
@@ -337,6 +340,7 @@ echo -e "${BLUE}🔧 Loading Configuration...${NC}"
 
 # Production RPC URLs
 echo -e "${CYAN}   • Loading RPC URLs...${NC}"
+export ETH_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHEREUM_RPC_URL/credential)
 export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential)
 export BSC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BSC_RPC_URL/credential)
 export ARBITRUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ARBITRUM_RPC_URL/credential)
@@ -353,11 +357,13 @@ export S3_BUCKET_NAME="superform-deployment-state"
 
 # Tenderly verification URLs for each network
 echo -e "${CYAN}   • Setting up Tenderly verification URLs...${NC}"
+export ETH_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/1"
 export BASE_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/8453"
 export BSC_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/56"
 export ARBITRUM_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/42161"
 
 # Create output directories
+mkdir -p "script/output/$ENVIRONMENT/1"
 mkdir -p "script/output/$ENVIRONMENT/8453"
 mkdir -p "script/output/$ENVIRONMENT/56"
 mkdir -p "script/output/$ENVIRONMENT/42161"
@@ -385,6 +391,8 @@ echo -e "${CYAN}This will show you which contracts are already deployed and whic
 echo ""
 
 # Check addresses on all networks
+check_v2_addresses 1 "Ethereum" "ETH_MAINNET" "ETH_VERIFIER_URL"
+echo ""
 check_v2_addresses 8453 "Base" "BASE_MAINNET" "BASE_VERIFIER_URL"
 echo ""
 check_v2_addresses 56 "BNB" "BSC_MAINNET" "BSC_VERIFIER_URL"
@@ -403,12 +411,44 @@ fi
 
 # Check counters and get confirmation for each network (only for deploy mode)
 if [ "$MODE" = "deploy" ]; then
+    ETH_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "Ethereum" 1)
     BASE_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "Base" 8453)
     BNB_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "BNB" 56)
     ARBITRUM_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "Arbitrum" 42161)
 fi
 
 print_separator
+
+# Deploy to Ethereum Mainnet
+print_network_header "ETHEREUM MAINNET"
+echo -e "${CYAN}   Chain ID: ${WHITE}1${NC}"
+echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
+if [ "$MODE" = "deploy" ]; then
+    echo -e "${CYAN}   Counter: ${WHITE}$ETH_COUNTER${NC}"
+fi
+echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
+echo -e "${YELLOW}   Executing forge script...${NC}"
+
+forge script script/DeployV2Core.s.sol:DeployV2Core \
+    --sig 'run(bool,uint256,uint64)' false $FORGE_ENV 1 \
+    --account v2 \
+    --rpc-url $ETH_MAINNET \
+    --chain 1 \
+    --etherscan-api-key $TENDERLY_ACCESS_TOKEN \
+    --verifier-url $ETH_VERIFIER_URL \
+    $BROADCAST_FLAG \
+    $VERIFY_FLAG \
+    --slow \
+    -vv
+
+echo -e "${GREEN}✅ Ethereum Mainnet deployment completed successfully!${NC}"
+
+# Upload to S3 only if in deploy mode
+if [ "$MODE" = "deploy" ]; then
+    upload_to_s3 "$ENVIRONMENT" "Ethereum" 1 "$ETH_COUNTER"
+fi
+wait
 
 # Deploy to Base Mainnet
 print_network_header "BASE MAINNET"
@@ -502,7 +542,6 @@ echo -e "${GREEN}✅ Arbitrum Mainnet deployment completed successfully!${NC}"
 if [ "$MODE" = "deploy" ]; then
     upload_to_s3 "$ENVIRONMENT" "Arbitrum" 42161 "$ARBITRUM_COUNTER"
 fi
-
 
 print_separator
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
