@@ -2,8 +2,8 @@
 pragma solidity 0.8.30;
 
 // external
-import {PackedUserOperation} from "modulekit/external/ERC4337.sol";
-import {MerkleProof} from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { PackedUserOperation } from "modulekit/external/ERC4337.sol";
+import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { SuperValidatorBase } from "./SuperValidatorBase.sol";
 
 /// @title SuperDestinationValidator
@@ -44,7 +44,7 @@ contract SuperDestinationValidator is SuperValidatorBase {
 
     function isValidDestinationSignature(address sender, bytes calldata data) external view returns (bytes4) {
         if (!_initialized[sender]) revert NOT_INITIALIZED();
-    
+
         // Decode data
         (SignatureData memory sigData, DestinationData memory destinationData) =
             _decodeSignatureAndDestinationData(data, sender);
@@ -97,11 +97,18 @@ contract SuperDestinationValidator is SuperValidatorBase {
         leaf = _createLeaf(abi.encode(destinationData), sigData.validUntil, false);
         if (!MerkleProof.verify(_extractProof(sigData), sigData.merkleRoot, leaf)) revert INVALID_PROOF();
 
-        address owner = _accountOwners[sender];
-        if (_isSafeSigner(owner)) {
-           signer = _processEIP1271Signature(owner, sigData);
+        // For EIP-7702 accounts, the signer is the account itself (EOA with delegated code)
+        if (_is7702Account(sender.code)) {
+            signer = _processECDSASignature(sigData);
         } else {
-           signer = _processECDSASignature(sigData);
+            address owner = _accountOwners[sender];
+
+            // Support any EIP-1271 compatible smart contract, not just Safe multisigs
+            if (_isEIP1271Signer(owner)) {
+                signer = _processEIP1271Signature(owner, sigData);
+            } else {
+                signer = _processECDSASignature(sigData);
+            }
         }
     }
 

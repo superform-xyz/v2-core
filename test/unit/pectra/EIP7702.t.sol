@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity 0.8.30;
 
-
 // external
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 // -- nexus
@@ -12,7 +11,12 @@ import { MockExecutor } from "@nexus/mocks/MockExecutor.sol";
 import { MockRegistry } from "@nexus/mocks/MockRegistry.sol";
 import { MockPreValidationHook } from "@nexus/mocks/MockPreValidationHook.sol";
 import { MockTarget } from "@nexus/mocks/MockTarget.sol";
-import { BootstrapConfig, BootstrapPreValidationHookConfig, RegistryConfig, NexusBootstrap } from "@nexus/utils/NexusBootstrap.sol";
+import {
+    BootstrapConfig,
+    BootstrapPreValidationHookConfig,
+    RegistryConfig,
+    NexusBootstrap
+} from "@nexus/utils/NexusBootstrap.sol";
 import { BootstrapLib } from "@nexus/lib/BootstrapLib.sol";
 import { K1Validator } from "@nexus/modules/validators/K1Validator.sol";
 import { IExecutionHelper } from "@nexus/interfaces/base/IExecutionHelper.sol";
@@ -32,9 +36,9 @@ import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 
 // Superform
 import { ISuperLedgerConfiguration } from "../../../src/interfaces/accounting/ISuperLedgerConfiguration.sol";
-import { SuperExecutorBase } from  "../../../src/executors/SuperExecutorBase.sol";
+import { SuperExecutorBase } from "../../../src/executors/SuperExecutorBase.sol";
 import { ISuperHook } from "../../../src/interfaces/ISuperHook.sol";
-import { SuperExecutor } from  "../../../src/executors/SuperExecutor.sol";
+import { SuperExecutor } from "../../../src/executors/SuperExecutor.sol";
 import { SuperDestinationExecutor } from "../../../src/executors/SuperDestinationExecutor.sol";
 import { SuperValidatorBase } from "../../../src/validators/SuperValidatorBase.sol";
 import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
@@ -46,7 +50,8 @@ import { ISuperExecutor } from "../../../src/interfaces/ISuperExecutor.sol";
 import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
 import { ISuperLedger, ISuperLedgerData } from "../../../src/interfaces/accounting/ISuperLedger.sol";
 import { ApproveERC20Hook } from "../../../src/hooks/tokens/erc20/ApproveERC20Hook.sol";
-import { AcrossSendFundsAndExecuteOnDstHook } from "../../../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
+import { AcrossSendFundsAndExecuteOnDstHook } from
+    "../../../src/hooks/bridges/across/AcrossSendFundsAndExecuteOnDstHook.sol";
 import { AcrossV3Adapter } from "../../../src/adapters/AcrossV3Adapter.sol";
 
 import { MockHook } from "../../mocks/MockHook.sol";
@@ -71,7 +76,6 @@ contract EIP7702Test is BaseTest {
     NexusAccountFactory internal FACTORY;
     MockRegistry internal REGISTRY;
     NexusBootstrap internal BOOTSTRAPPER;
-    
 
     SuperDestinationValidator internal DEFAULT_VALIDATOR_MODULE_BASE;
     Nexus internal ACCOUNT_IMPLEMENTATION_BASE;
@@ -90,7 +94,6 @@ contract EIP7702Test is BaseTest {
     MockExecutor public mockExecutor_Base;
     MockTarget public target;
 
-
     address factoryOwner;
     uint256 constant MODULE_TYPE_PREVALIDATION_HOOK_ERC4337 = 9;
     bytes3 internal constant EIP7702_PREFIX = bytes3(0xef0100);
@@ -104,7 +107,7 @@ contract EIP7702Test is BaseTest {
     SuperDestinationExecutor public superDestinationExecutor_Base;
 
     function setUp() public override {
-        warpStartTime = 1753501381;
+        warpStartTime = 1_753_501_381;
         latestEthFork = vm.createFork(ETHEREUM_RPC_URL);
         latestBaseFork = vm.createFork(BASE_RPC_URL);
 
@@ -135,7 +138,8 @@ contract EIP7702Test is BaseTest {
 
         DEFAULT_VALIDATOR_MODULE_BASE = new SuperDestinationValidator();
         vm.label(address(DEFAULT_VALIDATOR_MODULE_BASE), "SuperDestinationValidator-Base");
-        ACCOUNT_IMPLEMENTATION_BASE = new Nexus(address(ENTRYPOINT), address(DEFAULT_VALIDATOR_MODULE_BASE), abi.encode(address(0xeEeEeEeE)));
+        ACCOUNT_IMPLEMENTATION_BASE =
+            new Nexus(address(ENTRYPOINT), address(DEFAULT_VALIDATOR_MODULE_BASE), abi.encode(address(0xeEeEeEeE)));
         vm.label(address(ACCOUNT_IMPLEMENTATION_BASE), "ACCOUNT_IMPLEMENTATION-Base");
         FACTORY_BASE = new NexusAccountFactory(address(ACCOUNT_IMPLEMENTATION_BASE), factoryOwner);
         vm.label(address(FACTORY_BASE), "FACTORY-Base");
@@ -153,16 +157,18 @@ contract EIP7702Test is BaseTest {
 
         superDestinationValidator_Base = new SuperDestinationValidator();
         vm.label(address(superDestinationValidator_Base), "SuperDestinationValidator-Base");
-        superDestinationExecutor_Base = SuperDestinationExecutor(_createSuperDestinationExecutor(address(superDestinationValidator_Base)));
+        superDestinationExecutor_Base =
+            SuperDestinationExecutor(_createSuperDestinationExecutor(address(superDestinationValidator_Base)));
         vm.label(address(superDestinationExecutor_Base), "SuperDestinationExecutor-Base");
-      
+
         // create ETH fork data
         _useEthFork(0);
         deal(factoryOwner, 100 ether);
 
         DEFAULT_VALIDATOR_MODULE = new K1Validator();
         vm.label(address(DEFAULT_VALIDATOR_MODULE), "K1Validator");
-        ACCOUNT_IMPLEMENTATION = new Nexus(address(ENTRYPOINT), address(DEFAULT_VALIDATOR_MODULE), abi.encodePacked(address(0xeEeEeEeE)));
+        ACCOUNT_IMPLEMENTATION =
+            new Nexus(address(ENTRYPOINT), address(DEFAULT_VALIDATOR_MODULE), abi.encodePacked(address(0xeEeEeEeE)));
         vm.label(address(ACCOUNT_IMPLEMENTATION), "ACCOUNT_IMPLEMENTATION");
         FACTORY = new NexusAccountFactory(address(ACCOUNT_IMPLEMENTATION), factoryOwner);
         vm.label(address(FACTORY), "FACTORY");
@@ -184,25 +190,24 @@ contract EIP7702Test is BaseTest {
         vm.label(underlyingBase_USDC, "underlyingBase_USDC");
         underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
         vm.label(underlyingETH_USDC, "underlyingETH_USDC");
-
     }
-
 
     /*//////////////////////////////////////////////////////////////
                           TESTS
     //////////////////////////////////////////////////////////////*/
     function test_Nothing() public pure {
-        assertTrue(true);   
+        assertTrue(true);
     }
 
     function test_execSingle() public returns (address) {
-        
         // Create calldata for the account to execute
         bytes memory setValueOnTarget = abi.encodeCall(MockTarget.setValue, 1337);
 
         // Encode the call into the calldata for the userOp
-        bytes memory userOpCalldata =
-            abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleSingle(), ExecLib.encodeSingle(address(target), uint256(0), setValueOnTarget)));
+        bytes memory userOpCalldata = abi.encodeCall(
+            IExecutionHelper.execute,
+            (ModeLib.encodeSimpleSingle(), ExecLib.encodeSingle(address(target), uint256(0), setValueOnTarget))
+        );
 
         // Get the account, initcode and nonce
         uint256 eoaKey = uint256(8);
@@ -239,21 +244,25 @@ contract EIP7702Test is BaseTest {
         // Create calldata for the account to execute
         bytes memory setValueOnTarget = abi.encodeCall(MockTarget.setValue, 1337);
 
-        bytes memory initData = _getInitData(InitData({
-            executor: address(mockExecutor),
-            validator: address(mockValidator),
-            signer: address(0),
-            prevalidationHook: address(mockPreValidationHook),
-            bootstrap: BOOTSTRAPPER,
-            registry: REGISTRY
-        }));
+        bytes memory initData = _getInitData(
+            InitData({
+                executor: address(mockExecutor),
+                validator: address(mockValidator),
+                signer: address(0),
+                prevalidationHook: address(mockPreValidationHook),
+                bootstrap: BOOTSTRAPPER,
+                registry: REGISTRY
+            })
+        );
 
         Execution[] memory executions = new Execution[](2);
-        executions[0] = Execution({ target: account, value: 0, callData: abi.encodeCall(INexus.initializeAccount, initData) });
+        executions[0] =
+            Execution({ target: account, value: 0, callData: abi.encodeCall(INexus.initializeAccount, initData) });
         executions[1] = Execution({ target: address(target), value: 0, callData: setValueOnTarget });
 
         // Encode the call into the calldata for the userOp
-        bytes memory userOpCalldata = abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
+        bytes memory userOpCalldata =
+            abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
 
         uint256 nonce = _getNonce(account, MODE_VALIDATION, address(0), 0);
 
@@ -285,21 +294,25 @@ contract EIP7702Test is BaseTest {
         // Create calldata for the account to execute
         bytes memory setValueOnTarget = abi.encodeCall(MockTarget.setValue, 1337);
 
-        bytes memory initData = _getInitData(InitData({
-            executor: address(mockExecutor),
-            validator: address(mockValidator),
-            signer: address(0),
-            prevalidationHook: address(mockPreValidationHook),
-            bootstrap: BOOTSTRAPPER,
-            registry: REGISTRY
-        }));
+        bytes memory initData = _getInitData(
+            InitData({
+                executor: address(mockExecutor),
+                validator: address(mockValidator),
+                signer: address(0),
+                prevalidationHook: address(mockPreValidationHook),
+                bootstrap: BOOTSTRAPPER,
+                registry: REGISTRY
+            })
+        );
 
         Execution[] memory executions = new Execution[](2);
-        executions[0] = Execution({ target: account, value: 0, callData: abi.encodeCall(INexus.initializeAccount, initData) });
+        executions[0] =
+            Execution({ target: account, value: 0, callData: abi.encodeCall(INexus.initializeAccount, initData) });
         executions[1] = Execution({ target: address(target), value: 0, callData: setValueOnTarget });
 
         // Encode the call into the calldata for the userOp
-        bytes memory userOpCalldata = abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
+        bytes memory userOpCalldata =
+            abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
 
         uint256 nonce = _getNonce(account, MODE_VALIDATION, address(0), 0);
 
@@ -323,7 +336,8 @@ contract EIP7702Test is BaseTest {
         executions = new Execution[](2);
         executions[0] = Execution({ target: address(target), value: 0, callData: setValueOnTarget });
         executions[1] = Execution({ target: address(target), value: 0, callData: setValueOnTarget });
-        userOpCalldata = abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
+        userOpCalldata =
+            abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
         nonce = _getNonce(account, MODE_VALIDATION, address(0), bytes3(uint24(1)));
         userOp = _buildPackedUserOp(address(account), nonce);
         userOp.callData = userOpCalldata;
@@ -332,7 +346,6 @@ contract EIP7702Test is BaseTest {
         userOps[0] = userOp;
         ENTRYPOINT.handleOps(userOps, payable(address(0x69)));
         assertTrue(target.value() == 1338);
-
 
         return account;
     }
@@ -343,16 +356,12 @@ contract EIP7702Test is BaseTest {
         address account = vm.addr(eoaKey);
         vm.deal(account, 100 ether);
 
-
-        // create executor 
+        // create executor
         address executor = _createSuperExecutor();
 
         Execution[] memory mockHookExecutions = new Execution[](1);
-        mockHookExecutions[0] = Execution({
-            target: address(target),
-            value: 0,
-            callData: abi.encodeCall(MockTarget.setValue, 1337)
-        });
+        mockHookExecutions[0] =
+            Execution({ target: address(target), value: 0, callData: abi.encodeCall(MockTarget.setValue, 1337) });
         mockHook.setExecutionBytes(abi.encode(mockHookExecutions));
 
         address[] memory hookAddresses = new address[](1);
@@ -361,23 +370,31 @@ contract EIP7702Test is BaseTest {
         hooksData[0] = "";
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hooksData });
-        
+
         // Create calldata for the account to execute
-        bytes memory initData = _getInitData(InitData({
-            executor: executor,
-            validator: address(mockValidator),
-            signer: address(0),
-            prevalidationHook: address(mockPreValidationHook),
-            bootstrap: BOOTSTRAPPER,
-            registry: REGISTRY
-        }));
+        bytes memory initData = _getInitData(
+            InitData({
+                executor: executor,
+                validator: address(mockValidator),
+                signer: address(0),
+                prevalidationHook: address(mockPreValidationHook),
+                bootstrap: BOOTSTRAPPER,
+                registry: REGISTRY
+            })
+        );
 
         Execution[] memory executions = new Execution[](2);
-        executions[0] = Execution({ target: account, value: 0, callData: abi.encodeCall(INexus.initializeAccount, initData) });
-        executions[1] = Execution({ target: address(executor), value: 0, callData: abi.encodeCall(ISuperExecutor.execute, abi.encode(entry)) });
+        executions[0] =
+            Execution({ target: account, value: 0, callData: abi.encodeCall(INexus.initializeAccount, initData) });
+        executions[1] = Execution({
+            target: address(executor),
+            value: 0,
+            callData: abi.encodeCall(ISuperExecutor.execute, abi.encode(entry))
+        });
 
         // Encode the call into the calldata for the userOp
-        bytes memory userOpCalldata = abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
+        bytes memory userOpCalldata =
+            abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
 
         uint256 nonce = _getNonce(account, MODE_VALIDATION, address(0), 0);
 
@@ -409,7 +426,7 @@ contract EIP7702Test is BaseTest {
         vm.label(account, "Account");
         vm.deal(account, 100 ether);
 
-        // create executor 
+        // create executor
         address executor = _createSuperExecutor();
         address validator = _createSuperValidator();
 
@@ -418,11 +435,8 @@ contract EIP7702Test is BaseTest {
         vm.label(address(ACCOUNT_IMPLEMENTATION), "AccountImplementation");
 
         Execution[] memory mockHookExecutions = new Execution[](1);
-        mockHookExecutions[0] = Execution({
-            target: address(target),
-            value: 0,
-            callData: abi.encodeCall(MockTarget.setValue, 1337)
-        });
+        mockHookExecutions[0] =
+            Execution({ target: address(target), value: 0, callData: abi.encodeCall(MockTarget.setValue, 1337) });
         mockHook.setExecutionBytes(abi.encode(mockHookExecutions));
 
         address[] memory hookAddresses = new address[](1);
@@ -431,23 +445,31 @@ contract EIP7702Test is BaseTest {
         hooksData[0] = "";
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hooksData });
-        
+
         // Create calldata for the account to execute
-        bytes memory initData = _getInitData(InitData({
-            executor: executor,
-            validator: validator,
-            signer: address(account),
-            prevalidationHook: address(mockPreValidationHook),
-            bootstrap: BOOTSTRAPPER,
-            registry: REGISTRY
-        }));
+        bytes memory initData = _getInitData(
+            InitData({
+                executor: executor,
+                validator: validator,
+                signer: address(account),
+                prevalidationHook: address(mockPreValidationHook),
+                bootstrap: BOOTSTRAPPER,
+                registry: REGISTRY
+            })
+        );
 
         Execution[] memory executions = new Execution[](2);
-        executions[0] = Execution({ target: account, value: 0, callData: abi.encodeCall(INexus.initializeAccount, initData) });
-        executions[1] = Execution({ target: address(executor), value: 0, callData: abi.encodeCall(ISuperExecutor.execute, abi.encode(entry)) });
+        executions[0] =
+            Execution({ target: account, value: 0, callData: abi.encodeCall(INexus.initializeAccount, initData) });
+        executions[1] = Execution({
+            target: address(executor),
+            value: 0,
+            callData: abi.encodeCall(ISuperExecutor.execute, abi.encode(entry))
+        });
 
         // Encode the call into the calldata for the userOp
-        bytes memory userOpCalldata = abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
+        bytes memory userOpCalldata =
+            abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
 
         uint256 nonce = _getNonce(account, MODE_VALIDATION, address(0), 0);
 
@@ -485,22 +507,24 @@ contract EIP7702Test is BaseTest {
         ACCOUNT_IMPLEMENTATION = new Nexus(address(ENTRYPOINT), address(validatorEth), abi.encode(address(account)));
         vm.label(address(ACCOUNT_IMPLEMENTATION), "AccountImplementation");
 
-        bytes memory initData = _getInitData(InitData({
-            executor: executorEth,
-            validator: validatorEth,
-            signer: address(account),
-            prevalidationHook: address(mockPreValidationHook),
-            bootstrap: BOOTSTRAPPER,
-            registry: REGISTRY
-        }));
-
+        bytes memory initData = _getInitData(
+            InitData({
+                executor: executorEth,
+                validator: validatorEth,
+                signer: address(account),
+                prevalidationHook: address(mockPreValidationHook),
+                bootstrap: BOOTSTRAPPER,
+                registry: REGISTRY
+            })
+        );
 
         // ETH IS SRC
         _getTokens(underlyingETH_USDC, account, 1000e6);
 
         address approveERC20HookAddressEth = address(new ApproveERC20Hook());
         vm.label(approveERC20HookAddressEth, "ApproveERC20Hook");
-        address acrossSendFundsAndExecuteOnDstHookAddressEth = address(new AcrossSendFundsAndExecuteOnDstHook(SPOKE_POOL_V3_ADDRESSES[ETH], validatorEth));
+        address acrossSendFundsAndExecuteOnDstHookAddressEth =
+            address(new AcrossSendFundsAndExecuteOnDstHook(SPOKE_POOL_V3_ADDRESSES[ETH], validatorEth));
         vm.label(acrossSendFundsAndExecuteOnDstHookAddressEth, "AcrossSendFundsAndExecuteOnDstHook");
 
         address[] memory srcHooksAddresses = new address[](2);
@@ -508,29 +532,33 @@ contract EIP7702Test is BaseTest {
         srcHooksAddresses[1] = acrossSendFundsAndExecuteOnDstHookAddressEth;
 
         bytes[] memory srcHooksData = new bytes[](2);
-        srcHooksData[0] =
-            _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 1000e6, false);
+        srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 1000e6, false);
         srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingETH_USDC, underlyingBase_USDC, 1000e6, 1000e6, BASE, true, ""
         );
         ISuperExecutor.ExecutorEntry memory entryToExecute =
-                ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
-
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
 
         Execution[] memory executions = new Execution[](2);
-        executions[0] = Execution({ target: account, value: 0, callData: abi.encodeCall(INexus.initializeAccount, initData) });
-        executions[1] = Execution({ target: address(executorEth), value: 0, callData: abi.encodeCall(ISuperExecutor.execute, abi.encode(entryToExecute)) });
+        executions[0] =
+            Execution({ target: account, value: 0, callData: abi.encodeCall(INexus.initializeAccount, initData) });
+        executions[1] = Execution({
+            target: address(executorEth),
+            value: 0,
+            callData: abi.encodeCall(ISuperExecutor.execute, abi.encode(entryToExecute))
+        });
 
         uint256 nonce = _getNonce(account, MODE_VALIDATION, address(0), 0);
         PackedUserOperation memory userOp = _buildPackedUserOp(address(account), nonce);
-        userOp.callData = abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
+        userOp.callData =
+            abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
         userOp.sender = address(account);
 
         bytes32 userOpHash = ENTRYPOINT.getUserOpHash(userOp);
-        userOp.signature = _createNoDestinationExecutionMerkleRootAndSignature(account, eoaKey, userOpHash, validatorEth);
+        userOp.signature =
+            _createNoDestinationExecutionMerkleRootAndSignature(account, eoaKey, userOpHash, validatorEth);
         _doEIP7702(account);
 
-       
         {
             uint256 balanceBefore = IERC20(underlyingETH_USDC).balanceOf(account);
             assertEq(balanceBefore, 1000e6);
@@ -556,6 +584,15 @@ contract EIP7702Test is BaseTest {
         address validatorEth;
         address dstValidatorBase;
     }
+
+    /// @notice Tests cross-chain execution using EIP-7702 delegated EOAs
+    /// @dev Flow: Same EOA exists on both ETH (source) and BASE (destination) with different smart contract
+    /// implementations.
+    ///      1. ETH: EOA submits cross-chain tx via Across bridge (source validation with SuperValidator)
+    ///      2. BASE: Across delivers message and executes on destination (destination validation with
+    /// SuperDestinationValidator)
+    ///      Both validators must handle EIP-7702 accounts where the signer is the account itself, not
+    /// _accountOwners[account]
     function test_CrossChain_InitializePrereq_Execution() public {
         CrosschainTest memory test = CrosschainTest({
             eoaKey: uint256(8),
@@ -574,15 +611,15 @@ contract EIP7702Test is BaseTest {
 
         // ----- PRE-REQUISITES ----
         // BASE is dst - initialize and delegate
-        (test.executorBase, test.validatorBase, test.dstExecutorBase, test.dstValidatorBase) = _initializeBaseAccount(test.eoaKey);
-        address acrossV3Adapter = address(new AcrossV3Adapter(
-            SPOKE_POOL_V3_ADDRESSES[BASE], address(test.dstExecutorBase)
-        ));
+        (test.executorBase, test.validatorBase, test.dstExecutorBase, test.dstValidatorBase) =
+            _initializeBaseAccount(test.eoaKey);
+        address acrossV3Adapter =
+            address(new AcrossV3Adapter(SPOKE_POOL_V3_ADDRESSES[BASE], address(test.dstExecutorBase)));
         vm.label(acrossV3Adapter, "AcrossV3Adapter-EIP7702");
 
         // ETH is src - initalize and delegate
         (test.executorEth, test.validatorEth) = _initializeEthAccount(test.eoaKey);
-     
+
         // ----- Check account states ----
         _useBaseFork(1 days);
         address acrossV3Helper = address(new AcrossV3Helper());
@@ -590,17 +627,22 @@ contract EIP7702Test is BaseTest {
         vm.allowCheatcodes(acrossV3Helper);
         vm.makePersistent(acrossV3Helper);
 
-        _executeSameChainAccountStateTest(test.eoaKey, test.executorBase, test.validatorBase, 1);   
+        _executeSameChainAccountStateTest(test.eoaKey, test.executorBase, test.validatorBase, 1);
 
         _useEthFork(1 days);
         _executeSameChainAccountStateTest(test.eoaKey, test.executorEth, test.validatorEth, 1);
-        
+
         // ----- Cross-chain call ----
         // create source data
         bytes memory destinationHookData = _getDestinationMessageInitialize(test.account);
-        ISuperExecutor.ExecutorEntry memory entryToExecute = _createSourceEntry(destinationHookData, test.validatorEth, acrossV3Adapter);
+        ISuperExecutor.ExecutorEntry memory entryToExecute =
+            _createSourceEntry(destinationHookData, test.validatorEth, acrossV3Adapter);
         Execution[] memory executions = new Execution[](1);
-        executions[0] = Execution({ target: address(test.executorEth), value: 0, callData: abi.encodeCall(ISuperExecutor.execute, abi.encode(entryToExecute)) });
+        executions[0] = Execution({
+            target: address(test.executorEth),
+            value: 0,
+            callData: abi.encodeCall(ISuperExecutor.execute, abi.encode(entryToExecute))
+        });
 
         // create userOp
         PackedUserOperation memory userOp = _createPackedUserOp(test.account, executions);
@@ -608,17 +650,19 @@ contract EIP7702Test is BaseTest {
 
         console2.log("----------address(test.validatorBase)", address(test.validatorBase));
         console2.log("----------address(test.validatorEth)", address(test.validatorEth));
-        userOp.signature = _createCrosschainSig(CrosschainSigParams({
-            userOpHash: userOpHash,
-            accountToUse: test.account,
-            dstChainId: BASE,
-            srcValidator: test.validatorEth,
-            dstValidator: address(test.dstValidatorBase),
-            dstExecutionData: destinationHookData,
-            signer: test.account,
-            signerPrivateKey: test.eoaKey,
-            dstExecutor: address(test.dstExecutorBase)
-        }));
+        userOp.signature = _createCrosschainSig(
+            CrosschainSigParams({
+                userOpHash: userOpHash,
+                accountToUse: test.account,
+                dstChainId: BASE,
+                srcValidator: test.validatorEth,
+                dstValidator: address(test.dstValidatorBase),
+                dstExecutionData: destinationHookData,
+                signer: test.account,
+                signerPrivateKey: test.eoaKey,
+                dstExecutor: address(test.dstExecutorBase)
+            })
+        );
 
         // get tokens for across call
         _getTokens(underlyingETH_USDC, test.account, 1000e6);
@@ -631,24 +675,16 @@ contract EIP7702Test is BaseTest {
         ENTRYPOINT.handleOps(userOps, payable(address(0x69)));
 
         VmSafe.Log[] memory logs = vm.getRecordedLogs();
-        ExecutionReturnData memory executionData = ExecutionReturnData({
-            logs: logs
-        });
-    
+        ExecutionReturnData memory executionData = ExecutionReturnData({ logs: logs });
+
         _processAcrossV3MessageWithSpecificDestinationFork(
-            uint64(ETH),
-            uint64(BASE),
-            warpStartTime + 1 days,
-            executionData,
-            latestBaseFork,
-            acrossV3Helper
+            uint64(ETH), uint64(BASE), warpStartTime + 1 days, executionData, latestBaseFork, acrossV3Helper
         );
 
         _useBaseFork(10 days);
         uint256 allowance = IERC20(underlyingBase_USDC).allowance(test.account, address(this));
         assertEq(allowance, 1000e6, "allowance not right");
     }
-
 
     /*//////////////////////////////////////////////////////////////
                           INTERNAL HELPERS
@@ -663,7 +699,14 @@ contract EIP7702Test is BaseTest {
         vm.warp(warpStartTime + extraTime);
     }
 
-    function _executeSameChainAccountStateTest(uint256 eoaKey, address executor, address validator, uint256 txNo) internal {
+    function _executeSameChainAccountStateTest(
+        uint256 eoaKey,
+        address executor,
+        address validator,
+        uint256 txNo
+    )
+        internal
+    {
         address account = vm.addr(eoaKey);
         vm.label(account, "Account");
 
@@ -672,13 +715,10 @@ contract EIP7702Test is BaseTest {
 
         target = new MockTarget();
         vm.label(address(target), "MockTarget");
-        
+
         Execution[] memory mockHookExecutions = new Execution[](1);
-        mockHookExecutions[0] = Execution({
-            target: address(target),
-            value: 0,
-            callData: abi.encodeCall(MockTarget.setValue, 1337)
-        });
+        mockHookExecutions[0] =
+            Execution({ target: address(target), value: 0, callData: abi.encodeCall(MockTarget.setValue, 1337) });
         mockHook.setExecutionBytes(abi.encode(mockHookExecutions));
 
         address[] memory hookAddresses = new address[](1);
@@ -687,11 +727,16 @@ contract EIP7702Test is BaseTest {
         hooksData[0] = "";
         ISuperExecutor.ExecutorEntry memory entry =
             ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hooksData });
-            
+
         Execution[] memory executions = new Execution[](1);
-        executions[0] = Execution({ target: address(executor), value: 0, callData: abi.encodeCall(ISuperExecutor.execute, abi.encode(entry)) });
-        
-        bytes memory userOpCalldata = abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
+        executions[0] = Execution({
+            target: address(executor),
+            value: 0,
+            callData: abi.encodeCall(ISuperExecutor.execute, abi.encode(entry))
+        });
+
+        bytes memory userOpCalldata =
+            abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
         uint256 nonce = _getNonce(account, MODE_VALIDATION, address(0), bytes3(uint24(txNo)));
 
         PackedUserOperation memory userOp = _buildPackedUserOp(address(account), nonce);
@@ -709,8 +754,10 @@ contract EIP7702Test is BaseTest {
         assertTrue(target.value() == 1337);
     }
 
-    
-    function _initializeBaseAccount(uint256 eoaKey) public returns (address executor, address validator, address dstExecutor, address dstValidator) {
+    function _initializeBaseAccount(uint256 eoaKey)
+        public
+        returns (address executor, address validator, address dstExecutor, address dstValidator)
+    {
         _useBaseFork(0);
         address account = vm.addr(eoaKey);
         vm.label(account, "AccountBase");
@@ -720,7 +767,7 @@ contract EIP7702Test is BaseTest {
         validator = _createSuperValidator();
         dstValidator = _createSuperDestinationValidator();
         dstExecutor = _createSuperDestinationExecutor(dstValidator);
-        
+
         ACCOUNT_IMPLEMENTATION_BASE = new Nexus(address(ENTRYPOINT), address(validator), abi.encode(address(account)));
         vm.label(address(ACCOUNT_IMPLEMENTATION_BASE), "AccountImplementationBase");
 
@@ -732,23 +779,40 @@ contract EIP7702Test is BaseTest {
         validators[1] = dstValidator;
 
         {
-            bytes memory initDataBase = _getInitDataForDestination(account, InitDataDestination({
-                executor: executors,
-                validator: validators,
-                signer: address(account),
-                prevalidationHook: address(mockPreValidationHook_Base),
-                bootstrap: BOOTSTRAPPER_BASE,
-                registry: REGISTRY_BASE
-            }));
+            bytes memory initDataBase = _getInitDataForDestination(
+                account,
+                InitDataDestination({
+                    executor: executors,
+                    validator: validators,
+                    signer: address(account),
+                    prevalidationHook: address(mockPreValidationHook_Base),
+                    bootstrap: BOOTSTRAPPER_BASE,
+                    registry: REGISTRY_BASE
+                })
+            );
 
             Execution[] memory executionsBase = new Execution[](1);
-            executionsBase[0] = Execution({ target: account, value: 0, callData: abi.encodeCall(INexus.initializeAccount, initDataBase) });
+            executionsBase[0] = Execution({
+                target: account,
+                value: 0,
+                callData: abi.encodeCall(INexus.initializeAccount, initDataBase)
+            });
 
-            bytes memory userOpCalldataBase = abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executionsBase)));
+            bytes memory userOpCalldataBase = abi.encodeCall(
+                IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executionsBase))
+            );
             _initializeBaseAccountExecuteUserOp(account, validator, eoaKey, userOpCalldataBase);
         }
     }
-    function _initializeBaseAccountExecuteUserOp(address account, address validator, uint256 eoaKey, bytes memory userOpCalldataBase) internal {
+
+    function _initializeBaseAccountExecuteUserOp(
+        address account,
+        address validator,
+        uint256 eoaKey,
+        bytes memory userOpCalldataBase
+    )
+        internal
+    {
         uint256 nonce = _getNonce(account, MODE_VALIDATION, address(0), 0);
 
         PackedUserOperation memory userOpBase = _buildPackedUserOp(address(account), nonce);
@@ -756,7 +820,8 @@ contract EIP7702Test is BaseTest {
         userOpBase.sender = address(account);
 
         bytes32 userOpHashBase = ENTRYPOINT.getUserOpHash(userOpBase);
-        userOpBase.signature = _createNoDestinationExecutionMerkleRootAndSignature(account, eoaKey, userOpHashBase, address(validator));
+        userOpBase.signature =
+            _createNoDestinationExecutionMerkleRootAndSignature(account, eoaKey, userOpHashBase, address(validator));
 
         _doEIP7702OnDestination(account);
         assertEq(account.code.length, 23, "base account not delegated");
@@ -767,7 +832,6 @@ contract EIP7702Test is BaseTest {
         ENTRYPOINT.handleOps(userOpsBase, payable(address(0x69)));
     }
 
-
     function _initializeEthAccount(uint256 eoaKey) public returns (address, address) {
         _useEthFork(0);
         address account = vm.addr(eoaKey);
@@ -776,24 +840,27 @@ contract EIP7702Test is BaseTest {
 
         address executor = _createSuperExecutor();
         address validator = _createSuperValidator();
-        
+
         ACCOUNT_IMPLEMENTATION = new Nexus(address(ENTRYPOINT), address(validator), abi.encode(address(account)));
         vm.label(address(ACCOUNT_IMPLEMENTATION), "AccountImplementationETH");
 
-
-        bytes memory initData = _getInitData(InitData({
-            executor: address(executor),
-            validator: address(validator),
-            signer: address(account),
-            prevalidationHook: address(mockPreValidationHook),
-            bootstrap: BOOTSTRAPPER,
-            registry: REGISTRY
-        }));
+        bytes memory initData = _getInitData(
+            InitData({
+                executor: address(executor),
+                validator: address(validator),
+                signer: address(account),
+                prevalidationHook: address(mockPreValidationHook),
+                bootstrap: BOOTSTRAPPER,
+                registry: REGISTRY
+            })
+        );
 
         Execution[] memory executions = new Execution[](1);
-        executions[0] = Execution({ target: account, value: 0, callData: abi.encodeCall(INexus.initializeAccount, initData) });
+        executions[0] =
+            Execution({ target: account, value: 0, callData: abi.encodeCall(INexus.initializeAccount, initData) });
 
-        bytes memory userOpCalldata = abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
+        bytes memory userOpCalldata =
+            abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
         uint256 nonce = _getNonce(account, MODE_VALIDATION, address(0), 0);
 
         PackedUserOperation memory userOp = _buildPackedUserOp(address(account), nonce);
@@ -801,7 +868,8 @@ contract EIP7702Test is BaseTest {
         userOp.sender = address(account);
 
         bytes32 userOpHash = ENTRYPOINT.getUserOpHash(userOp);
-        userOp.signature = _createNoDestinationExecutionMerkleRootAndSignature(account, eoaKey, userOpHash, address(validator));
+        userOp.signature =
+            _createNoDestinationExecutionMerkleRootAndSignature(account, eoaKey, userOpHash, address(validator));
 
         _doEIP7702(account);
         assertEq(account.code.length, 23, "base account not delegated");
@@ -814,19 +882,27 @@ contract EIP7702Test is BaseTest {
         return (executor, validator);
     }
 
-    
-
     function _executeOps(PackedUserOperation memory userOp) internal {
         PackedUserOperation[] memory userOps = new PackedUserOperation[](1);
         userOps[0] = userOp;
         ENTRYPOINT.handleOps(userOps, payable(address(0x69)));
     }
-    function _createPackedUserOp(address account, Execution[] memory executions) internal view returns (PackedUserOperation memory userOp) {
+
+    function _createPackedUserOp(
+        address account,
+        Execution[] memory executions
+    )
+        internal
+        view
+        returns (PackedUserOperation memory userOp)
+    {
         uint256 nonce = _getNonce(account, MODE_VALIDATION, address(0), 0);
         userOp = _buildPackedUserOp(address(account), nonce);
-        userOp.callData = abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
+        userOp.callData =
+            abi.encodeCall(IExecutionHelper.execute, (ModeLib.encodeSimpleBatch(), ExecLib.encodeBatch(executions)));
         userOp.sender = address(account);
     }
+
     function _createDestinationEntry() internal returns (ISuperExecutor.ExecutorEntry memory entryToExecute) {
         _useBaseFork(1 days);
         address approveERC20HookAddressBase = address(new ApproveERC20Hook());
@@ -837,38 +913,51 @@ contract EIP7702Test is BaseTest {
         hookAddresses[0] = approveERC20HookAddressBase;
 
         bytes[] memory hookData = new bytes[](1);
-        hookData[0] =
-            _createApproveHookData(underlyingBase_USDC, address(this), 1000e6, false);
+        hookData[0] = _createApproveHookData(underlyingBase_USDC, address(this), 1000e6, false);
 
-        entryToExecute =
-                ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookData });
+        entryToExecute = ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hookData });
     }
 
     function _getDestinationMessageInitialize(address _account) internal returns (bytes memory) {
         // get execution data
         ISuperExecutor.ExecutorEntry memory entryToExecute = _createDestinationEntry();
-        bytes memory destinationExecutionData = abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
-        
+        bytes memory destinationExecutionData =
+            abi.encodeWithSelector(ISuperExecutor.execute.selector, abi.encode(entryToExecute));
+
         bytes memory initData = "";
 
         address[] memory dstTokens = new address[](1);
         dstTokens[0] = underlyingBase_USDC;
         uint256[] memory intentAmounts = new uint256[](1);
         intentAmounts[0] = 1000e6;
-        
+
         return abi.encode(initData, destinationExecutionData, _account, dstTokens, intentAmounts);
     }
 
-    function _createSourceEntry(bytes memory _destinationMessage, address _validator, address _adapter) internal returns (ISuperExecutor.ExecutorEntry memory entryToExecute) {
-        (address[] memory srcHooksAddresses, bytes[] memory srcHooksData) = _prepareSourceEntryData(_destinationMessage, _validator, _adapter);
-        
-        entryToExecute = ISuperExecutor.ExecutorEntry({ 
-            hooksAddresses: srcHooksAddresses, 
-            hooksData: srcHooksData 
-        });
+    function _createSourceEntry(
+        bytes memory _destinationMessage,
+        address _validator,
+        address _adapter
+    )
+        internal
+        returns (ISuperExecutor.ExecutorEntry memory entryToExecute)
+    {
+        (address[] memory srcHooksAddresses, bytes[] memory srcHooksData) =
+            _prepareSourceEntryData(_destinationMessage, _validator, _adapter);
+
+        entryToExecute = ISuperExecutor.ExecutorEntry({ hooksAddresses: srcHooksAddresses, hooksData: srcHooksData });
     }
-    function _prepareSourceEntryData(bytes memory _destinationMessage, address _validator, address _adapter) internal returns (address[] memory srcHooksAddresses, bytes[] memory srcHooksData) {
-        (address approveERC20HookAddressEth, address acrossSendFundsAndExecuteOnDstHookAddressEth) = _createSourceEntryHooks(_validator);
+
+    function _prepareSourceEntryData(
+        bytes memory _destinationMessage,
+        address _validator,
+        address _adapter
+    )
+        internal
+        returns (address[] memory srcHooksAddresses, bytes[] memory srcHooksData)
+    {
+        (address approveERC20HookAddressEth, address acrossSendFundsAndExecuteOnDstHookAddressEth) =
+            _createSourceEntryHooks(_validator);
         address adapter = _getContract(BASE, ACROSS_V3_ADAPTER_KEY);
 
         srcHooksAddresses = new address[](2);
@@ -878,55 +967,55 @@ contract EIP7702Test is BaseTest {
         srcHooksData = new bytes[](2);
         srcHooksData[0] = _createApproveHookData(underlyingETH_USDC, SPOKE_POOL_V3_ADDRESSES[ETH], 1000e6, false);
         srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookDataAdapter(
-            _adapter, 
-            underlyingETH_USDC, 
-            underlyingBase_USDC, 
-            1000e6, 
-            1000e6, 
-            BASE, 
-            true, 
-            _destinationMessage
+            _adapter, underlyingETH_USDC, underlyingBase_USDC, 1000e6, 1000e6, BASE, true, _destinationMessage
         );
     }
-    function _createSourceEntryHooks(address _validator) private returns (address approveERC20HookAddressEth, address acrossSendFundsAndExecuteOnDstHookAddressEth) {
+
+    function _createSourceEntryHooks(address _validator)
+        private
+        returns (address approveERC20HookAddressEth, address acrossSendFundsAndExecuteOnDstHookAddressEth)
+    {
         approveERC20HookAddressEth = address(new ApproveERC20Hook());
         vm.label(approveERC20HookAddressEth, "ApproveERC20Hook-Eth");
-        acrossSendFundsAndExecuteOnDstHookAddressEth = address(new AcrossSendFundsAndExecuteOnDstHook(SPOKE_POOL_V3_ADDRESSES[ETH], _validator));
+        acrossSendFundsAndExecuteOnDstHookAddressEth =
+            address(new AcrossSendFundsAndExecuteOnDstHook(SPOKE_POOL_V3_ADDRESSES[ETH], _validator));
         vm.label(acrossSendFundsAndExecuteOnDstHookAddressEth, "AcrossSendFundsAndExecuteOnDstHook-Eth");
     }
 
     function _createSuperDestinationExecutor(address _validator) internal returns (address superDestinationExecutor) {
-      // install a new SuperDestinationExecutor (so we can uninstall the old one) 
+        // install a new SuperDestinationExecutor (so we can uninstall the old one)
         // -- create
         ISuperLedgerConfiguration superLedgerConfigurationNew =
-                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
+            ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
         vm.label(address(superLedgerConfigurationNew), "NewSuperLedgerConfiguration");
 
-        ISuperDestinationExecutor superDestinationExecutorNew = ISuperDestinationExecutor(address(new SuperDestinationExecutor(address(superLedgerConfigurationNew), address(_validator))));
+        ISuperDestinationExecutor superDestinationExecutorNew = ISuperDestinationExecutor(
+            address(new SuperDestinationExecutor(address(superLedgerConfigurationNew), address(_validator)))
+        );
         vm.label(address(superDestinationExecutorNew), "NewSuperDestinationExecutor");
 
         return address(superDestinationExecutorNew);
     }
 
     function _createSuperExecutor() internal returns (address superExecutor) {
-      // install a new SuperExecutor (so we can uninstall the old one) 
+        // install a new SuperExecutor (so we can uninstall the old one)
         // -- create
         ISuperLedgerConfiguration superLedgerConfigurationNew =
-                ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
+            ISuperLedgerConfiguration(address(new SuperLedgerConfiguration()));
         vm.label(address(superLedgerConfigurationNew), "NewSuperLedgerConfiguration");
-        ISuperExecutor superExecutorNew = ISuperExecutor(address(new SuperExecutor(address(superLedgerConfigurationNew))));
+        ISuperExecutor superExecutorNew =
+            ISuperExecutor(address(new SuperExecutor(address(superLedgerConfigurationNew))));
         vm.label(address(superExecutorNew), "NewSuperExecutor");
 
         // -- configure ledger
         address[] memory allowedExecutors = new address[](1);
         allowedExecutors[0] = address(superExecutorNew);
-        ISuperLedger superLedgerNew = ISuperLedger(
-            address(new SuperLedger(address(superLedgerConfigurationNew), allowedExecutors))
-        );
+        ISuperLedger superLedgerNew =
+            ISuperLedger(address(new SuperLedger(address(superLedgerConfigurationNew), allowedExecutors)));
 
         address ledgerFeeReceiver = makeAddr("LedgerFeeReceiver");
         ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[] memory configs =
-                new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
+            new ISuperLedgerConfiguration.YieldSourceOracleConfigArgs[](1);
         configs[0] = ISuperLedgerConfiguration.YieldSourceOracleConfigArgs({
             yieldSourceOracle: _getContract(ETH, ERC4626_YIELD_SOURCE_ORACLE_KEY),
             feePercent: 100,
@@ -934,13 +1023,15 @@ contract EIP7702Test is BaseTest {
             ledger: address(superLedgerNew)
         });
         bytes32[] memory salts = new bytes32[](1);
-        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));   
+        salts[0] = bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY));
 
         return address(superExecutorNew);
     }
+
     function _createSuperValidator() internal returns (address superValidator) {
         return address(new SuperValidator());
     }
+
     function _createSuperDestinationValidator() internal returns (address superValidator) {
         return address(new SuperDestinationValidator());
     }
@@ -956,20 +1047,16 @@ contract EIP7702Test is BaseTest {
         uint256 signerPrivateKey;
         address dstExecutor;
     }
-    function _createCrosschainSig(
-        CrosschainSigParams memory params
-    )
-        internal
-        view
-        returns (bytes memory sig)
-    {
+
+    function _createCrosschainSig(CrosschainSigParams memory params) internal view returns (bytes memory sig) {
         MerkleContext memory ctx;
 
         ctx.validUntil = uint48(block.timestamp + 100 days);
         ctx.executionData = params.dstExecutionData;
 
         ctx.leaves = new bytes32[](2);
-        (, ctx.executionData, ,ctx.dstTokens, ctx.intentAmounts) = abi.decode(params.dstExecutionData, (bytes, bytes, address, address[], uint256[]));
+        (, ctx.executionData,, ctx.dstTokens, ctx.intentAmounts) =
+            abi.decode(params.dstExecutionData, (bytes, bytes, address, address[], uint256[]));
         ctx.leaves[0] = _createDestinationValidatorLeaf(
             ctx.executionData,
             params.dstChainId,
@@ -992,12 +1079,7 @@ contract EIP7702Test is BaseTest {
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
 
-        ctx.signature = _createSignature(
-            "SuperValidator",
-            ctx.merkleRoot,
-            params.signer,
-            params.signerPrivateKey
-        );
+        ctx.signature = _createSignature("SuperValidator", ctx.merkleRoot, params.signer, params.signerPrivateKey);
 
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](1);
         ISuperValidator.DstInfo memory dstInfo = ISuperValidator.DstInfo({
@@ -1008,8 +1090,8 @@ contract EIP7702Test is BaseTest {
             account: params.accountToUse,
             validator: params.dstValidator
         });
-        proofDst[0] = ISuperValidator.DstProof({ proof: ctx.merkleProof[0], dstChainId: params.dstChainId, info: dstInfo });
-
+        proofDst[0] =
+            ISuperValidator.DstProof({ proof: ctx.merkleProof[0], dstChainId: params.dstChainId, info: dstInfo });
 
         sig = _createSignatureData_DestinationExecutor(
             true, ctx.validUntil, ctx.merkleRoot, ctx.merkleProof[1], proofDst, ctx.signature
@@ -1030,7 +1112,7 @@ contract EIP7702Test is BaseTest {
         return abi.encodePacked(r, s, v);
     }
 
-    struct InitData{
+    struct InitData {
         address executor;
         address validator;
         address signer;
@@ -1038,7 +1120,8 @@ contract EIP7702Test is BaseTest {
         NexusBootstrap bootstrap;
         MockRegistry registry;
     }
-    struct InitDataDestination{
+
+    struct InitDataDestination {
         address[] executor;
         address[] validator;
         address signer;
@@ -1046,46 +1129,46 @@ contract EIP7702Test is BaseTest {
         NexusBootstrap bootstrap;
         MockRegistry registry;
     }
-    
-    function _prepareBootstrapConfigs(InitData memory initData) internal pure returns (
-        BootstrapConfig[] memory validators,
-        BootstrapConfig[] memory executors,
-        BootstrapConfig memory hook,
-        BootstrapConfig[] memory fallbacks,
-        BootstrapPreValidationHookConfig[] memory preValidationHooks
-    ) {
+
+    function _prepareBootstrapConfigs(InitData memory initData)
+        internal
+        pure
+        returns (
+            BootstrapConfig[] memory validators,
+            BootstrapConfig[] memory executors,
+            BootstrapConfig memory hook,
+            BootstrapConfig[] memory fallbacks,
+            BootstrapPreValidationHookConfig[] memory preValidationHooks
+        )
+    {
         // Create validator configs
         if (initData.signer == address(0)) {
             validators = BootstrapLib.createArrayConfig(initData.validator, "");
         } else {
             validators = BootstrapLib.createArrayConfig(initData.validator, abi.encode(initData.signer));
         }
-        
+
         // Create other configs
         executors = BootstrapLib.createArrayConfig(initData.executor, "");
         hook = BootstrapLib.createSingleConfig(address(0), "");
         fallbacks = BootstrapLib.createArrayConfig(address(0), "");
         preValidationHooks = BootstrapLib.createArrayPreValidationHookConfig(
-            MODULE_TYPE_PREVALIDATION_HOOK_ERC4337,
-            initData.prevalidationHook,
-            ""
+            MODULE_TYPE_PREVALIDATION_HOOK_ERC4337, initData.prevalidationHook, ""
         );
     }
+
     function _createRegistryConfig(InitData memory initData) internal view returns (RegistryConfig memory config) {
-        return RegistryConfig({
-            registry: initData.registry,
-            attesters: ATTESTERS,
-            threshold: THRESHOLD
-        });
+        return RegistryConfig({ registry: initData.registry, attesters: ATTESTERS, threshold: THRESHOLD });
     }
 
-    function _createRegistryConfigForDestinationData(InitDataDestination memory initData) internal view returns (RegistryConfig memory config) {
-        return RegistryConfig({
-            registry: initData.registry,
-            attesters: ATTESTERS,
-            threshold: THRESHOLD
-        });
+    function _createRegistryConfigForDestinationData(InitDataDestination memory initData)
+        internal
+        view
+        returns (RegistryConfig memory config)
+    {
+        return RegistryConfig({ registry: initData.registry, attesters: ATTESTERS, threshold: THRESHOLD });
     }
+
     function _getInitData(InitData memory initData) internal view returns (bytes memory) {
         (
             BootstrapConfig[] memory validators,
@@ -1104,26 +1187,37 @@ contract EIP7702Test is BaseTest {
         );
     }
 
-
-     function _prepareBootstrapConfigsForDestination(InitDataDestination memory initDataDestination, address account) internal pure returns (
-        BootstrapConfig[] memory validators,
-        BootstrapConfig[] memory executors,
-        BootstrapConfig memory hook,
-        BootstrapConfig[] memory fallbacks,
-        BootstrapPreValidationHookConfig[] memory preValidationHooks
-    ) {
+    function _prepareBootstrapConfigsForDestination(
+        InitDataDestination memory initDataDestination,
+        address account
+    )
+        internal
+        pure
+        returns (
+            BootstrapConfig[] memory validators,
+            BootstrapConfig[] memory executors,
+            BootstrapConfig memory hook,
+            BootstrapConfig[] memory fallbacks,
+            BootstrapPreValidationHookConfig[] memory preValidationHooks
+        )
+    {
         validators = _arrToBootstrapConfigArr(initDataDestination.validator, account);
         executors = _arrToBootstrapConfigArr(initDataDestination.executor, account);
         hook = BootstrapLib.createSingleConfig(address(0), "");
         fallbacks = BootstrapLib.createArrayConfig(address(0), "");
         preValidationHooks = BootstrapLib.createArrayPreValidationHookConfig(
-            MODULE_TYPE_PREVALIDATION_HOOK_ERC4337,
-            initDataDestination.prevalidationHook,
-            ""
+            MODULE_TYPE_PREVALIDATION_HOOK_ERC4337, initDataDestination.prevalidationHook, ""
         );
     }
 
-    function _arrToBootstrapConfigArr(address[] memory arr, address account) internal pure returns (BootstrapConfig[] memory) {
+    function _arrToBootstrapConfigArr(
+        address[] memory arr,
+        address account
+    )
+        internal
+        pure
+        returns (BootstrapConfig[] memory)
+    {
         //struct BootstrapConfig {
         //    address module;
         //    bytes data;
@@ -1135,7 +1229,14 @@ contract EIP7702Test is BaseTest {
         return bootstrapArr;
     }
 
-    function _getInitDataForDestination(address account, InitDataDestination memory initDataDestination) internal view returns (bytes memory) {
+    function _getInitDataForDestination(
+        address account,
+        InitDataDestination memory initDataDestination
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
         (
             BootstrapConfig[] memory validators,
             BootstrapConfig[] memory executors,
@@ -1143,17 +1244,33 @@ contract EIP7702Test is BaseTest {
             BootstrapConfig[] memory fallbacks,
             BootstrapPreValidationHookConfig[] memory preValidationHooks
         ) = _prepareBootstrapConfigsForDestination(initDataDestination, account);
-       
+
         return abi.encode(
             address(initDataDestination.bootstrap),
             abi.encodeCall(
                 initDataDestination.bootstrap.initNexus,
-                (validators, executors, hook, fallbacks, preValidationHooks, _createRegistryConfigForDestinationData(initDataDestination))
+                (
+                    validators,
+                    executors,
+                    hook,
+                    fallbacks,
+                    preValidationHooks,
+                    _createRegistryConfigForDestinationData(initDataDestination)
+                )
             )
         );
     }
 
-    function _getNonce(address account, bytes1 vMode, address validator, bytes3 batchId) internal view returns (uint256 nonce) {
+    function _getNonce(
+        address account,
+        bytes1 vMode,
+        address validator,
+        bytes3 batchId
+    )
+        internal
+        view
+        returns (uint256 nonce)
+    {
         uint192 key = _makeNonceKey(vMode, validator, batchId);
         nonce = ENTRYPOINT.getNonce(address(account), key);
     }
@@ -1178,6 +1295,4 @@ contract EIP7702Test is BaseTest {
             signature: ""
         });
     }
-
-
 }
