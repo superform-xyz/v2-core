@@ -2058,7 +2058,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         bytes memory data
     )
         internal
-        view
+        pure
         returns (bytes memory hookData)
     {
         hookData = abi.encodePacked(
