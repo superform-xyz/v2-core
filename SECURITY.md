@@ -11,4 +11,3 @@ This is a low-likelihood vulnerability where a user may get their signed bridgin
 
 The user must still have sufficient balance on their smart account on the destination chain.
 
-A working proof-of-concept for this issue is available in the [test/integration/attacks](./test/integration/attacks/CrossBridgeReplayAfterCancellation.t.sol) directory.
