@@ -181,14 +181,11 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         // SuperDestinationExecutor (requires superLedgerConfiguration, superDestinationValidator, nexusFactory)
         address superDestExecutor;
-        if (
-            superLedgerConfig != address(0) && superDestValidator != address(0)
-
-        ) {
+        if (superLedgerConfig != address(0) && superDestValidator != address(0)) {
             (, superDestExecutor) = __checkContract(
                 SUPER_DESTINATION_EXECUTOR_KEY,
                 __getSalt(SUPER_DESTINATION_EXECUTOR_KEY),
-                abi.encode(superLedgerConfig, superDestValidator
+                abi.encode(superLedgerConfig, superDestValidator)
             );
         } else {
             revert("SUPER_DEST_EXECUTOR_CHECK_FAILED_MISSING_DEPENDENCIES");
@@ -501,7 +498,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(configuration.owner != address(0), "OWNER_ADDRESS_ZERO");
         console2.log(" Treasury:", configuration.treasury);
         console2.log(" Owner:", configuration.owner);
-
 
         // Check Permit2 (required for BatchTransferFromHook)
         require(configuration.permit2s[chainId] != address(0), "PERMIT2_ADDRESS_ZERO");

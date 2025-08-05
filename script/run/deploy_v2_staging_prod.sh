@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/opt/homebrew/bin/bash
 
 # Colors for better visual output
 RED='\033[0;31m'
@@ -9,6 +9,9 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m' # No Color
+
+# Associative array to store deployment status for each network
+declare -A NETWORK_DEPLOYMENT_STATUS
 
 # Function to print colored header
 print_header() {
@@ -62,109 +65,186 @@ get_network_name() {
     esac
 }
 
-# Function to validate locked bytecode files
+# Function to extract contract names from update_locked_bytecode.sh
+extract_contracts_from_update_script() {
+    local array_name=$1
+    local script_path="$SCRIPT_DIR/update_locked_bytecode.sh"
+    
+    if [[ ! -f "$script_path" ]]; then
+        return 1
+    fi
+    
+    # Extract contract names from the specified array in update_locked_bytecode.sh
+    # Find the array definition and stop at the closing parenthesis
+    sed -n "/${array_name}=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | tr -d '"'
+}
+
+# Function to validate locked bytecode files (sourced from update_locked_bytecode.sh)
 validate_locked_bytecode() {
     log "INFO" "Validating locked bytecode artifacts..."
     
-    # Define required contracts (same as in update_locked_bytecode.sh)
-    local CORE_CONTRACTS=(
-        "SuperExecutor"
-        "SuperDestinationExecutor" 
-        "SuperSenderCreator"
-        "AcrossV3Adapter"
-        "DebridgeAdapter"
-        "SuperLedger"
-        "FlatFeeLedger"
-        "SuperLedgerConfiguration"
-        "SuperValidator"
-        "SuperDestinationValidator"
-        "SuperNativePaymaster"
-    )
-    
-    local HOOK_CONTRACTS=(
-        "ApproveERC20Hook"
-        "TransferERC20Hook"
-        "BatchTransferHook"
-        "BatchTransferFromHook"
-        "Deposit4626VaultHook"
-        "ApproveAndDeposit4626VaultHook"
-        "Redeem4626VaultHook"
-        "Deposit5115VaultHook"
-        "ApproveAndDeposit5115VaultHook"
-        "Redeem5115VaultHook"
-        "RequestDeposit7540VaultHook"
-        "ApproveAndRequestDeposit7540VaultHook"
-        "ApproveAndRequestRedeem7540VaultHook"
-        "Redeem7540VaultHook"
-        "RequestRedeem7540VaultHook"
-        "Deposit7540VaultHook"
-        "CancelDepositRequest7540Hook"
-        "CancelRedeemRequest7540Hook"
-        "ClaimCancelDepositRequest7540Hook"
-        "ClaimCancelRedeemRequest7540Hook"
-        "Swap1InchHook"
-        "SwapOdosV2Hook"
-        "ApproveAndSwapOdosV2Hook"
-        "AcrossSendFundsAndExecuteOnDstHook"
-        "DeBridgeSendOrderAndExecuteOnDstHook"
-        "DeBridgeCancelOrderHook"
-        "EthenaCooldownSharesHook"
-        "EthenaUnstakeHook"
-        "OfframpTokensHook"
-        "MarkRootAsUsedHook"
-        "MerklClaimRewardHook"
-    )
-    
-    local ORACLE_CONTRACTS=(
-        "ERC4626YieldSourceOracle"
-        "ERC5115YieldSourceOracle"
-        "ERC7540YieldSourceOracle"
-        "PendlePTYieldSourceOracle"
-        "SpectraPTYieldSourceOracle"
-        "StakingYieldSourceOracle"
-        "SuperYieldSourceOracle"
-    )
+    local script_path="$SCRIPT_DIR/update_locked_bytecode.sh"
+    if [[ ! -f "$script_path" ]]; then
+        echo -e "${RED}❌ Cannot find update_locked_bytecode.sh at: $script_path${NC}"
+        return 1
+    fi
     
     local missing_files=()
     
-    # Check core contracts
-    for contract in "${CORE_CONTRACTS[@]}"; do
+    # Extract and check core contracts
+    log "INFO" "Checking core contracts from update_locked_bytecode.sh..."
+    local core_contracts
+    core_contracts=$(extract_contracts_from_update_script "CORE_CONTRACTS")
+    for contract in $core_contracts; do
+        [[ -z "$contract" ]] && continue
         local file_path="script/locked-bytecode/${contract}.json"
         if [ ! -f "$file_path" ]; then
             missing_files+=("$file_path")
         fi
     done
     
-    # Check hook contracts
-    for contract in "${HOOK_CONTRACTS[@]}"; do
+    # Extract and check hook contracts
+    log "INFO" "Checking hook contracts from update_locked_bytecode.sh..."
+    local hook_contracts
+    hook_contracts=$(extract_contracts_from_update_script "HOOK_CONTRACTS")
+    for contract in $hook_contracts; do
+        [[ -z "$contract" ]] && continue
         local file_path="script/locked-bytecode/${contract}.json"
         if [ ! -f "$file_path" ]; then
             missing_files+=("$file_path")
         fi
     done
     
-    # Check oracle contracts
-    for contract in "${ORACLE_CONTRACTS[@]}"; do
+    # Extract and check oracle contracts
+    log "INFO" "Checking oracle contracts from update_locked_bytecode.sh..."
+    local oracle_contracts
+    oracle_contracts=$(extract_contracts_from_update_script "ORACLE_CONTRACTS")
+    for contract in $oracle_contracts; do
+        [[ -z "$contract" ]] && continue
         local file_path="script/locked-bytecode/${contract}.json"
         if [ ! -f "$file_path" ]; then
             missing_files+=("$file_path")
         fi
     done
+    
+    # Show expected total count
+    local expected_total
+    expected_total=$(get_expected_contract_count)
+    log "INFO" "Expected total artifacts: $expected_total (from update_locked_bytecode.sh)"
     
     if [ ${#missing_files[@]} -gt 0 ]; then
         echo -e "${RED}❌ Missing locked bytecode files:${NC}"
         for file in "${missing_files[@]}"; do
             echo -e "${RED}   - $file${NC}"
         done
+        echo -e "${RED}   Missing: ${#missing_files[@]} files${NC}"
         return 1
     fi
     
     echo -e "${GREEN}✅ All required locked bytecode files are present${NC}"
+    echo -e "${GREEN}   Validated: $expected_total contract artifacts${NC}"
     return 0
 }
 
 
-# Function to check V2 Core addresses on a network
+# Function to get expected contract count from update_locked_bytecode.sh
+get_expected_contract_count() {
+    local script_path="$SCRIPT_DIR/update_locked_bytecode.sh"
+    
+    if [[ ! -f "$script_path" ]]; then
+        echo "0"
+        return 1
+    fi
+    
+    # Use the same extraction logic as extract_contracts_from_update_script
+    local core_count hook_count oracle_count
+    
+    # Extract CORE_CONTRACTS array and count elements
+    core_count=$(sed -n "/CORE_CONTRACTS=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | wc -l)
+    
+    # Extract HOOK_CONTRACTS array and count elements  
+    hook_count=$(sed -n "/HOOK_CONTRACTS=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | wc -l)
+    
+    # Extract ORACLE_CONTRACTS array and count elements
+    oracle_count=$(sed -n "/ORACLE_CONTRACTS=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | wc -l)
+    
+    local total_expected=$((core_count + hook_count + oracle_count))
+    echo "$total_expected"
+}
+
+# Function to analyze deployment status across all networks and determine next steps
+analyze_deployment_status() {
+    echo -e "${BLUE}📊 Analyzing deployment status across all networks...${NC}"
+    echo ""
+    
+    local all_fully_deployed=true
+    local needs_deployment=false
+    local networks_with_missing=()
+    
+    # Get expected contract count from update_locked_bytecode.sh
+    local total_expected
+    total_expected=$(get_expected_contract_count)
+    
+    if [[ $total_expected -eq 0 ]]; then
+        echo -e "${RED}❌ Unable to determine expected contract count from update_locked_bytecode.sh${NC}"
+        return 2
+    fi
+    
+    echo -e "${CYAN}Expected total contracts per network (from update_locked_bytecode.sh): ${WHITE}$total_expected${NC}"
+    echo -e "${CYAN}  • Core contracts: ${WHITE}$(sed -n "/CORE_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/update_locked_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
+    echo -e "${CYAN}  • Hook contracts: ${WHITE}$(sed -n "/HOOK_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/update_locked_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
+    echo -e "${CYAN}  • Oracle contracts: ${WHITE}$(sed -n "/ORACLE_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/update_locked_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
+    echo ""
+    
+    # Analyze each network against the expected total from update_locked_bytecode.sh
+    for network_id in "${!NETWORK_DEPLOYMENT_STATUS[@]}"; do
+        IFS=':' read -r deployed detected_total network_name <<< "${NETWORK_DEPLOYMENT_STATUS[$network_id]}"
+        
+        # Use the expected total from update_locked_bytecode.sh, not the detected total
+        if [[ $deployed -eq $total_expected ]]; then
+            echo -e "${GREEN}✅ $network_name (Chain $network_id): All $deployed/$total_expected contracts deployed${NC}"
+        elif [[ $deployed -lt $total_expected ]]; then
+            local missing=$((total_expected - deployed))
+            echo -e "${YELLOW}⚠️  $network_name (Chain $network_id): $deployed/$total_expected contracts deployed (${missing} missing)${NC}"
+            all_fully_deployed=false
+            needs_deployment=true
+            networks_with_missing+=("$network_name")
+        elif [[ $deployed -gt $total_expected ]]; then
+            echo -e "${CYAN}ℹ️  $network_name (Chain $network_id): $deployed/$total_expected contracts deployed (${deployed} > expected ${total_expected})${NC}"
+            echo -e "${CYAN}    Note: More contracts deployed than expected - this may include additional contracts${NC}"
+        else
+            echo -e "${RED}❌ $network_name (Chain $network_id): Error in deployment status${NC}"
+            all_fully_deployed=false
+        fi
+    done
+    
+    echo ""
+    
+    # Determine action based on analysis
+    if [[ $all_fully_deployed == true && $total_expected -gt 0 ]]; then
+        echo -e "${GREEN}🎉 EXCELLENT! All contracts are already deployed on all networks!${NC}"
+        echo -e "${GREEN}   Expected: $total_expected contracts (from update_locked_bytecode.sh)${NC}"
+        echo -e "${GREEN}   Status: Fully deployed across all chains${NC}"
+        echo -e "${GREEN}   No deployment needed - terminating with success${NC}"
+        return 0  # All deployed - skip deployment
+    elif [[ $needs_deployment == true ]]; then
+        echo -e "${YELLOW}📋 DEPLOYMENT REQUIRED${NC}"
+        echo -e "${CYAN}   Expected total per network: $total_expected contracts (from update_locked_bytecode.sh)${NC}"
+        echo -e "${CYAN}   The following networks have missing contracts:${NC}"
+        for network in "${networks_with_missing[@]}"; do
+            echo -e "${CYAN}   • $network${NC}"
+        done
+        echo ""
+        echo -e "${WHITE}   Only missing contracts will be deployed (existing ones will be skipped)${NC}"
+        return 1  # Needs deployment - continue with confirmation
+    else
+        echo -e "${RED}❌ Unable to determine deployment status${NC}"
+        echo -e "${RED}   Expected: $total_expected contracts (from update_locked_bytecode.sh)${NC}"
+        return 2  # Error state
+    fi
+}
+
+# Function to check V2 Core addresses on a network and capture deployment status
 check_v2_addresses() {
     local network_id=$1
     local network_name=$2
@@ -173,11 +253,34 @@ check_v2_addresses() {
     
     echo -e "${CYAN}Checking V2 Core addresses for $network_name (Chain ID: $network_id)...${NC}"
     
-    forge script script/DeployV2Core.s.sol:DeployV2Core \
+    # Capture the full output to parse deployment status
+    local check_output
+    check_output=$(forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(bool,uint256,uint64)' true $FORGE_ENV $network_id \
         --rpc-url ${!rpc_url_var} \
         --chain $network_id \
-        -vv | grep -e "Addr" -e "already deployed" -e "Code Size" -e "====" -e "====>"
+        -vv 2>&1)
+    
+    # Display the relevant output lines
+    echo "$check_output" | grep -e "Addr" -e "already deployed" -e "Code Size" -e "====" -e "====>"
+    
+    # Extract deployment counts from the summary line
+    local summary_line
+    summary_line=$(echo "$check_output" | grep "=====> On this chain we have")
+    
+    if [[ -n "$summary_line" ]]; then
+        # Parse: "=====> On this chain we have X contracts already deployed out of Y"
+        local deployed_count=$(echo "$summary_line" | grep -o "have [0-9]\+ contracts" | grep -o "[0-9]\+")
+        local total_count=$(echo "$summary_line" | grep -o "out of [0-9]\+" | grep -o "[0-9]\+")
+        
+        # Store deployment status for this network
+        NETWORK_DEPLOYMENT_STATUS["${network_id}"]="${deployed_count}:${total_count}:${network_name}"
+        
+        echo -e "${YELLOW}  📊 Status: ${deployed_count}/${total_count} contracts deployed${NC}"
+    else
+        echo -e "${RED}  ❌ Could not parse deployment status${NC}"
+        NETWORK_DEPLOYMENT_STATUS["${network_id}"]="0:0:${network_name}"
+    fi
 }
 
 print_header
@@ -187,24 +290,35 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/../utils/networks.sh"
 
 # Check if arguments are provided
-if [ $# -lt 2 ]; then
+if [ $# -lt 3 ]; then
     echo -e "${RED}❌ Error: Missing required arguments${NC}"
-    echo -e "${YELLOW}Usage: $0 <environment> <mode>${NC}"
+    echo -e "${YELLOW}Usage: $0 <environment> <mode> <account>${NC}"
     echo -e "${CYAN}  environment: staging or prod${NC}"
     echo -e "${CYAN}  mode: simulate or deploy${NC}"
+    echo -e "${CYAN}  account: foundry account name (e.g., v2, deployer, main)${NC}"
     echo -e "${CYAN}Examples:${NC}"
-    echo -e "${CYAN}  $0 staging simulate${NC}"
-    echo -e "${CYAN}  $0 prod deploy${NC}"
+    echo -e "${CYAN}  $0 staging simulate v2${NC}"
+    echo -e "${CYAN}  $0 prod deploy deployer${NC}"
+    echo -e "${CYAN}Available accounts: $(cast wallet list 2>/dev/null | sed 's/ (Local)//' | tr '\n' ' ' || echo 'Run "cast wallet list" to see available accounts')${NC}"
     exit 1
 fi
 
 ENVIRONMENT=$1
 MODE=$2
+ACCOUNT=$3
 
 # Validate environment
 if [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRONMENT" != "prod" ]; then
     echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
     echo -e "${YELLOW}Environment must be either 'staging' or 'prod'${NC}"
+    exit 1
+fi
+
+# Validate account exists in foundry wallet list
+if ! cast wallet list 2>/dev/null | sed 's/ (Local)//' | grep -q "^$ACCOUNT$"; then
+    echo -e "${RED}❌ Account '$ACCOUNT' not found in foundry wallet list${NC}"
+    echo -e "${YELLOW}Available accounts:${NC}"
+    cast wallet list 2>/dev/null | sed 's/ (Local)//' | sed 's/^/  • /' || echo -e "${RED}  No accounts found. Run 'cast wallet import' to add accounts.${NC}"
     exit 1
 fi
 
@@ -264,6 +378,7 @@ fi
 echo -e "${GREEN}✅ Configuration loaded successfully${NC}"
 echo -e "${CYAN}   • Using Tenderly private verification mode${NC}"
 echo -e "${CYAN}   • Environment: $ENVIRONMENT${NC}"
+echo -e "${CYAN}   • Account: $ACCOUNT${NC}"
 print_separator
 
 # ===== LOCKED BYTECODE VALIDATION =====
@@ -287,14 +402,41 @@ for network_def in "${NETWORKS[@]}"; do
     echo ""
 done
 
-# Prompt user for confirmation
-echo -e "${WHITE}Do you want to proceed with the addresses above? (y/n): ${NC}"
-read -r proceed
+print_separator
 
-if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
-    echo -e "${YELLOW}Deployment cancelled by user${NC}"
-    exit 1
-fi
+# Analyze deployment status and determine next steps
+analyze_deployment_status
+analysis_result=$?
+
+case $analysis_result in
+    0)
+        # All contracts deployed - exit successfully
+        print_separator
+        echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${GREEN}║                                                                                      ║${NC}"
+        echo -e "${GREEN}║${WHITE}                🎉 All V2 Core Contracts Already Deployed! 🎉                    ${GREEN}║${NC}"
+        echo -e "${GREEN}║${WHITE}                           No deployment necessary                               ${GREEN}║${NC}"
+        echo -e "${GREEN}║                                                                                      ║${NC}"
+        echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+        exit 0
+        ;;
+    1)
+        # Some contracts need deployment - ask for confirmation
+        echo -e "${WHITE}🤔 Do you want to proceed with deploying the missing contracts? (y/n): ${NC}"
+        read -r proceed
+        
+        if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
+            echo -e "${YELLOW}Deployment cancelled by user${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}✅ Proceeding with deployment of missing contracts...${NC}"
+        ;;
+    2)
+        # Error in analysis
+        echo -e "${RED}❌ Error analyzing deployment status. Please check the output above.${NC}"
+        exit 1
+        ;;
+esac
 
 
 
@@ -308,12 +450,13 @@ for network_def in "${NETWORKS[@]}"; do
     echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
     echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
     echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
+    echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
     echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
     echo -e "${YELLOW}   Executing forge script...${NC}"
     
     forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(bool,uint256,uint64)' false $FORGE_ENV $network_id \
-        --account v2 \
+        --account $ACCOUNT \
         --rpc-url ${!rpc_var} \
         --chain $network_id \
         --etherscan-api-key $TENDERLY_ACCESS_TOKEN \

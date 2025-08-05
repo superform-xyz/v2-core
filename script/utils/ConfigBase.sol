@@ -14,7 +14,6 @@ abstract contract ConfigBase is Constants {
     struct EnvironmentData {
         address owner;
         address treasury;
-        address validator;
         // Core contract dependencies
         mapping(uint64 chainId => address acrossSpokePoolV3) acrossSpokePoolV3s;
         mapping(uint64 chainId => address debridgeDstDln) debridgeDstDln;
@@ -22,10 +21,6 @@ abstract contract ConfigBase is Constants {
         mapping(uint64 chainId => address merklDistributor) merklDistributors;
         mapping(uint64 chainId => address routers) aggregationRouters;
         mapping(uint64 chainId => address odosRouter) odosRouters;
-        // Other dependencies
-        mapping(uint64 chainId => address okxRouter) okxRouters;
-        mapping(uint64 chainId => address spectraRouter) spectraRouters;
-        mapping(uint64 chainId => address pendleRouter) pendleRouters;
     }
 
     EnvironmentData public configuration;
@@ -34,7 +29,6 @@ abstract contract ConfigBase is Constants {
     bytes internal SALT_NAMESPACE;
     string internal constant MNEMONIC = "test test test test test test test test test test test junk";
     string internal constant PRODUCTION_SALT_NAMESPACE = "PROD1.0.0";
-    /// @dev note this salt was used for staging deployment
     string internal constant STAGING_SALT_NAMESPACE = "DEPLOYPROD1.0.0";
 
     address internal constant TEST_DEPLOYER = 0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266;

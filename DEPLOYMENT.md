@@ -4,17 +4,63 @@ This guide provides step-by-step instructions for deploying the V2 Core smart co
 
 ## 🎯 Key Features
 
+- **Intelligent Deployment Detection**: Automatically analyzes deployment status and skips confirmation when all contracts are deployed
+- **Contract Count Validation**: Sources expected contract count from `update_locked_bytecode.sh` for accuracy
 - **Centralized Network Management**: All network configurations are managed in `script/utils/networks.sh`
 - **One-Time Deployment**: Contracts can only be deployed once per network with same bytecode
 - **Multi-Network Support**: Deploy to Ethereum, Base, BSC, and Arbitrum simultaneously
 - **Locked Bytecode**: All contracts use pre-compiled, audited bytecode artifacts
+- **Smart Flow Control**: Auto-terminates with success when all contracts are already deployed
 
 ## 🔧 Prerequisites
 
 ### Required Tools
 - **Foundry**: Latest version with `forge` CLI tool
+- **Bash 4.0+**: For associative array support (required for deployment analysis)
 - **Secure credential manager**: For managing sensitive credentials
 - **jq**: For JSON processing
+
+### Bash Version Requirements
+
+**⚠️ Critical**: The deployment script requires **Bash 4.0 or later** for associative array support.
+
+#### Check Your Bash Version
+```bash
+bash --version
+```
+
+#### macOS Users: Install Modern Bash
+macOS ships with Bash 3.2 which doesn't support associative arrays. Install a modern version:
+
+```bash
+# Install via Homebrew
+brew install bash
+
+# Verify installation
+/opt/homebrew/bin/bash --version  # Should show 5.x
+```
+
+#### Linux Users
+Most modern Linux distributions include Bash 4.0+. If needed:
+
+```bash
+# Ubuntu/Debian
+sudo apt update && sudo apt install bash
+
+# CentOS/RHEL
+sudo yum update bash
+```
+
+#### Execution Method
+**Important**: Always run the script directly to use the proper bash shebang:
+
+```bash
+# ✅ Correct - Uses modern bash via shebang
+./script/run/deploy_v2_staging_prod.sh prod simulate v2
+
+# ❌ Wrong - Forces system bash 3.2 and will fail
+sh script/run/deploy_v2_staging_prod.sh prod simulate v2
+```
 
 ### Required Credentials
 
@@ -61,27 +107,76 @@ The deployment script supports production deployment with two modes:
 
 ### Step 3: Run Deployment Script
 
+**⚠️ Account Parameter Required**: The script now requires specifying a foundry account name as the third parameter.
+
+#### Check Available Accounts
+First, verify your available foundry accounts:
+```bash
+cast wallet list
+```
+
+#### Execute Deployment
 ```bash
 # For production simulation (recommended first step)
-./script/run/deploy_v2_staging_prod.sh prod simulate
+./script/run/deploy_v2_staging_prod.sh prod simulate v2
 
-# For production deployment  
-./script/run/deploy_v2_staging_prod.sh prod deploy
+# For production deployment with account 'v2'
+./script/run/deploy_v2_staging_prod.sh prod deploy v2
+
+# For staging deployment with a different account
+./script/run/deploy_v2_staging_prod.sh staging deploy deployer
 ```
+
+**Usage**: `./script/run/deploy_v2_staging_prod.sh <environment> <mode> <account>`
+- **environment**: `staging` or `prod`
+- **mode**: `simulate` or `deploy` 
+- **account**: foundry account name (e.g., `v2`, `deployer`, `main`)
 
 ### Step 4: Review Deployment
 
-The script will:
+The script intelligently analyzes deployment status and adapts accordingly:
 
-1. **🔍 Validate Prerequisites**: Check locked bytecode artifacts
-2. **📋 Show Contract Addresses**: Display which contracts will be deployed vs already exist
-3. **🤝 Request Confirmation**: Ask for user confirmation before proceeding
-4. **🚀 Deploy to Networks**: Deploy to all supported networks:
+#### Automatic Flow Detection
+
+1. **🔍 Validate Prerequisites**: Check locked bytecode artifacts (expected total: 49 contracts)
+2. **📋 Address Verification**: Display contract addresses and deployment status per network
+3. **🧠 Smart Analysis**: Analyze deployment status across all networks:
+
+   **Scenario A: All Contracts Deployed (49/49)**
+   ```bash
+   🎉 EXCELLENT! All contracts are already deployed on all networks!
+      Expected: 49 contracts (from update_locked_bytecode.sh)
+      Status: Fully deployed across all chains
+      No deployment needed - terminating with success
+   ```
+   ✅ **Auto-terminates** with success message (no confirmation needed)
+
+   **Scenario B: Some Contracts Missing**
+   ```bash
+   📋 DEPLOYMENT REQUIRED
+      Expected total per network: 49 contracts (from update_locked_bytecode.sh)
+      The following networks have missing contracts:
+      • Ethereum (47/49 contracts, 2 missing)
+      • Base (49/49 contracts, fully deployed)
+      
+      Only missing contracts will be deployed (existing ones will be skipped)
+   ```
+   🤝 **Requests confirmation** only for missing contracts
+
+4. **🚀 Deploy to Networks**: Deploy only missing contracts to:
    - Ethereum Mainnet (Chain ID: 1)
    - Base Mainnet (Chain ID: 8453)
    - BSC Mainnet (Chain ID: 56)
    - Arbitrum Mainnet (Chain ID: 42161)
-5. **✅ Verify Contracts**: Automatically verify contracts on Tenderly
+5. **✅ Verify Contracts**: Automatically verify new contracts on Tenderly
+
+#### Contract Count Validation
+
+The script now sources expected contract counts from `update_locked_bytecode.sh`:
+- **Core contracts**: 11
+- **Hook contracts**: 31  
+- **Oracle contracts**: 7
+- **Total expected**: 49 contracts per network
 
 ## 📁 Output Structure
 
@@ -150,28 +245,54 @@ The deployment includes the following contract categories:
 
 ### Common Issues
 
-**1. Missing RPC URLs**
+**1. Bash Compatibility Issues**
+```
+declare: -A: invalid option
+syntax error near unexpected token `<'
+```
+- **Cause**: Using Bash 3.2 (default on macOS) which doesn't support associative arrays
+- **Solution**: Install Bash 4.0+ and run script directly:
+  ```bash
+  # Install modern bash (macOS)
+  brew install bash
+  
+  # Run correctly
+  ./script/run/deploy_v2_staging_prod.sh prod simulate v2
+  
+  # NOT: sh script/run/deploy_v2_staging_prod.sh prod simulate v2
+  ```
+
+**2. Missing RPC URLs**
 ```
 Error: Failed to load RPC URL for network
 ```
 - Verify credential management system provides required environment variables
 - Check RPC URL accessibility and validity
 
-**2. Insufficient Gas**
+**3. Insufficient Gas**
 ```
 Error: Transaction failed with insufficient gas
 ```
 - Ensure deployment account has sufficient native tokens on all networks
 - Check current gas prices and network congestion
 
-**3. Contract Already Deployed**
+**4. Contract Already Deployed**
 ```
 Info: Contract already deployed at address 0x...
 ```
 - This is normal - the script will skip already deployed contracts
 - Review the address verification output to ensure correctness
+- If all contracts are deployed (49/49), the script will automatically terminate with success
 
-**4. Verification Failed**
+**5. Contract Count Mismatch**
+```
+Expected total artifacts: X (from update_locked_bytecode.sh)
+```
+- The script sources contract counts from `update_locked_bytecode.sh`
+- If counts seem wrong, verify the locked bytecode files are up to date
+- Run `./script/run/update_locked_bytecode.sh` to refresh artifacts
+
+**6. Verification Failed**
 ```
 Error: Failed to verify contract on Tenderly
 ```
@@ -241,7 +362,7 @@ Add your network to all helper functions in `script/utils/networks.sh`:
 
 ```bash
 # Test with simulation first
-./script/run/deploy_v2_staging_prod.sh prod simulate
+./script/run/deploy_v2_staging_prod.sh prod simulate v2
 
 # Verify the new network appears in the deployment list
 # Check that all contracts deploy successfully
@@ -274,7 +395,29 @@ Where:
 - **Upgrade Safety**: Deployment script checks for existing contracts to prevent overwrites
 - **Multi-Network**: All networks deploy sequentially for reliability
 - **One-Time Deployment**: Each contract can only be deployed once per network with same parameters
+- **Intelligent Analysis**: Script automatically detects deployment status and adapts flow accordingly
+- **Contract Count Accuracy**: Expected counts sourced from `update_locked_bytecode.sh` for consistency
+- **Bash 4.0+ Required**: Modern bash needed for associative array support in deployment analysis
+
+## 🚀 Recent Improvements (Latest)
+
+### Smart Deployment Detection
+- **Auto-termination**: When all 49 contracts are deployed, script exits automatically with success
+- **Conditional confirmation**: Only asks for confirmation when contracts need deployment
+- **Accurate counting**: Contract expectations sourced from `update_locked_bytecode.sh`
+
+### Enhanced User Experience
+- **Clear status indicators**: Per-network deployment status with missing contract counts
+- **Informative analysis**: Detailed breakdown of core/hook/oracle contract counts
+- **Improved error handling**: Better bash compatibility and clearer error messages
+
+### Technical Improvements
+- **Bash compatibility**: Updated shebang to use modern bash for associative arrays
+- **Consistent parsing**: Unified contract extraction logic across all functions
+- **Source of truth**: `update_locked_bytecode.sh` as definitive contract list
 
 ---
 
 **⚠️ Important**: Always run simulation mode before production deployments to verify expected behavior and gas costs. Remember that contracts can only be deployed once per network with the same bytecode and constructor arguments.
+
+**💡 Pro Tip**: If all contracts are already deployed, the script will automatically detect this and terminate with a celebration message - no manual intervention needed!

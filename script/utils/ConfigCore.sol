@@ -28,13 +28,6 @@ abstract contract ConfigCore is ConfigBase {
         configuration.debridgeDstDln[ARBITRUM_CHAIN_ID] = DEBRIDGE_DLN_DST;
         configuration.debridgeDstDln[BNB_CHAIN_ID] = DEBRIDGE_DLN_DST;
 
-        // ===== NEXUS FACTORY ADDRESSES =====
-        configuration.nexusFactories[MAINNET_CHAIN_ID] = NEXUS_FACTORY_MAINNET;
-        configuration.nexusFactories[BASE_CHAIN_ID] = NEXUS_FACTORY_BASE;
-        configuration.nexusFactories[OPTIMISM_CHAIN_ID] = NEXUS_FACTORY_OPTIMISM;
-        configuration.nexusFactories[ARBITRUM_CHAIN_ID] = NEXUS_FACTORY_ARBITRUM;
-        configuration.nexusFactories[BNB_CHAIN_ID] = NEXUS_FACTORY_BNB;
-
         // ===== PERMIT2 ADDRESSES =====
         configuration.permit2s[MAINNET_CHAIN_ID] = PERMIT2_MAINNET;
         configuration.permit2s[BASE_CHAIN_ID] = PERMIT2_BASE;
