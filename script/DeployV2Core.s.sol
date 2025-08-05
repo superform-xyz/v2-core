@@ -900,6 +900,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         uint256 env
     )
         private
+        view
         returns (string memory deploymentJson)
     {
         console2.log("Verifying contract addresses from locked bytecode...");
