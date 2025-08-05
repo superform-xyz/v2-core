@@ -10,8 +10,9 @@ import { ISuperLedgerConfiguration } from "../src/interfaces/accounting/ISuperLe
 import { MockDex } from "../test/mocks/MockDex.sol";
 import { MockDexHook } from "../test/mocks/MockDexHook.sol";
 
-import { Strings } from "openzeppelin-contracts/contracts/utils/Strings.sol";
+import { Strings } from "lib/openzeppelin-contracts/contracts/utils/Strings.sol";
 import { console2 } from "forge-std/console2.sol";
+import { DeterministicDeployerLib } from "../src/vendor/nexus/DeterministicDeployerLib.sol";
 
 contract DeployV2Core is DeployV2Base, ConfigCore {
     struct CoreContracts {
@@ -72,6 +73,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         bytes creationCode;
     }
 
+    struct ContractVerification {
+        string name;
+        string outputKey;
+        string bytecodePath;
+        string constructorArgs;
+    }
+
     uint256 private _deployed;
     uint256 private _total;
 
@@ -120,17 +128,18 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     /// @param env Environment (0 = prod, 2 = staging)
     /// @param chainId Target chain ID
     function runLedgerConfigurations(uint256 env, uint64 chainId) public broadcast(env) {
-        console2.log(" Configuring SuperLedger for production/staging environment...");
-        console2.log("   Environment:", env == 0 ? "Production" : "Staging");
-        console2.log("   Chain ID:", chainId);
+        console2.log("====== FOOLPROOF LEDGER CONFIGURATION ======");
+        console2.log("Environment:", env == 0 ? "Production" : "Staging");
+        console2.log("Chain ID:", chainId);
+        console2.log("");
 
         // Set configuration to get correct environment settings
         _setConfiguration(env, "");
 
-        // Configure SuperLedger by reading contracts from output files
+        // Configure SuperLedger with bytecode verification
         _setupSuperLedgerConfiguration(chainId, true, env);
 
-        console2.log(" SuperLedger configuration completed successfully!");
+        console2.log("====== LEDGER CONFIGURATION COMPLETED SUCCESSFULLY ======");
     }
 
     /// @notice Check V2 Core contract addresses before deployment
@@ -770,7 +779,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
 
         if (useFiles) {
             // Read contract addresses from deployment output files
-            string memory deploymentJson = _readCoreContractsFromOutput(chainId, env);
+            string memory deploymentJson = _verifyContractAddressesFromBytecode(chainId, env);
 
             superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
             erc4626Oracle = vm.parseJsonAddress(deploymentJson, ".ERC4626YieldSourceOracle");
@@ -880,6 +889,146 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         ISuperLedgerConfiguration(superLedgerConfig).setYieldSourceOracles(salts, configs);
 
         console2.log(" SuperLedgerConfiguration setup completed successfully from", sourceDescription, "! ");
+    }
+
+    /// @notice Verify contract addresses by computing from locked bytecode and comparing with output files
+    /// @dev This provides foolproof verification that deployed addresses match expected bytecode
+    /// @param chainId Target chain ID
+    /// @param env Environment for determining output path
+    function _verifyContractAddressesFromBytecode(
+        uint64 chainId,
+        uint256 env
+    )
+        private
+        returns (string memory deploymentJson)
+    {
+        console2.log("Verifying contract addresses from locked bytecode...");
+
+        // Read addresses from output files
+        deploymentJson = _readCoreContractsFromOutput(chainId, env);
+
+        // Define contracts to verify with their corresponding locked bytecode paths and constructor args
+        ContractVerification[] memory contracts = new ContractVerification[](7);
+
+        // Core contracts verification
+        contracts[0] = ContractVerification({
+            name: "SuperLedgerConfiguration",
+            outputKey: ".SuperLedgerConfiguration",
+            bytecodePath: "script/locked-bytecode/SuperLedgerConfiguration.json",
+            constructorArgs: ""
+        });
+
+        contracts[1] = ContractVerification({
+            name: "ERC4626YieldSourceOracle",
+            outputKey: ".ERC4626YieldSourceOracle",
+            bytecodePath: "script/locked-bytecode/ERC4626YieldSourceOracle.json",
+            constructorArgs: ""
+        });
+
+        contracts[2] = ContractVerification({
+            name: "ERC7540YieldSourceOracle",
+            outputKey: ".ERC7540YieldSourceOracle",
+            bytecodePath: "script/locked-bytecode/ERC7540YieldSourceOracle.json",
+            constructorArgs: ""
+        });
+
+        contracts[3] = ContractVerification({
+            name: "ERC5115YieldSourceOracle",
+            outputKey: ".ERC5115YieldSourceOracle",
+            bytecodePath: "script/locked-bytecode/ERC5115YieldSourceOracle.json",
+            constructorArgs: ""
+        });
+
+        contracts[4] = ContractVerification({
+            name: "StakingYieldSourceOracle",
+            outputKey: ".StakingYieldSourceOracle",
+            bytecodePath: "script/locked-bytecode/StakingYieldSourceOracle.json",
+            constructorArgs: ""
+        });
+
+        contracts[5] = ContractVerification({
+            name: "SuperLedger",
+            outputKey: ".SuperLedger",
+            bytecodePath: "script/locked-bytecode/SuperLedger.json",
+            constructorArgs: ""
+        });
+
+        contracts[6] = ContractVerification({
+            name: "FlatFeeLedger",
+            outputKey: ".FlatFeeLedger",
+            bytecodePath: "script/locked-bytecode/FlatFeeLedger.json",
+            constructorArgs: ""
+        });
+
+        uint256 verified = 0;
+        uint256 failed = 0;
+
+        // Verify each contract
+        for (uint256 i = 0; i < contracts.length; i++) {
+            ContractVerification memory contractToVerify = contracts[i];
+
+            console2.log("Verifying:", contractToVerify.name);
+
+            // Get address from output file
+            address outputAddress = vm.parseJsonAddress(deploymentJson, contractToVerify.outputKey);
+            require(
+                outputAddress != address(0), string(abi.encodePacked("OUTPUT_ADDRESS_ZERO_", contractToVerify.name))
+            );
+
+            // Compute expected address from locked bytecode
+            bytes memory bytecode = vm.getCode(contractToVerify.bytecodePath);
+            require(bytecode.length > 0, string(abi.encodePacked("BYTECODE_EMPTY_", contractToVerify.name)));
+
+            // Compute address with appropriate constructor args
+            address computedAddress;
+
+            // Handle contracts with constructor args (oracles need SuperLedgerConfiguration)
+            if (
+                Strings.equal(contractToVerify.name, "ERC4626YieldSourceOracle")
+                    || Strings.equal(contractToVerify.name, "ERC7540YieldSourceOracle")
+                    || Strings.equal(contractToVerify.name, "ERC5115YieldSourceOracle")
+                    || Strings.equal(contractToVerify.name, "StakingYieldSourceOracle")
+            ) {
+                address superLedgerConfig = vm.parseJsonAddress(deploymentJson, ".SuperLedgerConfiguration");
+                bytes memory constructorArgs = abi.encode(superLedgerConfig);
+                computedAddress = DeterministicDeployerLib.computeAddress(
+                    abi.encodePacked(bytecode, constructorArgs), __getSalt(contractToVerify.name)
+                );
+            } else {
+                // No constructor args
+                computedAddress = DeterministicDeployerLib.computeAddress(bytecode, __getSalt(contractToVerify.name));
+            }
+
+            // Verify addresses match
+            if (outputAddress == computedAddress) {
+                console2.log("  [VERIFIED]:", contractToVerify.name);
+                console2.log("    Address:", outputAddress);
+                verified++;
+            } else {
+                console2.log("  [MISMATCH]:", contractToVerify.name);
+                console2.log("    Output file:", outputAddress);
+                console2.log("    Computed:  ", computedAddress);
+                failed++;
+            }
+
+            // Verify contract has code at the address
+            require(
+                outputAddress.code.length > 0, string(abi.encodePacked("NO_CODE_AT_ADDRESS_", contractToVerify.name))
+            );
+
+            console2.log("");
+        }
+
+        // Final verification summary
+        console2.log("=== BYTECODE VERIFICATION SUMMARY ===");
+        console2.log("Verified:", verified);
+        console2.log("Failed:  ", failed);
+        console2.log("Total:   ", contracts.length);
+
+        require(failed == 0, "BYTECODE_VERIFICATION_FAILED");
+        require(verified == contracts.length, "INCOMPLETE_VERIFICATION");
+
+        console2.log("[SUCCESS] All contract addresses verified successfully against locked bytecode!");
     }
 
     /// @notice Helper function to read core contract addresses from output files

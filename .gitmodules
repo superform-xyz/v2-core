@@ -34,7 +34,3 @@
 [submodule "lib/evm-gateway-contracts"]
 	path = lib/evm-gateway-contracts
 	url = https://github.com/circlefin/evm-gateway-contracts
-[submodule "lib/nexus"]
-	path = lib/nexus
-	url = https://github.com/superform-xyz/nexus
-	branch = deploy-v1.2.0-bootstrap-v1.2.1
