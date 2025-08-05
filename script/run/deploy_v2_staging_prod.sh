@@ -98,7 +98,6 @@ validate_locked_bytecode() {
         "Redeem7540VaultHook"
         "RequestRedeem7540VaultHook"
         "Deposit7540VaultHook"
-        "Withdraw7540VaultHook"
         "CancelDepositRequest7540Hook"
         "CancelRedeemRequest7540Hook"
         "ClaimCancelDepositRequest7540Hook"
@@ -111,10 +110,9 @@ validate_locked_bytecode() {
         "DeBridgeCancelOrderHook"
         "EthenaCooldownSharesHook"
         "EthenaUnstakeHook"
-        "CancelRedeemHook"
         "OfframpTokensHook"
-        "MintSuperPositionsHook"
         "MarkRootAsUsedHook"
+        "MerklClaimRewardHook"
     )
     
     local ORACLE_CONTRACTS=(
@@ -165,116 +163,6 @@ validate_locked_bytecode() {
     return 0
 }
 
-# Function to read latest file from S3
-read_latest_from_s3() {
-    local environment=$1
-    local latest_file_path="/tmp/latest.json"
-
-    if aws s3 cp "s3://$S3_BUCKET_NAME/$environment/latest.json" "$latest_file_path" --quiet 2>/dev/null; then
-        log "INFO" "Successfully downloaded latest.json from S3 for $environment"
-        
-        # Read the file and validate JSON
-        local content=$(cat "$latest_file_path")
-        
-        # Validate the content from file
-        if ! echo "$content" | jq '.' >/dev/null 2>&1; then
-            log "ERROR" "Invalid JSON in latest file, resetting to default"
-            content="{\"networks\":{},\"updated_at\":null}"
-        else
-            log "INFO" "Successfully validated latest.json from S3"
-        fi
-    else
-        log "WARN" "latest.json not found in S3 for $environment, initializing empty file"
-        content="{\"networks\":{},\"updated_at\":null}"
-    fi
-   
-    echo "$content"
-}
-
-# Function to check counter and prompt for confirmation
-check_and_confirm_counter() {
-    local environment=$1
-    local network_name=$2
-    local network_id=$3
-    
-    log "INFO" "Checking counter for $network_name in $environment"
-    
-    local content=$(read_latest_from_s3 "$environment")
-    local existing_counter=$(echo "$content" | jq -r ".networks[\"$network_name\"].counter // empty")
-    
-    if [ -n "$existing_counter" ]; then
-        local new_counter=$((existing_counter + 1))
-        echo -e "${YELLOW}⚠️  Found existing counter for $network_name: $existing_counter${NC}"
-        echo -e "${CYAN}   New counter will be: $new_counter${NC}"
-        echo -e "${WHITE}   Do you want to proceed with this new counter? (y/n)${NC}"
-        
-        read -r confirmation
-        if [ "$confirmation" != "y" ] && [ "$confirmation" != "Y" ]; then
-            log "INFO" "Deployment cancelled by user"
-            exit 1
-        fi
-        
-        echo "$new_counter"
-    else
-        # Generate new counter starting from 0
-        local new_counter=0
-        log "INFO" "No existing counter found for $network_name, using new counter: $new_counter"
-        echo "$new_counter"
-    fi
-}
-
-# Function to upload contract addresses to S3
-upload_to_s3() {
-    local environment=$1
-    local network_name=$2
-    local network_id=$3
-    local counter=$4
-    
-    log "INFO" "Uploading contract addresses to S3 for $network_name"
-    
-    # Read existing content from S3
-    local content=$(read_latest_from_s3 "$environment")
-    
-    # Read deployed contracts from output file
-    local contracts_file="script/output/$environment/$network_id/$network_name-latest.json"
-    
-    if [ ! -f "$contracts_file" ]; then
-        log "ERROR" "Contract file not found: $contracts_file"
-        return 1
-    fi
-    
-    # Read and validate contracts file
-    local contracts=$(tr -d '\r' < "$contracts_file")
-    if ! contracts=$(echo "$contracts" | jq -c '.' 2>/dev/null); then
-        log "ERROR" "Failed to parse JSON from contract file for $network_name"
-        return 1
-    fi
-    
-    # Update content with new deployment info
-    content=$(echo "$content" | jq \
-        --arg network "$network_name" \
-        --arg counter "$counter" \
-        --argjson contracts "$contracts" \
-        '.networks[$network] = {
-            "counter": ($counter|tonumber),
-            "vnet_id": "",
-            "contracts": $contracts
-        }')
-    
-    # Update timestamp
-    content=$(echo "$content" | jq --arg time "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" '.updated_at = $time')
-    
-    # Upload to S3
-    local latest_file_path="/tmp/latest.json"
-    echo "$content" | jq '.' > "$latest_file_path"
-    
-    if aws s3 cp "$latest_file_path" "s3://$S3_BUCKET_NAME/$environment/latest.json" --quiet; then
-        log "SUCCESS" "Successfully uploaded latest.json to S3 for $environment"
-    else
-        log "ERROR" "Failed to upload latest.json to S3"
-        return 1
-    fi
-}
 
 # Function to check V2 Core addresses on a network
 check_v2_addresses() {
@@ -293,6 +181,10 @@ check_v2_addresses() {
 }
 
 print_header
+
+# Source centralized network configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../utils/networks.sh"
 
 # Check if arguments are provided
 if [ $# -lt 2 ]; then
@@ -338,12 +230,9 @@ fi
 print_separator
 echo -e "${BLUE}🔧 Loading Configuration...${NC}"
 
-# Production RPC URLs
+# Load RPC URLs using centralized function
 echo -e "${CYAN}   • Loading RPC URLs...${NC}"
-export ETH_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHEREUM_RPC_URL/credential)
-export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential)
-export BSC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BSC_RPC_URL/credential)
-export ARBITRUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ARBITRUM_RPC_URL/credential)
+load_rpc_urls
 
 # Tenderly configuration for verification
 echo -e "${CYAN}   • Loading Tenderly credentials...${NC}"
@@ -351,16 +240,9 @@ export TENDERLY_ACCESS_TOKEN=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_
 export TENDERLY_ACCOUNT="superform"
 export TENDERLY_PROJECT="v2"
 
-# S3 configuration
-echo -e "${CYAN}   • Loading S3 configuration...${NC}"
-export S3_BUCKET_NAME="superform-deployment-state"
-
-# Tenderly verification URLs for each network
+# Load Tenderly verification URLs using centralized function
 echo -e "${CYAN}   • Setting up Tenderly verification URLs...${NC}"
-export ETH_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/1"
-export BASE_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/8453"
-export BSC_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/56"
-export ARBITRUM_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/42161"
+load_tenderly_urls
 
 # Create output directories
 mkdir -p "script/output/$ENVIRONMENT/1"
@@ -369,7 +251,15 @@ mkdir -p "script/output/$ENVIRONMENT/56"
 mkdir -p "script/output/$ENVIRONMENT/42161"
 
 # Deployment parameters
-FORGE_ENV=0
+if [ "$ENVIRONMENT" = "staging" ]; then
+    FORGE_ENV=2
+    export CI=true
+    export GITHUB_REF_NAME="staging"
+elif [ "$ENVIRONMENT" = "prod" ]; then
+    FORGE_ENV=0
+    export CI=true
+    export GITHUB_REF_NAME="prod"
+fi 
 
 echo -e "${GREEN}✅ Configuration loaded successfully${NC}"
 echo -e "${CYAN}   • Using Tenderly private verification mode${NC}"
@@ -390,15 +280,12 @@ echo -e "${BLUE}🔍 Checking V2 Core contract addresses...${NC}"
 echo -e "${CYAN}This will show you which contracts are already deployed and which need to be deployed.${NC}"
 echo ""
 
-# Check addresses on all networks
-check_v2_addresses 1 "Ethereum" "ETH_MAINNET" "ETH_VERIFIER_URL"
-echo ""
-check_v2_addresses 8453 "Base" "BASE_MAINNET" "BASE_VERIFIER_URL"
-echo ""
-check_v2_addresses 56 "BNB" "BSC_MAINNET" "BSC_VERIFIER_URL"
-echo ""
-check_v2_addresses 42161 "Arbitrum" "ARBITRUM_MAINNET" "ARBITRUM_VERIFIER_URL"
-echo ""
+# Check addresses on all networks using centralized configuration
+for network_def in "${NETWORKS[@]}"; do
+    IFS=':' read -r network_id network_name rpc_var verifier_var <<< "$network_def"
+    check_v2_addresses "$network_id" "$network_name" "$rpc_var" "$verifier_var"
+    echo ""
+done
 
 # Prompt user for confirmation
 echo -e "${WHITE}Do you want to proceed with the addresses above? (y/n): ${NC}"
@@ -409,139 +296,38 @@ if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
     exit 1
 fi
 
-# Check counters and get confirmation for each network (only for deploy mode)
-if [ "$MODE" = "deploy" ]; then
-    ETH_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "Ethereum" 1)
-    BASE_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "Base" 8453)
-    BNB_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "BNB" 56)
-    ARBITRUM_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "Arbitrum" 42161)
-fi
+
 
 print_separator
 
-# Deploy to Ethereum Mainnet
-print_network_header "ETHEREUM MAINNET"
-echo -e "${CYAN}   Chain ID: ${WHITE}1${NC}"
-echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-if [ "$MODE" = "deploy" ]; then
-    echo -e "${CYAN}   Counter: ${WHITE}$ETH_COUNTER${NC}"
-fi
-echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
-echo -e "${YELLOW}   Executing forge script...${NC}"
+# Deploy to each network (using centralized NETWORKS configuration)
+for network_def in "${NETWORKS[@]}"; do
+    IFS=':' read -r network_id network_name rpc_var verifier_var <<< "$network_def"
+    
+    print_network_header "${network_name^^} MAINNET"
+    echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+    echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+    echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
+    echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
+    echo -e "${YELLOW}   Executing forge script...${NC}"
+    
+    forge script script/DeployV2Core.s.sol:DeployV2Core \
+        --sig 'run(bool,uint256,uint64)' false $FORGE_ENV $network_id \
+        --account v2 \
+        --rpc-url ${!rpc_var} \
+        --chain $network_id \
+        --etherscan-api-key $TENDERLY_ACCESS_TOKEN \
+        --verifier-url ${!verifier_var} \
+        $BROADCAST_FLAG \
+        $VERIFY_FLAG \
+        --slow \
+        -vv
+    
+    echo -e "${GREEN}✅ $network_name Mainnet deployment completed successfully!${NC}"
+done
 
-forge script script/DeployV2Core.s.sol:DeployV2Core \
-    --sig 'run(bool,uint256,uint64)' false $FORGE_ENV 1 \
-    --account v2 \
-    --rpc-url $ETH_MAINNET \
-    --chain 1 \
-    --etherscan-api-key $TENDERLY_ACCESS_TOKEN \
-    --verifier-url $ETH_VERIFIER_URL \
-    $BROADCAST_FLAG \
-    $VERIFY_FLAG \
-    --slow \
-    -vv
-
-echo -e "${GREEN}✅ Ethereum Mainnet deployment completed successfully!${NC}"
-
-# Upload to S3 only if in deploy mode
-if [ "$MODE" = "deploy" ]; then
-    upload_to_s3 "$ENVIRONMENT" "Ethereum" 1 "$ETH_COUNTER"
-fi
-wait
-
-# Deploy to Base Mainnet
-print_network_header "BASE MAINNET"
-echo -e "${CYAN}   Chain ID: ${WHITE}8453${NC}"
-echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-if [ "$MODE" = "deploy" ]; then
-    echo -e "${CYAN}   Counter: ${WHITE}$BASE_COUNTER${NC}"
-fi
-echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
-echo -e "${YELLOW}   Executing forge script...${NC}"
-
-forge script script/DeployV2Core.s.sol:DeployV2Core \
-    --sig 'run(bool,uint256,uint64)' false $FORGE_ENV 8453 \
-    --account v2 \
-    --rpc-url $BASE_MAINNET \
-    --chain 8453 \
-    --etherscan-api-key $TENDERLY_ACCESS_TOKEN \
-    --verifier-url $BASE_VERIFIER_URL \
-    $BROADCAST_FLAG \
-    $VERIFY_FLAG \
-    --slow \
-    -vv
-
-echo -e "${GREEN}✅ Base Mainnet deployment completed successfully!${NC}"
-
-# Upload to S3 only if in deploy mode
-if [ "$MODE" = "deploy" ]; then
-    upload_to_s3 "$ENVIRONMENT" "Base" 8453 "$BASE_COUNTER"
-fi
-wait
-
-# Deploy to BSC Mainnet
-print_network_header "BSC MAINNET"
-echo -e "${CYAN}   Chain ID: ${WHITE}56${NC}"
-echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-if [ "$MODE" = "deploy" ]; then
-    echo -e "${CYAN}   Counter: ${WHITE}$BNB_COUNTER${NC}"
-fi
-echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
-echo -e "${YELLOW}   Executing forge script...${NC}"
-
-forge script script/DeployV2Core.s.sol:DeployV2Core \
-    --sig 'run(bool,uint256,uint64)' false $FORGE_ENV 56 \
-    --account v2 \
-    --rpc-url $BSC_MAINNET \
-    --chain 56 \
-    --etherscan-api-key $TENDERLY_ACCESS_TOKEN \
-    --verifier-url $BSC_VERIFIER_URL \
-    $BROADCAST_FLAG \
-    $VERIFY_FLAG \
-    --slow \
-    -vv
-
-echo -e "${GREEN}✅ BSC Mainnet deployment completed successfully!${NC}"
-
-# Upload to S3 only if in deploy mode
-if [ "$MODE" = "deploy" ]; then
-    upload_to_s3 "$ENVIRONMENT" "BNB" 56 "$BNB_COUNTER"
-fi
-
-wait
-
-# Deploy to Arbitrum Mainnet
-print_network_header "ARBITRUM MAINNET"
-echo -e "${CYAN}   Chain ID: ${WHITE}42161${NC}"
-echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-if [ "$MODE" = "deploy" ]; then
-    echo -e "${CYAN}   Counter: ${WHITE}$ARBITRUM_COUNTER${NC}"
-fi
-echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
-echo -e "${YELLOW}   Executing forge script...${NC}"
-
-forge script script/DeployV2Core.s.sol:DeployV2Core \
-    --sig 'run(bool,uint256,uint64)' false $FORGE_ENV 42161 \
-    --account v2 \
-    --rpc-url $ARBITRUM_MAINNET \
-    --chain 42161 \
-    --etherscan-api-key $TENDERLY_ACCESS_TOKEN \
-    --verifier-url $ARBITRUM_VERIFIER_URL \
-    $BROADCAST_FLAG \
-    $VERIFY_FLAG \
-    --slow \
-    -vv
-
-echo -e "${GREEN}✅ Arbitrum Mainnet deployment completed successfully!${NC}"
-
-# Upload to S3 only if in deploy mode
-if [ "$MODE" = "deploy" ]; then
-    upload_to_s3 "$ENVIRONMENT" "Arbitrum" 42161 "$ARBITRUM_COUNTER"
-fi
+# Note: Legacy individual network deployments have been replaced by the centralized 
+# network loop above for better maintainability and consistency.
 
 print_separator
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
@@ -550,8 +336,6 @@ echo -e "${GREEN}║${WHITE}                🎉 All V2 Core $ENVIRONMENT $MODE 
 echo -e "${GREEN}║                                                                                      ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
 
-if [ "$MODE" = "deploy" ]; then
-    echo -e "${CYAN}🔗 Contract addresses have been uploaded to S3 bucket: $S3_BUCKET_NAME/$ENVIRONMENT/latest.json${NC}"
-fi
+
 
 print_separator 

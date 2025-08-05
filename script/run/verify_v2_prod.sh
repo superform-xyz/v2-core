@@ -285,13 +285,10 @@ get_contract_source() {
         "Deposit7540VaultHook") echo "src/core/hooks/vaults/7540/Deposit7540VaultHook.sol" ;;
         "Redeem7540VaultHook") echo "src/core/hooks/vaults/7540/Redeem7540VaultHook.sol" ;;
         "RequestRedeem7540VaultHook") echo "src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol" ;;
-        "Withdraw7540VaultHook") echo "src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol" ;;
         "CancelDepositRequest7540Hook") echo "src/core/hooks/vaults/7540/CancelDepositRequest7540Hook.sol" ;;
         "CancelRedeemRequest7540Hook") echo "src/core/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol" ;;
         "ClaimCancelDepositRequest7540Hook") echo "src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol" ;;
         "ClaimCancelRedeemRequest7540Hook") echo "src/core/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol" ;;
-        "CancelRedeemHook") echo "src/core/hooks/vaults/super-vault/CancelRedeemHook.sol" ;;
-        "MintSuperPositionsHook") echo "src/core/hooks/vaults/vault-bank/MintSuperPositionsHook.sol" ;;
         
         # Hooks - Swappers
         "Swap1InchHook") echo "src/core/hooks/swappers/1inch/Swap1InchHook.sol" ;;

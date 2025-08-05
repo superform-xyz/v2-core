@@ -46,7 +46,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address approveAndRequestRedeem7540VaultHook;
         address redeem7540VaultHook;
         address requestRedeem7540VaultHook;
-        address withdraw7540VaultHook;
         address acrossSendFundsAndExecuteOnDstHook;
         address swap1InchHook;
         address swapOdosHook;
@@ -55,12 +54,10 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address cancelRedeemRequest7540Hook;
         address claimCancelDepositRequest7540Hook;
         address claimCancelRedeemRequest7540Hook;
-        address cancelRedeemHook;
         address deBridgeSendOrderAndExecuteOnDstHook;
         address deBridgeCancelOrderHook;
         address ethenaCooldownSharesHook;
         address ethenaUnstakeHook;
-        address mintSuperPositionHook;
         address markRootAsUsedHook;
         address merklClaimRewardHook;
     }
@@ -186,12 +183,12 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         address superDestExecutor;
         if (
             superLedgerConfig != address(0) && superDestValidator != address(0)
-                && configuration.nexusFactories[chainId] != address(0)
+
         ) {
             (, superDestExecutor) = __checkContract(
                 SUPER_DESTINATION_EXECUTOR_KEY,
                 __getSalt(SUPER_DESTINATION_EXECUTOR_KEY),
-                abi.encode(superLedgerConfig, superDestValidator, configuration.nexusFactories[chainId])
+                abi.encode(superLedgerConfig, superDestValidator
             );
         } else {
             revert("SUPER_DEST_EXECUTOR_CHECK_FAILED_MISSING_DEPENDENCIES");
@@ -320,7 +317,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         __checkContract(REDEEM_7540_VAULT_HOOK_KEY, __getSalt(REDEEM_7540_VAULT_HOOK_KEY), "");
         __checkContract(REQUEST_REDEEM_7540_VAULT_HOOK_KEY, __getSalt(REQUEST_REDEEM_7540_VAULT_HOOK_KEY), "");
         __checkContract(DEPOSIT_7540_VAULT_HOOK_KEY, __getSalt(DEPOSIT_7540_VAULT_HOOK_KEY), "");
-        __checkContract(WITHDRAW_7540_VAULT_HOOK_KEY, __getSalt(WITHDRAW_7540_VAULT_HOOK_KEY), "");
         __checkContract(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, __getSalt(CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY), "");
         __checkContract(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, __getSalt(CANCEL_REDEEM_REQUEST_7540_HOOK_KEY), "");
         __checkContract(
@@ -390,7 +386,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Merkl claim reward hook
         if (configuration.merklDistributors[chainId] != address(0)) {
             __checkContract(
-                MERKL_CLAIM_REWARD_HOOK_KEY, __getSalt(MERKL_CLAIM_REWARD_HOOK_KEY), abi.encode(configuration.merklDistributors[chainId])
+                MERKL_CLAIM_REWARD_HOOK_KEY,
+                __getSalt(MERKL_CLAIM_REWARD_HOOK_KEY),
+                abi.encode(configuration.merklDistributors[chainId])
             );
         } else {
             revert("MERKL_CLAIM_REWARD_HOOK_CHECK_FAILED_MISSING_MERKL_DISTRIBUTOR");
@@ -399,9 +397,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Protocol-specific hooks
         __checkContract(ETHENA_COOLDOWN_SHARES_HOOK_KEY, __getSalt(ETHENA_COOLDOWN_SHARES_HOOK_KEY), "");
         __checkContract(ETHENA_UNSTAKE_HOOK_KEY, __getSalt(ETHENA_UNSTAKE_HOOK_KEY), "");
-        __checkContract(CANCEL_REDEEM_HOOK_KEY, __getSalt(CANCEL_REDEEM_HOOK_KEY), "");
         __checkContract(OFFRAMP_TOKENS_HOOK_KEY, __getSalt(OFFRAMP_TOKENS_HOOK_KEY), "");
-        __checkContract(MINT_SUPERPOSITIONS_HOOK_KEY, __getSalt(MINT_SUPERPOSITIONS_HOOK_KEY), "");
         __checkContract(MARK_ROOT_AS_USED_HOOK_KEY, __getSalt(MARK_ROOT_AS_USED_HOOK_KEY), "");
     }
 
@@ -506,10 +502,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         console2.log(" Treasury:", configuration.treasury);
         console2.log(" Owner:", configuration.owner);
 
-        // Check Nexus Factory (required for SuperDestinationExecutor)
-        require(configuration.nexusFactories[chainId] != address(0), "NEXUS_FACTORY_ADDRESS_ZERO");
-        require(configuration.nexusFactories[chainId].code.length > 0, "NEXUS_FACTORY_NOT_DEPLOYED");
-        console2.log(" Nexus Factory:", configuration.nexusFactories[chainId]);
 
         // Check Permit2 (required for BatchTransferFromHook)
         require(configuration.permit2s[chainId] != address(0), "PERMIT2_ADDRESS_ZERO");
@@ -608,7 +600,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // Deploy SuperDestinationExecutor - VALIDATED CONSTRUCTOR PARAMETERS
         require(coreContracts.superLedgerConfiguration != address(0), "SUPER_DEST_EXECUTOR_LEDGER_CONFIG_PARAM_ZERO");
         require(coreContracts.superDestinationValidator != address(0), "SUPER_DEST_EXECUTOR_VALIDATOR_PARAM_ZERO");
-        require(configuration.nexusFactories[chainId] != address(0), "SUPER_DEST_EXECUTOR_NEXUS_FACTORY_PARAM_ZERO");
 
         coreContracts.superDestinationExecutor = __deployContractIfNeeded(
             SUPER_DESTINATION_EXECUTOR_KEY,
@@ -616,10 +607,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             __getSalt(SUPER_DESTINATION_EXECUTOR_KEY),
             abi.encodePacked(
                 vm.getCode("script/locked-bytecode/SuperDestinationExecutor.json"),
-                abi.encode(
-                    coreContracts.superLedgerConfiguration,
-                    coreContracts.superDestinationValidator
-                )
+                abi.encode(coreContracts.superLedgerConfiguration, coreContracts.superDestinationValidator)
             )
         );
 
@@ -928,7 +916,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
     function _deployHooks(uint64 chainId) private returns (HookAddresses memory hookAddresses) {
         console2.log("Starting hook deployment with comprehensive dependency validation...");
 
-        uint256 len = 34;
+        uint256 len = 31;
         HookDeployment[] memory hooks = new HookDeployment[](len);
         address[] memory addresses = new address[](len);
 
@@ -985,16 +973,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         );
         hooks[15] =
             HookDeployment(DEPOSIT_7540_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Deposit7540VaultHook.json"));
-        hooks[16] = HookDeployment(
-            WITHDRAW_7540_VAULT_HOOK_KEY, vm.getCode("script/locked-bytecode/Withdraw7540VaultHook.json")
-        );
 
         // ===== HOOKS WITH EXTERNAL ROUTER DEPENDENCIES =====
 
         // 1inch Swap Hook - Validate aggregation router (already validated in core deployment)
         require(configuration.aggregationRouters[chainId] != address(0), "SWAP_1INCH_HOOK_ROUTER_PARAM_ZERO");
         require(configuration.aggregationRouters[chainId].code.length > 0, "SWAP_1INCH_HOOK_ROUTER_NOT_DEPLOYED");
-        hooks[17] = HookDeployment(
+        hooks[16] = HookDeployment(
             SWAP_1INCH_HOOK_KEY,
             abi.encodePacked(
                 vm.getCode("script/locked-bytecode/Swap1InchHook.json"),
@@ -1005,13 +990,13 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         // ODOS Swap Hooks - Validate ODOS router (already validated in core deployment)
         require(configuration.odosRouters[chainId] != address(0), "SWAP_ODOS_HOOK_ROUTER_PARAM_ZERO");
         require(configuration.odosRouters[chainId].code.length > 0, "SWAP_ODOS_HOOK_ROUTER_NOT_DEPLOYED");
-        hooks[18] = HookDeployment(
+        hooks[17] = HookDeployment(
             SWAP_ODOSV2_HOOK_KEY,
             abi.encodePacked(
                 vm.getCode("script/locked-bytecode/SwapOdosV2Hook.json"), abi.encode(configuration.odosRouters[chainId])
             )
         );
-        hooks[19] = HookDeployment(
+        hooks[18] = HookDeployment(
             APPROVE_AND_SWAP_ODOSV2_HOOK_KEY,
             abi.encodePacked(
                 vm.getCode("script/locked-bytecode/ApproveAndSwapOdosV2Hook.json"),
@@ -1027,7 +1012,7 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(superValidator != address(0), "ACROSS_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
         require(superValidator.code.length > 0, "ACROSS_HOOK_MERKLE_VALIDATOR_NOT_DEPLOYED");
 
-        hooks[20] = HookDeployment(
+        hooks[19] = HookDeployment(
             ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
                 vm.getCode("script/locked-bytecode/AcrossSendFundsAndExecuteOnDstHook.json"),
@@ -1040,14 +1025,14 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         require(DEBRIDGE_DLN_DST != address(0), "DEBRIDGE_CANCEL_HOOK_DLN_DST_PARAM_ZERO");
         require(superValidator != address(0), "DEBRIDGE_SEND_HOOK_MERKLE_VALIDATOR_PARAM_ZERO");
 
-        hooks[21] = HookDeployment(
+        hooks[20] = HookDeployment(
             DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY,
             abi.encodePacked(
                 vm.getCode("script/locked-bytecode/DeBridgeSendOrderAndExecuteOnDstHook.json"),
                 abi.encode(DEBRIDGE_DLN_SRC, superValidator)
             )
         );
-        hooks[22] = HookDeployment(
+        hooks[21] = HookDeployment(
             DEBRIDGE_CANCEL_ORDER_HOOK_KEY,
             abi.encodePacked(
                 vm.getCode("script/locked-bytecode/DeBridgeCancelOrderHook.json"), abi.encode(DEBRIDGE_DLN_DST)
@@ -1055,32 +1040,28 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         );
 
         // Protocol-specific hooks (no external dependencies)
-        hooks[23] = HookDeployment(
+        hooks[22] = HookDeployment(
             ETHENA_COOLDOWN_SHARES_HOOK_KEY, vm.getCode("script/locked-bytecode/EthenaCooldownSharesHook.json")
         );
-        hooks[24] = HookDeployment(ETHENA_UNSTAKE_HOOK_KEY, vm.getCode("script/locked-bytecode/EthenaUnstakeHook.json"));
-        hooks[25] = HookDeployment(
+        hooks[23] = HookDeployment(ETHENA_UNSTAKE_HOOK_KEY, vm.getCode("script/locked-bytecode/EthenaUnstakeHook.json"));
+        hooks[24] = HookDeployment(
             CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY, vm.getCode("script/locked-bytecode/CancelDepositRequest7540Hook.json")
         );
-        hooks[26] = HookDeployment(
+        hooks[25] = HookDeployment(
             CANCEL_REDEEM_REQUEST_7540_HOOK_KEY, vm.getCode("script/locked-bytecode/CancelRedeemRequest7540Hook.json")
         );
-        hooks[27] = HookDeployment(
+        hooks[26] = HookDeployment(
             CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY,
             vm.getCode("script/locked-bytecode/ClaimCancelDepositRequest7540Hook.json")
         );
-        hooks[28] = HookDeployment(
+        hooks[27] = HookDeployment(
             CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY,
             vm.getCode("script/locked-bytecode/ClaimCancelRedeemRequest7540Hook.json")
         );
-        hooks[29] = HookDeployment(CANCEL_REDEEM_HOOK_KEY, vm.getCode("script/locked-bytecode/CancelRedeemHook.json"));
-        hooks[30] = HookDeployment(OFFRAMP_TOKENS_HOOK_KEY, vm.getCode("script/locked-bytecode/OfframpTokensHook.json"));
-        hooks[31] = HookDeployment(
-            MINT_SUPERPOSITIONS_HOOK_KEY, vm.getCode("script/locked-bytecode/MintSuperPositionsHook.json")
-        );
-        hooks[32] =
+        hooks[28] = HookDeployment(OFFRAMP_TOKENS_HOOK_KEY, vm.getCode("script/locked-bytecode/OfframpTokensHook.json"));
+        hooks[29] =
             HookDeployment(MARK_ROOT_AS_USED_HOOK_KEY, vm.getCode("script/locked-bytecode/MarkRootAsUsedHook.json"));
-        hooks[33] = HookDeployment(
+        hooks[30] = HookDeployment(
             MERKL_CLAIM_REWARD_HOOK_KEY,
             abi.encodePacked(
                 vm.getCode("script/locked-bytecode/MerklClaimRewardHook.json"),
@@ -1135,40 +1116,34 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             Strings.equal(hooks[14].name, REQUEST_REDEEM_7540_VAULT_HOOK_KEY) ? addresses[14] : address(0);
         hookAddresses.deposit7540VaultHook =
             Strings.equal(hooks[15].name, DEPOSIT_7540_VAULT_HOOK_KEY) ? addresses[15] : address(0);
-        hookAddresses.withdraw7540VaultHook =
-            Strings.equal(hooks[16].name, WITHDRAW_7540_VAULT_HOOK_KEY) ? addresses[16] : address(0);
-        hookAddresses.swap1InchHook = Strings.equal(hooks[17].name, SWAP_1INCH_HOOK_KEY) ? addresses[17] : address(0);
-        hookAddresses.swapOdosHook = Strings.equal(hooks[18].name, SWAP_ODOSV2_HOOK_KEY) ? addresses[18] : address(0);
+        hookAddresses.swap1InchHook = Strings.equal(hooks[16].name, SWAP_1INCH_HOOK_KEY) ? addresses[16] : address(0);
+        hookAddresses.swapOdosHook = Strings.equal(hooks[17].name, SWAP_ODOSV2_HOOK_KEY) ? addresses[17] : address(0);
         hookAddresses.approveAndSwapOdosHook =
-            Strings.equal(hooks[19].name, APPROVE_AND_SWAP_ODOSV2_HOOK_KEY) ? addresses[19] : address(0);
+            Strings.equal(hooks[18].name, APPROVE_AND_SWAP_ODOSV2_HOOK_KEY) ? addresses[18] : address(0);
         hookAddresses.acrossSendFundsAndExecuteOnDstHook =
-            Strings.equal(hooks[20].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[20] : address(0);
+            Strings.equal(hooks[19].name, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[19] : address(0);
         hookAddresses.deBridgeSendOrderAndExecuteOnDstHook =
-            Strings.equal(hooks[21].name, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[21] : address(0);
+            Strings.equal(hooks[20].name, DEBRIDGE_SEND_ORDER_AND_EXECUTE_ON_DST_HOOK_KEY) ? addresses[20] : address(0);
         hookAddresses.deBridgeCancelOrderHook =
-            Strings.equal(hooks[22].name, DEBRIDGE_CANCEL_ORDER_HOOK_KEY) ? addresses[22] : address(0);
+            Strings.equal(hooks[21].name, DEBRIDGE_CANCEL_ORDER_HOOK_KEY) ? addresses[21] : address(0);
         hookAddresses.ethenaCooldownSharesHook =
-            Strings.equal(hooks[23].name, ETHENA_COOLDOWN_SHARES_HOOK_KEY) ? addresses[23] : address(0);
+            Strings.equal(hooks[22].name, ETHENA_COOLDOWN_SHARES_HOOK_KEY) ? addresses[22] : address(0);
         hookAddresses.ethenaUnstakeHook =
-            Strings.equal(hooks[24].name, ETHENA_UNSTAKE_HOOK_KEY) ? addresses[24] : address(0);
+            Strings.equal(hooks[23].name, ETHENA_UNSTAKE_HOOK_KEY) ? addresses[23] : address(0);
         hookAddresses.cancelDepositRequest7540Hook =
-            Strings.equal(hooks[25].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[25] : address(0);
+            Strings.equal(hooks[24].name, CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[24] : address(0);
         hookAddresses.cancelRedeemRequest7540Hook =
-            Strings.equal(hooks[26].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[26] : address(0);
+            Strings.equal(hooks[25].name, CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[25] : address(0);
         hookAddresses.claimCancelDepositRequest7540Hook =
-            Strings.equal(hooks[27].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[27] : address(0);
+            Strings.equal(hooks[26].name, CLAIM_CANCEL_DEPOSIT_REQUEST_7540_HOOK_KEY) ? addresses[26] : address(0);
         hookAddresses.claimCancelRedeemRequest7540Hook =
-            Strings.equal(hooks[28].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[28] : address(0);
-        hookAddresses.cancelRedeemHook =
-            Strings.equal(hooks[29].name, CANCEL_REDEEM_HOOK_KEY) ? addresses[29] : address(0);
+            Strings.equal(hooks[27].name, CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_KEY) ? addresses[27] : address(0);
         hookAddresses.offrampTokensHook =
-            Strings.equal(hooks[30].name, OFFRAMP_TOKENS_HOOK_KEY) ? addresses[30] : address(0);
-        hookAddresses.mintSuperPositionHook =
-            Strings.equal(hooks[31].name, MINT_SUPERPOSITIONS_HOOK_KEY) ? addresses[31] : address(0);
+            Strings.equal(hooks[28].name, OFFRAMP_TOKENS_HOOK_KEY) ? addresses[28] : address(0);
         hookAddresses.markRootAsUsedHook =
-            Strings.equal(hooks[32].name, MARK_ROOT_AS_USED_HOOK_KEY) ? addresses[32] : address(0);
+            Strings.equal(hooks[29].name, MARK_ROOT_AS_USED_HOOK_KEY) ? addresses[29] : address(0);
         hookAddresses.merklClaimRewardHook =
-            Strings.equal(hooks[33].name, MERKL_CLAIM_REWARD_HOOK_KEY) ? addresses[33] : address(0);
+            Strings.equal(hooks[30].name, MERKL_CLAIM_REWARD_HOOK_KEY) ? addresses[30] : address(0);
 
         // ===== FINAL VALIDATION OF ALL CRITICAL HOOKS =====
         require(hookAddresses.approveErc20Hook != address(0), "APPROVE_ERC20_HOOK_NOT_ASSIGNED");
@@ -1195,7 +1170,6 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
         );
         require(hookAddresses.requestRedeem7540VaultHook != address(0), "REQUEST_REDEEM_7540_VAULT_HOOK_NOT_ASSIGNED");
         require(hookAddresses.deposit7540VaultHook != address(0), "DEPOSIT_7540_VAULT_HOOK_NOT_ASSIGNED");
-        require(hookAddresses.withdraw7540VaultHook != address(0), "WITHDRAW_7540_VAULT_HOOK_NOT_ASSIGNED");
         require(
             hookAddresses.approveAndRequestRedeem7540VaultHook != address(0),
             "APPROVE_AND_REQUEST_REDEEM_7540_VAULT_HOOK_NOT_ASSIGNED"
@@ -1223,11 +1197,9 @@ contract DeployV2Core is DeployV2Base, ConfigCore {
             hookAddresses.claimCancelRedeemRequest7540Hook != address(0),
             "CLAIM_CANCEL_REDEEM_REQUEST_7540_HOOK_NOT_ASSIGNED"
         );
-        require(hookAddresses.cancelRedeemHook != address(0), "CANCEL_REDEEM_HOOK_NOT_ASSIGNED");
         require(hookAddresses.ethenaCooldownSharesHook != address(0), "ETHENA_COOLDOWN_SHARES_HOOK_NOT_ASSIGNED");
         require(hookAddresses.ethenaUnstakeHook != address(0), "ETHENA_UNSTAKE_HOOK_NOT_ASSIGNED");
         require(hookAddresses.offrampTokensHook != address(0), "OFFRAMP_TOKENS_HOOK_NOT_ASSIGNED");
-        require(hookAddresses.mintSuperPositionHook != address(0), "MINT_SUPERPOSITION_HOOK_NOT_ASSIGNED");
 
         require(hookAddresses.markRootAsUsedHook != address(0), "MARK_ROOT_AS_USED_HOOK_NOT_ASSIGNED");
 
