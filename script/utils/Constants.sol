@@ -14,7 +14,6 @@ abstract contract Constants {
     string internal constant ARB_SEPOLIA_KEY = "Arbitrum_Sepolia";
     string internal constant BASE_SEPOLIA_KEY = "Base_Sepolia";
     string internal constant OP_SEPOLIA_KEY = "OP_Sepolia";
-    string internal constant POLYGON_KEY = "Polygon";
 
     // keys
     string internal constant SUPER_GOVERNOR_KEY = "SuperGovernor";
@@ -39,7 +38,6 @@ abstract contract Constants {
     uint64 internal constant MAINNET_CHAIN_ID = 1;
     uint64 internal constant BASE_CHAIN_ID = 8453;
     uint64 internal constant OPTIMISM_CHAIN_ID = 10;
-    uint64 internal constant POLYGON_CHAIN_ID = 137;
     uint64 internal constant ARBITRUM_CHAIN_ID = 42_161;
     uint64 internal constant BNB_CHAIN_ID = 56;
     // testnets

@@ -431,7 +431,7 @@ contract EIP7702Test is BaseTest {
         address validator = _createSuperValidator();
 
         // recreate account
-        ACCOUNT_IMPLEMENTATION = new Nexus(address(ENTRYPOINT), address(validator), abi.encode(address(account)));
+        ACCOUNT_IMPLEMENTATION = new Nexus(address(ENTRYPOINT), address(validator), abi.encode(address(0xeEeEeEeE)));
         vm.label(address(ACCOUNT_IMPLEMENTATION), "AccountImplementation");
 
         Execution[] memory mockHookExecutions = new Execution[](1);
@@ -504,7 +504,7 @@ contract EIP7702Test is BaseTest {
         address executorEth = _createSuperExecutor();
         address validatorEth = _createSuperValidator();
 
-        ACCOUNT_IMPLEMENTATION = new Nexus(address(ENTRYPOINT), address(validatorEth), abi.encode(address(account)));
+        ACCOUNT_IMPLEMENTATION = new Nexus(address(ENTRYPOINT), address(validatorEth), abi.encode(address(0xeEeEeEeE)));
         vm.label(address(ACCOUNT_IMPLEMENTATION), "AccountImplementation");
 
         bytes memory initData = _getInitData(
@@ -768,7 +768,8 @@ contract EIP7702Test is BaseTest {
         dstValidator = _createSuperDestinationValidator();
         dstExecutor = _createSuperDestinationExecutor(dstValidator);
 
-        ACCOUNT_IMPLEMENTATION_BASE = new Nexus(address(ENTRYPOINT), address(validator), abi.encode(address(account)));
+        ACCOUNT_IMPLEMENTATION_BASE =
+            new Nexus(address(ENTRYPOINT), address(validator), abi.encode(address(0xeEeEeEeE)));
         vm.label(address(ACCOUNT_IMPLEMENTATION_BASE), "AccountImplementationBase");
 
         address[] memory executors = new address[](2);
@@ -841,7 +842,7 @@ contract EIP7702Test is BaseTest {
         address executor = _createSuperExecutor();
         address validator = _createSuperValidator();
 
-        ACCOUNT_IMPLEMENTATION = new Nexus(address(ENTRYPOINT), address(validator), abi.encode(address(account)));
+        ACCOUNT_IMPLEMENTATION = new Nexus(address(ENTRYPOINT), address(validator), abi.encode(address(0xeEeEeEeE)));
         vm.label(address(ACCOUNT_IMPLEMENTATION), "AccountImplementationETH");
 
         bytes memory initData = _getInitData(

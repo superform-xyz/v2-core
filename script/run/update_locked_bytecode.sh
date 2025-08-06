@@ -88,7 +88,6 @@ HOOK_CONTRACTS=(
     "Redeem7540VaultHook"
     "RequestRedeem7540VaultHook"
     "Deposit7540VaultHook"
-    "Withdraw7540VaultHook"
     "CancelDepositRequest7540Hook"
     "CancelRedeemRequest7540Hook"
     "ClaimCancelDepositRequest7540Hook"
@@ -101,9 +100,7 @@ HOOK_CONTRACTS=(
     "DeBridgeCancelOrderHook"
     "EthenaCooldownSharesHook"
     "EthenaUnstakeHook"
-    "CancelRedeemHook"
     "OfframpTokensHook"
-    "MintSuperPositionsHook"
     "MarkRootAsUsedHook"
     "MerklClaimRewardHook"
 )

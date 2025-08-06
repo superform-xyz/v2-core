@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/opt/homebrew/bin/bash
 
 # Colors for better visual output
 RED='\033[0;31m'
@@ -41,25 +41,7 @@ log() {
     echo "[$(date +'%Y-%m-%d %H:%M:%S')] [$level] $*" >&2
 }
 
-# Network name mapping
-get_network_name() {
-    local network_id=$1
-    case "$network_id" in
-        8453)
-            echo "Base"
-            ;;
-        56)
-            echo "BNB"
-            ;;
-        42161)
-            echo "Arbitrum"
-            ;;
-        *)
-            log "ERROR" "Unknown network ID: $network_id"
-            return 1
-            ;;
-    esac
-}
+
 
 # Function to check if output files exist for configuration
 check_deployment_files() {
@@ -86,6 +68,10 @@ check_deployment_files() {
 }
 
 print_header
+
+# Source centralized network configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../utils/networks.sh"
 
 # Check if arguments are provided
 if [ $# -lt 2 ]; then
@@ -136,11 +122,9 @@ fi
 print_separator
 echo -e "${BLUE}🔧 Loading Configuration...${NC}"
 
-# Production RPC URLs
+# Load RPC URLs using centralized function
 echo -e "${CYAN}   • Loading RPC URLs...${NC}"
-export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential)
-export BSC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BSC_RPC_URL/credential)
-export ARBITRUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ARBITRUM_RPC_URL/credential)
+load_rpc_urls
 
 # Fireblocks configuration
 echo -e "${CYAN}   • Loading Fireblocks credentials...${NC}"
@@ -156,76 +140,42 @@ print_separator
 
 # Check deployment files for each network
 echo -e "${BLUE}🔍 Validating deployment files...${NC}"
-check_deployment_files "$ENVIRONMENT" "Base" 8453
-check_deployment_files "$ENVIRONMENT" "BNB" 56
-check_deployment_files "$ENVIRONMENT" "Arbitrum" 42161
+for network_def in "${NETWORKS[@]}"; do
+    IFS=':' read -r network_id network_name _ _ <<< "$network_def"
+    check_deployment_files "$ENVIRONMENT" "$network_name" "$network_id"
+done
 echo -e "${GREEN}✅ All deployment files validated${NC}"
 print_separator
 
-# Configure SuperLedger on Base Mainnet
-print_network_header "BASE MAINNET"
-echo -e "${CYAN}   Chain ID: ${WHITE}8453${NC}"
-echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-echo -e "${CYAN}   MPC Wallet: ${WHITE}Fireblocks${NC}"
-echo -e "${YELLOW}   Executing forge script via Fireblocks...${NC}"
+# Configure SuperLedger on each network
+for network_def in "${NETWORKS[@]}"; do
+    IFS=':' read -r network_id network_name _ _ <<< "$network_def"
+    
+    print_network_header "${network_name^^} MAINNET"
+    echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+    echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+    echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
+    echo -e "${CYAN}   MPC Wallet: ${WHITE}Fireblocks${NC}"
+    echo -e "${YELLOW}   Executing forge script via Fireblocks...${NC}"
+    
+    # Get RPC URL for this network
+    RPC_URL=$(get_rpc_url "$network_id")
+    export FIREBLOCKS_RPC_URL="$RPC_URL"
+    
+    fireblocks-json-rpc --http -- forge script script/DeployV2Core.s.sol:DeployV2Core \
+        --sig 'runLedgerConfigurations(uint256,uint64)' $FORGE_ENV $network_id \
+        --rpc-url {} \
+        --sender 0x73009CE7cFFc6C4c5363734d1b429f0b848e0490 \
+        $BROADCAST_FLAG \
+        --unlocked \
+        --slow \
+        -vv
+    
+    echo -e "${GREEN}✅ $network_name Mainnet SuperLedger configuration completed!${NC}"
+    wait
+done
 
-export FIREBLOCKS_RPC_URL=$BASE_MAINNET
 
-fireblocks-json-rpc --http -- forge script script/DeployV2Core.s.sol:DeployV2Core \
-    --sig 'runLedgerConfigurations(uint256,uint64)' $FORGE_ENV 8453 \
-    --rpc-url {} \
-    --sender 0x73009CE7cFFc6C4c5363734d1b429f0b848e0490 \
-    $BROADCAST_FLAG \
-    --unlocked \
-    --slow \
-    -vv
-
-echo -e "${GREEN}✅ Base Mainnet SuperLedger configuration completed!${NC}"
-wait
-
-# Configure SuperLedger on BSC Mainnet
-print_network_header "BSC MAINNET"
-echo -e "${CYAN}   Chain ID: ${WHITE}56${NC}"
-echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-echo -e "${CYAN}   MPC Wallet: ${WHITE}Fireblocks${NC}"
-echo -e "${YELLOW}   Executing forge script via Fireblocks...${NC}"
-
-export FIREBLOCKS_RPC_URL=$BSC_MAINNET
-
-fireblocks-json-rpc --http -- forge script script/DeployV2Core.s.sol:DeployV2Core \
-    --sig 'runLedgerConfigurations(uint256,uint64)' $FORGE_ENV 56 \
-    --rpc-url {} \
-    --sender 0x73009CE7cFFc6C4c5363734d1b429f0b848e0490 \
-    $BROADCAST_FLAG \
-    --unlocked \
-    --slow \
-    -vv
-
-echo -e "${GREEN}✅ BSC Mainnet SuperLedger configuration completed!${NC}"
-wait
-
-# Configure SuperLedger on Arbitrum Mainnet
-print_network_header "ARBITRUM MAINNET"
-echo -e "${CYAN}   Chain ID: ${WHITE}42161${NC}"
-echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-echo -e "${CYAN}   MPC Wallet: ${WHITE}Fireblocks${NC}"
-echo -e "${YELLOW}   Executing forge script via Fireblocks...${NC}"
-
-export FIREBLOCKS_RPC_URL=$ARBITRUM_MAINNET
-
-fireblocks-json-rpc --http -- forge script script/DeployV2Core.s.sol:DeployV2Core \
-    --sig 'runLedgerConfigurations(uint256,uint64)' $FORGE_ENV 42161 \
-    --rpc-url {} \
-    --sender 0x73009CE7cFFc6C4c5363734d1b429f0b848e0490 \
-    $BROADCAST_FLAG \
-    --unlocked \
-    --slow \
-    -vv
-
-echo -e "${GREEN}✅ Arbitrum Mainnet SuperLedger configuration completed!${NC}"
 
 print_separator
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
@@ -235,8 +185,9 @@ echo -e "${GREEN}║                                                            
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
 
 echo -e "${CYAN}🔧 SuperLedger configurations have been completed for:${NC}"
-echo -e "${CYAN}   • Base Mainnet (Chain ID: 8453)${NC}"
-echo -e "${CYAN}   • BSC Mainnet (Chain ID: 56)${NC}"
-echo -e "${CYAN}   • Arbitrum Mainnet (Chain ID: 42161)${NC}"
+for network_def in "${NETWORKS[@]}"; do
+    IFS=':' read -r network_id network_name _ _ <<< "$network_def"
+    echo -e "${CYAN}   • $network_name Mainnet (Chain ID: $network_id)${NC}"
+done
 echo -e "${CYAN}🏛️ All transactions signed via Fireblocks MPC wallet${NC}"
 print_separator 
