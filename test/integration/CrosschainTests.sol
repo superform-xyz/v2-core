@@ -3534,6 +3534,25 @@ contract CrosschainTests is BaseTest {
     }
 
     /*//////////////////////////////////////////////////////////////
+                        DOUBLE BRIDGE SCENARIO
+    //////////////////////////////////////////////////////////////*/
+    /*
+    This test simulates a user who deposits on ETH, then swaps om OP, then deposits to a vault on Base via a single userOp.
+    */
+    function test_DoubleBridge_OneUserOp() public {
+        // First prepare on Base as the final destination
+        SELECT_FORK_AND_WARP(BASE);
+
+        address accountToUse;
+        bytes memory targetExecutorMessage;
+        TargetExecutorMessage memory messageData;
+
+        // Prepare dst data
+        (address accountToUse, bytes memory targetExecutorMessage, TargetExecutorMessage memory messageData) = _createBaseMsgData(false);
+
+    }
+
+    /*//////////////////////////////////////////////////////////////
                           INTERNAL LOGIC HELPERS
     //////////////////////////////////////////////////////////////*/
     function _createAccountOnBASECrossChainFlow(bool shouldRevert) private returns (address) {
@@ -3606,6 +3625,41 @@ contract CrosschainTests is BaseTest {
         }
 
         return accountToUse;
+    }
+
+    function _createBaseMsgData() private returns (address, bytes memory, TargetExecutorMessage memory) {
+        address[] memory dstHooksAddresses = new address[](2);
+        dstHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        dstHooksAddresses[1] = _getHookAddress(BASE, DEPOSIT_4626_VAULT_HOOK_KEY);
+        bytes[] memory dstHooksData = new bytes[](2);
+        dstHooksData[0] = _createApproveHookData(
+            underlyingBase_USDC, yieldSourceMorphoUsdcAddressBase, previewRedeemAmount, false
+        );
+        dstHooksData[1] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressBase,
+            previewRedeemAmount,
+            false,
+            address(0),
+            0
+        );
+        messageData = TargetExecutorMessage({
+            hooksAddresses: dstHooksAddresses,
+            hooksData: dstHooksData,
+            validator: address(destinationValidatorOnBase),
+            signer: validatorSigners[BASE],
+            signerPrivateKey: validatorSignerPrivateKeys[BASE],
+            targetAdapter: address(acrossV3AdapterOnBase),
+            targetExecutor: address(superTargetExecutorOnBase),
+            nexusFactory: CHAIN_8453_NEXUS_FACTORY,
+            nexusBootstrap: CHAIN_8453_NEXUS_BOOTSTRAP,
+            chainId: uint64(BASE),
+            amount: amount,
+            account: accountBase,
+            tokenSent: underlyingBase_USDC
+        });
+        
+        (targetExecutorMessage, accountToUse) = _createTargetExecutorMessage(messageData);
     }
 
     function _executeDepositFromAccountOnBASE(address account, uint256 depositAmount) private returns (uint256) {
