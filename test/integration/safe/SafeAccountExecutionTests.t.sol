@@ -74,8 +74,6 @@ contract SafeAccountExecutionTests is BaseTest, Safe7579Precompiles {
     uint256 public timestampBase;
     uint256 public warpStartTime;
 
-    bytes4 public constant ERC1271_MAGICVALUE = 0x1626ba7e;
-
     address public accountETH;
     address public accountBase;
 
@@ -116,6 +114,8 @@ contract SafeAccountExecutionTests is BaseTest, Safe7579Precompiles {
 
     ISuperDestinationExecutor public targetExecutorETH;
     ISuperDestinationExecutor public targetExecutorBase;
+
+    bytes4 public constant ERC1271_MAGICVALUE = 0x1626ba7e;
 
     struct CrossChainVars {
         uint256 warpStartTime;
@@ -387,8 +387,6 @@ contract SafeAccountExecutionTests is BaseTest, Safe7579Precompiles {
         threshold = 1;
         CrossChainVars memory vars;
         vars.warpStartTime = 1_740_559_708;
-
-        vm.selectFork(FORKS[BASE]);
 
         // setup SafeERC7579
         _createAccountsAndCode(vars);
@@ -953,7 +951,7 @@ contract SafeAccountExecutionTests is BaseTest, Safe7579Precompiles {
 
         vars.signature = _getSafeSignatureSingleOwner(vars.ctx.merkleRoot, vars.accountToUse, address(validator), 0);
         vars.signatureData = abi.encode(
-            false, vars.ctx.validUntil, vars.ctx.merkleRoot, vars.ctx.merkleProof[1], vars.proofDst, vars.signature
+            true, vars.ctx.validUntil, vars.ctx.merkleRoot, vars.ctx.merkleProof[1], vars.proofDst, vars.signature
         );
         vars.srcUserOpData.userOp.signature = vars.signatureData;
     }
