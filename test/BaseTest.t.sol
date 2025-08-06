@@ -154,7 +154,13 @@ import { IAccountFactory } from "modulekit/accounts/factory/interface/IAccountFa
 import { getFactory, getHelper, getStorageCompliance } from "modulekit/test/utils/Storage.sol";
 import { IEntryPoint } from "@ERC4337/account-abstraction/contracts/interfaces/IEntryPoint.sol";
 
-import { BootstrapConfig, BootstrapPreValidationHookConfig, RegistryConfig, INexusBootstrap, INexusBootstrap7702 } from "../src/vendor/nexus/INexusBootstrap.sol";
+import {
+    BootstrapConfig,
+    BootstrapPreValidationHookConfig,
+    RegistryConfig,
+    INexusBootstrap,
+    INexusBootstrap7702
+} from "../src/vendor/nexus/INexusBootstrap.sol";
 import { INexusFactory } from "../src/vendor/nexus/INexusFactory.sol";
 import { IERC7484 } from "../src/vendor/nexus/IERC7484.sol";
 import { MockRegistry } from "./mocks/MockRegistry.sol";
@@ -329,7 +335,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
 
     bytes32 constant SALT = keccak256("TEST");
     bytes2 constant INITCODE_EIP7702_MARKER = 0x7702;
-
 
     address public mockBaseHook;
 
@@ -506,8 +511,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             A[i].superDestinationExecutor = ISuperExecutor(
                 address(
                     new SuperDestinationExecutor{ salt: SALT }(
-                        address(A[i].superLedgerConfiguration),
-                        address(A[i].superDestinationValidator)
+                        address(A[i].superLedgerConfiguration), address(A[i].superDestinationValidator)
                     )
                 )
             );
@@ -1189,7 +1193,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
             hooksAddresses[48] = address(A[i].mintSuperPositionsHook);
 
-
             A[i].markRootAsUsedHook = new MarkRootAsUsedHook{ salt: SALT }();
             vm.label(address(A[i].markRootAsUsedHook), MARK_ROOT_AS_USED_HOOK_KEY);
             hookAddresses[chainIds[i]][MARK_ROOT_AS_USED_HOOK_KEY] = address(A[i].markRootAsUsedHook);
@@ -1200,7 +1203,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 address(A[i].markRootAsUsedHook),
                 ""
             );
-            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(hooks[chainIds[i]][MARK_ROOT_AS_USED_HOOK_KEY]);
+            hooksByCategory[chainIds[i]][HookCategory.TokenApprovals].push(
+                hooks[chainIds[i]][MARK_ROOT_AS_USED_HOOK_KEY]
+            );
             hooksAddresses[49] = address(A[i].markRootAsUsedHook);
 
             A[i].merklClaimRewardHook = new MerklClaimRewardHook{ salt: SALT }(MERKL_DISTRIBUTOR);
@@ -1636,6 +1641,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
             );
         }
     }
+
     function _processAcrossV3MessageWithSpecificDestinationFork(
         uint64 srcChainId,
         uint64 dstChainId,
@@ -1732,13 +1738,15 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
                 nexusFactory: nexusFactory,
                 nexusBootstrap: nexusBootstrap,
                 is7702: is7702
-
             })
         );
         return account;
     }
 
-    function _createTargetExecutorMessage(TargetExecutorMessage memory messageData, bool is7702)
+    function _createTargetExecutorMessage(
+        TargetExecutorMessage memory messageData,
+        bool is7702
+    )
         internal
         returns (bytes memory, address)
     {
@@ -1751,7 +1759,9 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         if (messageData.account == address(0)) {
             (accountCreationData, accountToUse) = _createAccountCreationData_DestinationExecutor(
                 AccountCreationParams({
-                    senderCreatorOnDestinationChain: is7702 ? _getContract(messageData.chainId, SUPER_7702_SENDER_CREATOR_KEY) : _getContract(messageData.chainId, SUPER_SENDER_CREATOR_KEY),
+                    senderCreatorOnDestinationChain: is7702
+                        ? _getContract(messageData.chainId, SUPER_7702_SENDER_CREATOR_KEY)
+                        : _getContract(messageData.chainId, SUPER_SENDER_CREATOR_KEY),
                     validatorOnDestinationChain: messageData.validator,
                     superMerkleValidator: _getContract(messageData.chainId, SUPER_MERKLE_VALIDATOR_KEY),
                     theSigner: messageData.signer,
@@ -1794,7 +1804,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         uint64 dstChainId,
         address srcValidator
     )
-    internal
+        internal
         view
         returns (MerkleContext memory ctx, ISuperValidator.DstProof[] memory proofDst)
     {
@@ -1895,7 +1905,6 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
     }
 
-
     function _createNoDestinationExecutionMerkleRootAndSignature(
         address signer,
         uint256 signerPrvKey,
@@ -1909,18 +1918,14 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         MerkleContext memory ctx;
 
         ctx.validUntil = uint48(block.timestamp + 100 days);
-      
+
         ctx.leaves = new bytes32[](1);
         ctx.leaves[0] = _createSourceValidatorLeaf(userOpHash, ctx.validUntil, false, srcValidator);
 
         (ctx.merkleProof, ctx.merkleRoot) = _createValidatorMerkleTree(ctx.leaves);
 
-        ctx.signature = _createSignature(
-            SuperValidatorBase(srcValidator).namespace(),
-            ctx.merkleRoot,
-            signer,
-            signerPrvKey
-        );
+        ctx.signature =
+            _createSignature(SuperValidatorBase(srcValidator).namespace(), ctx.merkleRoot, signer, signerPrvKey);
 
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
 
@@ -1972,9 +1977,8 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         address nexusBootstrap;
         bool is7702;
     }
-    function _createAccountCreationData_DestinationExecutor(
-        AccountCreationParams memory p
-    )
+
+    function _createAccountCreationData_DestinationExecutor(AccountCreationParams memory p)
         internal
         virtual
         returns (bytes memory, address)
@@ -2011,12 +2015,16 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         bytes32 initSalt = bytes32(keccak256("SIGNER_SALT"));
 
         address precomputedAddress = INexusFactory(p.nexusFactory).computeAccountAddress(initData, initSalt);
-        bytes memory initFactoryCalldata = abi.encodeWithSelector(INexusFactory.createAccount.selector, initData, initSalt);
+        bytes memory initFactoryCalldata =
+            abi.encodeWithSelector(INexusFactory.createAccount.selector, initData, initSalt);
 
-        return (abi.encodePacked(p.senderCreatorOnDestinationChain, address(p.nexusFactory), initFactoryCalldata), precomputedAddress);
+        return (
+            abi.encodePacked(p.senderCreatorOnDestinationChain, address(p.nexusFactory), initFactoryCalldata),
+            precomputedAddress
+        );
     }
 
-    function _createAcrossV3ReceiveFundsNoExecution( 
+    function _createAcrossV3ReceiveFundsNoExecution(
         address receiver,
         address inputToken,
         address outputToken,
@@ -2046,8 +2054,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
     }
 
-
-     function _createAcrossV3ReceiveFundsAndExecuteHookDataAdapter( 
+    function _createAcrossV3ReceiveFundsAndExecuteHookDataAdapter(
         address adapter,
         address inputToken,
         address outputToken,
@@ -2058,7 +2065,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         bytes memory data
     )
         internal
-        view
+        pure
         returns (bytes memory hookData)
     {
         hookData = abi.encodePacked(
@@ -2077,7 +2084,7 @@ contract BaseTest is Helpers, RhinestoneModuleKit, SignatureHelper, MerkleTreeHe
         );
     }
 
-    function _createAcrossV3ReceiveFundsAndExecuteHookData( 
+    function _createAcrossV3ReceiveFundsAndExecuteHookData(
         address inputToken,
         address outputToken,
         uint256 inputAmount,

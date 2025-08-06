@@ -41,11 +41,13 @@ export TENDERLY_ACCOUNT="superform"
 export TENDERLY_PROJECT="v2"
 
 # Production RPC URLs
+export ETH_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ETHEREUM_RPC_URL/credential)
 export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential)
 export BSC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BSC_RPC_URL/credential)
 export ARBITRUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ARBITRUM_RPC_URL/credential)
 
 # Tenderly verification URLs for each network
+export ETH_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/1"
 export BASE_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/8453"
 export BSC_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/56"
 export ARBITRUM_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/42161"
@@ -56,24 +58,28 @@ print_separator
 
 # Network configurations
 declare -A NETWORKS=(
+    ["1"]="ETH_MAINNET"
     ["8453"]="BASE_MAINNET"
     ["56"]="BSC_MAINNET" 
     ["42161"]="ARBITRUM_MAINNET"
 )
 
 declare -A RPC_URLS=(
+    ["1"]="$ETH_MAINNET"
     ["8453"]="$BASE_MAINNET"
     ["56"]="$BSC_MAINNET"
     ["42161"]="$ARBITRUM_MAINNET"
 )
 
 declare -A VERIFIER_URLS=(
+    ["1"]="$ETH_VERIFIER_URL"
     ["8453"]="$BASE_VERIFIER_URL"
     ["56"]="$BSC_VERIFIER_URL"
     ["42161"]="$ARBITRUM_VERIFIER_URL"
 )
 
 declare -A NETWORK_NAMES=(
+    ["1"]="Ethereum Mainnet"
     ["8453"]="Base Mainnet"
     ["56"]="BSC Mainnet"
     ["42161"]="Arbitrum Mainnet"
@@ -85,6 +91,7 @@ load_contract_addresses() {
     local network_name=""
     
     case $chain_id in
+        "1") network_name="Ethereum-latest" ;;
         "8453") network_name="BASE-latest" ;;
         "56") network_name="BNB-latest" ;;
         "42161") network_name="ARBITRUM-latest" ;;
@@ -108,6 +115,7 @@ get_contract_address() {
     local network_name=""
     
     case $chain_id in
+        "1") network_name="Ethereum-latest" ;;
         "8453") network_name="BASE-latest" ;;
         "56") network_name="BNB-latest" ;;
         "42161") network_name="ARBITRUM-latest" ;;
@@ -136,41 +144,45 @@ generate_constructor_args() {
     local super_destination_validator=$(get_contract_address "$chain_id" "SuperDestinationValidator")
     
     # Network-specific addresses (these would need to be configured per network)
-    local nexus_factory=""
     local permit2=""
     local aggregation_router=""
     local odos_router=""
     local across_spoke_pool_v3=""
     local debridge_dst_dln=""
-    local entry_point="0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"  # Standard EntryPoint
-    local debridge_dln_src="0x43dE2d77BF8027e25dBD179B491e8d64f38398aA"  # Standard DeBridge DLN SRC
-    local debridge_dln_dst="0x43dE2d77BF8027e25dBD179B491e8d64f38398aA"  # Standard DeBridge DLN DST
+    local merkl_distributor=""
+    local entry_point="0x0000000071727De22E5E9d8BAf0edAc6f37da032"  # EntryPoint v0.7
+    local debridge_dln_src="0xeF4fB24aD0916217251F553c0596F8Edc630EB66"  # Standard DeBridge DLN SRC
+    local debridge_dln_dst="0xE7351Fd770A37282b91D153Ee690B63579D6dd7f"  # Standard DeBridge DLN DST
     
     # Network-specific configurations
     case $chain_id in
+        "1") # Ethereum Mainnet
+            permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
+            aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
+            odos_router="0xcf5540fFFCdC3d510B18bFcA6d2b9987b0772559"
+            across_spoke_pool_v3="0x5c7BCd6E7De5423a257D81B442095A1a6ced35C5"
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
+            ;;
         "8453") # Base Mainnet
-            nexus_factory="0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de" 
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
             aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
             odos_router="0x19cEeAd7105607Cd444F5ad10dd51356436095a1"
             across_spoke_pool_v3="0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64"
-            debridge_dst_dln="0x43dE2d77BF8027e25dBD179B491e8d64f38398aA"
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             ;;
         "56") # BSC Mainnet
-            nexus_factory="0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de" 
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
             aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
             odos_router="0x89b8AA89FDd0507a99d334CBe3C808fAFC7d850E"
-            across_spoke_pool_v3="0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64"
-            debridge_dst_dln="0x43dE2d77BF8027e25dBD179B491e8d64f38398aA"
+            across_spoke_pool_v3="0x4e8E101924eDE233C13e2D8622DC8aED2872d505"
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             ;;
         "42161") # Arbitrum Mainnet
-            nexus_factory="0x000000001D1D5004a02bAfAb9de2D6CE5b7B13de"
             permit2="0x000000000022D473030F116dDEE9F6B43aC78BA3"
             aggregation_router="0x111111125421cA6dc452d289314280a0f8842A65"  # 1inch
             odos_router="0xa32EE1C40594249eb3183c10792BcF573D4Da47C"
-            across_spoke_pool_v3="0x09aea4b2242abC8bb4BB78D537A67a245A7bEC64"
-            debridge_dst_dln="0x43dE2d77BF8027e25dBD179B491e8d64f38398aA"
+            across_spoke_pool_v3="0xe35e9842fceaCA96570B734083f4a58e8F7C5f2A"
+            merkl_distributor="0x3Ef3D8bA38EBe18DB133cEc108f4D14CE00Dd9Ae"
             ;;
     esac
     
@@ -186,7 +198,7 @@ generate_constructor_args() {
             echo "$(cast abi-encode "constructor(address)" "$super_ledger_config")"
             ;;
         "SuperDestinationExecutor")
-            echo "$(cast abi-encode "constructor(address,address,address)" "$super_ledger_config" "$super_destination_validator" "$nexus_factory")"
+            echo "$(cast abi-encode "constructor(address,address)" "$super_ledger_config" "$super_destination_validator")"
             ;;
         "AcrossV3Adapter")
             echo "$(cast abi-encode "constructor(address,address)" "$across_spoke_pool_v3" "$super_destination_executor")"
@@ -219,6 +231,9 @@ generate_constructor_args() {
             ;;
         "DeBridgeCancelOrderHook")
             echo "$(cast abi-encode "constructor(address)" "$debridge_dln_dst")"
+            ;;
+        "MerklClaimRewardHook")
+            echo "$(cast abi-encode "constructor(address)" "$merkl_distributor")"
             ;;
         
         # Oracles with constructor args
@@ -270,13 +285,10 @@ get_contract_source() {
         "Deposit7540VaultHook") echo "src/core/hooks/vaults/7540/Deposit7540VaultHook.sol" ;;
         "Redeem7540VaultHook") echo "src/core/hooks/vaults/7540/Redeem7540VaultHook.sol" ;;
         "RequestRedeem7540VaultHook") echo "src/core/hooks/vaults/7540/RequestRedeem7540VaultHook.sol" ;;
-        "Withdraw7540VaultHook") echo "src/core/hooks/vaults/7540/Withdraw7540VaultHook.sol" ;;
         "CancelDepositRequest7540Hook") echo "src/core/hooks/vaults/7540/CancelDepositRequest7540Hook.sol" ;;
         "CancelRedeemRequest7540Hook") echo "src/core/hooks/vaults/7540/CancelRedeemRequest7540Hook.sol" ;;
         "ClaimCancelDepositRequest7540Hook") echo "src/core/hooks/vaults/7540/ClaimCancelDepositRequest7540Hook.sol" ;;
         "ClaimCancelRedeemRequest7540Hook") echo "src/core/hooks/vaults/7540/ClaimCancelRedeemRequest7540Hook.sol" ;;
-        "CancelRedeemHook") echo "src/core/hooks/vaults/super-vault/CancelRedeemHook.sol" ;;
-        "MintSuperPositionsHook") echo "src/core/hooks/vaults/vault-bank/MintSuperPositionsHook.sol" ;;
         
         # Hooks - Swappers
         "Swap1InchHook") echo "src/core/hooks/swappers/1inch/Swap1InchHook.sol" ;;
@@ -291,6 +303,9 @@ get_contract_source() {
         # Hooks - Protocol Specific
         "EthenaCooldownSharesHook") echo "src/core/hooks/vaults/ethena/EthenaCooldownSharesHook.sol" ;;
         "EthenaUnstakeHook") echo "src/core/hooks/vaults/ethena/EthenaUnstakeHook.sol" ;;
+        
+        # Hooks - Claim
+        "MerklClaimRewardHook") echo "src/core/hooks/claim/merkl/MerklClaimRewardHook.sol" ;;
         
         # Oracles
         "ERC4626YieldSourceOracle") echo "src/core/accounting/oracles/ERC4626YieldSourceOracle.sol" ;;
@@ -356,6 +371,7 @@ verify_network() {
     # Get all contract names from the JSON file
     local network_suffix=""
     case $chain_id in
+        "1") network_suffix="Ethereum-latest" ;;
         "8453") network_suffix="BASE-latest" ;;
         "56") network_suffix="BNB-latest" ;;  
         "42161") network_suffix="ARBITRUM-latest" ;;
@@ -385,7 +401,7 @@ verify_network() {
 
 # Main verification loop
 main() {
-    local chains=("8453" "56" "42161")
+    local chains=("1" "8453" "56" "42161")
     
     for chain_id in "${chains[@]}"; do
         verify_network "$chain_id"

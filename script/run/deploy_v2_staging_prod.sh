@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/opt/homebrew/bin/bash
 
 # Colors for better visual output
 RED='\033[0;31m'
@@ -9,6 +9,9 @@ PURPLE='\033[0;35m'
 CYAN='\033[0;36m'
 WHITE='\033[1;37m'
 NC='\033[0m' # No Color
+
+# Associative array to store deployment status for each network
+declare -A NETWORK_DEPLOYMENT_STATUS
 
 # Function to print colored header
 print_header() {
@@ -43,6 +46,9 @@ log() {
 get_network_name() {
     local network_id=$1
     case "$network_id" in
+        1)
+            echo "Ethereum"
+            ;;
         8453)
             echo "Base"
             ;;
@@ -59,222 +65,186 @@ get_network_name() {
     esac
 }
 
-# Function to validate locked bytecode files
+# Function to extract contract names from update_locked_bytecode.sh
+extract_contracts_from_update_script() {
+    local array_name=$1
+    local script_path="$SCRIPT_DIR/update_locked_bytecode.sh"
+    
+    if [[ ! -f "$script_path" ]]; then
+        return 1
+    fi
+    
+    # Extract contract names from the specified array in update_locked_bytecode.sh
+    # Find the array definition and stop at the closing parenthesis
+    sed -n "/${array_name}=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | tr -d '"'
+}
+
+# Function to validate locked bytecode files (sourced from update_locked_bytecode.sh)
 validate_locked_bytecode() {
     log "INFO" "Validating locked bytecode artifacts..."
     
-    # Define required contracts (same as in update_locked_bytecode.sh)
-    local CORE_CONTRACTS=(
-        "SuperExecutor"
-        "SuperDestinationExecutor" 
-        "SuperSenderCreator"
-        "AcrossV3Adapter"
-        "DebridgeAdapter"
-        "SuperLedger"
-        "FlatFeeLedger"
-        "SuperLedgerConfiguration"
-        "SuperMerkleValidator"
-        "SuperDestinationValidator"
-        "SuperNativePaymaster"
-    )
-    
-    local HOOK_CONTRACTS=(
-        "ApproveERC20Hook"
-        "TransferERC20Hook"
-        "BatchTransferHook"
-        "BatchTransferFromHook"
-        "Deposit4626VaultHook"
-        "ApproveAndDeposit4626VaultHook"
-        "Redeem4626VaultHook"
-        "Deposit5115VaultHook"
-        "ApproveAndDeposit5115VaultHook"
-        "Redeem5115VaultHook"
-        "RequestDeposit7540VaultHook"
-        "ApproveAndRequestDeposit7540VaultHook"
-        "ApproveAndRequestRedeem7540VaultHook"
-        "Redeem7540VaultHook"
-        "RequestRedeem7540VaultHook"
-        "Deposit7540VaultHook"
-        "Withdraw7540VaultHook"
-        "CancelDepositRequest7540Hook"
-        "CancelRedeemRequest7540Hook"
-        "ClaimCancelDepositRequest7540Hook"
-        "ClaimCancelRedeemRequest7540Hook"
-        "Swap1InchHook"
-        "SwapOdosV2Hook"
-        "ApproveAndSwapOdosV2Hook"
-        "AcrossSendFundsAndExecuteOnDstHook"
-        "DeBridgeSendOrderAndExecuteOnDstHook"
-        "DeBridgeCancelOrderHook"
-        "EthenaCooldownSharesHook"
-        "EthenaUnstakeHook"
-        "CancelRedeemHook"
-        "OfframpTokensHook"
-        "MintSuperPositionsHook"
-        "MarkRootAsUsedHook"
-    )
-    
-    local ORACLE_CONTRACTS=(
-        "ERC4626YieldSourceOracle"
-        "ERC5115YieldSourceOracle"
-        "ERC7540YieldSourceOracle"
-        "PendlePTYieldSourceOracle"
-        "SpectraPTYieldSourceOracle"
-        "StakingYieldSourceOracle"
-        "SuperYieldSourceOracle"
-    )
+    local script_path="$SCRIPT_DIR/update_locked_bytecode.sh"
+    if [[ ! -f "$script_path" ]]; then
+        echo -e "${RED}❌ Cannot find update_locked_bytecode.sh at: $script_path${NC}"
+        return 1
+    fi
     
     local missing_files=()
     
-    # Check core contracts
-    for contract in "${CORE_CONTRACTS[@]}"; do
+    # Extract and check core contracts
+    log "INFO" "Checking core contracts from update_locked_bytecode.sh..."
+    local core_contracts
+    core_contracts=$(extract_contracts_from_update_script "CORE_CONTRACTS")
+    for contract in $core_contracts; do
+        [[ -z "$contract" ]] && continue
         local file_path="script/locked-bytecode/${contract}.json"
         if [ ! -f "$file_path" ]; then
             missing_files+=("$file_path")
         fi
     done
     
-    # Check hook contracts
-    for contract in "${HOOK_CONTRACTS[@]}"; do
+    # Extract and check hook contracts
+    log "INFO" "Checking hook contracts from update_locked_bytecode.sh..."
+    local hook_contracts
+    hook_contracts=$(extract_contracts_from_update_script "HOOK_CONTRACTS")
+    for contract in $hook_contracts; do
+        [[ -z "$contract" ]] && continue
         local file_path="script/locked-bytecode/${contract}.json"
         if [ ! -f "$file_path" ]; then
             missing_files+=("$file_path")
         fi
     done
     
-    # Check oracle contracts
-    for contract in "${ORACLE_CONTRACTS[@]}"; do
+    # Extract and check oracle contracts
+    log "INFO" "Checking oracle contracts from update_locked_bytecode.sh..."
+    local oracle_contracts
+    oracle_contracts=$(extract_contracts_from_update_script "ORACLE_CONTRACTS")
+    for contract in $oracle_contracts; do
+        [[ -z "$contract" ]] && continue
         local file_path="script/locked-bytecode/${contract}.json"
         if [ ! -f "$file_path" ]; then
             missing_files+=("$file_path")
         fi
     done
+    
+    # Show expected total count
+    local expected_total
+    expected_total=$(get_expected_contract_count)
+    log "INFO" "Expected total artifacts: $expected_total (from update_locked_bytecode.sh)"
     
     if [ ${#missing_files[@]} -gt 0 ]; then
         echo -e "${RED}❌ Missing locked bytecode files:${NC}"
         for file in "${missing_files[@]}"; do
             echo -e "${RED}   - $file${NC}"
         done
-        echo -e "${YELLOW}💡 Run './script/run/update_locked_bytecode.sh' to generate missing files${NC}"
+        echo -e "${RED}   Missing: ${#missing_files[@]} files${NC}"
         return 1
     fi
     
     echo -e "${GREEN}✅ All required locked bytecode files are present${NC}"
+    echo -e "${GREEN}   Validated: $expected_total contract artifacts${NC}"
     return 0
 }
 
-# Function to read latest file from S3
-read_latest_from_s3() {
-    local environment=$1
-    local latest_file_path="/tmp/latest.json"
 
-    if aws s3 cp "s3://$S3_BUCKET_NAME/$environment/latest.json" "$latest_file_path" --quiet 2>/dev/null; then
-        log "INFO" "Successfully downloaded latest.json from S3 for $environment"
+# Function to get expected contract count from update_locked_bytecode.sh
+get_expected_contract_count() {
+    local script_path="$SCRIPT_DIR/update_locked_bytecode.sh"
+    
+    if [[ ! -f "$script_path" ]]; then
+        echo "0"
+        return 1
+    fi
+    
+    # Use the same extraction logic as extract_contracts_from_update_script
+    local core_count hook_count oracle_count
+    
+    # Extract CORE_CONTRACTS array and count elements
+    core_count=$(sed -n "/CORE_CONTRACTS=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | wc -l)
+    
+    # Extract HOOK_CONTRACTS array and count elements  
+    hook_count=$(sed -n "/HOOK_CONTRACTS=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | wc -l)
+    
+    # Extract ORACLE_CONTRACTS array and count elements
+    oracle_count=$(sed -n "/ORACLE_CONTRACTS=(/,/^)/p" "$script_path" | grep -o '"[^"]*"' | wc -l)
+    
+    local total_expected=$((core_count + hook_count + oracle_count))
+    echo "$total_expected"
+}
+
+# Function to analyze deployment status across all networks and determine next steps
+analyze_deployment_status() {
+    echo -e "${BLUE}📊 Analyzing deployment status across all networks...${NC}"
+    echo ""
+    
+    local all_fully_deployed=true
+    local needs_deployment=false
+    local networks_with_missing=()
+    
+    # Get expected contract count from update_locked_bytecode.sh
+    local total_expected
+    total_expected=$(get_expected_contract_count)
+    
+    if [[ $total_expected -eq 0 ]]; then
+        echo -e "${RED}❌ Unable to determine expected contract count from update_locked_bytecode.sh${NC}"
+        return 2
+    fi
+    
+    echo -e "${CYAN}Expected total contracts per network (from update_locked_bytecode.sh): ${WHITE}$total_expected${NC}"
+    echo -e "${CYAN}  • Core contracts: ${WHITE}$(sed -n "/CORE_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/update_locked_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
+    echo -e "${CYAN}  • Hook contracts: ${WHITE}$(sed -n "/HOOK_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/update_locked_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
+    echo -e "${CYAN}  • Oracle contracts: ${WHITE}$(sed -n "/ORACLE_CONTRACTS=(/,/^)/p" "$SCRIPT_DIR/update_locked_bytecode.sh" | grep -o '"[^"]*"' | wc -l)${NC}"
+    echo ""
+    
+    # Analyze each network against the expected total from update_locked_bytecode.sh
+    for network_id in "${!NETWORK_DEPLOYMENT_STATUS[@]}"; do
+        IFS=':' read -r deployed detected_total network_name <<< "${NETWORK_DEPLOYMENT_STATUS[$network_id]}"
         
-        # Read the file and validate JSON
-        local content=$(cat "$latest_file_path")
-        
-        # Validate the content from file
-        if ! echo "$content" | jq '.' >/dev/null 2>&1; then
-            log "ERROR" "Invalid JSON in latest file, resetting to default"
-            content="{\"networks\":{},\"updated_at\":null}"
+        # Use the expected total from update_locked_bytecode.sh, not the detected total
+        if [[ $deployed -eq $total_expected ]]; then
+            echo -e "${GREEN}✅ $network_name (Chain $network_id): All $deployed/$total_expected contracts deployed${NC}"
+        elif [[ $deployed -lt $total_expected ]]; then
+            local missing=$((total_expected - deployed))
+            echo -e "${YELLOW}⚠️  $network_name (Chain $network_id): $deployed/$total_expected contracts deployed (${missing} missing)${NC}"
+            all_fully_deployed=false
+            needs_deployment=true
+            networks_with_missing+=("$network_name")
+        elif [[ $deployed -gt $total_expected ]]; then
+            echo -e "${CYAN}ℹ️  $network_name (Chain $network_id): $deployed/$total_expected contracts deployed (${deployed} > expected ${total_expected})${NC}"
+            echo -e "${CYAN}    Note: More contracts deployed than expected - this may include additional contracts${NC}"
         else
-            log "INFO" "Successfully validated latest.json from S3"
+            echo -e "${RED}❌ $network_name (Chain $network_id): Error in deployment status${NC}"
+            all_fully_deployed=false
         fi
+    done
+    
+    echo ""
+    
+    # Determine action based on analysis
+    if [[ $all_fully_deployed == true && $total_expected -gt 0 ]]; then
+        echo -e "${GREEN}🎉 EXCELLENT! All contracts are already deployed on all networks!${NC}"
+        echo -e "${GREEN}   Expected: $total_expected contracts (from update_locked_bytecode.sh)${NC}"
+        echo -e "${GREEN}   Status: Fully deployed across all chains${NC}"
+        echo -e "${GREEN}   No deployment needed - terminating with success${NC}"
+        return 0  # All deployed - skip deployment
+    elif [[ $needs_deployment == true ]]; then
+        echo -e "${YELLOW}📋 DEPLOYMENT REQUIRED${NC}"
+        echo -e "${CYAN}   Expected total per network: $total_expected contracts (from update_locked_bytecode.sh)${NC}"
+        echo -e "${CYAN}   The following networks have missing contracts:${NC}"
+        for network in "${networks_with_missing[@]}"; do
+            echo -e "${CYAN}   • $network${NC}"
+        done
+        echo ""
+        echo -e "${WHITE}   Only missing contracts will be deployed (existing ones will be skipped)${NC}"
+        return 1  # Needs deployment - continue with confirmation
     else
-        log "WARN" "latest.json not found in S3 for $environment, initializing empty file"
-        content="{\"networks\":{},\"updated_at\":null}"
-    fi
-   
-    echo "$content"
-}
-
-# Function to check counter and prompt for confirmation
-check_and_confirm_counter() {
-    local environment=$1
-    local network_name=$2
-    local network_id=$3
-    
-    log "INFO" "Checking counter for $network_name in $environment"
-    
-    local content=$(read_latest_from_s3 "$environment")
-    local existing_counter=$(echo "$content" | jq -r ".networks[\"$network_name\"].counter // empty")
-    
-    if [ -n "$existing_counter" ]; then
-        local new_counter=$((existing_counter + 1))
-        echo -e "${YELLOW}⚠️  Found existing counter for $network_name: $existing_counter${NC}"
-        echo -e "${CYAN}   New counter will be: $new_counter${NC}"
-        echo -e "${WHITE}   Do you want to proceed with this new counter? (y/n)${NC}"
-        
-        read -r confirmation
-        if [ "$confirmation" != "y" ] && [ "$confirmation" != "Y" ]; then
-            log "INFO" "Deployment cancelled by user"
-            exit 1
-        fi
-        
-        echo "$new_counter"
-    else
-        # Generate new counter starting from 0
-        local new_counter=0
-        log "INFO" "No existing counter found for $network_name, using new counter: $new_counter"
-        echo "$new_counter"
+        echo -e "${RED}❌ Unable to determine deployment status${NC}"
+        echo -e "${RED}   Expected: $total_expected contracts (from update_locked_bytecode.sh)${NC}"
+        return 2  # Error state
     fi
 }
 
-# Function to upload contract addresses to S3
-upload_to_s3() {
-    local environment=$1
-    local network_name=$2
-    local network_id=$3
-    local counter=$4
-    
-    log "INFO" "Uploading contract addresses to S3 for $network_name"
-    
-    # Read existing content from S3
-    local content=$(read_latest_from_s3 "$environment")
-    
-    # Read deployed contracts from output file
-    local contracts_file="script/output/$environment/$network_id/$network_name-latest.json"
-    
-    if [ ! -f "$contracts_file" ]; then
-        log "ERROR" "Contract file not found: $contracts_file"
-        return 1
-    fi
-    
-    # Read and validate contracts file
-    local contracts=$(tr -d '\r' < "$contracts_file")
-    if ! contracts=$(echo "$contracts" | jq -c '.' 2>/dev/null); then
-        log "ERROR" "Failed to parse JSON from contract file for $network_name"
-        return 1
-    fi
-    
-    # Update content with new deployment info
-    content=$(echo "$content" | jq \
-        --arg network "$network_name" \
-        --arg counter "$counter" \
-        --argjson contracts "$contracts" \
-        '.networks[$network] = {
-            "counter": ($counter|tonumber),
-            "vnet_id": "",
-            "contracts": $contracts
-        }')
-    
-    # Update timestamp
-    content=$(echo "$content" | jq --arg time "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" '.updated_at = $time')
-    
-    # Upload to S3
-    local latest_file_path="/tmp/latest.json"
-    echo "$content" | jq '.' > "$latest_file_path"
-    
-    if aws s3 cp "$latest_file_path" "s3://$S3_BUCKET_NAME/$environment/latest.json" --quiet; then
-        log "SUCCESS" "Successfully uploaded latest.json to S3 for $environment"
-    else
-        log "ERROR" "Failed to upload latest.json to S3"
-        return 1
-    fi
-}
-
-# Function to check V2 Core addresses on a network
+# Function to check V2 Core addresses on a network and capture deployment status
 check_v2_addresses() {
     local network_id=$1
     local network_name=$2
@@ -283,34 +253,72 @@ check_v2_addresses() {
     
     echo -e "${CYAN}Checking V2 Core addresses for $network_name (Chain ID: $network_id)...${NC}"
     
-    forge script script/DeployV2Core.s.sol:DeployV2Core \
+    # Capture the full output to parse deployment status
+    local check_output
+    check_output=$(forge script script/DeployV2Core.s.sol:DeployV2Core \
         --sig 'run(bool,uint256,uint64)' true $FORGE_ENV $network_id \
         --rpc-url ${!rpc_url_var} \
         --chain $network_id \
-        -vv | grep -e "Addr" -e "already deployed" -e "Code Size" -e "====" -e "====>"
+        -vv 2>&1)
+    
+    # Display the relevant output lines
+    echo "$check_output" | grep -e "Addr" -e "already deployed" -e "Code Size" -e "====" -e "====>"
+    
+    # Extract deployment counts from the summary line
+    local summary_line
+    summary_line=$(echo "$check_output" | grep "=====> On this chain we have")
+    
+    if [[ -n "$summary_line" ]]; then
+        # Parse: "=====> On this chain we have X contracts already deployed out of Y"
+        local deployed_count=$(echo "$summary_line" | grep -o "have [0-9]\+ contracts" | grep -o "[0-9]\+")
+        local total_count=$(echo "$summary_line" | grep -o "out of [0-9]\+" | grep -o "[0-9]\+")
+        
+        # Store deployment status for this network
+        NETWORK_DEPLOYMENT_STATUS["${network_id}"]="${deployed_count}:${total_count}:${network_name}"
+        
+        echo -e "${YELLOW}  📊 Status: ${deployed_count}/${total_count} contracts deployed${NC}"
+    else
+        echo -e "${RED}  ❌ Could not parse deployment status${NC}"
+        NETWORK_DEPLOYMENT_STATUS["${network_id}"]="0:0:${network_name}"
+    fi
 }
 
 print_header
 
+# Source centralized network configuration
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/../utils/networks.sh"
+
 # Check if arguments are provided
-if [ $# -lt 2 ]; then
+if [ $# -lt 3 ]; then
     echo -e "${RED}❌ Error: Missing required arguments${NC}"
-    echo -e "${YELLOW}Usage: $0 <environment> <mode>${NC}"
+    echo -e "${YELLOW}Usage: $0 <environment> <mode> <account>${NC}"
     echo -e "${CYAN}  environment: staging or prod${NC}"
     echo -e "${CYAN}  mode: simulate or deploy${NC}"
+    echo -e "${CYAN}  account: foundry account name (e.g., v2, deployer, main)${NC}"
     echo -e "${CYAN}Examples:${NC}"
-    echo -e "${CYAN}  $0 staging simulate${NC}"
-    echo -e "${CYAN}  $0 prod deploy${NC}"
+    echo -e "${CYAN}  $0 staging simulate v2${NC}"
+    echo -e "${CYAN}  $0 prod deploy deployer${NC}"
+    echo -e "${CYAN}Available accounts: $(cast wallet list 2>/dev/null | sed 's/ (Local)//' | tr '\n' ' ' || echo 'Run "cast wallet list" to see available accounts')${NC}"
     exit 1
 fi
 
 ENVIRONMENT=$1
 MODE=$2
+ACCOUNT=$3
 
 # Validate environment
 if [ "$ENVIRONMENT" != "staging" ] && [ "$ENVIRONMENT" != "prod" ]; then
     echo -e "${RED}❌ Invalid environment: $ENVIRONMENT${NC}"
     echo -e "${YELLOW}Environment must be either 'staging' or 'prod'${NC}"
+    exit 1
+fi
+
+# Validate account exists in foundry wallet list
+if ! cast wallet list 2>/dev/null | sed 's/ (Local)//' | grep -q "^$ACCOUNT$"; then
+    echo -e "${RED}❌ Account '$ACCOUNT' not found in foundry wallet list${NC}"
+    echo -e "${YELLOW}Available accounts:${NC}"
+    cast wallet list 2>/dev/null | sed 's/ (Local)//' | sed 's/^/  • /' || echo -e "${RED}  No accounts found. Run 'cast wallet import' to add accounts.${NC}"
     exit 1
 fi
 
@@ -336,11 +344,9 @@ fi
 print_separator
 echo -e "${BLUE}🔧 Loading Configuration...${NC}"
 
-# Production RPC URLs
+# Load RPC URLs using centralized function
 echo -e "${CYAN}   • Loading RPC URLs...${NC}"
-export BASE_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BASE_RPC_URL/credential)
-export BSC_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/BSC_RPC_URL/credential)
-export ARBITRUM_MAINNET=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/ARBITRUM_RPC_URL/credential)
+load_rpc_urls
 
 # Tenderly configuration for verification
 echo -e "${CYAN}   • Loading Tenderly credentials...${NC}"
@@ -348,27 +354,31 @@ export TENDERLY_ACCESS_TOKEN=$(op read op://5ylebqljbh3x6zomdxi3qd7tsa/TENDERLY_
 export TENDERLY_ACCOUNT="superform"
 export TENDERLY_PROJECT="v2"
 
-# S3 configuration
-echo -e "${CYAN}   • Loading S3 configuration...${NC}"
-export S3_BUCKET_NAME="superform-deployment-state"
-
-# Tenderly verification URLs for each network
+# Load Tenderly verification URLs using centralized function
 echo -e "${CYAN}   • Setting up Tenderly verification URLs...${NC}"
-export BASE_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/8453"
-export BSC_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/56"
-export ARBITRUM_VERIFIER_URL="https://api.tenderly.co/api/v1/account/$TENDERLY_ACCOUNT/project/$TENDERLY_PROJECT/etherscan/verify/network/42161"
+load_tenderly_urls
 
 # Create output directories
+mkdir -p "script/output/$ENVIRONMENT/1"
 mkdir -p "script/output/$ENVIRONMENT/8453"
 mkdir -p "script/output/$ENVIRONMENT/56"
 mkdir -p "script/output/$ENVIRONMENT/42161"
 
 # Deployment parameters
-FORGE_ENV=0
+if [ "$ENVIRONMENT" = "staging" ]; then
+    FORGE_ENV=2
+    export CI=true
+    export GITHUB_REF_NAME="staging"
+elif [ "$ENVIRONMENT" = "prod" ]; then
+    FORGE_ENV=0
+    export CI=true
+    export GITHUB_REF_NAME="prod"
+fi 
 
 echo -e "${GREEN}✅ Configuration loaded successfully${NC}"
 echo -e "${CYAN}   • Using Tenderly private verification mode${NC}"
 echo -e "${CYAN}   • Environment: $ENVIRONMENT${NC}"
+echo -e "${CYAN}   • Account: $ACCOUNT${NC}"
 print_separator
 
 # ===== LOCKED BYTECODE VALIDATION =====
@@ -385,125 +395,82 @@ echo -e "${BLUE}🔍 Checking V2 Core contract addresses...${NC}"
 echo -e "${CYAN}This will show you which contracts are already deployed and which need to be deployed.${NC}"
 echo ""
 
-# Check addresses on all networks
-check_v2_addresses 8453 "Base" "BASE_MAINNET" "BASE_VERIFIER_URL"
-echo ""
-check_v2_addresses 56 "BNB" "BSC_MAINNET" "BSC_VERIFIER_URL"
-echo ""
-check_v2_addresses 42161 "Arbitrum" "ARBITRUM_MAINNET" "ARBITRUM_VERIFIER_URL"
-echo ""
-
-# Prompt user for confirmation
-echo -e "${WHITE}Do you want to proceed with the addresses above? (y/n): ${NC}"
-read -r proceed
-
-if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
-    echo -e "${YELLOW}Deployment cancelled by user${NC}"
-    exit 1
-fi
-
-# Check counters and get confirmation for each network (only for deploy mode)
-if [ "$MODE" = "deploy" ]; then
-    BASE_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "Base" 8453)
-    BNB_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "BNB" 56)
-    ARBITRUM_COUNTER=$(check_and_confirm_counter "$ENVIRONMENT" "Arbitrum" 42161)
-fi
+# Check addresses on all networks using centralized configuration
+for network_def in "${NETWORKS[@]}"; do
+    IFS=':' read -r network_id network_name rpc_var verifier_var <<< "$network_def"
+    check_v2_addresses "$network_id" "$network_name" "$rpc_var" "$verifier_var"
+    echo ""
+done
 
 print_separator
 
-# Deploy to Base Mainnet
-print_network_header "BASE MAINNET"
-echo -e "${CYAN}   Chain ID: ${WHITE}8453${NC}"
-echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-if [ "$MODE" = "deploy" ]; then
-    echo -e "${CYAN}   Counter: ${WHITE}$BASE_COUNTER${NC}"
-fi
-echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
-echo -e "${YELLOW}   Executing forge script...${NC}"
+# Analyze deployment status and determine next steps
+analyze_deployment_status
+analysis_result=$?
 
-forge script script/DeployV2Core.s.sol:DeployV2Core \
-    --sig 'run(bool,uint256,uint64)' false $FORGE_ENV 8453 \
-    --account v2 \
-    --rpc-url $BASE_MAINNET \
-    --chain 8453 \
-    --etherscan-api-key $TENDERLY_ACCESS_TOKEN \
-    --verifier-url $BASE_VERIFIER_URL \
-    $BROADCAST_FLAG \
-    $VERIFY_FLAG \
-    --slow \
-    -vv
+case $analysis_result in
+    0)
+        # All contracts deployed - exit successfully
+        print_separator
+        echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
+        echo -e "${GREEN}║                                                                                      ║${NC}"
+        echo -e "${GREEN}║${WHITE}                🎉 All V2 Core Contracts Already Deployed! 🎉                    ${GREEN}║${NC}"
+        echo -e "${GREEN}║${WHITE}                           No deployment necessary                               ${GREEN}║${NC}"
+        echo -e "${GREEN}║                                                                                      ║${NC}"
+        echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
+        exit 0
+        ;;
+    1)
+        # Some contracts need deployment - ask for confirmation
+        echo -e "${WHITE}🤔 Do you want to proceed with deploying the missing contracts? (y/n): ${NC}"
+        read -r proceed
+        
+        if [ "$proceed" != "y" ] && [ "$proceed" != "Y" ]; then
+            echo -e "${YELLOW}Deployment cancelled by user${NC}"
+            exit 1
+        fi
+        echo -e "${GREEN}✅ Proceeding with deployment of missing contracts...${NC}"
+        ;;
+    2)
+        # Error in analysis
+        echo -e "${RED}❌ Error analyzing deployment status. Please check the output above.${NC}"
+        exit 1
+        ;;
+esac
 
-echo -e "${GREEN}✅ Base Mainnet deployment completed successfully!${NC}"
 
-# Upload to S3 only if in deploy mode
-if [ "$MODE" = "deploy" ]; then
-    upload_to_s3 "$ENVIRONMENT" "Base" 8453 "$BASE_COUNTER"
-fi
-wait
 
-# Deploy to BSC Mainnet
-print_network_header "BSC MAINNET"
-echo -e "${CYAN}   Chain ID: ${WHITE}56${NC}"
-echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-if [ "$MODE" = "deploy" ]; then
-    echo -e "${CYAN}   Counter: ${WHITE}$BNB_COUNTER${NC}"
-fi
-echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
-echo -e "${YELLOW}   Executing forge script...${NC}"
+print_separator
 
-forge script script/DeployV2Core.s.sol:DeployV2Core \
-    --sig 'run(bool,uint256,uint64)' false $FORGE_ENV 56 \
-    --account v2 \
-    --rpc-url $BSC_MAINNET \
-    --chain 56 \
-    --etherscan-api-key $TENDERLY_ACCESS_TOKEN \
-    --verifier-url $BSC_VERIFIER_URL \
-    $BROADCAST_FLAG \
-    $VERIFY_FLAG \
-    --slow \
-    -vv
+# Deploy to each network (using centralized NETWORKS configuration)
+for network_def in "${NETWORKS[@]}"; do
+    IFS=':' read -r network_id network_name rpc_var verifier_var <<< "$network_def"
+    
+    print_network_header "${network_name^^} MAINNET"
+    echo -e "${CYAN}   Chain ID: ${WHITE}$network_id${NC}"
+    echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
+    echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
+    echo -e "${CYAN}   Account: ${WHITE}$ACCOUNT${NC}"
+    echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
+    echo -e "${YELLOW}   Executing forge script...${NC}"
+    
+    forge script script/DeployV2Core.s.sol:DeployV2Core \
+        --sig 'run(bool,uint256,uint64)' false $FORGE_ENV $network_id \
+        --account $ACCOUNT \
+        --rpc-url ${!rpc_var} \
+        --chain $network_id \
+        --etherscan-api-key $TENDERLY_ACCESS_TOKEN \
+        --verifier-url ${!verifier_var} \
+        $BROADCAST_FLAG \
+        $VERIFY_FLAG \
+        --slow \
+        -vv
+    
+    echo -e "${GREEN}✅ $network_name Mainnet deployment completed successfully!${NC}"
+done
 
-echo -e "${GREEN}✅ BSC Mainnet deployment completed successfully!${NC}"
-
-# Upload to S3 only if in deploy mode
-if [ "$MODE" = "deploy" ]; then
-    upload_to_s3 "$ENVIRONMENT" "BNB" 56 "$BNB_COUNTER"
-fi
-
-wait
-
-# Deploy to Arbitrum Mainnet
-print_network_header "ARBITRUM MAINNET"
-echo -e "${CYAN}   Chain ID: ${WHITE}42161${NC}"
-echo -e "${CYAN}   Mode: ${WHITE}$MODE${NC}"
-echo -e "${CYAN}   Environment: ${WHITE}$ENVIRONMENT${NC}"
-if [ "$MODE" = "deploy" ]; then
-    echo -e "${CYAN}   Counter: ${WHITE}$ARBITRUM_COUNTER${NC}"
-fi
-echo -e "${CYAN}   Verification: ${WHITE}Tenderly Private${NC}"
-echo -e "${YELLOW}   Executing forge script...${NC}"
-
-forge script script/DeployV2Core.s.sol:DeployV2Core \
-    --sig 'run(bool,uint256,uint64)' false $FORGE_ENV 42161 \
-    --account v2 \
-    --rpc-url $ARBITRUM_MAINNET \
-    --chain 42161 \
-    --etherscan-api-key $TENDERLY_ACCESS_TOKEN \
-    --verifier-url $ARBITRUM_VERIFIER_URL \
-    $BROADCAST_FLAG \
-    $VERIFY_FLAG \
-    --slow \
-    -vv
-
-echo -e "${GREEN}✅ Arbitrum Mainnet deployment completed successfully!${NC}"
-
-# Upload to S3 only if in deploy mode
-if [ "$MODE" = "deploy" ]; then
-    upload_to_s3 "$ENVIRONMENT" "Arbitrum" 42161 "$ARBITRUM_COUNTER"
-fi
-
+# Note: Legacy individual network deployments have been replaced by the centralized 
+# network loop above for better maintainability and consistency.
 
 print_separator
 echo -e "${GREEN}╔══════════════════════════════════════════════════════════════════════════════════════╗${NC}"
@@ -512,8 +479,6 @@ echo -e "${GREEN}║${WHITE}                🎉 All V2 Core $ENVIRONMENT $MODE 
 echo -e "${GREEN}║                                                                                      ║${NC}"
 echo -e "${GREEN}╚══════════════════════════════════════════════════════════════════════════════════════╝${NC}"
 
-if [ "$MODE" = "deploy" ]; then
-    echo -e "${CYAN}🔗 Contract addresses have been uploaded to S3 bucket: $S3_BUCKET_NAME/$ENVIRONMENT/latest.json${NC}"
-fi
+
 
 print_separator 
