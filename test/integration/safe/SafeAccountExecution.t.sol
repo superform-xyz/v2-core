@@ -2,12 +2,7 @@
 pragma solidity 0.8.30;
 
 import {
-    RhinestoneModuleKit,
-    ModuleKitHelpers,
-    AccountInstance,
-    UserOpData,
-    PackedUserOperation,
-    AccountType
+    ModuleKitHelpers, AccountInstance, UserOpData, PackedUserOperation, AccountType
 } from "modulekit/ModuleKit.sol";
 import { ExecutionLib } from "modulekit/accounts/erc7579/lib/ExecutionLib.sol";
 import { MODULE_TYPE_EXECUTOR, MODULE_TYPE_VALIDATOR } from "modulekit/accounts/kernel/types/Constants.sol";
@@ -22,15 +17,9 @@ import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 import { IStakeManager } from "modulekit/external/ERC4337.sol";
 
-// --safe
-import { Safe } from "@safe/Safe.sol";
-
-// Safe7579 EIP712
-import { EIP712 } from "@safe7579/lib/EIP712.sol";
-
 // Superform
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
-import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
+
 import { SuperExecutor } from "../../../src/executors/SuperExecutor.sol";
 import { SuperExecutorBase } from "../../../src/executors/SuperExecutorBase.sol";
 import { SuperValidatorBase } from "../../../src/validators/SuperValidatorBase.sol";
@@ -67,16 +56,21 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         // Account instances
         AccountInstance instanceOp;
         AccountInstance instanceBase;
+        AccountInstance instanceETH;
         address accountOp;
         address accountBase;
+        address accountETH;
         // Message data
         bytes targetExecutorMessage;
         TargetExecutorMessage messageData;
         address accountToUse;
         // Target chain (OP) data
         address[] opHooksAddresses;
+        address[] ethHooksAddresses;
         bytes[] opHooksData;
+        bytes[] ethHooksData;
         uint256 previewDepositAmountOP;
+        uint256 previewDepositAmountETH;
         // Source chain (BASE) data
         address[] srcHooksAddresses;
         bytes[] srcHooksData;
@@ -107,48 +101,63 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     // SafeERC7579
     // -- erc7579 account
     AccountInstance instance;
-    address account;
-    bytes32 accountSalt;
+    address public account;
+    bytes32 public accountSalt;
+
+    address public accountETH;
+    address public accountBase;
+
+    AccountInstance public instanceETH;
+    AccountInstance public instanceBase;
 
     // -- owners
-    uint256 privateKey1;
-    uint256 privateKey2;
-    address owner1;
-    address owner2;
-    address[] owners;
+    uint256 public privateKey1;
+    uint256 public privateKey2;
+    uint256 public privateKey3;
+
+    address public owner1;
+    address public owner2;
+    address public owner3;
+    address[] public owners;
+
     // -- multisig safe
-    uint256 threshold = 2;
-    bytes4 constant ERC1271_MAGICVALUE = 0x1626ba7e;
+    uint256 public threshold;
+    bytes4 public constant ERC1271_MAGICVALUE = 0x1626ba7e;
+
+    address public underlyingOpUsdce;
+    address public underlyingETH_USDC;
+    address public underlyingBase_USDC;
+
+    IERC4626 public vaultInstance4626OP;
+    IERC4626 public vaultInstanceMorphoEth;
+    IERC4626 public vaultInstanceMorphoBase;
+    address public yieldSource4626AddressOpUsdce;
+    address public yieldSourceMorphoUsdcAddressEth;
+    address public yieldSourceMorpho4626AddressBase;
+    ISuperNativePaymaster public superNativePaymaster;
 
     // Superform
     // -- same-chain
-    ApproveERC20Hook approveERC20Hook;
-    SuperLedgerConfiguration superLedgerConfiguration;
-    SuperExecutor superExecutor;
-    MockERC20 mockERC20;
-    SuperValidator validator;
+    ApproveERC20Hook public approveERC20Hook;
+    SuperExecutor public superExecutor;
+    SuperExecutor public superExecutorBase;
+    MockERC20 public mockERC20;
+    SuperValidator public validator;
     // -- cross-chain
-    address underlyingOpUsdce;
-    address underlyingBaseUsdc;
-    address yieldSource4626AddressOpUsdce;
-    IERC4626 vaultInstance4626OP;
-    AcrossV3Adapter acrossV3AdapterOnOP;
-    IValidator validatorOnOP;
-    IValidator validatorOnETH;
-    IValidator sourceValidatorOnBase;
-    IValidator sourceValidatorOnETH;
-    ISuperExecutor superSourceExecutorOnBase;
-    ISuperExecutor superSourceExecutorOnETH;
-    ISuperDestinationExecutor superDestinationExecutorOnOP;
-    ISuperDestinationExecutor superDestinationExecutorOnETH;
-    // --
-    address underlyingETH_USDC;
-    address yieldSourceMorphoUsdcAddressEth;
-    IERC4626 vaultInstanceMorphoEth;
-    ISuperNativePaymaster superNativePaymaster;
+    AcrossV3Adapter public acrossV3AdapterOnOP;
+    AcrossV3Adapter public acrossV3AdapterOnBase;
+    AcrossV3Adapter public acrossV3AdapterOnETH;
+    IValidator public validatorOnOP;
+    IValidator public validatorOnETH;
+    IValidator public sourceValidatorOnBase;
+    IValidator public sourceValidatorOnETH;
+    ISuperExecutor public superSourceExecutorOnBase;
+    ISuperExecutor public superSourceExecutorOnETH;
+    ISuperDestinationExecutor public superDestinationExecutorOnOP;
+    ISuperDestinationExecutor public superDestinationExecutorOnETH;
 
     // used to simulate a malicious mid execution module uninstall
-    MockHook mockHook;
+    MockHook public mockHook;
 
     function setUp() public override {
         skipAccountsCreation = true;
@@ -158,16 +167,30 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         // -- same-chain
         approveERC20Hook = new ApproveERC20Hook();
         mockERC20 = new MockERC20("MockERC20", "MOCK", 18);
-        superLedgerConfiguration = new SuperLedgerConfiguration();
-        superExecutor = new SuperExecutor(address(superLedgerConfiguration));
+        superExecutor = SuperExecutor(_getContract(ETH, SUPER_EXECUTOR_KEY));
+        superExecutorBase = SuperExecutor(_getContract(BASE, SUPER_EXECUTOR_KEY));
         validator = new SuperValidator();
 
         // -- cross-chain
         underlyingOpUsdce = existingUnderlyingTokens[OP][USDCe_KEY];
-        underlyingBaseUsdc = existingUnderlyingTokens[BASE][USDC_KEY];
+        underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
+        underlyingBase_USDC = existingUnderlyingTokens[BASE][USDC_KEY];
+
         yieldSource4626AddressOpUsdce = realVaultAddresses[OP][ERC4626_VAULT_KEY][ALOE_USDC_VAULT_KEY][USDCe_KEY];
         vaultInstance4626OP = IERC4626(yieldSource4626AddressOpUsdce);
+
+        yieldSourceMorphoUsdcAddressEth = realVaultAddresses[ETH][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY];
+        vaultInstanceMorphoEth = IERC4626(yieldSourceMorphoUsdcAddressEth);
+        vm.label(yieldSourceMorphoUsdcAddressEth, "YIELD_SOURCE_MORPHO_USDC_ETH");
+
+        yieldSourceMorpho4626AddressBase =
+            realVaultAddresses[BASE][ERC4626_VAULT_KEY][MORPHO_GAUNTLET_USDC_PRIME_KEY][USDC_KEY];
+        vaultInstanceMorphoBase = IERC4626(yieldSourceMorpho4626AddressBase);
+        vm.label(yieldSourceMorpho4626AddressBase, "YIELD_SOURCE_MORPHO_USDC_BASE");
+
         acrossV3AdapterOnOP = AcrossV3Adapter(_getContract(OP, ACROSS_V3_ADAPTER_KEY));
+        acrossV3AdapterOnBase = AcrossV3Adapter(_getContract(BASE, ACROSS_V3_ADAPTER_KEY));
+        acrossV3AdapterOnETH = AcrossV3Adapter(_getContract(ETH, ACROSS_V3_ADAPTER_KEY));
         validatorOnOP = IValidator(_getContract(OP, SUPER_DESTINATION_VALIDATOR_KEY));
         validatorOnETH = IValidator(_getContract(ETH, SUPER_DESTINATION_VALIDATOR_KEY));
         sourceValidatorOnBase = IValidator(_getContract(BASE, SUPER_MERKLE_VALIDATOR_KEY));
@@ -177,7 +200,6 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         superDestinationExecutorOnOP = ISuperDestinationExecutor(_getContract(OP, SUPER_DESTINATION_EXECUTOR_KEY));
         superDestinationExecutorOnETH = ISuperDestinationExecutor(_getContract(ETH, SUPER_DESTINATION_EXECUTOR_KEY));
 
-        vm.label(address(superLedgerConfiguration), "Superform ledger config");
         vm.label(address(superExecutor), "Superform executor");
         vm.label(address(validator), "Superform validator");
         vm.label(address(approveERC20Hook), "Superform ApproveERC20Hook");
@@ -189,15 +211,13 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         owner1 = vm.addr(privateKey1);
         privateKey2 = 2;
         owner2 = vm.addr(privateKey2);
+        privateKey3 = 3;
+        owner3 = vm.addr(privateKey3);
 
-        owners = new address[](2);
+        owners = new address[](3);
         owners[0] = owner1;
         owners[1] = owner2;
-
-        underlyingETH_USDC = existingUnderlyingTokens[ETH][USDC_KEY];
-        yieldSourceMorphoUsdcAddressEth = realVaultAddresses[ETH][ERC4626_VAULT_KEY][MORPHO_VAULT_KEY][USDC_KEY];
-        vaultInstanceMorphoEth = IERC4626(yieldSourceMorphoUsdcAddressEth);
-        vm.label(yieldSourceMorphoUsdcAddressEth, "YIELD_SOURCE_MORPHO_USDC_ETH");
+        owners[2] = owner3;
 
         superNativePaymaster = ISuperNativePaymaster(_getContract(ETH, SUPER_NATIVE_PAYMASTER_KEY));
     }
@@ -215,6 +235,8 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
 
     function test_SafeAccount_Mutability_Execution() public {
         vm.selectFork(FORKS[ETH]);
+
+        threshold = 2;
 
         _initializeModuleKit("SAFE", keccak256("123"));
         address safeFactory = _getFactory("SAFE");
@@ -359,6 +381,8 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     }
 
     function test_SafeAccount_UninstallMidExecution_DoNotWork() public {
+        threshold = 2;
+
         vm.selectFork(FORKS[ETH]);
 
         _initializeModuleKit("SAFE", keccak256("123"));
@@ -435,6 +459,8 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     }
 
     function test_BoundaryValues() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
+        threshold = 2;
+
         // Setup SafeERC7579
         bytes memory initData = _getInitData();
         address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
@@ -472,7 +498,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData =
-            _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
+            _createSafeSigData(2, validUntil, address(validator), userOpData.userOpHash, address(account));
         userOpData.userOp.signature = sigData;
 
         executeOp(userOpData);
@@ -485,7 +511,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
-        sigData = _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
+        sigData = _createSafeSigData(2, validUntil, address(validator), userOpData.userOpHash, address(account));
         userOpData.userOp.signature = sigData;
 
         executeOp(userOpData);
@@ -498,7 +524,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
 
         userOpData = _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
-        sigData = _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
+        sigData = _createSafeSigData(2, validUntil, address(validator), userOpData.userOpHash, address(account));
         userOpData.userOp.signature = sigData;
 
         executeOp(userOpData);
@@ -507,6 +533,8 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     }
 
     function test_UnauthorizedUninstall_Revert() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
+        threshold = 2;
+
         // Setup SafeERC7579
         bytes memory initData = _getInitData();
         address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
@@ -560,6 +588,8 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     }
 
     function test_ExpiredSignature_Revert() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
+        threshold = 2;
+
         // Setup SafeERC7579
         bytes memory initData = _getInitData();
         address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
@@ -599,7 +629,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         // EDGE CASE: Create a signature with expired validUntil (1 second in the past)
         uint48 validUntil = uint48(block.timestamp - 1);
         bytes memory sigData =
-            _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
+            _createSafeSigData(2, validUntil, address(validator), userOpData.userOpHash, address(account));
         userOpData.userOp.signature = sigData;
 
         // Expect the transaction to revert when submitted
@@ -617,7 +647,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
 
         // CONTROL: Verify the same transaction succeeds with a valid timestamp
         validUntil = uint48(block.timestamp + 100 days);
-        sigData = _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
+        sigData = _createSafeSigData(2, validUntil, address(validator), userOpData.userOpHash, address(account));
         userOpData.userOp.signature = sigData;
 
         executeOp(userOpData);
@@ -628,6 +658,8 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     }
 
     function test_SameChainTx_execution() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
+        threshold = 2;
+
         // setup SafeERC7579
         bytes memory initData = _getInitData();
         address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
@@ -663,7 +695,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData =
-            _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
+            _createSafeSigData(2, validUntil, address(validator), userOpData.userOpHash, address(account));
         userOpData.userOp.signature = sigData;
 
         executeOp(userOpData);
@@ -677,6 +709,8 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         initializeModuleKit
         usingAccountEnv(AccountType.SAFE)
     {
+        threshold = 2;
+
         // setup SafeERC7579
         bytes memory initData = _getInitData();
         address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
@@ -727,6 +761,8 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
      * @notice Test cross-chain transaction execution
      */
     function test_CrossChain_execution() public {
+        threshold = 2;
+
         CrossChainTestVars memory vars;
         vars.amountPerVault = 1e8 / 2;
         vars.warpStartTime = 1_740_559_708;
@@ -738,6 +774,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     }
 
     function test_MaliciousSafeLike_revert() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
+        threshold = 2;
         address[] memory _owners = new address[](2);
         _owners[0] = address(0x1);
         _owners[1] = address(0x2);
@@ -778,7 +815,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData =
-            _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(account));
+            _createSafeSigData(2, validUntil, address(validator), userOpData.userOpHash, address(account));
         userOpData.userOp.signature = sigData;
 
         instance.expect4337Revert();
@@ -786,6 +823,8 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     }
 
     function test_MaliciousSafeLike_execution_no_harm() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
+        threshold = 2;
+
         MaliciousSafeAccount maliciousSafeAccount = new MaliciousSafeAccount(owners);
         vm.label(address(maliciousSafeAccount), "MaliciousSafeAccount");
 
@@ -796,7 +835,6 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         );
         instance = makeAccountInstance(accountSalt, predictedAddress, initCode);
         account = instance.account;
-        assertEq(uint256(instance.accountType), uint256(AccountType.SAFE), "not safe");
 
         instance.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
         instance.installModule({
@@ -807,8 +845,6 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
 
         // setup execution data
         uint256 amount = 1e8;
-        uint256 allowanceBefore = mockERC20.allowance(address(account), address(this));
-        assertEq(allowanceBefore, 0);
 
         address[] memory hooksAddresses = new address[](1);
         hooksAddresses[0] = address(approveERC20Hook);
@@ -823,13 +859,14 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData =
-            _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(maliciousSafeAccount));
+            _createSafeSigData(2, validUntil, address(validator), userOpData.userOpHash, address(maliciousSafeAccount));
         userOpData.userOp.signature = sigData;
 
         executeOp(userOpData);
     }
 
     function test_EOA_UsingSafeSig() public {
+        threshold = 2;
         address[] memory _owners = new address[](2);
         _owners[0] = address(0x1);
         _owners[1] = address(0x2);
@@ -862,7 +899,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
         bytes memory sigData =
-            _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(testAccount));
+            _createSafeSigData(2, validUntil, address(validator), userOpData.userOpHash, address(testAccount));
         userOpData.userOp.signature = sigData;
 
         testInstance.expect4337Revert();
@@ -870,6 +907,8 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     }
 
     function test_SameChainTx_execution_MalformedHash() public initializeModuleKit usingAccountEnv(AccountType.SAFE) {
+        threshold = 2;
+
         // setup SafeERC7579
         bytes memory initData = _getInitData();
         address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
@@ -905,7 +944,8 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             _getExecOpsWithValidator(instance, superExecutor, abi.encode(entry), address(validator));
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
-        bytes memory sigData = _createSafeSigData(validUntil, address(validator), userOpData.userOpHash, address(0x1));
+        bytes memory sigData =
+            _createSafeSigData(2, validUntil, address(validator), userOpData.userOpHash, address(0x1));
         userOpData.userOp.signature = sigData;
 
         vm.recordLogs();
@@ -915,8 +955,128 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         assertTrue(entries.length == 1);
     }
 
+    function test_SameChain_Execution_Signers_3_Threshold_1()
+        public
+        initializeModuleKit
+        usingAccountEnv(AccountType.SAFE)
+    {
+        threshold = 1;
+        uint256 amount = 1000e6;
+        vm.selectFork(FORKS[BASE]);
+
+        // setup SafeERC7579
+        bytes memory initData = _getInitData();
+        address predictedAddress = IAccountFactory(_getFactory("SAFE")).getAddress(accountSalt, initData);
+        bytes memory initCode = abi.encodePacked(
+            address(_getFactory("SAFE")), abi.encodeCall(IAccountFactory.createAccount, (accountSalt, initData))
+        );
+        instanceBase = makeAccountInstance(accountSalt, predictedAddress, initCode);
+        accountBase = instanceBase.account;
+        assertEq(uint256(instanceBase.accountType), uint256(AccountType.SAFE), "not safe");
+
+        instanceBase.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutorBase), data: "" });
+        instanceBase.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(address(predictedAddress))
+        });
+
+        deal(underlyingBase_USDC, accountBase, amount);
+
+        uint256 balanceBefore = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+        uint256 shareBalanceBefore = vaultInstanceMorphoBase.balanceOf(accountBase);
+
+        uint256 expectedShares = vaultInstanceMorphoBase.convertToShares(amount);
+
+        address[] memory hooksAddresses = new address[](2);
+        hooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        hooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        bytes[] memory hooksData = new bytes[](2);
+        hooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSourceMorpho4626AddressBase, amount, false);
+        hooksData[1] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorpho4626AddressBase,
+            amount,
+            false,
+            address(0),
+            0
+        );
+
+        ISuperExecutor.ExecutorEntry memory entry =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: hooksAddresses, hooksData: hooksData });
+        UserOpData memory userOpData =
+            _getExecOpsWithValidator(instanceBase, superExecutorBase, abi.encode(entry), address(validator));
+
+        uint48 validUntil = uint48(block.timestamp + 100 days);
+        bytes memory sigData =
+            _createSafeSigData(1, validUntil, address(validator), userOpData.userOpHash, address(accountBase));
+        userOpData.userOp.signature = sigData;
+
+        executeOp(userOpData);
+
+        uint256 shareBalanceAfter = vaultInstanceMorphoBase.balanceOf(accountBase);
+        uint256 balanceAfter = IERC20(underlyingBase_USDC).balanceOf(accountBase);
+
+        assertEq(shareBalanceAfter, shareBalanceBefore + expectedShares, "share balance not increased");
+    }
+
+    function test_SafeAccount_CrossChain_Execution_3Owners_Threshold_1()
+        public
+        initializeModuleKit
+        usingAccountEnv(AccountType.SAFE)
+    {
+        threshold = 1;
+        CrossChainTestVars memory vars;
+        vars.warpStartTime = 1_740_559_708;
+
+        vars.amountPerVault = 1000e6;
+
+        // setup SafeERC7579
+        _createAccountsAndCode(vars);
+
+        // setup dst chain execution data
+        vm.selectFork(FORKS[ETH]);
+
+        _createDstChainData(vars);
+
+        // setup src chain execution data
+        _createSrcChainData(vars);
+
+        _processAcrossV3Message(
+            ProcessAcrossV3MessageParams({
+                srcChainId: BASE,
+                dstChainId: ETH,
+                warpTimestamp: vars.warpStartTime,
+                executionData: executeOp(vars.srcUserOpData),
+                relayerType: RELAYER_TYPE.ENOUGH_BALANCE,
+                errorMessage: bytes4(0),
+                errorReason: "",
+                root: bytes32(0),
+                account: vars.accountETH,
+                relayerGas: 0
+            })
+        );
+
+        // Verify source chain: tokens should be sent via Across bridge
+        uint256 currentBaseBalance = IERC20(underlyingBase_USDC).balanceOf(vars.accountBase);
+        uint256 expectedBaseBalance = vars.userBalanceBaseUSDCBefore - vars.amountPerVault;
+
+        assertEq(
+            currentBaseBalance, expectedBaseBalance, "Source chain BASE USDC balance incorrect after cross-chain send"
+        );
+
+        // Verify destination chain: tokens should be deposited into vault
+        vm.selectFork(FORKS[ETH]);
+        uint256 currentOpShares = vaultInstanceMorphoEth.balanceOf(vars.accountETH);
+
+        assertEq(
+            currentOpShares, vars.previewDepositAmountETH, "Destination chain OP vault shares incorrect after deposit"
+        );
+    }
+
     /*//////////////////////////////////////////////////////////////
-                                INTERNAL HELPERS
+                          INTERNAL HELPERS
     //////////////////////////////////////////////////////////////*/
     function _performOfframp(
         address _receiver,
@@ -943,7 +1103,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             _getExecOpsWithValidator(instance, ISuperExecutor(_executor), abi.encode(entry), address(_validator));
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
-        bytes memory sigData = _createSafeSigData(validUntil, _validator, userOpData.userOpHash, address(_account));
+        bytes memory sigData = _createSafeSigData(2, validUntil, _validator, userOpData.userOpHash, address(_account));
         userOpData.userOp.signature = sigData;
 
         executeOpsThroughPaymaster(userOpData, ISuperNativePaymaster(_paymaster), 1e18);
@@ -981,10 +1141,20 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             _getExecOpsWithValidator(instance, ISuperExecutor(_executor), abi.encode(entry), address(_validator));
 
         uint48 validUntil = uint48(block.timestamp + 100 days);
-        bytes memory sigData = _createSafeSigData(validUntil, _validator, userOpData.userOpHash, address(_account));
+        bytes memory sigData = _createSafeSigData(2, validUntil, _validator, userOpData.userOpHash, address(_account));
         userOpData.userOp.signature = sigData;
 
         executeOpsThroughPaymaster(userOpData, ISuperNativePaymaster(_paymaster), 1e18);
+    }
+
+    struct LocalVars {
+        address[] hookAddresses;
+        bytes[] hooksData;
+        Execution[] uninstallExecutions;
+        ISuperExecutor.ExecutorEntry entry;
+        UserOpData userOpData;
+        uint48 validUntil;
+        bytes sigData;
     }
 
     function _performDepositAndUninstallValidator(
@@ -996,16 +1166,18 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     )
         private
     {
+        LocalVars memory vars;
+
         _getTokens(underlyingETH_USDC, _account, _amount);
 
-        address[] memory hookAddresses = new address[](3);
-        hookAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
-        hookAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
-        hookAddresses[2] = address(mockHook);
+        vars.hookAddresses = new address[](3);
+        vars.hookAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        vars.hookAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+        vars.hookAddresses[2] = address(mockHook);
 
-        bytes[] memory hooksData = new bytes[](3);
-        hooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, _amount, false);
-        hooksData[1] = _createDeposit4626HookData(
+        vars.hooksData = new bytes[](3);
+        vars.hooksData[0] = _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, _amount, false);
+        vars.hooksData[1] = _createDeposit4626HookData(
             _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
             yieldSourceMorphoUsdcAddressEth,
             _amount,
@@ -1013,10 +1185,10 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             address(0),
             0
         );
-        hooksData[2] = "";
+        vars.hooksData[2] = "";
 
-        Execution[] memory _uninstallExecutions = new Execution[](1);
-        _uninstallExecutions[0] = Execution({
+        vars.uninstallExecutions = new Execution[](1);
+        vars.uninstallExecutions[0] = Execution({
             target: _account,
             value: 0,
             callData: abi.encodeCall(
@@ -1024,19 +1196,18 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
                 (MODULE_TYPE_VALIDATOR, _validator, abi.encode(address(validatorOnETH), ""))
             )
         });
-        mockHook.setExecutionBytes(abi.encode(_uninstallExecutions));
+        mockHook.setExecutionBytes(abi.encode(vars.uninstallExecutions));
 
-        ISuperExecutor.ExecutorEntry memory entry =
-            ISuperExecutor.ExecutorEntry({ hooksAddresses: hookAddresses, hooksData: hooksData });
+        vars.entry = ISuperExecutor.ExecutorEntry({ hooksAddresses: vars.hookAddresses, hooksData: vars.hooksData });
 
-        UserOpData memory userOpData =
-            _getExecOpsWithValidator(instance, ISuperExecutor(_executor), abi.encode(entry), address(_validator));
+        vars.userOpData =
+            _getExecOpsWithValidator(instance, ISuperExecutor(_executor), abi.encode(vars.entry), address(_validator));
 
-        uint48 validUntil = uint48(block.timestamp + 100 days);
-        bytes memory sigData = _createSafeSigData(validUntil, _validator, userOpData.userOpHash, address(_account));
-        userOpData.userOp.signature = sigData;
+        vars.validUntil = uint48(block.timestamp + 100 days);
+        vars.sigData = _createSafeSigData(2, vars.validUntil, _validator, vars.userOpData.userOpHash, address(_account));
+        vars.userOpData.userOp.signature = vars.sigData;
 
-        executeOpsThroughPaymaster(userOpData, ISuperNativePaymaster(_paymaster), 1e18);
+        executeOpsThroughPaymaster(vars.userOpData, ISuperNativePaymaster(_paymaster), 1e18);
     }
 
     // -- cross chain helpers
@@ -1152,9 +1323,9 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
 
         vars.srcHooksData = new bytes[](2);
         vars.srcHooksData[0] =
-            _createApproveHookData(underlyingBaseUsdc, SPOKE_POOL_V3_ADDRESSES[BASE], vars.amountPerVault, false);
+            _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], vars.amountPerVault, false);
         vars.srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
-            underlyingBaseUsdc,
+            underlyingBase_USDC,
             underlyingOpUsdce,
             vars.amountPerVault,
             vars.amountPerVault,
@@ -1174,22 +1345,22 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         );
 
         // Give account tokens FIRST, then capture balance
-        _getTokens(underlyingBaseUsdc, address(vars.accountBase), vars.amountPerVault);
-        vars.userBalanceBaseUSDCBefore = IERC20(underlyingBaseUsdc).balanceOf(vars.accountBase);
+        _getTokens(underlyingBase_USDC, address(vars.accountBase), vars.amountPerVault);
+        vars.userBalanceBaseUSDCBefore = IERC20(underlyingBase_USDC).balanceOf(vars.accountBase);
 
-        _prepareMerkleRootAndSignature(vars);
+        _prepareMerkleRootAndSignature(vars, 2);
     }
 
     /**
      * @notice Prepare the Merkle root and signature for validation
      * @param vars Test variables
      */
-    function _prepareMerkleRootAndSignature(CrossChainTestVars memory vars) internal view {
+    function _prepareMerkleRootAndSignature(CrossChainTestVars memory vars, uint256 amountSigners) internal view {
         (vars.ctx, vars.proofDst) = _createMerkleRootWithoutSignature(
             vars.messageData, vars.srcUserOpData.userOpHash, vars.accountToUse, OP, address(sourceValidatorOnBase)
         );
 
-        vars.signature = _getSafeSignature(vars.ctx.merkleRoot, vars.accountToUse, address(validator));
+        vars.signature = _getSafeSignature(vars.ctx.merkleRoot, vars.accountBase, address(validator), amountSigners);
         vars.signatureData = abi.encode(
             true, vars.ctx.validUntil, vars.ctx.merkleRoot, vars.ctx.merkleProof[1], vars.proofDst, vars.signature
         );
@@ -1218,7 +1389,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         );
 
         // Verify source chain: tokens should be sent via Across bridge
-        uint256 currentBaseBalance = IERC20(underlyingBaseUsdc).balanceOf(vars.accountBase);
+        uint256 currentBaseBalance = IERC20(underlyingBase_USDC).balanceOf(vars.accountBase);
         uint256 expectedBaseBalance = vars.userBalanceBaseUSDCBefore - vars.amountPerVault;
 
         assertEq(
@@ -1268,6 +1439,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
 
     // -- 1271 signature helper
     function _createSafeSigData(
+        uint256 amountSigners,
         uint48 validUntil,
         address _validator,
         bytes32 userOpHash,
@@ -1281,7 +1453,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         leaves[0] = _createSourceValidatorLeaf(userOpHash, validUntil, false, address(_validator));
 
         (bytes32[][] memory merkleProof, bytes32 merkleRoot) = _createValidatorMerkleTree(leaves);
-        bytes memory signature = _getSafeSignature(merkleRoot, _account, _validator);
+        bytes memory signature = _getSafeSignature(merkleRoot, _account, _validator, amountSigners);
 
         ISuperValidator.DstProof[] memory proofDst = new ISuperValidator.DstProof[](0);
         signatureData = abi.encode(false, validUntil, merkleRoot, merkleProof[0], proofDst, signature);
@@ -1312,7 +1484,8 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
     function _getSafeSignature(
         bytes32 merkleRoot,
         address _account,
-        address _validator
+        address _validator,
+        uint256 amountSigners
     )
         internal
         view
@@ -1334,7 +1507,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             )
         );
 
-        // Sign the chain-agnostic hash
+        // Sign the chain-agnostic hash with specified number of signers
         (sigData.v1, sigData.r1, sigData.s1) = vm.sign(privateKey1, messageHash);
         (sigData.v2, sigData.r2, sigData.s2) = vm.sign(privateKey2, messageHash);
 
@@ -1342,7 +1515,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         sigData.recovered1 = ecrecover(messageHash, sigData.v1, sigData.r1, sigData.s1);
         sigData.recovered2 = ecrecover(messageHash, sigData.v2, sigData.r2, sigData.s2);
 
-        return _buildAndValidateSignature(sigData);
+        return _buildAndValidateSignature(sigData, amountSigners);
     }
 
     function _getNativeSafeSignature(
@@ -1379,7 +1552,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         sigData.recovered1 = ecrecover(messageHash, sigData.v1, sigData.r1, sigData.s1);
         sigData.recovered2 = ecrecover(messageHash, sigData.v2, sigData.r2, sigData.s2);
 
-        return _buildAndValidateSignatureNative(sigData);
+        return _buildAndValidateSignatureNative(sigData, 2);
     }
 
     /// @notice Helper function to create chain-agnostic domain separator
@@ -1418,22 +1591,63 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         );
     }
 
-    function _buildAndValidateSignatureNative(SignatureData memory sigData) internal view returns (bytes memory) {
-        bytes memory sig1 = abi.encodePacked(sigData.r1, sigData.s1, sigData.v1);
-        bytes memory sig2 = abi.encodePacked(sigData.r2, sigData.s2, sigData.v2);
-
+    function _buildAndValidateSignatureNative(
+        SignatureData memory sigData,
+        uint256 amountSigners
+    )
+        internal
+        view
+        returns (bytes memory)
+    {
         bytes memory signature;
-        if (owner1 < owner2) {
-            signature = bytes.concat(sig1, sig2);
+
+        if (amountSigners == 1) {
+            bytes memory sig1 = abi.encodePacked(sigData.r1, sigData.s1, sigData.v1);
+            signature = sig1;
+        } else if (amountSigners == 2) {
+            bytes memory sig1 = abi.encodePacked(sigData.r1, sigData.s1, sigData.v1);
+            bytes memory sig2 = abi.encodePacked(sigData.r2, sigData.s2, sigData.v2);
+
+            if (owner1 < owner2) {
+                signature = bytes.concat(sig1, sig2);
+            } else {
+                signature = bytes.concat(sig2, sig1);
+            }
         } else {
-            signature = bytes.concat(sig2, sig1);
+            revert("Invalid amount of signers");
         }
 
         bytes memory dataWithValidator = abi.encodePacked(address(0), signature);
         return dataWithValidator;
     }
 
-    function _buildAndValidateSignature(SignatureData memory sigData) internal view returns (bytes memory) {
+    function _buildAndValidateSignature(
+        SignatureData memory sigData,
+        uint256 amountSigners
+    )
+        internal
+        pure
+        returns (bytes memory)
+    {
+        bytes memory signature;
+
+        if (amountSigners == 1) {
+            bytes memory sig1 = abi.encodePacked(sigData.r1, sigData.s1, sigData.v1);
+            signature = sig1;
+        } else if (amountSigners == 2) {
+            bytes memory sig1 = abi.encodePacked(sigData.r1, sigData.s1, sigData.v1);
+            bytes memory sig2 = abi.encodePacked(sigData.r2, sigData.s2, sigData.v2);
+
+            signature = bytes.concat(sig1, sig2);
+        } else {
+            revert("Invalid amount of signers");
+        }
+        // For ECDSA signatures, return the signature without any prefix
+        // Only EIP-1271 and pre-validated signatures need prefixes according to Safe docs
+        return signature;
+    }
+
+    function _buildAndValidateSignature(SignatureData memory sigData) internal pure returns (bytes memory) {
         bytes memory sig1 = abi.encodePacked(sigData.r1, sigData.s1, sigData.v1);
         bytes memory sig2 = abi.encodePacked(sigData.r2, sigData.s2, sigData.v2);
 
@@ -1459,5 +1673,132 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
             paymasterAndData: bytes(""),
             signature: abi.encodePacked(hex"41414141")
         });
+    }
+
+    function _createAccountsAndCode(CrossChainTestVars memory vars) internal {
+        // src account
+        vm.selectFork(FORKS[BASE]);
+        _initializeModuleKit("SAFE", keccak256("123"));
+
+        vars.amountPerVault = 1000e6;
+
+        address safeFactory = _getFactory("SAFE");
+        vars.initData = _getInitData();
+        vars.predictedAddress = IAccountFactory(safeFactory).getAddress(accountSalt, vars.initData);
+        vars.initCode = abi.encodePacked(
+            address(safeFactory), abi.encodeCall(IAccountFactory.createAccount, (accountSalt, vars.initData))
+        );
+        vars.instanceBase = makeAccountInstance(accountSalt, vars.predictedAddress, vars.initCode);
+        vars.accountBase = vars.instanceBase.account;
+
+        deal(vars.accountBase, 1 ether);
+        deal(underlyingBase_USDC, vars.accountBase, vars.amountPerVault);
+
+        // install modules
+        vars.instanceBase.installModule({
+            moduleTypeId: MODULE_TYPE_EXECUTOR,
+            module: address(superExecutorBase),
+            data: ""
+        });
+        vars.instanceBase.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validator),
+            data: abi.encode(address(vars.predictedAddress))
+        });
+        assertEq(uint256(vars.instanceBase.accountType), uint256(AccountType.SAFE), "not safe on base");
+
+        // dst account
+        vm.selectFork(FORKS[ETH]);
+        _initializeModuleKit("SAFE", keccak256("123"));
+
+        deal(safeFactory, 10 ether);
+
+        vm.prank(safeFactory);
+        IStakeManager(ENTRYPOINT_ADDR).addStake{ value: 10 ether }(100_000);
+        vars.instanceETH = makeAccountInstance(accountSalt, vars.predictedAddress, vars.initCode);
+        vars.accountETH = vars.instanceETH.account;
+
+        deal(vars.accountETH, 1 ether);
+        deal(underlyingETH_USDC, vars.accountETH, vars.amountPerVault);
+
+        vars.instanceETH.installModule({ moduleTypeId: MODULE_TYPE_EXECUTOR, module: address(superExecutor), data: "" });
+        vars.instanceETH.installModule({
+            moduleTypeId: MODULE_TYPE_VALIDATOR,
+            module: address(validatorOnETH),
+            data: abi.encode(address(vars.predictedAddress))
+        });
+
+        assertEq(uint256(vars.instanceETH.accountType), uint256(AccountType.SAFE), "not safe on eth");
+    }
+
+    function _createDstChainData(CrossChainTestVars memory vars) internal {
+        vars.ethHooksAddresses = new address[](2);
+        vars.ethHooksAddresses[0] = _getHookAddress(ETH, APPROVE_ERC20_HOOK_KEY);
+        vars.ethHooksAddresses[1] = _getHookAddress(ETH, DEPOSIT_4626_VAULT_HOOK_KEY);
+
+        vars.ethHooksData = new bytes[](2);
+        vars.ethHooksData[0] =
+            _createApproveHookData(underlyingETH_USDC, yieldSourceMorphoUsdcAddressEth, vars.amountPerVault, false);
+        vars.ethHooksData[1] = _createDeposit4626HookData(
+            _getYieldSourceOracleId(bytes32(bytes(ERC4626_YIELD_SOURCE_ORACLE_KEY)), MANAGER),
+            yieldSourceMorphoUsdcAddressEth,
+            vars.amountPerVault,
+            false,
+            address(0),
+            0
+        );
+
+        vars.messageData = TargetExecutorMessage({
+            hooksAddresses: vars.ethHooksAddresses,
+            hooksData: vars.ethHooksData,
+            validator: address(validatorOnETH),
+            signer: address(0),
+            signerPrivateKey: 0,
+            targetAdapter: address(acrossV3AdapterOnETH),
+            targetExecutor: address(superExecutor),
+            nexusFactory: CHAIN_1_NEXUS_FACTORY,
+            nexusBootstrap: CHAIN_1_NEXUS_BOOTSTRAP,
+            chainId: uint64(ETH),
+            amount: vars.amountPerVault,
+            account: address(0),
+            tokenSent: underlyingETH_USDC
+        });
+
+        (vars.targetExecutorMessage, vars.accountToUse) = _createTargetExecutorMessage(vars.messageData, false);
+
+        vars.previewDepositAmountETH = vaultInstanceMorphoEth.previewDeposit(vars.amountPerVault);
+    }
+
+    function _createSrcChainData(CrossChainTestVars memory vars) internal {
+        vm.selectFork(FORKS[BASE]);
+
+        vars.srcHooksAddresses = new address[](2);
+        vars.srcHooksAddresses[0] = _getHookAddress(BASE, APPROVE_ERC20_HOOK_KEY);
+        vars.srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
+
+        vars.srcHooksData = new bytes[](2);
+        vars.srcHooksData[0] =
+            _createApproveHookData(underlyingBase_USDC, yieldSourceMorpho4626AddressBase, vars.amountPerVault, false);
+        vars.srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
+            underlyingBase_USDC,
+            underlyingETH_USDC,
+            vars.amountPerVault,
+            vars.amountPerVault,
+            ETH,
+            true,
+            vars.targetExecutorMessage
+        );
+
+        vars.entryToExecute =
+            ISuperExecutor.ExecutorEntry({ hooksAddresses: vars.srcHooksAddresses, hooksData: vars.srcHooksData });
+
+        vars.srcUserOpData = _getExecOpsWithValidator(
+            vars.instanceBase, superExecutorBase, abi.encode(vars.entryToExecute), address(validator)
+        );
+
+        deal(underlyingBase_USDC, vars.accountBase, vars.amountPerVault);
+        vars.userBalanceBaseUSDCBefore = IERC20(underlyingBase_USDC).balanceOf(vars.accountBase);
+
+        _prepareMerkleRootAndSignature(vars, 1);
     }
 }
