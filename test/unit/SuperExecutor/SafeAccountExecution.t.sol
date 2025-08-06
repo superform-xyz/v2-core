@@ -1379,7 +1379,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         sigData.recovered1 = ecrecover(messageHash, sigData.v1, sigData.r1, sigData.s1);
         sigData.recovered2 = ecrecover(messageHash, sigData.v2, sigData.r2, sigData.s2);
 
-        return _buildAndValidateSignature(sigData);
+        return _buildAndValidateSignatureNative(sigData);
     }
 
     /// @notice Helper function to create chain-agnostic domain separator
@@ -1418,7 +1418,7 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
         );
     }
 
-    function _buildAndValidateSignature(SignatureData memory sigData) internal view returns (bytes memory) {
+    function _buildAndValidateSignatureNative(SignatureData memory sigData) internal view returns (bytes memory) {
         bytes memory sig1 = abi.encodePacked(sigData.r1, sigData.s1, sigData.v1);
         bytes memory sig2 = abi.encodePacked(sigData.r2, sigData.s2, sigData.v2);
 
@@ -1431,6 +1431,15 @@ contract SafeAccountExecution is Safe7579Precompiles, BaseTest {
 
         bytes memory dataWithValidator = abi.encodePacked(address(0), signature);
         return dataWithValidator;
+    }
+
+    function _buildAndValidateSignature(SignatureData memory sigData) internal view returns (bytes memory) {
+        bytes memory sig1 = abi.encodePacked(sigData.r1, sigData.s1, sigData.v1);
+        bytes memory sig2 = abi.encodePacked(sigData.r2, sigData.s2, sigData.v2);
+
+        bytes memory signature = bytes.concat(sig1, sig2);
+
+        return signature;
     }
 
     // -- UserOps helpers

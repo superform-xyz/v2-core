@@ -3,12 +3,16 @@ pragma solidity 0.8.30;
 
 // external
 import { ISafeConfiguration } from "../vendor/gnosis/ISafeConfiguration.sol";
-import { ECDSA } from "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import { CheckSignatures } from "rhinestone/checknsignatures/src/CheckNSignatures.sol";
+import { LibSort } from "solady/utils/LibSort.sol";
+import { ECDSA } from "solady/utils/ECDSA.sol";
 
 // Superform
 import { ISuperValidator } from "../interfaces/ISuperValidator.sol";
 
 library ChainAgnosticSafeSignatureValidation {
+    using LibSort for address[];
+
     /// @notice Chain-agnostic domain separator type hash
     /// @dev Uses a fixed domain without chainId for cross-chain compatibility
     /// @notice verifyingContract is the safe smart account address
@@ -69,116 +73,82 @@ library ChainAgnosticSafeSignatureValidation {
             )
         );
 
-        // Validate signatures against the multisig configuration
-        return _verifyMultisigSignatures(chainAgnosticHash, sigData.signature, owners, threshold);
-    }
+        // Recover signers using CheckSignatures library (supports ECDSA, eth_sign, and contract signatures)
+        (uint256 validSigCount, address[] memory recoveredSigners) =
+            recoverNSignatures(chainAgnosticHash, sigData.signature, threshold);
 
-    /*//////////////////////////////////////////////////////////////
-                                 PRIVATE METHODS
-    //////////////////////////////////////////////////////////////*/
-    /// @notice Verifies multisig signatures against owners and threshold
-    /// @dev Implements Safe-compatible signature verification with chain-agnostic hash
-    /// @param messageHash The chain-agnostic message hash
-    /// @param signatures The concatenated signature data
-    /// @param owners Array of Safe owner addresses
-    /// @param threshold Required number of signatures
-    /// @return True if enough valid signatures are provided
-    function _verifyMultisigSignatures(
-        bytes32 messageHash,
-        bytes memory signatures,
-        address[] memory owners,
-        uint256 threshold
-    )
-        private
-        pure
-        returns (bool)
-    {
-        // Check for valid threshold and owners
-        if (threshold == 0 || owners.length == 0) {
-            return false;
-        }
+        /// @dev this is the main check coming from above
+        if (validSigCount < threshold) return false;
 
-        if (signatures.length < threshold * 65) {
-            return false;
-        }
+        // Sort recovered signers for efficient comparison
+        recoveredSigners.sort();
 
-        // Account for 20-byte validator address prefix in Safe signature format
-        uint256 signatureOffset = 20;
-        uint256 actualSignatureLength = signatures.length - signatureOffset;
+        // Sort owners for efficient comparison
+        owners.sort();
 
-        // Each ECDSA signature is 65 bytes: r (32) + s (32) + v (1)
-        if (actualSignatureLength < threshold * 65) {
-            return false;
-        }
+        // Count valid signatures from owners using searchSorted
+        uint256 validOwnerSignatures = 0;
+        uint256 ownersLength = owners.length;
 
-        address lastOwner = address(0);
-        uint256 validSignatures = 0;
-
-        for (uint256 i = 0; i < threshold; i++) {
-            // Calculate signature position (skip the 20-byte validator prefix)
-            uint256 pos = 20 + (i * 65);
-
-            // Make sure we don't go out of bounds
-            if (pos + 65 > signatures.length) {
-                return false;
-            }
-
-            // Extract signature components for this iteration
-            bytes memory currentSignature = new bytes(65);
-
-            // Copy the 65-byte signature from the signatures array
-            assembly {
-                // Calculate memory position for this signature
-                // signatures pointer + 0x20 (to skip length) + pos
-                let signaturePos := add(add(signatures, 0x20), pos)
-                let currentSigPos := add(currentSignature, 0x20)
-
-                // Copy 65 bytes (r + s + v)
-                mstore(currentSigPos, mload(signaturePos))
-                mstore(add(currentSigPos, 0x20), mload(add(signaturePos, 0x20)))
-                mstore8(add(currentSigPos, 0x40), byte(0, mload(add(signaturePos, 0x40))))
-            }
-
-            // Skip empty signatures (check first 32 bytes for zero)
-            bytes32 r;
-            assembly {
-                r := mload(add(currentSignature, 0x20))
-            }
-            if (r == bytes32(0)) {
-                continue;
-            }
-
-            // Use OpenZeppelin's secure ECDSA recovery with proper validation
-            // tryRecover performs all security checks: s-value malleability, v validation, etc.
-            address currentOwner = ECDSA.recover(messageHash, currentSignature);
-
-            // Check if recovered address is a valid owner and maintains ascending order
-            if (_isOwner(currentOwner, owners)) {
-                // Check ordering - must be ascending to prevent signature reuse
-                if (currentOwner <= lastOwner) {
-                    return false; // Signatures not in ascending order
+        for (uint256 i; i < ownersLength; i++) {
+            (bool found,) = recoveredSigners.searchSorted(owners[i]);
+            if (found) {
+                validOwnerSignatures++;
+                if (validOwnerSignatures >= threshold) {
+                    return true;
                 }
-
-                validSignatures++;
-                lastOwner = currentOwner;
             }
         }
 
-        // All signatures must be valid and from distinct owners
-        return validSignatures == threshold;
+        return false;
     }
 
-    /// @notice Checks if an address is in the owners array
-    /// @dev Helper function for signature verification
-    /// @param addr Address to check
-    /// @param owners Array of owner addresses
-    /// @return True if the address is an owner
-    function _isOwner(address addr, address[] memory owners) private pure returns (bool) {
-        for (uint256 i = 0; i < owners.length; i++) {
-            if (owners[i] == addr) {
-                return true;
+    /**
+     * Recover n signatures from a data hash
+     *
+     * Adapted from rhinestone/checknsignatures/src/CheckNSignatures.sol to return instead of reverting
+     * @param dataHash The hash of the data
+     * @param signatures The concatenated signatures
+     * @param requiredSignatures The number of signatures required
+     *
+     * @return validSigCount The number of valid signatures
+     * @return recoveredSigners The recovered signers
+     */
+    function recoverNSignatures(
+        bytes32 dataHash,
+        bytes memory signatures,
+        uint256 requiredSignatures
+    )
+        internal
+        view
+        returns (uint256 validSigCount, address[] memory recoveredSigners)
+    {
+        uint256 signaturesLength = signatures.length;
+        uint256 totalSignatures = signaturesLength / 65;
+        recoveredSigners = new address[](totalSignatures);
+        /// @dev adapted
+        if (totalSignatures < requiredSignatures) return (0, recoveredSigners);
+        for (uint256 i; i < totalSignatures; i++) {
+            // split v,r,s from signatures
+            address _signer;
+            (uint8 v, bytes32 r, bytes32 s) = CheckSignatures.signatureSplit({ signatures: signatures, pos: i });
+
+            if (v == 0) {
+                // If v is 0 then it is a contract signature
+                _signer = CheckSignatures.isValidContractSignature(dataHash, signatures, r, s, signaturesLength);
+            } else if (v > 30) {
+                // If v > 30 then default va (27,28) has been adjusted for eth_sign flow
+                // To support eth_sign and similar we adjust v and hash the messageHash with the
+                // Ethereum message prefix before applying ecrecover
+                _signer = ECDSA.tryRecover({ hash: ECDSA.toEthSignedMessageHash(dataHash), v: v - 4, r: r, s: s });
+            } else {
+                _signer = ECDSA.tryRecover({ hash: dataHash, v: v, r: r, s: s });
             }
+            if (_signer != address(0)) {
+                validSigCount++;
+            }
+            recoveredSigners[i] = _signer;
         }
-        return false;
+        /// @dev adapted (check removed)
     }
 }

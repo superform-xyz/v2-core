@@ -32,6 +32,7 @@ import { IYieldSourceOracle } from "../../../src/interfaces/accounting/IYieldSou
 import { ISuperDestinationExecutor } from "../../../src/interfaces/ISuperDestinationExecutor.sol";
 import { SuperLedgerConfiguration } from "../../../src/accounting/SuperLedgerConfiguration.sol";
 
+
 contract SafeAccountExecutionTests is BaseTest, Safe7579Precompiles {
     using ModuleKitHelpers for *;
     using ExecutionLib for *;
@@ -490,10 +491,12 @@ contract SafeAccountExecutionTests is BaseTest, Safe7579Precompiles {
         returns (bytes memory)
     {
         SignatureData memory sigData;
+
         sigData.rawHash = keccak256(abi.encode(SuperValidator(_validator).namespace(), merkleRoot));
 
         // Use chain-agnostic domain separator instead of Safe's native one
         sigData.domainSeparator = _getChainAgnosticDomainSeparator(_account);
+
 
         // Create the final hash using the same logic as SuperValidatorBase
         bytes32 messageHash = keccak256(
@@ -504,6 +507,7 @@ contract SafeAccountExecutionTests is BaseTest, Safe7579Precompiles {
                 keccak256(abi.encode(keccak256("SafeMessage(bytes message)"), keccak256(abi.encode(sigData.rawHash))))
             )
         );
+
 
         // Sign the chain-agnostic hash with the specified owner
         uint256 privateKey;
@@ -595,8 +599,9 @@ contract SafeAccountExecutionTests is BaseTest, Safe7579Precompiles {
             signature = bytes.concat(sig3, sig2, sig1);
         }
 
-        bytes memory dataWithValidator = abi.encodePacked(address(0), signature);
-        return dataWithValidator;
+        // For ECDSA signatures, return the signature without any prefix
+        // Only EIP-1271 and pre-validated signatures need prefixes according to Safe docs
+        return signature;
     }
 
     function _buildAndValidateSignatureSingleOwner(
@@ -619,8 +624,9 @@ contract SafeAccountExecutionTests is BaseTest, Safe7579Precompiles {
             revert("Invalid owner index");
         }
 
-        bytes memory dataWithValidator = abi.encodePacked(address(0), signature);
-        return dataWithValidator;
+        // For ECDSA signatures, return the signature without any prefix
+        // Only EIP-1271 and pre-validated signatures need prefixes according to Safe docs
+        return signature;
     }
 
     // -- SAFEERC7579 helper
@@ -926,7 +932,7 @@ contract SafeAccountExecutionTests is BaseTest, Safe7579Precompiles {
         vars.srcHooksAddresses[1] = _getHookAddress(BASE, ACROSS_SEND_FUNDS_AND_EXECUTE_ON_DST_HOOK_KEY);
 
         vars.srcHooksData = new bytes[](2);
-        vars.srcHooksData[0] = _createApproveHookData(underlyingBase_USDC, yieldSource4626AddressBase, amount, false);
+        vars.srcHooksData[0] = _createApproveHookData(underlyingBase_USDC, SPOKE_POOL_V3_ADDRESSES[BASE], amount, false);
         vars.srcHooksData[1] = _createAcrossV3ReceiveFundsAndExecuteHookData(
             underlyingBase_USDC, underlyingETH_USDC, amount, amount, ETH, true, vars.targetExecutorMessage
         );
@@ -949,7 +955,8 @@ contract SafeAccountExecutionTests is BaseTest, Safe7579Precompiles {
             vars.messageData, vars.srcUserOpData.userOpHash, vars.accountToUse, ETH, address(validator)
         );
 
-        vars.signature = _getSafeSignatureSingleOwner(vars.ctx.merkleRoot, vars.accountToUse, address(validator), 0);
+        // Use the registered Safe address (vars.accountBase) for signature creation to match validation
+        vars.signature = _getSafeSignatureSingleOwner(vars.ctx.merkleRoot, vars.accountBase, address(validator), 0);
         vars.signatureData = abi.encode(
             true, vars.ctx.validUntil, vars.ctx.merkleRoot, vars.ctx.merkleProof[1], vars.proofDst, vars.signature
         );
