@@ -2,7 +2,6 @@
 pragma solidity 0.8.30;
 
 import {
-    RhinestoneModuleKit,
     ModuleKitHelpers,
     AccountInstance,
     UserOpData,
@@ -21,12 +20,6 @@ import { IERC4626 } from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import { IERC20 } from "@openzeppelin/contracts/interfaces/IERC20.sol";
 import { IValidator } from "modulekit/accounts/common/interfaces/IERC7579Module.sol";
 import { IStakeManager } from "modulekit/external/ERC4337.sol";
-
-// --safe
-import { Safe } from "@safe/Safe.sol";
-
-// Safe7579 EIP712
-import { EIP712 } from "@safe7579/lib/EIP712.sol";
 
 // Superform
 import { BytesLib } from "../../../src/vendor/BytesLib.sol";
