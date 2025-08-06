@@ -379,7 +379,7 @@ contract SafeAccountExecutionTests is BaseTest, Safe7579Precompiles {
         assertEq(balanceAfter, balanceBefore - amount, "balance not increased");
     }
 
-    function test_SafeAccount_CrossChain_Execution_Threshold_1()
+    function test_SafeAccount_CrossChain_Execution_3Owners_Threshold_1()
         public
         initializeModuleKit
         usingAccountEnv(AccountType.SAFE)
